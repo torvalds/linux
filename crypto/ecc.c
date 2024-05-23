@@ -1715,4 +1715,5 @@ out:
 }
 EXPORT_SYMBOL(crypto_ecdh_shared_secret);
 
+MODULE_DESCRIPTION("core elliptic curve module");
 MODULE_LICENSE("Dual BSD/GPL");

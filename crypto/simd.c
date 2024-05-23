@@ -523,4 +523,5 @@ void simd_unregister_aeads(struct aead_alg *algs, int count,
 }
 EXPORT_SYMBOL_GPL(simd_unregister_aeads);
 
+MODULE_DESCRIPTION("Shared crypto SIMD helpers");
 MODULE_LICENSE("GPL");
