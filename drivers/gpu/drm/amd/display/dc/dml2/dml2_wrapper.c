@@ -740,6 +740,7 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
         if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01 || in_dc->ctx->dce_version == DCN_VERSION_3_2)) {
                 dml21_reinit(in_dc, dml2, config);
+		return;
         }
 
 	// Store config options
