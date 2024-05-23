@@ -20,6 +20,22 @@
 /*
  * Specify enums for tracing information.
  */
+#define smb3_rw_credits_traces \
+	EM(cifs_trace_rw_credits_call_readv_adjust,	"rd-call-adj") \
+	EM(cifs_trace_rw_credits_call_writev_adjust,	"wr-call-adj") \
+	EM(cifs_trace_rw_credits_free_subreq,		"free-subreq") \
+	EM(cifs_trace_rw_credits_issue_read_adjust,	"rd-issu-adj") \
+	EM(cifs_trace_rw_credits_issue_write_adjust,	"wr-issu-adj") \
+	EM(cifs_trace_rw_credits_no_adjust_up,		"no-adj-up  ") \
+	EM(cifs_trace_rw_credits_old_session,		"old-session") \
+	EM(cifs_trace_rw_credits_read_response_add,	"rd-resp-add") \
+	EM(cifs_trace_rw_credits_read_response_clear,	"rd-resp-clr") \
+	EM(cifs_trace_rw_credits_read_submit,		"rd-submit  ") \
+	EM(cifs_trace_rw_credits_write_prepare,		"wr-prepare ") \
+	EM(cifs_trace_rw_credits_write_response_add,	"wr-resp-add") \
+	EM(cifs_trace_rw_credits_write_response_clear,	"wr-resp-clr") \
+	E_(cifs_trace_rw_credits_zero_in_flight,	"ZERO-IN-FLT")
+
 #define smb3_tcon_ref_traces					      \
 	EM(netfs_trace_tcon_ref_dec_dfs_refer,		"DEC DfsRef") \
 	EM(netfs_trace_tcon_ref_free,			"FRE       ") \
@@ -59,7 +75,8 @@
 #define EM(a, b) a,
 #define E_(a, b) a
 
-enum smb3_tcon_ref_trace { smb3_tcon_ref_traces } __mode(byte);
+enum smb3_rw_credits_trace	{ smb3_rw_credits_traces } __mode(byte);
+enum smb3_tcon_ref_trace	{ smb3_tcon_ref_traces } __mode(byte);
 
 #undef EM
 #undef E_
@@ -71,6 +88,7 @@ enum smb3_tcon_ref_trace { smb3_tcon_ref_traces } __mode(byte);
 #define EM(a, b) TRACE_DEFINE_ENUM(a);
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
+smb3_rw_credits_traces;
 smb3_tcon_ref_traces;
 
 #undef EM
@@ -1314,6 +1332,41 @@ TRACE_EVENT(smb3_tcon_ref,
 		      __entry->tcon,
 		      __print_symbolic(__entry->trace, smb3_tcon_ref_traces),
 		      __entry->ref)
+	    );
+
+TRACE_EVENT(smb3_rw_credits,
+	    TP_PROTO(unsigned int rreq_debug_id,
+		     unsigned int subreq_debug_index,
+		     unsigned int subreq_credits,
+		     unsigned int server_credits,
+		     int server_in_flight,
+		     int credit_change,
+		     enum smb3_rw_credits_trace trace),
+	    TP_ARGS(rreq_debug_id, subreq_debug_index, subreq_credits,
+		    server_credits, server_in_flight, credit_change, trace),
+	    TP_STRUCT__entry(
+		    __field(unsigned int, rreq_debug_id)
+		    __field(unsigned int, subreq_debug_index)
+		    __field(unsigned int, subreq_credits)
+		    __field(unsigned int, server_credits)
+		    __field(int,	  in_flight)
+		    __field(int,	  credit_change)
+		    __field(enum smb3_rw_credits_trace, trace)
+			     ),
+	    TP_fast_assign(
+		    __entry->rreq_debug_id	= rreq_debug_id;
+		    __entry->subreq_debug_index	= subreq_debug_index;
+		    __entry->subreq_credits	= subreq_credits;
+		    __entry->server_credits	= server_credits;
+		    __entry->in_flight		= server_in_flight;
+		    __entry->credit_change	= credit_change;
+		    __entry->trace		= trace;
+			   ),
+	    TP_printk("R=%08x[%x] %s cred=%u chg=%d pool=%u ifl=%d",
+		      __entry->rreq_debug_id, __entry->subreq_debug_index,
+		      __print_symbolic(__entry->trace, smb3_rw_credits_traces),
+		      __entry->subreq_credits, __entry->credit_change,
+		      __entry->server_credits, __entry->in_flight)
 	    );
 
 
