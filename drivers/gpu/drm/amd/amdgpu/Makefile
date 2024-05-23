@@ -39,23 +39,7 @@ ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm \
 	-I$(FULL_AMD_PATH)/amdkfd
 
-subdir-ccflags-y := -Wextra
-subdir-ccflags-y += -Wunused
-subdir-ccflags-y += -Wmissing-prototypes
-subdir-ccflags-y += -Wmissing-declarations
-subdir-ccflags-y += -Wmissing-include-dirs
-subdir-ccflags-y += -Wold-style-definition
-subdir-ccflags-y += -Wmissing-format-attribute
-# Need this to avoid recursive variable evaluation issues
-cond-flags := $(call cc-option, -Wunused-but-set-variable) \
-	$(call cc-option, -Wunused-const-variable) \
-	$(call cc-option, -Wstringop-truncation) \
-	$(call cc-option, -Wpacked-not-aligned)
-subdir-ccflags-y += $(cond-flags)
-subdir-ccflags-y += -Wno-unused-parameter
-subdir-ccflags-y += -Wno-type-limits
-subdir-ccflags-y += -Wno-sign-compare
-subdir-ccflags-y += -Wno-missing-field-initializers
+# Locally disable W=1 warnings enabled in drm subsystem Makefile
 subdir-ccflags-y += -Wno-override-init
 subdir-ccflags-$(CONFIG_DRM_AMDGPU_WERROR) += -Werror
 
