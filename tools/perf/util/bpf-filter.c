@@ -63,6 +63,11 @@ static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *
 	    (evsel->core.attr.sample_type & (1 << (expr->term - PBF_TERM_SAMPLE_START))))
 		return 0;
 
+	if (expr->term == PBF_TERM_UID || expr->term == PBF_TERM_GID) {
+		/* Not dependent on the sample_type as computed from a BPF helper. */
+		return 0;
+	}
+
 	if (expr->op == PBF_OP_GROUP_BEGIN) {
 		struct perf_bpf_filter_expr *group;
 
