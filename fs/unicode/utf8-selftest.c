@@ -307,4 +307,5 @@ module_init(init_test_ucd);
 module_exit(exit_test_ucd);
 
 MODULE_AUTHOR("Gabriel Krisman Bertazi <krisman@collabora.co.uk>");
+MODULE_DESCRIPTION("Kernel module for testing utf-8 support");
 MODULE_LICENSE("GPL");
