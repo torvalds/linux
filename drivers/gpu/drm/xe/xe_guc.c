@@ -591,7 +591,7 @@ static void guc_wait_ucode(struct xe_guc *guc)
 	ktime_t before, after, delta;
 	int load_done;
 	u32 status = 0;
-	int count;
+	int count = 0;
 	u64 delta_ms;
 	u32 before_freq;
 
@@ -604,6 +604,7 @@ static void guc_wait_ucode(struct xe_guc *guc)
 	 */
 	do {
 		u32 last_status = status & (GS_UKERNEL_MASK | GS_BOOTROM_MASK);
+		int ret;
 
 		/*
 		 * Wait for any change (intermediate or terminal) in the status register.
@@ -612,9 +613,10 @@ static void guc_wait_ucode(struct xe_guc *guc)
 		 * timeouts rather than allowing a huge timeout each time. So basically, need
 		 * to treat a timeout no different to a value change.
 		 */
-		xe_mmio_wait32_not(gt, GUC_STATUS, GS_UKERNEL_MASK | GS_BOOTROM_MASK,
-				   last_status, 1000 * 1000, &status, false);
-
+		ret = xe_mmio_wait32_not(gt, GUC_STATUS, GS_UKERNEL_MASK | GS_BOOTROM_MASK,
+					 last_status, 1000 * 1000, &status, false);
+		if (ret < 0)
+			count++;
 		after = ktime_get();
 		delta = ktime_sub(after, before);
 		delta_ms = ktime_to_ms(delta);
@@ -626,7 +628,7 @@ static void guc_wait_ucode(struct xe_guc *guc)
 		if (delta_ms >= (GUC_LOAD_RETRY_LIMIT * 1000))
 			break;
 
-		xe_gt_dbg(gt, "load still in progress, count = %d, freq = %dMHz (req %dMHz), status = 0x%08X [0x%02X/%02X]\n",
+		xe_gt_dbg(gt, "load still in progress, timeouts = %d, freq = %dMHz (req %dMHz), status = 0x%08X [0x%02X/%02X]\n",
 			  count, xe_guc_pc_get_act_freq(guc_pc),
 			  guc_pc_get_cur_freq(guc_pc), status,
 			  REG_FIELD_GET(GS_BOOTROM_MASK, status),
@@ -678,13 +680,13 @@ static void guc_wait_ucode(struct xe_guc *guc)
 
 		xe_device_declare_wedged(gt_to_xe(gt));
 	} else if (delta_ms > GUC_LOAD_TIME_WARN_MS) {
-		xe_gt_warn(gt, "excessive init time: %lldms! [status = 0x%08X, count = %d]\n",
+		xe_gt_warn(gt, "excessive init time: %lldms! [status = 0x%08X, timeouts = %d]\n",
 			   delta_ms, status, count);
 		xe_gt_warn(gt, "excessive init time: [freq = %dMHz (req = %dMHz), before = %dMHz, perf_limit_reasons = 0x%08X]\n",
 			   xe_guc_pc_get_act_freq(guc_pc), guc_pc_get_cur_freq(guc_pc),
 			   before_freq, xe_gt_throttle_get_limit_reasons(gt));
 	} else {
-		xe_gt_dbg(gt, "init took %lldms, freq = %dMHz (req = %dMHz), before = %dMHz, status = 0x%08X, count = %d\n",
+		xe_gt_dbg(gt, "init took %lldms, freq = %dMHz (req = %dMHz), before = %dMHz, status = 0x%08X, timeouts = %d\n",
 			  delta_ms, xe_guc_pc_get_act_freq(guc_pc), guc_pc_get_cur_freq(guc_pc),
 			  before_freq, status, count);
 	}
