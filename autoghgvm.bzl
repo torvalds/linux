@@ -37,6 +37,7 @@ def define_autoghgvm():
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
         "drivers/soc/qcom/minidump.ko",
+        "drivers/soc/qcom/qcom_logbuf_boot_log.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/rename_devices.ko",
