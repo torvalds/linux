@@ -789,7 +789,8 @@ const __u8 uclogic_rdesc_v2_frame_touch_strip_arr[] = {
 	0x95, 0x01,         /*          Report Count (1),           */
 	0x81, 0x02,         /*          Input (Variable),           */
 	0x05, 0x01,         /*          Usage Page (Desktop),       */
-	0x09, 0x38,         /*          Usage (Wheel),              */
+	0x09, 0x33,         /*          Usage (Rx),                 */
+	0x09, 0x34,         /*          Usage (Ry),                 */
 	0x95, 0x01,         /*          Report Count (1),           */
 	0x15, 0x00,         /*          Logical Minimum (0),        */
 	0x25, 0x07,         /*          Logical Maximum (7),        */
