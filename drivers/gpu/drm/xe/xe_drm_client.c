@@ -237,7 +237,7 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 	}
 }
 
-static void show_runtime(struct drm_printer *p, struct drm_file *file)
+static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
 {
 	unsigned long class, i, gt_id, capacity[XE_ENGINE_CLASS_MAX] = { };
 	struct xe_file *xef = file->driver_priv;
@@ -252,7 +252,7 @@ static void show_runtime(struct drm_printer *p, struct drm_file *file)
 	/* Accumulate all the exec queues from this client */
 	mutex_lock(&xef->exec_queue.lock);
 	xa_for_each(&xef->exec_queue.xa, i, q)
-		xe_exec_queue_update_runtime(q);
+		xe_exec_queue_update_run_ticks(q);
 	mutex_unlock(&xef->exec_queue.lock);
 
 	/* Get the total GPU cycles */
@@ -287,7 +287,7 @@ static void show_runtime(struct drm_printer *p, struct drm_file *file)
 
 		class_name = xe_hw_engine_class_to_str(class);
 		drm_printf(p, "drm-cycles-%s:\t%llu\n",
-			   class_name, xef->runtime[class]);
+			   class_name, xef->run_ticks[class]);
 		drm_printf(p, "drm-total-cycles-%s:\t%llu\n",
 			   class_name, gpu_timestamp);
 
@@ -310,6 +310,6 @@ static void show_runtime(struct drm_printer *p, struct drm_file *file)
 void xe_drm_client_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
 	show_meminfo(p, file);
-	show_runtime(p, file);
+	show_run_ticks(p, file);
 }
 #endif

@@ -751,14 +751,14 @@ bool xe_exec_queue_is_idle(struct xe_exec_queue *q)
 }
 
 /**
- * xe_exec_queue_update_runtime() - Update runtime for this exec queue from hw
+ * xe_exec_queue_update_run_ticks() - Update run time in ticks for this exec queue
+ * from hw
  * @q: The exec queue
  *
- * Update the timestamp saved by HW for this exec queue and save runtime
- * calculated by using the delta from last update. On multi-lrc case, only the
- * first is considered.
+ * Update the timestamp saved by HW for this exec queue and save run ticks
+ * calculated by using the delta from last update.
  */
-void xe_exec_queue_update_runtime(struct xe_exec_queue *q)
+void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 {
 	struct xe_file *xef;
 	struct xe_lrc *lrc;
@@ -784,7 +784,7 @@ void xe_exec_queue_update_runtime(struct xe_exec_queue *q)
 	 */
 	lrc = &q->lrc[0];
 	new_ts = xe_lrc_update_timestamp(lrc, &old_ts);
-	xef->runtime[q->class] += (new_ts - old_ts) * q->width;
+	xef->run_ticks[q->class] += (new_ts - old_ts) * q->width;
 }
 
 void xe_exec_queue_kill(struct xe_exec_queue *q)

@@ -306,7 +306,7 @@ static void execlist_job_free(struct drm_sched_job *drm_job)
 {
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
 
-	xe_exec_queue_update_runtime(job->q);
+	xe_exec_queue_update_run_ticks(job->q);
 	xe_sched_job_put(job);
 }
 
