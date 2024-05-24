@@ -644,11 +644,13 @@ static int meson_spicc_pow2_clk_init(struct meson_spicc_device *spicc)
 	snprintf(name, sizeof(name), "%s#pow2_fixed_div", dev_name(dev));
 	init.name = name;
 	init.ops = &clk_fixed_factor_ops;
-	init.flags = 0;
-	if (spicc->data->has_pclk)
+	if (spicc->data->has_pclk) {
+		init.flags = CLK_SET_RATE_PARENT;
 		parent_data[0].hw = __clk_get_hw(spicc->pclk);
-	else
+	} else {
+		init.flags = 0;
 		parent_data[0].hw = __clk_get_hw(spicc->core);
+	}
 	init.num_parents = 1;
 
 	pow2_fixed_div->mult = 1,
@@ -708,11 +710,13 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 	snprintf(name, sizeof(name), "%s#enh_fixed_div", dev_name(dev));
 	init.name = name;
 	init.ops = &clk_fixed_factor_ops;
-	init.flags = 0;
-	if (spicc->data->has_pclk)
+	if (spicc->data->has_pclk) {
+		init.flags = CLK_SET_RATE_PARENT;
 		parent_data[0].hw = __clk_get_hw(spicc->pclk);
-	else
+	} else {
+		init.flags = 0;
 		parent_data[0].hw = __clk_get_hw(spicc->core);
+	}
 	init.num_parents = 1;
 
 	enh_fixed_div->mult = 1,
