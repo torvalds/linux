@@ -34,6 +34,8 @@
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_sriov_vf.h"
+#include "xe_guc.h"
 #include "xe_hwmon.h"
 #include "xe_irq.h"
 #include "xe_memirq.h"
@@ -568,6 +570,15 @@ int xe_device_probe(struct xe_device *xe)
 	}
 
 	for_each_tile(tile, xe, id) {
+		if (IS_SRIOV_VF(xe)) {
+			xe_guc_comm_init_early(&tile->primary_gt->uc.guc);
+			err = xe_gt_sriov_vf_bootstrap(tile->primary_gt);
+			if (err)
+				return err;
+			err = xe_gt_sriov_vf_query_config(tile->primary_gt);
+			if (err)
+				return err;
+		}
 		err = xe_ggtt_init_early(tile->mem.ggtt);
 		if (err)
 			return err;
