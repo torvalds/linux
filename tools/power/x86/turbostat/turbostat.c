@@ -1085,15 +1085,9 @@ struct rapl_counter_info_t {
 	unsigned long long flags[NUM_RAPL_COUNTERS];
 	double scale[NUM_RAPL_COUNTERS];
 	enum rapl_unit unit[NUM_RAPL_COUNTERS];
-
-	union {
-		/* Active when source == RAPL_SOURCE_MSR */
-		struct {
-			unsigned long long msr[NUM_RAPL_COUNTERS];
-			unsigned long long msr_mask[NUM_RAPL_COUNTERS];
-			int msr_shift[NUM_RAPL_COUNTERS];
-		};
-	};
+	unsigned long long msr[NUM_RAPL_COUNTERS];
+	unsigned long long msr_mask[NUM_RAPL_COUNTERS];
+	int msr_shift[NUM_RAPL_COUNTERS];
 
 	int fd_perf;
 };
