@@ -86,8 +86,7 @@ enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
 enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC, COUNTER_K2M };
 enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT, FORMAT_AVERAGE };
 enum amperf_source { AMPERF_SOURCE_PERF, AMPERF_SOURCE_MSR };
-enum rapl_source { RAPL_SOURCE_NONE, RAPL_SOURCE_PERF, RAPL_SOURCE_MSR };
-enum cstate_source { CSTATE_SOURCE_NONE, CSTATE_SOURCE_PERF, CSTATE_SOURCE_MSR };
+enum counter_source { COUNTER_SOURCE_NONE, COUNTER_SOURCE_PERF, COUNTER_SOURCE_MSR };
 
 struct sysfs_path {
 	char path[PATH_BYTES];
@@ -1081,7 +1080,7 @@ enum rapl_unit {
 
 struct rapl_counter_info_t {
 	unsigned long long data[NUM_RAPL_COUNTERS];
-	enum rapl_source source[NUM_RAPL_COUNTERS];
+	enum counter_source source[NUM_RAPL_COUNTERS];
 	unsigned long long flags[NUM_RAPL_COUNTERS];
 	double scale[NUM_RAPL_COUNTERS];
 	enum rapl_unit unit[NUM_RAPL_COUNTERS];
@@ -1243,7 +1242,7 @@ enum ccstate_rci_index {
 
 struct cstate_counter_info_t {
 	unsigned long long data[NUM_CSTATE_COUNTERS];
-	enum cstate_source source[NUM_CSTATE_COUNTERS];
+	enum counter_source source[NUM_CSTATE_COUNTERS];
 	unsigned long long msr[NUM_CSTATE_COUNTERS];
 	int fd_perf_core;
 	int fd_perf_pkg;
@@ -3601,7 +3600,7 @@ size_t rapl_counter_info_count_perf(const struct rapl_counter_info_t *rci)
 	size_t ret = 0;
 
 	for (int i = 0; i < NUM_RAPL_COUNTERS; ++i)
-		if (rci->source[i] == RAPL_SOURCE_PERF)
+		if (rci->source[i] == COUNTER_SOURCE_PERF)
 			++ret;
 
 	return ret;
@@ -3612,7 +3611,7 @@ static size_t cstate_counter_info_count_perf(const struct cstate_counter_info_t 
 	size_t ret = 0;
 
 	for (int i = 0; i < NUM_CSTATE_COUNTERS; ++i)
-		if (cci->source[i] == CSTATE_SOURCE_PERF)
+		if (cci->source[i] == COUNTER_SOURCE_PERF)
 			++ret;
 
 	return ret;
@@ -3653,10 +3652,10 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 
 	for (unsigned int i = 0, pi = 1; i < NUM_RAPL_COUNTERS; ++i) {
 		switch (rci->source[i]) {
-		case RAPL_SOURCE_NONE:
+		case COUNTER_SOURCE_NONE:
 			break;
 
-		case RAPL_SOURCE_PERF:
+		case COUNTER_SOURCE_PERF:
 			assert(pi < ARRAY_SIZE(perf_data));
 			assert(rci->fd_perf != -1);
 
@@ -3669,7 +3668,7 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 			++pi;
 			break;
 
-		case RAPL_SOURCE_MSR:
+		case COUNTER_SOURCE_MSR:
 			if (debug)
 				fprintf(stderr, "Reading rapl counter via msr at %u\n", i);
 
@@ -3791,10 +3790,10 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 
 	for (unsigned int i = 0, pi = 0; i < NUM_CSTATE_COUNTERS; ++i) {
 		switch (cci->source[i]) {
-		case CSTATE_SOURCE_NONE:
+		case COUNTER_SOURCE_NONE:
 			break;
 
-		case CSTATE_SOURCE_PERF:
+		case COUNTER_SOURCE_PERF:
 			assert(pi < ARRAY_SIZE(perf_data));
 			assert(cci->fd_perf_core != -1 || cci->fd_perf_pkg != -1);
 
@@ -3807,7 +3806,7 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 			++pi;
 			break;
 
-		case CSTATE_SOURCE_MSR:
+		case COUNTER_SOURCE_MSR:
 			assert(!no_msr);
 			if (get_msr(cpu, cci->msr[i], &cci->data[i]))
 				return -13 - i;
@@ -3828,7 +3827,7 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 	 * when invoked for the thread sibling.
 	 */
 #define PERF_COUNTER_WRITE_DATA(out_counter, index) do {	\
-	if (cci->source[index] != CSTATE_SOURCE_NONE)		\
+	if (cci->source[index] != COUNTER_SOURCE_NONE)		\
 		out_counter = cci->data[index];			\
 } while (0)
 
@@ -6894,7 +6893,7 @@ void rapl_perf_init(void)
 		rci->fd_perf = -1;
 		for (size_t i = 0; i < NUM_RAPL_COUNTERS; ++i) {
 			rci->data[i] = 0;
-			rci->source[i] = RAPL_SOURCE_NONE;
+			rci->source[i] = COUNTER_SOURCE_NONE;
 		}
 	}
 
@@ -6936,14 +6935,14 @@ void rapl_perf_init(void)
 				/* Use perf API for this counter */
 				if (!no_perf && cai->perf_name
 				    && add_rapl_perf_counter(cpu, rci, cai, &scale, &unit) != -1) {
-					rci->source[cai->rci_index] = RAPL_SOURCE_PERF;
+					rci->source[cai->rci_index] = COUNTER_SOURCE_PERF;
 					rci->scale[cai->rci_index] = scale * cai->compat_scale;
 					rci->unit[cai->rci_index] = unit;
 					rci->flags[cai->rci_index] = cai->flags;
 
 					/* Use MSR for this counter */
 				} else if (!no_msr && cai->msr && probe_msr(cpu, cai->msr) == 0) {
-					rci->source[cai->rci_index] = RAPL_SOURCE_MSR;
+					rci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
 					rci->msr[cai->rci_index] = cai->msr;
 					rci->msr_mask[cai->rci_index] = cai->msr_mask;
 					rci->msr_shift[cai->rci_index] = cai->msr_shift;
@@ -6953,7 +6952,7 @@ void rapl_perf_init(void)
 				}
 			}
 
-			if (rci->source[cai->rci_index] != RAPL_SOURCE_NONE)
+			if (rci->source[cai->rci_index] != COUNTER_SOURCE_NONE)
 				has_counter = 1;
 		}
 
@@ -7146,17 +7145,17 @@ void cstate_perf_init_(bool soft_c1)
 				/* Use perf API for this counter */
 				if (!no_perf && cai->perf_name && add_cstate_perf_counter(cpu, cci, cai) != -1) {
 
-					cci->source[cai->rci_index] = CSTATE_SOURCE_PERF;
+					cci->source[cai->rci_index] = COUNTER_SOURCE_PERF;
 
 					/* User MSR for this counter */
 				} else if (!no_msr && cai->msr && pkg_cstate_limit >= cai->pkg_cstate_limit
 					   && probe_msr(cpu, cai->msr) == 0) {
-					cci->source[cai->rci_index] = CSTATE_SOURCE_MSR;
+					cci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
 					cci->msr[cai->rci_index] = cai->msr;
 				}
 			}
 
-			if (cci->source[cai->rci_index] != CSTATE_SOURCE_NONE) {
+			if (cci->source[cai->rci_index] != COUNTER_SOURCE_NONE) {
 				has_counter = true;
 				cores_visited[core_id] = true;
 				pkg_visited[pkg_id] = true;
