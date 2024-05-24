@@ -263,10 +263,10 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	return 0;
 }
 
-void pm_uninit(struct packet_manager *pm, bool hanging)
+void pm_uninit(struct packet_manager *pm)
 {
 	mutex_destroy(&pm->lock);
-	kernel_queue_uninit(pm->priv_queue, hanging);
+	kernel_queue_uninit(pm->priv_queue);
 	pm->priv_queue = NULL;
 }
 

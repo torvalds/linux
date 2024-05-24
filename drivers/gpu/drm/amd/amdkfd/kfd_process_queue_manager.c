@@ -434,7 +434,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 err_create_queue:
 	uninit_queue(q);
 	if (kq)
-		kernel_queue_uninit(kq, false);
+		kernel_queue_uninit(kq);
 	kfree(pqn);
 err_allocate_pqn:
 	/* check if queues list is empty unregister process from device */
@@ -481,7 +481,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		/* destroy kernel queue (DIQ) */
 		dqm = pqn->kq->dev->dqm;
 		dqm->ops.destroy_kernel_queue(dqm, pqn->kq, &pdd->qpd);
-		kernel_queue_uninit(pqn->kq, false);
+		kernel_queue_uninit(pqn->kq);
 	}
 
 	if (pqn->q) {
