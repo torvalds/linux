@@ -689,10 +689,10 @@ const size_t uclogic_rdesc_v2_pen_template_size =
 	0xA0,           /*      Collection (Physical),          */ \
 	0x05, 0x09,     /*          Usage Page (Button),        */ \
 	0x19, 0x01,     /*          Usage Minimum (01h),        */ \
-	0x29, 0x03,     /*          Usage Maximum (03h),        */ \
-	0x95, 0x03,     /*          Report Count (3),           */ \
+	0x29, 0x0A,     /*          Usage Maximum (0Ah),        */ \
+	0x95, 0x0A,     /*          Report Count (10),          */ \
 	0x81, 0x02,     /*          Input (Variable),           */ \
-	0x95, ((_size) * 8 - 45),                                  \
+	0x95, ((_size) * 8 - 52),                                  \
 			/*          Report Count (padding),     */ \
 	0x81, 0x01,     /*          Input (Constant),           */ \
 	0xC0,           /*      End Collection,                 */ \
