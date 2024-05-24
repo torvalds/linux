@@ -119,11 +119,6 @@ struct stv {
 	u8    vth[6];
 };
 
-struct sinit_table {
-	u16  address;
-	u8   data;
-};
-
 struct slookup {
 	s16  value;
 	u32  reg_value;
