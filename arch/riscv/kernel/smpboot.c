@@ -224,7 +224,7 @@ asmlinkage __visible void smp_callin(void)
 	riscv_ipi_enable();
 
 	numa_add_cpu(curr_cpuid);
-	set_cpu_online(curr_cpuid, 1);
+	set_cpu_online(curr_cpuid, true);
 
 	if (has_vector()) {
 		if (riscv_v_setup_vsize())

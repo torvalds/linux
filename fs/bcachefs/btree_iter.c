@@ -332,6 +332,8 @@ out:
 void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
 			    struct bpos pos, bool key_cache)
 {
+	bch2_trans_verify_not_unlocked(trans);
+
 	struct btree_path *path;
 	struct trans_for_each_path_inorder_iter iter;
 	struct printbuf buf = PRINTBUF;

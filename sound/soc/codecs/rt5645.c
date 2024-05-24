@@ -81,6 +81,7 @@ static const struct reg_sequence init_list[] = {
 static const struct reg_sequence rt5650_init_list[] = {
 	{0xf6,	0x0100},
 	{RT5645_PWR_ANLG1, 0x02},
+	{RT5645_IL_CMD3, 0x0018},
 };
 
 static const struct reg_default rt5645_reg[] = {

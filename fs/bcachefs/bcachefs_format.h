@@ -1555,6 +1555,12 @@ enum btree_id {
 	BTREE_ID_NR
 };
 
+/*
+ * Maximum number of btrees that we will _ever_ have under the current scheme,
+ * where we refer to them with bitfields
+ */
+#define BTREE_ID_NR_MAX		64
+
 static inline bool btree_id_is_alloc(enum btree_id id)
 {
 	switch (id) {
