@@ -334,7 +334,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	sdev->sg_reserved_size = INT_MAX;
 
 	scsi_init_limits(shost, &lim);
-	q = blk_mq_alloc_queue(&sdev->host->tag_set, &lim, NULL);
+	q = blk_mq_alloc_queue(&sdev->host->tag_set, &lim, sdev);
 	if (IS_ERR(q)) {
 		/* release fn is set up in scsi_sysfs_device_initialise, so
 		 * have to free and put manually here */
@@ -344,7 +344,6 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	}
 	kref_get(&sdev->host->tagset_refcnt);
 	sdev->request_queue = q;
-	q->queuedata = sdev;
 
 	depth = sdev->host->cmd_per_lun ?: 1;
 
