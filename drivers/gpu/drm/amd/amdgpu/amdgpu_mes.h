@@ -279,6 +279,16 @@ struct mes_resume_gang_input {
 	uint64_t	gang_context_addr;
 };
 
+struct mes_reset_legacy_queue_input {
+	uint32_t                           queue_type;
+	uint32_t                           doorbell_offset;
+	uint32_t                           pipe_id;
+	uint32_t                           queue_id;
+	uint64_t                           mqd_addr;
+	uint64_t                           wptr_addr;
+	uint32_t                           vmid;
+};
+
 enum mes_misc_opcode {
 	MES_MISC_OP_WRITE_REG,
 	MES_MISC_OP_READ_REG,
@@ -347,6 +357,9 @@ struct amdgpu_mes_funcs {
 
 	int (*misc_op)(struct amdgpu_mes *mes,
 		       struct mes_misc_op_input *input);
+
+	int (*reset_legacy_queue)(struct amdgpu_mes *mes,
+				  struct mes_reset_legacy_queue_input *input);
 };
 
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
@@ -381,6 +394,9 @@ int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  enum amdgpu_unmap_queues_action action,
 				  u64 gpu_addr, u64 seq);
+int amdgpu_mes_reset_legacy_queue(struct amdgpu_device *adev,
+				  struct amdgpu_ring *ring,
+				  unsigned int vmid);
 
 uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg);
 int amdgpu_mes_wreg(struct amdgpu_device *adev,
