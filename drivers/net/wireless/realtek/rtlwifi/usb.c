@@ -23,6 +23,8 @@ MODULE_DESCRIPTION("USB basic driver for rtlwifi");
 
 #define MAX_USBCTRL_VENDORREQ_TIMES		10
 
+static void _rtl_usb_cleanup_tx(struct ieee80211_hw *hw);
+
 static void _usbctrl_vendorreq_sync(struct usb_device *udev, u8 reqtype,
 				   u16 value, void *pdata, u16 len)
 {
@@ -285,9 +287,23 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 	}
 	/* usb endpoint mapping */
 	err = rtlpriv->cfg->usb_interface_cfg->usb_endpoint_mapping(hw);
-	rtlusb->usb_mq_to_hwq =  rtlpriv->cfg->usb_interface_cfg->usb_mq_to_hwq;
-	_rtl_usb_init_tx(hw);
-	_rtl_usb_init_rx(hw);
+	if (err)
+		return err;
+
+	rtlusb->usb_mq_to_hwq = rtlpriv->cfg->usb_interface_cfg->usb_mq_to_hwq;
+
+	err = _rtl_usb_init_tx(hw);
+	if (err)
+		return err;
+
+	err = _rtl_usb_init_rx(hw);
+	if (err)
+		goto err_out;
+
+	return 0;
+
+err_out:
+	_rtl_usb_cleanup_tx(hw);
 	return err;
 }
 
@@ -691,17 +707,13 @@ static int rtl_usb_start(struct ieee80211_hw *hw)
 }
 
 /*=======================  tx =========================================*/
-static void rtl_usb_cleanup(struct ieee80211_hw *hw)
+static void _rtl_usb_cleanup_tx(struct ieee80211_hw *hw)
 {
 	u32 i;
 	struct sk_buff *_skb;
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct ieee80211_tx_info *txinfo;
 
-	/* clean up rx stuff. */
-	_rtl_usb_cleanup_rx(hw);
-
-	/* clean up tx stuff */
 	for (i = 0; i < RTL_USB_MAX_EP_NUM; i++) {
 		while ((_skb = skb_dequeue(&rtlusb->tx_skb_queue[i]))) {
 			rtlusb->usb_tx_cleanup(hw, _skb);
@@ -713,6 +725,12 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 		usb_kill_anchored_urbs(&rtlusb->tx_pending[i]);
 	}
 	usb_kill_anchored_urbs(&rtlusb->tx_submitted);
+}
+
+static void rtl_usb_cleanup(struct ieee80211_hw *hw)
+{
+	_rtl_usb_cleanup_rx(hw);
+	_rtl_usb_cleanup_tx(hw);
 }
 
 /* We may add some struct into struct rtl_usb later. Do deinit here.  */
