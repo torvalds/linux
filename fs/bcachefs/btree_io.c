@@ -534,7 +534,7 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	printbuf_indent_add(out, 2);
 
 	prt_printf(out, "\nnode offset %u/%u",
-		   b->written, btree_ptr_sectors_written(&b->key));
+		   b->written, btree_ptr_sectors_written(bkey_i_to_s_c(&b->key)));
 	if (i)
 		prt_printf(out, " bset u64s %u", le16_to_cpu(i->u64s));
 	if (k)
@@ -689,7 +689,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			 int write, bool have_retry, bool *saw_error)
 {
 	unsigned version = le16_to_cpu(i->version);
-	unsigned ptr_written = btree_ptr_sectors_written(&b->key);
+	unsigned ptr_written = btree_ptr_sectors_written(bkey_i_to_s_c(&b->key));
 	struct printbuf buf1 = PRINTBUF;
 	struct printbuf buf2 = PRINTBUF;
 	int ret = 0;
@@ -1005,7 +1005,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	bool updated_range = b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 		BTREE_PTR_RANGE_UPDATED(&bkey_i_to_btree_ptr_v2(&b->key)->v);
 	unsigned u64s;
-	unsigned ptr_written = btree_ptr_sectors_written(&b->key);
+	unsigned ptr_written = btree_ptr_sectors_written(bkey_i_to_s_c(&b->key));
 	struct printbuf buf = PRINTBUF;
 	int ret = 0, retry_read = 0, write = READ;
 	u64 start_time = local_clock();
@@ -2138,7 +2138,7 @@ do_write:
 
 	if (!b->written &&
 	    b->key.k.type == KEY_TYPE_btree_ptr_v2)
-		BUG_ON(btree_ptr_sectors_written(&b->key) != sectors_to_write);
+		BUG_ON(btree_ptr_sectors_written(bkey_i_to_s_c(&b->key)) != sectors_to_write);
 
 	memset(data + bytes_to_write, 0,
 	       (sectors_to_write << 9) - bytes_to_write);
