@@ -73,6 +73,16 @@ static int create_netkit(int mode, int policy, int peer_policy, int *ifindex,
 			 "up primary");
 	ASSERT_OK(system("ip addr add dev " netkit_name " 10.0.0.1/24"),
 			 "addr primary");
+
+	if (mode == NETKIT_L3) {
+		ASSERT_EQ(system("ip link set dev " netkit_name
+				 " addr ee:ff:bb:cc:aa:dd 2> /dev/null"), 512,
+				 "set hwaddress");
+	} else {
+		ASSERT_OK(system("ip link set dev " netkit_name
+				 " addr ee:ff:bb:cc:aa:dd"),
+				 "set hwaddress");
+	}
 	if (same_netns) {
 		ASSERT_OK(system("ip link set dev " netkit_peer " up"),
 				 "up peer");
