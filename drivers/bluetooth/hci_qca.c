@@ -569,7 +569,7 @@ static int qca_open(struct hci_uart *hu)
 	if (!hci_uart_has_flow_control(hu))
 		return -EOPNOTSUPP;
 
-	qca = kzalloc(sizeof(struct qca_data), GFP_KERNEL);
+	qca = kzalloc(sizeof(*qca), GFP_KERNEL);
 	if (!qca)
 		return -ENOMEM;
 
@@ -1040,8 +1040,7 @@ static void qca_controller_memdump(struct work_struct *work)
 		}
 
 		if (!qca_memdump) {
-			qca_memdump = kzalloc(sizeof(struct qca_memdump_info),
-					      GFP_ATOMIC);
+			qca_memdump = kzalloc(sizeof(*qca_memdump), GFP_ATOMIC);
 			if (!qca_memdump) {
 				mutex_unlock(&qca->hci_memdump_lock);
 				return;
