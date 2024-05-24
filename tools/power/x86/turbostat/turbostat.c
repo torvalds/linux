@@ -1060,6 +1060,8 @@ size_t cpu_present_setsize, cpu_effective_setsize, cpu_allowed_setsize, cpu_affi
 #define MAX_ADDED_PACKAGE_COUNTERS 16
 #define BITMASK_SIZE 32
 
+#define ZERO_ARRAY(arr) (memset(arr, 0, sizeof(arr)) + __must_be_array(arr))
+
 /* Indexes used to map data read from perf and MSRs into global variables */
 enum rapl_rci_index {
 	RAPL_RCI_INDEX_ENERGY_PKG = 0,
@@ -3733,9 +3735,9 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 	assert(ccstate_counter_info);
 	assert(cpu <= ccstate_counter_info_size);
 
-	memset(perf_data, 0, sizeof(perf_data));
-	memset(perf_data_core, 0, sizeof(perf_data_core));
-	memset(perf_data_pkg, 0, sizeof(perf_data_pkg));
+	ZERO_ARRAY(perf_data);
+	ZERO_ARRAY(perf_data_core);
+	ZERO_ARRAY(perf_data_pkg);
 
 	cci = &ccstate_counter_info[cpu];
 
