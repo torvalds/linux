@@ -42,7 +42,7 @@ int scm_qcpe_hab_open(void)
 		ret = habmm_socket_open(&atomic_handle, MM_QCPE_VM1, 0, 0);
 		if (ret) {
 			pr_err("habmm_socket_open failed for atomic with ret = %d\n", ret);
-			habmm_socket_close(atomic_handle);
+			habmm_socket_close(nonatomic_handle);
 			return ret;
 		}
 		opened = true;
