@@ -187,8 +187,9 @@ struct bset_tree {
 };
 
 struct btree_keys_ops {
-	bool		(*sort_cmp)(struct btree_iter_set l,
-				    struct btree_iter_set r);
+	bool		(*sort_cmp)(const void *l,
+				    const void *r,
+					void *args);
 	struct bkey	*(*sort_fixup)(struct btree_iter *iter,
 				       struct bkey *tmp);
 	bool		(*insert_fixup)(struct btree_keys *b,
@@ -312,23 +313,17 @@ enum {
 	BTREE_INSERT_STATUS_FRONT_MERGE,
 };
 
+struct btree_iter_set {
+	struct bkey *k, *end;
+};
+
 /* Btree key iteration */
 
 struct btree_iter {
-	size_t size, used;
 #ifdef CONFIG_BCACHE_DEBUG
 	struct btree_keys *b;
 #endif
-	struct btree_iter_set {
-		struct bkey *k, *end;
-	} data[];
-};
-
-/* Fixed-size btree_iter that can be allocated on the stack */
-
-struct btree_iter_stack {
-	struct btree_iter iter;
-	struct btree_iter_set stack_data[MAX_BSETS];
+	MIN_HEAP_PREALLOCATED(struct btree_iter_set, btree_iter_heap, MAX_BSETS) heap;
 };
 
 typedef bool (*ptr_filter_fn)(struct btree_keys *b, const struct bkey *k);
@@ -340,9 +335,9 @@ struct bkey *bch_btree_iter_next_filter(struct btree_iter *iter,
 
 void bch_btree_iter_push(struct btree_iter *iter, struct bkey *k,
 			 struct bkey *end);
-struct bkey *bch_btree_iter_stack_init(struct btree_keys *b,
-				       struct btree_iter_stack *iter,
-				       struct bkey *search);
+struct bkey *bch_btree_iter_init(struct btree_keys *b,
+				 struct btree_iter *iter,
+				 struct bkey *search);
 
 struct bkey *__bch_bset_search(struct btree_keys *b, struct bset_tree *t,
 			       const struct bkey *search);
@@ -357,14 +352,13 @@ static inline struct bkey *bch_bset_search(struct btree_keys *b,
 	return search ? __bch_bset_search(b, t, search) : t->data->start;
 }
 
-#define for_each_key_filter(b, k, stack_iter, filter)                      \
-	for (bch_btree_iter_stack_init((b), (stack_iter), NULL);           \
-	     ((k) = bch_btree_iter_next_filter(&((stack_iter)->iter), (b), \
-					       filter));)
+#define for_each_key_filter(b, k, iter, filter)				\
+	for (bch_btree_iter_init((b), (iter), NULL);			\
+	     ((k) = bch_btree_iter_next_filter((iter), (b), filter));)
 
-#define for_each_key(b, k, stack_iter)                           \
-	for (bch_btree_iter_stack_init((b), (stack_iter), NULL); \
-	     ((k) = bch_btree_iter_next(&((stack_iter)->iter)));)
+#define for_each_key(b, k, iter)					\
+	for (bch_btree_iter_init((b), (iter), NULL);			\
+	     ((k) = bch_btree_iter_next(iter));)
 
 /* Sorting */
 
