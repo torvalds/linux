@@ -7865,8 +7865,8 @@ static int load_conn_param(struct sock *sk, struct hci_dev *hdev, void *data,
 		struct mgmt_conn_param *param = &cp->params[i];
 		struct hci_conn_params *hci_param;
 		u16 min, max, latency, timeout;
+		bool update = false;
 		u8 addr_type;
-		bool update;
 
 		bt_dev_dbg(hdev, "Adding %pMR (type %u)", &param->addr.bdaddr,
 			   param->addr.type);
