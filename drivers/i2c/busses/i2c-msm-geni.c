@@ -139,6 +139,12 @@ enum i2c_se_mode {
 	GSI_ONLY,
 };
 
+enum gsi_error {
+	GENI_I2C_SUCCESS,
+	GENI_I2C_GSI_XFER_OUT,
+	GENI_I2C_ERR_PREP_SG,
+};
+
 struct dbg_buf_ctxt {
 	void *virt_buf;
 	void *map_buf;
@@ -1526,6 +1532,211 @@ geni_i2c_err_unlock_bus:
 }
 
 /**
+ * geni_i2c_gsi_read() - Perform gsi i2c read
+ * @gi2c: Geni I2C device handle
+ * @dma_buf: Pointer to DMA buffer
+ * @msgs: Base address of i2c msgs
+ * @msg_index: Message index
+ * @unlock_t: Unlock tre handle
+ * @num: Number of messages
+ * @segs: Segment number
+ * @sg_index: Scatter gather index
+ *
+ * This function perform i2c gsi read
+ *
+ * Return: 0 for success or error code for failure
+ */
+
+static int geni_i2c_gsi_read(struct geni_i2c_dev *gi2c, u8 **dma_buf, struct i2c_msg msgs[],
+			     int msg_index, struct msm_gpi_tre *unlock_t, int num, int segs,
+			     int *sg_index)
+{
+	struct msm_gpi_tre *rx_t = NULL;
+	int ret = 0;
+	dma_cookie_t tx_cookie, rx_cookie;
+	int index = *sg_index;
+	u8 *rd_dma_buf = NULL;
+
+	reinit_completion(&gi2c->xfer);
+	rd_dma_buf = i2c_get_dma_safe_msg_buf(&msgs[msg_index], 1);
+	if (!rd_dma_buf) {
+		ret = -ENOMEM;
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "i2c_get_dma_safe_msg_buf failed :%d\n",
+			    ret);
+		return GENI_I2C_GSI_XFER_OUT;
+	}
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+		    "msg[%d].len:%d R\n", msg_index, gi2c->cur->len);
+	sg_init_table(gi2c->rx_sg, 1);
+	ret = geni_se_common_iommu_map_buf(gi2c->wrapper_dev,
+					   &gi2c->rx_ph,
+					   rd_dma_buf,
+					   msgs[msg_index].len,
+					   DMA_FROM_DEVICE);
+	if (ret) {
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "geni_se_common_iommu_map_buf for rx failed :%d\n", ret);
+		i2c_put_dma_safe_msg_buf(rd_dma_buf, &msgs[msg_index], false);
+		return GENI_I2C_GSI_XFER_OUT;
+
+	} else if (gi2c->dbg_buf_ptr) {
+		gi2c->dbg_buf_ptr[msg_index].virt_buf =
+					(void *)rd_dma_buf;
+		gi2c->dbg_buf_ptr[msg_index].map_buf =
+					(void *)&gi2c->rx_ph;
+	}
+	rx_t = setup_rx_tre(gi2c, msgs, msg_index, num);
+	sg_set_buf(gi2c->rx_sg, rx_t,
+		   sizeof(gi2c->rx_t));
+	gi2c->rx_desc =
+	geni_i2c_prep_desc(gi2c, gi2c->rx_c, segs, false);
+	if (!gi2c->rx_desc) {
+		gi2c->err = -ENOMEM;
+		return GENI_I2C_ERR_PREP_SG;
+	}
+
+	/* Issue RX */
+	rx_cookie = dmaengine_submit(gi2c->rx_desc);
+	if (dma_submit_error(rx_cookie)) {
+		pr_err("%s: dmaengine_submit failed (%d)\n", __func__, rx_cookie);
+		gi2c->err = -EINVAL;
+		return GENI_I2C_ERR_PREP_SG;
+	}
+
+	dma_async_issue_pending(gi2c->rx_c);
+	/* submit config/go tre through tx channel */
+	if (gi2c->is_shared && (msg_index == (num - 1))) {
+		/* Send unlock tre at the end of last transfer */
+		sg_set_buf(&gi2c->tx_sg[index++],
+			   unlock_t, sizeof(gi2c->unlock_t));
+	}
+
+	gi2c->tx_desc = geni_i2c_prep_desc(gi2c, gi2c->tx_c, segs, true);
+	if (!gi2c->tx_desc) {
+		gi2c->err = -ENOMEM;
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "geni_i2c_prep_desc failed\n");
+		return GENI_I2C_ERR_PREP_SG;
+	}
+
+	/* Issue TX */
+	tx_cookie = dmaengine_submit(gi2c->tx_desc);
+	if (dma_submit_error(tx_cookie)) {
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "%s: dmaengine_submit failed (%d)\n",
+			    __func__, tx_cookie);
+		gi2c->err = -EINVAL;
+		return GENI_I2C_ERR_PREP_SG;
+	}
+	dma_async_issue_pending(gi2c->tx_c);
+	*dma_buf = rd_dma_buf;
+	*sg_index = index;
+	return ret;
+}
+
+/**
+ * geni_i2c_gsi_write() - Perform gsi i2c write
+ * @gi2c: Geni I2C device handle
+ * @msgs: Base address of i2c msgs
+ * @msg_index: Message index
+ * @unlock_t: Unlock tre handle
+ * @num: Number of messages
+ * @segs: Segment number
+ * @sg_index: Scatter gather index
+ * @wr_index: Write index
+ *
+ * This function perfrom gsi i2c write
+ *
+ * Return: 0 for success or error code for failure
+ */
+static int geni_i2c_gsi_write(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[],
+			      int msg_index, struct msm_gpi_tre *unlock_t,
+			      int num, int segs, int *sg_index, u32 *wr_index)
+{
+	struct msm_gpi_tre *tx_t = NULL;
+	int ret = 0;
+	int index = *sg_index;
+	dma_cookie_t tx_cookie;
+	bool gsi_bei = false;
+
+	if (msgs[msg_index].len > IMMEDIATE_DMA_LEN) {
+		gi2c->gsi_tx.dma_buf[*wr_index] =
+			i2c_get_dma_safe_msg_buf(&msgs[msg_index], 1);
+		if (!gi2c->gsi_tx.dma_buf[*wr_index]) {
+			gi2c->err = -ENOMEM;
+			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+				    "i2c_get_dma_safe_msg_buf failed :%d\n", ret);
+			return GENI_I2C_GSI_XFER_OUT;
+		}
+		ret = geni_se_common_iommu_map_buf
+			(gi2c->wrapper_dev,
+			 &gi2c->tx_ph[*wr_index],
+			 gi2c->gsi_tx.dma_buf[*wr_index],
+			 msgs[msg_index].len,
+			 DMA_TO_DEVICE);
+		if (ret) {
+			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+				    "geni iommu_map_buf for tx failed :%d\n", ret);
+			i2c_put_dma_safe_msg_buf
+			(gi2c->gsi_tx.dma_buf[*wr_index],
+			 &msgs[msg_index],
+			 false);
+			gi2c->err = ret;
+			return GENI_I2C_GSI_XFER_OUT;
+
+		} else if (gi2c->dbg_buf_ptr) {
+			gi2c->dbg_buf_ptr[*wr_index].virt_buf =
+				(void *)gi2c->gsi_tx.dma_buf[*wr_index];
+			gi2c->dbg_buf_ptr[*wr_index].map_buf =
+				(void *)&gi2c->tx_ph[*wr_index];
+		}
+	}
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+		    "msg[%d].len:%d W cnt:%d idx:%d\n",
+		     msg_index, gi2c->cur->len, gi2c->gsi_tx.msg_cnt, *wr_index);
+	tx_t = setup_tx_tre(gi2c, msgs, msg_index, num, &gsi_bei, *wr_index);
+	sg_set_buf(&gi2c->tx_sg[index++], tx_t, sizeof(gi2c->tx_t));
+	if (gi2c->is_shared && (msg_index == (num - 1))) {
+		/* Send unlock tre at the end of last transfer */
+		sg_set_buf(&gi2c->tx_sg[index++],
+			   unlock_t, sizeof(gi2c->unlock_t));
+	}
+
+	gi2c->tx_desc = geni_i2c_prep_desc(gi2c, gi2c->tx_c, segs, true);
+	if (!gi2c->tx_desc) {
+		gi2c->err = -ENOMEM;
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "geni_i2c_prep_desc failed\n");
+		return GENI_I2C_ERR_PREP_SG;
+	}
+
+	/* we don't need call back if bei bit is set */
+	if (gsi_bei) {
+		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+			    "geni tx desc call back null %d\n", msg_index);
+		gi2c->tx_desc->callback = NULL;
+		gi2c->tx_desc->callback_param = NULL;
+	}
+	gi2c->gsi_tx.msg_cnt++;
+	*wr_index = (msg_index + 1) % MAX_NUM_TRE_MSGS;
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+		    "tx_cnt:%d", gi2c->gsi_tx.msg_cnt);
+	/* Issue TX */
+	tx_cookie = dmaengine_submit(gi2c->tx_desc);
+	if (dma_submit_error(tx_cookie)) {
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "%s: dmaengine_submit failed (%d)\n",
+			    __func__, tx_cookie);
+		gi2c->err = -EINVAL;
+		return GENI_I2C_ERR_PREP_SG;
+	}
+	dma_async_issue_pending(gi2c->tx_c);
+	*sg_index = index;
+	return ret;
+}
+
+/**
  * geni_i2c_gsi_tx_tre_optimization() - Process received TRE's from GSI HW
  * @gi2c: Base address of the gi2c dev structure.
  * @num: number of messages count.
@@ -1638,12 +1849,7 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	u8 op;
 	int segs;
 	u32 index = 0, wr_idx = 0;
-	dma_cookie_t tx_cookie, rx_cookie;
 	struct msm_gpi_tre *go_t = NULL;
-	struct msm_gpi_tre *rx_t = NULL;
-	struct msm_gpi_tre *tx_t = NULL;
-	bool tx_chan = true;
-	bool gsi_bei = false;
 	unsigned long long start_time;
 	unsigned long long start_time_xfer = sched_clock();
 
@@ -1741,156 +1947,29 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		sg_set_buf(&gi2c->tx_sg[index++], go_t, sizeof(gi2c->go_t));
 
 		if (msgs[i].flags & I2C_M_RD) {
-			reinit_completion(&gi2c->xfer);
-			rd_dma_buf = i2c_get_dma_safe_msg_buf(&msgs[i], 1);
-			if (!rd_dma_buf) {
-				ret = -ENOMEM;
-				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					    "i2c_get_dma_safe_msg_buf failed :%d\n",
-					    ret);
+			ret = geni_i2c_gsi_read(gi2c, &rd_dma_buf, msgs, i, unlock_t,
+						num, segs, &index);
+			if (ret == GENI_I2C_ERR_PREP_SG) {
+				ret = gi2c->err;
+				goto  geni_i2c_err_prep_sg;
+
+			} else if (ret == GENI_I2C_GSI_XFER_OUT) {
+				ret = gi2c->err;
 				goto geni_i2c_gsi_xfer_out;
 			}
-			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-				"msg[%d].len:%d R\n", i, gi2c->cur->len);
-			sg_init_table(gi2c->rx_sg, 1);
-			ret = geni_se_common_iommu_map_buf(gi2c->wrapper_dev,
-							   &gi2c->rx_ph,
-							   rd_dma_buf,
-							   msgs[i].len,
-							   DMA_FROM_DEVICE);
-			if (ret) {
-				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					"geni_se_common_iommu_map_buf for rx failed :%d\n", ret);
-				i2c_put_dma_safe_msg_buf(rd_dma_buf, &msgs[i], false);
-				goto geni_i2c_gsi_xfer_out;
-
-			} else if (gi2c->dbg_buf_ptr) {
-				gi2c->dbg_buf_ptr[i].virt_buf =
-							(void *)rd_dma_buf;
-				gi2c->dbg_buf_ptr[i].map_buf =
-							(void *)&gi2c->rx_ph;
-			}
-
-			rx_t = setup_rx_tre(gi2c, msgs, i, num);
-			sg_set_buf(gi2c->rx_sg, rx_t,
-						 sizeof(gi2c->rx_t));
-
-			gi2c->rx_desc =
-			geni_i2c_prep_desc(gi2c, gi2c->rx_c, segs, !tx_chan);
-			if (!gi2c->rx_desc) {
-				gi2c->err = -ENOMEM;
-				goto geni_i2c_err_prep_sg;
-			}
-
-			/* Issue RX */
-			rx_cookie = dmaengine_submit(gi2c->rx_desc);
-			if (dma_submit_error(rx_cookie)) {
-				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					"%s: dmaengine_submit failed (%d)\n", __func__, rx_cookie);
-				gi2c->err = -EINVAL;
-				goto geni_i2c_err_prep_sg;
-			}
-
-			dma_async_issue_pending(gi2c->rx_c);
-
-			/* submit config/go tre through tx channel */
-			if (gi2c->is_shared && (i == (num - 1))) {
-				/* Send unlock tre at the end of last transfer */
-				sg_set_buf(&gi2c->tx_sg[index++],
-					   unlock_t, sizeof(gi2c->unlock_t));
-			}
-
-			gi2c->tx_desc = geni_i2c_prep_desc(gi2c, gi2c->tx_c, segs, tx_chan);
-			if (!gi2c->tx_desc) {
-				gi2c->err = -ENOMEM;
-				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					    "geni_i2c_prep_desc failed\n");
-				goto geni_i2c_err_prep_sg;
-			}
-
-			/* Issue TX */
-			tx_cookie = dmaengine_submit(gi2c->tx_desc);
-			if (dma_submit_error(tx_cookie)) {
-				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					    "%s: dmaengine_submit failed (%d)\n",
-					    __func__, tx_cookie);
-				gi2c->err = -EINVAL;
-				goto geni_i2c_err_prep_sg;
-			}
-			dma_async_issue_pending(gi2c->tx_c);
 			timeout = wait_for_completion_timeout(&gi2c->xfer,
-							gi2c->xfer_timeout);
+							      gi2c->xfer_timeout);
 		} else {
-			if (msgs[i].len > IMMEDIATE_DMA_LEN) {
-				gi2c->gsi_tx.dma_buf[wr_idx] =
-						i2c_get_dma_safe_msg_buf(&msgs[i], 1);
-				if (!gi2c->gsi_tx.dma_buf[wr_idx]) {
-					ret = -ENOMEM;
-					I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-						    "i2c_get_dma_safe_msg_buf failed :%d\n", ret);
-					goto geni_i2c_gsi_xfer_out;
-				}
 
-				ret = geni_se_common_iommu_map_buf(gi2c->wrapper_dev,
-								   &gi2c->tx_ph[wr_idx],
-								   gi2c->gsi_tx.dma_buf[wr_idx],
-								   msgs[i].len, DMA_TO_DEVICE);
-				if (ret) {
-					I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-						    "geni iommu_map_buf for tx failed :%d\n", ret);
-					i2c_put_dma_safe_msg_buf(gi2c->gsi_tx.dma_buf[wr_idx],
-								 &msgs[i], false);
-					goto geni_i2c_gsi_xfer_out;
-
-				} else if (gi2c->dbg_buf_ptr) {
-					gi2c->dbg_buf_ptr[wr_idx].virt_buf =
-						(void *)gi2c->gsi_tx.dma_buf[wr_idx];
-					gi2c->dbg_buf_ptr[wr_idx].map_buf =
-						(void *)&gi2c->tx_ph[wr_idx];
-				}
+			ret = geni_i2c_gsi_write(gi2c, msgs, i, unlock_t,
+						 num, segs, &index, &wr_idx);
+			if (ret == GENI_I2C_GSI_XFER_OUT) {
+				ret = gi2c->err;
+				goto geni_i2c_gsi_xfer_out;
+			} else if (ret == GENI_I2C_ERR_PREP_SG) {
+				ret = gi2c->err;
+				goto  geni_i2c_err_prep_sg;
 			}
-
-			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-				    "msg[%d].len:%d W cnt:%d idx:%d\n",
-				    i, gi2c->cur->len, gi2c->gsi_tx.msg_cnt, wr_idx);
-
-			tx_t = setup_tx_tre(gi2c, msgs, i, num, &gsi_bei, wr_idx);
-			sg_set_buf(&gi2c->tx_sg[index++], tx_t, sizeof(gi2c->tx_t));
-			if (gi2c->is_shared && (i == (num - 1))) {
-				/* Send unlock tre at the end of last transfer */
-				sg_set_buf(&gi2c->tx_sg[index++],
-					   unlock_t, sizeof(gi2c->unlock_t));
-			}
-
-			gi2c->tx_desc = geni_i2c_prep_desc(gi2c, gi2c->tx_c, segs, tx_chan);
-			if (!gi2c->tx_desc) {
-				gi2c->err = -ENOMEM;
-				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					    "geni_i2c_prep_desc failed\n");
-				goto geni_i2c_err_prep_sg;
-			}
-
-			/* we don't need call back if bei bit is set */
-			if (gsi_bei) {
-				I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-					    "geni tx desc call back null %d\n", i);
-				gi2c->tx_desc->callback = NULL;
-				gi2c->tx_desc->callback_param = NULL;
-			}
-			gi2c->gsi_tx.msg_cnt++;
-			wr_idx = (i + 1) % MAX_NUM_TRE_MSGS;
-			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-				    "tx_cnt:%d", gi2c->gsi_tx.msg_cnt);
-			/* Issue TX */
-			tx_cookie = dmaengine_submit(gi2c->tx_desc);
-			if (dma_submit_error(tx_cookie)) {
-				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					    "%s: dmaengine_submit failed (%d)\n",
-					    __func__, tx_cookie);
-				gi2c->err = -EINVAL;
-				goto geni_i2c_err_prep_sg;
-			}
-			dma_async_issue_pending(gi2c->tx_c);
 			/**
 			 * if it's not last message, submitting MAX_NUM_TRE_MSGS
 			 * continuously without waiting, in b/w if any one of the
