@@ -366,10 +366,6 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 			xe_lmtt_init(&gt_to_tile(gt)->sriov.pf.lmtt);
 	}
 
-	err = xe_gt_idle_sysfs_init(&gt->gtidle);
-	if (err)
-		goto err_force_wake;
-
 	/* Enable per hw engine IRQs */
 	xe_irq_enable_hwe(gt);
 
@@ -551,6 +547,10 @@ int xe_gt_init(struct xe_gt *gt)
 		return err;
 
 	err = gt_fw_domain_init(gt);
+	if (err)
+		return err;
+
+	err = xe_gt_idle_init(&gt->gtidle);
 	if (err)
 		return err;
 
@@ -760,6 +760,8 @@ int xe_gt_suspend(struct xe_gt *gt)
 	if (err)
 		goto err_force_wake;
 
+	xe_gt_idle_disable_pg(gt);
+
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 	xe_gt_dbg(gt, "suspended\n");
 
@@ -785,6 +787,8 @@ int xe_gt_resume(struct xe_gt *gt)
 	err = do_gt_restart(gt);
 	if (err)
 		goto err_force_wake;
+
+	xe_gt_idle_enable_pg(gt);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 	xe_gt_dbg(gt, "resumed\n");
