@@ -828,7 +828,7 @@ static int rproc_config_check(struct qcom_adsp *adsp, u32 state)
 {
 	u32 val;
 
-	return readx_poll_timeout(readl, adsp->config_addr, val,
+	return readx_poll_timeout_atomic(readl, adsp->config_addr, val,
 				val == state, SOCCP_SLEEP_US, SOCCP_TIMEOUT_US);
 }
 
