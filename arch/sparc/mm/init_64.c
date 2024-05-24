@@ -490,7 +490,7 @@ void flush_dcache_folio(struct folio *folio)
 		}
 		set_dcache_dirty(folio, this_cpu);
 	} else {
-		/* We could delay the flush for the !page_mapping
+		/* We could delay the flush for the !folio_mapping
 		 * case too.  But that case is for exec env/arg
 		 * pages and those are %99 certainly going to get
 		 * faulted into the tlb (and thus flushed) anyways.

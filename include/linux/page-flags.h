@@ -655,27 +655,28 @@ PAGEFLAG_FALSE(VmemmapSelfHosted, vmemmap_self_hosted)
 #endif
 
 /*
- * On an anonymous page mapped into a user virtual memory area,
- * page->mapping points to its anon_vma, not to a struct address_space;
+ * On an anonymous folio mapped into a user virtual memory area,
+ * folio->mapping points to its anon_vma, not to a struct address_space;
  * with the PAGE_MAPPING_ANON bit set to distinguish it.  See rmap.h.
  *
  * On an anonymous page in a VM_MERGEABLE area, if CONFIG_KSM is enabled,
  * the PAGE_MAPPING_MOVABLE bit may be set along with the PAGE_MAPPING_ANON
- * bit; and then page->mapping points, not to an anon_vma, but to a private
+ * bit; and then folio->mapping points, not to an anon_vma, but to a private
  * structure which KSM associates with that merged page.  See ksm.h.
  *
  * PAGE_MAPPING_KSM without PAGE_MAPPING_ANON is used for non-lru movable
- * page and then page->mapping points to a struct movable_operations.
+ * page and then folio->mapping points to a struct movable_operations.
  *
- * Please note that, confusingly, "page_mapping" refers to the inode
- * address_space which maps the page from disk; whereas "page_mapped"
- * refers to user virtual address space into which the page is mapped.
+ * Please note that, confusingly, "folio_mapping" refers to the inode
+ * address_space which maps the folio from disk; whereas "folio_mapped"
+ * refers to user virtual address space into which the folio is mapped.
  *
  * For slab pages, since slab reuses the bits in struct page to store its
- * internal states, the page->mapping does not exist as such, nor do these
- * flags below.  So in order to avoid testing non-existent bits, please
- * make sure that PageSlab(page) actually evaluates to false before calling
- * the following functions (e.g., PageAnon).  See mm/slab.h.
+ * internal states, the folio->mapping does not exist as such, nor do
+ * these flags below.  So in order to avoid testing non-existent bits,
+ * please make sure that folio_test_slab(folio) actually evaluates to
+ * false before calling the following functions (e.g., folio_test_anon).
+ * See mm/slab.h.
  */
 #define PAGE_MAPPING_ANON	0x1
 #define PAGE_MAPPING_MOVABLE	0x2
