@@ -1551,7 +1551,6 @@ bool zswap_load(struct folio *folio)
 {
 	swp_entry_t swp = folio->swap;
 	pgoff_t offset = swp_offset(swp);
-	struct page *page = &folio->page;
 	bool swapcache = folio_test_swapcache(folio);
 	struct xarray *tree = swap_zswap_tree(swp);
 	struct zswap_entry *entry;
@@ -1582,7 +1581,7 @@ bool zswap_load(struct folio *folio)
 	if (entry->length)
 		zswap_decompress(entry, folio);
 	else {
-		dst = kmap_local_page(page);
+		dst = kmap_local_folio(folio, 0);
 		zswap_fill_page(dst, entry->value);
 		kunmap_local(dst);
 	}
