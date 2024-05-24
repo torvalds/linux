@@ -426,13 +426,12 @@ exit:
 	return ret;
 }
 
-/*
+/**
  * cros_ec_get_host_command_version_mask
  *
  * Get the version mask of a given command.
  *
  * @ec_dev: EC device to call
- * @msg: message structure to use
  * @cmd: command to get the version of.
  * @mask: result when function returns 0.
  *
