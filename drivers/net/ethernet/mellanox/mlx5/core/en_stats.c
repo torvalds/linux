@@ -1186,6 +1186,9 @@ void mlx5e_stats_ts_get(struct mlx5e_priv *priv,
 		ts_stats->err = 0;
 		ts_stats->lost = 0;
 
+		if (!ptp)
+			goto out;
+
 		/* Aggregate stats across all TCs */
 		for (i = 0; i < ptp->num_tc; i++) {
 			struct mlx5e_ptp_cq_stats *stats =
@@ -1214,6 +1217,7 @@ void mlx5e_stats_ts_get(struct mlx5e_priv *priv,
 		}
 	}
 
+out:
 	mutex_unlock(&priv->state_lock);
 }
 
