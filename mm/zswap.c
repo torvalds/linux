@@ -1375,35 +1375,35 @@ resched:
 **********************************/
 static bool zswap_is_folio_same_filled(struct folio *folio, unsigned long *value)
 {
-	unsigned long *page;
+	unsigned long *data;
 	unsigned long val;
-	unsigned int pos, last_pos = PAGE_SIZE / sizeof(*page) - 1;
+	unsigned int pos, last_pos = PAGE_SIZE / sizeof(*data) - 1;
 	bool ret = false;
 
-	page = kmap_local_folio(folio, 0);
-	val = page[0];
+	data = kmap_local_folio(folio, 0);
+	val = data[0];
 
-	if (val != page[last_pos])
+	if (val != data[last_pos])
 		goto out;
 
 	for (pos = 1; pos < last_pos; pos++) {
-		if (val != page[pos])
+		if (val != data[pos])
 			goto out;
 	}
 
 	*value = val;
 	ret = true;
 out:
-	kunmap_local(page);
+	kunmap_local(data);
 	return ret;
 }
 
-static void zswap_fill_page(void *ptr, unsigned long value)
+static void zswap_fill_folio(struct folio *folio, unsigned long value)
 {
-	unsigned long *page;
+	unsigned long *data = kmap_local_folio(folio, 0);
 
-	page = (unsigned long *)ptr;
-	memset_l(page, value, PAGE_SIZE / sizeof(unsigned long));
+	memset_l(data, value, PAGE_SIZE / sizeof(unsigned long));
+	kunmap_local(data);
 }
 
 /*********************************
@@ -1554,7 +1554,6 @@ bool zswap_load(struct folio *folio)
 	bool swapcache = folio_test_swapcache(folio);
 	struct xarray *tree = swap_zswap_tree(swp);
 	struct zswap_entry *entry;
-	u8 *dst;
 
 	VM_WARN_ON_ONCE(!folio_test_locked(folio));
 
@@ -1580,11 +1579,8 @@ bool zswap_load(struct folio *folio)
 
 	if (entry->length)
 		zswap_decompress(entry, folio);
-	else {
-		dst = kmap_local_folio(folio, 0);
-		zswap_fill_page(dst, entry->value);
-		kunmap_local(dst);
-	}
+	else
+		zswap_fill_folio(folio, entry->value);
 
 	count_vm_event(ZSWPIN);
 	if (entry->objcg)
