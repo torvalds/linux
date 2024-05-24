@@ -283,6 +283,9 @@ handle_line() {
 
 	if [[ ${words[$last]} =~ \[([^]]+)\] ]]; then
 		module=${words[$last]}
+		# some traces format is "(%pS)", which like "(foo+0x0/0x1 [bar])"
+		# so $module may like "[bar])". Strip the right parenthesis firstly
+		module=${module%\)}
 		module=${module#\[}
 		module=${module%\]}
 		modbuildid=${module#* }
