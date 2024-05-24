@@ -45,16 +45,17 @@ struct pp_alloc_cache {
 
 /**
  * struct page_pool_params - page pool parameters
+ * @fast:	params accessed frequently on hotpath
  * @order:	2^order pages on allocation
  * @pool_size:	size of the ptr_ring
  * @nid:	NUMA node id to allocate from pages from
  * @dev:	device, for DMA pre-mapping purposes
- * @netdev:	netdev this pool will serve (leave as NULL if none or multiple)
  * @napi:	NAPI which is the sole consumer of pages, otherwise NULL
  * @dma_dir:	DMA mapping direction
  * @max_len:	max DMA sync memory size for PP_FLAG_DMA_SYNC_DEV
  * @offset:	DMA sync address offset for PP_FLAG_DMA_SYNC_DEV
- * @netdev:	corresponding &net_device for Netlink introspection
+ * @slow:	params with slowpath access only (initialization and Netlink)
+ * @netdev:	netdev this pool will serve (leave as NULL if none or multiple)
  * @flags:	PP_FLAG_DMA_MAP, PP_FLAG_DMA_SYNC_DEV, PP_FLAG_SYSTEM_POOL
  */
 struct page_pool_params {
