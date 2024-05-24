@@ -2078,7 +2078,7 @@ void drop_collected_mounts(struct vfsmount *mnt)
 	namespace_unlock();
 }
 
-static bool has_locked_children(struct mount *mnt, struct dentry *dentry)
+bool has_locked_children(struct mount *mnt, struct dentry *dentry)
 {
 	struct mount *child;
 
