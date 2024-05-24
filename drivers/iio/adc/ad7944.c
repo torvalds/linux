@@ -259,7 +259,6 @@ static int ad7944_chain_mode_init_msg(struct device *dev, struct ad7944_adc *adc
 /**
  * ad7944_convert_and_acquire - Perform a single conversion and acquisition
  * @adc: The ADC device structure
- * @chan: The channel specification
  * Return: 0 on success, a negative error code on failure
  *
  * Perform a conversion and acquisition of a single sample using the
@@ -268,8 +267,7 @@ static int ad7944_chain_mode_init_msg(struct device *dev, struct ad7944_adc *adc
  * Upon successful return adc->sample.raw will contain the conversion result
  * (or adc->chain_mode_buf if the device is using chain mode).
  */
-static int ad7944_convert_and_acquire(struct ad7944_adc *adc,
-				      const struct iio_chan_spec *chan)
+static int ad7944_convert_and_acquire(struct ad7944_adc *adc)
 {
 	int ret;
 
@@ -291,7 +289,7 @@ static int ad7944_single_conversion(struct ad7944_adc *adc,
 {
 	int ret;
 
-	ret = ad7944_convert_and_acquire(adc, chan);
+	ret = ad7944_convert_and_acquire(adc);
 	if (ret)
 		return ret;
 
@@ -361,7 +359,7 @@ static irqreturn_t ad7944_trigger_handler(int irq, void *p)
 	struct ad7944_adc *adc = iio_priv(indio_dev);
 	int ret;
 
-	ret = ad7944_convert_and_acquire(adc, &indio_dev->channels[0]);
+	ret = ad7944_convert_and_acquire(adc);
 	if (ret)
 		goto out;
 
