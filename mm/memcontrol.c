@@ -3807,7 +3807,7 @@ void __memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 #endif /* CONFIG_MEMCG_KMEM */
 
 /*
- * Because page_memcg(head) is not set on tails, set it now.
+ * Because folio_memcg(head) is not set on tails, set it now.
  */
 void split_page_memcg(struct page *head, int old_order, int new_order)
 {
