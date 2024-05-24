@@ -471,8 +471,6 @@ struct nvme_ns_head {
 	u8			pi_type;
 	u8			pi_offset;
 	u8			guard_type;
-	u16			sgs;
-	u32			sws;
 #ifdef CONFIG_BLK_DEV_ZONED
 	u64			zsze;
 #endif
