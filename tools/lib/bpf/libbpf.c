@@ -229,7 +229,30 @@ static const char * const prog_type_name[] = {
 static int __base_pr(enum libbpf_print_level level, const char *format,
 		     va_list args)
 {
-	if (level == LIBBPF_DEBUG)
+	const char *env_var = "LIBBPF_LOG_LEVEL";
+	static enum libbpf_print_level min_level = LIBBPF_INFO;
+	static bool initialized;
+
+	if (!initialized) {
+		char *verbosity;
+
+		initialized = true;
+		verbosity = getenv(env_var);
+		if (verbosity) {
+			if (strcasecmp(verbosity, "warn") == 0)
+				min_level = LIBBPF_WARN;
+			else if (strcasecmp(verbosity, "debug") == 0)
+				min_level = LIBBPF_DEBUG;
+			else if (strcasecmp(verbosity, "info") == 0)
+				min_level = LIBBPF_INFO;
+			else
+				fprintf(stderr, "libbpf: unrecognized '%s' envvar value: '%s', should be one of 'warn', 'debug', or 'info'.\n",
+					env_var, verbosity);
+		}
+	}
+
+	/* if too verbose, skip logging  */
+	if (level > min_level)
 		return 0;
 
 	return vfprintf(stderr, format, args);

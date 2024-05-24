@@ -98,7 +98,10 @@ typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
 
 /**
  * @brief **libbpf_set_print()** sets user-provided log callback function to
- * be used for libbpf warnings and informational messages.
+ * be used for libbpf warnings and informational messages. If the user callback
+ * is not set, messages are logged to stderr by default. The verbosity of these
+ * messages can be controlled by setting the environment variable
+ * LIBBPF_LOG_LEVEL to either warn, info, or debug.
  * @param fn The log print function. If NULL, libbpf won't print anything.
  * @return Pointer to old print function.
  *
