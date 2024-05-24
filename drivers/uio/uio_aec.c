@@ -144,4 +144,5 @@ static struct pci_driver pci_driver = {
 };
 
 module_pci_driver(pci_driver);
+MODULE_DESCRIPTION("Adrienne Electronics Corp time code PCI device");
 MODULE_LICENSE("GPL");
