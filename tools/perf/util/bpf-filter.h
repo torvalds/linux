@@ -11,14 +11,15 @@ struct perf_bpf_filter_expr {
 	struct list_head groups;
 	enum perf_bpf_filter_op op;
 	int part;
-	unsigned long sample_flags;
+	enum perf_bpf_filter_term term;
 	unsigned long val;
 };
 
 struct evsel;
 
 #ifdef HAVE_BPF_SKEL
-struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(unsigned long sample_flags, int part,
+struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(enum perf_bpf_filter_term term,
+						       int part,
 						       enum perf_bpf_filter_op op,
 						       unsigned long val);
 int perf_bpf_filter__parse(struct list_head *expr_head, const char *str);
