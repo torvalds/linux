@@ -42,7 +42,9 @@ qcom_llcc_pmu.ko
 qcom-pmu-lib.ko
 qcom-reboot-reason.ko
 qcom_ipcc.ko
+qcom_ipc_logging.ko
 qcom_hwspinlock.ko
+qrtr.ko
 smem.ko
 socinfo.ko
 phy-generic.ko
