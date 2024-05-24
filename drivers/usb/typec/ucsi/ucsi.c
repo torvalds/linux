@@ -1672,7 +1672,7 @@ out_unlock:
 
 static u64 ucsi_get_supported_notifications(struct ucsi *ucsi)
 {
-	u8 features = ucsi->cap.features;
+	u16 features = ucsi->cap.features;
 	u64 ntfy = UCSI_ENABLE_NTFY_ALL;
 
 	if (!(features & UCSI_CAP_ALT_MODE_DETAILS))
@@ -1687,6 +1687,23 @@ static u64 ucsi_get_supported_notifications(struct ucsi *ucsi)
 
 	if (!(features & UCSI_CAP_PD_RESET))
 		ntfy &= ~UCSI_ENABLE_NTFY_PD_RESET_COMPLETE;
+
+	if (ucsi->version <= UCSI_VERSION_1_2)
+		return ntfy;
+
+	ntfy |= UCSI_ENABLE_NTFY_SINK_PATH_STS_CHANGE;
+
+	if (features & UCSI_CAP_GET_ATTENTION_VDO)
+		ntfy |= UCSI_ENABLE_NTFY_ATTENTION;
+
+	if (features & UCSI_CAP_FW_UPDATE_REQUEST)
+		ntfy |= UCSI_ENABLE_NTFY_LPM_FW_UPDATE_REQ;
+
+	if (features & UCSI_CAP_SECURITY_REQUEST)
+		ntfy |= UCSI_ENABLE_NTFY_SECURITY_REQ_PARTNER;
+
+	if (features & UCSI_CAP_SET_RETIMER_MODE)
+		ntfy |= UCSI_ENABLE_NTFY_SET_RETIMER_MODE;
 
 	return ntfy;
 }
