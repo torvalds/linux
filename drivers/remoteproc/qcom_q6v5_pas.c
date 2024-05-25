@@ -1670,10 +1670,6 @@ static int adsp_probe(struct platform_device *pdev)
 		mutex_init(&adsp->adsp_lock);
 
 		adsp->current_users = 0;
-
-		adsp->panic_blk.priority = INT_MAX - 1;
-		adsp->panic_blk.notifier_call = rproc_panic_handler;
-		atomic_notifier_chain_register(&panic_notifier_list, &adsp->panic_blk);
 	}
 
 	qcom_q6v5_register_ssr_subdev(&adsp->q6v5, &adsp->ssr_subdev.subdev);
@@ -1720,6 +1716,12 @@ static int adsp_probe(struct platform_device *pdev)
 	}
 	mutex_unlock(&q6v5_pas_mutex);
 
+	if (adsp->check_status) {
+		adsp->panic_blk.priority = INT_MAX - 1;
+		adsp->panic_blk.notifier_call = rproc_panic_handler;
+		atomic_notifier_chain_register(&panic_notifier_list, &adsp->panic_blk);
+	}
+
 	return 0;
 
 remove_rproc:
@@ -1762,6 +1764,8 @@ static int adsp_remove(struct platform_device *pdev)
 	qcom_remove_sysmon_subdev(adsp->sysmon);
 	qcom_remove_smd_subdev(adsp->rproc, &adsp->smd_subdev);
 	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
+	if (adsp->check_status)
+		atomic_notifier_chain_unregister(&panic_notifier_list, &adsp->panic_blk);
 	adsp_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 	device_init_wakeup(adsp->dev, false);
 	rproc_free(adsp->rproc);
