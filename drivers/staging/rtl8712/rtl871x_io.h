@@ -62,7 +62,7 @@
 #define IO_WR_BURST(x)		(IO_WRITE_ | _IO_SYNC_ | _IO_BURST_ | \
 				((x) & _IOSZ_MASK_))
 #define IO_RD_BURST(x)		(_IO_SYNC_ | _IO_BURST_ | ((x) & _IOSZ_MASK_))
-/*below is for the intf_option bit defition...*/
+/*below is for the intf_option bit definition...*/
 #define _INTF_ASYNC_	BIT(0)	/*support async io*/
 struct intf_priv;
 struct	intf_hdl;
