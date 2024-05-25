@@ -326,7 +326,6 @@ static void tegra_se_remove(struct platform_device *pdev)
 
 	crypto_engine_stop(se->engine);
 	crypto_engine_exit(se->engine);
-	iommu_fwspec_free(se->dev);
 	host1x_client_unregister(&se->client);
 }
 
