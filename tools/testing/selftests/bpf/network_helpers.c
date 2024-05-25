@@ -133,7 +133,7 @@ int start_server(int family, int type, const char *addr_str, __u16 port,
 	return __start_server(type, (struct sockaddr *)&addr, addrlen, &opts);
 }
 
-static int reuseport_cb(int fd, const struct post_socket_opts *opts)
+static int reuseport_cb(int fd, void *opts)
 {
 	int on = 1;
 
