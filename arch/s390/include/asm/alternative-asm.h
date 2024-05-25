@@ -15,6 +15,7 @@
 	.long	\alt_start - .
 	.word	\feature
 	.byte	\orig_end - \orig_start
+	.org	. - ( \orig_end - \orig_start ) & 1
 	.org	. - ( \orig_end - \orig_start ) + ( \alt_end - \alt_start )
 	.org	. - ( \alt_end - \alt_start ) + ( \orig_end - \orig_start )
 .endm

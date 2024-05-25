@@ -223,7 +223,7 @@ int nvmf_register_transport(struct nvmf_transport_ops *ops);
 void nvmf_unregister_transport(struct nvmf_transport_ops *ops);
 void nvmf_free_options(struct nvmf_ctrl_options *opts);
 int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size);
-bool nvmf_should_reconnect(struct nvme_ctrl *ctrl);
+bool nvmf_should_reconnect(struct nvme_ctrl *ctrl, int status);
 bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
 		struct nvmf_ctrl_options *opts);
 void nvmf_set_io_queues(struct nvmf_ctrl_options *opts, u32 nr_io_queues,

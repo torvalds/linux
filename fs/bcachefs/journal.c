@@ -53,29 +53,19 @@ static void bch2_journal_buf_to_text(struct printbuf *out, struct journal *j, u6
 	unsigned i = seq & JOURNAL_BUF_MASK;
 	struct journal_buf *buf = j->buf + i;
 
-	prt_str(out, "seq:");
-	prt_tab(out);
-	prt_printf(out, "%llu", seq);
-	prt_newline(out);
+	prt_printf(out, "seq:\t%llu\n", seq);
 	printbuf_indent_add(out, 2);
 
-	prt_str(out, "refcount:");
-	prt_tab(out);
-	prt_printf(out, "%u", journal_state_count(s, i));
-	prt_newline(out);
+	prt_printf(out, "refcount:\t%u\n", journal_state_count(s, i));
 
-	prt_str(out, "size:");
-	prt_tab(out);
+	prt_printf(out, "size:\t");
 	prt_human_readable_u64(out, vstruct_bytes(buf->data));
 	prt_newline(out);
 
-	prt_str(out, "expires:");
-	prt_tab(out);
-	prt_printf(out, "%li jiffies", buf->expires - jiffies);
-	prt_newline(out);
+	prt_printf(out, "expires:\t");
+	prt_printf(out, "%li jiffies\n", buf->expires - jiffies);
 
-	prt_str(out, "flags:");
-	prt_tab(out);
+	prt_printf(out, "flags:\t");
 	if (buf->noflush)
 		prt_str(out, "noflush ");
 	if (buf->must_flush)
@@ -87,9 +77,9 @@ static void bch2_journal_buf_to_text(struct printbuf *out, struct journal *j, u6
 	if (buf->write_started)
 		prt_str(out, "write_started ");
 	if (buf->write_allocated)
-		prt_str(out, "write allocated ");
+		prt_str(out, "write_allocated ");
 	if (buf->write_done)
-		prt_str(out, "write done");
+		prt_str(out, "write_done");
 	prt_newline(out);
 
 	printbuf_indent_sub(out, 2);
@@ -948,7 +938,8 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				break;
 			}
 		} else {
-			ob[nr_got] = bch2_bucket_alloc(c, ca, BCH_WATERMARK_normal, cl);
+			ob[nr_got] = bch2_bucket_alloc(c, ca, BCH_WATERMARK_normal,
+						       BCH_DATA_journal, cl);
 			ret = PTR_ERR_OR_ZERO(ob[nr_got]);
 			if (ret)
 				break;
@@ -956,7 +947,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 			ret = bch2_trans_run(c,
 				bch2_trans_mark_metadata_bucket(trans, ca,
 						ob[nr_got]->bucket, BCH_DATA_journal,
-						ca->mi.bucket_size));
+						ca->mi.bucket_size, BTREE_TRIGGER_transactional));
 			if (ret) {
 				bch2_open_bucket_put(c, ob[nr_got]);
 				bch_err_msg(c, ret, "marking new journal buckets");
@@ -1036,7 +1027,8 @@ err_unblock:
 		for (i = 0; i < nr_got; i++)
 			bch2_trans_run(c,
 				bch2_trans_mark_metadata_bucket(trans, ca,
-						bu[i], BCH_DATA_free, 0));
+						bu[i], BCH_DATA_free, 0,
+						BTREE_TRIGGER_transactional));
 err_free:
 	if (!new_fs)
 		for (i = 0; i < nr_got; i++)
@@ -1187,12 +1179,14 @@ void bch2_fs_journal_stop(struct journal *j)
 	bch2_journal_meta(j);
 
 	journal_quiesce(j);
+	cancel_delayed_work_sync(&j->write_work);
 
 	BUG_ON(!bch2_journal_error(j) &&
-	       test_bit(JOURNAL_REPLAY_DONE, &j->flags) &&
+	       test_bit(JOURNAL_replay_done, &j->flags) &&
 	       j->last_empty_seq != journal_cur_seq(j));
 
-	cancel_delayed_work_sync(&j->write_work);
+	if (!bch2_journal_error(j))
+		clear_bit(JOURNAL_running, &j->flags);
 }
 
 int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
@@ -1266,7 +1260,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 
 	spin_lock(&j->lock);
 
-	set_bit(JOURNAL_STARTED, &j->flags);
+	set_bit(JOURNAL_running, &j->flags);
 	j->last_flush_write = jiffies;
 
 	j->reservations.idx = j->reservations.unwritten_idx = journal_cur_seq(j);
@@ -1407,6 +1401,13 @@ int bch2_fs_journal_init(struct journal *j)
 
 /* debug: */
 
+static const char * const bch2_journal_flags_strs[] = {
+#define x(n)	#n,
+	JOURNAL_FLAGS()
+#undef x
+	NULL
+};
+
 void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
@@ -1415,19 +1416,22 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	u64 nr_writes = j->nr_flush_writes + j->nr_noflush_writes;
 
 	if (!out->nr_tabstops)
-		printbuf_tabstop_push(out, 24);
+		printbuf_tabstop_push(out, 28);
 	out->atomic++;
 
 	rcu_read_lock();
 	s = READ_ONCE(j->reservations);
 
+	prt_printf(out, "flags:\t");
+	prt_bitflags(out, bch2_journal_flags_strs, j->flags);
+	prt_newline(out);
 	prt_printf(out, "dirty journal entries:\t%llu/%llu\n",	fifo_used(&j->pin), j->pin.size);
-	prt_printf(out, "seq:\t\t\t%llu\n",			journal_cur_seq(j));
-	prt_printf(out, "seq_ondisk:\t\t%llu\n",		j->seq_ondisk);
-	prt_printf(out, "last_seq:\t\t%llu\n",			journal_last_seq(j));
+	prt_printf(out, "seq:\t%llu\n",				journal_cur_seq(j));
+	prt_printf(out, "seq_ondisk:\t%llu\n",			j->seq_ondisk);
+	prt_printf(out, "last_seq:\t%llu\n",			journal_last_seq(j));
 	prt_printf(out, "last_seq_ondisk:\t%llu\n",		j->last_seq_ondisk);
 	prt_printf(out, "flushed_seq_ondisk:\t%llu\n",		j->flushed_seq_ondisk);
-	prt_printf(out, "watermark:\t\t%s\n",			bch2_watermarks[j->watermark]);
+	prt_printf(out, "watermark:\t%s\n",			bch2_watermarks[j->watermark]);
 	prt_printf(out, "each entry reserved:\t%u\n",		j->entry_u64s_reserved);
 	prt_printf(out, "nr flush writes:\t%llu\n",		j->nr_flush_writes);
 	prt_printf(out, "nr noflush writes:\t%llu\n",		j->nr_noflush_writes);
@@ -1436,48 +1440,44 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	prt_newline(out);
 	prt_printf(out, "nr direct reclaim:\t%llu\n",		j->nr_direct_reclaim);
 	prt_printf(out, "nr background reclaim:\t%llu\n",	j->nr_background_reclaim);
-	prt_printf(out, "reclaim kicked:\t\t%u\n",		j->reclaim_kicked);
+	prt_printf(out, "reclaim kicked:\t%u\n",		j->reclaim_kicked);
 	prt_printf(out, "reclaim runs in:\t%u ms\n",		time_after(j->next_reclaim, now)
 	       ? jiffies_to_msecs(j->next_reclaim - jiffies) : 0);
-	prt_printf(out, "blocked:\t\t%u\n",			j->blocked);
+	prt_printf(out, "blocked:\t%u\n",			j->blocked);
 	prt_printf(out, "current entry sectors:\t%u\n",		j->cur_entry_sectors);
 	prt_printf(out, "current entry error:\t%s\n",		bch2_journal_errors[j->cur_entry_error]);
-	prt_printf(out, "current entry:\t\t");
+	prt_printf(out, "current entry:\t");
 
 	switch (s.cur_entry_offset) {
 	case JOURNAL_ENTRY_ERROR_VAL:
-		prt_printf(out, "error");
+		prt_printf(out, "error\n");
 		break;
 	case JOURNAL_ENTRY_CLOSED_VAL:
-		prt_printf(out, "closed");
+		prt_printf(out, "closed\n");
 		break;
 	default:
-		prt_printf(out, "%u/%u", s.cur_entry_offset, j->cur_entry_u64s);
+		prt_printf(out, "%u/%u\n", s.cur_entry_offset, j->cur_entry_u64s);
 		break;
 	}
 
-	prt_newline(out);
-	prt_printf(out, "unwritten entries:");
-	prt_newline(out);
+	prt_printf(out, "unwritten entries:\n");
 	bch2_journal_bufs_to_text(out, j);
 
-	prt_printf(out,
-	       "replay done:\t\t%i\n",
-	       test_bit(JOURNAL_REPLAY_DONE,	&j->flags));
-
 	prt_printf(out, "space:\n");
-	prt_printf(out, "\tdiscarded\t%u:%u\n",
+	printbuf_indent_add(out, 2);
+	prt_printf(out, "discarded\t%u:%u\n",
 	       j->space[journal_space_discarded].next_entry,
 	       j->space[journal_space_discarded].total);
-	prt_printf(out, "\tclean ondisk\t%u:%u\n",
+	prt_printf(out, "clean ondisk\t%u:%u\n",
 	       j->space[journal_space_clean_ondisk].next_entry,
 	       j->space[journal_space_clean_ondisk].total);
-	prt_printf(out, "\tclean\t\t%u:%u\n",
+	prt_printf(out, "clean\t%u:%u\n",
 	       j->space[journal_space_clean].next_entry,
 	       j->space[journal_space_clean].total);
-	prt_printf(out, "\ttotal\t\t%u:%u\n",
+	prt_printf(out, "total\t%u:%u\n",
 	       j->space[journal_space_total].next_entry,
 	       j->space[journal_space_total].total);
+	printbuf_indent_sub(out, 2);
 
 	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
@@ -1488,14 +1488,16 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 		if (!ja->nr)
 			continue;
 
-		prt_printf(out, "dev %u:\n",		ca->dev_idx);
-		prt_printf(out, "\tnr\t\t%u\n",		ja->nr);
-		prt_printf(out, "\tbucket size\t%u\n",	ca->mi.bucket_size);
-		prt_printf(out, "\tavailable\t%u:%u\n",	bch2_journal_dev_buckets_available(j, ja, journal_space_discarded), ja->sectors_free);
-		prt_printf(out, "\tdiscard_idx\t%u\n",	ja->discard_idx);
-		prt_printf(out, "\tdirty_ondisk\t%u (seq %llu)\n", ja->dirty_idx_ondisk,	ja->bucket_seq[ja->dirty_idx_ondisk]);
-		prt_printf(out, "\tdirty_idx\t%u (seq %llu)\n", ja->dirty_idx,		ja->bucket_seq[ja->dirty_idx]);
-		prt_printf(out, "\tcur_idx\t\t%u (seq %llu)\n", ja->cur_idx,		ja->bucket_seq[ja->cur_idx]);
+		prt_printf(out, "dev %u:\n",			ca->dev_idx);
+		printbuf_indent_add(out, 2);
+		prt_printf(out, "nr\t%u\n",			ja->nr);
+		prt_printf(out, "bucket size\t%u\n",		ca->mi.bucket_size);
+		prt_printf(out, "available\t%u:%u\n",		bch2_journal_dev_buckets_available(j, ja, journal_space_discarded), ja->sectors_free);
+		prt_printf(out, "discard_idx\t%u\n",		ja->discard_idx);
+		prt_printf(out, "dirty_ondisk\t%u (seq %llu)\n",ja->dirty_idx_ondisk,	ja->bucket_seq[ja->dirty_idx_ondisk]);
+		prt_printf(out, "dirty_idx\t%u (seq %llu)\n",	ja->dirty_idx,		ja->bucket_seq[ja->dirty_idx]);
+		prt_printf(out, "cur_idx\t%u (seq %llu)\n",	ja->cur_idx,		ja->bucket_seq[ja->cur_idx]);
+		printbuf_indent_sub(out, 2);
 	}
 
 	rcu_read_unlock();
@@ -1527,25 +1529,18 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 
 
 	pin_list = journal_seq_pin(j, *seq);
 
-	prt_printf(out, "%llu: count %u", *seq, atomic_read(&pin_list->count));
-	prt_newline(out);
+	prt_printf(out, "%llu: count %u\n", *seq, atomic_read(&pin_list->count));
 	printbuf_indent_add(out, 2);
 
 	for (unsigned i = 0; i < ARRAY_SIZE(pin_list->list); i++)
-		list_for_each_entry(pin, &pin_list->list[i], list) {
-			prt_printf(out, "\t%px %ps", pin, pin->flush);
-			prt_newline(out);
-		}
+		list_for_each_entry(pin, &pin_list->list[i], list)
+			prt_printf(out, "\t%px %ps\n", pin, pin->flush);
 
-	if (!list_empty(&pin_list->flushed)) {
-		prt_printf(out, "flushed:");
-		prt_newline(out);
-	}
+	if (!list_empty(&pin_list->flushed))
+		prt_printf(out, "flushed:\n");
 
-	list_for_each_entry(pin, &pin_list->flushed, list) {
-		prt_printf(out, "\t%px %ps", pin, pin->flush);
-		prt_newline(out);
-	}
+	list_for_each_entry(pin, &pin_list->flushed, list)
+		prt_printf(out, "\t%px %ps\n", pin, pin->flush);
 
 	printbuf_indent_sub(out, 2);
 

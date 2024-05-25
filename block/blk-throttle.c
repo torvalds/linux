@@ -39,11 +39,6 @@ struct latency_bucket {
 	int samples;
 };
 
-struct avg_latency_bucket {
-	unsigned long latency; /* ns / 1024 */
-	bool valid;
-};
-
 struct throtl_data
 {
 	/* service tree for active throtl groups */

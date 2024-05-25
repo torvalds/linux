@@ -143,12 +143,6 @@ struct cstate_model {
 #define SLM_PKG_C6_USE_C7_MSR	(1UL << 0)
 #define KNL_CORE_C6_MSR		(1UL << 1)
 
-struct perf_cstate_msr {
-	u64	msr;
-	struct	perf_pmu_events_attr *attr;
-};
-
-
 /* cstate_core PMU */
 static struct pmu cstate_core_pmu;
 static bool has_cstate_core;

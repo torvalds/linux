@@ -704,9 +704,7 @@ static unsigned long __init sun_floppy_init(void)
 			ns87303_modify(config, ASC, ASC_DRV2_SEL, 0);
 			ns87303_modify(config, FCR, 0, FCR_LDE);
 
-			config = sun_floppy_types[0];
-			sun_floppy_types[0] = sun_floppy_types[1];
-			sun_floppy_types[1] = config;
+			swap(sun_floppy_types[0], sun_floppy_types[1]);
 
 			if (sun_pci_broken_drive != -1) {
 				sun_pci_broken_drive = 1 - sun_pci_broken_drive;

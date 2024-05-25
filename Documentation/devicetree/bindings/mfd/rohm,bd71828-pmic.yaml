@@ -17,7 +17,12 @@ description: |
 
 properties:
   compatible:
-    const: rohm,bd71828
+    oneOf:
+      - const: rohm,bd71828
+
+      - items:
+          - const: rohm,bd71879
+          - const: rohm,bd71828
 
   reg:
     description:
@@ -60,18 +65,20 @@ properties:
       here in Ohms.
 
   regulators:
-    $ref: ../regulator/rohm,bd71828-regulator.yaml
+    $ref: /schemas/regulator/rohm,bd71828-regulator.yaml
     description:
       List of child nodes that specify the regulators.
 
   leds:
-    $ref: ../leds/rohm,bd71828-leds.yaml
+    $ref: /schemas/leds/rohm,bd71828-leds.yaml
 
   gpio-reserved-ranges:
     description: |
       Usage of BD71828 GPIO pins can be changed via OTP. This property can be
       used to mark the pins which should not be configured for GPIO. Please see
       the ../gpio/gpio.txt for more information.
+
+  system-power-controller: true
 
 required:
   - compatible

@@ -264,8 +264,7 @@ static struct net_device *mlx5_ib_get_netdev(struct ib_device *device,
 	 */
 	read_lock(&ibdev->port[port_num - 1].roce.netdev_lock);
 	ndev = ibdev->port[port_num - 1].roce.netdev;
-	if (ndev)
-		dev_hold(ndev);
+	dev_hold(ndev);
 	read_unlock(&ibdev->port[port_num - 1].roce.netdev_lock);
 
 out:

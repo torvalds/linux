@@ -308,7 +308,7 @@ static void __hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
 {
 	if (hugetlb_cgroup_disabled() || !h_cg)
 		return;
-
+	lockdep_assert_held(&hugetlb_lock);
 	__set_hugetlb_cgroup(folio, h_cg, rsvd);
 	if (!rsvd) {
 		unsigned long usage =

@@ -474,21 +474,21 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 
 static void neo_copy_data_from_queue_to_uart(struct jsm_channel *ch)
 {
-	u16 head;
-	u16 tail;
+	struct tty_port *tport;
+	unsigned char *tail;
+	unsigned char c;
 	int n;
 	int s;
 	int qlen;
 	u32 len_written = 0;
-	struct circ_buf *circ;
 
 	if (!ch)
 		return;
 
-	circ = &ch->uart_port.state->xmit;
+	tport = &ch->uart_port.state->port;
 
 	/* No data to write to the UART */
-	if (uart_circ_empty(circ))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		return;
 
 	/* If port is "stopped", don't send any data to the UART */
@@ -504,10 +504,9 @@ static void neo_copy_data_from_queue_to_uart(struct jsm_channel *ch)
 		if (ch->ch_cached_lsr & UART_LSR_THRE) {
 			ch->ch_cached_lsr &= ~(UART_LSR_THRE);
 
-			writeb(circ->buf[circ->tail], &ch->ch_neo_uart->txrx);
-			jsm_dbg(WRITE, &ch->ch_bd->pci_dev,
-				"Tx data: %x\n", circ->buf[circ->tail]);
-			circ->tail = (circ->tail + 1) & (UART_XMIT_SIZE - 1);
+			WARN_ON_ONCE(!kfifo_get(&tport->xmit_fifo, &c));
+			writeb(c, &ch->ch_neo_uart->txrx);
+			jsm_dbg(WRITE, &ch->ch_bd->pci_dev, "Tx data: %x\n", c);
 			ch->ch_txcount++;
 		}
 		return;
@@ -520,38 +519,27 @@ static void neo_copy_data_from_queue_to_uart(struct jsm_channel *ch)
 		return;
 
 	n = UART_17158_TX_FIFOSIZE - ch->ch_t_tlevel;
-
-	/* cache head and tail of queue */
-	head = circ->head & (UART_XMIT_SIZE - 1);
-	tail = circ->tail & (UART_XMIT_SIZE - 1);
-	qlen = uart_circ_chars_pending(circ);
+	qlen = kfifo_len(&tport->xmit_fifo);
 
 	/* Find minimum of the FIFO space, versus queue length */
 	n = min(n, qlen);
 
 	while (n > 0) {
-
-		s = ((head >= tail) ? head : UART_XMIT_SIZE) - tail;
-		s = min(s, n);
-
+		s = kfifo_out_linear_ptr(&tport->xmit_fifo, &tail, n);
 		if (s <= 0)
 			break;
 
-		memcpy_toio(&ch->ch_neo_uart->txrxburst, circ->buf + tail, s);
-		/* Add and flip queue if needed */
-		tail = (tail + s) & (UART_XMIT_SIZE - 1);
+		memcpy_toio(&ch->ch_neo_uart->txrxburst, tail, s);
+		kfifo_skip_count(&tport->xmit_fifo, s);
 		n -= s;
 		ch->ch_txcount += s;
 		len_written += s;
 	}
 
-	/* Update the final tail */
-	circ->tail = tail & (UART_XMIT_SIZE - 1);
-
 	if (len_written >= ch->ch_t_tlevel)
 		ch->ch_flags &= ~(CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 
-	if (uart_circ_empty(circ))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		uart_write_wakeup(&ch->uart_port);
 }
 

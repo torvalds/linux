@@ -1340,15 +1340,40 @@ static unsigned long mem_used(struct io_tlb_mem *mem)
 
 #endif /* CONFIG_DEBUG_FS */
 
+/**
+ * swiotlb_tbl_map_single() - bounce buffer map a single contiguous physical area
+ * @dev:		Device which maps the buffer.
+ * @orig_addr:		Original (non-bounced) physical IO buffer address
+ * @mapping_size:	Requested size of the actual bounce buffer, excluding
+ *			any pre- or post-padding for alignment
+ * @alloc_align_mask:	Required start and end alignment of the allocated buffer
+ * @dir:		DMA direction
+ * @attrs:		Optional DMA attributes for the map operation
+ *
+ * Find and allocate a suitable sequence of IO TLB slots for the request.
+ * The allocated space starts at an alignment specified by alloc_align_mask,
+ * and the size of the allocated space is rounded up so that the total amount
+ * of allocated space is a multiple of (alloc_align_mask + 1). If
+ * alloc_align_mask is zero, the allocated space may be at any alignment and
+ * the size is not rounded up.
+ *
+ * The returned address is within the allocated space and matches the bits
+ * of orig_addr that are specified in the DMA min_align_mask for the device. As
+ * such, this returned address may be offset from the beginning of the allocated
+ * space. The bounce buffer space starting at the returned address for
+ * mapping_size bytes is initialized to the contents of the original IO buffer
+ * area. Any pre-padding (due to an offset) and any post-padding (due to
+ * rounding-up the size) is not initialized.
+ */
 phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
-		size_t mapping_size, size_t alloc_size,
-		unsigned int alloc_align_mask, enum dma_data_direction dir,
-		unsigned long attrs)
+		size_t mapping_size, unsigned int alloc_align_mask,
+		enum dma_data_direction dir, unsigned long attrs)
 {
 	struct io_tlb_mem *mem = dev->dma_io_tlb_mem;
 	unsigned int offset;
 	struct io_tlb_pool *pool;
 	unsigned int i;
+	size_t size;
 	int index;
 	phys_addr_t tlb_addr;
 	unsigned short pad_slots;
@@ -1362,22 +1387,32 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 	if (cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 		pr_warn_once("Memory encryption is active and system is using DMA bounce buffers\n");
 
-	if (mapping_size > alloc_size) {
-		dev_warn_once(dev, "Invalid sizes (mapping: %zd bytes, alloc: %zd bytes)",
-			      mapping_size, alloc_size);
-		return (phys_addr_t)DMA_MAPPING_ERROR;
-	}
+	/*
+	 * The default swiotlb memory pool is allocated with PAGE_SIZE
+	 * alignment. If a mapping is requested with larger alignment,
+	 * the mapping may be unable to use the initial slot(s) in all
+	 * sets of IO_TLB_SEGSIZE slots. In such case, a mapping request
+	 * of or near the maximum mapping size would always fail.
+	 */
+	dev_WARN_ONCE(dev, alloc_align_mask > ~PAGE_MASK,
+		"Alloc alignment may prevent fulfilling requests with max mapping_size\n");
 
 	offset = swiotlb_align_offset(dev, alloc_align_mask, orig_addr);
-	index = swiotlb_find_slots(dev, orig_addr,
-				   alloc_size + offset, alloc_align_mask, &pool);
+	size = ALIGN(mapping_size + offset, alloc_align_mask + 1);
+	index = swiotlb_find_slots(dev, orig_addr, size, alloc_align_mask, &pool);
 	if (index == -1) {
 		if (!(attrs & DMA_ATTR_NO_WARN))
 			dev_warn_ratelimited(dev,
 	"swiotlb buffer is full (sz: %zd bytes), total %lu (slots), used %lu (slots)\n",
-				 alloc_size, mem->nslabs, mem_used(mem));
+				 size, mem->nslabs, mem_used(mem));
 		return (phys_addr_t)DMA_MAPPING_ERROR;
 	}
+
+	/*
+	 * If dma_skip_sync was set, reset it on first SWIOTLB buffer
+	 * mapping to always sync SWIOTLB buffers.
+	 */
+	dma_reset_need_sync(dev);
 
 	/*
 	 * Save away the mapping from the original address to the DMA address.
@@ -1388,7 +1423,7 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 	offset &= (IO_TLB_SIZE - 1);
 	index += pad_slots;
 	pool->slots[index].pad_slots = pad_slots;
-	for (i = 0; i < nr_slots(alloc_size + offset); i++)
+	for (i = 0; i < (nr_slots(size) - pad_slots); i++)
 		pool->slots[index + i].orig_addr = slot_addr(orig_addr, i);
 	tlb_addr = slot_addr(pool->start, index) + offset;
 	/*
@@ -1543,8 +1578,7 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t paddr, size_t size,
 
 	trace_swiotlb_bounced(dev, phys_to_dma(dev, paddr), size);
 
-	swiotlb_addr = swiotlb_tbl_map_single(dev, paddr, size, size, 0, dir,
-			attrs);
+	swiotlb_addr = swiotlb_tbl_map_single(dev, paddr, size, 0, dir, attrs);
 	if (swiotlb_addr == (phys_addr_t)DMA_MAPPING_ERROR)
 		return DMA_MAPPING_ERROR;
 

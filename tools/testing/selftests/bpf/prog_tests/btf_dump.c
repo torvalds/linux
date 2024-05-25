@@ -653,7 +653,7 @@ static void test_btf_dump_struct_data(struct btf *btf, struct btf_dump *d,
 		cmpstr =
 "(struct file_operations){\n"
 "	.owner = (struct module *)0xffffffffffffffff,\n"
-"	.llseek = (loff_t (*)(struct file *, loff_t, int))0xffffffffffffffff,";
+"	.fop_flags = (fop_flags_t)4294967295,";
 
 		ASSERT_STRNEQ(str, cmpstr, strlen(cmpstr), "file_operations");
 	}

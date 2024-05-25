@@ -8,21 +8,18 @@
 #include "debug.h"
 #include "super.h"
 
-enum bkey_invalid_flags;
+enum bch_validate_flags;
 
 /* How out of date a pointer gen is allowed to be: */
 #define BUCKET_GC_GEN_MAX	96U
 
 static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
 {
-	struct bch_dev *ca;
-
-	if (!bch2_dev_exists2(c, pos.inode))
-		return false;
-
-	ca = bch_dev_bkey_exists(c, pos.inode);
-	return pos.offset >= ca->mi.first_bucket &&
-		pos.offset < ca->mi.nbuckets;
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_rcu(c, pos.inode);
+	bool ret = ca && bucket_valid(ca, pos.offset);
+	rcu_read_unlock();
+	return ret;
 }
 
 static inline u64 bucket_to_u64(struct bpos bucket)
@@ -40,38 +37,50 @@ static inline u8 alloc_gc_gen(struct bch_alloc_v4 a)
 	return a.gen - a.oldest_gen;
 }
 
-static inline enum bch_data_type __alloc_data_type(u32 dirty_sectors,
-						   u32 cached_sectors,
-						   u32 stripe,
-						   struct bch_alloc_v4 a,
-						   enum bch_data_type data_type)
+static inline void alloc_to_bucket(struct bucket *dst, struct bch_alloc_v4 src)
 {
-	if (stripe)
-		return data_type == BCH_DATA_parity ? data_type : BCH_DATA_stripe;
-	if (dirty_sectors)
-		return data_type;
-	if (cached_sectors)
-		return BCH_DATA_cached;
-	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
-		return BCH_DATA_need_discard;
-	if (alloc_gc_gen(a) >= BUCKET_GC_GEN_MAX)
-		return BCH_DATA_need_gc_gens;
-	return BCH_DATA_free;
+	dst->gen		= src.gen;
+	dst->data_type		= src.data_type;
+	dst->dirty_sectors	= src.dirty_sectors;
+	dst->cached_sectors	= src.cached_sectors;
+	dst->stripe		= src.stripe;
 }
 
-static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
-						 enum bch_data_type data_type)
+static inline void __bucket_m_to_alloc(struct bch_alloc_v4 *dst, struct bucket src)
 {
-	return __alloc_data_type(a.dirty_sectors, a.cached_sectors,
-				 a.stripe, a, data_type);
+	dst->gen		= src.gen;
+	dst->data_type		= src.data_type;
+	dst->dirty_sectors	= src.dirty_sectors;
+	dst->cached_sectors	= src.cached_sectors;
+	dst->stripe		= src.stripe;
+}
+
+static inline struct bch_alloc_v4 bucket_m_to_alloc(struct bucket b)
+{
+	struct bch_alloc_v4 ret = {};
+	__bucket_m_to_alloc(&ret, b);
+	return ret;
 }
 
 static inline enum bch_data_type bucket_data_type(enum bch_data_type data_type)
 {
-	return data_type == BCH_DATA_stripe ? BCH_DATA_user : data_type;
+	switch (data_type) {
+	case BCH_DATA_cached:
+	case BCH_DATA_stripe:
+		return BCH_DATA_user;
+	default:
+		return data_type;
+	}
 }
 
-static inline unsigned bch2_bucket_sectors(struct bch_alloc_v4 a)
+static inline bool bucket_data_type_mismatch(enum bch_data_type bucket,
+					     enum bch_data_type ptr)
+{
+	return !data_type_is_empty(bucket) &&
+		bucket_data_type(bucket) != bucket_data_type(ptr);
+}
+
+static inline unsigned bch2_bucket_sectors_total(struct bch_alloc_v4 a)
 {
 	return a.dirty_sectors + a.cached_sectors;
 }
@@ -87,6 +96,27 @@ static inline unsigned bch2_bucket_sectors_fragmented(struct bch_dev *ca,
 	int d = bch2_bucket_sectors_dirty(a);
 
 	return d ? max(0, ca->mi.bucket_size - d) : 0;
+}
+
+static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
+						 enum bch_data_type data_type)
+{
+	if (a.stripe)
+		return data_type == BCH_DATA_parity ? data_type : BCH_DATA_stripe;
+	if (a.dirty_sectors)
+		return data_type;
+	if (a.cached_sectors)
+		return BCH_DATA_cached;
+	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
+		return BCH_DATA_need_discard;
+	if (alloc_gc_gen(a) >= BUCKET_GC_GEN_MAX)
+		return BCH_DATA_need_gc_gens;
+	return BCH_DATA_free;
+}
+
+static inline void alloc_data_type_set(struct bch_alloc_v4 *a, enum bch_data_type data_type)
+{
+	a->data_type = alloc_data_type(*a, data_type);
 }
 
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
@@ -147,7 +177,9 @@ static inline void set_alloc_v4_u64s(struct bkey_i_alloc_v4 *a)
 }
 
 struct bkey_i_alloc_v4 *
-bch2_trans_start_alloc_update(struct btree_trans *, struct btree_iter *, struct bpos);
+bch2_trans_start_alloc_update_noupdate(struct btree_trans *, struct btree_iter *, struct bpos);
+struct bkey_i_alloc_v4 *
+bch2_trans_start_alloc_update(struct btree_trans *, struct bpos);
 
 void __bch2_alloc_to_v4(struct bkey_s_c, struct bch_alloc_v4 *);
 
@@ -173,13 +205,13 @@ struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut(struct btree_trans *, struct bkey_s
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
 int bch2_alloc_v1_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+			  enum bch_validate_flags, struct printbuf *);
 int bch2_alloc_v2_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+			  enum bch_validate_flags, struct printbuf *);
 int bch2_alloc_v3_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+			  enum bch_validate_flags, struct printbuf *);
 int bch2_alloc_v4_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+			  enum bch_validate_flags, struct printbuf *);
 void bch2_alloc_v4_swab(struct bkey_s);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
@@ -213,7 +245,7 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 })
 
 int bch2_bucket_gens_invalid(struct bch_fs *, struct bkey_s_c,
-			     enum bkey_invalid_flags, struct printbuf *);
+			     enum bch_validate_flags, struct printbuf *);
 void bch2_bucket_gens_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_bucket_gens ((struct bkey_ops) {	\
@@ -233,7 +265,8 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 int bch2_alloc_read(struct bch_fs *);
 
 int bch2_trigger_alloc(struct btree_trans *, enum btree_id, unsigned,
-		       struct bkey_s_c, struct bkey_s, unsigned);
+		       struct bkey_s_c, struct bkey_s,
+		       enum btree_iter_update_trigger_flags);
 int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
 void bch2_do_discards(struct bch_fs *);
