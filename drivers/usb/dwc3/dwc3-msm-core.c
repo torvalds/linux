@@ -854,6 +854,34 @@ static inline void dwc3_msm_write_reg_field(void __iomem *base, u32 offset,
 	ioread32(base + offset);
 }
 
+/*
+ * Manually force the in_p3 flag based on the current link state.  In some
+ * designs, the power event interrupt is not used to determine if a wakeup
+ * event is generated.  In platforms which utilize the USB PHY HV interrupts
+ * avoid having to constantly check the for the power event IRQ status.
+ */
+static void dwc3_msm_set_in_p3_state(struct dwc3_msm *mdwc)
+{
+	struct dwc3 *dwc = NULL;
+	u32 ls;
+
+	if (!mdwc->dwc3)
+		return;
+
+	dwc = platform_get_drvdata(mdwc->dwc3);
+
+	/* Can't tell if entered or exit P3, so check LINKSTATE */
+	if (!DWC3_IP_IS(DWC3))
+		ls = dwc3_msm_read_reg_field(mdwc->base,
+			DWC31_LINK_GDBGLTSSM,
+			DWC3_GDBGLTSSM_LINKSTATE_MASK);
+	else
+		ls = dwc3_msm_read_reg_field(mdwc->base,
+			DWC3_GDBGLTSSM, DWC3_GDBGLTSSM_LINKSTATE_MASK);
+	dev_dbg(mdwc->dev, "%s link state = 0x%04x\n", __func__, ls);
+	atomic_set(&mdwc->in_p3, ls == DWC3_LINK_STATE_U3);
+}
+
 /**
  * dwc3_core_calc_tx_fifo_size - calculates the txfifo size value
  * @dwc: pointer to the DWC3 context
@@ -3497,7 +3525,7 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 		 * Add power event if the dbm indicates coming out of L1 by
 		 * interrupt
 		 */
-		if (!mdwc->dbm_is_1p4)
+		if (!mdwc->dbm_is_1p4 && mdwc->use_pwr_event_for_wakeup)
 			dwc3_msm_write_reg_field(mdwc->base,
 					PWR_EVNT_IRQ_MASK_REG,
 					PWR_EVNT_LPM_OUT_L1_MASK, 1);
@@ -3692,7 +3720,9 @@ static int dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 	if (DWC3_GSNPS_ID(val) == 0)
 		return -EINVAL;
 
-	dwc3_msm_write_reg_field(mdwc->base, PWR_EVNT_IRQ_MASK_REG,
+	/* Only enable pwr event IRQs when required */
+	if (mdwc->use_pwr_event_for_wakeup)
+		dwc3_msm_write_reg_field(mdwc->base, PWR_EVNT_IRQ_MASK_REG,
 				PWR_EVNT_POWERDOWN_IN_P3_MASK, 1);
 
 	/* Set the core in host mode if it was in host mode during pm_suspend */
@@ -3718,6 +3748,10 @@ static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc, bool ignore_p3_state)
 
 	if (!mdwc->in_host_mode && !mdwc->in_device_mode)
 		return 0;
+
+	/* If design does not rely on power event handler, manually set in_p3 */
+	if (!mdwc->use_pwr_event_for_wakeup)
+		dwc3_msm_set_in_p3_state(mdwc);
 
 	if (!ignore_p3_state && (dwc3_msm_is_superspeed(mdwc) &&
 					!mdwc->in_restart)) {
@@ -4675,8 +4709,8 @@ static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc)
 	if (mdwc->dwc3)
 		dwc = platform_get_drvdata(mdwc->dwc3);
 
-	if (!mdwc->ip)
-		mdwc->ip = DWC3_GSNPS_ID(dwc3_msm_read_reg(mdwc->base, DWC3_GSNPSID));
+	if (!mdwc->dwc3 || !mdwc->use_pwr_event_for_wakeup)
+		return;
 
 	irq_stat = dwc3_msm_read_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG);
 	dev_dbg(mdwc->dev, "%s irq_stat=%X\n", __func__, irq_stat);
@@ -4684,18 +4718,7 @@ static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc)
 	/* Check for P3 events */
 	if ((irq_stat & PWR_EVNT_POWERDOWN_OUT_P3_MASK) &&
 			(irq_stat & PWR_EVNT_POWERDOWN_IN_P3_MASK)) {
-		u32 ls;
-
-		/* Can't tell if entered or exit P3, so check LINKSTATE */
-		if (mdwc->ip == DWC31_IP)
-			ls = dwc3_msm_read_reg_field(mdwc->base,
-				DWC31_LINK_GDBGLTSSM,
-				DWC3_GDBGLTSSM_LINKSTATE_MASK);
-		else
-			ls = dwc3_msm_read_reg_field(mdwc->base,
-				DWC3_GDBGLTSSM, DWC3_GDBGLTSSM_LINKSTATE_MASK);
-		dev_dbg(mdwc->dev, "%s link state = 0x%04x\n", __func__, ls);
-		atomic_set(&mdwc->in_p3, ls == DWC3_LINK_STATE_U3);
+		dwc3_msm_set_in_p3_state(mdwc);
 
 		irq_stat &= ~(PWR_EVNT_POWERDOWN_OUT_P3_MASK |
 				PWR_EVNT_POWERDOWN_IN_P3_MASK);
