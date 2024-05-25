@@ -558,6 +558,7 @@ union dmub_fw_meta {
 //==============================================================================
 //< DMUB Trace Buffer>================================================================
 //==============================================================================
+#if !defined(TENSILICA) && !defined(DMUB_TRACE_ENTRY_DEFINED)
 /**
  * dmub_trace_code_t - firmware trace code, 32-bits
  */
@@ -572,6 +573,7 @@ struct dmcub_trace_buf_entry {
 	uint32_t param0; /**< trace defined parameter 0 */
 	uint32_t param1; /**< trace defined parameter 1 */
 };
+#endif
 
 //==============================================================================
 //< DMUB_STATUS>================================================================
@@ -2538,6 +2540,18 @@ enum dmub_cmd_psr_type {
 	DMUB_CMD__SET_PSR_POWER_OPT = 7,
 };
 
+/**
+ * Different PSR residency modes.
+ * Different modes change the definition of PSR residency.
+ */
+enum psr_residency_mode {
+	PSR_RESIDENCY_MODE_PHY = 0,
+	PSR_RESIDENCY_MODE_ALPM,
+	PSR_RESIDENCY_MODE_ENABLEMENT_PERIOD,
+	/* Do not add below. */
+	PSR_RESIDENCY_MODE_LAST_ELEMENT,
+};
+
 enum dmub_cmd_fams_type {
 	DMUB_CMD__FAMS_SETUP_FW_CTRL	= 0,
 	DMUB_CMD__FAMS_DRR_UPDATE		= 1,
@@ -3257,18 +3271,6 @@ struct dmub_rb_cmd_psr_set_power_opt {
 	 * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
 	 */
 	struct dmub_cmd_psr_set_power_opt_data psr_set_power_opt_data;
-};
-
-/**
- * Different PSR residency modes.
- * Different modes change the definition of PSR residency.
- */
-enum psr_residency_mode {
-	PSR_RESIDENCY_MODE_PHY = 0,
-	PSR_RESIDENCY_MODE_ALPM,
-	PSR_RESIDENCY_MODE_ENABLEMENT_PERIOD,
-	/* Do not add below. */
-	PSR_RESIDENCY_MODE_LAST_ELEMENT,
 };
 
 /**
