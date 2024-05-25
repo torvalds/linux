@@ -524,11 +524,11 @@ __alloc_range_bias(struct drm_buddy *mm,
 				continue;
 		}
 
+		if (!fallback && block_incompatible(block, flags))
+			continue;
+
 		if (contains(start, end, block_start, block_end) &&
 		    order == drm_buddy_block_order(block)) {
-			if (!fallback && block_incompatible(block, flags))
-				continue;
-
 			/*
 			 * Find the free block within the range.
 			 */
