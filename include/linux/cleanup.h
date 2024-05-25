@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __LINUX_GUARDS_H
-#define __LINUX_GUARDS_H
+#ifndef _LINUX_CLEANUP_H
+#define _LINUX_CLEANUP_H
 
 #include <linux/compiler.h>
 
@@ -247,4 +247,4 @@ __DEFINE_LOCK_GUARD_0(_name, _lock)
 	{ return class_##_name##_lock_ptr(_T); }
 
 
-#endif /* __LINUX_GUARDS_H */
+#endif /* _LINUX_CLEANUP_H */
