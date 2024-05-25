@@ -2250,13 +2250,6 @@
 			status = "disabled";
 		};
 
-		ipa_virt: interconnect@1e00000 {
-			compatible = "qcom,sc8180x-ipa-virt";
-			reg = <0 0x01e00000 0 0x1000>;
-			#interconnect-cells = <2>;
-			qcom,bcm-voters = <&apps_bcm_voter>;
-		};
-
 		tcsr_mutex: hwlock@1f40000 {
 			compatible = "qcom,tcsr-mutex";
 			reg = <0x0 0x01f40000 0x0 0x40000>;
