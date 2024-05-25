@@ -237,6 +237,7 @@ static const struct snd_soc_dapm_widget midas_dapm_widgets[] = {
 
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("headset-mic-bias", 0, 0),
 	SND_SOC_DAPM_MIC("Main Mic", NULL),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("mic-bias", 0, 0),
 	SND_SOC_DAPM_MIC("Sub Mic", NULL),
@@ -248,6 +249,7 @@ static const struct snd_soc_dapm_route midas_dapm_routes[] = {
 	/* Bind microphones with their respective regulator supplies */
 	{"Main Mic", NULL, "mic-bias"},
 	{"Sub Mic", NULL, "submic-bias"},
+	{"Headset Mic", NULL, "headset-mic-bias"},
 };
 
 static int midas_set_bias_level(struct snd_soc_card *card,
