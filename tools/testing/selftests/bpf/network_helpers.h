@@ -48,6 +48,8 @@ struct ipv6_packet {
 extern struct ipv6_packet pkt_v6;
 
 int settimeo(int fd, int timeout_ms);
+int start_server_str(int family, int type, const char *addr_str, __u16 port,
+		     const struct network_helper_opts *opts);
 int start_server(int family, int type, const char *addr, __u16 port,
 		 int timeout_ms);
 int *start_reuseport_server(int family, int type, const char *addr_str,
