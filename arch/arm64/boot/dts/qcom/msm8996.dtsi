@@ -982,6 +982,8 @@
 				 <&mmcc MDSS_MDP_CLK>;
 			clock-names = "iface", "core";
 
+			resets = <&mmcc MDSS_BCR>;
+
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
