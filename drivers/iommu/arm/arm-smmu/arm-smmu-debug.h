@@ -1,13 +1,19 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#ifdef CONFIG_ARM_SMMU_TESTBUS_DUMP_GEN3AUTO
+#define ARM_SMMU_TESTBUS_SEL                    0x2524
+#define ARM_SMMU_TESTBUS                        0x2528
+#define ARM_SMMU_TCU_TESTBUS_HLOS1_NS		ARM_SMMU_TESTBUS_SEL_HLOS1_NS
+#else
 #define ARM_SMMU_TESTBUS_SEL			0x25E4
 #define ARM_SMMU_TESTBUS			0x25E8
-#define ARM_SMMU_TESTBUS_SEL_HLOS1_NS		0x8
 #define ARM_SMMU_TCU_TESTBUS_HLOS1_NS		0x28
+#endif
+#define ARM_SMMU_TESTBUS_SEL_HLOS1_NS		0x8
 #define DEBUG_TESTBUS_SEL_TBU			0x50
 #define DEBUG_TESTBUS_TBU			0x58
 
