@@ -86,6 +86,7 @@ properties:
               - qcom,qcm2290-smmu-500
               - qcom,sa8775p-smmu-500
               - qcom,sc7280-smmu-500
+              - qcom,sc8180x-smmu-500
               - qcom,sc8280xp-smmu-500
               - qcom,sm6115-smmu-500
               - qcom,sm6125-smmu-500
@@ -415,6 +416,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,sc8180x-smmu-500
               - qcom,sm6350-smmu-v2
               - qcom,sm7150-smmu-v2
               - qcom,sm8150-smmu-500
@@ -550,7 +552,6 @@ allOf:
               - nvidia,smmu-500
               - qcom,qdu1000-smmu-500
               - qcom,sc7180-smmu-500
-              - qcom,sc8180x-smmu-500
               - qcom,sdm670-smmu-500
               - qcom,sdm845-smmu-500
               - qcom,sdx55-smmu-500
