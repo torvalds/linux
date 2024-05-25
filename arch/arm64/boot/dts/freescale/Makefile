@@ -266,6 +266,14 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mm-venice-gw73xx-0x-rs485.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-venice-gw74xx-imx219.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-venice-gw74xx-rpidsi.dtb
 
+imx8mm-phygate-tauri-l-rs232-rs232-dtbs		:= imx8mm-phygate-tauri-l.dtb imx8mm-phygate-tauri-l-rs232-rs232.dtbo
+imx8mm-phygate-tauri-l-rs232-cts-rts-dtbs	:= imx8mm-phygate-tauri-l.dtb imx8mm-phygate-tauri-l-rs232-rts-cts.dtbo
+imx8mm-phygate-tauri-l-rs232-rs485-dtbs		:= imx8mm-phygate-tauri-l.dtb imx8mm-phygate-tauri-l-rs232-rs485.dtbo
+
+dtb-$(CONFIG_ARCH_MXC) += imx8mm-phygate-tauri-l-rs232-rs232.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mm-phygate-tauri-l-rs232-cts-rts.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mm-phygate-tauri-l-rs232-rs485.dtb
+
 dtb-$(CONFIG_ARCH_S32) += s32g274a-evb.dtb
 dtb-$(CONFIG_ARCH_S32) += s32g274a-rdb2.dtb
 dtb-$(CONFIG_ARCH_S32) += s32g399a-rdb3.dtb
