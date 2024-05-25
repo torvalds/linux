@@ -844,6 +844,7 @@ EXPORT_SYMBOL(ishtp_device);
 
 /**
  * ishtp_wait_resume() - Wait for IPC resume
+ * @dev: ishtp device
  *
  * Wait for IPC resume
  *
