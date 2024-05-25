@@ -2041,6 +2041,9 @@ err:
 /* return with ref on ca->ref: */
 struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *name)
 {
+	if (!strncmp(name, "/dev/", strlen("/dev/")))
+		name += strlen("/dev/");
+
 	for_each_member_device(c, ca)
 		if (!strcmp(name, ca->name))
 			return ca;
