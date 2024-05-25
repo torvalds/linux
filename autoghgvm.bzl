@@ -16,6 +16,7 @@ def define_autoghgvm():
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/firmware/qcom-scm.ko",
         "drivers/i2c/busses/i2c-msm-geni.ko",
+        "drivers/i2c/busses/i2c-virtio.ko",
         "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
         "drivers/iommu/iommu-logger.ko",
         "drivers/iommu/qcom_iommu_debug.ko",
