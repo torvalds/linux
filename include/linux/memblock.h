@@ -565,7 +565,7 @@ static inline unsigned long memblock_region_reserved_end_pfn(const struct memblo
 }
 
 /**
- * for_each_mem_region - itereate over memory regions
+ * for_each_mem_region - iterate over memory regions
  * @region: loop variable
  */
 #define for_each_mem_region(region)					\
