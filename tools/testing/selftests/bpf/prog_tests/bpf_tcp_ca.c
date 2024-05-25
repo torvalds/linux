@@ -187,6 +187,9 @@ static void test_dctcp_fallback(void)
 	};
 	struct bpf_dctcp *dctcp_skel;
 	struct bpf_link *link = NULL;
+	struct cb_opts dctcp = {
+		.cc = "bpf_dctcp",
+	};
 	struct cb_opts cubic = {
 		.cc = "cubic",
 	};
@@ -204,9 +207,9 @@ static void test_dctcp_fallback(void)
 	if (!ASSERT_OK_PTR(link, "dctcp link"))
 		goto done;
 
-	lfd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
-	if (!ASSERT_GE(lfd, 0, "lfd") ||
-	    !ASSERT_OK(settcpca(lfd, "bpf_dctcp"), "lfd=>bpf_dctcp"))
+	opts.cb_opts = &dctcp;
+	lfd = start_server_str(AF_INET6, SOCK_STREAM, "::1", 0, &opts);
+	if (!ASSERT_GE(lfd, 0, "lfd"))
 		goto done;
 
 	opts.cb_opts = &cubic;
