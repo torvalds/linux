@@ -55,14 +55,6 @@ struct gs_reg_fmt {
 	struct v4l2_dv_timings format;
 };
 
-struct gs_reg_fmt_custom {
-	u16 reg_value;
-	__u32 width;
-	__u32 height;
-	__u64 pixelclock;
-	__u32 interlaced;
-};
-
 static const struct spi_device_id gs_id[] = {
 	{ "gs1662", 0 },
 	{ }
