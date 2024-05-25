@@ -70,6 +70,7 @@
 #include <linux/virtio_config.h>
 #include <uapi/linux/virtio_mmio.h>
 #include <linux/virtio_ring.h>
+#include <linux/delay.h>
 
 #ifdef CONFIG_GH_VIRTIO_DEBUG
 #define CREATE_TRACE_POINTS
@@ -292,6 +293,13 @@ static void vm_reset(struct virtio_device *vdev)
 
 	/* 0 status means a reset. */
 	writel(0, vm_dev->base + VIRTIO_MMIO_STATUS);
+#ifdef CONFIG_VIRTIO_MMIO_POLL_RESET
+	/* After writing 0 to device_status, the driver MUST wait for a read of
+	 * device_status to return 0 before reinitializing the device.
+	 */
+	while (readl(vm_dev->base + VIRTIO_MMIO_STATUS))
+		usleep_range(1000, 1100);
+#endif
 }
 
 
