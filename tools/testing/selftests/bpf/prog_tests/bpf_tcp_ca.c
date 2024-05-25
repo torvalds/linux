@@ -23,6 +23,10 @@
 static const unsigned int total_bytes = 10 * 1024 * 1024;
 static int expected_stg = 0xeB9F;
 
+struct cb_opts {
+	const char *cc;
+};
+
 static int settcpca(int fd, const char *tcp_ca)
 {
 	int err;
@@ -79,6 +83,13 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 done:
 	close(lfd);
 	close(fd);
+}
+
+static int cc_cb(int fd, void *opts)
+{
+	struct cb_opts *cb_opts = (struct cb_opts *)opts;
+
+	return settcpca(fd, cb_opts->cc);
 }
 
 static void test_cubic(void)
@@ -172,10 +183,13 @@ static void test_dctcp_fallback(void)
 {
 	int err, lfd = -1, cli_fd = -1, srv_fd = -1;
 	struct network_helper_opts opts = {
-		.cc = "cubic",
+		.post_socket_cb	= cc_cb,
 	};
 	struct bpf_dctcp *dctcp_skel;
 	struct bpf_link *link = NULL;
+	struct cb_opts cubic = {
+		.cc = "cubic",
+	};
 	char srv_cc[16];
 	socklen_t cc_len = sizeof(srv_cc);
 
@@ -195,6 +209,7 @@ static void test_dctcp_fallback(void)
 	    !ASSERT_OK(settcpca(lfd, "bpf_dctcp"), "lfd=>bpf_dctcp"))
 		goto done;
 
+	opts.cb_opts = &cubic;
 	cli_fd = connect_to_fd_opts(lfd, &opts);
 	if (!ASSERT_GE(cli_fd, 0, "cli_fd"))
 		goto done;

@@ -22,13 +22,13 @@ typedef __u16 __sum16;
 #define MAGIC_BYTES 123
 
 struct network_helper_opts {
-	const char *cc;
 	int timeout_ms;
 	bool must_fail;
 	bool noconnect;
 	int type;
 	int proto;
 	int (*post_socket_cb)(int fd, void *opts);
+	void *cb_opts;
 };
 
 /* ipv4 test vector */
