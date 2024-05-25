@@ -3531,18 +3531,18 @@ static int stmmac_hw_setup(struct net_device *dev, bool ptp_register)
 			netdev_warn(priv->dev,
 				    "failed to enable PTP reference clock: %pe\n",
 				    ERR_PTR(ret));
-	}
 
-	ret = stmmac_init_ptp(priv);
-	if (ret == -EOPNOTSUPP)
-		netdev_info(priv->dev, "PTP not supported by HW\n");
-	else if (ret)
-		netdev_warn(priv->dev, "PTP init failed\n");
-	else if (ptp_register)
-		stmmac_ptp_register(priv);
-	else
-		clk_set_rate(priv->plat->clk_ptp_ref, priv->plat->clk_ptp_rate);
-	ret = priv->plat->init_pps(priv);
+		ret = stmmac_init_ptp(priv);
+		if (ret == -EOPNOTSUPP) {
+			netdev_info(priv->dev, "PTP not supported by HW\n");
+		} else if (ret) {
+			netdev_warn(priv->dev, "PTP init failed\n");
+		} else {
+			stmmac_ptp_register(priv);
+			clk_set_rate(priv->plat->clk_ptp_ref, priv->plat->clk_ptp_rate);
+		}
+		ret = priv->plat->init_pps(priv);
+	}
 	priv->eee_tw_timer = STMMAC_DEFAULT_TWT_LS;
 
 	/* Convert the timer from msec to usec */
