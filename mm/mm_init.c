@@ -363,7 +363,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 
 			nid = memblock_get_region_node(r);
 
-			usable_startpfn = PFN_DOWN(r->base);
+			usable_startpfn = memblock_region_memory_base_pfn(r);
 			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
 				min(usable_startpfn, zone_movable_pfn[nid]) :
 				usable_startpfn;
