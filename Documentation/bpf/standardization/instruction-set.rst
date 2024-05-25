@@ -552,9 +552,10 @@ is outside the scope of this document and is left for future work.
 Program-local functions
 ~~~~~~~~~~~~~~~~~~~~~~~
 Program-local functions are functions exposed by the same BPF program as the
-caller, and are referenced by offset from the call instruction, similar to
-``JA``.  The offset is encoded in the 'imm' field of the call instruction.
-An ``EXIT`` within the program-local function will return to the caller.
+caller, and are referenced by offset from the instruction following the call
+instruction, similar to ``JA``.  The offset is encoded in the 'imm' field of
+the call instruction. An ``EXIT`` within the program-local function will
+return to the caller.
 
 Load and store instructions
 ===========================
