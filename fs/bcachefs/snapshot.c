@@ -1042,6 +1042,25 @@ err:
 	return ret;
 }
 
+int bch2_check_key_has_snapshot(struct btree_trans *trans,
+				struct btree_iter *iter,
+				struct bkey_s_c k)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
+
+	if (fsck_err_on(!bch2_snapshot_equiv(c, k.k->p.snapshot), c,
+			bkey_in_missing_snapshot,
+			"key in missing snapshot %s, delete?",
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+		ret = bch2_btree_delete_at(trans, iter,
+					    BTREE_UPDATE_internal_snapshot_node) ?: 1;
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
 /*
  * Mark a snapshot as deleted, for future cleanup:
  */
@@ -1358,6 +1377,10 @@ static int delete_dead_snapshots_process_key(struct btree_trans *trans,
 			       snapshot_id_list *equiv_seen,
 			       struct bpos *last_pos)
 {
+	int ret = bch2_check_key_has_snapshot(trans, iter, k);
+	if (ret)
+		return ret < 0 ? ret : 0;
+
 	struct bch_fs *c = trans->c;
 	u32 equiv = bch2_snapshot_equiv(c, k.k->p.snapshot);
 	if (!equiv) /* key for invalid snapshot node, but we chose not to delete */
@@ -1377,7 +1400,7 @@ static int delete_dead_snapshots_process_key(struct btree_trans *trans,
 
 	*last_pos = k.k->p;
 
-	int ret = snapshot_list_add_nodup(c, equiv_seen, equiv);
+	ret = snapshot_list_add_nodup(c, equiv_seen, equiv);
 	if (ret)
 		return ret;
 

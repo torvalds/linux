@@ -766,25 +766,6 @@ static int get_visible_inodes(struct btree_trans *trans,
 	return ret;
 }
 
-static int check_key_has_snapshot(struct btree_trans *trans,
-				  struct btree_iter *iter,
-				  struct bkey_s_c k)
-{
-	struct bch_fs *c = trans->c;
-	struct printbuf buf = PRINTBUF;
-	int ret = 0;
-
-	if (mustfix_fsck_err_on(!bch2_snapshot_equiv(c, k.k->p.snapshot), c,
-				bkey_in_missing_snapshot,
-				"key in missing snapshot: %s",
-				(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-		ret = bch2_btree_delete_at(trans, iter,
-					    BTREE_UPDATE_internal_snapshot_node) ?: 1;
-fsck_err:
-	printbuf_exit(&buf);
-	return ret;
-}
-
 static int hash_redo_key(struct btree_trans *trans,
 			 const struct bch_hash_desc desc,
 			 struct bch_hash_info *hash_info,
@@ -979,7 +960,7 @@ static int check_inode(struct btree_trans *trans,
 	bool do_update = false;
 	int ret;
 
-	ret = check_key_has_snapshot(trans, iter, k);
+	ret = bch2_check_key_has_snapshot(trans, iter, k);
 	if (ret < 0)
 		goto err;
 	if (ret)
@@ -1483,7 +1464,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	ret = check_key_has_snapshot(trans, iter, k);
+	ret = bch2_check_key_has_snapshot(trans, iter, k);
 	if (ret) {
 		ret = ret < 0 ? ret : 0;
 		goto out;
@@ -2006,7 +1987,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	ret = check_key_has_snapshot(trans, iter, k);
+	ret = bch2_check_key_has_snapshot(trans, iter, k);
 	if (ret) {
 		ret = ret < 0 ? ret : 0;
 		goto out;
@@ -2161,7 +2142,7 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	struct inode_walker_entry *i;
 	int ret;
 
-	ret = check_key_has_snapshot(trans, iter, k);
+	ret = bch2_check_key_has_snapshot(trans, iter, k);
 	if (ret < 0)
 		return ret;
 	if (ret)
