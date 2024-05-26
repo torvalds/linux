@@ -925,41 +925,6 @@ static const struct dev_pm_ops isys_pm_ops = {
 	.resume = isys_resume,
 };
 
-static void isys_remove(struct auxiliary_device *auxdev)
-{
-	struct ipu6_bus_device *adev = auxdev_to_adev(auxdev);
-	struct ipu6_isys *isys = dev_get_drvdata(&auxdev->dev);
-	struct ipu6_device *isp = adev->isp;
-	struct isys_fw_msgs *fwmsg, *safe;
-	unsigned int i;
-
-	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist, head)
-		dma_free_attrs(&auxdev->dev, sizeof(struct isys_fw_msgs),
-			       fwmsg, fwmsg->dma_addr, 0);
-
-	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist_fw, head)
-		dma_free_attrs(&auxdev->dev, sizeof(struct isys_fw_msgs),
-			       fwmsg, fwmsg->dma_addr, 0);
-
-	isys_unregister_devices(isys);
-	isys_notifier_cleanup(isys);
-
-	cpu_latency_qos_remove_request(&isys->pm_qos);
-
-	if (!isp->secure_mode) {
-		ipu6_cpd_free_pkg_dir(adev);
-		ipu6_buttress_unmap_fw_image(adev, &adev->fw_sgt);
-		release_firmware(adev->fw);
-	}
-
-	for (i = 0; i < IPU6_ISYS_MAX_STREAMS; i++)
-		mutex_destroy(&isys->streams[i].mutex);
-
-	isys_iwake_watermark_cleanup(isys);
-	mutex_destroy(&isys->stream_mutex);
-	mutex_destroy(&isys->mutex);
-}
-
 static int alloc_fw_msg_bufs(struct ipu6_isys *isys, int amount)
 {
 	struct device *dev = &isys->adev->auxdev.dev;
@@ -1165,6 +1130,41 @@ release_firmware:
 	ipu6_mmu_hw_cleanup(adev->mmu);
 
 	return ret;
+}
+
+static void isys_remove(struct auxiliary_device *auxdev)
+{
+	struct ipu6_bus_device *adev = auxdev_to_adev(auxdev);
+	struct ipu6_isys *isys = dev_get_drvdata(&auxdev->dev);
+	struct ipu6_device *isp = adev->isp;
+	struct isys_fw_msgs *fwmsg, *safe;
+	unsigned int i;
+
+	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist, head)
+		dma_free_attrs(&auxdev->dev, sizeof(struct isys_fw_msgs),
+			       fwmsg, fwmsg->dma_addr, 0);
+
+	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist_fw, head)
+		dma_free_attrs(&auxdev->dev, sizeof(struct isys_fw_msgs),
+			       fwmsg, fwmsg->dma_addr, 0);
+
+	isys_unregister_devices(isys);
+	isys_notifier_cleanup(isys);
+
+	cpu_latency_qos_remove_request(&isys->pm_qos);
+
+	if (!isp->secure_mode) {
+		ipu6_cpd_free_pkg_dir(adev);
+		ipu6_buttress_unmap_fw_image(adev, &adev->fw_sgt);
+		release_firmware(adev->fw);
+	}
+
+	for (i = 0; i < IPU6_ISYS_MAX_STREAMS; i++)
+		mutex_destroy(&isys->streams[i].mutex);
+
+	isys_iwake_watermark_cleanup(isys);
+	mutex_destroy(&isys->stream_mutex);
+	mutex_destroy(&isys->mutex);
 }
 
 struct fwmsg {
