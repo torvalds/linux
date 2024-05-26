@@ -503,6 +503,8 @@ int led_classdev_register_ext(struct device *parent,
 	ret = led_classdev_next_name(proposed_name, final_name, sizeof(final_name));
 	if (ret < 0)
 		return ret;
+	else if (ret && led_cdev->flags & LED_REJECT_NAME_CONFLICT)
+		return -EEXIST;
 	else if (ret)
 		dev_warn(parent, "Led %s renamed to %s due to name collision\n",
 			 proposed_name, final_name);
