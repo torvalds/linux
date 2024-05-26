@@ -111,5 +111,6 @@ static struct platform_driver of_pmem_region_driver = {
 
 module_platform_driver(of_pmem_region_driver);
 MODULE_DEVICE_TABLE(of, of_pmem_region_match);
+MODULE_DESCRIPTION("NVDIMM Device Tree support");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("IBM Corporation");

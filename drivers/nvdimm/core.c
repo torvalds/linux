@@ -540,6 +540,7 @@ static __exit void libnvdimm_exit(void)
 	nvdimm_devs_exit();
 }
 
+MODULE_DESCRIPTION("NVDIMM (Non-Volatile Memory Device) core");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
 subsys_initcall(libnvdimm_init);
