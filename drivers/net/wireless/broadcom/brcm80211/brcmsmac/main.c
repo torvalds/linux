@@ -234,12 +234,6 @@
 /* max # tx status to process in wlc_txstatus() */
 #define TXSBND				8
 
-/* brcmu_format_flags() bit description structure */
-struct brcms_c_bit_desc {
-	u32 bit;
-	const char *name;
-};
-
 /*
  * The following table lists the buffer memory allocated to xmt fifos in HW.
  * the size is in units of 256bytes(one block), total size is HW dependent
