@@ -925,6 +925,20 @@ static const struct dev_pm_ops isys_pm_ops = {
 	.resume = isys_resume,
 };
 
+static void free_fw_msg_bufs(struct ipu6_isys *isys)
+{
+	struct device *dev = &isys->adev->auxdev.dev;
+	struct isys_fw_msgs *fwmsg, *safe;
+
+	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist, head)
+		dma_free_attrs(dev, sizeof(struct isys_fw_msgs), fwmsg,
+			       fwmsg->dma_addr, 0);
+
+	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist_fw, head)
+		dma_free_attrs(dev, sizeof(struct isys_fw_msgs), fwmsg,
+			       fwmsg->dma_addr, 0);
+}
+
 static int alloc_fw_msg_bufs(struct ipu6_isys *isys, int amount)
 {
 	struct device *dev = &isys->adev->auxdev.dev;
@@ -1105,12 +1119,14 @@ static int isys_probe(struct auxiliary_device *auxdev,
 
 	ret = isys_register_devices(isys);
 	if (ret)
-		goto out_remove_pkg_dir_shared_buffer;
+		goto free_fw_msg_bufs;
 
 	ipu6_mmu_hw_cleanup(adev->mmu);
 
 	return 0;
 
+free_fw_msg_bufs:
+	free_fw_msg_bufs(isys);
 out_remove_pkg_dir_shared_buffer:
 	if (!isp->secure_mode)
 		ipu6_cpd_free_pkg_dir(adev);
@@ -1137,16 +1153,9 @@ static void isys_remove(struct auxiliary_device *auxdev)
 	struct ipu6_bus_device *adev = auxdev_to_adev(auxdev);
 	struct ipu6_isys *isys = dev_get_drvdata(&auxdev->dev);
 	struct ipu6_device *isp = adev->isp;
-	struct isys_fw_msgs *fwmsg, *safe;
 	unsigned int i;
 
-	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist, head)
-		dma_free_attrs(&auxdev->dev, sizeof(struct isys_fw_msgs),
-			       fwmsg, fwmsg->dma_addr, 0);
-
-	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist_fw, head)
-		dma_free_attrs(&auxdev->dev, sizeof(struct isys_fw_msgs),
-			       fwmsg, fwmsg->dma_addr, 0);
+	free_fw_msg_bufs(isys);
 
 	isys_unregister_devices(isys);
 	isys_notifier_cleanup(isys);
