@@ -406,7 +406,7 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		BCH_SB_SECTOR,			\
 	  "offset",	"Sector offset of superblock")			\
 	x(read_only,			u8,				\
-	  OPT_FS|OPT_MOUNT,						\
+	  OPT_FS,							\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		NULL)						\
