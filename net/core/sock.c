@@ -3460,7 +3460,6 @@ void sock_init_data_uid(struct socket *sock, struct sock *sk, kuid_t uid)
 	}
 	sk->sk_uid	=	uid;
 
-	rwlock_init(&sk->sk_callback_lock);
 	if (sk->sk_kern_sock)
 		lockdep_set_class_and_name(
 			&sk->sk_callback_lock,
