@@ -296,12 +296,12 @@ For arithmetic and jump instructions (``ALU``, ``ALU64``, ``JMP`` and
 
   .. table:: Source operand location
 
-  ======  =====  ==============================================
-  source  value  description
-  ======  =====  ==============================================
-  K       0      use 32-bit 'imm' value as source operand
-  X       1      use 'src_reg' register value as source operand
-  ======  =====  ==============================================
+    ======  =====  ==============================================
+    source  value  description
+    ======  =====  ==============================================
+    K       0      use 32-bit 'imm' value as source operand
+    X       1      use 'src_reg' register value as source operand
+    ======  =====  ==============================================
 
 **instruction class**
   the instruction class (see `Instruction classes`_)
@@ -681,13 +681,13 @@ two complex atomic operations:
 
 .. table:: Complex atomic operations
 
-===========  ================  ===========================
-imm          value             description
-===========  ================  ===========================
-FETCH        0x01              modifier: return old value
-XCHG         0xe0 | FETCH      atomic exchange
-CMPXCHG      0xf0 | FETCH      atomic compare and exchange
-===========  ================  ===========================
+  ===========  ================  ===========================
+  imm          value             description
+  ===========  ================  ===========================
+  FETCH        0x01              modifier: return old value
+  XCHG         0xe0 | FETCH      atomic exchange
+  CMPXCHG      0xf0 | FETCH      atomic compare and exchange
+  ===========  ================  ===========================
 
 The ``FETCH`` modifier is optional for simple atomic operations, and
 always set for the complex atomic operations.  If the ``FETCH`` flag
