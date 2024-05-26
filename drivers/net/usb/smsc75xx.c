@@ -61,11 +61,6 @@ struct smsc75xx_priv {
 	u8 suspend_flags;
 };
 
-struct usb_context {
-	struct usb_ctrlrequest req;
-	struct usbnet *dev;
-};
-
 static bool turbo_mode = true;
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");

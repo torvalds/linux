@@ -380,11 +380,6 @@ struct skb_data {		/* skb->cb is one of these */
 	int num_of_packet;
 };
 
-struct usb_context {
-	struct usb_ctrlrequest req;
-	struct lan78xx_net *dev;
-};
-
 #define EVENT_TX_HALT			0
 #define EVENT_RX_HALT			1
 #define EVENT_RX_MEMORY			2
