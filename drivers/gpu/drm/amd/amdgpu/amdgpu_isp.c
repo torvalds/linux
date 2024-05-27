@@ -96,7 +96,7 @@ static int isp_resume(void *handle)
 static int isp_load_fw_by_psp(struct amdgpu_device *adev)
 {
 	const struct common_firmware_header *hdr;
-	char ucode_prefix[30];
+	char ucode_prefix[10];
 	char fw_name[40];
 	int r = 0;
 
