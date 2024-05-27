@@ -224,6 +224,8 @@ static void iwl_mvm_restart_mpdu_count(struct iwl_mvm *mvm,
 		mvmsta->mpdu_counters[q].window_start = jiffies;
 		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
 	}
+
+	IWL_DEBUG_STATS(mvm, "MPDU counters are cleared\n");
 }
 
 static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
