@@ -1033,10 +1033,54 @@ u32 xe_lrc_seqno_ggtt_addr(struct xe_lrc *lrc)
 	return __xe_lrc_seqno_ggtt_addr(lrc);
 }
 
+/**
+ * xe_lrc_alloc_seqno_fence() - Allocate an lrc seqno fence.
+ *
+ * Allocate but don't initialize an lrc seqno fence.
+ *
+ * Return: Pointer to the allocated fence or
+ * negative error pointer on error.
+ */
+struct dma_fence *xe_lrc_alloc_seqno_fence(void)
+{
+	return xe_hw_fence_alloc();
+}
+
+/**
+ * xe_lrc_free_seqno_fence() - Free an lrc seqno fence.
+ * @fence: Pointer to the fence to free.
+ *
+ * Frees an lrc seqno fence that hasn't yet been
+ * initialized.
+ */
+void xe_lrc_free_seqno_fence(struct dma_fence *fence)
+{
+	xe_hw_fence_free(fence);
+}
+
+/**
+ * xe_lrc_init_seqno_fence() - Initialize an lrc seqno fence.
+ * @lrc: Pointer to the lrc.
+ * @fence: Pointer to the fence to initialize.
+ *
+ * Initializes a pre-allocated lrc seqno fence.
+ * After initialization, the fence is subject to normal
+ * dma-fence refcounting.
+ */
+void xe_lrc_init_seqno_fence(struct xe_lrc *lrc, struct dma_fence *fence)
+{
+	xe_hw_fence_init(fence, &lrc->fence_ctx, __xe_lrc_seqno_map(lrc));
+}
+
 struct dma_fence *xe_lrc_create_seqno_fence(struct xe_lrc *lrc)
 {
-	return &xe_hw_fence_create(&lrc->fence_ctx,
-				   __xe_lrc_seqno_map(lrc))->dma;
+	struct dma_fence *fence = xe_lrc_alloc_seqno_fence();
+
+	if (IS_ERR(fence))
+		return fence;
+
+	xe_lrc_init_seqno_fence(lrc, fence);
+	return fence;
 }
 
 s32 xe_lrc_seqno(struct xe_lrc *lrc)
