@@ -607,7 +607,7 @@ int expect_strne(const char *expr, int llen, const char *cmp)
 static __attribute__((unused))
 int expect_str_buf_eq(size_t expr, const char *buf, size_t val, int llen, const char *cmp)
 {
-	llen += printf(" = %lu <%s> ", expr, buf);
+	llen += printf(" = %lu <%s> ", (unsigned long)expr, buf);
 	if (strcmp(buf, cmp) != 0) {
 		result(llen, FAIL);
 		return 1;
