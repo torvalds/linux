@@ -292,7 +292,7 @@ vlv_initial_pps_pipe(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for (pipe = PIPE_A; pipe <= PIPE_B; pipe++) {
-		u32 port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(pipe)) &
+		u32 port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(dev_priv, pipe)) &
 			PANEL_PORT_SELECT_MASK;
 
 		if (port_sel != PANEL_PORT_SELECT_VLV(port))
@@ -493,7 +493,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 
 	regs->pp_ctrl = PP_CONTROL(dev_priv, pps_idx);
 	regs->pp_stat = PP_STATUS(dev_priv, pps_idx);
-	regs->pp_on = PP_ON_DELAYS(pps_idx);
+	regs->pp_on = PP_ON_DELAYS(dev_priv, pps_idx);
 	regs->pp_off = PP_OFF_DELAYS(pps_idx);
 
 	/* Cycle delay moved from PP_DIVISOR to PP_CONTROL */
@@ -1111,7 +1111,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum pipe pipe = intel_dp->pps.pps_pipe;
-	i915_reg_t pp_on_reg = PP_ON_DELAYS(pipe);
+	i915_reg_t pp_on_reg = PP_ON_DELAYS(dev_priv, pipe);
 
 	drm_WARN_ON(&dev_priv->drm, intel_dp->pps.active_pipe != INVALID_PIPE);
 
@@ -1715,7 +1715,7 @@ void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 		u32 port_sel;
 
 		pp_reg = PP_CONTROL(dev_priv, 0);
-		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(0)) & PANEL_PORT_SELECT_MASK;
+		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(dev_priv, 0)) & PANEL_PORT_SELECT_MASK;
 
 		switch (port_sel) {
 		case PANEL_PORT_SELECT_LVDS:
@@ -1742,7 +1742,7 @@ void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 		u32 port_sel;
 
 		pp_reg = PP_CONTROL(dev_priv, 0);
-		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(0)) & PANEL_PORT_SELECT_MASK;
+		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(dev_priv, 0)) & PANEL_PORT_SELECT_MASK;
 
 		drm_WARN_ON(&dev_priv->drm,
 			    port_sel != PANEL_PORT_SELECT_LVDS);
