@@ -73,7 +73,7 @@ CP_PERFMON_STATE_COUNT_AND_DUMP_PHANTOM  = 0x00000005,
  */
 
 typedef enum ENUM_NUM_SIMD_PER_CU {
-NUM_SIMD_PER_CU                          = 0x00000004,
+NUM_SIMD_PER_CU                          = 0x00000002,
 } ENUM_NUM_SIMD_PER_CU;
 
 /*
