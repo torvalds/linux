@@ -273,9 +273,9 @@ int sched_core_idle_cpu(int cpu)
  *
  * The cfs,rt,dl utilization are the running times measured with rq->clock_task
  * which excludes things like IRQ and steal-time. These latter are then accrued
- * in the irq utilization.
+ * in the IRQ utilization.
  *
- * The DL bandwidth number otoh is not a measured metric but a value computed
+ * The DL bandwidth number OTOH is not a measured metric but a value computed
  * based on the task model parameters and gives the minimal utilization
  * required to meet deadlines.
  */
@@ -340,7 +340,7 @@ unsigned long effective_cpu_util(int cpu, unsigned long util_cfs,
 
 	/*
 	 * There is still idle time; further improve the number by using the
-	 * irq metric. Because IRQ/steal time is hidden from the task clock we
+	 * IRQ metric. Because IRQ/steal time is hidden from the task clock we
 	 * need to scale the task numbers:
 	 *
 	 *              max - irq
@@ -718,7 +718,7 @@ change:
 	if (user) {
 #ifdef CONFIG_RT_GROUP_SCHED
 		/*
-		 * Do not allow realtime tasks into groups that have no runtime
+		 * Do not allow real-time tasks into groups that have no runtime
 		 * assigned.
 		 */
 		if (rt_bandwidth_enabled() && rt_policy(policy) &&
@@ -885,7 +885,7 @@ int sched_setattr_nocheck(struct task_struct *p, const struct sched_attr *attr)
 EXPORT_SYMBOL_GPL(sched_setattr_nocheck);
 
 /**
- * sched_setscheduler_nocheck - change the scheduling policy and/or RT priority of a thread from kernelspace.
+ * sched_setscheduler_nocheck - change the scheduling policy and/or RT priority of a thread from kernel-space.
  * @p: the task in question.
  * @policy: new policy.
  * @param: structure containing the new RT priority.
@@ -1663,14 +1663,14 @@ static int sched_rr_get_interval(pid_t pid, struct timespec64 *t)
 }
 
 /**
- * sys_sched_rr_get_interval - return the default timeslice of a process.
+ * sys_sched_rr_get_interval - return the default time-slice of a process.
  * @pid: pid of the process.
- * @interval: userspace pointer to the timeslice value.
+ * @interval: userspace pointer to the time-slice value.
  *
- * this syscall writes the default timeslice value of a given process
+ * this syscall writes the default time-slice value of a given process
  * into the user-space timespec buffer. A value of '0' means infinity.
  *
- * Return: On success, 0 and the timeslice is in @interval. Otherwise,
+ * Return: On success, 0 and the time-slice is in @interval. Otherwise,
  * an error code.
  */
 SYSCALL_DEFINE2(sched_rr_get_interval, pid_t, pid,

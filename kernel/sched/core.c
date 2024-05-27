@@ -707,14 +707,14 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
 	/*
 	 * Since irq_time is only updated on {soft,}irq_exit, we might run into
 	 * this case when a previous update_rq_clock() happened inside a
-	 * {soft,}irq region.
+	 * {soft,}IRQ region.
 	 *
 	 * When this happens, we stop ->clock_task and only update the
 	 * prev_irq_time stamp to account for the part that fit, so that a next
 	 * update will consume the rest. This ensures ->clock_task is
 	 * monotonic.
 	 *
-	 * It does however cause some slight miss-attribution of {soft,}irq
+	 * It does however cause some slight miss-attribution of {soft,}IRQ
 	 * time, a more accurate solution would be to update the irq_time using
 	 * the current rq->clock timestamp, except that would require using
 	 * atomic ops.
@@ -827,7 +827,7 @@ static void __hrtick_start(void *arg)
 /*
  * Called to set the hrtick timer state.
  *
- * called with rq->lock held and irqs disabled
+ * called with rq->lock held and IRQs disabled
  */
 void hrtick_start(struct rq *rq, u64 delay)
 {
@@ -851,7 +851,7 @@ void hrtick_start(struct rq *rq, u64 delay)
 /*
  * Called to set the hrtick timer state.
  *
- * called with rq->lock held and irqs disabled
+ * called with rq->lock held and IRQs disabled
  */
 void hrtick_start(struct rq *rq, u64 delay)
 {
@@ -885,7 +885,7 @@ static inline void hrtick_rq_init(struct rq *rq)
 #endif	/* CONFIG_SCHED_HRTICK */
 
 /*
- * cmpxchg based fetch_or, macro so it works for different integer types
+ * try_cmpxchg based fetch_or() macro so it works for different integer types:
  */
 #define fetch_or(ptr, mask)						\
 	({								\
@@ -1082,7 +1082,7 @@ void resched_cpu(int cpu)
  *
  * We don't do similar optimization for completely idle system, as
  * selecting an idle CPU will add more delays to the timers than intended
- * (as that CPU's timer base may not be uptodate wrt jiffies etc).
+ * (as that CPU's timer base may not be up to date wrt jiffies etc).
  */
 int get_nohz_timer_target(void)
 {
@@ -1142,7 +1142,7 @@ static void wake_up_idle_cpu(int cpu)
 	 * nohz functions that would need to follow TIF_NR_POLLING
 	 * clearing:
 	 *
-	 * - On most archs, a simple fetch_or on ti::flags with a
+	 * - On most architectures, a simple fetch_or on ti::flags with a
 	 *   "0" value would be enough to know if an IPI needs to be sent.
 	 *
 	 * - x86 needs to perform a last need_resched() check between
@@ -1651,7 +1651,7 @@ static inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
 	rq_clamp = uclamp_rq_get(rq, clamp_id);
 	/*
 	 * Defensive programming: this should never happen. If it happens,
-	 * e.g. due to future modification, warn and fixup the expected value.
+	 * e.g. due to future modification, warn and fix up the expected value.
 	 */
 	SCHED_WARN_ON(bucket->value > rq_clamp);
 	if (bucket->value >= rq_clamp) {
@@ -2227,7 +2227,7 @@ static void migrate_disable_switch(struct rq *rq, struct task_struct *p)
 		return;
 
 	/*
-	 * Violates locking rules! see comment in __do_set_cpus_allowed().
+	 * Violates locking rules! See comment in __do_set_cpus_allowed().
 	 */
 	__do_set_cpus_allowed(p, &ac);
 }
@@ -2394,7 +2394,7 @@ static struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
 }
 
 /*
- * migration_cpu_stop - this will be executed by a highprio stopper thread
+ * migration_cpu_stop - this will be executed by a high-prio stopper thread
  * and performs thread migration by bumping thread off CPU then
  * 'pushing' onto another runqueue.
  */
@@ -3694,8 +3694,8 @@ void sched_ttwu_pending(void *arg)
 	 * it is possible for select_idle_siblings() to stack a number
 	 * of tasks on this CPU during that window.
 	 *
-	 * It is ok to clear ttwu_pending when another task pending.
-	 * We will receive IPI after local irq enabled and then enqueue it.
+	 * It is OK to clear ttwu_pending when another task pending.
+	 * We will receive IPI after local IRQ enabled and then enqueue it.
 	 * Since now nr_running > 0, idle_cpu() will always get correct result.
 	 */
 	WRITE_ONCE(rq->ttwu_pending, 0);
@@ -5017,7 +5017,7 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
  *
  * The context switch have flipped the stack from under us and restored the
  * local variables which were saved when this task called schedule() in the
- * past. prev == current is still correct but we need to recalculate this_rq
+ * past. 'prev == current' is still correct but we need to recalculate this_rq
  * because prev may have moved to another CPU.
  */
 static struct rq *finish_task_switch(struct task_struct *prev)
@@ -5363,7 +5363,7 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 	/*
 	 * 64-bit doesn't need locks to atomically read a 64-bit value.
 	 * So we have a optimization chance when the task's delta_exec is 0.
-	 * Reading ->on_cpu is racy, but this is ok.
+	 * Reading ->on_cpu is racy, but this is OK.
 	 *
 	 * If we race with it leaving CPU, we'll take a lock. So we're correct.
 	 * If we race with it entering CPU, unaccounted time is 0. This is
@@ -6637,7 +6637,7 @@ void __sched schedule_idle(void)
 {
 	/*
 	 * As this skips calling sched_submit_work(), which the idle task does
-	 * regardless because that function is a nop when the task is in a
+	 * regardless because that function is a NOP when the task is in a
 	 * TASK_RUNNING state, make sure this isn't used someplace that the
 	 * current task can be in any other state. Note, idle is always in the
 	 * TASK_RUNNING state.
@@ -6832,9 +6832,9 @@ EXPORT_SYMBOL(dynamic_preempt_schedule_notrace);
 
 /*
  * This is the entry point to schedule() from kernel preemption
- * off of irq context.
- * Note, that this is called and return with irqs disabled. This will
- * protect us against recursive calling from irq.
+ * off of IRQ context.
+ * Note, that this is called and return with IRQs disabled. This will
+ * protect us against recursive calling from IRQ contexts.
  */
 asmlinkage __visible void __sched preempt_schedule_irq(void)
 {
@@ -6953,7 +6953,7 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 		goto out_unlock;
 
 	/*
-	 * Idle task boosting is a nono in general. There is one
+	 * Idle task boosting is a no-no in general. There is one
 	 * exception, when PREEMPT_RT and NOHZ is active:
 	 *
 	 * The idle task calls get_next_timer_interrupt() and holds
@@ -7356,11 +7356,11 @@ PREEMPT_MODEL_ACCESSOR(none);
 PREEMPT_MODEL_ACCESSOR(voluntary);
 PREEMPT_MODEL_ACCESSOR(full);
 
-#else /* !CONFIG_PREEMPT_DYNAMIC */
+#else /* !CONFIG_PREEMPT_DYNAMIC: */
 
 static inline void preempt_dynamic_init(void) { }
 
-#endif /* #ifdef CONFIG_PREEMPT_DYNAMIC */
+#endif /* CONFIG_PREEMPT_DYNAMIC */
 
 int io_schedule_prepare(void)
 {
@@ -7970,7 +7970,7 @@ int sched_cpu_deactivate(unsigned int cpu)
 	 * Specifically, we rely on ttwu to no longer target this CPU, see
 	 * ttwu_queue_cond() and is_cpu_allowed().
 	 *
-	 * Do sync before park smpboot threads to take care the rcu boost case.
+	 * Do sync before park smpboot threads to take care the RCU boost case.
 	 */
 	synchronize_rcu();
 
@@ -8045,7 +8045,7 @@ int sched_cpu_wait_empty(unsigned int cpu)
  * Since this CPU is going 'away' for a while, fold any nr_active delta we
  * might have. Called from the CPU stopper task after ensuring that the
  * stopper is the last running task on the CPU, so nr_active count is
- * stable. We need to take the teardown thread which is calling this into
+ * stable. We need to take the tear-down thread which is calling this into
  * account, so we hand in adjust = 1 to the load calculation.
  *
  * Also see the comment "Global load-average calculations".
@@ -8239,7 +8239,7 @@ void __init sched_init(void)
 		/*
 		 * How much CPU bandwidth does root_task_group get?
 		 *
-		 * In case of task-groups formed thr' the cgroup filesystem, it
+		 * In case of task-groups formed through the cgroup filesystem, it
 		 * gets 100% of the CPU resources in the system. This overall
 		 * system CPU resource is divided among the tasks of
 		 * root_task_group and its child task-groups in a fair manner,
@@ -8541,7 +8541,7 @@ void normalize_rt_tasks(void)
 
 #if defined(CONFIG_KGDB_KDB)
 /*
- * These functions are only useful for kdb.
+ * These functions are only useful for KDB.
  *
  * They can only be called when the whole system has been
  * stopped - every CPU needs to be quiescent, and no scheduling
@@ -8649,7 +8649,7 @@ void sched_online_group(struct task_group *tg, struct task_group *parent)
 	online_fair_sched_group(tg);
 }
 
-/* rcu callback to free various structures associated with a task group */
+/* RCU callback to free various structures associated with a task group */
 static void sched_unregister_group_rcu(struct rcu_head *rhp)
 {
 	/* Now it should be safe to free those cfs_rqs: */
@@ -9767,10 +9767,10 @@ const int sched_prio_to_weight[40] = {
 };
 
 /*
- * Inverse (2^32/x) values of the sched_prio_to_weight[] array, precalculated.
+ * Inverse (2^32/x) values of the sched_prio_to_weight[] array, pre-calculated.
  *
  * In cases where the weight does not change often, we can use the
- * precalculated inverse to speed up arithmetics by turning divisions
+ * pre-calculated inverse to speed up arithmetics by turning divisions
  * into multiplications:
  */
 const u32 sched_prio_to_wmult[40] = {
@@ -10026,16 +10026,16 @@ void sched_mm_cid_migrate_to(struct rq *dst_rq, struct task_struct *t)
 	/*
 	 * Move the src cid if the dst cid is unset. This keeps id
 	 * allocation closest to 0 in cases where few threads migrate around
-	 * many cpus.
+	 * many CPUs.
 	 *
 	 * If destination cid is already set, we may have to just clear
 	 * the src cid to ensure compactness in frequent migrations
 	 * scenarios.
 	 *
 	 * It is not useful to clear the src cid when the number of threads is
-	 * greater or equal to the number of allowed cpus, because user-space
+	 * greater or equal to the number of allowed CPUs, because user-space
 	 * can expect that the number of allowed cids can reach the number of
-	 * allowed cpus.
+	 * allowed CPUs.
 	 */
 	dst_pcpu_cid = per_cpu_ptr(mm->pcpu_cid, cpu_of(dst_rq));
 	dst_cid = READ_ONCE(dst_pcpu_cid->cid);

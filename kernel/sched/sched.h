@@ -133,7 +133,7 @@ extern struct list_head asym_cap_list;
 /*
  * Increase resolution of nice-level calculations for 64-bit architectures.
  * The extra resolution improves shares distribution and load balancing of
- * low-weight task groups (eg. nice +19 on an autogroup), deeper taskgroup
+ * low-weight task groups (eg. nice +19 on an autogroup), deeper task-group
  * hierarchies, especially on larger systems. This is not a user-visible change
  * and does not change the user-interface for setting shares/weights.
  *
@@ -406,7 +406,7 @@ struct task_group {
 #ifdef	CONFIG_SMP
 	/*
 	 * load_avg can be heavily contended at clock tick time, so put
-	 * it in its own cacheline separated from the fields above which
+	 * it in its own cache-line separated from the fields above which
 	 * will also be accessed at each tick.
 	 */
 	atomic_long_t		load_avg ____cacheline_aligned;
@@ -874,7 +874,7 @@ struct root_domain {
 	 */
 	bool			overloaded;
 
-	/* Indicate one or more cpus over-utilized (tipping point) */
+	/* Indicate one or more CPUs over-utilized (tipping point) */
 	bool			overutilized;
 
 	/*
@@ -1165,7 +1165,7 @@ struct rq {
 #endif
 
 #ifdef CONFIG_CPU_IDLE
-	/* Must be inspected within a rcu lock section */
+	/* Must be inspected within a RCU lock section */
 	struct cpuidle_state	*idle_state;
 #endif
 
@@ -3317,7 +3317,7 @@ static inline void __mm_cid_put(struct mm_struct *mm, int cid)
  * be held to transition to other states.
  *
  * State transitions synchronized with cmpxchg or try_cmpxchg need to be
- * consistent across cpus, which prevents use of this_cpu_cmpxchg.
+ * consistent across CPUs, which prevents use of this_cpu_cmpxchg.
  */
 static inline void mm_cid_put_lazy(struct task_struct *t)
 {

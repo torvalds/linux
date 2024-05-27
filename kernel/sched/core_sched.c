@@ -279,7 +279,7 @@ void __sched_core_account_forceidle(struct rq *rq)
 			continue;
 
 		/*
-		 * Note: this will account forceidle to the current cpu, even
+		 * Note: this will account forceidle to the current CPU, even
 		 * if it comes from our SMT sibling.
 		 */
 		__account_forceidle_time(p, delta);
