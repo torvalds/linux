@@ -806,7 +806,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 
 	IVTV_DEBUG_INFO("Enabling pci device\n");
 
-	if (pci_enable_device(pdev)) {
+	if (pcim_enable_device(pdev)) {
 		IVTV_ERR("Can't enable device!\n");
 		return -EIO;
 	}
@@ -1402,7 +1402,6 @@ static void ivtv_remove(struct pci_dev *pdev)
 
 	free_irq(itv->pdev->irq, (void *)itv);
 
-	pci_disable_device(itv->pdev);
 	for (i = 0; i < IVTV_VBI_FRAMES; i++)
 		kfree(itv->vbi.sliced_mpeg_data[i]);
 
