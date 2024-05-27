@@ -1207,7 +1207,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 			intel_de_read(dev_priv, WRPLL_CTL(1)) & WRPLL_PLL_ENABLE,
 			"WRPLL2 enabled\n");
 	I915_STATE_WARN(dev_priv,
-			intel_de_read(dev_priv, PP_STATUS(0)) & PP_ON,
+			intel_de_read(dev_priv, PP_STATUS(dev_priv, 0)) & PP_ON,
 			"Panel power on\n");
 	I915_STATE_WARN(dev_priv,
 			intel_de_read(dev_priv, BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,

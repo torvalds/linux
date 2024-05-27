@@ -324,7 +324,7 @@ static void intel_enable_lvds(struct intel_atomic_state *state,
 	intel_de_rmw(dev_priv, PP_CONTROL(0), 0, PANEL_POWER_ON);
 	intel_de_posting_read(dev_priv, lvds_encoder->reg);
 
-	if (intel_de_wait_for_set(dev_priv, PP_STATUS(0), PP_ON, 5000))
+	if (intel_de_wait_for_set(dev_priv, PP_STATUS(dev_priv, 0), PP_ON, 5000))
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel to power on\n");
 
@@ -340,7 +340,7 @@ static void intel_disable_lvds(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	intel_de_rmw(dev_priv, PP_CONTROL(0), PANEL_POWER_ON, 0);
-	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(0), PP_ON, 1000))
+	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(dev_priv, 0), PP_ON, 1000))
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel to power off\n");
 
@@ -379,7 +379,7 @@ static void intel_lvds_shutdown(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(0), PP_CYCLE_DELAY_ACTIVE, 5000))
+	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(dev_priv, 0), PP_CYCLE_DELAY_ACTIVE, 5000))
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel power cycle delay\n");
 }

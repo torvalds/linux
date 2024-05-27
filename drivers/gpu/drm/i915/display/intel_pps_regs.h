@@ -18,7 +18,7 @@
 	_MMIO(__to_intel_display(dev_priv)->pps.mmio_base - PPS_BASE + (reg) + (pps_idx) * 0x100)
 
 #define _PP_STATUS			0x61200
-#define PP_STATUS(pps_idx)		_MMIO_PPS(dev_priv, pps_idx, _PP_STATUS)
+#define PP_STATUS(dev_priv, pps_idx)	_MMIO_PPS(dev_priv, pps_idx, _PP_STATUS)
 #define   PP_ON				REG_BIT(31)
 /*
  * Indicates that all dependencies of the panel are on:

@@ -272,7 +272,7 @@ typedef bool (*pps_check)(struct drm_i915_private *dev_priv, int pps_idx);
 
 static bool pps_has_pp_on(struct drm_i915_private *dev_priv, int pps_idx)
 {
-	return intel_de_read(dev_priv, PP_STATUS(pps_idx)) & PP_ON;
+	return intel_de_read(dev_priv, PP_STATUS(dev_priv, pps_idx)) & PP_ON;
 }
 
 static bool pps_has_vdd_on(struct drm_i915_private *dev_priv, int pps_idx)
@@ -492,7 +492,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 		pps_idx = intel_dp->pps.pps_idx;
 
 	regs->pp_ctrl = PP_CONTROL(pps_idx);
-	regs->pp_stat = PP_STATUS(pps_idx);
+	regs->pp_stat = PP_STATUS(dev_priv, pps_idx);
 	regs->pp_on = PP_ON_DELAYS(pps_idx);
 	regs->pp_off = PP_OFF_DELAYS(pps_idx);
 
