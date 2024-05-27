@@ -3130,7 +3130,7 @@ static int sof_ipc4_parse_manifest(struct snd_soc_component *scomp, int index,
 	return 0;
 }
 
-static int sof_ipc4_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int clk_type)
+static int sof_ipc4_dai_get_param(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int param_type)
 {
 	struct sof_ipc4_copier *ipc4_copier = dai->private;
 	struct snd_soc_tplg_hw_config *hw_config;
@@ -3169,13 +3169,13 @@ static int sof_ipc4_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *da
 
 	switch (ipc4_copier->dai_type) {
 	case SOF_DAI_INTEL_SSP:
-		switch (clk_type) {
-		case SOF_DAI_CLK_INTEL_SSP_MCLK:
+		switch (param_type) {
+		case SOF_DAI_PARAM_INTEL_SSP_MCLK:
 			return le32_to_cpu(hw_config->mclk_rate);
-		case SOF_DAI_CLK_INTEL_SSP_BCLK:
+		case SOF_DAI_PARAM_INTEL_SSP_BCLK:
 			return le32_to_cpu(hw_config->bclk_rate);
 		default:
-			dev_err(sdev->dev, "Invalid clk type for SSP %d\n", clk_type);
+			dev_err(sdev->dev, "invalid SSP param %d\n", param_type);
 			break;
 		}
 		break;
@@ -3352,7 +3352,7 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.route_free = sof_ipc4_route_free,
 	.dai_config = sof_ipc4_dai_config,
 	.parse_manifest = sof_ipc4_parse_manifest,
-	.dai_get_clk = sof_ipc4_dai_get_clk,
+	.dai_get_param = sof_ipc4_dai_get_param,
 	.tear_down_all_pipelines = sof_ipc4_tear_down_all_pipelines,
 	.link_setup = sof_ipc4_link_setup,
 };
