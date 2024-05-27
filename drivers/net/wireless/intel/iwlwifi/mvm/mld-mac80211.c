@@ -347,6 +347,11 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 		rcu_read_unlock();
 	}
 
+	if (vif->type == NL80211_IFTYPE_STATION)
+		iwl_mvm_send_ap_tx_power_constraint_cmd(mvm, vif,
+							link_conf,
+							false);
+
 	/* then activate */
 	ret = iwl_mvm_link_changed(mvm, vif, link_conf,
 				   LINK_CONTEXT_MODIFY_ACTIVE |
@@ -526,9 +531,37 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 }
 
 static void
+iwl_mvm_tpe_sta_cmd_data(struct iwl_txpower_constraints_cmd *cmd,
+			 const struct ieee80211_bss_conf *bss_info)
+{
+	u8 i;
+
+	/*
+	 * NOTE: the 0 here is IEEE80211_TPE_CAT_6GHZ_DEFAULT,
+	 * we fully ignore IEEE80211_TPE_CAT_6GHZ_SUBORDINATE
+	 */
+
+	BUILD_BUG_ON(ARRAY_SIZE(cmd->psd_pwr) !=
+		     ARRAY_SIZE(bss_info->tpe.psd_local[0].power));
+
+	/* if not valid, mac80211 puts default (max value) */
+	for (i = 0; i < ARRAY_SIZE(cmd->psd_pwr); i++)
+		cmd->psd_pwr[i] = min(bss_info->tpe.psd_local[0].power[i],
+				      bss_info->tpe.psd_reg_client[0].power[i]);
+
+	BUILD_BUG_ON(ARRAY_SIZE(cmd->eirp_pwr) !=
+		     ARRAY_SIZE(bss_info->tpe.max_local[0].power));
+
+	for (i = 0; i < ARRAY_SIZE(cmd->eirp_pwr); i++)
+		cmd->eirp_pwr[i] = min(bss_info->tpe.max_local[0].power[i],
+				       bss_info->tpe.max_reg_client[0].power[i]);
+}
+
+void
 iwl_mvm_send_ap_tx_power_constraint_cmd(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
-					struct ieee80211_bss_conf *bss_conf)
+					struct ieee80211_bss_conf *bss_conf,
+					bool is_ap)
 {
 	struct iwl_txpower_constraints_cmd cmd = {};
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -548,18 +581,21 @@ iwl_mvm_send_ap_tx_power_constraint_cmd(struct iwl_mvm *mvm,
 	    link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID)
 		return;
 
-	if (bss_conf->chanreq.oper.chan->band != NL80211_BAND_6GHZ ||
-	    bss_conf->chanreq.oper.chan->flags &
-		    IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT)
+	if (bss_conf->chanreq.oper.chan->band != NL80211_BAND_6GHZ)
 		return;
 
 	cmd.link_id = cpu_to_le16(link_info->fw_link_id);
-	/*
-	 * Currently supporting VLP Soft AP only.
-	 */
-	cmd.ap_type = cpu_to_le16(IWL_6GHZ_AP_TYPE_VLP);
 	memset(cmd.psd_pwr, DEFAULT_TPE_TX_POWER, sizeof(cmd.psd_pwr));
 	memset(cmd.eirp_pwr, DEFAULT_TPE_TX_POWER, sizeof(cmd.eirp_pwr));
+
+	if (is_ap) {
+		cmd.ap_type = cpu_to_le16(IWL_6GHZ_AP_TYPE_VLP);
+	} else if (bss_conf->power_type == IEEE80211_REG_UNSET_AP) {
+		return;
+	} else {
+		cmd.ap_type = cpu_to_le16(bss_conf->power_type - 1);
+		iwl_mvm_tpe_sta_cmd_data(&cmd, bss_conf);
+	}
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   WIDE_ID(PHY_OPS_GROUP,
@@ -582,7 +618,8 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	guard(mvm)(mvm);
 
 	if (vif->type == NL80211_IFTYPE_AP)
-		iwl_mvm_send_ap_tx_power_constraint_cmd(mvm, vif, link_conf);
+		iwl_mvm_send_ap_tx_power_constraint_cmd(mvm, vif,
+							link_conf, true);
 
 	/* Send the beacon template */
 	ret = iwl_mvm_mac_ctxt_beacon_changed(mvm, vif, link_conf);
