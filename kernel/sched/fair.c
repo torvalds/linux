@@ -1156,12 +1156,13 @@ s64 update_curr_common(struct rq *rq)
 static void update_curr(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq->curr;
+	struct rq *rq = rq_of(cfs_rq);
 	s64 delta_exec;
 
 	if (unlikely(!curr))
 		return;
 
-	delta_exec = update_curr_se(rq_of(cfs_rq), curr);
+	delta_exec = update_curr_se(rq, curr);
 	if (unlikely(delta_exec <= 0))
 		return;
 
@@ -1169,8 +1170,19 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	update_deadline(cfs_rq, curr);
 	update_min_vruntime(cfs_rq);
 
-	if (entity_is_task(curr))
-		update_curr_task(task_of(curr), delta_exec);
+	if (entity_is_task(curr)) {
+		struct task_struct *p = task_of(curr);
+
+		update_curr_task(p, delta_exec);
+
+		/*
+		 * Any fair task that runs outside of fair_server should
+		 * account against fair_server such that it can account for
+		 * this time and possibly avoid running this period.
+		 */
+		if (p->dl_server != &rq->fair_server)
+			dl_server_update(&rq->fair_server, delta_exec);
+	}
 
 	account_cfs_rq_runtime(cfs_rq, delta_exec);
 }
@@ -6768,8 +6780,12 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	 */
 	util_est_enqueue(&rq->cfs, p);
 
-	if (!throttled_hierarchy(task_cfs_rq(p)) && !rq->cfs.h_nr_running)
+	if (!throttled_hierarchy(task_cfs_rq(p)) && !rq->cfs.h_nr_running) {
+		/* Account for idle runtime */
+		if (!rq->nr_running)
+			dl_server_update_idle_time(rq, rq->curr);
 		dl_server_start(&rq->fair_server);
+	}
 
 	/*
 	 * If in_iowait is set, the code below may not trigger any cpufreq

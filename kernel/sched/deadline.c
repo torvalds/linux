@@ -771,6 +771,15 @@ static inline void replenish_dl_new_period(struct sched_dl_entity *dl_se,
 	/* for non-boosted task, pi_of(dl_se) == dl_se */
 	dl_se->deadline = rq_clock(rq) + pi_of(dl_se)->dl_deadline;
 	dl_se->runtime = pi_of(dl_se)->dl_runtime;
+
+	/*
+	 * If it is a deferred reservation, and the server
+	 * is not handling an starvation case, defer it.
+	 */
+	if (dl_se->dl_defer & !dl_se->dl_defer_running) {
+		dl_se->dl_throttled = 1;
+		dl_se->dl_defer_armed = 1;
+	}
 }
 
 /*
@@ -809,6 +818,9 @@ static inline void setup_new_dl_entity(struct sched_dl_entity *dl_se)
 	replenish_dl_new_period(dl_se, rq);
 }
 
+static int start_dl_timer(struct sched_dl_entity *dl_se);
+static bool dl_entity_overflow(struct sched_dl_entity *dl_se, u64 t);
+
 /*
  * Pure Earliest Deadline First (EDF) scheduling does not deal with the
  * possibility of a entity lasting more than what it declared, and thus
@@ -837,9 +849,18 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se)
 	/*
 	 * This could be the case for a !-dl task that is boosted.
 	 * Just go with full inherited parameters.
+	 *
+	 * Or, it could be the case of a deferred reservation that
+	 * was not able to consume its runtime in background and
+	 * reached this point with current u > U.
+	 *
+	 * In both cases, set a new period.
 	 */
-	if (dl_se->dl_deadline == 0)
-		replenish_dl_new_period(dl_se, rq);
+	if (dl_se->dl_deadline == 0 ||
+	    (dl_se->dl_defer_armed && dl_entity_overflow(dl_se, rq_clock(rq)))) {
+		dl_se->deadline = rq_clock(rq) + pi_of(dl_se)->dl_deadline;
+		dl_se->runtime = pi_of(dl_se)->dl_runtime;
+	}
 
 	if (dl_se->dl_yielded && dl_se->runtime > 0)
 		dl_se->runtime = 0;
@@ -873,6 +894,44 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se)
 		dl_se->dl_yielded = 0;
 	if (dl_se->dl_throttled)
 		dl_se->dl_throttled = 0;
+
+	/*
+	 * If this is the replenishment of a deferred reservation,
+	 * clear the flag and return.
+	 */
+	if (dl_se->dl_defer_armed) {
+		dl_se->dl_defer_armed = 0;
+		return;
+	}
+
+	/*
+	 * A this point, if the deferred server is not armed, and the deadline
+	 * is in the future, if it is not running already, throttle the server
+	 * and arm the defer timer.
+	 */
+	if (dl_se->dl_defer && !dl_se->dl_defer_running &&
+	    dl_time_before(rq_clock(dl_se->rq), dl_se->deadline - dl_se->runtime)) {
+		if (!is_dl_boosted(dl_se) && dl_se->server_has_tasks(dl_se)) {
+
+			/*
+			 * Set dl_se->dl_defer_armed and dl_throttled variables to
+			 * inform the start_dl_timer() that this is a deferred
+			 * activation.
+			 */
+			dl_se->dl_defer_armed = 1;
+			dl_se->dl_throttled = 1;
+			if (!start_dl_timer(dl_se)) {
+				/*
+				 * If for whatever reason (delays), a previous timer was
+				 * queued but not serviced, cancel it and clean the
+				 * deferrable server variables intended for start_dl_timer().
+				 */
+				hrtimer_try_to_cancel(&dl_se->dl_timer);
+				dl_se->dl_defer_armed = 0;
+				dl_se->dl_throttled = 0;
+			}
+		}
+	}
 }
 
 /*
@@ -1023,6 +1082,15 @@ static void update_dl_entity(struct sched_dl_entity *dl_se)
 		}
 
 		replenish_dl_new_period(dl_se, rq);
+	} else if (dl_server(dl_se) && dl_se->dl_defer) {
+		/*
+		 * The server can still use its previous deadline, so check if
+		 * it left the dl_defer_running state.
+		 */
+		if (!dl_se->dl_defer_running) {
+			dl_se->dl_defer_armed = 1;
+			dl_se->dl_throttled = 1;
+		}
 	}
 }
 
@@ -1055,8 +1123,21 @@ static int start_dl_timer(struct sched_dl_entity *dl_se)
 	 * We want the timer to fire at the deadline, but considering
 	 * that it is actually coming from rq->clock and not from
 	 * hrtimer's time base reading.
+	 *
+	 * The deferred reservation will have its timer set to
+	 * (deadline - runtime). At that point, the CBS rule will decide
+	 * if the current deadline can be used, or if a replenishment is
+	 * required to avoid add too much pressure on the system
+	 * (current u > U).
 	 */
-	act = ns_to_ktime(dl_next_period(dl_se));
+	if (dl_se->dl_defer_armed) {
+		WARN_ON_ONCE(!dl_se->dl_throttled);
+		act = ns_to_ktime(dl_se->deadline - dl_se->runtime);
+	} else {
+		/* act = deadline - rel-deadline + period */
+		act = ns_to_ktime(dl_next_period(dl_se));
+	}
+
 	now = hrtimer_cb_get_time(timer);
 	delta = ktime_to_ns(now) - rq_clock(rq);
 	act = ktime_add_ns(act, delta);
@@ -1106,6 +1187,62 @@ static void __push_dl_task(struct rq *rq, struct rq_flags *rf)
 #endif
 }
 
+/* a defer timer will not be reset if the runtime consumed was < dl_server_min_res */
+static const u64 dl_server_min_res = 1 * NSEC_PER_MSEC;
+
+static enum hrtimer_restart dl_server_timer(struct hrtimer *timer, struct sched_dl_entity *dl_se)
+{
+	struct rq *rq = rq_of_dl_se(dl_se);
+	u64 fw;
+
+	scoped_guard (rq_lock, rq) {
+		struct rq_flags *rf = &scope.rf;
+
+		if (!dl_se->dl_throttled || !dl_se->dl_runtime)
+			return HRTIMER_NORESTART;
+
+		sched_clock_tick();
+		update_rq_clock(rq);
+
+		if (!dl_se->dl_runtime)
+			return HRTIMER_NORESTART;
+
+		if (!dl_se->server_has_tasks(dl_se)) {
+			replenish_dl_entity(dl_se);
+			return HRTIMER_NORESTART;
+		}
+
+		if (dl_se->dl_defer_armed) {
+			/*
+			 * First check if the server could consume runtime in background.
+			 * If so, it is possible to push the defer timer for this amount
+			 * of time. The dl_server_min_res serves as a limit to avoid
+			 * forwarding the timer for a too small amount of time.
+			 */
+			if (dl_time_before(rq_clock(dl_se->rq),
+					   (dl_se->deadline - dl_se->runtime - dl_server_min_res))) {
+
+				/* reset the defer timer */
+				fw = dl_se->deadline - rq_clock(dl_se->rq) - dl_se->runtime;
+
+				hrtimer_forward_now(timer, ns_to_ktime(fw));
+				return HRTIMER_RESTART;
+			}
+
+			dl_se->dl_defer_running = 1;
+		}
+
+		enqueue_dl_entity(dl_se, ENQUEUE_REPLENISH);
+
+		if (!dl_task(dl_se->rq->curr) || dl_entity_preempt(dl_se, &dl_se->rq->curr->dl))
+			resched_curr(rq);
+
+		__push_dl_task(rq, rf);
+	}
+
+	return HRTIMER_NORESTART;
+}
+
 /*
  * This is the bandwidth enforcement timer callback. If here, we know
  * a task is not on its dl_rq, since the fact that the timer was running
@@ -1128,28 +1265,8 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 	struct rq_flags rf;
 	struct rq *rq;
 
-	if (dl_server(dl_se)) {
-		struct rq *rq = rq_of_dl_se(dl_se);
-		struct rq_flags rf;
-
-		rq_lock(rq, &rf);
-		if (dl_se->dl_throttled) {
-			sched_clock_tick();
-			update_rq_clock(rq);
-
-			if (dl_se->server_has_tasks(dl_se)) {
-				enqueue_dl_entity(dl_se, ENQUEUE_REPLENISH);
-				resched_curr(rq);
-				__push_dl_task(rq, &rf);
-			} else {
-				replenish_dl_entity(dl_se);
-			}
-
-		}
-		rq_unlock(rq, &rf);
-
-		return HRTIMER_NORESTART;
-	}
+	if (dl_server(dl_se))
+		return dl_server_timer(timer, dl_se);
 
 	p = dl_task_of(dl_se);
 	rq = task_rq_lock(p, &rf);
@@ -1319,21 +1436,9 @@ static u64 grub_reclaim(u64 delta, struct rq *rq, struct sched_dl_entity *dl_se)
 	return (delta * u_act) >> BW_SHIFT;
 }
 
-static inline void
-update_stats_dequeue_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se,
-                        int flags);
-static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64 delta_exec)
+s64 dl_scaled_delta_exec(struct rq *rq, struct sched_dl_entity *dl_se, s64 delta_exec)
 {
 	s64 scaled_delta_exec;
-
-	if (unlikely(delta_exec <= 0)) {
-		if (unlikely(dl_se->dl_yielded))
-			goto throttle;
-		return;
-	}
-
-	if (dl_entity_is_special(dl_se))
-		return;
 
 	/*
 	 * For tasks that participate in GRUB, we implement GRUB-PA: the
@@ -1353,7 +1458,63 @@ static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64 
 		scaled_delta_exec = cap_scale(scaled_delta_exec, scale_cpu);
 	}
 
+	return scaled_delta_exec;
+}
+
+static inline void
+update_stats_dequeue_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se,
+			int flags);
+static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64 delta_exec)
+{
+	s64 scaled_delta_exec;
+
+	if (unlikely(delta_exec <= 0)) {
+		if (unlikely(dl_se->dl_yielded))
+			goto throttle;
+		return;
+	}
+
+	if (dl_server(dl_se) && dl_se->dl_throttled && !dl_se->dl_defer)
+		return;
+
+	if (dl_entity_is_special(dl_se))
+		return;
+
+	scaled_delta_exec = dl_scaled_delta_exec(rq, dl_se, delta_exec);
+
 	dl_se->runtime -= scaled_delta_exec;
+
+	/*
+	 * The fair server can consume its runtime while throttled (not queued/
+	 * running as regular CFS).
+	 *
+	 * If the server consumes its entire runtime in this state. The server
+	 * is not required for the current period. Thus, reset the server by
+	 * starting a new period, pushing the activation.
+	 */
+	if (dl_se->dl_defer && dl_se->dl_throttled && dl_runtime_exceeded(dl_se)) {
+		/*
+		 * If the server was previously activated - the starving condition
+		 * took place, it this point it went away because the fair scheduler
+		 * was able to get runtime in background. So return to the initial
+		 * state.
+		 */
+		dl_se->dl_defer_running = 0;
+
+		hrtimer_try_to_cancel(&dl_se->dl_timer);
+
+		replenish_dl_new_period(dl_se, dl_se->rq);
+
+		/*
+		 * Not being able to start the timer seems problematic. If it could not
+		 * be started for whatever reason, we need to "unthrottle" the DL server
+		 * and queue right away. Otherwise nothing might queue it. That's similar
+		 * to what enqueue_dl_entity() does on start_dl_timer==0. For now, just warn.
+		 */
+		WARN_ON_ONCE(!start_dl_timer(dl_se));
+
+		return;
+	}
 
 throttle:
 	if (dl_runtime_exceeded(dl_se) || dl_se->dl_yielded) {
@@ -1414,9 +1575,46 @@ throttle:
 	}
 }
 
+/*
+ * In the non-defer mode, the idle time is not accounted, as the
+ * server provides a guarantee.
+ *
+ * If the dl_server is in defer mode, the idle time is also considered
+ * as time available for the fair server, avoiding a penalty for the
+ * rt scheduler that did not consumed that time.
+ */
+void dl_server_update_idle_time(struct rq *rq, struct task_struct *p)
+{
+	s64 delta_exec, scaled_delta_exec;
+
+	if (!rq->fair_server.dl_defer)
+		return;
+
+	/* no need to discount more */
+	if (rq->fair_server.runtime < 0)
+		return;
+
+	delta_exec = rq_clock_task(rq) - p->se.exec_start;
+	if (delta_exec < 0)
+		return;
+
+	scaled_delta_exec = dl_scaled_delta_exec(rq, &rq->fair_server, delta_exec);
+
+	rq->fair_server.runtime -= scaled_delta_exec;
+
+	if (rq->fair_server.runtime < 0) {
+		rq->fair_server.dl_defer_running = 0;
+		rq->fair_server.runtime = 0;
+	}
+
+	p->se.exec_start = rq_clock_task(rq);
+}
+
 void dl_server_update(struct sched_dl_entity *dl_se, s64 delta_exec)
 {
-	update_curr_dl_se(dl_se->rq, dl_se, delta_exec);
+	/* 0 runtime = fair server disabled */
+	if (dl_se->dl_runtime)
+		update_curr_dl_se(dl_se->rq, dl_se, delta_exec);
 }
 
 void dl_server_start(struct sched_dl_entity *dl_se)
@@ -1430,6 +1628,7 @@ void dl_server_start(struct sched_dl_entity *dl_se)
 		dl_se->dl_period = 1000 * NSEC_PER_MSEC;
 
 		dl_se->dl_server = 1;
+		dl_se->dl_defer = 1;
 		setup_new_dl_entity(dl_se);
 	}
 
@@ -1447,6 +1646,9 @@ void dl_server_stop(struct sched_dl_entity *dl_se)
 		return;
 
 	dequeue_dl_entity(dl_se, DEQUEUE_SLEEP);
+	hrtimer_try_to_cancel(&dl_se->dl_timer);
+	dl_se->dl_defer_armed = 0;
+	dl_se->dl_throttled = 0;
 }
 
 void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
@@ -1758,7 +1960,7 @@ enqueue_dl_entity(struct sched_dl_entity *dl_se, int flags)
 	 * be counted in the active utilization; hence, we need to call
 	 * add_running_bw().
 	 */
-	if (dl_se->dl_throttled && !(flags & ENQUEUE_REPLENISH)) {
+	if (!dl_se->dl_defer && dl_se->dl_throttled && !(flags & ENQUEUE_REPLENISH)) {
 		if (flags & ENQUEUE_WAKEUP)
 			task_contending(dl_se, flags);
 
@@ -1778,6 +1980,25 @@ enqueue_dl_entity(struct sched_dl_entity *dl_se, int flags)
 	} else if ((flags & ENQUEUE_RESTORE) &&
 		   dl_time_before(dl_se->deadline, rq_clock(rq_of_dl_se(dl_se)))) {
 		setup_new_dl_entity(dl_se);
+	}
+
+	/*
+	 * If the reservation is still throttled, e.g., it got replenished but is a
+	 * deferred task and still got to wait, don't enqueue.
+	 */
+	if (dl_se->dl_throttled && start_dl_timer(dl_se))
+		return;
+
+	/*
+	 * We're about to enqueue, make sure we're not ->dl_throttled!
+	 * In case the timer was not started, say because the defer time
+	 * has passed, mark as not throttled and mark unarmed.
+	 * Also cancel earlier timers, since letting those run is pointless.
+	 */
+	if (dl_se->dl_throttled) {
+		hrtimer_try_to_cancel(&dl_se->dl_timer);
+		dl_se->dl_defer_armed = 0;
+		dl_se->dl_throttled = 0;
 	}
 
 	__enqueue_dl_entity(dl_se);
