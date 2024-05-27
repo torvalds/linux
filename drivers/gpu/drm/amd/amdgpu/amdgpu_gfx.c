@@ -24,10 +24,13 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/pm_runtime.h>
+
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_rlc.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_reset.h"
 #include "amdgpu_xcp.h"
 #include "amdgpu_xgmi.h"
 
@@ -1391,6 +1394,129 @@ static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 	return sysfs_emit(buf, "%s\n", supported_partition);
 }
 
+static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	long timeout = msecs_to_jiffies(1000);
+	struct dma_fence *f = NULL;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
+	int i, r;
+
+	r = amdgpu_job_alloc_with_ib(adev, NULL, NULL,
+				     64, AMDGPU_IB_POOL_DIRECT,
+				     &job);
+	if (r)
+		goto err;
+
+	job->enforce_isolation = true;
+
+	ib = &job->ibs[0];
+	for (i = 0; i <= ring->funcs->align_mask; ++i)
+		ib->ptr[i] = ring->funcs->nop;
+	ib->length_dw = ring->funcs->align_mask + 1;
+
+	r = amdgpu_job_submit_direct(job, ring, &f);
+	if (r)
+		goto err_free;
+
+	r = dma_fence_wait_timeout(f, false, timeout);
+	if (r == 0)
+		r = -ETIMEDOUT;
+	else if (r > 0)
+		r = 0;
+
+	amdgpu_ib_free(adev, ib, f);
+	dma_fence_put(f);
+
+	return 0;
+
+err_free:
+	amdgpu_job_free(job);
+	amdgpu_ib_free(adev, ib, f);
+err:
+	return r;
+}
+
+static int amdgpu_gfx_run_cleaner_shader(struct amdgpu_device *adev, int xcp_id)
+{
+	int num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	struct amdgpu_ring *ring;
+	int num_xcc_to_clear;
+	int i, r, xcc_id;
+
+	if (adev->gfx.num_xcc_per_xcp)
+		num_xcc_to_clear = adev->gfx.num_xcc_per_xcp;
+	else
+		num_xcc_to_clear = 1;
+
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			ring = &adev->gfx.compute_ring[i + xcc_id * adev->gfx.num_compute_rings];
+			if ((ring->xcp_id == xcp_id) && ring->sched.ready) {
+				r = amdgpu_gfx_run_cleaner_shader_job(ring);
+				if (r)
+					return r;
+				num_xcc_to_clear--;
+				break;
+			}
+		}
+	}
+
+	if (num_xcc_to_clear)
+		return -ENOENT;
+
+	return 0;
+}
+
+static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf,
+						 size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int ret;
+	long value;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	ret = kstrtol(buf, 0, &value);
+
+	if (ret)
+		return -EINVAL;
+
+	if (value < 0)
+		return -EINVAL;
+
+	if (adev->xcp_mgr) {
+		if (value >= adev->xcp_mgr->num_xcps)
+			return -EINVAL;
+	} else {
+		if (value > 1)
+			return -EINVAL;
+	}
+
+	ret = pm_runtime_get_sync(ddev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return ret;
+	}
+
+	ret = amdgpu_gfx_run_cleaner_shader(adev, value);
+
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
@@ -1469,6 +1595,9 @@ static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
 	return count;
 }
 
+static DEVICE_ATTR(run_cleaner_shader, 0200,
+		   NULL, amdgpu_gfx_set_run_cleaner_shader);
+
 static DEVICE_ATTR(enforce_isolation, 0644,
 		   amdgpu_gfx_get_enforce_isolation,
 		   amdgpu_gfx_set_enforce_isolation);
@@ -1509,6 +1638,10 @@ int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
 			return r;
 	}
 
+	r = device_create_file(adev->dev, &dev_attr_run_cleaner_shader);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -1516,6 +1649,7 @@ void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev)
 {
 	if (!amdgpu_sriov_vf(adev))
 		device_remove_file(adev->dev, &dev_attr_enforce_isolation);
+	device_remove_file(adev->dev, &dev_attr_run_cleaner_shader);
 }
 
 int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,
