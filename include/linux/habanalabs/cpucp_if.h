@@ -1146,6 +1146,7 @@ struct cpucp_security_info {
  *                (0 = fully functional, 1 = lower-half is not functional,
  *                 2 = upper-half is not functional)
  * @sec_info: security information
+ * @cpld_timestamp: CPLD programmed F/W timestamp.
  * @pll_map: Bit map of supported PLLs for current ASIC version.
  * @mme_binning_mask: MME binning mask,
  *                    bits [0:6]   <==> dcore0 mme fma
@@ -1193,7 +1194,7 @@ struct cpucp_info {
 	__u8 substrate_version;
 	__u8 eq_health_check_supported;
 	struct cpucp_security_info sec_info;
-	__le32 reserved2;
+	__le32 cpld_timestamp;
 	__u8 pll_map[PLL_MAP_LEN];
 	__le64 mme_binning_mask;
 	__u8 fw_os_version[VERSION_MAX_LEN];

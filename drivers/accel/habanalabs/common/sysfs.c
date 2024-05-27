@@ -142,8 +142,9 @@ static ssize_t cpld_ver_show(struct device *dev, struct device_attribute *attr,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "0x%08x\n",
-			le32_to_cpu(hdev->asic_prop.cpucp_info.cpld_version));
+	return sprintf(buf, "0x%08x%08x\n",
+		le32_to_cpu(hdev->asic_prop.cpucp_info.cpld_timestamp),
+		le32_to_cpu(hdev->asic_prop.cpucp_info.cpld_version));
 }
 
 static ssize_t cpucp_kernel_ver_show(struct device *dev,
