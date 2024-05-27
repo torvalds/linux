@@ -383,6 +383,9 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 	}
 
 	mutex_init(&m->job_mutex);
+	fs_reclaim_acquire(GFP_KERNEL);
+	might_lock(&m->job_mutex);
+	fs_reclaim_release(GFP_KERNEL);
 
 	err = drmm_add_action_or_reset(&xe->drm, xe_migrate_fini, m);
 	if (err)
@@ -807,7 +810,6 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 						  IS_DGFX(xe) ? dst_is_vram : dst_is_pltt,
 						  src_L0, ccs_ofs, copy_ccs);
 
-		mutex_lock(&m->job_mutex);
 		job = xe_bb_create_migration_job(m->q, bb,
 						 xe_migrate_batch_base(m, usm),
 						 update_idx);
@@ -827,6 +829,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 				goto err_job;
 		}
 
+		mutex_lock(&m->job_mutex);
 		xe_sched_job_arm(job);
 		dma_fence_put(fence);
 		fence = dma_fence_get(&job->drm.s_fence->finished);
@@ -844,7 +847,6 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 err_job:
 		xe_sched_job_put(job);
 err:
-		mutex_unlock(&m->job_mutex);
 		xe_bb_free(bb, NULL);
 
 err_sync:
@@ -1044,7 +1046,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 			flush_flags = MI_FLUSH_DW_CCS;
 		}
 
-		mutex_lock(&m->job_mutex);
 		job = xe_bb_create_migration_job(m->q, bb,
 						 xe_migrate_batch_base(m, usm),
 						 update_idx);
@@ -1067,6 +1068,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 				goto err_job;
 		}
 
+		mutex_lock(&m->job_mutex);
 		xe_sched_job_arm(job);
 		dma_fence_put(fence);
 		fence = dma_fence_get(&job->drm.s_fence->finished);
@@ -1083,7 +1085,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 err_job:
 		xe_sched_job_put(job);
 err:
-		mutex_unlock(&m->job_mutex);
 		xe_bb_free(bb, NULL);
 err_sync:
 		/* Sync partial copies if any. FIXME: job_mutex? */
@@ -1377,9 +1378,6 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 			write_pgtable(tile, bb, 0, &updates[i], pt_update);
 	}
 
-	if (!q)
-		mutex_lock(&m->job_mutex);
-
 	job = xe_bb_create_migration_job(q ?: m->q, bb,
 					 xe_migrate_batch_base(m, usm),
 					 update_idx);
@@ -1420,6 +1418,9 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		if (err)
 			goto err_job;
 	}
+	if (!q)
+		mutex_lock(&m->job_mutex);
+
 	xe_sched_job_arm(job);
 	fence = dma_fence_get(&job->drm.s_fence->finished);
 	xe_sched_job_push(job);
@@ -1435,8 +1436,6 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 err_job:
 	xe_sched_job_put(job);
 err_bb:
-	if (!q)
-		mutex_unlock(&m->job_mutex);
 	xe_bb_free(bb, NULL);
 err:
 	drm_suballoc_free(sa_bo, NULL);
