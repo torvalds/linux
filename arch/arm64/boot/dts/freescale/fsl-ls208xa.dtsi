@@ -247,11 +247,6 @@
 			     <1 10 4>; /* Hypervisor PPI, active-low */
 	};
 
-	pmu {
-		compatible = "arm,armv8-pmuv3";
-		interrupts = <1 7 0x8>; /* PMU PPI, Level low type */
-	};
-
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";

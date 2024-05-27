@@ -225,8 +225,6 @@ setup or driver probe/teardown code, so this is an easy constraint.)::
                 gpio_request()
 
         ## 	gpio_request_one()
-        ##	gpio_request_array()
-        ## 	gpio_free_array()
 
                 gpio_free()
 
@@ -295,14 +293,6 @@ are claimed, three additional calls are defined::
 	 */
 	int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 
-	/* request multiple GPIOs in a single call
-	 */
-	int gpio_request_array(struct gpio *array, size_t num);
-
-	/* release multiple GPIOs in a single call
-	 */
-	void gpio_free_array(struct gpio *array, size_t num);
-
 where 'flags' is currently defined to specify the following properties:
 
 	* GPIOF_DIR_IN		- to configure direction as input
@@ -340,12 +330,6 @@ A typical example of usage::
 	err = gpio_request_one(31, GPIOF_IN, "Reset Button");
 	if (err)
 		...
-
-	err = gpio_request_array(leds_gpios, ARRAY_SIZE(leds_gpios));
-	if (err)
-		...
-
-	gpio_free_array(leds_gpios, ARRAY_SIZE(leds_gpios));
 
 
 GPIOs mapped to IRQs

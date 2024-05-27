@@ -768,6 +768,7 @@ static const struct of_device_id sun8i_v3s_ccu_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun8i_v3s_ccu_ids);
 
 static struct platform_driver sun8i_v3s_ccu_driver = {
 	.probe	= sun8i_v3s_ccu_probe,

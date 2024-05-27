@@ -27,6 +27,7 @@
 #include "intel_tc.h"
 #include "intel_vga.h"
 #include "skl_watermark.h"
+#include "vlv_dpio_phy_regs.h"
 #include "vlv_sideband.h"
 #include "vlv_sideband_reg.h"
 
@@ -1442,9 +1443,9 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW28, tmp);
 
 	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
-		tmp = vlv_dpio_read(dev_priv, phy, _CHV_CMN_DW6_CH1);
+		tmp = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW6_CH1);
 		tmp |= DPIO_DYNPWRDOWNEN_CH1;
-		vlv_dpio_write(dev_priv, phy, _CHV_CMN_DW6_CH1, tmp);
+		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW6_CH1, tmp);
 	} else {
 		/*
 		 * Force the non-existing CL2 off. BXT does this
@@ -1520,9 +1521,9 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 		return;
 
 	if (ch == DPIO_CH0)
-		reg = _CHV_CMN_DW0_CH0;
+		reg = CHV_CMN_DW0_CH0;
 	else
-		reg = _CHV_CMN_DW6_CH1;
+		reg = CHV_CMN_DW6_CH1;
 
 	vlv_dpio_get(dev_priv);
 	val = vlv_dpio_read(dev_priv, phy, reg);
@@ -1553,10 +1554,11 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 	}
 
 	if (ch == DPIO_CH0)
-		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH0;
+		actual = REG_FIELD_GET(DPIO_ANYDL_POWERDOWN_CH0 |
+				       DPIO_ALLDL_POWERDOWN_CH0, val);
 	else
-		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH1;
-	actual &= DPIO_ALLDL_POWERDOWN | DPIO_ANYDL_POWERDOWN;
+		actual = REG_FIELD_GET(DPIO_ANYDL_POWERDOWN_CH1 |
+				       DPIO_ALLDL_POWERDOWN_CH1, val);
 
 	drm_WARN(&dev_priv->drm, actual != expected,
 		 "Unexpected DPIO lane power down: all %d, any %d. Expected: all %d, any %d. (0x%x = 0x%08x)\n",

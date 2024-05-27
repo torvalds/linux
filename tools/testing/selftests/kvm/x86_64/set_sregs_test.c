@@ -10,7 +10,6 @@
  * That bug allowed a user-mode program that called the KVM_SET_SREGS
  * ioctl to put a VCPU's local APIC into an invalid state.
  */
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
+#include <linux/reset.h>
 
 #define CDNS_UART_TTY_NAME	"ttyPS"
 #define CDNS_UART_NAME		"xuartps"
@@ -198,6 +199,7 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
  * @gpiod_rts:		Pointer to the gpio descriptor
  * @rs485_tx_started:	RS485 tx state
  * @tx_timer:		Timer for tx
+ * @rstc:		Pointer to the reset control
  */
 struct cdns_uart {
 	struct uart_port	*port;
@@ -211,6 +213,7 @@ struct cdns_uart {
 	struct gpio_desc	*gpiod_rts;
 	bool			rs485_tx_started;
 	struct hrtimer		tx_timer;
+	struct reset_control	*rstc;
 };
 struct cdns_platform_data {
 	u32 quirks;
@@ -425,32 +428,32 @@ static void cdns_uart_handle_tx(void *dev_id)
 {
 	struct uart_port *port = (struct uart_port *)dev_id;
 	struct cdns_uart *cdns_uart = port->private_data;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	unsigned int numbytes;
+	unsigned char ch;
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		/* Disable the TX Empty interrupt */
 		writel(CDNS_UART_IXR_TXEMPTY, port->membase + CDNS_UART_IDR);
 		return;
 	}
 
 	numbytes = port->fifosize;
-	while (numbytes && !uart_circ_empty(xmit) &&
-	       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL)) {
-
-		writel(xmit->buf[xmit->tail], port->membase + CDNS_UART_FIFO);
-		uart_xmit_advance(port, 1);
+	while (numbytes &&
+	       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL) &&
+	       uart_fifo_get(port, &ch)) {
+		writel(ch, port->membase + CDNS_UART_FIFO);
 		numbytes--;
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	/* Enable the TX Empty interrupt */
 	writel(CDNS_UART_IXR_TXEMPTY, cdns_uart->port->membase + CDNS_UART_IER);
 
 	if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED &&
-	    (uart_circ_empty(xmit) || uart_tx_stopped(port))) {
+	    (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port))) {
 		cdns_uart->tx_timer.function = &cdns_rs485_rx_callback;
 		hrtimer_start(&cdns_uart->tx_timer,
 			      ns_to_ktime(cdns_calc_after_tx_delay(cdns_uart)), HRTIMER_MODE_REL);
@@ -723,7 +726,7 @@ static void cdns_uart_start_tx(struct uart_port *port)
 	status |= CDNS_UART_CR_TX_EN;
 	writel(status, port->membase + CDNS_UART_CR);
 
-	if (uart_circ_empty(&port->state->xmit))
+	if (kfifo_is_empty(&port->state->port.xmit_fifo))
 		return;
 
 	/* Clear the TX Empty interrupt */
@@ -947,6 +950,10 @@ static int cdns_uart_startup(struct uart_port *port)
 	unsigned int status = 0;
 
 	is_brk_support = cdns_uart->quirks & CDNS_UART_RXBS_SUPPORT;
+
+	ret = reset_control_deassert(cdns_uart->rstc);
+	if (ret)
+		return ret;
 
 	uart_port_lock_irqsave(port, &flags);
 
@@ -1721,6 +1728,13 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "clock name 'ref_clk' is deprecated.\n");
 	}
 
+	cdns_uart_data->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(cdns_uart_data->rstc)) {
+		rc = PTR_ERR(cdns_uart_data->rstc);
+		dev_err_probe(&pdev->dev, rc, "Cannot get UART reset\n");
+		goto err_out_unregister_driver;
+	}
+
 	rc = clk_prepare_enable(cdns_uart_data->pclk);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to enable pclk clock.\n");
@@ -1881,6 +1895,7 @@ static void cdns_uart_remove(struct platform_device *pdev)
 	if (console_port == port)
 		console_port = NULL;
 #endif
+	reset_control_assert(cdns_uart_data->rstc);
 
 	if (!--instances)
 		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);

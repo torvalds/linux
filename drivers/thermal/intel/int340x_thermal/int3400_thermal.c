@@ -73,14 +73,7 @@ struct odvp_attr {
 	struct device_attribute attr;
 };
 
-static ssize_t data_vault_read(struct file *file, struct kobject *kobj,
-	     struct bin_attribute *attr, char *buf, loff_t off, size_t count)
-{
-	memcpy(buf, attr->private + off, count);
-	return count;
-}
-
-static BIN_ATTR_RO(data_vault, 0);
+static BIN_ATTR_SIMPLE_RO(data_vault);
 
 static struct bin_attribute *data_attributes[] = {
 	&bin_attr_data_vault,
@@ -705,6 +698,7 @@ static const struct acpi_device_id int3400_thermal_match[] = {
 	{"INTC1040", 0},
 	{"INTC1041", 0},
 	{"INTC1042", 0},
+	{"INTC1068", 0},
 	{"INTC10A0", 0},
 	{}
 };

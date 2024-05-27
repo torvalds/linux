@@ -820,4 +820,5 @@ static struct platform_driver msp_i2s_driver = {
 };
 module_platform_driver(msp_i2s_driver);
 
+MODULE_DESCRIPTION("ASoC Ux500 I2S driver");
 MODULE_LICENSE("GPL v2");

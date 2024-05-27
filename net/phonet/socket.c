@@ -292,18 +292,17 @@ out:
 }
 
 static int pn_socket_accept(struct socket *sock, struct socket *newsock,
-			    int flags, bool kern)
+			    struct proto_accept_arg *arg)
 {
 	struct sock *sk = sock->sk;
 	struct sock *newsk;
-	int err;
 
 	if (unlikely(sk->sk_state != TCP_LISTEN))
 		return -EINVAL;
 
-	newsk = sk->sk_prot->accept(sk, flags, &err, kern);
+	newsk = sk->sk_prot->accept(sk, arg);
 	if (!newsk)
-		return err;
+		return arg->err;
 
 	lock_sock(newsk);
 	sock_graft(newsk, newsock);

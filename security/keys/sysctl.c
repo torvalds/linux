@@ -66,7 +66,6 @@ static struct ctl_table key_sysctls[] = {
 		.extra2 = (void *) SYSCTL_INT_MAX,
 	},
 #endif
-	{ }
 };
 
 static int __init init_security_keys_sysctls(void)

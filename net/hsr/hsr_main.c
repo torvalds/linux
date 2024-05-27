@@ -96,7 +96,7 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			break; /* Handled in ndo_change_mtu() */
 		mtu_max = hsr_get_max_mtu(port->hsr);
 		master = hsr_port_get_hsr(port->hsr, HSR_PT_MASTER);
-		master->dev->mtu = mtu_max;
+		WRITE_ONCE(master->dev->mtu, mtu_max);
 		break;
 	case NETDEV_UNREGISTER:
 		if (!is_hsr_master(dev)) {

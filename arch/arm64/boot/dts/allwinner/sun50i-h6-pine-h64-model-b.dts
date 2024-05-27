@@ -5,13 +5,13 @@
 
 #include "sun50i-h6-pine-h64.dts"
 
+/delete-node/ &reg_gmac_3v3;
+
 / {
 	model = "Pine H64 model B";
 	compatible = "pine64,pine-h64-model-b", "allwinner,sun50i-h6";
 
-	/delete-node/ reg_gmac_3v3;
-
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 1 3 GPIO_ACTIVE_LOW>; /* PM3 */
 		post-power-on-delay-ms = <200>;

@@ -81,6 +81,11 @@
 	pinctrl-0 = <&pinctrl_gpios_ext_yavia>;
 };
 
+&gpio5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>;
+};
+
 &hwmon_temp {
 	status = "okay";
 };

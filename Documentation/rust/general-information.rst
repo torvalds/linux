@@ -64,6 +64,63 @@ but it is intended that coverage is expanded as time goes on. "Leaf" modules
 (e.g. drivers) should not use the C bindings directly. Instead, subsystems
 should provide as-safe-as-possible abstractions as needed.
 
+.. code-block::
+
+	                                                rust/bindings/
+	                                               (rust/helpers.c)
+
+	                                                   include/ -----+ <-+
+	                                                                 |   |
+	  drivers/              rust/kernel/              +----------+ <-+   |
+	    fs/                                           | bindgen  |       |
+	   .../            +-------------------+          +----------+ --+   |
+	                   |    Abstractions   |                         |   |
+	+---------+        | +------+ +------+ |          +----------+   |   |
+	| my_foo  | -----> | | foo  | | bar  | | -------> | Bindings | <-+   |
+	| driver  |  Safe  | | sub- | | sub- | |  Unsafe  |          |       |
+	+---------+        | |system| |system| |          | bindings | <-----+
+	     |             | +------+ +------+ |          |  crate   |       |
+	     |             |   kernel crate    |          +----------+       |
+	     |             +-------------------+                             |
+	     |                                                               |
+	     +------------------# FORBIDDEN #--------------------------------+
+
+The main idea is to encapsulate all direct interaction with the kernel's C APIs
+into carefully reviewed and documented abstractions. Then users of these
+abstractions cannot introduce undefined behavior (UB) as long as:
+
+#. The abstractions are correct ("sound").
+#. Any ``unsafe`` blocks respect the safety contract necessary to call the
+   operations inside the block. Similarly, any ``unsafe impl``\ s respect the
+   safety contract necessary to implement the trait.
+
+Bindings
+~~~~~~~~
+
+By including a C header from ``include/`` into
+``rust/bindings/bindings_helper.h``, the ``bindgen`` tool will auto-generate the
+bindings for the included subsystem. After building, see the ``*_generated.rs``
+output files in the ``rust/bindings/`` directory.
+
+For parts of the C header that ``bindgen`` does not auto generate, e.g. C
+``inline`` functions or non-trivial macros, it is acceptable to add a small
+wrapper function to ``rust/helpers.c`` to make it available for the Rust side as
+well.
+
+Abstractions
+~~~~~~~~~~~~
+
+Abstractions are the layer between the bindings and the in-kernel users. They
+are located in ``rust/kernel/`` and their role is to encapsulate the unsafe
+access to the bindings into an as-safe-as-possible API that they expose to their
+users. Users of the abstractions include things like drivers or file systems
+written in Rust.
+
+Besides the safety aspect, the abstractions are supposed to be "ergonomic", in
+the sense that they turn the C interfaces into "idiomatic" Rust code. Basic
+examples are to turn the C resource acquisition and release into Rust
+constructors and destructors or C integer error codes into Rust's ``Result``\ s.
+
 
 Conditional compilation
 -----------------------

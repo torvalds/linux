@@ -396,6 +396,17 @@ nfp_fl_push_geneve_options(struct nfp_fl_payload *nfp_fl, int *list_len,
 	return 0;
 }
 
+#define NFP_FL_CHECK(flag) ({				\
+	IP_TUNNEL_DECLARE_FLAGS(__check) = { };		\
+	__be16 __res;					\
+							\
+	__set_bit(IP_TUNNEL_##flag##_BIT, __check);	\
+	__res = ip_tunnel_flags_to_be16(__check);	\
+							\
+	BUILD_BUG_ON(__builtin_constant_p(__res) &&	\
+		     NFP_FL_TUNNEL_##flag != __res);	\
+})
+
 static int
 nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 	       const struct flow_action_entry *act,
@@ -410,6 +421,7 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 	u32 tmp_set_ip_tun_type_index = 0;
 	/* Currently support one pre-tunnel so index is always 0. */
 	int pretun_idx = 0;
+	__be16 tun_flags;
 
 	if (!IS_ENABLED(CONFIG_IPV6) && ipv6)
 		return -EOPNOTSUPP;
@@ -417,9 +429,10 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 	if (ipv6 && !(priv->flower_ext_feats & NFP_FL_FEATS_IPV6_TUN))
 		return -EOPNOTSUPP;
 
-	BUILD_BUG_ON(NFP_FL_TUNNEL_CSUM != TUNNEL_CSUM ||
-		     NFP_FL_TUNNEL_KEY	!= TUNNEL_KEY ||
-		     NFP_FL_TUNNEL_GENEVE_OPT != TUNNEL_GENEVE_OPT);
+	NFP_FL_CHECK(CSUM);
+	NFP_FL_CHECK(KEY);
+	NFP_FL_CHECK(GENEVE_OPT);
+
 	if (ip_tun->options_len &&
 	    (tun_type != NFP_FL_TUNNEL_GENEVE ||
 	    !(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE_OPT))) {
@@ -427,7 +440,9 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 		return -EOPNOTSUPP;
 	}
 
-	if (ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_UDP_TUN_FLAGS) {
+	tun_flags = ip_tunnel_flags_to_be16(ip_tun->key.tun_flags);
+	if (!ip_tunnel_flags_is_be16_compat(ip_tun->key.tun_flags) ||
+	    (tun_flags & ~NFP_FL_SUPPORTED_UDP_TUN_FLAGS)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: loaded firmware does not support tunnel flag offload");
 		return -EOPNOTSUPP;
@@ -442,7 +457,7 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 		FIELD_PREP(NFP_FL_PRE_TUN_INDEX, pretun_idx);
 
 	set_tun->tun_type_index = cpu_to_be32(tmp_set_ip_tun_type_index);
-	if (ip_tun->key.tun_flags & NFP_FL_TUNNEL_KEY)
+	if (tun_flags & NFP_FL_TUNNEL_KEY)
 		set_tun->tun_id = ip_tun->key.tun_id;
 
 	if (ip_tun->key.ttl) {
@@ -486,7 +501,7 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 	}
 
 	set_tun->tos = ip_tun->key.tos;
-	set_tun->tun_flags = ip_tun->key.tun_flags;
+	set_tun->tun_flags = tun_flags;
 
 	if (tun_type == NFP_FL_TUNNEL_GENEVE) {
 		set_tun->tun_proto = htons(ETH_P_TEB);

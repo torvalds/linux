@@ -19,6 +19,7 @@ enum mt7915_eeprom_field {
 	MT_EE_DDIE_FT_VERSION =	0x050,
 	MT_EE_DO_PRE_CAL =	0x062,
 	MT_EE_WIFI_CONF =	0x190,
+	MT_EE_DO_PRE_CAL_V2 =	0x19a,
 	MT_EE_RATE_DELTA_2G =	0x252,
 	MT_EE_RATE_DELTA_5G =	0x29d,
 	MT_EE_TX0_POWER_2G =	0x2fc,
@@ -39,10 +40,19 @@ enum mt7915_eeprom_field {
 };
 
 #define MT_EE_WIFI_CAL_GROUP			BIT(0)
-#define MT_EE_WIFI_CAL_DPD			GENMASK(2, 1)
+#define MT_EE_WIFI_CAL_DPD_2G			BIT(2)
+#define MT_EE_WIFI_CAL_DPD_5G			BIT(1)
+#define MT_EE_WIFI_CAL_DPD_6G			BIT(3)
+#define MT_EE_WIFI_CAL_DPD			GENMASK(3, 1)
 #define MT_EE_CAL_UNIT				1024
-#define MT_EE_CAL_GROUP_SIZE			(49 * MT_EE_CAL_UNIT + 16)
-#define MT_EE_CAL_DPD_SIZE			(54 * MT_EE_CAL_UNIT)
+#define MT_EE_CAL_GROUP_SIZE_7915		(49 * MT_EE_CAL_UNIT + 16)
+#define MT_EE_CAL_GROUP_SIZE_7916		(54 * MT_EE_CAL_UNIT + 16)
+#define MT_EE_CAL_GROUP_SIZE_7975		(54 * MT_EE_CAL_UNIT + 16)
+#define MT_EE_CAL_GROUP_SIZE_7976		(94 * MT_EE_CAL_UNIT + 16)
+#define MT_EE_CAL_GROUP_SIZE_7916_6G		(94 * MT_EE_CAL_UNIT + 16)
+#define MT_EE_CAL_DPD_SIZE_V1			(54 * MT_EE_CAL_UNIT)
+#define MT_EE_CAL_DPD_SIZE_V2			(300 * MT_EE_CAL_UNIT)
+#define MT_EE_CAL_DPD_SIZE_V2_7981		(102 * MT_EE_CAL_UNIT)	/* no 6g dpd data */
 
 #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
 #define MT_EE_WIFI_CONF0_BAND_SEL		GENMASK(7, 6)
@@ -154,6 +164,37 @@ mt7915_tssi_enabled(struct mt7915_dev *dev, enum nl80211_band band)
 		return val & MT_EE_WIFI_CONF7_TSSI1_5G;
 	else
 		return val & MT_EE_WIFI_CONF7_TSSI0_5G;
+}
+
+static inline u32
+mt7915_get_cal_group_size(struct mt7915_dev *dev)
+{
+	u8 *eep = dev->mt76.eeprom.data;
+	u32 val;
+
+	if (is_mt7915(&dev->mt76)) {
+		return MT_EE_CAL_GROUP_SIZE_7915;
+	} else if (is_mt7916(&dev->mt76)) {
+		val = eep[MT_EE_WIFI_CONF + 1];
+		val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val);
+		return (val == MT_EE_V2_BAND_SEL_6GHZ) ? MT_EE_CAL_GROUP_SIZE_7916_6G :
+							 MT_EE_CAL_GROUP_SIZE_7916;
+	} else if (mt7915_check_adie(dev, false)) {
+		return MT_EE_CAL_GROUP_SIZE_7976;
+	} else {
+		return MT_EE_CAL_GROUP_SIZE_7975;
+	}
+}
+
+static inline u32
+mt7915_get_cal_dpd_size(struct mt7915_dev *dev)
+{
+	if (is_mt7915(&dev->mt76))
+		return MT_EE_CAL_DPD_SIZE_V1;
+	else if (is_mt7981(&dev->mt76))
+		return MT_EE_CAL_DPD_SIZE_V2_7981;
+	else
+		return MT_EE_CAL_DPD_SIZE_V2;
 }
 
 extern const u8 mt7915_sku_group_len[MAX_SKU_RATE_GROUP_NUM];

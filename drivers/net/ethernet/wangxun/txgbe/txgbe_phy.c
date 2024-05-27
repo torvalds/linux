@@ -302,7 +302,7 @@ irqreturn_t txgbe_link_irq_handler(int irq, void *data)
 	status = rd32(wx, TXGBE_CFG_PORT_ST);
 	up = !!(status & TXGBE_CFG_PORT_ST_LINK_UP);
 
-	phylink_mac_change(wx->phylink, up);
+	phylink_pcs_change(&txgbe->xpcs->pcs, up);
 
 	return IRQ_HANDLED;
 }

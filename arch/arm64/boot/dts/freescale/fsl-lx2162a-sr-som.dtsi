@@ -71,3 +71,12 @@
 		reg = <0x54>;
 	};
 };
+
+&i2c5 {
+	status = "okay";
+
+	rtc@6f {
+		compatible = "microchip,mcp7940x";
+		reg = <0x6f>;
+	};
+};

@@ -1,14 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_XE
 	tristate "Intel Xe Graphics"
-	depends on (m || (y && KUNIT=y))
-	depends on DRM
-	depends on DRM_DISPLAY_DP_HELPER
-	depends on DRM_DISPLAY_HDCP_HELPER
-	depends on DRM_DISPLAY_HDMI_HELPER
-	depends on DRM_DISPLAY_HELPER
-	depends on MMU
-	depends on PCI
+	depends on DRM && PCI && MMU && (m || (y && KUNIT=y))
 	select INTERVAL_TREE
 	# we need shmfs for the swappable backing store, and in particular
 	# the shmem_readpage() which depends upon tmpfs
@@ -20,6 +13,10 @@ config DRM_XE
 	select DRM_KUNIT_TEST_HELPERS if DRM_XE_KUNIT_TEST != n
 	select DRM_PANEL
 	select DRM_SUBALLOC_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_MIPI_DSI
 	select RELAY
 	select IRQ_WORK

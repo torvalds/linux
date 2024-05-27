@@ -138,9 +138,6 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 			goto err_free_param;
 	}
 
-	if (!i)
-		goto err_free_param;
-
 	param->tb[i + 1] = NULL;
 
 	param->type.attr.rta_len = sizeof(param->type);

@@ -661,7 +661,9 @@ static int snd_emu1010_output_source_put(struct snd_kcontrol *kcontrol,
 	change = (emu->emu1010.output_source[channel] != val);
 	if (change) {
 		emu->emu1010.output_source[channel] = val;
+		snd_emu1010_fpga_lock(emu);
 		snd_emu1010_output_source_apply(emu, channel, val);
+		snd_emu1010_fpga_unlock(emu);
 	}
 	return change;
 }
@@ -705,7 +707,9 @@ static int snd_emu1010_input_source_put(struct snd_kcontrol *kcontrol,
 	change = (emu->emu1010.input_source[channel] != val);
 	if (change) {
 		emu->emu1010.input_source[channel] = val;
+		snd_emu1010_fpga_lock(emu);
 		snd_emu1010_input_source_apply(emu, channel, val);
+		snd_emu1010_fpga_unlock(emu);
 	}
 	return change;
 }
@@ -774,7 +778,7 @@ static int snd_emu1010_adc_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 		cache = cache & ~mask;
 	change = (cache != emu->emu1010.adc_pads);
 	if (change) {
-		snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, cache );
+		snd_emu1010_fpga_write_lock(emu, EMU_HANA_ADC_PADS, cache );
 	        emu->emu1010.adc_pads = cache;
 	}
 
@@ -832,7 +836,7 @@ static int snd_emu1010_dac_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 		cache = cache & ~mask;
 	change = (cache != emu->emu1010.dac_pads);
 	if (change) {
-		snd_emu1010_fpga_write(emu, EMU_HANA_DAC_PADS, cache );
+		snd_emu1010_fpga_write_lock(emu, EMU_HANA_DAC_PADS, cache );
 	        emu->emu1010.dac_pads = cache;
 	}
 
@@ -980,6 +984,7 @@ static int snd_emu1010_clock_source_put(struct snd_kcontrol *kcontrol,
 	val = ucontrol->value.enumerated.item[0] ;
 	if (val >= emu_ci->num)
 		return -EINVAL;
+	snd_emu1010_fpga_lock(emu);
 	spin_lock_irq(&emu->reg_lock);
 	change = (emu->emu1010.clock_source != val);
 	if (change) {
@@ -996,6 +1001,7 @@ static int snd_emu1010_clock_source_put(struct snd_kcontrol *kcontrol,
 	} else {
 		spin_unlock_irq(&emu->reg_lock);
 	}
+	snd_emu1010_fpga_unlock(emu);
 	return change;
 }
 
@@ -1041,7 +1047,7 @@ static int snd_emu1010_clock_fallback_put(struct snd_kcontrol *kcontrol,
 	change = (emu->emu1010.clock_fallback != val);
 	if (change) {
 		emu->emu1010.clock_fallback = val;
-		snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, 1 - val);
+		snd_emu1010_fpga_write_lock(emu, EMU_HANA_DEFCLOCK, 1 - val);
 	}
 	return change;
 }
@@ -1093,7 +1099,7 @@ static int snd_emu1010_optical_out_put(struct snd_kcontrol *kcontrol,
 		emu->emu1010.optical_out = val;
 		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
 			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
-		snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
+		snd_emu1010_fpga_write_lock(emu, EMU_HANA_OPTICAL_TYPE, tmp);
 	}
 	return change;
 }
@@ -1144,7 +1150,7 @@ static int snd_emu1010_optical_in_put(struct snd_kcontrol *kcontrol,
 		emu->emu1010.optical_in = val;
 		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
 			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
-		snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
+		snd_emu1010_fpga_write_lock(emu, EMU_HANA_OPTICAL_TYPE, tmp);
 	}
 	return change;
 }
@@ -2323,7 +2329,9 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		for (i = 0; i < emu_ri->n_outs; i++)
 			emu->emu1010.output_source[i] =
 				emu1010_map_source(emu_ri, emu_ri->out_dflts[i]);
+		snd_emu1010_fpga_lock(emu);
 		snd_emu1010_apply_sources(emu);
+		snd_emu1010_fpga_unlock(emu);
 
 		kctl = emu->ctl_clock_source = snd_ctl_new1(&snd_emu1010_clock_source, emu);
 		err = snd_ctl_add(card, kctl);

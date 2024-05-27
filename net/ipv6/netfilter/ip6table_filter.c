@@ -43,7 +43,7 @@ static int ip6table_filter_table_init(struct net *net)
 		return -ENOMEM;
 	/* Entry 1 is the FORWARD hook */
 	((struct ip6t_standard *)repl->entries)[1].target.verdict =
-		forward ? -NF_ACCEPT - 1 : -NF_DROP - 1;
+		forward ? -NF_ACCEPT - 1 : NF_DROP - 1;
 
 	err = ip6t_register_table(net, &packet_filter, repl, filter_ops);
 	kfree(repl);

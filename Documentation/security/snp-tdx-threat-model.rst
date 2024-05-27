@@ -4,7 +4,7 @@ Confidential Computing in Linux for x86 virtualization
 
 .. contents:: :local:
 
-By: Elena Reshetova <elena.reshetova@intel.com> and Carlos Bilbao <carlos.bilbao@amd.com>
+By: Elena Reshetova <elena.reshetova@intel.com> and Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
 
 Motivation
 ==========

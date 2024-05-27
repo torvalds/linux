@@ -1,7 +1,7 @@
 .. include:: ../disclaimer-sp.rst
 
 :Original: :ref:`Documentation/process/code-of-conduct.rst <code_of_conduct>`
-:Translator: Contributor Covenant and Carlos Bilbao <carlos.bilbao@amd.com>
+:Translator: Contributor Covenant and Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
 
 .. _sp_code_of_conduct:
 

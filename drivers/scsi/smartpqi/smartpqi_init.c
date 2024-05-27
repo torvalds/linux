@@ -1041,9 +1041,8 @@ static int pqi_write_driver_version_to_host_wellness(
 	buffer->driver_version_tag[1] = 'V';
 	put_unaligned_le16(sizeof(buffer->driver_version),
 		&buffer->driver_version_length);
-	strncpy(buffer->driver_version, "Linux " DRIVER_VERSION,
-		sizeof(buffer->driver_version) - 1);
-	buffer->driver_version[sizeof(buffer->driver_version) - 1] = '\0';
+	strscpy(buffer->driver_version, "Linux " DRIVER_VERSION,
+		sizeof(buffer->driver_version));
 	buffer->dont_write_tag[0] = 'D';
 	buffer->dont_write_tag[1] = 'W';
 	buffer->end_tag[0] = 'Z';
@@ -6892,12 +6891,6 @@ static ssize_t pqi_firmware_version_show(struct device *dev,
 	return scnprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->firmware_version);
 }
 
-static ssize_t pqi_driver_version_show(struct device *dev,
-	struct device_attribute *attr, char *buffer)
-{
-	return scnprintf(buffer, PAGE_SIZE, "%s\n", DRIVER_VERSION BUILD_TIMESTAMP);
-}
-
 static ssize_t pqi_serial_number_show(struct device *dev,
 	struct device_attribute *attr, char *buffer)
 {
@@ -7066,7 +7059,8 @@ static ssize_t pqi_host_enable_r6_writes_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(driver_version, 0444, pqi_driver_version_show, NULL);
+static DEVICE_STRING_ATTR_RO(driver_version, 0444,
+	DRIVER_VERSION BUILD_TIMESTAMP);
 static DEVICE_ATTR(firmware_version, 0444, pqi_firmware_version_show, NULL);
 static DEVICE_ATTR(model, 0444, pqi_model_show, NULL);
 static DEVICE_ATTR(serial_number, 0444, pqi_serial_number_show, NULL);
@@ -7083,7 +7077,7 @@ static DEVICE_ATTR(enable_r6_writes, 0644,
 	pqi_host_enable_r6_writes_show, pqi_host_enable_r6_writes_store);
 
 static struct attribute *pqi_shost_attrs[] = {
-	&dev_attr_driver_version.attr,
+	&dev_attr_driver_version.attr.attr,
 	&dev_attr_firmware_version.attr,
 	&dev_attr_model.attr,
 	&dev_attr_serial_number.attr,

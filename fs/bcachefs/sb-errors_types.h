@@ -272,7 +272,10 @@
 	x(snapshot_node_missing,				264)	\
 	x(dup_backpointer_to_bad_csum_extent,			265)	\
 	x(btree_bitmap_not_marked,				266)	\
-	x(sb_clean_entry_overrun,				267)
+	x(sb_clean_entry_overrun,				267)	\
+	x(btree_ptr_v2_written_0,				268)	\
+	x(subvol_snapshot_bad,					269)	\
+	x(subvol_inode_bad,					270)
 
 enum bch_sb_error_id {
 #define x(t, n) BCH_FSCK_ERR_##t = n,

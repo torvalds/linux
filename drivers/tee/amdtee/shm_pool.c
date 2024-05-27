@@ -4,7 +4,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/psp.h>
 #include "amdtee_private.h"
 

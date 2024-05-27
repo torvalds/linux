@@ -459,13 +459,11 @@ err_edev:
 	return ret;
 }
 
-static int rk3399_dmcfreq_remove(struct platform_device *pdev)
+static void rk3399_dmcfreq_remove(struct platform_device *pdev)
 {
 	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
 
 	devfreq_event_disable_edev(dmcfreq->edev);
-
-	return 0;
 }
 
 static const struct of_device_id rk3399dmc_devfreq_of_match[] = {
@@ -476,7 +474,7 @@ MODULE_DEVICE_TABLE(of, rk3399dmc_devfreq_of_match);
 
 static struct platform_driver rk3399_dmcfreq_driver = {
 	.probe	= rk3399_dmcfreq_probe,
-	.remove = rk3399_dmcfreq_remove,
+	.remove_new = rk3399_dmcfreq_remove,
 	.driver = {
 		.name	= "rk3399-dmc-freq",
 		.pm	= &rk3399_dmcfreq_pm,

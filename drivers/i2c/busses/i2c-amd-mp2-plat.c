@@ -97,17 +97,17 @@ static void i2c_amd_cmd_completion(struct amd_i2c_common *i2c_common)
 static int i2c_amd_check_cmd_completion(struct amd_i2c_dev *i2c_dev)
 {
 	struct amd_i2c_common *i2c_common = &i2c_dev->common;
-	unsigned long timeout;
+	unsigned long time_left;
 
-	timeout = wait_for_completion_timeout(&i2c_dev->cmd_complete,
-					      i2c_dev->adap.timeout);
+	time_left = wait_for_completion_timeout(&i2c_dev->cmd_complete,
+						i2c_dev->adap.timeout);
 
 	if ((i2c_common->reqcmd == i2c_read ||
 	     i2c_common->reqcmd == i2c_write) &&
 	    i2c_common->msg->len > 32)
 		i2c_amd_dma_unmap(i2c_common);
 
-	if (timeout == 0) {
+	if (time_left == 0) {
 		amd_mp2_rw_timeout(i2c_common);
 		return -ETIMEDOUT;
 	}

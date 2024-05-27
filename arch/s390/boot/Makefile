@@ -37,8 +37,7 @@ CFLAGS_sclp_early_core.o += -I$(srctree)/drivers/s390/char
 
 obj-y	:= head.o als.o startup.o physmem_info.o ipl_parm.o ipl_report.o vmem.o
 obj-y	+= string.o ebcdic.o sclp_early_core.o mem.o ipl_vmparm.o cmdline.o
-obj-y	+= version.o pgm_check_info.o ctype.o ipl_data.o
-obj-y	+= $(if $(CONFIG_PIE_BUILD),machine_kexec_reloc.o,relocs.o)
+obj-y	+= version.o pgm_check_info.o ctype.o ipl_data.o relocs.o
 obj-$(findstring y, $(CONFIG_PROTECTED_VIRTUALIZATION_GUEST) $(CONFIG_PGSTE))	+= uv.o
 obj-$(CONFIG_RANDOMIZE_BASE)	+= kaslr.o
 obj-y	+= $(if $(CONFIG_KERNEL_UNCOMPRESSED),,decompressor.o) info.o
@@ -49,9 +48,7 @@ targets	:= bzImage section_cmp.boot.data section_cmp.boot.preserved.data $(obj-y
 targets	+= vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2
 targets += vmlinux.bin.xz vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.lz4
 targets += vmlinux.bin.zst info.bin syms.bin vmlinux.syms $(obj-all)
-ifndef CONFIG_PIE_BUILD
 targets += relocs.S
-endif
 
 OBJECTS := $(addprefix $(obj)/,$(obj-y))
 OBJECTS_ALL := $(addprefix $(obj)/,$(obj-all))
@@ -110,13 +107,11 @@ OBJCOPYFLAGS_vmlinux.bin := -O binary --remove-section=.comment --remove-section
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-ifndef CONFIG_PIE_BUILD
 CMD_RELOCS=arch/s390/tools/relocs
-quiet_cmd_relocs = RELOCS $@
+quiet_cmd_relocs = RELOCS  $@
 	cmd_relocs = $(CMD_RELOCS) $< > $@
 $(obj)/relocs.S: vmlinux FORCE
 	$(call if_changed,relocs)
-endif
 
 suffix-$(CONFIG_KERNEL_GZIP)  := .gz
 suffix-$(CONFIG_KERNEL_BZIP2) := .bz2

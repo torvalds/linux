@@ -12,6 +12,8 @@
 #include <asm/hwrpb.h>
 #include <asm/io.h>
 
+#include "proto.h"
+
 #define SMC_DEBUG 0
 
 #if SMC_DEBUG

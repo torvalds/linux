@@ -117,16 +117,12 @@ static struct resource __init *zorro_find_parent_resource(
 	int i;
 
 	for (i = 0; i < bridge->num_resources; i++) {
-		struct resource *r = &bridge->resource[i];
-
-		if (zorro_resource_start(z) >= r->start &&
-		    zorro_resource_end(z) <= r->end)
-			return r;
+		if (resource_contains(&bridge->resource[i], &z->resource))
+			return &bridge->resource[i];
 	}
+
 	return &iomem_resource;
 }
-
-
 
 static int __init amiga_zorro_probe(struct platform_device *pdev)
 {
@@ -176,9 +172,7 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 		z->slotsize = zi->slotsize;
 		sprintf(z->name, "Zorro device %08x", z->id);
 		zorro_name_device(z);
-		z->resource.start = zi->boardaddr;
-		z->resource.end = zi->boardaddr + zi->boardsize - 1;
-		z->resource.name = z->name;
+		z->resource = DEFINE_RES_MEM_NAMED(zi->boardaddr, zi->boardsize, z->name);
 		r = zorro_find_parent_resource(pdev, z);
 		error = request_resource(r, &z->resource);
 		if (error && !(z->rom.er_Type & ERTF_MEMLIST))

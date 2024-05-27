@@ -87,12 +87,13 @@ static inline void *coherent_kvaddr(struct page *page, unsigned long base,
 
 void clear_user_highpage(struct page *page, unsigned long vaddr)
 {
+	struct folio *folio = page_folio(page);
 	unsigned long paddr;
 	void *kvaddr = coherent_kvaddr(page, TLBTEMP_BASE_1, vaddr, &paddr);
 
 	preempt_disable();
 	kmap_invalidate_coherent(page, vaddr);
-	set_bit(PG_arch_1, &page->flags);
+	set_bit(PG_arch_1, folio_flags(folio, 0));
 	clear_page_alias(kvaddr, paddr);
 	preempt_enable();
 }
@@ -101,6 +102,7 @@ EXPORT_SYMBOL(clear_user_highpage);
 void copy_user_highpage(struct page *dst, struct page *src,
 			unsigned long vaddr, struct vm_area_struct *vma)
 {
+	struct folio *folio = page_folio(dst);
 	unsigned long dst_paddr, src_paddr;
 	void *dst_vaddr = coherent_kvaddr(dst, TLBTEMP_BASE_1, vaddr,
 					  &dst_paddr);
@@ -109,7 +111,7 @@ void copy_user_highpage(struct page *dst, struct page *src,
 
 	preempt_disable();
 	kmap_invalidate_coherent(dst, vaddr);
-	set_bit(PG_arch_1, &dst->flags);
+	set_bit(PG_arch_1, folio_flags(folio, 0));
 	copy_page_alias(dst_vaddr, src_vaddr, dst_paddr, src_paddr);
 	preempt_enable();
 }

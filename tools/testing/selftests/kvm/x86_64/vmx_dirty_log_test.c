@@ -4,9 +4,6 @@
  *
  * Copyright (C) 2018, Red Hat, Inc.
  */
-
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/bitmap.h>

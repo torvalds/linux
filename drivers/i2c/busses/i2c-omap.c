@@ -660,7 +660,7 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 			     struct i2c_msg *msg, int stop, bool polling)
 {
 	struct omap_i2c_dev *omap = i2c_get_adapdata(adap);
-	unsigned long timeout;
+	unsigned long time_left;
 	u16 w;
 	int ret;
 
@@ -740,19 +740,18 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	 * into arbitration and we're currently unable to recover from it.
 	 */
 	if (!polling) {
-		timeout = wait_for_completion_timeout(&omap->cmd_complete,
-						      OMAP_I2C_TIMEOUT);
+		time_left = wait_for_completion_timeout(&omap->cmd_complete,
+							OMAP_I2C_TIMEOUT);
 	} else {
 		do {
 			omap_i2c_wait(omap);
 			ret = omap_i2c_xfer_data(omap);
 		} while (ret == -EAGAIN);
 
-		timeout = !ret;
+		time_left = !ret;
 	}
 
-	if (timeout == 0) {
-		dev_err(omap->dev, "controller timed out\n");
+	if (time_left == 0) {
 		omap_i2c_reset(omap);
 		__omap_i2c_init(omap);
 		return -ETIMEDOUT;

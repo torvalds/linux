@@ -913,8 +913,8 @@ static int xgene_edac_pmd_add(struct xgene_edac *edac, struct device_node *np,
 
 	snprintf(edac_name, sizeof(edac_name), "l2c%d", pmd);
 	edac_dev = edac_device_alloc_ctl_info(sizeof(*ctx),
-					      edac_name, 1, "l2c", 1, 2, NULL,
-					      0, edac_device_alloc_index());
+					      edac_name, 1, "l2c", 1, 2,
+					      edac_device_alloc_index());
 	if (!edac_dev) {
 		rc = -ENOMEM;
 		goto err_group;
@@ -1208,8 +1208,7 @@ static int xgene_edac_l3_add(struct xgene_edac *edac, struct device_node *np,
 
 	edac_idx = edac_device_alloc_index();
 	edac_dev = edac_device_alloc_ctl_info(sizeof(*ctx),
-					      "l3c", 1, "l3c", 1, 0, NULL, 0,
-					      edac_idx);
+					      "l3c", 1, "l3c", 1, 0, edac_idx);
 	if (!edac_dev) {
 		rc = -ENOMEM;
 		goto err_release_group;
@@ -1748,8 +1747,7 @@ static int xgene_edac_soc_add(struct xgene_edac *edac, struct device_node *np,
 
 	edac_idx = edac_device_alloc_index();
 	edac_dev = edac_device_alloc_ctl_info(sizeof(*ctx),
-					      "SOC", 1, "SOC", 1, 2, NULL, 0,
-					      edac_idx);
+					      "SOC", 1, "SOC", 1, 2, edac_idx);
 	if (!edac_dev) {
 		rc = -ENOMEM;
 		goto err_release_group;

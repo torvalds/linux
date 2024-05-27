@@ -563,7 +563,7 @@ long st_kim_stop(void *kim_data)
 
 static int version_show(struct seq_file *s, void *unused)
 {
-	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
+	struct kim_data_s *kim_gdata = s->private;
 	seq_printf(s, "%04X %d.%d.%d\n", kim_gdata->version.full,
 			kim_gdata->version.chip, kim_gdata->version.maj_ver,
 			kim_gdata->version.min_ver);
@@ -572,7 +572,7 @@ static int version_show(struct seq_file *s, void *unused)
 
 static int list_show(struct seq_file *s, void *unused)
 {
-	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
+	struct kim_data_s *kim_gdata = s->private;
 	kim_st_list_protocols(kim_gdata->core_data, s);
 	return 0;
 }

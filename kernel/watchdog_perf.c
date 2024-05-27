@@ -90,6 +90,14 @@ static struct perf_event_attr wd_hw_attr = {
 	.disabled	= 1,
 };
 
+static struct perf_event_attr fallback_wd_hw_attr = {
+	.type		= PERF_TYPE_HARDWARE,
+	.config		= PERF_COUNT_HW_CPU_CYCLES,
+	.size		= sizeof(struct perf_event_attr),
+	.pinned		= 1,
+	.disabled	= 1,
+};
+
 /* Callback function for perf event subsystem */
 static void watchdog_overflow_callback(struct perf_event *event,
 				       struct perf_sample_data *data,
@@ -123,6 +131,13 @@ static int hardlockup_detector_event_create(void)
 	evt = perf_event_create_kernel_counter(wd_attr, cpu, NULL,
 					       watchdog_overflow_callback, NULL);
 	if (IS_ERR(evt)) {
+		wd_attr = &fallback_wd_hw_attr;
+		wd_attr->sample_period = hw_nmi_get_sample_period(watchdog_thresh);
+		evt = perf_event_create_kernel_counter(wd_attr, cpu, NULL,
+						       watchdog_overflow_callback, NULL);
+	}
+
+	if (IS_ERR(evt)) {
 		pr_debug("Perf event create on CPU %d failed with %ld\n", cpu,
 			 PTR_ERR(evt));
 		return PTR_ERR(evt);
@@ -133,7 +148,6 @@ static int hardlockup_detector_event_create(void)
 
 /**
  * watchdog_hardlockup_enable - Enable the local event
- *
  * @cpu: The CPU to enable hard lockup on.
  */
 void watchdog_hardlockup_enable(unsigned int cpu)
@@ -152,7 +166,6 @@ void watchdog_hardlockup_enable(unsigned int cpu)
 
 /**
  * watchdog_hardlockup_disable - Disable the local event
- *
  * @cpu: The CPU to enable hard lockup on.
  */
 void watchdog_hardlockup_disable(unsigned int cpu)
@@ -258,4 +271,34 @@ int __init watchdog_hardlockup_probe(void)
 		this_cpu_write(watchdog_ev, NULL);
 	}
 	return ret;
+}
+
+/**
+ * hardlockup_config_perf_event - Overwrite config of wd_hw_attr.
+ * @str: number which identifies the raw perf event to use
+ */
+void __init hardlockup_config_perf_event(const char *str)
+{
+	u64 config;
+	char buf[24];
+	char *comma = strchr(str, ',');
+
+	if (!comma) {
+		if (kstrtoull(str, 16, &config))
+			return;
+	} else {
+		unsigned int len = comma - str;
+
+		if (len >= sizeof(buf))
+			return;
+
+		if (strscpy(buf, str, sizeof(buf)) < 0)
+			return;
+		buf[len] = 0;
+		if (kstrtoull(buf, 16, &config))
+			return;
+	}
+
+	wd_hw_attr.type = PERF_TYPE_RAW;
+	wd_hw_attr.config = config;
 }

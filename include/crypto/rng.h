@@ -15,20 +15,6 @@
 
 struct crypto_rng;
 
-/*
- * struct crypto_istat_rng: statistics for RNG algorithm
- * @generate_cnt:	number of RNG generate requests
- * @generate_tlen:	total data size of generated data by the RNG
- * @seed_cnt:		number of times the RNG was seeded
- * @err_cnt:		number of error for RNG requests
- */
-struct crypto_istat_rng {
-	atomic64_t generate_cnt;
-	atomic64_t generate_tlen;
-	atomic64_t seed_cnt;
-	atomic64_t err_cnt;
-};
-
 /**
  * struct rng_alg - random number generator definition
  *
@@ -46,7 +32,6 @@ struct crypto_istat_rng {
  *		size of the seed is defined with @seedsize .
  * @set_ent:	Set entropy that would otherwise be obtained from
  *		entropy source.  Internal use only.
- * @stat:	Statistics for rng algorithm
  * @seedsize:	The seed size required for a random number generator
  *		initialization defined with this variable. Some
  *		random number generators does not require a seed
@@ -62,10 +47,6 @@ struct rng_alg {
 	int (*seed)(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);
 	void (*set_ent)(struct crypto_rng *tfm, const u8 *data,
 			unsigned int len);
-
-#ifdef CONFIG_CRYPTO_STATS
-	struct crypto_istat_rng stat;
-#endif
 
 	unsigned int seedsize;
 
@@ -144,26 +125,6 @@ static inline void crypto_free_rng(struct crypto_rng *tfm)
 	crypto_destroy_tfm(tfm, crypto_rng_tfm(tfm));
 }
 
-static inline struct crypto_istat_rng *rng_get_stat(struct rng_alg *alg)
-{
-#ifdef CONFIG_CRYPTO_STATS
-	return &alg->stat;
-#else
-	return NULL;
-#endif
-}
-
-static inline int crypto_rng_errstat(struct rng_alg *alg, int err)
-{
-	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
-		return err;
-
-	if (err && err != -EINPROGRESS && err != -EBUSY)
-		atomic64_inc(&rng_get_stat(alg)->err_cnt);
-
-	return err;
-}
-
 /**
  * crypto_rng_generate() - get random number
  * @tfm: cipher handle
@@ -182,17 +143,7 @@ static inline int crypto_rng_generate(struct crypto_rng *tfm,
 				      const u8 *src, unsigned int slen,
 				      u8 *dst, unsigned int dlen)
 {
-	struct rng_alg *alg = crypto_rng_alg(tfm);
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_rng *istat = rng_get_stat(alg);
-
-		atomic64_inc(&istat->generate_cnt);
-		atomic64_add(dlen, &istat->generate_tlen);
-	}
-
-	return crypto_rng_errstat(alg,
-				  alg->generate(tfm, src, slen, dst, dlen));
+	return crypto_rng_alg(tfm)->generate(tfm, src, slen, dst, dlen);
 }
 
 /**

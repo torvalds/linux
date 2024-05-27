@@ -429,11 +429,17 @@ void __media_device_usb_init(struct media_device *mdev,
 			     const char *driver_name);
 
 #else
+static inline void media_device_init(struct media_device *mdev)
+{
+}
 static inline int media_device_register(struct media_device *mdev)
 {
 	return 0;
 }
 static inline void media_device_unregister(struct media_device *mdev)
+{
+}
+static inline void media_device_cleanup(struct media_device *mdev)
 {
 }
 static inline int media_device_register_entity(struct media_device *mdev,

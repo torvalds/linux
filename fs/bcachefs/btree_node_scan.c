@@ -57,13 +57,14 @@ static void found_btree_node_to_key(struct bkey_i *k, const struct found_btree_n
 	bp->v.seq		= cpu_to_le64(f->cookie);
 	bp->v.sectors_written	= 0;
 	bp->v.flags		= 0;
+	bp->v.sectors_written	= cpu_to_le16(f->sectors_written);
 	bp->v.min_key		= f->min_key;
 	SET_BTREE_PTR_RANGE_UPDATED(&bp->v, f->range_updated);
 	memcpy(bp->v.start, f->ptrs, sizeof(struct bch_extent_ptr) * f->nr_ptrs);
 }
 
 static bool found_btree_node_is_readable(struct btree_trans *trans,
-					 const struct found_btree_node *f)
+					 struct found_btree_node *f)
 {
 	struct { __BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX); } k;
 
@@ -71,8 +72,10 @@ static bool found_btree_node_is_readable(struct btree_trans *trans,
 
 	struct btree *b = bch2_btree_node_get_noiter(trans, &k.k, f->btree_id, f->level, false);
 	bool ret = !IS_ERR_OR_NULL(b);
-	if (ret)
+	if (ret) {
+		f->sectors_written = b->written;
 		six_unlock_read(&b->c.lock);
+	}
 
 	/*
 	 * We might update this node's range; if that happens, we need the node

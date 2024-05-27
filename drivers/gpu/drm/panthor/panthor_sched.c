@@ -490,6 +490,18 @@ enum panthor_group_state {
 	 * Can no longer be scheduled. The only allowed action is a destruction.
 	 */
 	PANTHOR_CS_GROUP_TERMINATED,
+
+	/**
+	 * @PANTHOR_CS_GROUP_UNKNOWN_STATE: Group is an unknown state.
+	 *
+	 * The FW returned an inconsistent state. The group is flagged unusable
+	 * and can no longer be scheduled. The only allowed action is a
+	 * destruction.
+	 *
+	 * When that happens, we also schedule a FW reset, to start from a fresh
+	 * state.
+	 */
+	PANTHOR_CS_GROUP_UNKNOWN_STATE,
 };
 
 /**
@@ -814,8 +826,8 @@ static void group_free_queue(struct panthor_group *group, struct panthor_queue *
 
 	panthor_queue_put_syncwait_obj(queue);
 
-	panthor_kernel_bo_destroy(group->vm, queue->ringbuf);
-	panthor_kernel_bo_destroy(panthor_fw_vm(group->ptdev), queue->iface.mem);
+	panthor_kernel_bo_destroy(queue->ringbuf);
+	panthor_kernel_bo_destroy(queue->iface.mem);
 
 	kfree(queue);
 }
@@ -825,15 +837,14 @@ static void group_release_work(struct work_struct *work)
 	struct panthor_group *group = container_of(work,
 						   struct panthor_group,
 						   release_work);
-	struct panthor_device *ptdev = group->ptdev;
 	u32 i;
 
 	for (i = 0; i < group->queue_count; i++)
 		group_free_queue(group, group->queues[i]);
 
-	panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), group->suspend_buf);
-	panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), group->protm_suspend_buf);
-	panthor_kernel_bo_destroy(group->vm, group->syncobjs);
+	panthor_kernel_bo_destroy(group->suspend_buf);
+	panthor_kernel_bo_destroy(group->protm_suspend_buf);
+	panthor_kernel_bo_destroy(group->syncobjs);
 
 	panthor_vm_put(group->vm);
 	kfree(group);
@@ -1127,6 +1138,7 @@ csg_slot_sync_state_locked(struct panthor_device *ptdev, u32 csg_id)
 	struct panthor_fw_csg_iface *csg_iface;
 	struct panthor_group *group;
 	enum panthor_group_state new_state, old_state;
+	u32 csg_state;
 
 	lockdep_assert_held(&ptdev->scheduler->lock);
 
@@ -1137,7 +1149,8 @@ csg_slot_sync_state_locked(struct panthor_device *ptdev, u32 csg_id)
 		return;
 
 	old_state = group->state;
-	switch (csg_iface->output->ack & CSG_STATE_MASK) {
+	csg_state = csg_iface->output->ack & CSG_STATE_MASK;
+	switch (csg_state) {
 	case CSG_STATE_START:
 	case CSG_STATE_RESUME:
 		new_state = PANTHOR_CS_GROUP_ACTIVE;
@@ -1148,10 +1161,27 @@ csg_slot_sync_state_locked(struct panthor_device *ptdev, u32 csg_id)
 	case CSG_STATE_SUSPEND:
 		new_state = PANTHOR_CS_GROUP_SUSPENDED;
 		break;
+	default:
+		/* The unknown state might be caused by a FW state corruption,
+		 * which means the group metadata can't be trusted anymore, and
+		 * the SUSPEND operation might propagate the corruption to the
+		 * suspend buffers. Flag the group state as unknown to make
+		 * sure it's unusable after that point.
+		 */
+		drm_err(&ptdev->base, "Invalid state on CSG %d (state=%d)",
+			csg_id, csg_state);
+		new_state = PANTHOR_CS_GROUP_UNKNOWN_STATE;
+		break;
 	}
 
 	if (old_state == new_state)
 		return;
+
+	/* The unknown state might be caused by a FW issue, reset the FW to
+	 * take a fresh start.
+	 */
+	if (new_state == PANTHOR_CS_GROUP_UNKNOWN_STATE)
+		panthor_device_schedule_reset(ptdev);
 
 	if (new_state == PANTHOR_CS_GROUP_SUSPENDED)
 		csg_slot_sync_queues_state_locked(ptdev, csg_id);
@@ -1250,7 +1280,16 @@ cs_slot_process_fatal_event_locked(struct panthor_device *ptdev,
 	if (group)
 		group->fatal_queues |= BIT(cs_id);
 
-	sched_queue_delayed_work(sched, tick, 0);
+	if (CS_EXCEPTION_TYPE(fatal) == DRM_PANTHOR_EXCEPTION_CS_UNRECOVERABLE) {
+		/* If this exception is unrecoverable, queue a reset, and make
+		 * sure we stop scheduling groups until the reset has happened.
+		 */
+		panthor_device_schedule_reset(ptdev);
+		cancel_delayed_work(&sched->tick_work);
+	} else {
+		sched_queue_delayed_work(sched, tick, 0);
+	}
+
 	drm_warn(&ptdev->base,
 		 "CSG slot %d CS slot: %d\n"
 		 "CS_FATAL.EXCEPTION_TYPE: 0x%x (%s)\n"
@@ -1354,7 +1393,12 @@ static int group_process_tiler_oom(struct panthor_group *group, u32 cs_id)
 					pending_frag_count, &new_chunk_va);
 	}
 
-	if (ret && ret != -EBUSY) {
+	/* If the heap context doesn't have memory for us, we want to let the
+	 * FW try to reclaim memory by waiting for fragment jobs to land or by
+	 * executing the tiler OOM exception handler, which is supposed to
+	 * implement incremental rendering.
+	 */
+	if (ret && ret != -ENOMEM) {
 		drm_warn(&ptdev->base, "Failed to extend the tiler heap\n");
 		group->fatal_queues |= BIT(cs_id);
 		sched_queue_delayed_work(sched, tick, 0);
@@ -1783,6 +1827,7 @@ static bool
 group_can_run(struct panthor_group *group)
 {
 	return group->state != PANTHOR_CS_GROUP_TERMINATED &&
+	       group->state != PANTHOR_CS_GROUP_UNKNOWN_STATE &&
 	       !group->destroyed && group->fatal_queues == 0 &&
 	       !group->timedout;
 }
@@ -2546,8 +2591,8 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 {
 	struct panthor_scheduler *sched = ptdev->scheduler;
 	struct panthor_csg_slots_upd_ctx upd_ctx;
-	u32 suspended_slots, faulty_slots;
 	struct panthor_group *group;
+	u32 suspended_slots;
 	u32 i;
 
 	mutex_lock(&sched->lock);
@@ -2557,7 +2602,8 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 
 		if (csg_slot->group) {
 			csgs_upd_ctx_queue_reqs(ptdev, &upd_ctx, i,
-						CSG_STATE_SUSPEND,
+						group_can_run(csg_slot->group) ?
+						CSG_STATE_SUSPEND : CSG_STATE_TERMINATE,
 						CSG_STATE_MASK);
 		}
 	}
@@ -2566,10 +2612,9 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 
 	csgs_upd_ctx_apply_locked(ptdev, &upd_ctx);
 	suspended_slots &= ~upd_ctx.timedout_mask;
-	faulty_slots = upd_ctx.timedout_mask;
 
-	if (faulty_slots) {
-		u32 slot_mask = faulty_slots;
+	if (upd_ctx.timedout_mask) {
+		u32 slot_mask = upd_ctx.timedout_mask;
 
 		drm_err(&ptdev->base, "CSG suspend failed, escalating to termination");
 		csgs_upd_ctx_init(&upd_ctx);
@@ -2620,9 +2665,6 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 
 			slot_mask &= ~BIT(csg_id);
 		}
-
-		if (flush_caches_failed)
-			faulty_slots |= suspended_slots;
 	}
 
 	for (i = 0; i < sched->csg_slot_count; i++) {
@@ -2691,15 +2733,22 @@ void panthor_sched_pre_reset(struct panthor_device *ptdev)
 	mutex_unlock(&sched->reset.lock);
 }
 
-void panthor_sched_post_reset(struct panthor_device *ptdev)
+void panthor_sched_post_reset(struct panthor_device *ptdev, bool reset_failed)
 {
 	struct panthor_scheduler *sched = ptdev->scheduler;
 	struct panthor_group *group, *group_tmp;
 
 	mutex_lock(&sched->reset.lock);
 
-	list_for_each_entry_safe(group, group_tmp, &sched->reset.stopped_groups, run_node)
+	list_for_each_entry_safe(group, group_tmp, &sched->reset.stopped_groups, run_node) {
+		/* Consider all previously running group as terminated if the
+		 * reset failed.
+		 */
+		if (reset_failed)
+			group->state = PANTHOR_CS_GROUP_TERMINATED;
+
 		panthor_group_start(group);
+	}
 
 	/* We're done resetting the GPU, clear the reset.in_progress bit so we can
 	 * kick the scheduler.
@@ -2707,9 +2756,11 @@ void panthor_sched_post_reset(struct panthor_device *ptdev)
 	atomic_set(&sched->reset.in_progress, false);
 	mutex_unlock(&sched->reset.lock);
 
-	sched_queue_delayed_work(sched, tick, 0);
-
-	sched_queue_work(sched, sync_upd);
+	/* No need to queue a tick and update syncs if the reset failed. */
+	if (!reset_failed) {
+		sched_queue_delayed_work(sched, tick, 0);
+		sched_queue_work(sched, sync_upd);
+	}
 }
 
 static void group_sync_upd_work(struct work_struct *work)

@@ -5,6 +5,7 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <linux/array_size.h>
 #include <linux/firmware/cirrus/wmfw.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
@@ -40,16 +41,11 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, SND_SOC_CS35L56_SHARED);
 static const struct reg_default cs35l56_reg_defaults[] = {
 	/* no defaults for OTP_MEM - first read populates cache */
 
-	{ CS35L56_ASP1_ENABLES1,		0x00000000 },
-	{ CS35L56_ASP1_CONTROL1,		0x00000028 },
-	{ CS35L56_ASP1_CONTROL2,		0x18180200 },
-	{ CS35L56_ASP1_CONTROL3,		0x00000002 },
-	{ CS35L56_ASP1_FRAME_CONTROL1,		0x03020100 },
-	{ CS35L56_ASP1_FRAME_CONTROL5,		0x00020100 },
-	{ CS35L56_ASP1_DATA_CONTROL1,		0x00000018 },
-	{ CS35L56_ASP1_DATA_CONTROL5,		0x00000018 },
-
-	/* no defaults for ASP1TX mixer */
+	/*
+	 * No defaults for ASP1 control or ASP1TX mixer. See
+	 * cs35l56_populate_asp1_register_defaults() and
+	 * cs35l56_sync_asp1_mixer_widgets_with_firmware().
+	 */
 
 	{ CS35L56_SWIRE_DP3_CH1_INPUT,		0x00000018 },
 	{ CS35L56_SWIRE_DP3_CH2_INPUT,		0x00000019 },
@@ -210,6 +206,36 @@ static bool cs35l56_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
+static const struct reg_sequence cs35l56_asp1_defaults[] = {
+	REG_SEQ0(CS35L56_ASP1_ENABLES1,		0x00000000),
+	REG_SEQ0(CS35L56_ASP1_CONTROL1,		0x00000028),
+	REG_SEQ0(CS35L56_ASP1_CONTROL2,		0x18180200),
+	REG_SEQ0(CS35L56_ASP1_CONTROL3,		0x00000002),
+	REG_SEQ0(CS35L56_ASP1_FRAME_CONTROL1,	0x03020100),
+	REG_SEQ0(CS35L56_ASP1_FRAME_CONTROL5,	0x00020100),
+	REG_SEQ0(CS35L56_ASP1_DATA_CONTROL1,	0x00000018),
+	REG_SEQ0(CS35L56_ASP1_DATA_CONTROL5,	0x00000018),
+};
+
+/*
+ * The firmware can have control of the ASP so we don't provide regmap
+ * with defaults for these registers, to prevent a regcache_sync() from
+ * overwriting the firmware settings. But if the machine driver hooks up
+ * the ASP it means the driver is taking control of the ASP, so then the
+ * registers are populated with the defaults.
+ */
+int cs35l56_init_asp1_regs_for_driver_control(struct cs35l56_base *cs35l56_base)
+{
+	if (!cs35l56_base->fw_owns_asp1)
+		return 0;
+
+	cs35l56_base->fw_owns_asp1 = false;
+
+	return regmap_multi_reg_write(cs35l56_base->regmap, cs35l56_asp1_defaults,
+				      ARRAY_SIZE(cs35l56_asp1_defaults));
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_init_asp1_regs_for_driver_control, SND_SOC_CS35L56_SHARED);
+
 /*
  * The firmware boot sequence can overwrite the ASP1 config registers so that
  * they don't match regmap's view of their values. Rewrite the values from the
@@ -217,19 +243,15 @@ static bool cs35l56_volatile_reg(struct device *dev, unsigned int reg)
  */
 int cs35l56_force_sync_asp1_registers_from_cache(struct cs35l56_base *cs35l56_base)
 {
-	struct reg_sequence asp1_regs[] = {
-		{ .reg = CS35L56_ASP1_ENABLES1 },
-		{ .reg = CS35L56_ASP1_CONTROL1 },
-		{ .reg = CS35L56_ASP1_CONTROL2 },
-		{ .reg = CS35L56_ASP1_CONTROL3 },
-		{ .reg = CS35L56_ASP1_FRAME_CONTROL1 },
-		{ .reg = CS35L56_ASP1_FRAME_CONTROL5 },
-		{ .reg = CS35L56_ASP1_DATA_CONTROL1 },
-		{ .reg = CS35L56_ASP1_DATA_CONTROL5 },
-	};
+	struct reg_sequence asp1_regs[ARRAY_SIZE(cs35l56_asp1_defaults)];
 	int i, ret;
 
-	/* Read values from regmap cache into a write sequence */
+	if (cs35l56_base->fw_owns_asp1)
+		return 0;
+
+	memcpy(asp1_regs, cs35l56_asp1_defaults, sizeof(asp1_regs));
+
+	/* Read current values from regmap cache into the write sequence */
 	for (i = 0; i < ARRAY_SIZE(asp1_regs); ++i) {
 		ret = regmap_read(cs35l56_base->regmap, asp1_regs[i].reg, &asp1_regs[i].def);
 		if (ret)
@@ -307,10 +329,10 @@ int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
 		reg = CS35L56_DSP1_HALO_STATE;
 
 	/*
-	 * This can't be a regmap_read_poll_timeout() because cs35l56 will NAK
-	 * I2C until it has booted which would terminate the poll
+	 * The regmap must remain in cache-only until the chip has
+	 * booted, so use a bypassed read of the status register.
 	 */
-	poll_ret = read_poll_timeout(regmap_read, read_ret,
+	poll_ret = read_poll_timeout(regmap_read_bypassed, read_ret,
 				     (val < 0xFFFF) && (val >= CS35L56_HALO_STATE_BOOT_DONE),
 				     CS35L56_HALO_STATE_POLL_US,
 				     CS35L56_HALO_STATE_TIMEOUT_US,
@@ -362,7 +384,8 @@ void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 		return;
 
 	cs35l56_wait_control_port_ready();
-	regcache_cache_only(cs35l56_base->regmap, false);
+
+	/* Leave in cache-only. This will be revoked when the chip has rebooted. */
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_system_reset, SND_SOC_CS35L56_SHARED);
 
@@ -577,13 +600,13 @@ int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_sou
 		cs35l56_issue_wake_event(cs35l56_base);
 
 out_sync:
-	regcache_cache_only(cs35l56_base->regmap, false);
-
 	ret = cs35l56_wait_for_firmware_boot(cs35l56_base);
 	if (ret) {
 		dev_err(cs35l56_base->dev, "Hibernate wake failed: %d\n", ret);
 		goto err;
 	}
+
+	regcache_cache_only(cs35l56_base->regmap, false);
 
 	ret = cs35l56_mbox_send(cs35l56_base, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
 	if (ret)
@@ -684,7 +707,7 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_calibration_controls, SND_SOC_CS35L56_SHARED);
 
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 {
-	u64 silicon_uid;
+	u64 silicon_uid = 0;
 	int ret;
 
 	/* Driver can't apply calibration to a secured part, so skip */
@@ -757,7 +780,7 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	 * devices so the REVID needs to be determined before waiting for the
 	 * firmware to boot.
 	 */
-	ret = regmap_read(cs35l56_base->regmap, CS35L56_REVID, &revid);
+	ret = regmap_read_bypassed(cs35l56_base->regmap, CS35L56_REVID, &revid);
 	if (ret < 0) {
 		dev_err(cs35l56_base->dev, "Get Revision ID failed\n");
 		return ret;
@@ -768,7 +791,7 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	if (ret)
 		return ret;
 
-	ret = regmap_read(cs35l56_base->regmap, CS35L56_DEVID, &devid);
+	ret = regmap_read_bypassed(cs35l56_base->regmap, CS35L56_DEVID, &devid);
 	if (ret < 0) {
 		dev_err(cs35l56_base->dev, "Get Device ID failed\n");
 		return ret;
@@ -786,6 +809,9 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	}
 
 	cs35l56_base->type = devid & 0xFF;
+
+	/* Silicon is now identified and booted so exit cache-only */
+	regcache_cache_only(cs35l56_base->regmap, false);
 
 	ret = regmap_read(cs35l56_base->regmap, CS35L56_DSP_RESTRICT_STS1, &secured);
 	if (ret) {

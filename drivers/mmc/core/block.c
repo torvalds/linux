@@ -234,7 +234,7 @@ static ssize_t power_ro_lock_show(struct device *dev,
 	else if (card->ext_csd.boot_ro_lock & EXT_CSD_BOOT_WP_B_PWR_WP_EN)
 		locked = 1;
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", locked);
+	ret = sysfs_emit(buf, "%d\n", locked);
 
 	mmc_blk_put(md);
 
@@ -296,9 +296,9 @@ static ssize_t force_ro_show(struct device *dev, struct device_attribute *attr,
 	int ret;
 	struct mmc_blk_data *md = mmc_blk_get(dev_to_disk(dev));
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n",
-		       get_disk_ro(dev_to_disk(dev)) ^
-		       md->read_only);
+	ret = sysfs_emit(buf, "%d\n",
+			 get_disk_ro(dev_to_disk(dev)) ^
+			 md->read_only);
 	mmc_blk_put(md);
 	return ret;
 }

@@ -308,7 +308,7 @@ __mt76_tx_queue_skb(struct mt76_phy *phy, int qid, struct sk_buff *skb,
 	int idx;
 
 	non_aql = !info->tx_time_est;
-	idx = dev->queue_ops->tx_queue_skb(dev, q, qid, skb, wcid, sta);
+	idx = dev->queue_ops->tx_queue_skb(phy, q, qid, skb, wcid, sta);
 	if (idx < 0 || !sta)
 		return idx;
 

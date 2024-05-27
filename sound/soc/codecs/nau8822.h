@@ -215,7 +215,6 @@ struct nau8822_pll {
 struct nau8822 {
 	struct device *dev;
 	struct regmap *regmap;
-	int mclk_idx;
 	struct nau8822_pll pll;
 	int sysclk;
 	int div_id;

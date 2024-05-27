@@ -16,6 +16,9 @@ config NET_VENDOR_INTEL
 
 if NET_VENDOR_INTEL
 
+source "drivers/net/ethernet/intel/libeth/Kconfig"
+source "drivers/net/ethernet/intel/libie/Kconfig"
+
 config E100
 	tristate "Intel(R) PRO/100+ support"
 	depends on PCI
@@ -41,7 +44,7 @@ config E100
 
 config E1000
 	tristate "Intel(R) PRO/1000 Gigabit Ethernet support"
-	depends on PCI
+	depends on PCI && HAS_IOPORT
 	help
 	  This driver supports Intel(R) PRO/1000 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -225,6 +228,7 @@ config I40E
 	depends on PTP_1588_CLOCK_OPTIONAL
 	depends on PCI
 	select AUXILIARY_BUS
+	select LIBIE
 	select NET_DEVLINK
 	help
 	  This driver supports Intel(R) Ethernet Controller XL710 Family of
@@ -253,6 +257,8 @@ config I40E_DCB
 # so that CONFIG_IAVF symbol will always mirror the state of CONFIG_I40EVF
 config IAVF
 	tristate
+	select LIBIE
+
 config I40EVF
 	tristate "Intel(R) Ethernet Adaptive Virtual Function support"
 	select IAVF
@@ -283,6 +289,7 @@ config ICE
 	depends on GNSS || GNSS = n
 	select AUXILIARY_BUS
 	select DIMLIB
+	select LIBIE
 	select NET_DEVLINK
 	select PLDMFW
 	select DPLL

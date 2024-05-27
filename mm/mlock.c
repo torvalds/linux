@@ -378,7 +378,7 @@ static int mlock_pte_range(pmd_t *pmd, unsigned long addr,
 			goto out;
 		if (is_huge_zero_pmd(*pmd))
 			goto out;
-		folio = page_folio(pmd_page(*pmd));
+		folio = pmd_folio(*pmd);
 		if (vma->vm_flags & VM_LOCKED)
 			mlock_folio(folio);
 		else

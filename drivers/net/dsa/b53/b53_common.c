@@ -1266,95 +1266,70 @@ static void b53_adjust_63xx_rgmii(struct dsa_switch *ds, int port,
 		phy_modes(interface));
 }
 
-static void b53_adjust_link(struct dsa_switch *ds, int port,
-			    struct phy_device *phydev)
+static void b53_adjust_531x5_rgmii(struct dsa_switch *ds, int port,
+				   phy_interface_t interface)
 {
 	struct b53_device *dev = ds->priv;
-	struct ethtool_keee *p = &dev->ports[port].eee;
-	u8 rgmii_ctrl = 0, reg = 0, off;
-	bool tx_pause = false;
-	bool rx_pause = false;
+	u8 rgmii_ctrl = 0, off;
 
-	if (!phy_is_pseudo_fixed_link(phydev))
-		return;
+	if (port == dev->imp_port)
+		off = B53_RGMII_CTRL_IMP;
+	else
+		off = B53_RGMII_CTRL_P(port);
 
-	/* Enable flow control on BCM5301x's CPU port */
-	if (is5301x(dev) && dsa_is_cpu_port(ds, port))
-		tx_pause = rx_pause = true;
+	/* Configure the port RGMII clock delay by DLL disabled and
+	 * tx_clk aligned timing (restoring to reset defaults)
+	 */
+	b53_read8(dev, B53_CTRL_PAGE, off, &rgmii_ctrl);
+	rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC |
+			RGMII_CTRL_TIMING_SEL);
 
-	if (phydev->pause) {
-		if (phydev->asym_pause)
-			tx_pause = true;
-		rx_pause = true;
-	}
+	/* PHY_INTERFACE_MODE_RGMII_TXID means TX internal delay, make
+	 * sure that we enable the port TX clock internal delay to
+	 * account for this internal delay that is inserted, otherwise
+	 * the switch won't be able to receive correctly.
+	 *
+	 * PHY_INTERFACE_MODE_RGMII means that we are not introducing
+	 * any delay neither on transmission nor reception, so the
+	 * BCM53125 must also be configured accordingly to account for
+	 * the lack of delay and introduce
+	 *
+	 * The BCM53125 switch has its RX clock and TX clock control
+	 * swapped, hence the reason why we modify the TX clock path in
+	 * the "RGMII" case
+	 */
+	if (interface == PHY_INTERFACE_MODE_RGMII_TXID)
+		rgmii_ctrl |= RGMII_CTRL_DLL_TXC;
+	if (interface == PHY_INTERFACE_MODE_RGMII)
+		rgmii_ctrl |= RGMII_CTRL_DLL_TXC | RGMII_CTRL_DLL_RXC;
+	rgmii_ctrl |= RGMII_CTRL_TIMING_SEL;
+	b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
 
-	b53_force_port_config(dev, port, phydev->speed, phydev->duplex,
-			      tx_pause, rx_pause);
-	b53_force_link(dev, port, phydev->link);
+	dev_info(ds->dev, "Configured port %d for %s\n", port,
+		 phy_modes(interface));
+}
 
-	if (is63xx(dev) && port >= B53_63XX_RGMII0)
-		b53_adjust_63xx_rgmii(ds, port, phydev->interface);
+static void b53_adjust_5325_mii(struct dsa_switch *ds, int port)
+{
+	struct b53_device *dev = ds->priv;
+	u8 reg = 0;
 
-	if (is531x5(dev) && phy_interface_is_rgmii(phydev)) {
-		if (port == dev->imp_port)
-			off = B53_RGMII_CTRL_IMP;
-		else
-			off = B53_RGMII_CTRL_P(port);
+	b53_read8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
+		  &reg);
 
-		/* Configure the port RGMII clock delay by DLL disabled and
-		 * tx_clk aligned timing (restoring to reset defaults)
-		 */
-		b53_read8(dev, B53_CTRL_PAGE, off, &rgmii_ctrl);
-		rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC |
-				RGMII_CTRL_TIMING_SEL);
-
-		/* PHY_INTERFACE_MODE_RGMII_TXID means TX internal delay, make
-		 * sure that we enable the port TX clock internal delay to
-		 * account for this internal delay that is inserted, otherwise
-		 * the switch won't be able to receive correctly.
-		 *
-		 * PHY_INTERFACE_MODE_RGMII means that we are not introducing
-		 * any delay neither on transmission nor reception, so the
-		 * BCM53125 must also be configured accordingly to account for
-		 * the lack of delay and introduce
-		 *
-		 * The BCM53125 switch has its RX clock and TX clock control
-		 * swapped, hence the reason why we modify the TX clock path in
-		 * the "RGMII" case
-		 */
-		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-			rgmii_ctrl |= RGMII_CTRL_DLL_TXC;
-		if (phydev->interface == PHY_INTERFACE_MODE_RGMII)
-			rgmii_ctrl |= RGMII_CTRL_DLL_TXC | RGMII_CTRL_DLL_RXC;
-		rgmii_ctrl |= RGMII_CTRL_TIMING_SEL;
-		b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
-
-		dev_info(ds->dev, "Configured port %d for %s\n", port,
-			 phy_modes(phydev->interface));
-	}
-
-	/* configure MII port if necessary */
-	if (is5325(dev)) {
+	/* reverse mii needs to be enabled */
+	if (!(reg & PORT_OVERRIDE_RV_MII_25)) {
+		b53_write8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
+			   reg | PORT_OVERRIDE_RV_MII_25);
 		b53_read8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
 			  &reg);
 
-		/* reverse mii needs to be enabled */
 		if (!(reg & PORT_OVERRIDE_RV_MII_25)) {
-			b53_write8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
-				   reg | PORT_OVERRIDE_RV_MII_25);
-			b53_read8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
-				  &reg);
-
-			if (!(reg & PORT_OVERRIDE_RV_MII_25)) {
-				dev_err(ds->dev,
-					"Failed to enable reverse MII mode\n");
-				return;
-			}
+			dev_err(ds->dev,
+				"Failed to enable reverse MII mode\n");
+			return;
 		}
 	}
-
-	/* Re-negotiate EEE if it was enabled already */
-	p->eee_enabled = b53_eee_init(ds, port, phydev);
 }
 
 void b53_port_event(struct dsa_switch *ds, int port)
@@ -1408,30 +1383,48 @@ static void b53_phylink_get_caps(struct dsa_switch *ds, int port,
 		dev->ops->phylink_get_caps(dev, port, config);
 }
 
-static struct phylink_pcs *b53_phylink_mac_select_pcs(struct dsa_switch *ds,
-						      int port,
+static struct phylink_pcs *b53_phylink_mac_select_pcs(struct phylink_config *config,
 						      phy_interface_t interface)
 {
-	struct b53_device *dev = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct b53_device *dev = dp->ds->priv;
 
 	if (!dev->ops->phylink_mac_select_pcs)
 		return NULL;
 
-	return dev->ops->phylink_mac_select_pcs(dev, port, interface);
+	return dev->ops->phylink_mac_select_pcs(dev, dp->index, interface);
 }
 
-void b53_phylink_mac_config(struct dsa_switch *ds, int port,
-			    unsigned int mode,
-			    const struct phylink_link_state *state)
+static void b53_phylink_mac_config(struct phylink_config *config,
+				   unsigned int mode,
+				   const struct phylink_link_state *state)
 {
-}
-EXPORT_SYMBOL(b53_phylink_mac_config);
-
-void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
-			       unsigned int mode,
-			       phy_interface_t interface)
-{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	phy_interface_t interface = state->interface;
+	struct dsa_switch *ds = dp->ds;
 	struct b53_device *dev = ds->priv;
+	int port = dp->index;
+
+	if (is63xx(dev) && port >= B53_63XX_RGMII0)
+		b53_adjust_63xx_rgmii(ds, port, interface);
+
+	if (mode == MLO_AN_FIXED) {
+		if (is531x5(dev) && phy_interface_mode_is_rgmii(interface))
+			b53_adjust_531x5_rgmii(ds, port, interface);
+
+		/* configure MII port if necessary */
+		if (is5325(dev))
+			b53_adjust_5325_mii(ds, port);
+	}
+}
+
+static void b53_phylink_mac_link_down(struct phylink_config *config,
+				      unsigned int mode,
+				      phy_interface_t interface)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct b53_device *dev = dp->ds->priv;
+	int port = dp->index;
 
 	if (mode == MLO_AN_PHY)
 		return;
@@ -1445,24 +1438,31 @@ void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
 	    dev->ops->serdes_link_set)
 		dev->ops->serdes_link_set(dev, port, mode, interface, false);
 }
-EXPORT_SYMBOL(b53_phylink_mac_link_down);
 
-void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
-			     unsigned int mode,
-			     phy_interface_t interface,
-			     struct phy_device *phydev,
-			     int speed, int duplex,
-			     bool tx_pause, bool rx_pause)
+static void b53_phylink_mac_link_up(struct phylink_config *config,
+				    struct phy_device *phydev,
+				    unsigned int mode,
+				    phy_interface_t interface,
+				    int speed, int duplex,
+				    bool tx_pause, bool rx_pause)
 {
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct dsa_switch *ds = dp->ds;
 	struct b53_device *dev = ds->priv;
+	struct ethtool_keee *p = &dev->ports[dp->index].eee;
+	int port = dp->index;
 
-	if (is63xx(dev) && port >= B53_63XX_RGMII0)
-		b53_adjust_63xx_rgmii(ds, port, interface);
-
-	if (mode == MLO_AN_PHY)
+	if (mode == MLO_AN_PHY) {
+		/* Re-negotiate EEE if it was enabled already */
+		p->eee_enabled = b53_eee_init(ds, port, phydev);
 		return;
+	}
 
 	if (mode == MLO_AN_FIXED) {
+		/* Force flow control on BCM5301x's CPU port */
+		if (is5301x(dev) && dsa_is_cpu_port(ds, port))
+			tx_pause = rx_pause = true;
+
 		b53_force_port_config(dev, port, speed, duplex,
 				      tx_pause, rx_pause);
 		b53_force_link(dev, port, true);
@@ -1473,7 +1473,6 @@ void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	    dev->ops->serdes_link_set)
 		dev->ops->serdes_link_set(dev, port, mode, interface, true);
 }
-EXPORT_SYMBOL(b53_phylink_mac_link_up);
 
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
 		       struct netlink_ext_ack *extack)
@@ -2268,6 +2267,13 @@ static int b53_get_max_mtu(struct dsa_switch *ds, int port)
 	return JMS_MAX_SIZE;
 }
 
+static const struct phylink_mac_ops b53_phylink_mac_ops = {
+	.mac_select_pcs	= b53_phylink_mac_select_pcs,
+	.mac_config	= b53_phylink_mac_config,
+	.mac_link_down	= b53_phylink_mac_link_down,
+	.mac_link_up	= b53_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,
@@ -2278,12 +2284,7 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.phy_read		= b53_phy_read16,
 	.phy_write		= b53_phy_write16,
-	.adjust_link		= b53_adjust_link,
 	.phylink_get_caps	= b53_phylink_get_caps,
-	.phylink_mac_select_pcs	= b53_phylink_mac_select_pcs,
-	.phylink_mac_config	= b53_phylink_mac_config,
-	.phylink_mac_link_down	= b53_phylink_mac_link_down,
-	.phylink_mac_link_up	= b53_phylink_mac_link_up,
 	.port_enable		= b53_enable_port,
 	.port_disable		= b53_disable_port,
 	.get_mac_eee		= b53_get_mac_eee,
@@ -2726,6 +2727,7 @@ struct b53_device *b53_switch_alloc(struct device *base,
 	dev->priv = priv;
 	dev->ops = ops;
 	ds->ops = &b53_switch_ops;
+	ds->phylink_mac_ops = &b53_phylink_mac_ops;
 	dev->vlan_enabled = true;
 	/* Let DSA handle the case were multiple bridges span the same switch
 	 * device and different VLAN awareness settings are requested, which

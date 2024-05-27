@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -350,7 +350,9 @@ static int sof_init_environment(struct snd_sof_dev *sdev)
 	}
 
 	ret = sof_select_ipc_and_paths(sdev);
-	if (!ret && plat_data->ipc_type != base_profile->ipc_type) {
+	if (ret) {
+		goto err_machine_check;
+	} else if (plat_data->ipc_type != base_profile->ipc_type) {
 		/* IPC type changed, re-initialize the ops */
 		sof_ops_free(sdev);
 

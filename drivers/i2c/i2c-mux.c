@@ -127,19 +127,6 @@ static u32 i2c_mux_functionality(struct i2c_adapter *adap)
 	return parent->algo->functionality(parent);
 }
 
-/* Return all parent classes, merged */
-static unsigned int i2c_mux_parent_classes(struct i2c_adapter *parent)
-{
-	unsigned int class = 0;
-
-	do {
-		class |= parent->class;
-		parent = i2c_parent_is_i2c_adapter(parent);
-	} while (parent);
-
-	return class;
-}
-
 static void i2c_mux_lock_bus(struct i2c_adapter *adapter, unsigned int flags)
 {
 	struct i2c_mux_priv *priv = adapter->algo_data;
@@ -281,8 +268,7 @@ static const struct i2c_lock_operations i2c_parent_lock_ops = {
 };
 
 int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
-			u32 force_nr, u32 chan_id,
-			unsigned int class)
+			u32 force_nr, u32 chan_id)
 {
 	struct i2c_adapter *parent = muxc->parent;
 	struct i2c_mux_priv *priv;
@@ -339,14 +325,6 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 		priv->adap.lock_ops = &i2c_mux_lock_ops;
 	else
 		priv->adap.lock_ops = &i2c_parent_lock_ops;
-
-	/* Sanity check on class */
-	if (i2c_mux_parent_classes(parent) & class & ~I2C_CLASS_DEPRECATED)
-		dev_err(&parent->dev,
-			"Segment %d behind mux can't share classes with ancestors\n",
-			chan_id);
-	else
-		priv->adap.class = class;
 
 	/*
 	 * Try to populate the mux adapter's of_node, expands to
