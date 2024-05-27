@@ -250,10 +250,7 @@ void sort_r(void *base, size_t num, size_t size,
 			a = size << shift;
 			n -= size;
 			do_swap(base + a, base + n, size, swap_func, priv);
-		} else if (n > size) {	/* Sorting: Extract root */
-			n -= size;
-			do_swap(base, base + n, size, swap_func, priv);
-		} else	{		/* Sort complete */
+		} else {		/* Sort complete */
 			break;
 		}
 
@@ -283,6 +280,11 @@ void sort_r(void *base, size_t num, size_t size,
 			do_swap(base + b, base + c, size, swap_func, priv);
 		}
 	}
+
+	n -= size;
+	do_swap(base, base + n, size, swap_func, priv);
+	if (n == size * 2 && do_cmp(base, base + size, cmp_func, priv) > 0)
+		do_swap(base, base + size, size, swap_func, priv);
 }
 EXPORT_SYMBOL(sort_r);
 
