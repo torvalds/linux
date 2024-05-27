@@ -1124,14 +1124,10 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * pipe to make sure each pipe enabling cursor on its part of the
 	 * screen.
 	 */
-
-	if (param.rotation == ROTATION_ANGLE_90 || param.rotation == ROTATION_ANGLE_270) {
-	} else {
-		x_pos = pipe_ctx->stream->dst.x + x_pos * pipe_ctx->stream->dst.width /
-			pipe_ctx->stream->src.width;
-		y_pos = pipe_ctx->stream->dst.y + y_pos * pipe_ctx->stream->dst.height /
-			pipe_ctx->stream->src.height;
-	}
+	x_pos = pipe_ctx->stream->dst.x + x_pos * pipe_ctx->stream->dst.width /
+		pipe_ctx->stream->src.width;
+	y_pos = pipe_ctx->stream->dst.y + y_pos * pipe_ctx->stream->dst.height /
+		pipe_ctx->stream->src.height;
 
 	/**
 	 * If the cursor's source viewport is clipped then we need to
@@ -1297,18 +1293,10 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 						pos_cpy.x = temp_x + recout_width;
 					}
 				}
-			} else {
 			}
+
 		}
 
-		/**
-		 * Display groups that are 1xnY, have pos_cpy.y > recout.height
-		 * Calculation:
-		 *   delta_from_bottom = recout.y + recout.height - pos_cpy.y
-		 *   pos_cpy.y_new = recout.y + delta_from_bottom
-		 * Simplify it as:
-		 *   pos_cpy.y = recout.y * 2 + recout.height - pos_cpy.y
-		 */
 	}
 
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
