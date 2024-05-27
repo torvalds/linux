@@ -196,6 +196,9 @@ struct xe_tile {
 		struct {
 			/** @sriov.vf.memirq: Memory Based Interrupts. */
 			struct xe_memirq memirq;
+
+			/** @sriov.vf.ggtt_balloon: GGTT regions excluded from use. */
+			struct drm_mm_node ggtt_balloon[2];
 		} vf;
 	} sriov;
 
