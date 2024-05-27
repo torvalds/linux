@@ -272,7 +272,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			   __entry->flags = job->q->flags;
 			   __entry->error = job->fence->error;
 			   __entry->fence = job->fence;
-			   __entry->batch_addr = (u64)job->batch_addr[0];
+			   __entry->batch_addr = (u64)job->ptrs[0].batch_addr;
 			   ),
 
 		    TP_printk("fence=%p, seqno=%u, lrc_seqno=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
