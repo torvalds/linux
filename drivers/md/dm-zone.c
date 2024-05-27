@@ -287,7 +287,13 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q)
 		       queue_emulates_zone_append(q) ? "emulated" : "native");
 	}
 
-	return dm_revalidate_zones(md, t);
+	ret = dm_revalidate_zones(md, t);
+	if (ret < 0)
+		return ret;
+
+	if (!static_key_enabled(&zoned_enabled.key))
+		static_branch_enable(&zoned_enabled);
+	return 0;
 }
 
 /*
