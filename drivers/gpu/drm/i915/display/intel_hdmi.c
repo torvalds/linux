@@ -507,7 +507,7 @@ void hsw_write_infoframe(struct intel_encoder *encoder,
 	const u32 *data = frame;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	i915_reg_t ctl_reg = HSW_TVIDEO_DIP_CTL(cpu_transcoder);
+	i915_reg_t ctl_reg = HSW_TVIDEO_DIP_CTL(dev_priv, cpu_transcoder);
 	int data_size;
 	int i;
 	u32 val = intel_de_read(dev_priv, ctl_reg);
@@ -562,7 +562,7 @@ static u32 hsw_infoframes_enabled(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 val = intel_de_read(dev_priv,
-				HSW_TVIDEO_DIP_CTL(pipe_config->cpu_transcoder));
+				HSW_TVIDEO_DIP_CTL(dev_priv, pipe_config->cpu_transcoder));
 	u32 mask;
 
 	mask = (VIDEO_DIP_ENABLE_VSC_HSW | VIDEO_DIP_ENABLE_AVI_HSW |
@@ -1216,7 +1216,8 @@ static void hsw_set_infoframes(struct intel_encoder *encoder,
 			       const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	i915_reg_t reg = HSW_TVIDEO_DIP_CTL(crtc_state->cpu_transcoder);
+	i915_reg_t reg = HSW_TVIDEO_DIP_CTL(dev_priv,
+					    crtc_state->cpu_transcoder);
 	u32 val = intel_de_read(dev_priv, reg);
 
 	assert_hdmi_transcoder_func_disabled(dev_priv,
