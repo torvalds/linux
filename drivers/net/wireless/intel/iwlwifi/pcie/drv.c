@@ -1476,6 +1476,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!iwl_trans->name)
 		iwl_trans->name = iwl_trans->cfg->name;
 
+	IWL_INFO(iwl_trans, "Detected %s\n", iwl_trans->name);
+
 	if (iwl_trans->trans_cfg->mq_rx_supported) {
 		if (WARN_ON(!iwl_trans->cfg->num_rbds)) {
 			ret = -EINVAL;
