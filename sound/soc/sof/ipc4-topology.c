@@ -3174,6 +3174,8 @@ static int sof_ipc4_dai_get_param(struct snd_sof_dev *sdev, struct snd_sof_dai *
 			return le32_to_cpu(hw_config->mclk_rate);
 		case SOF_DAI_PARAM_INTEL_SSP_BCLK:
 			return le32_to_cpu(hw_config->bclk_rate);
+		case SOF_DAI_PARAM_INTEL_SSP_TDM_SLOTS:
+			return le32_to_cpu(hw_config->tdm_slots);
 		default:
 			dev_err(sdev->dev, "invalid SSP param %d\n", param_type);
 			break;
