@@ -585,16 +585,17 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 
 		if (fsck_err_on(k.k->version.lo > atomic64_read(&c->key_version), c,
 				bkey_version_in_future,
-				"key version number higher than recorded: %llu > %llu",
-				k.k->version.lo,
-				atomic64_read(&c->key_version)))
+				"key version number higher than recorded %llu\n  %s",
+				atomic64_read(&c->key_version),
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			atomic64_set(&c->key_version, k.k->version.lo);
 	}
 
 	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, k),
 				c, btree_bitmap_not_marked,
 				"btree ptr not marked in member info btree allocated bitmap\n  %s",
-				(bch2_bkey_val_to_text(&buf, c, k),
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k),
 				 buf.buf))) {
 		mutex_lock(&c->sb_lock);
 		bch2_dev_btree_bitmap_mark(c, k);
