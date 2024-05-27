@@ -775,9 +775,9 @@ static void dmub_hpd_callback(struct amdgpu_device *adev,
 		aconnector = to_amdgpu_dm_connector(connector);
 		if (link && aconnector->dc_link == link) {
 			if (notify->type == DMUB_NOTIFICATION_HPD)
-				DRM_INFO("DMUB HPD callback: link_index=%u\n", link_index);
-			else if (notify->type == DMUB_NOTIFICATION_HPD_IRQ)
 				DRM_INFO("DMUB HPD IRQ callback: link_index=%u\n", link_index);
+			else if (notify->type == DMUB_NOTIFICATION_HPD_IRQ)
+				DRM_INFO("DMUB HPD RX IRQ callback: link_index=%u\n", link_index);
 			else
 				DRM_WARN("DMUB Unknown HPD callback type %d, link_index=%u\n",
 						notify->type, link_index);
@@ -789,10 +789,13 @@ static void dmub_hpd_callback(struct amdgpu_device *adev,
 	drm_connector_list_iter_end(&iter);
 
 	if (hpd_aconnector) {
-		if (notify->type == DMUB_NOTIFICATION_HPD)
+		if (notify->type == DMUB_NOTIFICATION_HPD) {
+			if (hpd_aconnector->dc_link->hpd_status == (notify->hpd_status == DP_HPD_PLUG))
+				DRM_WARN("DMUB reported hpd status unchanged. link_index=%u\n", link_index);
 			handle_hpd_irq_helper(hpd_aconnector);
-		else if (notify->type == DMUB_NOTIFICATION_HPD_IRQ)
+		} else if (notify->type == DMUB_NOTIFICATION_HPD_IRQ) {
 			handle_hpd_rx_irq(hpd_aconnector);
+		}
 	}
 }
 
@@ -861,6 +864,31 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 	u32 count = 0;
 	struct dmub_hpd_work *dmub_hpd_wrk;
 	struct dc_link *plink = NULL;
+	static const char *const event_type[] = {
+		"NO_DATA",
+		"AUX_REPLY",
+		"HPD",
+		"HPD_IRQ",
+		"SET_CONFIGC_REPLY",
+		"DPIA_NOTIFICATION",
+	};
+
+	do {
+		if (dc_dmub_srv_get_dmub_outbox0_msg(dm->dc, &entry)) {
+			trace_amdgpu_dmub_trace_high_irq(entry.trace_code, entry.tick_count,
+							entry.param0, entry.param1);
+
+			DRM_DEBUG_DRIVER("trace_code:%u, tick_count:%u, param0:%u, param1:%u\n",
+				 entry.trace_code, entry.tick_count, entry.param0, entry.param1);
+		} else
+			break;
+
+		count++;
+
+	} while (count <= DMUB_TRACE_MAX_READ);
+
+	if (count > DMUB_TRACE_MAX_READ)
+		DRM_DEBUG_DRIVER("Warning : count > DMUB_TRACE_MAX_READ");
 
 	if (dc_enable_dmub_notifications(adev->dm.dc) &&
 		irq_params->irq_src == DC_IRQ_SOURCE_DMCUB_OUTBOX) {
@@ -872,7 +900,8 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 				continue;
 			}
 			if (!dm->dmub_callback[notify.type]) {
-				DRM_DEBUG_DRIVER("DMUB notification skipped, no handler: type=%d\n", notify.type);
+				DRM_WARN("DMUB notification skipped due to no handler: type=%s\n",
+					event_type[notify.type]);
 				continue;
 			}
 			if (dm->dmub_thread_offload[notify.type] == true) {
@@ -903,24 +932,6 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 			}
 		} while (notify.pending_notification);
 	}
-
-
-	do {
-		if (dc_dmub_srv_get_dmub_outbox0_msg(dm->dc, &entry)) {
-			trace_amdgpu_dmub_trace_high_irq(entry.trace_code, entry.tick_count,
-							entry.param0, entry.param1);
-
-			DRM_DEBUG_DRIVER("trace_code:%u, tick_count:%u, param0:%u, param1:%u\n",
-				 entry.trace_code, entry.tick_count, entry.param0, entry.param1);
-		} else
-			break;
-
-		count++;
-
-	} while (count <= DMUB_TRACE_MAX_READ);
-
-	if (count > DMUB_TRACE_MAX_READ)
-		DRM_DEBUG_DRIVER("Warning : count > DMUB_TRACE_MAX_READ");
 }
 
 static int dm_set_clockgating_state(void *handle,
