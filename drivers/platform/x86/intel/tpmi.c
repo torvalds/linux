@@ -357,6 +357,15 @@ int tpmi_get_feature_status(struct auxiliary_device *auxdev,
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_get_feature_status, INTEL_TPMI);
 
+struct dentry *tpmi_get_debugfs_dir(struct auxiliary_device *auxdev)
+{
+	struct intel_vsec_device *intel_vsec_dev = dev_to_ivdev(auxdev->dev.parent);
+	struct intel_tpmi_info *tpmi_info = auxiliary_get_drvdata(&intel_vsec_dev->auxdev);
+
+	return tpmi_info->dbgfs_dir;
+}
+EXPORT_SYMBOL_NS_GPL(tpmi_get_debugfs_dir, INTEL_TPMI);
+
 static int tpmi_pfs_dbg_show(struct seq_file *s, void *unused)
 {
 	struct intel_tpmi_info *tpmi_info = s->private;

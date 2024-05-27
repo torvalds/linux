@@ -54,4 +54,5 @@ struct resource *tpmi_get_resource_at_index(struct auxiliary_device *auxdev, int
 int tpmi_get_resource_count(struct auxiliary_device *auxdev);
 int tpmi_get_feature_status(struct auxiliary_device *auxdev, int feature_id, bool *read_blocked,
 			    bool *write_blocked);
+struct dentry *tpmi_get_debugfs_dir(struct auxiliary_device *auxdev);
 #endif
