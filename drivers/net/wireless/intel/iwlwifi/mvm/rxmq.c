@@ -1959,7 +1959,9 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 		u64 adj_time =
 			iwl_mvm_ptp_get_adj_time(mvm, phy_data->gp2_on_air_rise * NSEC_PER_USEC);
 
-		rx_status->device_timestamp = div64_u64(adj_time, NSEC_PER_USEC);
+		rx_status->mactime = div64_u64(adj_time, NSEC_PER_USEC);
+		rx_status->flag |= RX_FLAG_MACTIME_IS_RTAP_TS64;
+		rx_status->flag &= ~RX_FLAG_MACTIME;
 	}
 
 	rx_status->freq = ieee80211_channel_to_frequency(phy_data->channel,
