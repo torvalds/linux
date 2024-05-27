@@ -208,6 +208,7 @@ static void setup_link_conf(struct kunit *test)
 	bss_load->channel_util = params->channel_util;
 
 	rcu_assign_pointer(bss.ies, ies);
+	rcu_assign_pointer(bss.beacon_ies, ies);
 }
 
 static void test_link_grading(struct kunit *test)
