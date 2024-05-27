@@ -277,7 +277,7 @@ static bool pps_has_pp_on(struct drm_i915_private *dev_priv, int pps_idx)
 
 static bool pps_has_vdd_on(struct drm_i915_private *dev_priv, int pps_idx)
 {
-	return intel_de_read(dev_priv, PP_CONTROL(pps_idx)) & EDP_FORCE_VDD;
+	return intel_de_read(dev_priv, PP_CONTROL(dev_priv, pps_idx)) & EDP_FORCE_VDD;
 }
 
 static bool pps_any(struct drm_i915_private *dev_priv, int pps_idx)
@@ -491,7 +491,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 	else
 		pps_idx = intel_dp->pps.pps_idx;
 
-	regs->pp_ctrl = PP_CONTROL(pps_idx);
+	regs->pp_ctrl = PP_CONTROL(dev_priv, pps_idx);
 	regs->pp_stat = PP_STATUS(dev_priv, pps_idx);
 	regs->pp_on = PP_ON_DELAYS(pps_idx);
 	regs->pp_off = PP_OFF_DELAYS(pps_idx);
@@ -1656,7 +1656,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 	pps_num = intel_num_pps(dev_priv);
 
 	for (pps_idx = 0; pps_idx < pps_num; pps_idx++)
-		intel_de_rmw(dev_priv, PP_CONTROL(pps_idx),
+		intel_de_rmw(dev_priv, PP_CONTROL(dev_priv, pps_idx),
 			     PANEL_UNLOCK_MASK, PANEL_UNLOCK_REGS);
 }
 
@@ -1714,7 +1714,7 @@ void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		u32 port_sel;
 
-		pp_reg = PP_CONTROL(0);
+		pp_reg = PP_CONTROL(dev_priv, 0);
 		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(0)) & PANEL_PORT_SELECT_MASK;
 
 		switch (port_sel) {
@@ -1736,12 +1736,12 @@ void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 		}
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		/* presumably write lock depends on pipe, not port select */
-		pp_reg = PP_CONTROL(pipe);
+		pp_reg = PP_CONTROL(dev_priv, pipe);
 		panel_pipe = pipe;
 	} else {
 		u32 port_sel;
 
-		pp_reg = PP_CONTROL(0);
+		pp_reg = PP_CONTROL(dev_priv, 0);
 		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(0)) & PANEL_PORT_SELECT_MASK;
 
 		drm_WARN_ON(&dev_priv->drm,

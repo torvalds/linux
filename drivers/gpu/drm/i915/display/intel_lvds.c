@@ -161,7 +161,8 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	u32 val;
 
-	pps->powerdown_on_reset = intel_de_read(dev_priv, PP_CONTROL(0)) & PANEL_POWER_RESET;
+	pps->powerdown_on_reset = intel_de_read(dev_priv,
+						PP_CONTROL(dev_priv, 0)) & PANEL_POWER_RESET;
 
 	val = intel_de_read(dev_priv, PP_ON_DELAYS(0));
 	pps->port = REG_FIELD_GET(PANEL_PORT_SELECT_MASK, val);
@@ -209,12 +210,12 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 {
 	u32 val;
 
-	val = intel_de_read(dev_priv, PP_CONTROL(0));
+	val = intel_de_read(dev_priv, PP_CONTROL(dev_priv, 0));
 	drm_WARN_ON(&dev_priv->drm,
 		    (val & PANEL_UNLOCK_MASK) != PANEL_UNLOCK_REGS);
 	if (pps->powerdown_on_reset)
 		val |= PANEL_POWER_RESET;
-	intel_de_write(dev_priv, PP_CONTROL(0), val);
+	intel_de_write(dev_priv, PP_CONTROL(dev_priv, 0), val);
 
 	intel_de_write(dev_priv, PP_ON_DELAYS(0),
 		       REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, pps->port) |
@@ -321,7 +322,7 @@ static void intel_enable_lvds(struct intel_atomic_state *state,
 
 	intel_de_rmw(dev_priv, lvds_encoder->reg, 0, LVDS_PORT_EN);
 
-	intel_de_rmw(dev_priv, PP_CONTROL(0), 0, PANEL_POWER_ON);
+	intel_de_rmw(dev_priv, PP_CONTROL(dev_priv, 0), 0, PANEL_POWER_ON);
 	intel_de_posting_read(dev_priv, lvds_encoder->reg);
 
 	if (intel_de_wait_for_set(dev_priv, PP_STATUS(dev_priv, 0), PP_ON, 5000))
@@ -339,7 +340,7 @@ static void intel_disable_lvds(struct intel_atomic_state *state,
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	intel_de_rmw(dev_priv, PP_CONTROL(0), PANEL_POWER_ON, 0);
+	intel_de_rmw(dev_priv, PP_CONTROL(dev_priv, 0), PANEL_POWER_ON, 0);
 	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(dev_priv, 0), PP_ON, 1000))
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel to power off\n");
