@@ -1071,6 +1071,12 @@ struct drm_connector_state {
 		enum drm_hdmi_broadcast_rgb broadcast_rgb;
 
 		/**
+		 * @is_full_range: Is the output supposed to use a full
+		 * RGB Quantization Range or not?
+		 */
+		bool is_limited_range;
+
+		/**
 		 * @output_bpc: Bits per color channel to output.
 		 */
 		unsigned int output_bpc;
