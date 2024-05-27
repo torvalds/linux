@@ -17,6 +17,12 @@
 /plugin/;
 
 &{/} {
+	compatible = "xlnx,zynqmp-sk-kv260-rev2",
+		     "xlnx,zynqmp-sk-kv260-rev1",
+		     "xlnx,zynqmp-sk-kv260-revB",
+		     "xlnx,zynqmp-sk-kv260", "xlnx,zynqmp";
+	model = "ZynqMP KV260 revB";
+
 	si5332_0: si5332-0 { /* u17 */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
