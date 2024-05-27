@@ -169,7 +169,7 @@ hsw_dip_data_reg(struct drm_i915_private *dev_priv,
 	case DP_SDP_VSC:
 		return HSW_TVIDEO_DIP_VSC_DATA(dev_priv, cpu_transcoder, i);
 	case DP_SDP_ADAPTIVE_SYNC:
-		return ADL_TVIDEO_DIP_AS_SDP_DATA(cpu_transcoder, i);
+		return ADL_TVIDEO_DIP_AS_SDP_DATA(dev_priv, cpu_transcoder, i);
 	case DP_SDP_PPS:
 		return ICL_VIDEO_DIP_PPS_DATA(dev_priv, cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_AVI:
