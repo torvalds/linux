@@ -1072,17 +1072,6 @@ void xe_lrc_init_seqno_fence(struct xe_lrc *lrc, struct dma_fence *fence)
 	xe_hw_fence_init(fence, &lrc->fence_ctx, __xe_lrc_seqno_map(lrc));
 }
 
-struct dma_fence *xe_lrc_create_seqno_fence(struct xe_lrc *lrc)
-{
-	struct dma_fence *fence = xe_lrc_alloc_seqno_fence();
-
-	if (IS_ERR(fence))
-		return fence;
-
-	xe_lrc_init_seqno_fence(lrc, fence);
-	return fence;
-}
-
 s32 xe_lrc_seqno(struct xe_lrc *lrc)
 {
 	struct iosys_map map = __xe_lrc_seqno_map(lrc);
