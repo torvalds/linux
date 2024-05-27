@@ -528,9 +528,6 @@ static_assert(PAGE_SHIFT <= 20);
 
 #include <linux/alloc_tag.h>
 
-void *__kmalloc_noprof(size_t size, gfp_t flags) __assume_kmalloc_alignment __alloc_size(1);
-#define __kmalloc(...)				alloc_hooks(__kmalloc_noprof(__VA_ARGS__))
-
 /**
  * kmem_cache_alloc - Allocate an object
  * @cachep: The cache to allocate from.
@@ -568,31 +565,34 @@ static __always_inline void kfree_bulk(size_t size, void **p)
 	kmem_cache_free_bulk(NULL, size, p);
 }
 
-void *__kmalloc_node_noprof(size_t size, gfp_t flags, int node) __assume_kmalloc_alignment
-							 __alloc_size(1);
-#define __kmalloc_node(...)			alloc_hooks(__kmalloc_node_noprof(__VA_ARGS__))
-
 void *kmem_cache_alloc_node_noprof(struct kmem_cache *s, gfp_t flags,
 				   int node) __assume_slab_alignment __malloc;
 #define kmem_cache_alloc_node(...)	alloc_hooks(kmem_cache_alloc_node_noprof(__VA_ARGS__))
 
-void *kmalloc_trace_noprof(struct kmem_cache *s, gfp_t flags, size_t size)
-		    __assume_kmalloc_alignment __alloc_size(3);
+/*
+ * The following functions are not to be used directly and are intended only
+ * for internal use from kmalloc() and kmalloc_node()
+ * with the exception of kunit tests
+ */
 
-void *kmalloc_node_trace_noprof(struct kmem_cache *s, gfp_t gfpflags,
-		int node, size_t size) __assume_kmalloc_alignment
-						__alloc_size(4);
-#define kmalloc_trace(...)			alloc_hooks(kmalloc_trace_noprof(__VA_ARGS__))
+void *__kmalloc_noprof(size_t size, gfp_t flags)
+				__assume_kmalloc_alignment __alloc_size(1);
 
-#define kmalloc_node_trace(...)			alloc_hooks(kmalloc_node_trace_noprof(__VA_ARGS__))
+void *__kmalloc_node_noprof(size_t size, gfp_t flags, int node)
+				__assume_kmalloc_alignment __alloc_size(1);
 
-void *kmalloc_large_noprof(size_t size, gfp_t flags) __assume_page_alignment
-					      __alloc_size(1);
-#define kmalloc_large(...)			alloc_hooks(kmalloc_large_noprof(__VA_ARGS__))
+void *__kmalloc_cache_noprof(struct kmem_cache *s, gfp_t flags, size_t size)
+				__assume_kmalloc_alignment __alloc_size(3);
 
-void *kmalloc_large_node_noprof(size_t size, gfp_t flags, int node) __assume_page_alignment
-							     __alloc_size(1);
-#define kmalloc_large_node(...)			alloc_hooks(kmalloc_large_node_noprof(__VA_ARGS__))
+void *__kmalloc_cache_node_noprof(struct kmem_cache *s, gfp_t gfpflags,
+				  int node, size_t size)
+				__assume_kmalloc_alignment __alloc_size(4);
+
+void *__kmalloc_large_noprof(size_t size, gfp_t flags)
+				__assume_page_alignment __alloc_size(1);
+
+void *__kmalloc_large_node_noprof(size_t size, gfp_t flags, int node)
+				__assume_page_alignment __alloc_size(1);
 
 /**
  * kmalloc - allocate kernel memory
@@ -654,10 +654,10 @@ static __always_inline __alloc_size(1) void *kmalloc_noprof(size_t size, gfp_t f
 		unsigned int index;
 
 		if (size > KMALLOC_MAX_CACHE_SIZE)
-			return kmalloc_large_noprof(size, flags);
+			return __kmalloc_large_noprof(size, flags);
 
 		index = kmalloc_index(size);
-		return kmalloc_trace_noprof(
+		return __kmalloc_cache_noprof(
 				kmalloc_caches[kmalloc_type(flags, _RET_IP_)][index],
 				flags, size);
 	}
@@ -671,10 +671,10 @@ static __always_inline __alloc_size(1) void *kmalloc_node_noprof(size_t size, gf
 		unsigned int index;
 
 		if (size > KMALLOC_MAX_CACHE_SIZE)
-			return kmalloc_large_node_noprof(size, flags, node);
+			return __kmalloc_large_node_noprof(size, flags, node);
 
 		index = kmalloc_index(size);
-		return kmalloc_node_trace_noprof(
+		return __kmalloc_cache_node_noprof(
 				kmalloc_caches[kmalloc_type(flags, _RET_IP_)][index],
 				flags, node, size);
 	}
