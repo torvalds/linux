@@ -219,7 +219,7 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 	struct ampdu_info *ampdu;
 	int i;
 
-	ampdu = kzalloc(sizeof(struct ampdu_info), GFP_ATOMIC);
+	ampdu = kzalloc(sizeof(*ampdu), GFP_ATOMIC);
 	if (!ampdu)
 		return NULL;
 

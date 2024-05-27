@@ -1061,10 +1061,10 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	if (func->num != 2)
 		return -ENODEV;
 
-	bus_if = kzalloc(sizeof(struct brcmf_bus), GFP_KERNEL);
+	bus_if = kzalloc(sizeof(*bus_if), GFP_KERNEL);
 	if (!bus_if)
 		return -ENOMEM;
-	sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
+	sdiodev = kzalloc(sizeof(*sdiodev), GFP_KERNEL);
 	if (!sdiodev) {
 		kfree(bus_if);
 		return -ENOMEM;

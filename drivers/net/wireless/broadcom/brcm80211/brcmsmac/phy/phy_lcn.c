@@ -4968,11 +4968,11 @@ bool wlc_phy_attach_lcnphy(struct brcms_phy *pi)
 {
 	struct brcms_phy_lcnphy *pi_lcn;
 
-	pi->u.pi_lcnphy = kzalloc(sizeof(struct brcms_phy_lcnphy), GFP_ATOMIC);
-	if (pi->u.pi_lcnphy == NULL)
+	pi_lcn = kzalloc(sizeof(*pi_lcn), GFP_ATOMIC);
+	if (!pi_lcn)
 		return false;
 
-	pi_lcn = pi->u.pi_lcnphy;
+	pi->u.pi_lcnphy = pi_lcn;
 
 	if (0 == (pi->sh->boardflags & BFL_NOPA)) {
 		pi->hwpwrctrl = true;
