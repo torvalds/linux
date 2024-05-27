@@ -23,6 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/sizes.h>
@@ -1955,6 +1956,11 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	 */
 	if (of_property_read_bool(pdev->dev.of_node, "qcom,sdi-enabled"))
 		qcom_scm_disable_sdi();
+
+	ret = of_reserved_mem_device_init(__scm->dev);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(__scm->dev, ret,
+				     "Failed to setup the reserved memory region for TZ mem\n");
 
 	ret = qcom_tzmem_enable(__scm->dev);
 	if (ret)
