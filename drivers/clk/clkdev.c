@@ -204,8 +204,15 @@ fail:
 	pr_err("%pV:%s: %s ID is greater than %zu\n",
 	       &vaf, con_id, failure, max_size);
 	va_end(ap_copy);
-	kfree(cla);
-	return NULL;
+
+	/*
+	 * Don't fail in this case, but as the entry won't ever match just
+	 * fill it with something that also won't match.
+	 */
+	strscpy(cla->con_id, "bad", sizeof(cla->con_id));
+	strscpy(cla->dev_id, "bad", sizeof(cla->dev_id));
+
+	return &cla->cl;
 }
 
 static struct clk_lookup *
