@@ -301,10 +301,10 @@ static int ipu6_isys_stream_start(struct ipu6_isys_video *av,
 out_requeue:
 	if (bl && bl->nbufs)
 		ipu6_isys_buffer_list_queue(bl,
-					    (IPU6_ISYS_BUFFER_LIST_FL_INCOMING |
-					     error) ?
+					    IPU6_ISYS_BUFFER_LIST_FL_INCOMING |
+					    (error ?
 					    IPU6_ISYS_BUFFER_LIST_FL_SET_STATE :
-					    0, error ? VB2_BUF_STATE_ERROR :
+					     0), error ? VB2_BUF_STATE_ERROR :
 					    VB2_BUF_STATE_QUEUED);
 	flush_firmware_streamon_fail(stream);
 
