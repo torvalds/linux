@@ -969,5 +969,22 @@
 			reg = <0 0x1a000000 0 0x1000>;
 			#clock-cells = <1>;
 		};
+
+		vdosys0: syscon@1c01d000 {
+			compatible = "mediatek,mt8188-vdosys0", "syscon";
+			reg = <0 0x1c01d000 0 0x1000>;
+			#clock-cells = <1>;
+			mboxes = <&gce0 0 CMDQ_THR_PRIO_4>;
+			mediatek,gce-client-reg = <&gce0 SUBSYS_1c01XXXX 0xd000 0x1000>;
+		};
+
+		vdosys1: syscon@1c100000 {
+			compatible = "mediatek,mt8188-vdosys1", "syscon";
+			reg = <0 0x1c100000 0 0x1000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			mboxes = <&gce0 1 CMDQ_THR_PRIO_4>;
+			mediatek,gce-client-reg = <&gce0 SUBSYS_1c10XXXX 0 0x1000>;
+		};
 	};
 };
