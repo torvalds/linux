@@ -174,6 +174,8 @@ void simple_util_parse_convert(struct device_node *np, char *prefix,
 			       struct simple_util_data *data);
 bool simple_util_is_convert_required(const struct simple_util_data *data);
 
+int simple_util_get_sample_fmt(struct simple_util_data *data);
+
 int simple_util_parse_routing(struct snd_soc_card *card,
 				      char *prefix);
 int simple_util_parse_widgets(struct snd_soc_card *card,
