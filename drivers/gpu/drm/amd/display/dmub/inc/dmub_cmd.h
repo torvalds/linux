@@ -1836,7 +1836,7 @@ struct dmub_cmd_fams2_global_config {
 	uint32_t num_streams;
 	union dmub_fams2_global_feature_config features;
 	uint32_t recovery_timeout_us;
-	uint8_t pad[3];
+	uint32_t hwfq_flip_programming_delay_us;
 };
 
 union dmub_cmd_fams2_config {
