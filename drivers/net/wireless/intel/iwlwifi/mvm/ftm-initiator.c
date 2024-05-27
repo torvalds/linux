@@ -431,9 +431,6 @@ iwl_mvm_ftm_put_target_v2(struct iwl_mvm *mvm,
 	return 0;
 }
 
-#define FTM_PUT_FLAG(flag)	(target->initiator_ap_flags |= \
-				 cpu_to_le32(IWL_INITIATOR_AP_FLAGS_##flag))
-
 #define FTM_SET_FLAG(flag)	(*flags |= \
 				 cpu_to_le32(IWL_INITIATOR_AP_FLAGS_##flag))
 
@@ -525,6 +522,48 @@ iwl_mvm_ftm_put_target_v4(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static int iwl_mvm_ftm_set_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       struct cfg80211_pmsr_request_peer *peer,
+			       u8 *sta_id, __le32 *flags)
+{
+	if (vif->cfg.assoc) {
+		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+		struct ieee80211_sta *sta;
+		struct ieee80211_bss_conf *link_conf;
+		unsigned int link_id;
+
+		rcu_read_lock();
+		for_each_vif_active_link(vif, link_conf, link_id) {
+			if (memcmp(peer->addr, link_conf->bssid, ETH_ALEN))
+				continue;
+
+			*sta_id = mvmvif->link[link_id]->ap_sta_id;
+			sta = rcu_dereference(mvm->fw_id_to_mac_id[*sta_id]);
+			if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
+				rcu_read_unlock();
+				return PTR_ERR_OR_ZERO(sta);
+			}
+
+			if (sta->mfp && (peer->ftm.trigger_based ||
+					 peer->ftm.non_trigger_based))
+				FTM_SET_FLAG(PMF);
+			break;
+		}
+		rcu_read_unlock();
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+		if (mvmvif->ftm_unprotected) {
+			*sta_id = IWL_MVM_INVALID_STA;
+			*flags &= ~cpu_to_le32(IWL_INITIATOR_AP_FLAGS_PMF);
+		}
+#endif
+	} else {
+		*sta_id = IWL_MVM_INVALID_STA;
+	}
+
+	return 0;
+}
+
 static int
 iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		       struct cfg80211_pmsr_request_peer *peer,
@@ -540,42 +579,8 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_ftm_put_target_common(mvm, peer, target);
 
-	if (vif->cfg.assoc) {
-		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-		struct ieee80211_sta *sta;
-		struct ieee80211_bss_conf *link_conf;
-		unsigned int link_id;
-
-		rcu_read_lock();
-		for_each_vif_active_link(vif, link_conf, link_id) {
-			if (memcmp(peer->addr, link_conf->bssid, ETH_ALEN))
-				continue;
-
-			target->sta_id = mvmvif->link[link_id]->ap_sta_id;
-			sta = rcu_dereference(mvm->fw_id_to_mac_id[target->sta_id]);
-			if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
-				rcu_read_unlock();
-				return PTR_ERR_OR_ZERO(sta);
-			}
-
-			if (sta->mfp && (peer->ftm.trigger_based ||
-					 peer->ftm.non_trigger_based))
-				FTM_PUT_FLAG(PMF);
-			break;
-		}
-		rcu_read_unlock();
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		if (mvmvif->ftm_unprotected) {
-			target->sta_id = IWL_MVM_INVALID_STA;
-			target->initiator_ap_flags &=
-				~cpu_to_le32(IWL_INITIATOR_AP_FLAGS_PMF);
-		}
-
-#endif
-	} else {
-		target->sta_id = IWL_MVM_INVALID_STA;
-	}
+	iwl_mvm_ftm_set_sta(mvm, vif, peer, &target->sta_id,
+			    &target->initiator_ap_flags);
 
 	/*
 	 * TODO: Beacon interval is currently unknown, so use the common value
