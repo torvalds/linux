@@ -103,10 +103,21 @@
 			<&xilinx_ams 24>, <&xilinx_ams 25>, <&xilinx_ams 26>,
 			<&xilinx_ams 27>, <&xilinx_ams 28>, <&xilinx_ams 29>;
 	};
+
+	pwm-fan {
+		compatible = "pwm-fan";
+		status = "okay";
+		pwms = <&ttc0 2 40000 0>;
+	};
 };
 
 &modepin_gpio {
 	label = "modepin";
+};
+
+&ttc0 {
+	status = "okay";
+	#pwm-cells = <3>;
 };
 
 &uart1 { /* MIO36/MIO37 */
