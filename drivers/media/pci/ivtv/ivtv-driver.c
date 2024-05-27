@@ -814,24 +814,24 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 		IVTV_ERR("No suitable DMA available.\n");
 		return -EIO;
 	}
-	if (!request_mem_region(itv->base_addr, IVTV_ENCODER_SIZE, "ivtv encoder")) {
+	if (!devm_request_mem_region(&pdev->dev, itv->base_addr,
+				     IVTV_ENCODER_SIZE, "ivtv encoder")) {
 		IVTV_ERR("Cannot request encoder memory region.\n");
 		return -EIO;
 	}
 
-	if (!request_mem_region(itv->base_addr + IVTV_REG_OFFSET,
-				IVTV_REG_SIZE, "ivtv registers")) {
+	if (!devm_request_mem_region(&pdev->dev,
+				     itv->base_addr + IVTV_REG_OFFSET,
+				     IVTV_REG_SIZE, "ivtv registers")) {
 		IVTV_ERR("Cannot request register memory region.\n");
-		release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
 		return -EIO;
 	}
 
 	if (itv->has_cx23415 &&
-	    !request_mem_region(itv->base_addr + IVTV_DECODER_OFFSET,
-				IVTV_DECODER_SIZE, "ivtv decoder")) {
+	    !devm_request_mem_region(&pdev->dev,
+				     itv->base_addr + IVTV_DECODER_OFFSET,
+				     IVTV_DECODER_SIZE, "ivtv decoder")) {
 		IVTV_ERR("Cannot request decoder memory region.\n");
-		release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
-		release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 		return -EIO;
 	}
 
@@ -843,11 +843,6 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 		if (!(cmd & PCI_COMMAND_MASTER)) {
 			IVTV_ERR("Bus Mastering is not enabled\n");
-			if (itv->has_cx23415)
-				release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET,
-						   IVTV_DECODER_SIZE);
-			release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
-			release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 			return -ENXIO;
 		}
 	}
@@ -1006,10 +1001,8 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 
 	/* PCI Device Setup */
 	retval = ivtv_setup_pci(itv, pdev, pci_id);
-	if (retval == -EIO)
+	if (retval == -EIO || retval == -ENXIO)
 		goto free_worker;
-	if (retval == -ENXIO)
-		goto free_mem;
 
 	/* map io memory */
 	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
@@ -1023,7 +1016,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
 		IVTV_ERR("Use the vmalloc= kernel command line option to set VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
-		goto free_mem;
+		goto free_worker;
 	}
 
 	if (itv->has_cx23415) {
@@ -1038,7 +1031,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 			IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
 			IVTV_ERR("Use the vmalloc= kernel command line option to set VmallocTotal to a larger value\n");
 			retval = -ENOMEM;
-			goto free_mem;
+			goto free_worker;
 		}
 	}
 	else {
@@ -1057,18 +1050,18 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
 		IVTV_ERR("Use the vmalloc= kernel command line option to set VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
-		goto free_mem;
+		goto free_worker;
 	}
 
 	retval = ivtv_gpio_init(itv);
 	if (retval)
-		goto free_mem;
+		goto free_worker;
 
 	/* active i2c  */
 	IVTV_DEBUG_INFO("activating i2c...\n");
 	if (init_ivtv_i2c(itv)) {
 		IVTV_ERR("Could not initialize i2c\n");
-		goto free_mem;
+		goto free_worker;
 	}
 
 	if (itv->card->hw_all & IVTV_HW_TVEEPROM) {
@@ -1253,11 +1246,6 @@ free_irq:
 free_i2c:
 	v4l2_ctrl_handler_free(&itv->cxhdl.hdl);
 	exit_ivtv_i2c(itv);
-free_mem:
-	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
-	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
-	if (itv->has_cx23415)
-		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
 free_worker:
 	kthread_stop(itv->irq_worker_task);
 err:
@@ -1413,11 +1401,6 @@ static void ivtv_remove(struct pci_dev *pdev)
 	exit_ivtv_i2c(itv);
 
 	free_irq(itv->pdev->irq, (void *)itv);
-
-	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
-	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
-	if (itv->has_cx23415)
-		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
 
 	pci_disable_device(itv->pdev);
 	for (i = 0; i < IVTV_VBI_FRAMES; i++)
