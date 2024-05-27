@@ -100,8 +100,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		goto end_session;
 	/* Each FIFO data contains all sensors, so same number for FIFO and sensor data */
 	fifo_period = NSEC_PER_SEC / INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
-	inv_sensors_timestamp_interrupt(&st->timestamp, nb, pf->timestamp);
-	inv_sensors_timestamp_apply_odr(&st->timestamp, fifo_period, nb, 0);
+	inv_sensors_timestamp_interrupt(&st->timestamp, 1, pf->timestamp);
+	inv_sensors_timestamp_apply_odr(&st->timestamp, fifo_period, 1, 0);
 
 	/* clear internal data buffer for avoiding kernel data leak */
 	memset(data, 0, sizeof(data));
