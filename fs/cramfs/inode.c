@@ -1003,4 +1003,5 @@ static void __exit exit_cramfs_fs(void)
 
 module_init(init_cramfs_fs)
 module_exit(exit_cramfs_fs)
+MODULE_DESCRIPTION("Compressed ROM file system support");
 MODULE_LICENSE("GPL");
