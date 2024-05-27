@@ -677,6 +677,7 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 		return -ENODEV;
 
 	ret = ipu_bridge_init(&ipu->dev, ipu_bridge_parse_ssdb);
+	put_device(&ipu->dev);
 	if (ret < 0)
 		return ret;
 	if (WARN_ON(!dev_fwnode(dev)))
