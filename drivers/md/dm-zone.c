@@ -160,37 +160,6 @@ static int dm_check_zoned_cb(struct blk_zone *zone, unsigned int idx,
 	return 0;
 }
 
-static int dm_check_zoned(struct mapped_device *md, struct dm_table *t)
-{
-	struct gendisk *disk = md->disk;
-	unsigned int nr_conv_zones = 0;
-	int ret;
-
-	/* Count conventional zones */
-	md->zone_revalidate_map = t;
-	ret = dm_blk_report_zones(disk, 0, UINT_MAX,
-				  dm_check_zoned_cb, &nr_conv_zones);
-	md->zone_revalidate_map = NULL;
-	if (ret < 0) {
-		DMERR("Check zoned failed %d", ret);
-		return ret;
-	}
-
-	/*
-	 * If we only have conventional zones, expose the mapped device as
-	 * a regular device.
-	 */
-	if (nr_conv_zones >= ret) {
-		disk->queue->limits.max_open_zones = 0;
-		disk->queue->limits.max_active_zones = 0;
-		disk->queue->limits.zoned = false;
-		clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
-		disk->nr_zones = 0;
-	}
-
-	return 0;
-}
-
 /*
  * Revalidate the zones of a mapped device to initialize resource necessary
  * for zone append emulation. Note that we cannot simply use the block layer
@@ -254,6 +223,8 @@ static bool dm_table_supports_zone_append(struct dm_table *t)
 int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q)
 {
 	struct mapped_device *md = t->md;
+	struct gendisk *disk = md->disk;
+	unsigned int nr_conv_zones = 0;
 	int ret;
 
 	/*
@@ -272,14 +243,30 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q)
 		return 0;
 
 	/*
-	 * Check that the mapped device will indeed be zoned, that is, that it
-	 * has sequential write required zones.
+	 * Count conventional zones to check that the mapped device will indeed 
+	 * have sequential write required zones.
 	 */
-	ret = dm_check_zoned(md, t);
-	if (ret)
+	md->zone_revalidate_map = t;
+	ret = dm_blk_report_zones(disk, 0, UINT_MAX,
+				  dm_check_zoned_cb, &nr_conv_zones);
+	md->zone_revalidate_map = NULL;
+	if (ret < 0) {
+		DMERR("Check zoned failed %d", ret);
 		return ret;
-	if (!blk_queue_is_zoned(q))
+	}
+
+	/*
+	 * If we only have conventional zones, expose the mapped device as
+	 * a regular device.
+	 */
+	if (nr_conv_zones >= ret) {
+		disk->queue->limits.max_open_zones = 0;
+		disk->queue->limits.max_active_zones = 0;
+		disk->queue->limits.zoned = false;
+		clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
+		disk->nr_zones = 0;
 		return 0;
+	}
 
 	if (!md->disk->nr_zones) {
 		DMINFO("%s using %s zone append",
