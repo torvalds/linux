@@ -294,6 +294,112 @@
 		clock-output-names = "clk32k";
 	};
 
+	gpu_opp_table: opp-table-gpu {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-390000000 {
+			opp-hz = /bits/ 64 <390000000>;
+			opp-microvolt = <575000>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-431000000 {
+			opp-hz = /bits/ 64 <431000000>;
+			opp-microvolt = <587500>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-473000000 {
+			opp-hz = /bits/ 64 <473000000>;
+			opp-microvolt = <600000>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-515000000 {
+			opp-hz = /bits/ 64 <515000000>;
+			opp-microvolt = <612500>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-556000000 {
+			opp-hz = /bits/ 64 <556000000>;
+			opp-microvolt = <625000>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-598000000 {
+			opp-hz = /bits/ 64 <598000000>;
+			opp-microvolt = <637500>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-640000000 {
+			opp-hz = /bits/ 64 <640000000>;
+			opp-microvolt = <650000>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-670000000 {
+			opp-hz = /bits/ 64 <670000000>;
+			opp-microvolt = <662500>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <675000>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-730000000 {
+			opp-hz = /bits/ 64 <730000000>;
+			opp-microvolt = <687500>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-760000000 {
+			opp-hz = /bits/ 64 <760000000>;
+			opp-microvolt = <700000>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-790000000 {
+			opp-hz = /bits/ 64 <790000000>;
+			opp-microvolt = <712500>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-835000000 {
+			opp-hz = /bits/ 64 <835000000>;
+			opp-microvolt = <731250>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-880000000 {
+			opp-hz = /bits/ 64 <880000000>;
+			opp-microvolt = <750000>;
+			opp-supported-hw = <0xff>;
+		};
+		opp-915000000 {
+			opp-hz = /bits/ 64 <915000000>;
+			opp-microvolt = <775000>;
+			opp-supported-hw = <0x8f>;
+		};
+		opp-915000000-5 {
+			opp-hz = /bits/ 64 <915000000>;
+			opp-microvolt = <762500>;
+			opp-supported-hw = <0x30>;
+		};
+		opp-915000000-6 {
+			opp-hz = /bits/ 64 <915000000>;
+			opp-microvolt = <750000>;
+			opp-supported-hw = <0x70>;
+		};
+		opp-950000000 {
+			opp-hz = /bits/ 64 <950000000>;
+			opp-microvolt = <800000>;
+			opp-supported-hw = <0x8f>;
+		};
+		opp-950000000-5 {
+			opp-hz = /bits/ 64 <950000000>;
+			opp-microvolt = <775000>;
+			opp-supported-hw = <0x30>;
+		};
+		opp-950000000-6 {
+			opp-hz = /bits/ 64 <950000000>;
+			opp-microvolt = <750000>;
+			opp-supported-hw = <0x70>;
+		};
+	};
+
 	pmu-a55 {
 		compatible = "arm,cortex-a55-pmu";
 		interrupt-parent = <&gic>;
@@ -1165,6 +1271,23 @@
 			compatible = "mediatek,mt8188-imp-iic-wrap-en";
 			reg = <0 0x11ec2000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		gpu: gpu@13000000 {
+			compatible = "mediatek,mt8188-mali", "arm,mali-valhall-jm";
+			reg = <0 0x13000000 0 0x4000>;
+
+			clocks = <&mfgcfg CLK_MFGCFG_BG3D>;
+			interrupts = <GIC_SPI 383 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupt-names = "job", "mmu", "gpu";
+			operating-points-v2 = <&gpu_opp_table>;
+			power-domains = <&spm MT8188_POWER_DOMAIN_MFG2>,
+					<&spm MT8188_POWER_DOMAIN_MFG3>,
+					<&spm MT8188_POWER_DOMAIN_MFG4>;
+			power-domain-names = "core0", "core1", "core2";
+			status = "disabled";
 		};
 
 		mfgcfg: clock-controller@13fbf000 {
