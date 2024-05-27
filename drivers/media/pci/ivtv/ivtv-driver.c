@@ -371,33 +371,6 @@ int ivtv_msleep_timeout(unsigned int msecs, int intr)
 	return 0;
 }
 
-/* Release ioremapped memory */
-static void ivtv_iounmap(struct ivtv *itv)
-{
-	if (itv == NULL)
-		return;
-
-	/* Release registers memory */
-	if (itv->reg_mem != NULL) {
-		IVTV_DEBUG_INFO("releasing reg_mem\n");
-		iounmap(itv->reg_mem);
-		itv->reg_mem = NULL;
-	}
-	/* Release io memory */
-	if (itv->has_cx23415 && itv->dec_mem != NULL) {
-		IVTV_DEBUG_INFO("releasing dec_mem\n");
-		iounmap(itv->dec_mem);
-	}
-	itv->dec_mem = NULL;
-
-	/* Release io memory */
-	if (itv->enc_mem != NULL) {
-		IVTV_DEBUG_INFO("releasing enc_mem\n");
-		iounmap(itv->enc_mem);
-		itv->enc_mem = NULL;
-	}
-}
-
 /* Hauppauge card? get values from tveeprom */
 void ivtv_read_eeprom(struct ivtv *itv, struct tveeprom *tv)
 {
@@ -1041,8 +1014,9 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	/* map io memory */
 	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)itv->base_addr + IVTV_ENCODER_OFFSET, IVTV_ENCODER_SIZE);
-	itv->enc_mem = ioremap(itv->base_addr + IVTV_ENCODER_OFFSET,
-				       IVTV_ENCODER_SIZE);
+	itv->enc_mem = devm_ioremap(&pdev->dev,
+				    itv->base_addr + IVTV_ENCODER_OFFSET,
+				    IVTV_ENCODER_SIZE);
 	if (!itv->enc_mem) {
 		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 encoder memory\n");
 		IVTV_ERR("Each capture card with a CX23415/6 needs 8 MB of vmalloc address space for this window\n");
@@ -1055,8 +1029,9 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	if (itv->has_cx23415) {
 		IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 				(u64)itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
-		itv->dec_mem = ioremap(itv->base_addr + IVTV_DECODER_OFFSET,
-				IVTV_DECODER_SIZE);
+		itv->dec_mem = devm_ioremap(&pdev->dev,
+					    itv->base_addr + IVTV_DECODER_OFFSET,
+					    IVTV_DECODER_SIZE);
 		if (!itv->dec_mem) {
 			IVTV_ERR("ioremap failed. Can't get a window into CX23415 decoder memory\n");
 			IVTV_ERR("Each capture card with a CX23415 needs 8 MB of vmalloc address space for this window\n");
@@ -1073,26 +1048,27 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	/* map registers memory */
 	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
-	itv->reg_mem =
-	    ioremap(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
+	itv->reg_mem = devm_ioremap(&pdev->dev,
+				    itv->base_addr + IVTV_REG_OFFSET,
+				    IVTV_REG_SIZE);
 	if (!itv->reg_mem) {
 		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 register space\n");
 		IVTV_ERR("Each capture card with a CX23415/6 needs 64 kB of vmalloc address space for this window\n");
 		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
 		IVTV_ERR("Use the vmalloc= kernel command line option to set VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
-		goto free_io;
+		goto free_mem;
 	}
 
 	retval = ivtv_gpio_init(itv);
 	if (retval)
-		goto free_io;
+		goto free_mem;
 
 	/* active i2c  */
 	IVTV_DEBUG_INFO("activating i2c...\n");
 	if (init_ivtv_i2c(itv)) {
 		IVTV_ERR("Could not initialize i2c\n");
-		goto free_io;
+		goto free_mem;
 	}
 
 	if (itv->card->hw_all & IVTV_HW_TVEEPROM) {
@@ -1277,8 +1253,6 @@ free_irq:
 free_i2c:
 	v4l2_ctrl_handler_free(&itv->cxhdl.hdl);
 	exit_ivtv_i2c(itv);
-free_io:
-	ivtv_iounmap(itv);
 free_mem:
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
@@ -1439,7 +1413,6 @@ static void ivtv_remove(struct pci_dev *pdev)
 	exit_ivtv_i2c(itv);
 
 	free_irq(itv->pdev->irq, (void *)itv);
-	ivtv_iounmap(itv);
 
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
