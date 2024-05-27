@@ -25,6 +25,7 @@ void __drm_atomic_helper_connector_hdmi_reset(struct drm_connector *connector,
 
 	new_conn_state->max_bpc = max_bpc;
 	new_conn_state->max_requested_bpc = max_bpc;
+	new_conn_state->hdmi.broadcast_rgb = DRM_HDMI_BROADCAST_RGB_AUTO;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_hdmi_reset);
 
@@ -332,7 +333,8 @@ int drm_atomic_helper_connector_hdmi_check(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	if (old_conn_state->hdmi.output_bpc != new_conn_state->hdmi.output_bpc ||
+	if (old_conn_state->hdmi.broadcast_rgb != new_conn_state->hdmi.broadcast_rgb ||
+	    old_conn_state->hdmi.output_bpc != new_conn_state->hdmi.output_bpc ||
 	    old_conn_state->hdmi.output_format != new_conn_state->hdmi.output_format) {
 		struct drm_crtc *crtc = new_conn_state->crtc;
 		struct drm_crtc_state *crtc_state;
