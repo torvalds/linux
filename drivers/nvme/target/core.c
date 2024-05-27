@@ -1542,6 +1542,14 @@ void nvmet_ctrl_fatal_error(struct nvmet_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvmet_ctrl_fatal_error);
 
+ssize_t nvmet_ctrl_host_traddr(struct nvmet_ctrl *ctrl,
+		char *traddr, size_t traddr_len)
+{
+	if (!ctrl->ops->host_traddr)
+		return -EOPNOTSUPP;
+	return ctrl->ops->host_traddr(ctrl, traddr, traddr_len);
+}
+
 static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
 		const char *subsysnqn)
 {

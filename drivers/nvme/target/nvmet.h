@@ -354,6 +354,8 @@ struct nvmet_fabrics_ops {
 	void (*delete_ctrl)(struct nvmet_ctrl *ctrl);
 	void (*disc_traddr)(struct nvmet_req *req,
 			struct nvmet_port *port, char *traddr);
+	ssize_t (*host_traddr)(struct nvmet_ctrl *ctrl,
+			char *traddr, size_t traddr_len);
 	u16 (*install_queue)(struct nvmet_sq *nvme_sq);
 	void (*discovery_chg)(struct nvmet_port *port);
 	u8 (*get_mdts)(const struct nvmet_ctrl *ctrl);
@@ -502,6 +504,8 @@ struct nvmet_ctrl *nvmet_ctrl_find_get(const char *subsysnqn,
 				       struct nvmet_req *req);
 void nvmet_ctrl_put(struct nvmet_ctrl *ctrl);
 u16 nvmet_check_ctrl_status(struct nvmet_req *req);
+ssize_t nvmet_ctrl_host_traddr(struct nvmet_ctrl *ctrl,
+		char *traddr, size_t traddr_len);
 
 struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		enum nvme_subsys_type type);

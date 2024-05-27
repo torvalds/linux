@@ -115,6 +115,23 @@ static ssize_t nvmet_ctrl_state_write(struct file *file, const char __user *buf,
 }
 NVMET_DEBUGFS_RW_ATTR(nvmet_ctrl_state);
 
+static int nvmet_ctrl_host_traddr_show(struct seq_file *m, void *p)
+{
+	struct nvmet_ctrl *ctrl = m->private;
+	ssize_t size;
+	char buf[NVMF_TRADDR_SIZE + 1];
+
+	size = nvmet_ctrl_host_traddr(ctrl, buf, NVMF_TRADDR_SIZE);
+	if (size < 0) {
+		buf[0] = '\0';
+		size = 0;
+	}
+	buf[size] = '\0';
+	seq_printf(m, "%s\n", buf);
+	return 0;
+}
+NVMET_DEBUGFS_ATTR(nvmet_ctrl_host_traddr);
+
 int nvmet_debugfs_ctrl_setup(struct nvmet_ctrl *ctrl)
 {
 	char name[32];
@@ -138,6 +155,8 @@ int nvmet_debugfs_ctrl_setup(struct nvmet_ctrl *ctrl)
 			    &nvmet_ctrl_kato_fops);
 	debugfs_create_file("state", S_IRUSR | S_IWUSR, ctrl->debugfs_dir, ctrl,
 			    &nvmet_ctrl_state_fops);
+	debugfs_create_file("host_traddr", S_IRUSR, ctrl->debugfs_dir, ctrl,
+			    &nvmet_ctrl_host_traddr_fops);
 	return 0;
 }
 
