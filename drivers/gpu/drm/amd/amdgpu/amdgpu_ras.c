@@ -1299,7 +1299,7 @@ ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *a
 		return -EINVAL;
 
 	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n%s: %lu\n", "ue", info.ue_count,
-			  "ce", info.ce_count, "de", info.ue_count);
+			  "ce", info.ce_count, "de", info.de_count);
 }
 
 static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
