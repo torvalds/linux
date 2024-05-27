@@ -179,7 +179,7 @@ hsw_dip_data_reg(struct drm_i915_private *dev_priv,
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 		return HSW_TVIDEO_DIP_VS_DATA(dev_priv, cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_DRM:
-		return GLK_TVIDEO_DIP_DRM_DATA(cpu_transcoder, i);
+		return GLK_TVIDEO_DIP_DRM_DATA(dev_priv, cpu_transcoder, i);
 	default:
 		MISSING_CASE(type);
 		return INVALID_MMIO_REG;
