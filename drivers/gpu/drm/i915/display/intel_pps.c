@@ -501,7 +501,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 	    INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
 		regs->pp_div = INVALID_MMIO_REG;
 	else
-		regs->pp_div = PP_DIVISOR(pps_idx);
+		regs->pp_div = PP_DIVISOR(dev_priv, pps_idx);
 }
 
 static i915_reg_t
