@@ -2514,6 +2514,8 @@ static int sof_ipc3_dai_get_param(struct snd_sof_dev *sdev, struct snd_sof_dai *
 			return private->dai_config->ssp.mclk_rate;
 		case SOF_DAI_PARAM_INTEL_SSP_BCLK:
 			return private->dai_config->ssp.bclk_rate;
+		case SOF_DAI_PARAM_INTEL_SSP_TDM_SLOTS:
+			return private->dai_config->ssp.tdm_slots;
 		default:
 			dev_err(sdev->dev, "invalid SSP param %d\n", param_type);
 			break;
