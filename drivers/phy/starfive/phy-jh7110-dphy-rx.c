@@ -46,11 +46,6 @@
 
 #define STF_MAP_LANES_NUM			6
 
-struct regval {
-	u32 addr;
-	u32 val;
-};
-
 struct stf_dphy_info {
 	/**
 	 * @maps:
