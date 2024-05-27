@@ -863,7 +863,6 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 	struct dmcub_trace_buf_entry entry = { 0 };
 	u32 count = 0;
 	struct dmub_hpd_work *dmub_hpd_wrk;
-	struct dc_link *plink = NULL;
 	static const char *const event_type[] = {
 		"NO_DATA",
 		"AUX_REPLY",
@@ -919,13 +918,6 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 				}
 				INIT_WORK(&dmub_hpd_wrk->handle_hpd_work, dm_handle_hpd_work);
 				dmub_hpd_wrk->adev = adev;
-				if (notify.type == DMUB_NOTIFICATION_HPD) {
-					plink = adev->dm.dc->links[notify.link_index];
-					if (plink) {
-						plink->hpd_status =
-							notify.hpd_status == DP_HPD_PLUG;
-					}
-				}
 				queue_work(adev->dm.delayed_hpd_wq, &dmub_hpd_wrk->handle_hpd_work);
 			} else {
 				dm->dmub_callback[notify.type](adev, &notify);
