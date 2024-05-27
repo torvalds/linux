@@ -1047,3 +1047,28 @@ int of_changeset_add_prop_u32_array(struct of_changeset *ocs,
 	return of_changeset_add_prop_helper(ocs, np, &prop);
 }
 EXPORT_SYMBOL_GPL(of_changeset_add_prop_u32_array);
+
+/**
+ * of_changeset_add_prop_bool - Add a boolean property (i.e. a property without
+ * any values) to a changeset.
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @prop_name:	name of the property to be added
+ *
+ * Create a boolean property and add it to a changeset.
+ *
+ * Return: 0 on success, a negative error value in case of an error.
+ */
+int of_changeset_add_prop_bool(struct of_changeset *ocs, struct device_node *np,
+			       const char *prop_name)
+{
+	struct property prop;
+
+	prop.name = (char *)prop_name;
+	prop.length = 0;
+	prop.value = NULL;
+
+	return of_changeset_add_prop_helper(ocs, np, &prop);
+}
+EXPORT_SYMBOL_GPL(of_changeset_add_prop_bool);
