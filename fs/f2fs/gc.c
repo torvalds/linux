@@ -1752,7 +1752,6 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 		if (type != GET_SUM_TYPE((&sum->footer))) {
 			f2fs_err(sbi, "Inconsistent segment (%u) type [%d, %d] in SSA and SIT",
 				 segno, type, GET_SUM_TYPE((&sum->footer)));
-			set_sbi_flag(sbi, SBI_NEED_FSCK);
 			f2fs_stop_checkpoint(sbi, false,
 				STOP_CP_REASON_CORRUPTED_SUMMARY);
 			goto skip;
