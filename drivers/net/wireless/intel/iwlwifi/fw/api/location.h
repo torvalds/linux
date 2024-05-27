@@ -391,6 +391,58 @@ struct iwl_tof_responder_config_cmd_v9 {
 	__le16 max_time_between_msr;
 } __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_8 */
 
+/**
+ * struct iwl_tof_responder_config_cmd - ToF AP mode
+ * @cmd_valid_fields: &iwl_tof_responder_cmd_valid_field
+ * @responder_cfg_flags: &iwl_tof_responder_cfg_flags
+ * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
+ *             bits 4 - 7: &enum iwl_location_bw.
+ * @bss_color: current AP bss_color
+ * @channel_num: current AP Channel
+ * @ctrl_ch_position: coding of the control channel position relative to
+ *	the center frequency, see iwl_mvm_get_ctrl_pos()
+ * @sta_id: index of the AP STA when in AP mode
+ * @band: current AP band
+ * @toa_offset: Artificial addition [pSec] for the ToA - to be used for debug
+ *	purposes, simulating station movement by adding various values
+ *	to this field
+ * @common_calib: XVT: common calibration value
+ * @specific_calib: XVT: specific calibration value
+ * @bssid: Current AP BSSID
+ * @r2i_ndp_params: parameters for R2I NDP.
+ *	bits 0 - 2: max number of LTF repetitions
+ *	bits 3 - 5: max number of spatial streams (supported values are < 2)
+ *	bits 6 - 7: max number of total LTFs see
+ *	&enum ieee80211_range_params_max_total_ltf
+ * @i2r_ndp_params: parameters for I2R NDP.
+ *	bits 0 - 2: max number of LTF repetitions
+ *	bits 3 - 5: max number of spatial streams
+ *	bits 6 - 7: max number of total LTFs see
+ *	&enum ieee80211_range_params_max_total_ltf
+ * @min_time_between_msr: for non trigger based NDP ranging, minimum time
+ *	between measurements in milliseconds.
+ * @max_time_between_msr: for non trigger based NDP ranging, maximum time
+ *	between measurements in milliseconds.
+ */
+struct iwl_tof_responder_config_cmd {
+	__le32 cmd_valid_fields;
+	__le32 responder_cfg_flags;
+	u8 format_bw;
+	u8 bss_color;
+	u8 channel_num;
+	u8 ctrl_ch_position;
+	u8 sta_id;
+	u8 band;
+	__le16 toa_offset;
+	__le16 common_calib;
+	__le16 specific_calib;
+	u8 bssid[ETH_ALEN];
+	u8 r2i_ndp_params;
+	u8 i2r_ndp_params;
+	__le16 min_time_between_msr;
+	__le16 max_time_between_msr;
+} __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_10 */
+
 #define IWL_LCI_CIVIC_IE_MAX_SIZE	400
 
 /**
