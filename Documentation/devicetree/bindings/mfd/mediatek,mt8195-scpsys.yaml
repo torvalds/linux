@@ -22,6 +22,7 @@ properties:
           - mediatek,mt8173-scpsys
           - mediatek,mt8183-scpsys
           - mediatek,mt8186-scpsys
+          - mediatek,mt8188-scpsys
           - mediatek,mt8192-scpsys
           - mediatek,mt8195-scpsys
       - const: syscon
