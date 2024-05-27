@@ -561,6 +561,8 @@ void amdgpu_gfx_cleaner_shader_sw_fini(struct amdgpu_device *adev);
 void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
 				    unsigned int cleaner_shader_size,
 				    const void *cleaner_shader_ptr);
+int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev);
+void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev);
 
 static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 {

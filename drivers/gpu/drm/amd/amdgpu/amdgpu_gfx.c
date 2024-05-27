@@ -1391,6 +1391,88 @@ static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 	return sysfs_emit(buf, "%s\n", supported_partition);
 }
 
+static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int i;
+	ssize_t size = 0;
+
+	if (adev->xcp_mgr) {
+		for (i = 0; i < adev->xcp_mgr->num_xcps; i++) {
+			size += sysfs_emit_at(buf, size, "%u", adev->enforce_isolation[i]);
+			if (i < (adev->xcp_mgr->num_xcps - 1))
+				size += sysfs_emit_at(buf, size, " ");
+		}
+		buf[size++] = '\n';
+	} else {
+		size = sysfs_emit_at(buf, 0, "%u\n", adev->enforce_isolation[0]);
+	}
+
+	return size;
+}
+
+static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	long partition_values[MAX_XCP] = {0};
+	int ret, i, num_partitions;
+	const char *input_buf = buf;
+
+	for (i = 0; i < (adev->xcp_mgr ? adev->xcp_mgr->num_xcps : 1); i++) {
+		ret = sscanf(input_buf, "%ld", &partition_values[i]);
+		if (ret <= 0)
+			break;
+
+		/* Move the pointer to the next value in the string */
+		input_buf = strchr(input_buf, ' ');
+		if (input_buf) {
+			input_buf++;
+		} else {
+			i++;
+			break;
+		}
+	}
+	num_partitions = i;
+
+	if (adev->xcp_mgr && num_partitions != adev->xcp_mgr->num_xcps)
+		return -EINVAL;
+
+	if (!adev->xcp_mgr && num_partitions != 1)
+		return -EINVAL;
+
+	for (i = 0; i < num_partitions; i++) {
+		if (partition_values[i] != 0 && partition_values[i] != 1)
+			return -EINVAL;
+	}
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+
+	for (i = 0; i < num_partitions; i++) {
+		if (adev->enforce_isolation[i] && !partition_values[i]) {
+			/* Going from enabled to disabled */
+			amdgpu_vmid_free_reserved(adev, AMDGPU_GFXHUB(i));
+		} else if (!adev->enforce_isolation[i] && partition_values[i]) {
+			/* Going from disabled to enabled */
+			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
+		}
+		adev->enforce_isolation[i] = partition_values[i];
+	}
+
+	mutex_unlock(&adev->enforce_isolation_mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR(enforce_isolation, 0644,
+		   amdgpu_gfx_get_enforce_isolation,
+		   amdgpu_gfx_set_enforce_isolation);
+
 static DEVICE_ATTR(current_compute_partition, 0644,
 		   amdgpu_gfx_get_current_compute_partition,
 		   amdgpu_gfx_set_compute_partition);
@@ -1415,6 +1497,25 @@ void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
 {
 	device_remove_file(adev->dev, &dev_attr_current_compute_partition);
 	device_remove_file(adev->dev, &dev_attr_available_compute_partition);
+}
+
+int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (!amdgpu_sriov_vf(adev)) {
+		r = device_create_file(adev->dev, &dev_attr_enforce_isolation);
+		if (r)
+			return r;
+	}
+
+	return 0;
+}
+
+void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev)
+{
+	if (!amdgpu_sriov_vf(adev))
+		device_remove_file(adev->dev, &dev_attr_enforce_isolation);
 }
 
 int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,

@@ -1164,6 +1164,8 @@ struct amdgpu_device {
 	bool                            debug_enable_ras_aca;
 
 	bool				enforce_isolation[MAX_XCP];
+	/* Added this mutex for cleaner shader isolation between GFX and compute processes */
+	struct mutex                    enforce_isolation_mutex;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
