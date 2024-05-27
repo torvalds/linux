@@ -85,6 +85,7 @@ struct adis_data {
 	bool unmasked_drdy;
 
 	bool has_paging;
+	bool has_fifo;
 
 	unsigned int burst_reg_cmd;
 	unsigned int burst_len;
