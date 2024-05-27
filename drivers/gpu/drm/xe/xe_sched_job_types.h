@@ -37,6 +37,8 @@ struct xe_sched_job {
 		/** @user_fence.value: write back value */
 		u64 value;
 	} user_fence;
+	/** @lrc_seqno: LRC seqno */
+	u32 lrc_seqno;
 	/** @migrate_flush_flags: Additional flush flags for migration jobs */
 	u32 migrate_flush_flags;
 	/** @ring_ops_flush_tlb: The ring ops need to flush TLB before payload. */

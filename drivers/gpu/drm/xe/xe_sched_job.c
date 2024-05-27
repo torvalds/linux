@@ -117,6 +117,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 			err = PTR_ERR(job->fence);
 			goto err_sched_job;
 		}
+		job->lrc_seqno = job->fence->seqno;
 	} else {
 		struct dma_fence_array *cf;
 
@@ -132,6 +133,8 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 				err = PTR_ERR(fences[j]);
 				goto err_fences;
 			}
+			if (!j)
+				job->lrc_seqno = fences[0]->seqno;
 		}
 
 		cf = dma_fence_array_create(q->width, fences,
@@ -143,10 +146,6 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 			err = -ENOMEM;
 			goto err_fences;
 		}
-
-		/* Sanity check */
-		for (j = 0; j < q->width; ++j)
-			xe_assert(job_to_xe(job), cf->base.seqno == fences[j]->seqno);
 
 		job->fence = &cf->base;
 	}
@@ -229,9 +228,9 @@ bool xe_sched_job_started(struct xe_sched_job *job)
 {
 	struct xe_lrc *lrc = job->q->lrc;
 
-	return !__dma_fence_is_later(xe_sched_job_seqno(job),
+	return !__dma_fence_is_later(xe_sched_job_lrc_seqno(job),
 				     xe_lrc_start_seqno(lrc),
-				     job->fence->ops);
+				     dma_fence_array_first(job->fence)->ops);
 }
 
 bool xe_sched_job_completed(struct xe_sched_job *job)
@@ -243,8 +242,9 @@ bool xe_sched_job_completed(struct xe_sched_job *job)
 	 * parallel handshake is done.
 	 */
 
-	return !__dma_fence_is_later(xe_sched_job_seqno(job), xe_lrc_seqno(lrc),
-				     job->fence->ops);
+	return !__dma_fence_is_later(xe_sched_job_lrc_seqno(job),
+				     xe_lrc_seqno(lrc),
+				     dma_fence_array_first(job->fence)->ops);
 }
 
 void xe_sched_job_arm(struct xe_sched_job *job)
