@@ -700,7 +700,7 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 		rtw_write8(padapter, REG_BCN_CTRL, val8);
 
 		/*  To make sure that if there exists an adapter which would like to send beacon. */
-		/*  If exists, the origianl value of 0x422[6] will be 1, we should check this to */
+		/*  If exists, the original value of 0x422[6] will be 1, we should check this to */
 		/*  prevent from setting 0x422[6] to 0 after download reserved page, or it will cause */
 		/*  the beacon cannot be sent by HW. */
 		/*  2010.06.23. Added by tynli. */
@@ -964,7 +964,7 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	rtw_write8(padapter, REG_BCN_CTRL, val8);
 
 	/*  To make sure that if there exists an adapter which would like to send beacon. */
-	/*  If exists, the origianl value of 0x422[6] will be 1, we should check this to */
+	/*  If exists, the original value of 0x422[6] will be 1, we should check this to */
 	/*  prevent from setting 0x422[6] to 0 after download reserved page, or it will cause */
 	/*  the beacon cannot be sent by HW. */
 	/*  2010.06.23. Added by tynli. */
