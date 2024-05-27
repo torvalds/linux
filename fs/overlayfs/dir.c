@@ -1314,10 +1314,6 @@ static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 	int flags = file->f_flags | OVL_OPEN_FLAGS;
 	int err;
 
-	err = ovl_copy_up(dentry->d_parent);
-	if (err)
-		return err;
-
 	old_cred = ovl_override_creds(dentry->d_sb);
 	err = ovl_setup_cred_for_create(dentry, inode, mode, old_cred);
 	if (err)
@@ -1359,6 +1355,10 @@ static int ovl_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 
 	if (!OVL_FS(dentry->d_sb)->tmpfile)
 		return -EOPNOTSUPP;
+
+	err = ovl_copy_up(dentry->d_parent);
+	if (err)
+		return err;
 
 	err = ovl_want_write(dentry);
 	if (err)
