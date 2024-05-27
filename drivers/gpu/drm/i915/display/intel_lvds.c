@@ -169,7 +169,7 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 	pps->t1_t2 = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, val);
 	pps->t5 = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, val);
 
-	val = intel_de_read(dev_priv, PP_OFF_DELAYS(0));
+	val = intel_de_read(dev_priv, PP_OFF_DELAYS(dev_priv, 0));
 	pps->t3 = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, val);
 	pps->tx = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, val);
 
@@ -222,7 +222,7 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 		       REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, pps->t1_t2) |
 		       REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, pps->t5));
 
-	intel_de_write(dev_priv, PP_OFF_DELAYS(0),
+	intel_de_write(dev_priv, PP_OFF_DELAYS(dev_priv, 0),
 		       REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, pps->t3) |
 		       REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, pps->tx));
 

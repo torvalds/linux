@@ -494,7 +494,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 	regs->pp_ctrl = PP_CONTROL(dev_priv, pps_idx);
 	regs->pp_stat = PP_STATUS(dev_priv, pps_idx);
 	regs->pp_on = PP_ON_DELAYS(dev_priv, pps_idx);
-	regs->pp_off = PP_OFF_DELAYS(pps_idx);
+	regs->pp_off = PP_OFF_DELAYS(dev_priv, pps_idx);
 
 	/* Cycle delay moved from PP_DIVISOR to PP_CONTROL */
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ||
