@@ -209,6 +209,13 @@ config INTEL_TPMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel_vsec_tpmi.
 
+config INTEL_PLR_TPMI
+        tristate "Intel SoC TPMI Power Limit Reasons driver"
+        depends on INTEL_TPMI
+        help
+          This driver provides the TPMI power limit reasons status information
+          via debugfs files.
+
 config INTEL_TURBO_MAX_3
 	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"
 	depends on X86_64 && SCHED_MC_PRIO
