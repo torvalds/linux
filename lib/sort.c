@@ -5,7 +5,7 @@
  * This performs n*log2(n) + 0.37*n + o(n) comparisons on average,
  * and 1.5*n*log2(n) + O(n) in the (very contrived) worst case.
  *
- * Glibc qsort() manages n*log2(n) - 1.26*n for random inputs (1.63*n
+ * Quicksort manages n*log2(n) - 1.26*n for random inputs (1.63*n
  * better) at the expense of stack usage and much larger code to avoid
  * quicksort's O(n^2) worst case.
  */
