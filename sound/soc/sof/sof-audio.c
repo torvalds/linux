@@ -1016,3 +1016,13 @@ int sof_dai_get_bclk(struct snd_soc_pcm_runtime *rtd)
 	return sof_dai_get_param(rtd, SOF_DAI_PARAM_INTEL_SSP_BCLK);
 }
 EXPORT_SYMBOL(sof_dai_get_bclk);
+
+/*
+ * Helper to get SSP TDM slot number from a pcm_runtime.
+ * Return 0 if not exist.
+ */
+int sof_dai_get_tdm_slots(struct snd_soc_pcm_runtime *rtd)
+{
+	return sof_dai_get_param(rtd, SOF_DAI_PARAM_INTEL_SSP_TDM_SLOTS);
+}
+EXPORT_SYMBOL(sof_dai_get_tdm_slots);

@@ -44,8 +44,9 @@
 #define WIDGET_IS_AIF_OR_DAI(id) (WIDGET_IS_DAI(id) || WIDGET_IS_AIF(id))
 #define WIDGET_IS_COPIER(id) (WIDGET_IS_AIF_OR_DAI(id) || (id) == snd_soc_dapm_buffer)
 
-#define SOF_DAI_PARAM_INTEL_SSP_MCLK	0
-#define SOF_DAI_PARAM_INTEL_SSP_BCLK	1
+#define SOF_DAI_PARAM_INTEL_SSP_MCLK		0
+#define SOF_DAI_PARAM_INTEL_SSP_BCLK		1
+#define SOF_DAI_PARAM_INTEL_SSP_TDM_SLOTS	2
 
 enum sof_widget_op {
 	SOF_WIDGET_PREPARE,
