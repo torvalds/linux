@@ -123,6 +123,7 @@
 #define IWL_MVM_DISABLE_AP_FILS			false
 #define IWL_MVM_6GHZ_PASSIVE_SCAN_TIMEOUT       3000 /* in seconds */
 #define IWL_MVM_6GHZ_PASSIVE_SCAN_ASSOC_TIMEOUT 60   /* in seconds */
+#define IWL_MVM_MIN_BEACON_INTERVAL_TU		16
 #define IWL_MVM_AUTO_EML_ENABLE                 true
 #define IWL_MVM_MISSED_BEACONS_EXIT_ESR_THRESH	7
 

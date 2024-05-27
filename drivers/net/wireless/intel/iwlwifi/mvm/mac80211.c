@@ -3716,8 +3716,6 @@ static void iwl_mvm_rs_rate_init_all_links(struct iwl_mvm *mvm,
 	}
 }
 
-#define IWL_MVM_MIN_BEACON_INTERVAL_TU 16
-
 static bool iwl_mvm_vif_conf_from_sta(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_sta *sta)
