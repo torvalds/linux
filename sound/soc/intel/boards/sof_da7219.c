@@ -180,6 +180,19 @@ static void da7219_codec_exit(struct snd_soc_pcm_runtime *rtd)
 
 static int card_late_probe(struct snd_soc_card *card)
 {
+	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
+	struct snd_soc_dapm_context *dapm = &card->dapm;
+	int err;
+
+	if (ctx->amp_type == CODEC_MAX98373) {
+		/* Disable Left and Right Spk pin after boot */
+		snd_soc_dapm_disable_pin(dapm, "Left Spk");
+		snd_soc_dapm_disable_pin(dapm, "Right Spk");
+		err = snd_soc_dapm_sync(dapm);
+		if (err < 0)
+			return err;
+	}
+
 	return sof_intel_board_card_late_probe(card);
 }
 
