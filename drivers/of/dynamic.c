@@ -984,7 +984,7 @@ EXPORT_SYMBOL_GPL(of_changeset_add_prop_string);
 int of_changeset_add_prop_string_array(struct of_changeset *ocs,
 				       struct device_node *np,
 				       const char *prop_name,
-				       const char **str_array, size_t sz)
+				       const char * const *str_array, size_t sz)
 {
 	struct property prop;
 	int i, ret;
