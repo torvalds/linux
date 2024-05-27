@@ -1382,6 +1382,13 @@ throttle:
 	}
 
 	/*
+	 * The fair server (sole dl_server) does not account for real-time
+	 * workload because it is running fair work.
+	 */
+	if (dl_se == &rq->fair_server)
+		return;
+
+	/*
 	 * Because -- for now -- we share the rt bandwidth, we need to
 	 * account our runtime there too, otherwise actual rt tasks
 	 * would be able to exceed the shared quota.
@@ -1414,15 +1421,31 @@ void dl_server_update(struct sched_dl_entity *dl_se, s64 delta_exec)
 
 void dl_server_start(struct sched_dl_entity *dl_se)
 {
+	struct rq *rq = dl_se->rq;
+
 	if (!dl_server(dl_se)) {
+		/* Disabled */
+		dl_se->dl_runtime = 0;
+		dl_se->dl_deadline = 1000 * NSEC_PER_MSEC;
+		dl_se->dl_period = 1000 * NSEC_PER_MSEC;
+
 		dl_se->dl_server = 1;
 		setup_new_dl_entity(dl_se);
 	}
+
+	if (!dl_se->dl_runtime)
+		return;
+
 	enqueue_dl_entity(dl_se, ENQUEUE_WAKEUP);
+	if (!dl_task(dl_se->rq->curr) || dl_entity_preempt(dl_se, &rq->curr->dl))
+		resched_curr(dl_se->rq);
 }
 
 void dl_server_stop(struct sched_dl_entity *dl_se)
 {
+	if (!dl_se->dl_runtime)
+		return;
+
 	dequeue_dl_entity(dl_se, DEQUEUE_SLEEP);
 }
 
