@@ -1009,6 +1009,13 @@ static void __init __maybe_unused changeset_check_u32_array(struct device_node *
 	}
 }
 
+static void __init __maybe_unused changeset_check_bool(struct device_node *np,
+						       const char *prop_name)
+{
+	unittest(of_property_read_bool(np, prop_name),
+		 "%s value mismatch (read 'false', exp 'true')\n", prop_name);
+}
+
 static void __init of_unittest_changeset_prop(void)
 {
 #ifdef CONFIG_OF_DYNAMIC
@@ -1044,6 +1051,9 @@ static void __init of_unittest_changeset_prop(void)
 					      u32_array, ARRAY_SIZE(u32_array));
 	unittest(ret == 0, "failed to add prop-u32-array\n");
 
+	ret = of_changeset_add_prop_bool(&chgset, np, "prop-bool");
+	unittest(ret == 0, "failed to add prop-bool\n");
+
 	of_node_put(np);
 
 	ret = of_changeset_apply(&chgset);
@@ -1058,6 +1068,7 @@ static void __init of_unittest_changeset_prop(void)
 	changeset_check_string_array(np, "prop-string-array", str_array, ARRAY_SIZE(str_array));
 	changeset_check_u32(np, "prop-u32", 1234);
 	changeset_check_u32_array(np, "prop-u32-array", u32_array, ARRAY_SIZE(u32_array));
+	changeset_check_bool(np, "prop-bool");
 
 	of_node_put(np);
 
