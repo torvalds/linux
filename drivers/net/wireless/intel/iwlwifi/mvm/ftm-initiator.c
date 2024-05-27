@@ -40,6 +40,12 @@ struct iwl_mvm_ftm_pasn_entry {
 	u32 flags;
 };
 
+struct iwl_mvm_ftm_iter_data {
+	u8 *cipher;
+	u8 *bssid;
+	u8 *tk;
+};
+
 int iwl_mvm_ftm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
 			     u8 *hltk, u32 hltk_len)
@@ -719,7 +725,7 @@ static void iter(struct ieee80211_hw *hw,
 		 struct ieee80211_key_conf *key,
 		 void *data)
 {
-	struct iwl_tof_range_req_ap_entry_v6 *target = data;
+	struct iwl_mvm_ftm_iter_data *target = data;
 
 	if (!sta || memcmp(sta->addr, target->bssid, ETH_ALEN))
 		return;
@@ -730,16 +736,16 @@ static void iter(struct ieee80211_hw *hw,
 		return;
 
 	memcpy(target->tk, key->key, key->keylen);
-	target->cipher = iwl_mvm_cipher_to_location_cipher(key->cipher);
-	WARN_ON(target->cipher == IWL_LOCATION_CIPHER_INVALID);
+	*target->cipher = iwl_mvm_cipher_to_location_cipher(key->cipher);
+	WARN_ON(*target->cipher == IWL_LOCATION_CIPHER_INVALID);
 }
 
 static void
 iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				struct iwl_tof_range_req_ap_entry_v7 *target)
+				u8 *bssid, u8 *cipher, u8 *hltk, u8 *tk,
+				u8 *rx_pn, u8 *tx_pn, __le32 *flags)
 {
 	struct iwl_mvm_ftm_pasn_entry *entry;
-	u32 flags = le32_to_cpu(target->initiator_ap_flags);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
@@ -747,35 +753,39 @@ iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 #endif
 
-	if (!(flags & (IWL_INITIATOR_AP_FLAGS_NON_TB |
+	if (!(le32_to_cpu(*flags) & (IWL_INITIATOR_AP_FLAGS_NON_TB |
 		       IWL_INITIATOR_AP_FLAGS_TB)))
 		return;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	list_for_each_entry(entry, &mvm->ftm_initiator.pasn_list, list) {
-		if (memcmp(entry->addr, target->bssid, sizeof(entry->addr)))
+		if (memcmp(entry->addr, bssid, sizeof(entry->addr)))
 			continue;
 
-		target->cipher = entry->cipher;
+		*cipher = entry->cipher;
 
 		if (entry->flags & IWL_MVM_PASN_FLAG_HAS_HLTK)
-			memcpy(target->hltk, entry->hltk, sizeof(target->hltk));
+			memcpy(hltk, entry->hltk, sizeof(entry->hltk));
 		else
-			memset(target->hltk, 0, sizeof(target->hltk));
+			memset(hltk, 0, sizeof(entry->hltk));
 
 		if (vif->cfg.assoc &&
-		    !memcmp(vif->bss_conf.bssid, target->bssid,
-			    sizeof(target->bssid)))
-			ieee80211_iter_keys(mvm->hw, vif, iter, target);
-		else
-			memcpy(target->tk, entry->tk, sizeof(target->tk));
+		    !memcmp(vif->bss_conf.bssid, bssid, ETH_ALEN)) {
+			struct iwl_mvm_ftm_iter_data target;
 
-		memcpy(target->rx_pn, entry->rx_pn, sizeof(target->rx_pn));
-		memcpy(target->tx_pn, entry->tx_pn, sizeof(target->tx_pn));
+			target.cipher = cipher;
+			target.bssid = bssid;
+			target.tk = tk;
+			ieee80211_iter_keys(mvm->hw, vif, iter, &target);
+		} else {
+			memcpy(tk, entry->tk, sizeof(entry->tk));
+		}
 
-		target->initiator_ap_flags |=
-			cpu_to_le32(IWL_INITIATOR_AP_FLAGS_SECURED);
+		memcpy(rx_pn, entry->rx_pn, sizeof(entry->rx_pn));
+		memcpy(tx_pn, entry->tx_pn, sizeof(entry->tx_pn));
+
+		FTM_SET_FLAG(SECURED);
 		return;
 	}
 }
@@ -789,7 +799,11 @@ iwl_mvm_ftm_put_target_v7(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (err)
 		return err;
 
-	iwl_mvm_ftm_set_secured_ranging(mvm, vif, target);
+	iwl_mvm_ftm_set_secured_ranging(mvm, vif, target->bssid,
+					&target->cipher, target->hltk,
+					target->tk, target->rx_pn,
+					target->tx_pn,
+					&target->initiator_ap_flags);
 	return err;
 }
 
