@@ -434,6 +434,43 @@ iwl_mvm_ftm_put_target_v2(struct iwl_mvm *mvm,
 #define FTM_PUT_FLAG(flag)	(target->initiator_ap_flags |= \
 				 cpu_to_le32(IWL_INITIATOR_AP_FLAGS_##flag))
 
+#define FTM_SET_FLAG(flag)	(*flags |= \
+				 cpu_to_le32(IWL_INITIATOR_AP_FLAGS_##flag))
+
+static void
+iwl_mvm_ftm_set_target_flags(struct iwl_mvm *mvm,
+			     struct cfg80211_pmsr_request_peer *peer,
+			     __le32 *flags)
+{
+	*flags = cpu_to_le32(0);
+
+	if (peer->ftm.asap)
+		FTM_SET_FLAG(ASAP);
+
+	if (peer->ftm.request_lci)
+		FTM_SET_FLAG(LCI_REQUEST);
+
+	if (peer->ftm.request_civicloc)
+		FTM_SET_FLAG(CIVIC_REQUEST);
+
+	if (IWL_MVM_FTM_INITIATOR_DYNACK)
+		FTM_SET_FLAG(DYN_ACK);
+
+	if (IWL_MVM_FTM_INITIATOR_ALGO == IWL_TOF_ALGO_TYPE_LINEAR_REG)
+		FTM_SET_FLAG(ALGO_LR);
+	else if (IWL_MVM_FTM_INITIATOR_ALGO == IWL_TOF_ALGO_TYPE_FFT)
+		FTM_SET_FLAG(ALGO_FFT);
+
+	if (peer->ftm.trigger_based)
+		FTM_SET_FLAG(TB);
+	else if (peer->ftm.non_trigger_based)
+		FTM_SET_FLAG(NON_TB);
+
+	if ((peer->ftm.trigger_based || peer->ftm.non_trigger_based) &&
+	    peer->ftm.lmr_feedback)
+		FTM_SET_FLAG(LMR_FEEDBACK);
+}
+
 static void
 iwl_mvm_ftm_put_target_common(struct iwl_mvm *mvm,
 			      struct cfg80211_pmsr_request_peer *peer,
@@ -445,33 +482,7 @@ iwl_mvm_ftm_put_target_common(struct iwl_mvm *mvm,
 	target->samples_per_burst = peer->ftm.ftms_per_burst;
 	target->num_of_bursts = peer->ftm.num_bursts_exp;
 	target->ftmr_max_retries = peer->ftm.ftmr_retries;
-	target->initiator_ap_flags = cpu_to_le32(0);
-
-	if (peer->ftm.asap)
-		FTM_PUT_FLAG(ASAP);
-
-	if (peer->ftm.request_lci)
-		FTM_PUT_FLAG(LCI_REQUEST);
-
-	if (peer->ftm.request_civicloc)
-		FTM_PUT_FLAG(CIVIC_REQUEST);
-
-	if (IWL_MVM_FTM_INITIATOR_DYNACK)
-		FTM_PUT_FLAG(DYN_ACK);
-
-	if (IWL_MVM_FTM_INITIATOR_ALGO == IWL_TOF_ALGO_TYPE_LINEAR_REG)
-		FTM_PUT_FLAG(ALGO_LR);
-	else if (IWL_MVM_FTM_INITIATOR_ALGO == IWL_TOF_ALGO_TYPE_FFT)
-		FTM_PUT_FLAG(ALGO_FFT);
-
-	if (peer->ftm.trigger_based)
-		FTM_PUT_FLAG(TB);
-	else if (peer->ftm.non_trigger_based)
-		FTM_PUT_FLAG(NON_TB);
-
-	if ((peer->ftm.trigger_based || peer->ftm.non_trigger_based) &&
-	    peer->ftm.lmr_feedback)
-		FTM_PUT_FLAG(LMR_FEEDBACK);
+	iwl_mvm_ftm_set_target_flags(mvm, peer, &target->initiator_ap_flags);
 }
 
 static int
