@@ -16,6 +16,7 @@
 #include "trace.h"
 
 #include "nvmet.h"
+#include "debugfs.h"
 
 struct kmem_cache *nvmet_bvec_cache;
 struct workqueue_struct *buffered_io_wq;
@@ -1478,6 +1479,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	mutex_lock(&subsys->lock);
 	list_add_tail(&ctrl->subsys_entry, &subsys->ctrls);
 	nvmet_setup_p2p_ns_map(ctrl, req);
+	nvmet_debugfs_ctrl_setup(ctrl);
 	mutex_unlock(&subsys->lock);
 
 	*ctrlp = ctrl;
@@ -1511,6 +1513,8 @@ static void nvmet_ctrl_free(struct kref *ref)
 	cancel_work_sync(&ctrl->fatal_err_work);
 
 	nvmet_destroy_auth(ctrl);
+
+	nvmet_debugfs_ctrl_free(ctrl);
 
 	ida_free(&cntlid_ida, ctrl->cntlid);
 
@@ -1632,8 +1636,14 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	INIT_LIST_HEAD(&subsys->ctrls);
 	INIT_LIST_HEAD(&subsys->hosts);
 
+	ret = nvmet_debugfs_subsys_setup(subsys);
+	if (ret)
+		goto free_subsysnqn;
+
 	return subsys;
 
+free_subsysnqn:
+	kfree(subsys->subsysnqn);
 free_fr:
 	kfree(subsys->firmware_rev);
 free_mn:
@@ -1649,6 +1659,8 @@ static void nvmet_subsys_free(struct kref *ref)
 		container_of(ref, struct nvmet_subsys, ref);
 
 	WARN_ON_ONCE(!xa_empty(&subsys->namespaces));
+
+	nvmet_debugfs_subsys_free(subsys);
 
 	xa_destroy(&subsys->namespaces);
 	nvmet_passthru_subsys_free(subsys);
@@ -1704,11 +1716,18 @@ static int __init nvmet_init(void)
 	if (error)
 		goto out_free_nvmet_work_queue;
 
-	error = nvmet_init_configfs();
+	error = nvmet_init_debugfs();
 	if (error)
 		goto out_exit_discovery;
+
+	error = nvmet_init_configfs();
+	if (error)
+		goto out_exit_debugfs;
+
 	return 0;
 
+out_exit_debugfs:
+	nvmet_exit_debugfs();
 out_exit_discovery:
 	nvmet_exit_discovery();
 out_free_nvmet_work_queue:
@@ -1725,6 +1744,7 @@ out_destroy_bvec_cache:
 static void __exit nvmet_exit(void)
 {
 	nvmet_exit_configfs();
+	nvmet_exit_debugfs();
 	nvmet_exit_discovery();
 	ida_destroy(&cntlid_ida);
 	destroy_workqueue(nvmet_wq);

@@ -230,7 +230,9 @@ struct nvmet_ctrl {
 
 	struct device		*p2p_client;
 	struct radix_tree_root	p2p_ns_map;
-
+#ifdef CONFIG_NVME_TARGET_DEBUGFS
+	struct dentry		*debugfs_dir;
+#endif
 	spinlock_t		error_lock;
 	u64			err_counter;
 	struct nvme_error_slot	slots[NVMET_ERROR_LOG_SLOTS];
@@ -262,7 +264,9 @@ struct nvmet_subsys {
 
 	struct list_head	hosts;
 	bool			allow_any_host;
-
+#ifdef CONFIG_NVME_TARGET_DEBUGFS
+	struct dentry		*debugfs_dir;
+#endif
 	u16			max_qid;
 
 	u64			ver;
