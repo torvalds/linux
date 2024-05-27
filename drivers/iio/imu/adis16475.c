@@ -65,7 +65,7 @@
 #define ADIS16500_BURST32_MASK		BIT(9)
 #define ADIS16500_BURST32(x)		FIELD_PREP(ADIS16500_BURST32_MASK, x)
 /* number of data elements in burst mode */
-#define ADIS16475_BURST32_MAX_DATA	32
+#define ADIS16475_BURST32_MAX_DATA_NO_TS32	32
 #define ADIS16475_BURST_MAX_DATA	20
 #define ADIS16475_MAX_SCAN_DATA		20
 /* spi max speed in brust mode */
@@ -695,32 +695,33 @@ static const char * const adis16475_status_error_msgs[] = {
 	[ADIS16475_DIAG_STAT_CLK] = "Clock error",
 };
 
-#define ADIS16475_DATA(_prod_id, _timeouts)				\
-{									\
-	.msc_ctrl_reg = ADIS16475_REG_MSG_CTRL,				\
-	.glob_cmd_reg = ADIS16475_REG_GLOB_CMD,				\
-	.diag_stat_reg = ADIS16475_REG_DIAG_STAT,			\
-	.prod_id_reg = ADIS16475_REG_PROD_ID,				\
-	.prod_id = (_prod_id),						\
-	.self_test_mask = BIT(2),					\
-	.self_test_reg = ADIS16475_REG_GLOB_CMD,			\
-	.cs_change_delay = 16,						\
-	.read_delay = 5,						\
-	.write_delay = 5,						\
-	.status_error_msgs = adis16475_status_error_msgs,		\
-	.status_error_mask = BIT(ADIS16475_DIAG_STAT_DATA_PATH) |	\
-		BIT(ADIS16475_DIAG_STAT_FLASH_MEM) |			\
-		BIT(ADIS16475_DIAG_STAT_SPI) |				\
-		BIT(ADIS16475_DIAG_STAT_STANDBY) |			\
-		BIT(ADIS16475_DIAG_STAT_SENSOR) |			\
-		BIT(ADIS16475_DIAG_STAT_MEMORY) |			\
-		BIT(ADIS16475_DIAG_STAT_CLK),				\
-	.unmasked_drdy = true,						\
-	.timeouts = (_timeouts),					\
-	.burst_reg_cmd = ADIS16475_REG_GLOB_CMD,			\
-	.burst_len = ADIS16475_BURST_MAX_DATA,				\
-	.burst_max_len = ADIS16475_BURST32_MAX_DATA,			\
-	.burst_max_speed_hz = ADIS16475_BURST_MAX_SPEED			\
+#define ADIS16475_DATA(_prod_id, _timeouts, _burst_max_len, _burst_max_speed_hz, _has_fifo)	\
+{												\
+	.msc_ctrl_reg = ADIS16475_REG_MSG_CTRL,							\
+	.glob_cmd_reg = ADIS16475_REG_GLOB_CMD,							\
+	.diag_stat_reg = ADIS16475_REG_DIAG_STAT,						\
+	.prod_id_reg = ADIS16475_REG_PROD_ID,							\
+	.prod_id = (_prod_id),									\
+	.self_test_mask = BIT(2),								\
+	.self_test_reg = ADIS16475_REG_GLOB_CMD,						\
+	.cs_change_delay = 16,									\
+	.read_delay = 5,									\
+	.write_delay = 5,									\
+	.status_error_msgs = adis16475_status_error_msgs,					\
+	.status_error_mask = BIT(ADIS16475_DIAG_STAT_DATA_PATH) |				\
+		BIT(ADIS16475_DIAG_STAT_FLASH_MEM) |						\
+		BIT(ADIS16475_DIAG_STAT_SPI) |							\
+		BIT(ADIS16475_DIAG_STAT_STANDBY) |						\
+		BIT(ADIS16475_DIAG_STAT_SENSOR) |						\
+		BIT(ADIS16475_DIAG_STAT_MEMORY) |						\
+		BIT(ADIS16475_DIAG_STAT_CLK),							\
+	.unmasked_drdy = true,									\
+	.has_fifo = _has_fifo,									\
+	.timeouts = (_timeouts),								\
+	.burst_reg_cmd = ADIS16475_REG_GLOB_CMD,						\
+	.burst_len = ADIS16475_BURST_MAX_DATA,							\
+	.burst_max_len = _burst_max_len,							\
+	.burst_max_speed_hz = _burst_max_speed_hz						\
 }
 
 static const struct adis16475_sync adis16475_sync_mode[] = {
@@ -758,7 +759,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16470, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16470, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16475_1] = {
 		.name = "adis16475-1",
@@ -775,7 +778,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16475, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16475, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16475_2] = {
 		.name = "adis16475-2",
@@ -792,7 +797,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16475, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16475, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16475_3] = {
 		.name = "adis16475-3",
@@ -809,7 +816,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16475, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16475, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16477_1] = {
 		.name = "adis16477-1",
@@ -827,7 +836,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16477, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16477, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16477_2] = {
 		.name = "adis16477-2",
@@ -845,7 +856,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16477, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16477, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16477_3] = {
 		.name = "adis16477-3",
@@ -863,7 +876,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16477, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16477, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16465_1] = {
 		.name = "adis16465-1",
@@ -880,7 +895,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16465, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16465, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16465_2] = {
 		.name = "adis16465-2",
@@ -897,7 +914,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16465, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16465, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16465_3] = {
 		.name = "adis16465-3",
@@ -914,7 +933,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16465, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16465, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16467_1] = {
 		.name = "adis16467-1",
@@ -931,7 +952,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16467, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16467, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16467_2] = {
 		.name = "adis16467-2",
@@ -948,7 +971,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16467, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16467, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16467_3] = {
 		.name = "adis16467-3",
@@ -965,7 +990,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		.max_dec = 1999,
 		.sync = adis16475_sync_mode,
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode),
-		.adis_data = ADIS16475_DATA(16467, &adis16475_timeouts),
+		.adis_data = ADIS16475_DATA(16467, &adis16475_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16500] = {
 		.name = "adis16500",
@@ -984,7 +1011,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		/* pulse sync not supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16500, &adis1650x_timeouts),
+		.adis_data = ADIS16475_DATA(16500, &adis1650x_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16501] = {
 		.name = "adis16501",
@@ -1003,7 +1032,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		/* pulse sync not supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16501, &adis1650x_timeouts),
+		.adis_data = ADIS16475_DATA(16501, &adis1650x_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16505_1] = {
 		.name = "adis16505-1",
@@ -1022,7 +1053,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		/* pulse sync not supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts),
+		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16505_2] = {
 		.name = "adis16505-2",
@@ -1041,7 +1074,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		/* pulse sync not supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts),
+		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16505_3] = {
 		.name = "adis16505-3",
@@ -1060,7 +1095,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		/* pulse sync not supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts),
+		.adis_data = ADIS16475_DATA(16505, &adis1650x_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16507_1] = {
 		.name = "adis16507-1",
@@ -1079,7 +1116,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		/* pulse sync not supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts),
+		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16507_2] = {
 		.name = "adis16507-2",
@@ -1098,7 +1137,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		/* pulse sync not supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts),
+		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 	[ADIS16507_3] = {
 		.name = "adis16507-3",
@@ -1117,7 +1158,9 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 		/* pulse sync not supported */
 		.num_sync = ARRAY_SIZE(adis16475_sync_mode) - 1,
 		.flags = ADIS16475_HAS_BURST32 | ADIS16475_HAS_BURST_DELTA_DATA,
-		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts),
+		.adis_data = ADIS16475_DATA(16507, &adis1650x_timeouts,
+					    ADIS16475_BURST32_MAX_DATA_NO_TS32,
+					    ADIS16475_BURST_MAX_SPEED, false),
 	},
 };
 
@@ -1158,7 +1201,7 @@ static bool adis16475_validate_crc(const u8 *buffer, u16 crc,
 {
 	int i;
 	/* extra 6 elements for low gyro and accel */
-	const u16 sz = burst32 ? ADIS16475_BURST32_MAX_DATA :
+	const u16 sz = burst32 ? ADIS16475_BURST32_MAX_DATA_NO_TS32 :
 		ADIS16475_BURST_MAX_DATA;
 
 	for (i = 0; i < sz - 2; i++)
