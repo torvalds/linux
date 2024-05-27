@@ -1554,6 +1554,7 @@ throttle:
 	if (dl_se == &rq->fair_server)
 		return;
 
+#ifdef CONFIG_RT_GROUP_SCHED
 	/*
 	 * Because -- for now -- we share the rt bandwidth, we need to
 	 * account our runtime there too, otherwise actual rt tasks
@@ -1578,6 +1579,7 @@ throttle:
 			rt_rq->rt_time += delta_exec;
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 	}
+#endif
 }
 
 /*
@@ -1632,8 +1634,7 @@ void dl_server_start(struct sched_dl_entity *dl_se)
 	 * this before getting generic.
 	 */
 	if (!dl_server(dl_se)) {
-		/* Disabled */
-		u64 runtime = 0;
+		u64 runtime =  50 * NSEC_PER_MSEC;
 		u64 period = 1000 * NSEC_PER_MSEC;
 
 		dl_server_apply_params(dl_se, runtime, period, 1);
