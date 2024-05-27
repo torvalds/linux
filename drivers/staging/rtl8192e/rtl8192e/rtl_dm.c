@@ -1335,51 +1335,52 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	for (i = 0; i < RF90_PATH_MAX; i++) {
 		dm_rx_path_sel_table.rf_rssi[i] = priv->stats.rx_rssi_percentage[i];
 
-		if (priv->brfpath_rxenable[i]) {
-			rf_num++;
-			cur_rf_rssi = dm_rx_path_sel_table.rf_rssi[i];
+		if (!priv->brfpath_rxenable[i])
+			continue;
 
-			if (rf_num == 1) {
-				max_rssi_index = min_rssi_index = sec_rssi_index = i;
-				tmp_max_rssi = tmp_min_rssi = tmp_sec_rssi = cur_rf_rssi;
-			} else if (rf_num == 2) {
-				if (cur_rf_rssi >= tmp_max_rssi) {
-					tmp_max_rssi = cur_rf_rssi;
-					max_rssi_index = i;
-				} else {
-					tmp_sec_rssi = tmp_min_rssi = cur_rf_rssi;
-					sec_rssi_index = min_rssi_index = i;
-				}
+		rf_num++;
+		cur_rf_rssi = dm_rx_path_sel_table.rf_rssi[i];
+
+		if (rf_num == 1) {
+			max_rssi_index = min_rssi_index = sec_rssi_index = i;
+			tmp_max_rssi = tmp_min_rssi = tmp_sec_rssi = cur_rf_rssi;
+		} else if (rf_num == 2) {
+			if (cur_rf_rssi >= tmp_max_rssi) {
+				tmp_max_rssi = cur_rf_rssi;
+				max_rssi_index = i;
 			} else {
-				if (cur_rf_rssi > tmp_max_rssi) {
-					tmp_sec_rssi = tmp_max_rssi;
-					sec_rssi_index = max_rssi_index;
-					tmp_max_rssi = cur_rf_rssi;
-					max_rssi_index = i;
-				} else if (cur_rf_rssi == tmp_max_rssi) {
+				tmp_sec_rssi = tmp_min_rssi = cur_rf_rssi;
+				sec_rssi_index = min_rssi_index = i;
+			}
+		} else {
+			if (cur_rf_rssi > tmp_max_rssi) {
+				tmp_sec_rssi = tmp_max_rssi;
+				sec_rssi_index = max_rssi_index;
+				tmp_max_rssi = cur_rf_rssi;
+				max_rssi_index = i;
+			} else if (cur_rf_rssi == tmp_max_rssi) {
+				tmp_sec_rssi = cur_rf_rssi;
+				sec_rssi_index = i;
+			} else if ((cur_rf_rssi < tmp_max_rssi) &&
+					(cur_rf_rssi > tmp_sec_rssi)) {
+				tmp_sec_rssi = cur_rf_rssi;
+				sec_rssi_index = i;
+			} else if (cur_rf_rssi == tmp_sec_rssi) {
+				if (tmp_sec_rssi == tmp_min_rssi) {
 					tmp_sec_rssi = cur_rf_rssi;
 					sec_rssi_index = i;
-				} else if ((cur_rf_rssi < tmp_max_rssi) &&
-					   (cur_rf_rssi > tmp_sec_rssi)) {
-					tmp_sec_rssi = cur_rf_rssi;
-					sec_rssi_index = i;
-				} else if (cur_rf_rssi == tmp_sec_rssi) {
-					if (tmp_sec_rssi == tmp_min_rssi) {
-						tmp_sec_rssi = cur_rf_rssi;
-						sec_rssi_index = i;
-					}
-				} else if ((cur_rf_rssi < tmp_sec_rssi) &&
-					   (cur_rf_rssi > tmp_min_rssi)) {
-					;
-				} else if (cur_rf_rssi == tmp_min_rssi) {
-					if (tmp_sec_rssi == tmp_min_rssi) {
-						tmp_min_rssi = cur_rf_rssi;
-						min_rssi_index = i;
-					}
-				} else if (cur_rf_rssi < tmp_min_rssi) {
+				}
+			} else if ((cur_rf_rssi < tmp_sec_rssi) &&
+					(cur_rf_rssi > tmp_min_rssi)) {
+				;
+			} else if (cur_rf_rssi == tmp_min_rssi) {
+				if (tmp_sec_rssi == tmp_min_rssi) {
 					tmp_min_rssi = cur_rf_rssi;
 					min_rssi_index = i;
 				}
+			} else if (cur_rf_rssi < tmp_min_rssi) {
+				tmp_min_rssi = cur_rf_rssi;
+				min_rssi_index = i;
 			}
 		}
 	}
@@ -1387,59 +1388,60 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	rf_num = 0;
 	if (dm_rx_path_sel_table.cck_method == CCK_Rx_Version_2) {
 		for (i = 0; i < RF90_PATH_MAX; i++) {
-			if (priv->brfpath_rxenable[i]) {
-				rf_num++;
-				cur_cck_pwdb =
-					 dm_rx_path_sel_table.cck_pwdb_sta[i];
+			if (!priv->brfpath_rxenable[i])
+				continue;
 
-				if (rf_num == 1) {
-					cck_rx_ver2_max_index = i;
-					cck_rx_ver2_sec_index = i;
+			rf_num++;
+			cur_cck_pwdb =
+					dm_rx_path_sel_table.cck_pwdb_sta[i];
+
+			if (rf_num == 1) {
+				cck_rx_ver2_max_index = i;
+				cck_rx_ver2_sec_index = i;
+				tmp_cck_max_pwdb = cur_cck_pwdb;
+				tmp_cck_min_pwdb = cur_cck_pwdb;
+				tmp_cck_sec_pwdb = cur_cck_pwdb;
+			} else if (rf_num == 2) {
+				if (cur_cck_pwdb >= tmp_cck_max_pwdb) {
 					tmp_cck_max_pwdb = cur_cck_pwdb;
-					tmp_cck_min_pwdb = cur_cck_pwdb;
-					tmp_cck_sec_pwdb = cur_cck_pwdb;
-				} else if (rf_num == 2) {
-					if (cur_cck_pwdb >= tmp_cck_max_pwdb) {
-						tmp_cck_max_pwdb = cur_cck_pwdb;
-						cck_rx_ver2_max_index = i;
-					} else {
-						tmp_cck_sec_pwdb = cur_cck_pwdb;
-						tmp_cck_min_pwdb = cur_cck_pwdb;
-						cck_rx_ver2_sec_index = i;
-					}
+					cck_rx_ver2_max_index = i;
 				} else {
-					if (cur_cck_pwdb > tmp_cck_max_pwdb) {
+					tmp_cck_sec_pwdb = cur_cck_pwdb;
+					tmp_cck_min_pwdb = cur_cck_pwdb;
+					cck_rx_ver2_sec_index = i;
+				}
+			} else {
+				if (cur_cck_pwdb > tmp_cck_max_pwdb) {
+					tmp_cck_sec_pwdb =
+							tmp_cck_max_pwdb;
+					cck_rx_ver2_sec_index =
+							cck_rx_ver2_max_index;
+					tmp_cck_max_pwdb = cur_cck_pwdb;
+					cck_rx_ver2_max_index = i;
+				} else if (cur_cck_pwdb ==
+						tmp_cck_max_pwdb) {
+					tmp_cck_sec_pwdb = cur_cck_pwdb;
+					cck_rx_ver2_sec_index = i;
+				} else if (PWDB_IN_RANGE) {
+					tmp_cck_sec_pwdb = cur_cck_pwdb;
+					cck_rx_ver2_sec_index = i;
+				} else if (cur_cck_pwdb ==
+						tmp_cck_sec_pwdb) {
+					if (tmp_cck_sec_pwdb ==
+						tmp_cck_min_pwdb) {
 						tmp_cck_sec_pwdb =
-							 tmp_cck_max_pwdb;
+								cur_cck_pwdb;
 						cck_rx_ver2_sec_index =
-							 cck_rx_ver2_max_index;
-						tmp_cck_max_pwdb = cur_cck_pwdb;
-						cck_rx_ver2_max_index = i;
-					} else if (cur_cck_pwdb ==
-						   tmp_cck_max_pwdb) {
-						tmp_cck_sec_pwdb = cur_cck_pwdb;
-						cck_rx_ver2_sec_index = i;
-					} else if (PWDB_IN_RANGE) {
-						tmp_cck_sec_pwdb = cur_cck_pwdb;
-						cck_rx_ver2_sec_index = i;
-					} else if (cur_cck_pwdb ==
-						   tmp_cck_sec_pwdb) {
-						if (tmp_cck_sec_pwdb ==
-						    tmp_cck_min_pwdb) {
-							tmp_cck_sec_pwdb =
-								 cur_cck_pwdb;
-							cck_rx_ver2_sec_index =
-								 i;
-						}
-					} else if ((cur_cck_pwdb < tmp_cck_sec_pwdb) &&
-						   (cur_cck_pwdb > tmp_cck_min_pwdb)) {
-						;
-					} else if (cur_cck_pwdb == tmp_cck_min_pwdb) {
-						if (tmp_cck_sec_pwdb == tmp_cck_min_pwdb)
-							tmp_cck_min_pwdb = cur_cck_pwdb;
-					} else if (cur_cck_pwdb < tmp_cck_min_pwdb) {
-						tmp_cck_min_pwdb = cur_cck_pwdb;
+								i;
 					}
+				} else if ((cur_cck_pwdb < tmp_cck_sec_pwdb) &&
+						(cur_cck_pwdb > tmp_cck_min_pwdb)) {
+					;
+				} else if (cur_cck_pwdb == tmp_cck_min_pwdb) {
+					if (tmp_cck_sec_pwdb == tmp_cck_min_pwdb)
+						tmp_cck_min_pwdb = cur_cck_pwdb;
+				} else if (cur_cck_pwdb < tmp_cck_min_pwdb) {
+					tmp_cck_min_pwdb = cur_cck_pwdb;
 				}
 			}
 		}
