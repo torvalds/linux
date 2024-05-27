@@ -986,7 +986,7 @@ static bool intel_hdmi_set_gcp_infoframe(struct intel_encoder *encoder,
 		return false;
 
 	if (HAS_DDI(dev_priv))
-		reg = HSW_TVIDEO_DIP_GCP(crtc_state->cpu_transcoder);
+		reg = HSW_TVIDEO_DIP_GCP(dev_priv, crtc_state->cpu_transcoder);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		reg = VLV_TVIDEO_DIP_GCP(crtc->pipe);
 	else if (HAS_PCH_SPLIT(dev_priv))
@@ -1011,7 +1011,7 @@ void intel_hdmi_read_gcp_infoframe(struct intel_encoder *encoder,
 		return;
 
 	if (HAS_DDI(dev_priv))
-		reg = HSW_TVIDEO_DIP_GCP(crtc_state->cpu_transcoder);
+		reg = HSW_TVIDEO_DIP_GCP(dev_priv, crtc_state->cpu_transcoder);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		reg = VLV_TVIDEO_DIP_GCP(crtc->pipe);
 	else if (HAS_PCH_SPLIT(dev_priv))
