@@ -320,19 +320,12 @@ void sub_running_bw(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 		__sub_running_bw(dl_se->dl_bw, dl_rq);
 }
 
-static void dl_change_utilization(struct task_struct *p, u64 new_bw)
+static void dl_rq_change_utilization(struct rq *rq, struct sched_dl_entity *dl_se, u64 new_bw)
 {
-	struct rq *rq;
+	if (dl_se->dl_non_contending) {
+		sub_running_bw(dl_se, &rq->dl);
+		dl_se->dl_non_contending = 0;
 
-	WARN_ON_ONCE(p->dl.flags & SCHED_FLAG_SUGOV);
-
-	if (task_on_rq_queued(p))
-		return;
-
-	rq = task_rq(p);
-	if (p->dl.dl_non_contending) {
-		sub_running_bw(&p->dl, &rq->dl);
-		p->dl.dl_non_contending = 0;
 		/*
 		 * If the timer handler is currently running and the
 		 * timer cannot be canceled, inactive_task_timer()
@@ -340,11 +333,23 @@ static void dl_change_utilization(struct task_struct *p, u64 new_bw)
 		 * will not touch the rq's active utilization,
 		 * so we are still safe.
 		 */
-		if (hrtimer_try_to_cancel(&p->dl.inactive_timer) == 1)
-			put_task_struct(p);
+		if (hrtimer_try_to_cancel(&dl_se->inactive_timer) == 1) {
+			if (!dl_server(dl_se))
+				put_task_struct(dl_task_of(dl_se));
+		}
 	}
-	__sub_rq_bw(p->dl.dl_bw, &rq->dl);
+	__sub_rq_bw(dl_se->dl_bw, &rq->dl);
 	__add_rq_bw(new_bw, &rq->dl);
+}
+
+static void dl_change_utilization(struct task_struct *p, u64 new_bw)
+{
+	WARN_ON_ONCE(p->dl.flags & SCHED_FLAG_SUGOV);
+
+	if (task_on_rq_queued(p))
+		return;
+
+	dl_rq_change_utilization(task_rq(p), &p->dl, new_bw);
 }
 
 static void __dl_clear_params(struct sched_dl_entity *dl_se);
@@ -1621,11 +1626,17 @@ void dl_server_start(struct sched_dl_entity *dl_se)
 {
 	struct rq *rq = dl_se->rq;
 
+	/*
+	 * XXX: the apply do not work fine at the init phase for the
+	 * fair server because things are not yet set. We need to improve
+	 * this before getting generic.
+	 */
 	if (!dl_server(dl_se)) {
 		/* Disabled */
-		dl_se->dl_runtime = 0;
-		dl_se->dl_deadline = 1000 * NSEC_PER_MSEC;
-		dl_se->dl_period = 1000 * NSEC_PER_MSEC;
+		u64 runtime = 0;
+		u64 period = 1000 * NSEC_PER_MSEC;
+
+		dl_server_apply_params(dl_se, runtime, period, 1);
 
 		dl_se->dl_server = 1;
 		dl_se->dl_defer = 1;
@@ -1658,6 +1669,64 @@ void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
 	dl_se->rq = rq;
 	dl_se->server_has_tasks = has_tasks;
 	dl_se->server_pick = pick;
+}
+
+void __dl_server_attach_root(struct sched_dl_entity *dl_se, struct rq *rq)
+{
+	u64 new_bw = dl_se->dl_bw;
+	int cpu = cpu_of(rq);
+	struct dl_bw *dl_b;
+
+	dl_b = dl_bw_of(cpu_of(rq));
+	guard(raw_spinlock)(&dl_b->lock);
+
+	if (!dl_bw_cpus(cpu))
+		return;
+
+	__dl_add(dl_b, new_bw, dl_bw_cpus(cpu));
+}
+
+int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 period, bool init)
+{
+	u64 old_bw = init ? 0 : to_ratio(dl_se->dl_period, dl_se->dl_runtime);
+	u64 new_bw = to_ratio(period, runtime);
+	struct rq *rq = dl_se->rq;
+	int cpu = cpu_of(rq);
+	struct dl_bw *dl_b;
+	unsigned long cap;
+	int retval = 0;
+	int cpus;
+
+	dl_b = dl_bw_of(cpu);
+	guard(raw_spinlock)(&dl_b->lock);
+
+	cpus = dl_bw_cpus(cpu);
+	cap = dl_bw_capacity(cpu);
+
+	if (__dl_overflow(dl_b, cap, old_bw, new_bw))
+		return -EBUSY;
+
+	if (init) {
+		__add_rq_bw(new_bw, &rq->dl);
+		__dl_add(dl_b, new_bw, cpus);
+	} else {
+		__dl_sub(dl_b, dl_se->dl_bw, cpus);
+		__dl_add(dl_b, new_bw, cpus);
+
+		dl_rq_change_utilization(rq, dl_se, new_bw);
+	}
+
+	dl_se->dl_runtime = runtime;
+	dl_se->dl_deadline = period;
+	dl_se->dl_period = period;
+
+	dl_se->runtime = 0;
+	dl_se->deadline = 0;
+
+	dl_se->dl_bw = to_ratio(dl_se->dl_period, dl_se->dl_runtime);
+	dl_se->dl_density = to_ratio(dl_se->dl_deadline, dl_se->dl_runtime);
+
+	return retval;
 }
 
 /*
