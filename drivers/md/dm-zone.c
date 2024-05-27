@@ -220,7 +220,8 @@ static bool dm_table_supports_zone_append(struct dm_table *t)
 	return true;
 }
 
-int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q)
+int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q,
+		struct queue_limits *lim)
 {
 	struct mapped_device *md = t->md;
 	struct gendisk *disk = md->disk;
@@ -236,7 +237,7 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q)
 		clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
 	} else {
 		set_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
-		blk_queue_max_zone_append_sectors(q, 0);
+		lim->max_zone_append_sectors = 0;
 	}
 
 	if (!get_capacity(md->disk))
@@ -260,9 +261,9 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q)
 	 * a regular device.
 	 */
 	if (nr_conv_zones >= ret) {
-		disk->queue->limits.max_open_zones = 0;
-		disk->queue->limits.max_active_zones = 0;
-		disk->queue->limits.zoned = false;
+		lim->max_open_zones = 0;
+		lim->max_active_zones = 0;
+		lim->zoned = false;
 		clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
 		disk->nr_zones = 0;
 		return 0;
