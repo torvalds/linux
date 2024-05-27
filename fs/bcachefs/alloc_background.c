@@ -1643,7 +1643,7 @@ static int discard_in_flight_add(struct bch_fs *c, struct bpos bucket)
 	mutex_lock(&c->discard_buckets_in_flight_lock);
 	darray_for_each(c->discard_buckets_in_flight, i)
 		if (bkey_eq(*i, bucket)) {
-			ret = -EEXIST;
+			ret = -BCH_ERR_EEXIST_discard_in_flight_add;
 			goto out;
 		}
 
