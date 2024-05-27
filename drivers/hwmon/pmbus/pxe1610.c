@@ -127,9 +127,9 @@ static int pxe1610_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pxe1610_id[] = {
-	{"pxe1610", 0},
-	{"pxe1110", 0},
-	{"pxm1310", 0},
+	{"pxe1610"},
+	{"pxe1110"},
+	{"pxm1310"},
 	{}
 };
 

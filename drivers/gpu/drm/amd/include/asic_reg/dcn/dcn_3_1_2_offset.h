@@ -424,6 +424,8 @@
 #define regDTBCLK_DTO2_MODULO_BASE_IDX                                                                  2
 #define regDTBCLK_DTO3_MODULO                                                                           0x0022
 #define regDTBCLK_DTO3_MODULO_BASE_IDX                                                                  2
+#define regHDMICHARCLK0_CLOCK_CNTL                                                                      0x004a
+#define regHDMICHARCLK0_CLOCK_CNTL_BASE_IDX                                                             2
 #define regPHYASYMCLK_CLOCK_CNTL                                                                        0x0052
 #define regPHYASYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
 #define regPHYBSYMCLK_CLOCK_CNTL                                                                        0x0053
@@ -434,6 +436,8 @@
 #define regPHYDSYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
 #define regPHYESYMCLK_CLOCK_CNTL                                                                        0x0056
 #define regPHYESYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
+#define regHDMISTREAMCLK_CNTL                                                                           0x0059
+#define regHDMISTREAMCLK_CNTL_BASE_IDX                                                                  2
 #define regDCCG_GATE_DISABLE_CNTL3                                                                      0x005a
 #define regDCCG_GATE_DISABLE_CNTL3_BASE_IDX                                                             2
 #define regHDMISTREAMCLK0_DTO_PARAM                                                                     0x005b

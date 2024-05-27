@@ -18,7 +18,7 @@
 
 	backlight-lvds {
 		compatible = "pwm-backlight";
-		pwms = <&pwm4 0 5000000>;
+		pwms = <&pwm4 0 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 		power-supply = <&reg_3p3v>;
@@ -83,7 +83,7 @@
 	sound {
 		compatible = "fsl,imx-audio-sgtl5000";
 		model = "imx6sx-nitrogen6sx-sgtl5000";
-		cpu-dai = <&ssi1>;
+		ssi-controller = <&ssi1>;
 		audio-codec = <&codec>;
 		audio-routing =
 			"MIC_IN", "Mic Jack",
@@ -229,10 +229,8 @@
 };
 
 &pwm4 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm4>;
-	status = "okay";
 };
 
 &ssi1 {

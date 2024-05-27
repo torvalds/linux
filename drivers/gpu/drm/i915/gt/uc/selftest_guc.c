@@ -144,7 +144,7 @@ err:
 static int intel_guc_steal_guc_ids(void *arg)
 {
 	struct intel_gt *gt = arg;
-	struct intel_guc *guc = &gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(gt);
 	int ret, sv, context_index = 0;
 	intel_wakeref_t wakeref;
 	struct intel_engine_cs *engine;

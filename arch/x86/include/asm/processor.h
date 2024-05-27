@@ -108,9 +108,23 @@ struct cpuinfo_topology {
 };
 
 struct cpuinfo_x86 {
-	__u8			x86;		/* CPU family */
-	__u8			x86_vendor;	/* CPU vendor */
-	__u8			x86_model;
+	union {
+		/*
+		 * The particular ordering (low-to-high) of (vendor,
+		 * family, model) is done in case range of models, like
+		 * it is usually done on AMD, need to be compared.
+		 */
+		struct {
+			__u8	x86_model;
+			/* CPU family */
+			__u8	x86;
+			/* CPU vendor */
+			__u8	x86_vendor;
+			__u8	x86_reserved;
+		};
+		/* combined vendor, family, model */
+		__u32		x86_vfm;
+	};
 	__u8			x86_stepping;
 #ifdef CONFIG_X86_64
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
@@ -472,7 +486,6 @@ struct thread_struct {
 	unsigned long		iopl_emul;
 
 	unsigned int		iopl_warn:1;
-	unsigned int		sig_on_uaccess_err:1;
 
 	/*
 	 * Protection Keys Register for Userspace.  Loaded immediately on
@@ -587,7 +600,7 @@ extern char			ignore_fpu_irq;
 # define BASE_PREFETCH		""
 # define ARCH_HAS_PREFETCH
 #else
-# define BASE_PREFETCH		"prefetcht0 %P1"
+# define BASE_PREFETCH		"prefetcht0 %1"
 #endif
 
 /*
@@ -598,7 +611,7 @@ extern char			ignore_fpu_irq;
  */
 static inline void prefetch(const void *x)
 {
-	alternative_input(BASE_PREFETCH, "prefetchnta %P1",
+	alternative_input(BASE_PREFETCH, "prefetchnta %1",
 			  X86_FEATURE_XMM,
 			  "m" (*(const char *)x));
 }
@@ -610,7 +623,7 @@ static inline void prefetch(const void *x)
  */
 static __always_inline void prefetchw(const void *x)
 {
-	alternative_input(BASE_PREFETCH, "prefetchw %P1",
+	alternative_input(BASE_PREFETCH, "prefetchw %1",
 			  X86_FEATURE_3DNOWPREFETCH,
 			  "m" (*(const char *)x));
 }
@@ -636,12 +649,10 @@ static __always_inline void prefetchw(const void *x)
 #define KSTK_ESP(task)		(task_pt_regs(task)->sp)
 
 #else
-extern unsigned long __end_init_task[];
+extern unsigned long __top_init_kernel_stack[];
 
 #define INIT_THREAD {							\
-	.sp	= (unsigned long)&__end_init_task -			\
-		  TOP_OF_KERNEL_STACK_PADDING -				\
-		  sizeof(struct pt_regs),				\
+	.sp	= (unsigned long)&__top_init_kernel_stack,		\
 }
 
 extern unsigned long KSTK_ESP(struct task_struct *task);

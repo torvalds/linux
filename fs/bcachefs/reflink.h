@@ -2,15 +2,16 @@
 #ifndef _BCACHEFS_REFLINK_H
 #define _BCACHEFS_REFLINK_H
 
-enum bkey_invalid_flags;
+enum bch_validate_flags;
 
 int bch2_reflink_p_invalid(struct bch_fs *, struct bkey_s_c,
-			   enum bkey_invalid_flags, struct printbuf *);
+			   enum bch_validate_flags, struct printbuf *);
 void bch2_reflink_p_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 bool bch2_reflink_p_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 int bch2_trigger_reflink_p(struct btree_trans *, enum btree_id, unsigned,
-			   struct bkey_s_c, struct bkey_s, unsigned);
+			   struct bkey_s_c, struct bkey_s,
+			   enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_reflink_p ((struct bkey_ops) {		\
 	.key_invalid	= bch2_reflink_p_invalid,		\
@@ -21,11 +22,12 @@ int bch2_trigger_reflink_p(struct btree_trans *, enum btree_id, unsigned,
 })
 
 int bch2_reflink_v_invalid(struct bch_fs *, struct bkey_s_c,
-			   enum bkey_invalid_flags, struct printbuf *);
+			   enum bch_validate_flags, struct printbuf *);
 void bch2_reflink_v_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 int bch2_trigger_reflink_v(struct btree_trans *, enum btree_id, unsigned,
-			      struct bkey_s_c, struct bkey_s, unsigned);
+			   struct bkey_s_c, struct bkey_s,
+			   enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_reflink_v ((struct bkey_ops) {		\
 	.key_invalid	= bch2_reflink_v_invalid,		\
@@ -36,13 +38,13 @@ int bch2_trigger_reflink_v(struct btree_trans *, enum btree_id, unsigned,
 })
 
 int bch2_indirect_inline_data_invalid(struct bch_fs *, struct bkey_s_c,
-				      enum bkey_invalid_flags, struct printbuf *);
+				      enum bch_validate_flags, struct printbuf *);
 void bch2_indirect_inline_data_to_text(struct printbuf *,
 				struct bch_fs *, struct bkey_s_c);
 int bch2_trigger_indirect_inline_data(struct btree_trans *,
 					 enum btree_id, unsigned,
 			      struct bkey_s_c, struct bkey_s,
-			      unsigned);
+			      enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_indirect_inline_data ((struct bkey_ops) {	\
 	.key_invalid	= bch2_indirect_inline_data_invalid,	\

@@ -216,7 +216,7 @@ retry:
 				goto err_unlock_list;
 			}
 			for (i = 0; i < num_syncs; i++)
-				xe_sync_entry_signal(&syncs[i], NULL, fence);
+				xe_sync_entry_signal(&syncs[i], fence);
 			xe_exec_queue_last_fence_set(q, vm, fence);
 			dma_fence_put(fence);
 		}
@@ -294,9 +294,10 @@ retry:
 		drm_gpuvm_resv_add_fence(&vm->gpuvm, exec, &job->drm.s_fence->finished,
 					 DMA_RESV_USAGE_BOOKKEEP, DMA_RESV_USAGE_WRITE);
 
-	for (i = 0; i < num_syncs; i++)
-		xe_sync_entry_signal(&syncs[i], job,
-				     &job->drm.s_fence->finished);
+	for (i = 0; i < num_syncs; i++) {
+		xe_sync_entry_signal(&syncs[i], &job->drm.s_fence->finished);
+		xe_sched_job_init_user_fence(job, &syncs[i]);
+	}
 
 	if (xe_exec_queue_is_lr(q))
 		q->ring_ops->emit_job(job);
@@ -320,10 +321,7 @@ err_put_job:
 err_exec:
 	drm_exec_fini(exec);
 err_unlock_list:
-	if (write_locked)
-		up_write(&vm->lock);
-	else
-		up_read(&vm->lock);
+	up_read(&vm->lock);
 	if (err == -EAGAIN && !skip_retry)
 		goto retry;
 err_syncs:

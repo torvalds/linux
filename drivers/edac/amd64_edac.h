@@ -345,7 +345,6 @@ struct amd64_pvt {
 	u32 dchr1;		/* DRAM Configuration High DCT1 reg */
 	u32 nbcap;		/* North Bridge Capabilities */
 	u32 nbcfg;		/* F10 North Bridge Configuration */
-	u32 ext_nbcfg;		/* Extended F10 North Bridge Configuration */
 	u32 dhar;		/* DRAM Hoist reg */
 	u32 dbam0;		/* DRAM Base Address Mapping reg for DCT0 */
 	u32 dbam1;		/* DRAM Base Address Mapping reg for DCT1 */

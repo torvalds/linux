@@ -25,10 +25,13 @@
 #include <asm/irq.h>
 #include <asm/rtc.h>
 #include <asm/machvec.h>
+#include <cpu/addrspace.h>
 #include <mach/sysasic.h>
 
 static void __init dreamcast_setup(char **cmdline_p)
 {
+	/* GAPS PCI bridge assumes P2 area relative addresses. */
+	__set_io_port_base(P2SEG);
 }
 
 static struct sh_machine_vector mv_dreamcast __initmv = {

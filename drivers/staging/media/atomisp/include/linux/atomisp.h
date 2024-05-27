@@ -614,41 +614,6 @@ enum atomisp_camera_port {
 	ATOMISP_CAMERA_NR_PORTS
 };
 
-/* Flash modes. Default is off.
- * Setting a flash to TORCH or INDICATOR mode will automatically
- * turn it on. Setting it to FLASH mode will not turn on the flash
- * until the FLASH_STROBE command is sent. */
-enum atomisp_flash_mode {
-	ATOMISP_FLASH_MODE_OFF,
-	ATOMISP_FLASH_MODE_FLASH,
-	ATOMISP_FLASH_MODE_TORCH,
-	ATOMISP_FLASH_MODE_INDICATOR,
-};
-
-/* Flash statuses, used by atomisp driver to check before starting
- * flash and after having started flash. */
-enum atomisp_flash_status {
-	ATOMISP_FLASH_STATUS_OK,
-	ATOMISP_FLASH_STATUS_HW_ERROR,
-	ATOMISP_FLASH_STATUS_INTERRUPTED,
-	ATOMISP_FLASH_STATUS_TIMEOUT,
-};
-
-/* Frame status. This is used to detect corrupted frames and flash
- * exposed frames. Usually, the first 2 frames coming out of the sensor
- * are corrupted. When using flash, the frame before and the frame after
- * the flash exposed frame may be partially exposed by flash. The ISP
- * statistics for these frames should not be used by the 3A library.
- * The frame status value can be found in the "reserved" field in the
- * v4l2_buffer struct. */
-enum atomisp_frame_status {
-	ATOMISP_FRAME_STATUS_OK,
-	ATOMISP_FRAME_STATUS_CORRUPTED,
-	ATOMISP_FRAME_STATUS_FLASH_EXPOSED,
-	ATOMISP_FRAME_STATUS_FLASH_PARTIAL,
-	ATOMISP_FRAME_STATUS_FLASH_FAILED,
-};
-
 enum atomisp_ext_isp_id {
 	EXT_ISP_CID_ISO = 0,
 	EXT_ISP_CID_CAPTURE_HDR,
@@ -661,7 +626,6 @@ enum atomisp_ext_isp_id {
 	EXT_ISP_CID_AF_STATUS,
 	EXT_ISP_CID_GET_AF_MODE,
 	EXT_ISP_CID_CAPTURE_BURST,
-	EXT_ISP_CID_FLASH_MODE,
 	EXT_ISP_CID_ZOOM,
 	EXT_ISP_CID_SHOT_MODE
 };
@@ -693,12 +657,6 @@ enum atomisp_burst_capture_options {
 	EXT_ISP_BURST_CAPTURE_CTRL_START = 0,
 	EXT_ISP_BURST_CAPTURE_CTRL_STOP
 };
-
-#define EXT_ISP_FLASH_MODE_OFF		0
-#define EXT_ISP_FLASH_MODE_ON		1
-#define EXT_ISP_FLASH_MODE_AUTO		2
-#define EXT_ISP_LED_TORCH_OFF		3
-#define EXT_ISP_LED_TORCH_ON		4
 
 #define EXT_ISP_SHOT_MODE_AUTO		0
 #define EXT_ISP_SHOT_MODE_BEAUTY_FACE	1
@@ -837,9 +795,6 @@ enum atomisp_burst_capture_options {
 #define ATOMISP_IOC_S_PARAMETERS \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 32, struct atomisp_parameters)
 
-#define ATOMISP_IOC_EXT_ISP_CTRL \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 35, struct atomisp_ext_isp_ctrl)
-
 #define ATOMISP_IOC_EXP_ID_UNLOCK \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 36, int)
 
@@ -897,34 +852,6 @@ enum atomisp_burst_capture_options {
  * Exposure, Flash and privacy (indicator) light controls, to be upstreamed */
 #define V4L2_CID_CAMERA_LASTP1             (V4L2_CID_CAMERA_CLASS_BASE + 1024)
 
-/* Flash related CIDs, see also:
- * http://linuxtv.org/downloads/v4l-dvb-apis/extended-controls.html\
- * #flash-controls */
-
-/* Request a number of flash-exposed frames. The frame status can be
- * found in the reserved field in the v4l2_buffer struct. */
-#define V4L2_CID_REQUEST_FLASH             (V4L2_CID_CAMERA_LASTP1 + 3)
-/* Query flash driver status. See enum atomisp_flash_status above. */
-#define V4L2_CID_FLASH_STATUS              (V4L2_CID_CAMERA_LASTP1 + 5)
-/* Set the flash mode (see enum atomisp_flash_mode) */
-#define V4L2_CID_FLASH_MODE                (V4L2_CID_CAMERA_LASTP1 + 10)
-
-/* VCM slew control */
-#define V4L2_CID_VCM_SLEW                  (V4L2_CID_CAMERA_LASTP1 + 11)
-/* VCM step time */
-#define V4L2_CID_VCM_TIMING                (V4L2_CID_CAMERA_LASTP1 + 12)
-
-/* Query Focus Status */
-#define V4L2_CID_FOCUS_STATUS              (V4L2_CID_CAMERA_LASTP1 + 14)
-
-/* number of frames to skip at stream start */
-#define V4L2_CID_G_SKIP_FRAMES		   (V4L2_CID_CAMERA_LASTP1 + 17)
-
-/* Query sensor's 2A status */
-#define V4L2_CID_2A_STATUS                 (V4L2_CID_CAMERA_LASTP1 + 18)
-#define V4L2_2A_STATUS_AE_READY            BIT(0)
-#define V4L2_2A_STATUS_AWB_READY           BIT(1)
-
 #define V4L2_CID_RUN_MODE			(V4L2_CID_CAMERA_LASTP1 + 20)
 #define ATOMISP_RUN_MODE_VIDEO			1
 #define ATOMISP_RUN_MODE_STILL_CAPTURE		2
@@ -944,9 +871,6 @@ enum atomisp_burst_capture_options {
 #define ATOMISP_VFPP_DISABLE_SCALER		1
 #define ATOMISP_VFPP_DISABLE_LOWLAT		2
 
-/* Query real flash status register value */
-#define V4L2_CID_FLASH_STATUS_REGISTER  (V4L2_CID_CAMERA_LASTP1 + 26)
-
 #define V4L2_CID_START_ZSL_CAPTURE	(V4L2_CID_CAMERA_LASTP1 + 28)
 /* Lock and unlock raw buffer */
 #define V4L2_CID_ENABLE_RAW_BUFFER_LOCK (V4L2_CID_CAMERA_LASTP1 + 29)
@@ -954,11 +878,6 @@ enum atomisp_burst_capture_options {
 #define V4L2_CID_EXPOSURE_ZONE_NUM	(V4L2_CID_CAMERA_LASTP1 + 31)
 /* Disable digital zoom */
 #define V4L2_CID_DISABLE_DZ		(V4L2_CID_CAMERA_LASTP1 + 32)
-
-#define V4L2_CID_TEST_PATTERN_COLOR_R	(V4L2_CID_CAMERA_LASTP1 + 33)
-#define V4L2_CID_TEST_PATTERN_COLOR_GR	(V4L2_CID_CAMERA_LASTP1 + 34)
-#define V4L2_CID_TEST_PATTERN_COLOR_GB	(V4L2_CID_CAMERA_LASTP1 + 35)
-#define V4L2_CID_TEST_PATTERN_COLOR_B	(V4L2_CID_CAMERA_LASTP1 + 36)
 
 #define V4L2_CID_ATOMISP_SELECT_ISP_VERSION	(V4L2_CID_CAMERA_LASTP1 + 38)
 

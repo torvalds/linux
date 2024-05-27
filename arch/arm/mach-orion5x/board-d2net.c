@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
@@ -55,12 +56,9 @@ static struct gpio_led d2net_leds[] = {
 	{
 		.name = "d2net:blue:sata",
 		.default_trigger = "default-on",
-		.gpio = D2NET_GPIO_BLUE_LED_OFF,
-		.active_low = 1,
 	},
 	{
 		.name = "d2net:red:fail",
-		.gpio = D2NET_GPIO_RED_LED,
 	},
 };
 
@@ -74,6 +72,17 @@ static struct platform_device d2net_gpio_leds = {
 	.id             = -1,
 	.dev            = {
 		.platform_data  = &d2net_led_data,
+	},
+};
+
+static struct gpiod_lookup_table d2net_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("orion_gpio0", D2NET_GPIO_BLUE_LED_OFF, NULL,
+				0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("orion_gpio0", D2NET_GPIO_RED_LED, NULL,
+				1, GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -91,6 +100,7 @@ static void __init d2net_gpio_leds_init(void)
 	if (err)
 		pr_err("d2net: failed to configure blue LED blink GPIO\n");
 
+	gpiod_add_lookup_table(&d2net_leds_gpio_table);
 	platform_device_register(&d2net_gpio_leds);
 }
 

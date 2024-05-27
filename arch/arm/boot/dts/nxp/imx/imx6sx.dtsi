@@ -339,15 +339,14 @@
 				};
 
 				esai: esai@2024000 {
-					compatible = "fsl,imx6sx-esai", "fsl,imx35-esai";
+					compatible = "fsl,imx35-esai";
 					reg = <0x02024000 0x4000>;
 					interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_ESAI_IPG>,
-						 <&clks IMX6SX_CLK_ESAI_MEM>,
 						 <&clks IMX6SX_CLK_ESAI_EXTAL>,
 						 <&clks IMX6SX_CLK_ESAI_IPG>,
 						 <&clks IMX6SX_CLK_SPBA>;
-					clock-names = "core", "mem", "extal",
+					clock-names = "core", "extal",
 						      "fsys", "spba";
 					dmas = <&sdma 23 21 0>,
 					       <&sdma 24 21 0>;
@@ -929,7 +928,6 @@
 				clocks = <&clks IMX6SX_CLK_USBOH3>;
 				fsl,usbphy = <&usbphy1>;
 				fsl,usbmisc = <&usbmisc 0>;
-				fsl,anatop = <&anatop>;
 				ahb-burst-config = <0x0>;
 				tx-burst-size-dword = <0x10>;
 				rx-burst-size-dword = <0x10>;
@@ -957,7 +955,6 @@
 				fsl,usbphy = <&usbphynop1>;
 				fsl,usbmisc = <&usbmisc 2>;
 				phy_type = "hsic";
-				fsl,anatop = <&anatop>;
 				dr_mode = "host";
 				ahb-burst-config = <0x0>;
 				tx-burst-size-dword = <0x10>;

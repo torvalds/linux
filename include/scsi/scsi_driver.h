@@ -23,7 +23,9 @@ struct scsi_driver {
 #define to_scsi_driver(drv) \
 	container_of((drv), struct scsi_driver, gendrv)
 
-extern int scsi_register_driver(struct device_driver *);
+#define scsi_register_driver(drv) \
+	__scsi_register_driver(drv, THIS_MODULE)
+int __scsi_register_driver(struct device_driver *, struct module *);
 #define scsi_unregister_driver(drv) \
 	driver_unregister(drv);
 

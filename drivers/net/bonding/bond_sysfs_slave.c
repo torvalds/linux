@@ -53,7 +53,7 @@ static SLAVE_ATTR_RO(perm_hwaddr);
 
 static ssize_t queue_id_show(struct slave *slave, char *buf)
 {
-	return sysfs_emit(buf, "%d\n", slave->queue_id);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(slave->queue_id));
 }
 static SLAVE_ATTR_RO(queue_id);
 

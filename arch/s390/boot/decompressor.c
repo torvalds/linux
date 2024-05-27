@@ -63,24 +63,13 @@ static unsigned long free_mem_end_ptr = (unsigned long) _end + BOOT_HEAP_SIZE;
 #include "../../../../lib/decompress_unzstd.c"
 #endif
 
-#define decompress_offset ALIGN((unsigned long)_end + BOOT_HEAP_SIZE, PAGE_SIZE)
-
 unsigned long mem_safe_offset(void)
 {
-	/*
-	 * due to 4MB HEAD_SIZE for bzip2
-	 * 'decompress_offset + vmlinux.image_size' could be larger than
-	 * kernel at final position + its .bss, so take the larger of two
-	 */
-	return max(decompress_offset + vmlinux.image_size,
-		   vmlinux.default_lma + vmlinux.image_size + vmlinux.bss_size);
+	return ALIGN(free_mem_end_ptr, PAGE_SIZE);
 }
 
-void *decompress_kernel(void)
+void deploy_kernel(void *output)
 {
-	void *output = (void *)decompress_offset;
-
 	__decompress(_compressed_start, _compressed_end - _compressed_start,
 		     NULL, NULL, output, vmlinux.image_size, NULL, error);
-	return output;
 }

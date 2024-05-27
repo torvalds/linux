@@ -1458,7 +1458,6 @@ static void dspi_shutdown(struct platform_device *pdev)
 static struct platform_driver fsl_dspi_driver = {
 	.driver.name		= DRIVER_NAME,
 	.driver.of_match_table	= fsl_dspi_dt_ids,
-	.driver.owner		= THIS_MODULE,
 	.driver.pm		= &dspi_pm,
 	.probe			= dspi_probe,
 	.remove_new		= dspi_remove,

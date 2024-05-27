@@ -19,7 +19,7 @@ description: |
   either bilinear interpolation or pixel duplication.
 
 allOf:
-  - $ref: panel-common.yaml#
+  - $ref: panel-common-dual.yaml#
 
 properties:
   compatible:
@@ -32,6 +32,9 @@ properties:
       string determines how the NT35950 panel driver shall be configured
       to work with the indicated panel. The novatek,nt35950 compatible shall
       always be provided as a fallback.
+
+  reg:
+    maxItems: 1
 
   reset-gpios:
     maxItems: 1
@@ -49,7 +52,6 @@ properties:
 
   backlight: true
   ports: true
-  reg: true
 
 required:
   - compatible
@@ -59,6 +61,7 @@ required:
   - avee-supply
   - dvdd-supply
   - vddio-supply
+  - ports
 
 additionalProperties: false
 

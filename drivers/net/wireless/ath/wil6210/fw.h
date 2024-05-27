@@ -93,7 +93,6 @@ struct wil_fw_record_concurrency { /* type == wil_fw_type_comment */
 	/* number of concurrency combinations that follow */
 	__le16 n_combos;
 	/* keep last - combinations, variable size by n_combos */
-	struct wil_fw_concurrency_combo combos[];
 } __packed;
 
 /* brd file info encoded inside a comment record */

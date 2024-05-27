@@ -12,6 +12,7 @@
 
 #include <linux/build_bug.h>
 #include <linux/dcache.h>
+#include <linux/debugfs.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 

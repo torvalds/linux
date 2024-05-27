@@ -6,10 +6,11 @@ Testing
 This document contains useful information how to test the Rust code in the
 kernel.
 
-There are two sorts of tests:
+There are three sorts of tests:
 
 - The KUnit tests.
 - The ``#[test]`` tests.
+- The Kselftests.
 
 The KUnit tests
 ---------------
@@ -133,3 +134,25 @@ Additionally, there are the ``#[test]`` tests. These can be run using the
 This requires the kernel ``.config`` and downloads external repositories. It
 runs the ``#[test]`` tests on the host (currently) and thus is fairly limited in
 what these tests can test.
+
+The Kselftests
+--------------
+
+Kselftests are also available in the ``tools/testing/selftests/rust`` folder.
+
+The kernel config options required for the tests are listed in the
+``tools/testing/selftests/rust/config`` file and can be included with the aid
+of the ``merge_config.sh`` script::
+
+	./scripts/kconfig/merge_config.sh .config tools/testing/selftests/rust/config
+
+The kselftests are built within the kernel source tree and are intended to
+be executed on a system that is running the same kernel.
+
+Once a kernel matching the source tree has been installed and booted, the
+tests can be compiled and executed using the following command::
+
+	make TARGETS="rust" kselftest
+
+Refer to Documentation/dev-tools/kselftest.rst for the general Kselftest
+documentation.

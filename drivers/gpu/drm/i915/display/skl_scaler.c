@@ -213,10 +213,11 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	 * The pipe scaler does not use all the bits of PIPESRC, at least
 	 * on the earlier platforms. So even when we're scaling a plane
 	 * the *pipe* source size must not be too large. For simplicity
-	 * we assume the limits match the scaler source size limits. Might
-	 * not be 100% accurate on all platforms, but good enough for now.
+	 * we assume the limits match the scaler destination size limits.
+	 * Might not be 100% accurate on all platforms, but good enough for
+	 * now.
 	 */
-	if (pipe_src_w > max_src_w || pipe_src_h > max_src_h) {
+	if (pipe_src_w > max_dst_w || pipe_src_h > max_dst_h) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "scaler_user index %u.%u: pipe src size %ux%u "
 			    "is out of scaler range\n",

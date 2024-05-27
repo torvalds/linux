@@ -113,7 +113,7 @@ static struct dpu_kms *_dpu_plane_get_kms(struct drm_plane *plane)
  * Prefill BW Equation: line src bytes * line_time
  */
 static u64 _dpu_plane_calc_bw(const struct dpu_mdss_cfg *catalog,
-	const struct dpu_format *fmt,
+	const struct msm_format *fmt,
 	const struct drm_display_mode *mode,
 	struct dpu_sw_pipe_cfg *pipe_cfg)
 {
@@ -195,7 +195,7 @@ static u64 _dpu_plane_calc_clk(const struct drm_display_mode *mode,
 static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 		struct dpu_sw_pipe *pipe,
 		enum dpu_qos_lut_usage lut_usage,
-		const struct dpu_format *fmt, u32 src_width)
+		const struct msm_format *fmt, u32 src_width)
 {
 	struct dpu_plane *pdpu;
 	u32 fixed_buff_size;
@@ -214,8 +214,8 @@ static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 
 	/* FIXME: in multirect case account for the src_width of all the planes */
 
-	if (fmt->fetch_planes == DPU_PLANE_PSEUDO_PLANAR) {
-		if (fmt->chroma_sample == DPU_CHROMA_420) {
+	if (fmt->fetch_type == MDP_PLANE_PSEUDO_PLANAR) {
+		if (fmt->chroma_sample == CHROMA_420) {
 			/* NV12 */
 			total_fl = (fixed_buff_size / 2) /
 				((src_width + 32) * fmt->bpp);
@@ -234,9 +234,9 @@ static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 		}
 	}
 
-	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %4.4s w:%u fl:%u\n",
+	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %p4cc w:%u fl:%u\n",
 			pipe->sspp->idx - SSPP_VIG0,
-			(char *)&fmt->base.pixel_format,
+			&fmt->pixel_format,
 			src_width, total_fl);
 
 	return total_fl;
@@ -251,7 +251,7 @@ static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
  */
 static void _dpu_plane_set_qos_lut(struct drm_plane *plane,
 		struct dpu_sw_pipe *pipe,
-		const struct dpu_format *fmt, struct dpu_sw_pipe_cfg *pipe_cfg)
+		const struct msm_format *fmt, struct dpu_sw_pipe_cfg *pipe_cfg)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct dpu_hw_qos_cfg cfg;
@@ -260,7 +260,7 @@ static void _dpu_plane_set_qos_lut(struct drm_plane *plane,
 	if (!pdpu->is_rt_pipe) {
 		lut_usage = DPU_QOS_LUT_USAGE_NRT;
 	} else {
-		if (fmt && DPU_FORMAT_IS_LINEAR(fmt))
+		if (fmt && MSM_FORMAT_IS_LINEAR(fmt))
 			lut_usage = DPU_QOS_LUT_USAGE_LINEAR;
 		else
 			lut_usage = DPU_QOS_LUT_USAGE_MACROTILE;
@@ -284,26 +284,26 @@ static void _dpu_plane_set_qos_lut(struct drm_plane *plane,
 		pdpu->is_rt_pipe);
 
 	trace_dpu_perf_set_qos_luts(pipe->sspp->idx - SSPP_VIG0,
-			(fmt) ? fmt->base.pixel_format : 0,
+			(fmt) ? fmt->pixel_format : 0,
 			pdpu->is_rt_pipe, total_fl, cfg.creq_lut, lut_usage);
 
-	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %4.4s rt:%d fl:%u lut:0x%llx\n",
+	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %p4cc rt:%d fl:%u lut:0x%llx\n",
 			pdpu->pipe - SSPP_VIG0,
-			fmt ? (char *)&fmt->base.pixel_format : NULL,
+			fmt ? &fmt->pixel_format : NULL,
 			pdpu->is_rt_pipe, total_fl, cfg.creq_lut);
 
 	trace_dpu_perf_set_danger_luts(pdpu->pipe - SSPP_VIG0,
-			(fmt) ? fmt->base.pixel_format : 0,
+			(fmt) ? fmt->pixel_format : 0,
 			(fmt) ? fmt->fetch_mode : 0,
 			cfg.danger_lut,
 			cfg.safe_lut);
 
-	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %4.4s mode:%d luts[0x%x, 0x%x]\n",
-		pdpu->pipe - SSPP_VIG0,
-		fmt ? (char *)&fmt->base.pixel_format : NULL,
-		fmt ? fmt->fetch_mode : -1,
-		cfg.danger_lut,
-		cfg.safe_lut);
+	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %p4cc mode:%d luts[0x%x, 0x%x]\n",
+			pdpu->pipe - SSPP_VIG0,
+			fmt ? &fmt->pixel_format : NULL,
+			fmt ? fmt->fetch_mode : -1,
+			cfg.danger_lut,
+			cfg.safe_lut);
 
 	pipe->sspp->ops.setup_qos_lut(pipe->sspp, &cfg);
 }
@@ -425,7 +425,7 @@ static void _dpu_plane_set_qos_remap(struct drm_plane *plane,
 static void _dpu_plane_setup_scaler3(struct dpu_hw_sspp *pipe_hw,
 		uint32_t src_w, uint32_t src_h, uint32_t dst_w, uint32_t dst_h,
 		struct dpu_hw_scaler3_cfg *scale_cfg,
-		const struct dpu_format *fmt,
+		const struct msm_format *fmt,
 		uint32_t chroma_subsmpl_h, uint32_t chroma_subsmpl_v,
 		unsigned int rotation)
 {
@@ -477,7 +477,7 @@ static void _dpu_plane_setup_scaler3(struct dpu_hw_sspp *pipe_hw,
 			scale_cfg->preload_y[i] = DPU_QSEED3_DEFAULT_PRELOAD_V;
 		}
 	}
-	if (!(DPU_FORMAT_IS_YUV(fmt)) && (src_h == dst_h)
+	if (!(MSM_FORMAT_IS_YUV(fmt)) && (src_h == dst_h)
 		&& (src_w == dst_w))
 		return;
 
@@ -510,11 +510,11 @@ static void _dpu_plane_setup_pixel_ext(struct dpu_hw_scaler3_cfg *scale_cfg,
 }
 
 static const struct dpu_csc_cfg *_dpu_plane_get_csc(struct dpu_sw_pipe *pipe,
-						    const struct dpu_format *fmt)
+						    const struct msm_format *fmt)
 {
 	const struct dpu_csc_cfg *csc_ptr;
 
-	if (!DPU_FORMAT_IS_YUV(fmt))
+	if (!MSM_FORMAT_IS_YUV(fmt))
 		return NULL;
 
 	if (BIT(DPU_SSPP_CSC_10BIT) & pipe->sspp->cap->features)
@@ -526,12 +526,12 @@ static const struct dpu_csc_cfg *_dpu_plane_get_csc(struct dpu_sw_pipe *pipe,
 }
 
 static void _dpu_plane_setup_scaler(struct dpu_sw_pipe *pipe,
-		const struct dpu_format *fmt, bool color_fill,
+		const struct msm_format *fmt, bool color_fill,
 		struct dpu_sw_pipe_cfg *pipe_cfg,
 		unsigned int rotation)
 {
 	struct dpu_hw_sspp *pipe_hw = pipe->sspp;
-	const struct drm_format_info *info = drm_format_info(fmt->base.pixel_format);
+	const struct drm_format_info *info = drm_format_info(fmt->pixel_format);
 	struct dpu_hw_scaler3_cfg scaler3_cfg;
 	struct dpu_hw_pixel_ext pixel_ext;
 	u32 src_width = drm_rect_width(&pipe_cfg->src_rect);
@@ -577,7 +577,7 @@ static void _dpu_plane_color_fill_pipe(struct dpu_plane_state *pstate,
 				       struct dpu_sw_pipe *pipe,
 				       struct drm_rect *dst_rect,
 				       u32 fill_color,
-				       const struct dpu_format *fmt)
+				       const struct msm_format *fmt)
 {
 	struct dpu_sw_pipe_cfg pipe_cfg;
 
@@ -615,8 +615,9 @@ static void _dpu_plane_color_fill_pipe(struct dpu_plane_state *pstate,
 static void _dpu_plane_color_fill(struct dpu_plane *pdpu,
 		uint32_t color, uint32_t alpha)
 {
-	const struct dpu_format *fmt;
+	const struct msm_format *fmt;
 	const struct drm_plane *plane = &pdpu->base;
+	struct msm_drm_private *priv = plane->dev->dev_private;
 	struct dpu_plane_state *pstate = to_dpu_plane_state(plane->state);
 	u32 fill_color = (color & 0xFFFFFF) | ((alpha & 0xFF) << 24);
 
@@ -626,7 +627,7 @@ static void _dpu_plane_color_fill(struct dpu_plane *pdpu,
 	 * select fill format to match user property expectation,
 	 * h/w only supports RGB variants
 	 */
-	fmt = dpu_get_dpu_format(DRM_FORMAT_ABGR8888);
+	fmt = mdp_get_format(priv->kms, DRM_FORMAT_ABGR8888, 0);
 	/* should not happen ever */
 	if (!fmt)
 		return;
@@ -704,7 +705,7 @@ static void dpu_plane_cleanup_fb(struct drm_plane *plane,
 
 static int dpu_plane_check_inline_rotation(struct dpu_plane *pdpu,
 						const struct dpu_sspp_sub_blks *sblk,
-						struct drm_rect src, const struct dpu_format *fmt)
+						struct drm_rect src, const struct msm_format *fmt)
 {
 	size_t num_formats;
 	const u32 *supported_formats;
@@ -723,8 +724,8 @@ static int dpu_plane_check_inline_rotation(struct dpu_plane *pdpu,
 	supported_formats = sblk->rotation_cfg->rot_format_list;
 	num_formats = sblk->rotation_cfg->rot_num_formats;
 
-	if (!DPU_FORMAT_IS_UBWC(fmt) ||
-		!dpu_find_format(fmt->base.pixel_format, supported_formats, num_formats))
+	if (!MSM_FORMAT_IS_UBWC(fmt) ||
+		!dpu_find_format(fmt->pixel_format, supported_formats, num_formats))
 		return -EINVAL;
 
 	return 0;
@@ -733,15 +734,15 @@ static int dpu_plane_check_inline_rotation(struct dpu_plane *pdpu,
 static int dpu_plane_atomic_check_pipe(struct dpu_plane *pdpu,
 		struct dpu_sw_pipe *pipe,
 		struct dpu_sw_pipe_cfg *pipe_cfg,
-		const struct dpu_format *fmt,
+		const struct msm_format *fmt,
 		const struct drm_display_mode *mode)
 {
 	uint32_t min_src_size;
 	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
 
-	min_src_size = DPU_FORMAT_IS_YUV(fmt) ? 2 : 1;
+	min_src_size = MSM_FORMAT_IS_YUV(fmt) ? 2 : 1;
 
-	if (DPU_FORMAT_IS_YUV(fmt) &&
+	if (MSM_FORMAT_IS_YUV(fmt) &&
 	    (!pipe->sspp->cap->sblk->scaler_blk.len ||
 	     !pipe->sspp->cap->sblk->csc_blk.len)) {
 		DPU_DEBUG_PLANE(pdpu,
@@ -758,7 +759,7 @@ static int dpu_plane_atomic_check_pipe(struct dpu_plane *pdpu,
 	}
 
 	/* valid yuv image */
-	if (DPU_FORMAT_IS_YUV(fmt) &&
+	if (MSM_FORMAT_IS_YUV(fmt) &&
 	    (pipe_cfg->src_rect.x1 & 0x1 ||
 	     pipe_cfg->src_rect.y1 & 0x1 ||
 	     drm_rect_width(&pipe_cfg->src_rect) & 0x1 ||
@@ -798,7 +799,7 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 	struct dpu_sw_pipe *pipe = &pstate->pipe;
 	struct dpu_sw_pipe *r_pipe = &pstate->r_pipe;
 	const struct drm_crtc_state *crtc_state = NULL;
-	const struct dpu_format *fmt;
+	const struct msm_format *fmt;
 	struct dpu_sw_pipe_cfg *pipe_cfg = &pstate->pipe_cfg;
 	struct dpu_sw_pipe_cfg *r_pipe_cfg = &pstate->r_pipe_cfg;
 	struct drm_rect fb_rect = { 0 };
@@ -858,7 +859,7 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 		return -E2BIG;
 	}
 
-	fmt = to_dpu_format(msm_framebuffer_format(new_plane_state->fb));
+	fmt = msm_framebuffer_format(new_plane_state->fb);
 
 	max_linewidth = pdpu->catalog->caps->max_linewidth;
 
@@ -870,7 +871,7 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 		 * full width is more than max_linewidth, thus each rect is
 		 * wider than allowed.
 		 */
-		if (DPU_FORMAT_IS_UBWC(fmt) &&
+		if (MSM_FORMAT_IS_UBWC(fmt) &&
 		    drm_rect_width(&pipe_cfg->src_rect) > max_linewidth) {
 			DPU_DEBUG_PLANE(pdpu, "invalid src " DRM_RECT_FMT " line:%u, tiled format\n",
 					DRM_RECT_ARG(&pipe_cfg->src_rect), max_linewidth);
@@ -887,7 +888,7 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 		    drm_rect_height(&pipe_cfg->src_rect) != drm_rect_height(&pipe_cfg->dst_rect) ||
 		    (!test_bit(DPU_SSPP_SMART_DMA_V1, &pipe->sspp->cap->features) &&
 		     !test_bit(DPU_SSPP_SMART_DMA_V2, &pipe->sspp->cap->features)) ||
-		    DPU_FORMAT_IS_YUV(fmt)) {
+		    MSM_FORMAT_IS_YUV(fmt)) {
 			DPU_DEBUG_PLANE(pdpu, "invalid src " DRM_RECT_FMT " line:%u, can't use split source\n",
 					DRM_RECT_ARG(&pipe_cfg->src_rect), max_linewidth);
 			return -E2BIG;
@@ -945,8 +946,8 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 
 static void dpu_plane_flush_csc(struct dpu_plane *pdpu, struct dpu_sw_pipe *pipe)
 {
-	const struct dpu_format *format =
-		to_dpu_format(msm_framebuffer_format(pdpu->base.state->fb));
+	const struct msm_format *format =
+		msm_framebuffer_format(pdpu->base.state->fb);
 	const struct dpu_csc_cfg *csc_ptr;
 
 	if (!pipe->sspp || !pipe->sspp->ops.setup_csc)
@@ -1017,7 +1018,7 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error)
 static void dpu_plane_sspp_update_pipe(struct drm_plane *plane,
 				       struct dpu_sw_pipe *pipe,
 				       struct dpu_sw_pipe_cfg *pipe_cfg,
-				       const struct dpu_format *fmt,
+				       const struct msm_format *fmt,
 				       int frame_rate,
 				       struct dpu_hw_fmt_layout *layout)
 {
@@ -1095,8 +1096,8 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_framebuffer *fb = state->fb;
 	bool is_rt_pipe;
-	const struct dpu_format *fmt =
-		to_dpu_format(msm_framebuffer_format(fb));
+	const struct msm_format *fmt =
+		msm_framebuffer_format(fb);
 	struct dpu_sw_pipe_cfg *pipe_cfg = &pstate->pipe_cfg;
 	struct dpu_sw_pipe_cfg *r_pipe_cfg = &pstate->r_pipe_cfg;
 	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
@@ -1118,9 +1119,9 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 	pdpu->is_rt_pipe = is_rt_pipe;
 
 	DPU_DEBUG_PLANE(pdpu, "FB[%u] " DRM_RECT_FP_FMT "->crtc%u " DRM_RECT_FMT
-			", %4.4s ubwc %d\n", fb->base.id, DRM_RECT_FP_ARG(&state->src),
+			", %p4cc ubwc %d\n", fb->base.id, DRM_RECT_FP_ARG(&state->src),
 			crtc->base.id, DRM_RECT_ARG(&state->dst),
-			(char *)&fmt->base.pixel_format, DPU_FORMAT_IS_UBWC(fmt));
+			&fmt->pixel_format, MSM_FORMAT_IS_UBWC(fmt));
 
 	dpu_plane_sspp_update_pipe(plane, pipe, pipe_cfg, fmt,
 				   drm_mode_vrefresh(&crtc->mode),

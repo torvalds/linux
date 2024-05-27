@@ -119,9 +119,9 @@
 	/*
 	 * The DW APB ICTL intc on MB is connected to CPU intc via a
 	 * DT "invisible" DW APB GPIO block, configured to simply pass thru
-	 * interrupts - setup accordinly in platform init (plat-axs10x/ax10x.c)
+	 * interrupts - setup accordingly in platform init (plat-axs10x/ax10x.c)
 	 *
-	 * So here we mimic a direct connection betwen them, ignoring the
+	 * So here we mimic a direct connection between them, ignoring the
 	 * ABPG GPIO. Thus set "interrupts = <24>" (DW APB GPIO to core)
 	 * instead of "interrupts = <12>" (DW APB ICTL to DW APB GPIO)
 	 *

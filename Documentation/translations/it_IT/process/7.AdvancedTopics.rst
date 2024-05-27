@@ -160,6 +160,8 @@ preparerà una richiesta nel modo in cui gli altri sviluppatori se l'aspettano,
 e verificherà che vi siate ricordati di pubblicare quelle patch su un
 server pubblico.
 
+.. _development_advancedtopics_reviews_it:
+
 Revisionare le patch
 --------------------
 
@@ -180,6 +182,13 @@ i commenti come domande e non come critiche.  Chiedere "Come viene rilasciato
 il *lock* in questo percorso?" funziona sempre molto meglio che
 "qui la sincronizzazione è sbagliata".
 
+In caso di disaccordi, può essere utile chiedere una terza opinione. Se dopo
+pochi scambi la discussione raggiunge un punto morto, allora chiedete ai
+manutentori o altri revisori di partecipare esprimendo la loro opinione. Spesso
+vige un silenzio assenso per cui gli altri revisori non intervengono se non gli
+viene richiesto esplicitamente. L'opinione di più persone avrà sicuramente un
+peso maggiore.
+
 Diversi sviluppatori revisioneranno il codice con diversi punti di vista.
 Alcuni potrebbero concentrarsi principalmente sullo stile del codice e se
 alcune linee hanno degli spazio bianchi di troppo.  Altri si chiederanno
@@ -189,3 +198,13 @@ l'uso eccessivo di *stack*, problemi di sicurezza, duplicazione del codice
 in altri contesti, documentazione, effetti negativi sulle prestazioni, cambi
 all'ABI dello spazio utente, eccetera.  Qualunque tipo di revisione è ben
 accetta e di valore, se porta ad avere un codice migliore nel kernel.
+
+Non esistono requisiti particolarmente stringenti per l'uso di etichette come
+``Reviewd-by``. Tuttavia, perché la revisione sia efficace ci si aspetta un
+qualche tipo di messaggio che dica "ho verificato A, B e C nel codice che è
+appena stato inviato e mi sembra tutto in ordine". Inoltre, questo permette ai
+manutentori di prendere conoscenza circa una revisione avvenuta per davvero.
+
+Per finire, la revisione delle patch può diventare un processo negativo, troppo
+focalizzato sulla ricerca dei problemi. Provate a fare qualche complimento di
+tanto in tanto, specialmente con i nuovi arrivati.

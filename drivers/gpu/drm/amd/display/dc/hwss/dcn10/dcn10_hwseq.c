@@ -367,7 +367,7 @@ static void dcn10_log_color_state(struct dc *dc,
 		 dc->caps.color.dpp.ocsc);
 
 	DTN_INFO("MPCC:  OPP  DPP  MPCCBOT  MODE  ALPHA_MODE  PREMULT  OVERLAP_ONLY  IDLE\n");
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
@@ -1366,6 +1366,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 	bool can_apply_seamless_boot = false;
+	bool tg_enabled[MAX_PIPES] = {false};
 
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->streams[i]->apply_seamless_boot_optimization) {
@@ -1447,6 +1448,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 			// requesting data while in PSR.
 			tg->funcs->tg_init(tg);
 			hubp->power_gated = true;
+			tg_enabled[i] = true;
 			continue;
 		}
 
@@ -1486,6 +1488,20 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		}
 
 		tg->funcs->tg_init(tg);
+	}
+
+	/* Clean up MPC tree */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (tg_enabled[i]) {
+			if (dc->res_pool->opps[i]->mpc_tree_params.opp_list) {
+				if (dc->res_pool->opps[i]->mpc_tree_params.opp_list->mpcc_bot) {
+					int bot_id = dc->res_pool->opps[i]->mpc_tree_params.opp_list->mpcc_bot->mpcc_id;
+
+					if ((bot_id < MAX_MPCC) && (bot_id < MAX_PIPES) && (!tg_enabled[bot_id]))
+						dc->res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
+				}
+			}
+		}
 	}
 
 	/* Power gate DSCs */
@@ -1813,14 +1829,12 @@ bool dcn10_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	if (dpp_base == NULL)
 		return false;
 
-	if (plane_state->in_transfer_func)
-		tf = plane_state->in_transfer_func;
+	tf = &plane_state->in_transfer_func;
 
-	if (plane_state->gamma_correction &&
-		!dpp_base->ctx->dc->debug.always_use_regamma
-		&& !plane_state->gamma_correction->is_identity
+	if (!dpp_base->ctx->dc->debug.always_use_regamma
+		&& !plane_state->gamma_correction.is_identity
 			&& dce_use_lut(plane_state->format))
-		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
+		dpp_base->funcs->dpp_program_input_lut(dpp_base, &plane_state->gamma_correction);
 
 	if (tf == NULL)
 		dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
@@ -1861,7 +1875,7 @@ bool dcn10_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 #define MAX_NUM_HW_POINTS 0x200
 
 static void log_tf(struct dc_context *ctx,
-				struct dc_transfer_func *tf, uint32_t hw_points_num)
+				const struct dc_transfer_func *tf, uint32_t hw_points_num)
 {
 	// DC_LOG_GAMMA is default logging of all hw points
 	// DC_LOG_ALL_GAMMA logs all points, not only hw points
@@ -1898,16 +1912,15 @@ bool dcn10_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 
 	dpp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
-	if (stream->out_transfer_func &&
-	    stream->out_transfer_func->type == TF_TYPE_PREDEFINED &&
-	    stream->out_transfer_func->tf == TRANSFER_FUNCTION_SRGB)
+	if (stream->out_transfer_func.type == TF_TYPE_PREDEFINED &&
+	    stream->out_transfer_func.tf == TRANSFER_FUNCTION_SRGB)
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_SRGB);
 
 	/* dcn10_translate_regamma_to_hw_format takes 750us, only do it when full
 	 * update.
 	 */
 	else if (cm_helper_translate_curve_to_hw_format(dc->ctx,
-			stream->out_transfer_func,
+			&stream->out_transfer_func,
 			&dpp->regamma_params, false)) {
 		dpp->funcs->dpp_program_regamma_pwl(
 				dpp,
@@ -1915,10 +1928,9 @@ bool dcn10_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	} else
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
 
-	if (stream->ctx &&
-	    stream->out_transfer_func) {
+	if (stream->ctx) {
 		log_tf(stream->ctx,
-				stream->out_transfer_func,
+				&stream->out_transfer_func,
 				dpp->regamma_params.hw_points_num);
 	}
 
@@ -2173,7 +2185,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	struct dc_crtc_timing *hw_crtc_timing;
 	uint64_t phase[MAX_PIPES];
 	uint64_t modulo[MAX_PIPES];
-	unsigned int pclk;
+	unsigned int pclk = 0;
 
 	uint32_t embedded_pix_clk_100hz;
 	uint16_t embedded_h_total;
@@ -2264,7 +2276,7 @@ void dcn10_enable_vblanks_synchronization(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
-	int i, width, height, master;
+	int i, width = 0, height = 0, master;
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
@@ -2330,7 +2342,7 @@ void dcn10_enable_timing_synchronization(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
-	int i, width, height;
+	int i, width = 0, height = 0;
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 

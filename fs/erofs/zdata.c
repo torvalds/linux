@@ -868,7 +868,7 @@ static int z_erofs_pcluster_begin(struct z_erofs_decompress_frontend *fe)
 	} else {
 		void *mptr;
 
-		mptr = erofs_read_metabuf(&map->buf, sb, blknr, EROFS_NO_KMAP);
+		mptr = erofs_read_metabuf(&map->buf, sb, map->m_pa, EROFS_NO_KMAP);
 		if (IS_ERR(mptr)) {
 			ret = PTR_ERR(mptr);
 			erofs_err(sb, "failed to get inline data %d", ret);
@@ -936,16 +936,16 @@ static int z_erofs_read_fragment(struct super_block *sb, struct page *page,
 	if (!packed_inode)
 		return -EFSCORRUPTED;
 
-	buf.inode = packed_inode;
+	buf.mapping = packed_inode->i_mapping;
 	for (; cur < end; cur += cnt, pos += cnt) {
 		cnt = min_t(unsigned int, end - cur,
 			    sb->s_blocksize - erofs_blkoff(sb, pos));
-		src = erofs_bread(&buf, erofs_blknr(sb, pos), EROFS_KMAP);
+		src = erofs_bread(&buf, pos, EROFS_KMAP);
 		if (IS_ERR(src)) {
 			erofs_put_metabuf(&buf);
 			return PTR_ERR(src);
 		}
-		memcpy_to_page(page, cur, src + erofs_blkoff(sb, pos), cnt);
+		memcpy_to_page(page, cur, src, cnt);
 	}
 	erofs_put_metabuf(&buf);
 	return 0;

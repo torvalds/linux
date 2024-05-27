@@ -661,7 +661,7 @@ static int inet_csk_wait_for_connect(struct sock *sk, long timeo)
 /*
  * This will accept the next outstanding connection.
  */
-struct sock *inet_csk_accept(struct sock *sk, int flags, int *err, bool kern)
+struct sock *inet_csk_accept(struct sock *sk, struct proto_accept_arg *arg)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
@@ -680,7 +680,7 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err, bool kern)
 
 	/* Find already established connection */
 	if (reqsk_queue_empty(queue)) {
-		long timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+		long timeo = sock_rcvtimeo(sk, arg->flags & O_NONBLOCK);
 
 		/* If this is a non blocking socket don't sleep */
 		error = -EAGAIN;
@@ -692,6 +692,7 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err, bool kern)
 			goto out_err;
 	}
 	req = reqsk_queue_remove(queue, sk);
+	arg->is_empty = reqsk_queue_empty(queue);
 	newsk = req->sk;
 
 	if (sk->sk_protocol == IPPROTO_TCP &&
@@ -745,7 +746,7 @@ out:
 out_err:
 	newsk = NULL;
 	req = NULL;
-	*err = error;
+	arg->err = error;
 	goto out;
 }
 EXPORT_SYMBOL(inet_csk_accept);

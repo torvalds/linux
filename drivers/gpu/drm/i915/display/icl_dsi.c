@@ -1616,8 +1616,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
-						   base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;

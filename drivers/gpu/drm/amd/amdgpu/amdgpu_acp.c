@@ -637,6 +637,8 @@ static const struct amd_ip_funcs acp_ip_funcs = {
 	.soft_reset = acp_soft_reset,
 	.set_clockgating_state = acp_set_clockgating_state,
 	.set_powergating_state = acp_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version acp_ip_block = {

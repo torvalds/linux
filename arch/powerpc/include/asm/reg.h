@@ -615,7 +615,7 @@
 #define HID1_ABE	(1<<10)		/* 7450 Address Broadcast Enable */
 #define HID1_PS		(1<<16)		/* 750FX PLL selection */
 #endif
-#define SPRN_HID2	0x3F8		/* Hardware Implementation Register 2 */
+#define SPRN_HID2_750FX	0x3F8		/* IBM 750FX HID2 Register */
 #define SPRN_HID2_GEKKO	0x398		/* Gekko HID2 Register */
 #define SPRN_HID2_G2_LE	0x3F3		/* G2_LE HID2 Register */
 #define  HID2_G2_LE_HBE	(1<<18)		/* High BAT Enable (G2_LE) */

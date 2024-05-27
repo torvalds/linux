@@ -9,10 +9,11 @@
 
 #include <linux/hwmon.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
@@ -25,7 +26,6 @@ struct pwm_fan_tach {
 	int irq;
 	atomic_t pulses;
 	unsigned int rpm;
-	u8 pulses_per_revolution;
 };
 
 enum pwm_fan_enable_mode {
@@ -48,6 +48,7 @@ struct pwm_fan_ctx {
 
 	int tach_count;
 	struct pwm_fan_tach *tachs;
+	u32 *pulses_per_revolution;
 	ktime_t sample_start;
 	struct timer_list rpm_timer;
 
@@ -85,7 +86,7 @@ static void sample_timer(struct timer_list *t)
 			pulses = atomic_read(&tach->pulses);
 			atomic_sub(pulses, &tach->pulses);
 			tach->rpm = (unsigned int)(pulses * 1000 * 60) /
-				(tach->pulses_per_revolution * delta);
+				(ctx->pulses_per_revolution[i] * delta);
 		}
 
 		ctx->sample_start = ktime_get();
@@ -421,16 +422,14 @@ static const struct thermal_cooling_device_ops pwm_fan_cooling_ops = {
 	.set_cur_state = pwm_fan_set_cur_state,
 };
 
-static int pwm_fan_of_get_cooling_data(struct device *dev,
-				       struct pwm_fan_ctx *ctx)
+static int pwm_fan_get_cooling_data(struct device *dev, struct pwm_fan_ctx *ctx)
 {
-	struct device_node *np = dev->of_node;
 	int num, i, ret;
 
-	if (!of_property_present(np, "cooling-levels"))
+	if (!device_property_present(dev, "cooling-levels"))
 		return 0;
 
-	ret = of_property_count_u32_elems(np, "cooling-levels");
+	ret = device_property_count_u32(dev, "cooling-levels");
 	if (ret <= 0) {
 		dev_err(dev, "Wrong data!\n");
 		return ret ? : -EINVAL;
@@ -442,8 +441,8 @@ static int pwm_fan_of_get_cooling_data(struct device *dev,
 	if (!ctx->pwm_fan_cooling_levels)
 		return -ENOMEM;
 
-	ret = of_property_read_u32_array(np, "cooling-levels",
-					 ctx->pwm_fan_cooling_levels, num);
+	ret = device_property_read_u32_array(dev, "cooling-levels",
+					     ctx->pwm_fan_cooling_levels, num);
 	if (ret) {
 		dev_err(dev, "Property 'cooling-levels' cannot be read!\n");
 		return ret;
@@ -562,6 +561,20 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		if (!fan_channel_config)
 			return -ENOMEM;
 		ctx->fan_channel.config = fan_channel_config;
+
+		ctx->pulses_per_revolution = devm_kmalloc_array(dev,
+								ctx->tach_count,
+								sizeof(*ctx->pulses_per_revolution),
+								GFP_KERNEL);
+		if (!ctx->pulses_per_revolution)
+			return -ENOMEM;
+
+		/* Setup default pulses per revolution */
+		for (i = 0; i < ctx->tach_count; i++)
+			ctx->pulses_per_revolution[i] = 2;
+
+		device_property_read_u32_array(dev, "pulses-per-revolution",
+					       ctx->pulses_per_revolution, ctx->tach_count);
 	}
 
 	channels = devm_kcalloc(dev, channel_count + 1,
@@ -573,7 +586,6 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ctx->tach_count; i++) {
 		struct pwm_fan_tach *tach = &ctx->tachs[i];
-		u32 ppr = 2;
 
 		tach->irq = platform_get_irq(pdev, i);
 		if (tach->irq == -EPROBE_DEFER)
@@ -589,12 +601,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 			}
 		}
 
-		of_property_read_u32_index(dev->of_node,
-					   "pulses-per-revolution",
-					   i,
-					   &ppr);
-		tach->pulses_per_revolution = ppr;
-		if (!tach->pulses_per_revolution) {
+		if (!ctx->pulses_per_revolution[i]) {
 			dev_err(dev, "pulses-per-revolution can't be zero.\n");
 			return -EINVAL;
 		}
@@ -602,7 +609,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		fan_channel_config[i] = HWMON_F_INPUT;
 
 		dev_dbg(dev, "tach%d: irq=%d, pulses_per_revolution=%d\n",
-			i, tach->irq, tach->pulses_per_revolution);
+			i, tach->irq, ctx->pulses_per_revolution[i]);
 	}
 
 	if (ctx->tach_count > 0) {
@@ -622,7 +629,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		return PTR_ERR(hwmon);
 	}
 
-	ret = pwm_fan_of_get_cooling_data(dev, ctx);
+	ret = pwm_fan_get_cooling_data(dev, ctx);
 	if (ret)
 		return ret;
 

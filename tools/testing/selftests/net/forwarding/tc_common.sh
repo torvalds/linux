@@ -4,7 +4,7 @@
 CHECK_TC="yes"
 
 # Can be overridden by the configuration file. See lib.sh
-TC_HIT_TIMEOUT=${TC_HIT_TIMEOUT:=1000} # ms
+: "${TC_HIT_TIMEOUT:=1000}" # ms
 
 tc_check_packets()
 {

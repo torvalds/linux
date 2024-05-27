@@ -135,6 +135,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_data);
  * @parent: The parent directory in which to create.
  * @ops: The seq_file ops with which to read the file.
  * @write: The write method with which to 'modify' the file.
+ * @state_size: The size of the per-file private state to allocate.
  * @data: Data for retrieval by pde_data().
  *
  * Create a network namespaced proc file in the @parent directory with the

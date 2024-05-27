@@ -1,0 +1,102 @@
+# HID-BPF programs
+
+This directory contains various fixes for devices. They add new features or
+fix some behaviors without being entirely mandatory. It is better to load them
+when you have such a device, but they should not be a requirement for a device
+to be working during the boot stage.
+
+The .bpf.c files provided here are not automatically compiled in the kernel.
+They should be loaded in the kernel by `udev-hid-bpf`:
+
+https://gitlab.freedesktop.org/libevdev/udev-hid-bpf
+
+The main reasons for these fixes to be here is to have a central place to
+"upstream" them, but also this way we can test them thanks to the HID
+selftests.
+
+Once a .bpf.c file is accepted here, it is duplicated in `udev-hid-bpf`
+in the `src/bpf/stable` directory, and distributions are encouraged to
+only ship those bpf objects. So adding a file here should eventually
+land in distributions when they update `udev-hid-bpf`
+
+## Compilation
+
+Just run `make`
+
+## Installation
+
+### Automated way
+
+Just run `sudo udev-hid-bpf install ./my-awesome-fix.bpf.o`
+
+### Manual way
+
+- copy the `.bpf.o` you want in `/etc/udev-hid-bpf/`
+- create a new udev rule to automatically load it
+
+The following should do the trick (assuming udev-hid-bpf is available in
+/usr/bin):
+
+```
+$> cp xppen-ArtistPro16Gen2.bpf.o /etc/udev-hid-bpf/
+$> udev-hid-bpf inspect xppen-ArtistPro16Gen2.bpf.o
+[
+  {
+    "name": "xppen-ArtistPro16Gen2.bpf.o",
+    "devices": [
+      {
+        "bus": "0x0003",
+        "group": "0x0001",
+        "vid": "0x28BD",
+        "pid": "0x095A"
+      },
+      {
+        "bus": "0x0003",
+        "group": "0x0001",
+        "vid": "0x28BD",
+        "pid": "0x095B"
+      }
+    ],
+...
+$> cat <EOF > /etc/udev/rules.d/99-load-hid-bpf-xppen-ArtistPro16Gen2.rules
+ACTION!="add|remove", GOTO="hid_bpf_end"
+SUBSYSTEM!="hid", GOTO="hid_bpf_end"
+
+# xppen-ArtistPro16Gen2.bpf.o
+ACTION=="add",ENV{MODALIAS}=="hid:b0003g0001v000028BDp0000095A", RUN{program}+="/usr/local/bin/udev-hid-bpf add $sys$devpath /etc/udev-hid-bpf/xppen-ArtistPro16Gen2.bpf.o"
+ACTION=="remove",ENV{MODALIAS}=="hid:b0003g0001v000028BDp0000095A", RUN{program}+="/usr/local/bin/udev-hid-bpf remove $sys$devpath "
+# xppen-ArtistPro16Gen2.bpf.o
+ACTION=="add",ENV{MODALIAS}=="hid:b0003g0001v000028BDp0000095B", RUN{program}+="/usr/local/bin/udev-hid-bpf add $sys$devpath /etc/udev-hid-bpf/xppen-ArtistPro16Gen2.bpf.o"
+ACTION=="remove",ENV{MODALIAS}=="hid:b0003g0001v000028BDp0000095B", RUN{program}+="/usr/local/bin/udev-hid-bpf remove $sys$devpath "
+
+LABEL="hid_bpf_end"
+EOF
+$> udevadm control --reload
+```
+
+Then unplug and replug the device.
+
+## Checks
+
+### udev rule
+
+You can check that the udev rule is correctly working by issuing
+
+```
+$> udevadm test /sys/bus/hid/devices/0003:28BD:095B*
+...
+run: '/usr/local/bin/udev-hid-bpf add /sys/devices/virtual/misc/uhid/0003:28BD:095B.0E57 /etc/udev-hid-bpf/xppen-ArtistPro16Gen2.bpf.o'
+```
+
+### program loaded
+
+You can check that the program has been properly loaded with `bpftool`
+
+```
+$> bpftool prog
+...
+247: tracing  name xppen_16_fix_eraser tag 18d389353ed2ef07  gpl
+	loaded_at 2024-03-28T16:02:28+0100  uid 0
+	xlated 120B  jited 77B  memlock 4096B
+	btf_id 487
+```

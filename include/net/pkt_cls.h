@@ -74,6 +74,15 @@ static inline bool tcf_block_non_null_shared(struct tcf_block *block)
 	return block && block->index;
 }
 
+#ifdef CONFIG_NET_CLS_ACT
+DECLARE_STATIC_KEY_FALSE(tcf_bypass_check_needed_key);
+
+static inline bool tcf_block_bypass_sw(struct tcf_block *block)
+{
+	return block && block->bypass_wanted;
+}
+#endif
+
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 {
 	WARN_ON(tcf_block_shared(block));

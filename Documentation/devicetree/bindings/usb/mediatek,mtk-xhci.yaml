@@ -29,6 +29,7 @@ properties:
           - mediatek,mt7623-xhci
           - mediatek,mt7629-xhci
           - mediatek,mt7986-xhci
+          - mediatek,mt7988-xhci
           - mediatek,mt8173-xhci
           - mediatek,mt8183-xhci
           - mediatek,mt8186-xhci

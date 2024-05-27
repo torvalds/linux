@@ -537,7 +537,7 @@ static int intel_setup(struct hci_uart *hu)
 	int speed_change = 0;
 	int err;
 
-	bt_dev_dbg(hdev, "start intel_setup");
+	bt_dev_dbg(hdev, "");
 
 	hu->hdev->set_diag = btintel_set_diag;
 	hu->hdev->set_bdaddr = btintel_set_bdaddr;
@@ -591,12 +591,12 @@ static int intel_setup(struct hci_uart *hu)
 		return -EINVAL;
 	}
 
-        /* Check for supported iBT hardware variants of this firmware
-         * loading method.
-         *
-         * This check has been put in place to ensure correct forward
-         * compatibility options when newer hardware variants come along.
-         */
+	/* Check for supported iBT hardware variants of this firmware
+	 * loading method.
+	 *
+	 * This check has been put in place to ensure correct forward
+	 * compatibility options when newer hardware variants come along.
+	 */
 	switch (ver.hw_variant) {
 	case 0x0b:	/* LnP */
 	case 0x0c:	/* WsP */
@@ -777,7 +777,7 @@ static int intel_setup(struct hci_uart *hu)
 
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
-	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	duration = (unsigned long long)ktime_to_ns(delta) >> 10;
 
 	bt_dev_info(hdev, "Firmware loaded in %llu usecs", duration);
 
@@ -822,7 +822,7 @@ done:
 
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
-	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	duration = (unsigned long long)ktime_to_ns(delta) >> 10;
 
 	bt_dev_info(hdev, "Device booted in %llu usecs", duration);
 
@@ -977,6 +977,7 @@ static int intel_recv(struct hci_uart *hu, const void *data, int count)
 				    ARRAY_SIZE(intel_recv_pkts));
 	if (IS_ERR(intel->rx_skb)) {
 		int err = PTR_ERR(intel->rx_skb);
+
 		bt_dev_err(hu->hdev, "Frame reassembly failed (%d)", err);
 		intel->rx_skb = NULL;
 		return err;
@@ -1190,7 +1191,7 @@ no_irq:
 	return 0;
 }
 
-static int intel_remove(struct platform_device *pdev)
+static void intel_remove(struct platform_device *pdev)
 {
 	struct intel_device *idev = platform_get_drvdata(pdev);
 
@@ -1201,13 +1202,11 @@ static int intel_remove(struct platform_device *pdev)
 	mutex_unlock(&intel_device_list_lock);
 
 	dev_info(&pdev->dev, "unregistered.\n");
-
-	return 0;
 }
 
 static struct platform_driver intel_driver = {
 	.probe = intel_probe,
-	.remove = intel_remove,
+	.remove_new = intel_remove,
 	.driver = {
 		.name = "hci_intel",
 		.acpi_match_table = ACPI_PTR(intel_acpi_match),

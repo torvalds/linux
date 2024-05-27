@@ -571,7 +571,7 @@ static int amdgpu_dm_set_atomic_regamma(struct dc_stream_state *stream,
 					uint32_t regamma_size, bool has_rom,
 					enum dc_transfer_func_predefined tf)
 {
-	struct dc_transfer_func *out_tf = stream->out_transfer_func;
+	struct dc_transfer_func *out_tf = &stream->out_transfer_func;
 	int ret = 0;
 
 	if (regamma_size || tf != TRANSFER_FUNCTION_LINEAR) {
@@ -954,8 +954,8 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 		 * inverse color ramp in legacy userspace.
 		 */
 		crtc->cm_is_degamma_srgb = true;
-		stream->out_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
-		stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
+		stream->out_transfer_func.type = TF_TYPE_DISTRIBUTED_POINTS;
+		stream->out_transfer_func.tf = TRANSFER_FUNCTION_SRGB;
 		/*
 		 * Note: although we pass has_rom as parameter here, we never
 		 * actually use ROM because the color module only takes the ROM
@@ -963,7 +963,7 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 		 *
 		 * See more in mod_color_calculate_regamma_params()
 		 */
-		r = __set_legacy_tf(stream->out_transfer_func, regamma_lut,
+		r = __set_legacy_tf(&stream->out_transfer_func, regamma_lut,
 				    regamma_size, has_rom);
 		if (r)
 			return r;
@@ -1034,7 +1034,7 @@ map_crtc_degamma_to_dc_plane(struct dm_crtc_state *crtc,
 						 &degamma_size);
 		ASSERT(degamma_size == MAX_COLOR_LUT_ENTRIES);
 
-		dc_plane_state->in_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
+		dc_plane_state->in_transfer_func.type = TF_TYPE_DISTRIBUTED_POINTS;
 
 		/*
 		 * This case isn't fully correct, but also fairly
@@ -1061,12 +1061,12 @@ map_crtc_degamma_to_dc_plane(struct dm_crtc_state *crtc,
 		 * map these to the atomic one instead.
 		 */
 		if (crtc->cm_is_degamma_srgb)
-			dc_plane_state->in_transfer_func->tf = tf;
+			dc_plane_state->in_transfer_func.tf = tf;
 		else
-			dc_plane_state->in_transfer_func->tf =
+			dc_plane_state->in_transfer_func.tf =
 				TRANSFER_FUNCTION_LINEAR;
 
-		r = __set_input_tf(caps, dc_plane_state->in_transfer_func,
+		r = __set_input_tf(caps, &dc_plane_state->in_transfer_func,
 				   degamma_lut, degamma_size);
 		if (r)
 			return r;
@@ -1075,12 +1075,12 @@ map_crtc_degamma_to_dc_plane(struct dm_crtc_state *crtc,
 		 * For legacy gamma support we need the regamma input
 		 * in linear space. Assume that the input is sRGB.
 		 */
-		dc_plane_state->in_transfer_func->type = TF_TYPE_PREDEFINED;
-		dc_plane_state->in_transfer_func->tf = tf;
+		dc_plane_state->in_transfer_func.type = TF_TYPE_PREDEFINED;
+		dc_plane_state->in_transfer_func.tf = tf;
 
 		if (tf != TRANSFER_FUNCTION_SRGB &&
 		    !mod_color_calculate_degamma_params(caps,
-							dc_plane_state->in_transfer_func,
+							&dc_plane_state->in_transfer_func,
 							NULL, false))
 			return -ENOMEM;
 	}
@@ -1114,24 +1114,24 @@ __set_dm_plane_degamma(struct drm_plane_state *plane_state,
 	if (!has_degamma_lut && tf == AMDGPU_TRANSFER_FUNCTION_DEFAULT)
 		return -EINVAL;
 
-	dc_plane_state->in_transfer_func->tf = amdgpu_tf_to_dc_tf(tf);
+	dc_plane_state->in_transfer_func.tf = amdgpu_tf_to_dc_tf(tf);
 
 	if (has_degamma_lut) {
 		ASSERT(degamma_size == MAX_COLOR_LUT_ENTRIES);
 
-		dc_plane_state->in_transfer_func->type =
+		dc_plane_state->in_transfer_func.type =
 			TF_TYPE_DISTRIBUTED_POINTS;
 
-		ret = __set_input_tf(color_caps, dc_plane_state->in_transfer_func,
+		ret = __set_input_tf(color_caps, &dc_plane_state->in_transfer_func,
 				     degamma_lut, degamma_size);
 		if (ret)
 			return ret;
        } else {
-		dc_plane_state->in_transfer_func->type =
+		dc_plane_state->in_transfer_func.type =
 			TF_TYPE_PREDEFINED;
 
 		if (!mod_color_calculate_degamma_params(color_caps,
-		    dc_plane_state->in_transfer_func, NULL, false))
+		    &dc_plane_state->in_transfer_func, NULL, false))
 			return -ENOMEM;
 	}
 	return 0;
@@ -1156,11 +1156,11 @@ amdgpu_dm_plane_set_color_properties(struct drm_plane_state *plane_state,
 	lut3d = __extract_blob_lut(dm_plane_state->lut3d, &lut3d_size);
 	lut3d_size = lut3d != NULL ? lut3d_size : 0;
 
-	amdgpu_dm_atomic_lut3d(lut3d, lut3d_size, dc_plane_state->lut3d_func);
+	amdgpu_dm_atomic_lut3d(lut3d, lut3d_size, &dc_plane_state->lut3d_func);
 	ret = amdgpu_dm_atomic_shaper_lut(shaper_lut, false,
 					  amdgpu_tf_to_dc_tf(shaper_tf),
 					  shaper_size,
-					  dc_plane_state->in_shaper_func);
+					  &dc_plane_state->in_shaper_func);
 	if (ret) {
 		drm_dbg_kms(plane_state->plane->dev,
 			    "setting plane %d shaper LUT failed.\n",
@@ -1175,7 +1175,7 @@ amdgpu_dm_plane_set_color_properties(struct drm_plane_state *plane_state,
 
 	ret = amdgpu_dm_atomic_blend_lut(blend_lut, false,
 					 amdgpu_tf_to_dc_tf(blend_tf),
-					 blend_size, dc_plane_state->blend_tf);
+					 blend_size, &dc_plane_state->blend_tf);
 	if (ret) {
 		drm_dbg_kms(plane_state->plane->dev,
 			    "setting plane %d gamma lut failed.\n",
@@ -1221,8 +1221,8 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 		color_caps = &dc_plane_state->ctx->dc->caps.color;
 
 	/* Initially, we can just bypass the DGM block. */
-	dc_plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
-	dc_plane_state->in_transfer_func->tf = TRANSFER_FUNCTION_LINEAR;
+	dc_plane_state->in_transfer_func.type = TF_TYPE_BYPASS;
+	dc_plane_state->in_transfer_func.tf = TRANSFER_FUNCTION_LINEAR;
 
 	/* After, we start to update values according to color props */
 	has_crtc_cm_degamma = (crtc->cm_has_degamma || crtc->cm_is_degamma_srgb);

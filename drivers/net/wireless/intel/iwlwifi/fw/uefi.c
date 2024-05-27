@@ -674,6 +674,29 @@ out:
 	return ret;
 }
 
+int iwl_uefi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	struct uefi_cnv_wlan_wbem_data *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WBEM_NAME,
+					      "WBEM", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_WBEM_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WBEM revision:%d\n",
+				data->revision);
+		goto out;
+	}
+	*value = data->wbem_320mhz_per_mcc & IWL_UEFI_WBEM_REV0_MASK;
+	IWL_DEBUG_RADIO(fwrt, "Loaded WBEM config from UEFI\n");
+out:
+	kfree(data);
+	return ret;
+}
+
 int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 		     u32 *value)
 {

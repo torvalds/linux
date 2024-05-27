@@ -67,7 +67,6 @@ struct dfl_afu_dma_region {
  * @regions: the mmio region linked list of this afu feature device.
  * @dma_regions: root of dma regions rb tree.
  * @num_umsgs: num of umsgs.
- * @pdata: afu platform device's pdata.
  */
 struct dfl_afu {
 	u64 region_cur_offset;
@@ -75,8 +74,6 @@ struct dfl_afu {
 	u8 num_umsgs;
 	struct list_head regions;
 	struct rb_root dma_regions;
-
-	struct dfl_feature_platform_data *pdata;
 };
 
 /* hold pdata->lock when call __afu_port_enable/disable */

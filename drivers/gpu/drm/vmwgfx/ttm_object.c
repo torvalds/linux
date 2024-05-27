@@ -87,14 +87,11 @@ struct ttm_object_file {
  *
  * @object_lock: lock that protects idr.
  *
- * @object_count: Per device object count.
- *
  * This is the per-device data structure needed for ttm object management.
  */
 
 struct ttm_object_device {
 	spinlock_t object_lock;
-	atomic_t object_count;
 	struct dma_buf_ops ops;
 	void (*dmabuf_release)(struct dma_buf *dma_buf);
 	struct idr idr;
@@ -431,7 +428,6 @@ ttm_object_device_init(const struct dma_buf_ops *ops)
 		return NULL;
 
 	spin_lock_init(&tdev->object_lock);
-	atomic_set(&tdev->object_count, 0);
 
 	/*
 	 * Our base is at VMWGFX_NUM_MOB + 1 because we want to create

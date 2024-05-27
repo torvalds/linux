@@ -473,7 +473,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
-	current-speed = <115200>;
 };
 
 /* main_uart1 is reserved for firmware usage */

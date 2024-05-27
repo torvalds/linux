@@ -117,6 +117,9 @@ struct xdma_hw_desc {
 			 CHAN_CTRL_IE_WRITE_ERROR |			\
 			 CHAN_CTRL_IE_DESC_ERROR)
 
+/* bits of the channel status register */
+#define XDMA_CHAN_STATUS_BUSY			BIT(0)
+
 #define XDMA_CHAN_STATUS_MASK CHAN_CTRL_START
 
 #define XDMA_CHAN_ERROR_MASK (CHAN_CTRL_IE_DESC_ALIGN_MISMATCH |	\

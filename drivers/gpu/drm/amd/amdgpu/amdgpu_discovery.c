@@ -97,6 +97,7 @@
 #include "smuio_v13_0.h"
 #include "smuio_v13_0_3.h"
 #include "smuio_v13_0_6.h"
+#include "smuio_v14_0_2.h"
 #include "vcn_v5_0_0.h"
 #include "jpeg_v5_0_0.h"
 
@@ -245,6 +246,9 @@ static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, 
 	return -ENOENT;
 }
 
+#define IP_DISCOVERY_V2		2
+#define IP_DISCOVERY_V4		4
+
 static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 						 uint8_t *binary)
 {
@@ -259,14 +263,14 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	 * wait for this to complete.  Once the C2PMSG is updated, we can
 	 * continue.
 	 */
-	if (dev_is_removable(&adev->pdev->dev)) {
-		for (i = 0; i < 1000; i++) {
-			msg = RREG32(mmMP0_SMN_C2PMSG_33);
-			if (msg & 0x80000000)
-				break;
-			msleep(1);
-		}
+
+	for (i = 0; i < 1000; i++) {
+		msg = RREG32(mmMP0_SMN_C2PMSG_33);
+		if (msg & 0x80000000)
+			break;
+		usleep_range(1000, 1100);
 	}
+
 	vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
 
 	if (vram_size) {
@@ -1897,6 +1901,8 @@ static int amdgpu_discovery_set_smu_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
+	case IP_VERSION(14, 0, 2):
+	case IP_VERSION(14, 0, 3):
 		amdgpu_device_ip_block_add(adev, &smu_v14_0_ip_block);
 		break;
 	default:
@@ -2677,6 +2683,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
 		adev->smuio.funcs = &smuio_v13_0_6_funcs;
+		break;
+	case IP_VERSION(14, 0, 2):
+		adev->smuio.funcs = &smuio_v14_0_2_funcs;
 		break;
 	default:
 		break;

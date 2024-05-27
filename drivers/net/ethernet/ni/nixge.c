@@ -946,7 +946,7 @@ static int nixge_change_mtu(struct net_device *ndev, int new_mtu)
 	     NIXGE_MAX_JUMBO_FRAME_SIZE)
 		return -EINVAL;
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	return 0;
 }

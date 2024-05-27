@@ -369,9 +369,9 @@ static int intel_hdcp_load_keys(struct drm_i915_private *i915)
 	}
 
 	/* Wait for the keys to load (500us) */
-	ret = __intel_wait_for_register(&i915->uncore, HDCP_KEY_STATUS,
-					HDCP_KEY_LOAD_DONE, HDCP_KEY_LOAD_DONE,
-					10, 1, &val);
+	ret = intel_de_wait_custom(i915, HDCP_KEY_STATUS,
+				   HDCP_KEY_LOAD_DONE, HDCP_KEY_LOAD_DONE,
+				   10, 1, &val);
 	if (ret)
 		return ret;
 	else if (!(val & HDCP_KEY_LOAD_STATUS))

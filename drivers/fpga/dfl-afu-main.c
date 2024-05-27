@@ -858,8 +858,6 @@ static int afu_dev_init(struct platform_device *pdev)
 	if (!afu)
 		return -ENOMEM;
 
-	afu->pdata = pdata;
-
 	mutex_lock(&pdata->lock);
 	dfl_fpga_pdata_set_private(pdata, afu);
 	afu_mmio_region_init(pdata);

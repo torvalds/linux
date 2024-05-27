@@ -15,7 +15,9 @@
 #include <sys/vfs.h>
 #include <linux/magic.h>
 #include <init.h>
+#include <kern_util.h>
 #include <os.h>
+#include "internal.h"
 
 /*
  * kasan_map_memory - maps memory from @start with a size of @len.

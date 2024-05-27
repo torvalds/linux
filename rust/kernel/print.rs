@@ -13,9 +13,6 @@ use core::{
 
 use crate::str::RawFormatter;
 
-#[cfg(CONFIG_PRINTK)]
-use crate::bindings;
-
 // Called from `vsprintf` with format specifier `%pA`.
 #[no_mangle]
 unsafe extern "C" fn rust_fmt_argument(
@@ -35,8 +32,6 @@ unsafe extern "C" fn rust_fmt_argument(
 /// Public but hidden since it should only be used from public macros.
 #[doc(hidden)]
 pub mod format_strings {
-    use crate::bindings;
-
     /// The length we copy from the `KERN_*` kernel prefixes.
     const LENGTH_PREFIX: usize = 2;
 

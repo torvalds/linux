@@ -28,7 +28,6 @@
 #include "dcn30/dcn30_vpg.h"
 #include "dcn30/dcn30_afmt.h"
 #include "stream_encoder.h"
-#include "dcn10/dcn10_link_encoder.h"
 #include "dcn20/dcn20_stream_encoder.h"
 
 /* Register bit field name change */

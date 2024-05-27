@@ -20,11 +20,11 @@
 #include <linux/mpage.h>
 #include <linux/vfs.h>
 #include <linux/writeback.h>
+#include <linux/fs_context.h>
 
 static int minix_write_inode(struct inode *inode,
 		struct writeback_control *wbc);
 static int minix_statfs(struct dentry *dentry, struct kstatfs *buf);
-static int minix_remount (struct super_block * sb, int * flags, char * data);
 
 static void minix_evict_inode(struct inode *inode)
 {
@@ -111,19 +111,19 @@ static const struct super_operations minix_sops = {
 	.evict_inode	= minix_evict_inode,
 	.put_super	= minix_put_super,
 	.statfs		= minix_statfs,
-	.remount_fs	= minix_remount,
 };
 
-static int minix_remount (struct super_block * sb, int * flags, char * data)
+static int minix_reconfigure(struct fs_context *fc)
 {
-	struct minix_sb_info * sbi = minix_sb(sb);
 	struct minix_super_block * ms;
+	struct super_block *sb = fc->root->d_sb;
+	struct minix_sb_info * sbi = sb->s_fs_info;
 
 	sync_filesystem(sb);
 	ms = sbi->s_ms;
-	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
+	if ((bool)(fc->sb_flags & SB_RDONLY) == sb_rdonly(sb))
 		return 0;
-	if (*flags & SB_RDONLY) {
+	if (fc->sb_flags & SB_RDONLY) {
 		if (ms->s_state & MINIX_VALID_FS ||
 		    !(sbi->s_mount_state & MINIX_VALID_FS))
 			return 0;
@@ -170,7 +170,7 @@ static bool minix_check_superblock(struct super_block *sb)
 	return true;
 }
 
-static int minix_fill_super(struct super_block *s, void *data, int silent)
+static int minix_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct buffer_head *bh;
 	struct buffer_head **map;
@@ -180,6 +180,7 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	struct inode *root_inode;
 	struct minix_sb_info *sbi;
 	int ret = -EINVAL;
+	int silent = fc->sb_flags & SB_SILENT;
 
 	sbi = kzalloc(sizeof(struct minix_sb_info), GFP_KERNEL);
 	if (!sbi)
@@ -369,6 +370,23 @@ out:
 	s->s_fs_info = NULL;
 	kfree(sbi);
 	return ret;
+}
+
+static int minix_get_tree(struct fs_context *fc)
+{
+	 return get_tree_bdev(fc, minix_fill_super);
+}
+
+static const struct fs_context_operations minix_context_ops = {
+	.get_tree	= minix_get_tree,
+	.reconfigure	= minix_reconfigure,
+};
+
+static int minix_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &minix_context_ops;
+
+	return 0;
 }
 
 static int minix_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -680,18 +698,12 @@ void minix_truncate(struct inode * inode)
 		V2_minix_truncate(inode);
 }
 
-static struct dentry *minix_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
-{
-	return mount_bdev(fs_type, flags, dev_name, data, minix_fill_super);
-}
-
 static struct file_system_type minix_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "minix",
-	.mount		= minix_mount,
-	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "minix",
+	.kill_sb		= kill_block_super,
+	.fs_flags		= FS_REQUIRES_DEV,
+	.init_fs_context	= minix_init_fs_context,
 };
 MODULE_ALIAS_FS("minix");
 

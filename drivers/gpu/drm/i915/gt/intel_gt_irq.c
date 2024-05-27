@@ -68,9 +68,9 @@ gen11_other_irq_handler(struct intel_gt *gt, const u8 instance,
 	struct intel_gt *media_gt = gt->i915->media_gt;
 
 	if (instance == OTHER_GUC_INSTANCE)
-		return guc_irq_handler(&gt->uc.guc, iir);
+		return guc_irq_handler(gt_to_guc(gt), iir);
 	if (instance == OTHER_MEDIA_GUC_INSTANCE && media_gt)
-		return guc_irq_handler(&media_gt->uc.guc, iir);
+		return guc_irq_handler(gt_to_guc(media_gt), iir);
 
 	if (instance == OTHER_GTPM_INSTANCE)
 		return gen11_rps_irq_handler(&gt->rps, iir);
@@ -442,7 +442,7 @@ void gen8_gt_irq_handler(struct intel_gt *gt, u32 master_ctl)
 		iir = raw_reg_read(regs, GEN8_GT_IIR(2));
 		if (likely(iir)) {
 			gen6_rps_irq_handler(&gt->rps, iir);
-			guc_irq_handler(&gt->uc.guc, iir >> 16);
+			guc_irq_handler(gt_to_guc(gt), iir >> 16);
 			raw_reg_write(regs, GEN8_GT_IIR(2), iir);
 		}
 	}

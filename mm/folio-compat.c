@@ -58,12 +58,6 @@ bool set_page_dirty(struct page *page)
 }
 EXPORT_SYMBOL(set_page_dirty);
 
-int __set_page_dirty_nobuffers(struct page *page)
-{
-	return filemap_dirty_folio(page_mapping(page), page_folio(page));
-}
-EXPORT_SYMBOL(__set_page_dirty_nobuffers);
-
 bool clear_page_dirty_for_io(struct page *page)
 {
 	return folio_clear_dirty_for_io(page_folio(page));

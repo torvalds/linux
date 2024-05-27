@@ -1115,6 +1115,7 @@ enum bpf_attach_type {
 	BPF_CGROUP_UNIX_GETSOCKNAME,
 	BPF_NETKIT_PRIMARY,
 	BPF_NETKIT_PEER,
+	BPF_TRACE_KPROBE_SESSION,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -1135,6 +1136,7 @@ enum bpf_link_type {
 	BPF_LINK_TYPE_TCX = 11,
 	BPF_LINK_TYPE_UPROBE_MULTI = 12,
 	BPF_LINK_TYPE_NETKIT = 13,
+	BPF_LINK_TYPE_SOCKMAP = 14,
 	__MAX_BPF_LINK_TYPE,
 };
 
@@ -1662,8 +1664,10 @@ union bpf_attr {
 	} query;
 
 	struct { /* anonymous struct used by BPF_RAW_TRACEPOINT_OPEN command */
-		__u64 name;
-		__u32 prog_fd;
+		__u64		name;
+		__u32		prog_fd;
+		__u32		:32;
+		__aligned_u64	cookie;
 	} raw_tracepoint;
 
 	struct { /* anonymous struct for BPF_BTF_LOAD */
@@ -3392,6 +3396,10 @@ union bpf_attr {
  *			for the nexthop. If the src addr cannot be derived,
  *			**BPF_FIB_LKUP_RET_NO_SRC_ADDR** is returned. In this
  *			case, *params*->dmac and *params*->smac are not set either.
+ *		**BPF_FIB_LOOKUP_MARK**
+ *			Use the mark present in *params*->mark for the fib lookup.
+ *			This option should not be used with BPF_FIB_LOOKUP_DIRECT,
+ *			as it only has meaning for full lookups.
  *
  *		*ctx* is either **struct xdp_md** for XDP programs or
  *		**struct sk_buff** tc cls_act programs.
@@ -5020,7 +5028,7 @@ union bpf_attr {
  *		bytes will be copied to *dst*
  *	Return
  *		The **hash_algo** is returned on success,
- *		**-EOPNOTSUP** if IMA is disabled or **-EINVAL** if
+ *		**-EOPNOTSUPP** if IMA is disabled or **-EINVAL** if
  *		invalid arguments are passed.
  *
  * struct socket *bpf_sock_from_file(struct file *file)
@@ -5506,7 +5514,7 @@ union bpf_attr {
  *		bytes will be copied to *dst*
  *	Return
  *		The **hash_algo** is returned on success,
- *		**-EOPNOTSUP** if the hash calculation failed or **-EINVAL** if
+ *		**-EOPNOTSUPP** if the hash calculation failed or **-EINVAL** if
  *		invalid arguments are passed.
  *
  * void *bpf_kptr_xchg(void *map_value, void *ptr)
@@ -6718,6 +6726,10 @@ struct bpf_link_info {
 			__u32 ifindex;
 			__u32 attach_type;
 		} netkit;
+		struct {
+			__u32 map_id;
+			__u32 attach_type;
+		} sockmap;
 	};
 } __attribute__((aligned(8)));
 
@@ -6936,6 +6948,8 @@ enum {
 					 * socket transition to LISTEN state.
 					 */
 	BPF_SOCK_OPS_RTT_CB,		/* Called on every RTT.
+					 * Arg1: measured RTT input (mrtt)
+					 * Arg2: updated srtt
 					 */
 	BPF_SOCK_OPS_PARSE_HDR_OPT_CB,	/* Parse the header option.
 					 * It will be called to handle
@@ -7118,6 +7132,7 @@ enum {
 	BPF_FIB_LOOKUP_SKIP_NEIGH = (1U << 2),
 	BPF_FIB_LOOKUP_TBID    = (1U << 3),
 	BPF_FIB_LOOKUP_SRC     = (1U << 4),
+	BPF_FIB_LOOKUP_MARK    = (1U << 5),
 };
 
 enum {
@@ -7150,7 +7165,7 @@ struct bpf_fib_lookup {
 
 		/* output: MTU value */
 		__u16	mtu_result;
-	};
+	} __attribute__((packed, aligned(2)));
 	/* input: L3 device index for lookup
 	 * output: device index from FIB lookup
 	 */
@@ -7195,8 +7210,19 @@ struct bpf_fib_lookup {
 		__u32	tbid;
 	};
 
-	__u8	smac[6];     /* ETH_ALEN */
-	__u8	dmac[6];     /* ETH_ALEN */
+	union {
+		/* input */
+		struct {
+			__u32	mark;   /* policy routing */
+			/* 2 4-byte holes for input */
+		};
+
+		/* output: source and dest mac */
+		struct {
+			__u8	smac[6];	/* ETH_ALEN */
+			__u8	dmac[6];	/* ETH_ALEN */
+		};
+	};
 };
 
 struct bpf_redir_neigh {
@@ -7280,6 +7306,10 @@ struct bpf_spin_lock {
 };
 
 struct bpf_timer {
+	__u64 __opaque[2];
+} __attribute__((aligned(8)));
+
+struct bpf_wq {
 	__u64 __opaque[2];
 } __attribute__((aligned(8)));
 

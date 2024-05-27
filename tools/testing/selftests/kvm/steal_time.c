@@ -4,20 +4,22 @@
  *
  * Copyright (C) 2020, Red Hat, Inc.
  */
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <time.h>
 #include <sched.h>
 #include <pthread.h>
 #include <linux/kernel.h>
 #include <asm/kvm.h>
-#ifndef __riscv
+#ifdef __riscv
+#include "sbi.h"
+#else
 #include <asm/kvm_para.h>
 #endif
 
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 #define NR_VCPUS		4
 #define ST_GPA_BASE		(1 << 30)
@@ -83,20 +85,18 @@ static void steal_time_init(struct kvm_vcpu *vcpu, uint32_t i)
 static void steal_time_dump(struct kvm_vm *vm, uint32_t vcpu_idx)
 {
 	struct kvm_steal_time *st = addr_gva2hva(vm, (ulong)st_gva[vcpu_idx]);
-	int i;
 
-	pr_info("VCPU%d:\n", vcpu_idx);
-	pr_info("    steal:     %lld\n", st->steal);
-	pr_info("    version:   %d\n", st->version);
-	pr_info("    flags:     %d\n", st->flags);
-	pr_info("    preempted: %d\n", st->preempted);
-	pr_info("    u8_pad:    ");
-	for (i = 0; i < 3; ++i)
-		pr_info("%d", st->u8_pad[i]);
-	pr_info("\n    pad:       ");
-	for (i = 0; i < 11; ++i)
-		pr_info("%d", st->pad[i]);
-	pr_info("\n");
+	ksft_print_msg("VCPU%d:\n", vcpu_idx);
+	ksft_print_msg("    steal:     %lld\n", st->steal);
+	ksft_print_msg("    version:   %d\n", st->version);
+	ksft_print_msg("    flags:     %d\n", st->flags);
+	ksft_print_msg("    preempted: %d\n", st->preempted);
+	ksft_print_msg("    u8_pad:    %d %d %d\n",
+			st->u8_pad[0], st->u8_pad[1], st->u8_pad[2]);
+	ksft_print_msg("    pad:       %d %d %d %d %d %d %d %d %d %d %d\n",
+			st->pad[0], st->pad[1], st->pad[2], st->pad[3],
+			st->pad[4], st->pad[5], st->pad[6], st->pad[7],
+			st->pad[8], st->pad[9], st->pad[10]);
 }
 
 #elif defined(__aarch64__)
@@ -199,10 +199,10 @@ static void steal_time_dump(struct kvm_vm *vm, uint32_t vcpu_idx)
 {
 	struct st_time *st = addr_gva2hva(vm, (ulong)st_gva[vcpu_idx]);
 
-	pr_info("VCPU%d:\n", vcpu_idx);
-	pr_info("    rev:     %d\n", st->rev);
-	pr_info("    attr:    %d\n", st->attr);
-	pr_info("    st_time: %ld\n", st->st_time);
+	ksft_print_msg("VCPU%d:\n", vcpu_idx);
+	ksft_print_msg("    rev:     %d\n", st->rev);
+	ksft_print_msg("    attr:    %d\n", st->attr);
+	ksft_print_msg("    st_time: %ld\n", st->st_time);
 }
 
 #elif defined(__riscv)
@@ -366,7 +366,9 @@ int main(int ac, char **av)
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, ST_GPA_BASE, 1, gpages, 0);
 	virt_map(vm, ST_GPA_BASE, ST_GPA_BASE, gpages);
 
+	ksft_print_header();
 	TEST_REQUIRE(is_steal_time_supported(vcpus[0]));
+	ksft_set_plan(NR_VCPUS);
 
 	/* Run test on each VCPU */
 	for (i = 0; i < NR_VCPUS; ++i) {
@@ -407,14 +409,15 @@ int main(int ac, char **av)
 			    run_delay, stolen_time);
 
 		if (verbose) {
-			pr_info("VCPU%d: total-stolen-time=%ld test-stolen-time=%ld", i,
-				guest_stolen_time[i], stolen_time);
-			if (stolen_time == run_delay)
-				pr_info(" (BONUS: guest test-stolen-time even exactly matches test-run_delay)");
-			pr_info("\n");
+			ksft_print_msg("VCPU%d: total-stolen-time=%ld test-stolen-time=%ld%s\n",
+				       i, guest_stolen_time[i], stolen_time,
+				       stolen_time == run_delay ?
+				       " (BONUS: guest test-stolen-time even exactly matches test-run_delay)" : "");
 			steal_time_dump(vm, i);
 		}
+		ksft_test_result_pass("vcpu%d\n", i);
 	}
 
-	return 0;
+	/* Print results and exit() accordingly */
+	ksft_finished();
 }

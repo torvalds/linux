@@ -36,6 +36,7 @@
 
 enum tc_port;
 struct drm_i915_private;
+struct drm_printer;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -180,18 +181,19 @@ enum icl_port_dpll_id {
 	ICL_PORT_DPLL_COUNT,
 };
 
-struct intel_dpll_hw_state {
-	/* i9xx, pch plls */
+struct i9xx_dpll_hw_state {
 	u32 dpll;
 	u32 dpll_md;
 	u32 fp0;
 	u32 fp1;
+};
 
-	/* hsw, bdw */
+struct hsw_dpll_hw_state {
 	u32 wrpll;
 	u32 spll;
+};
 
-	/* skl */
+struct skl_dpll_hw_state {
 	/*
 	 * DPLL_CTRL1 has 6 bits for each each this DPLL. We store those in
 	 * lower part of ctrl1 and they get shifted into position when writing
@@ -201,20 +203,18 @@ struct intel_dpll_hw_state {
 	u32 ctrl1;
 	/* HDMI only, 0 when used for DP */
 	u32 cfgcr1, cfgcr2;
+};
 
-	/* icl */
-	u32 cfgcr0;
+struct bxt_dpll_hw_state {
+	u32 ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10, pcsdw12;
+};
+
+struct icl_dpll_hw_state {
+	u32 cfgcr0, cfgcr1;
 
 	/* tgl */
 	u32 div0;
 
-	/* bxt */
-	u32 ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10, pcsdw12;
-
-	/*
-	 * ICL uses the following, already defined:
-	 * u32 cfgcr0, cfgcr1;
-	 */
 	u32 mg_refclkin_ctl;
 	u32 mg_clktop2_coreclkctl1;
 	u32 mg_clktop2_hsclkctl;
@@ -227,6 +227,55 @@ struct intel_dpll_hw_state {
 	u32 mg_pll_tdc_coldst_bias;
 	u32 mg_pll_bias_mask;
 	u32 mg_pll_tdc_coldst_bias_mask;
+};
+
+struct intel_mpllb_state {
+	u32 clock; /* in KHz */
+	u32 ref_control;
+	u32 mpllb_cp;
+	u32 mpllb_div;
+	u32 mpllb_div2;
+	u32 mpllb_fracn1;
+	u32 mpllb_fracn2;
+	u32 mpllb_sscen;
+	u32 mpllb_sscstep;
+};
+
+struct intel_c10pll_state {
+	u32 clock; /* in KHz */
+	u8 tx;
+	u8 cmn;
+	u8 pll[20];
+};
+
+struct intel_c20pll_state {
+	u32 clock; /* in kHz */
+	u16 tx[3];
+	u16 cmn[4];
+	union {
+		u16 mplla[10];
+		u16 mpllb[11];
+	};
+};
+
+struct intel_cx0pll_state {
+	union {
+		struct intel_c10pll_state c10;
+		struct intel_c20pll_state c20;
+	};
+	bool ssc_enabled;
+};
+
+struct intel_dpll_hw_state {
+	union {
+		struct i9xx_dpll_hw_state i9xx;
+		struct hsw_dpll_hw_state hsw;
+		struct skl_dpll_hw_state skl;
+		struct bxt_dpll_hw_state bxt;
+		struct icl_dpll_hw_state icl;
+		struct intel_mpllb_state mpllb;
+		struct intel_cx0pll_state cx0pll;
+	};
 };
 
 /**
@@ -364,10 +413,10 @@ void intel_update_active_dpll(struct intel_atomic_state *state,
 			      struct intel_encoder *encoder);
 int intel_dpll_get_freq(struct drm_i915_private *i915,
 			const struct intel_shared_dpll *pll,
-			const struct intel_dpll_hw_state *pll_state);
+			const struct intel_dpll_hw_state *dpll_hw_state);
 bool intel_dpll_get_hw_state(struct drm_i915_private *i915,
 			     struct intel_shared_dpll *pll,
-			     struct intel_dpll_hw_state *hw_state);
+			     struct intel_dpll_hw_state *dpll_hw_state);
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state);
@@ -377,7 +426,8 @@ void intel_dpll_readout_hw_state(struct drm_i915_private *i915);
 void intel_dpll_sanitize_state(struct drm_i915_private *i915);
 
 void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
-			      const struct intel_dpll_hw_state *hw_state);
+			      struct drm_printer *p,
+			      const struct intel_dpll_hw_state *dpll_hw_state);
 bool intel_dpll_compare_hw_state(struct drm_i915_private *i915,
 				 const struct intel_dpll_hw_state *a,
 				 const struct intel_dpll_hw_state *b);

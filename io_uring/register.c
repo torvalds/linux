@@ -368,8 +368,7 @@ static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 
 	/* now propagate the restriction to all registered users */
 	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
-		struct io_uring_task *tctx = node->task->io_uring;
-
+		tctx = node->task->io_uring;
 		if (WARN_ON_ONCE(!tctx->io_wq))
 			continue;
 

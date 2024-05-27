@@ -18,6 +18,7 @@
 #include "xfs_trans.h"
 #include "xfs_error.h"
 #include "scrub/scrub.h"
+#include "scrub/common.h"
 #include "scrub/readdir.h"
 
 /* Call a function for every entry in a shortform directory. */
@@ -99,7 +100,7 @@ xchk_dir_walk_block(
 	unsigned int		off, next_off, end;
 	int			error;
 
-	error = xfs_dir3_block_read(sc->tp, dp, &bp);
+	error = xfs_dir3_block_read(sc->tp, dp, dp->i_ino, &bp);
 	if (error)
 		return error;
 
@@ -175,7 +176,7 @@ xchk_read_leaf_dir_buf(
 	if (new_off > *curoff)
 		*curoff = new_off;
 
-	return xfs_dir3_data_read(tp, dp, map.br_startoff, 0, bpp);
+	return xfs_dir3_data_read(tp, dp, dp->i_ino, map.br_startoff, 0, bpp);
 }
 
 /* Call a function for every entry in a leaf directory. */
@@ -273,8 +274,8 @@ xchk_dir_walk(
 		.dp		= dp,
 		.geo		= dp->i_mount->m_dir_geo,
 		.trans		= sc->tp,
+		.owner		= dp->i_ino,
 	};
-	bool			isblock;
 	int			error;
 
 	if (xfs_is_shutdown(dp->i_mount))
@@ -283,22 +284,17 @@ xchk_dir_walk(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
+	switch (xfs_dir2_format(&args, &error)) {
+	case XFS_DIR2_FMT_SF:
 		return xchk_dir_walk_sf(sc, dp, dirent_fn, priv);
-
-	/* dir2 functions require that the data fork is loaded */
-	error = xfs_iread_extents(sc->tp, dp, XFS_DATA_FORK);
-	if (error)
-		return error;
-
-	error = xfs_dir2_isblock(&args, &isblock);
-	if (error)
-		return error;
-
-	if (isblock)
+	case XFS_DIR2_FMT_BLOCK:
 		return xchk_dir_walk_block(sc, dp, dirent_fn, priv);
-
-	return xchk_dir_walk_leaf(sc, dp, dirent_fn, priv);
+	case XFS_DIR2_FMT_LEAF:
+	case XFS_DIR2_FMT_NODE:
+		return xchk_dir_walk_leaf(sc, dp, dirent_fn, priv);
+	default:
+		return error;
+	}
 }
 
 /*
@@ -324,50 +320,102 @@ xchk_dir_lookup(
 		.hashval	= xfs_dir2_hashname(dp->i_mount, name),
 		.whichfork	= XFS_DATA_FORK,
 		.op_flags	= XFS_DA_OP_OKNOENT,
+		.owner		= dp->i_ino,
 	};
-	bool			isblock, isleaf;
 	int			error;
 
 	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
 
+	/*
+	 * A temporary directory's block headers are written with the owner
+	 * set to sc->ip, so we must switch the owner here for the lookup.
+	 */
+	if (dp == sc->tempip)
+		args.owner = sc->ip->i_ino;
+
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
-		error = xfs_dir2_sf_lookup(&args);
-		goto out_check_rval;
-	}
-
-	/* dir2 functions require that the data fork is loaded */
-	error = xfs_iread_extents(sc->tp, dp, XFS_DATA_FORK);
-	if (error)
-		return error;
-
-	error = xfs_dir2_isblock(&args, &isblock);
-	if (error)
-		return error;
-
-	if (isblock) {
-		error = xfs_dir2_block_lookup(&args);
-		goto out_check_rval;
-	}
-
-	error = xfs_dir2_isleaf(&args, &isleaf);
-	if (error)
-		return error;
-
-	if (isleaf) {
-		error = xfs_dir2_leaf_lookup(&args);
-		goto out_check_rval;
-	}
-
-	error = xfs_dir2_node_lookup(&args);
-
-out_check_rval:
-	if (error == -EEXIST)
-		error = 0;
+	error = xfs_dir_lookup_args(&args);
 	if (!error)
 		*ino = args.inumber;
 	return error;
+}
+
+/*
+ * Try to grab the IOLOCK and ILOCK of sc->ip and ip, returning @ip's lock
+ * state.  The caller may have a transaction, so we must use trylock for both
+ * IOLOCKs.
+ */
+static inline unsigned int
+xchk_dir_trylock_both(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip)
+{
+	if (!xchk_ilock_nowait(sc, XFS_IOLOCK_EXCL))
+		return 0;
+
+	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
+		goto parent_iolock;
+
+	xchk_ilock(sc, XFS_ILOCK_EXCL);
+	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
+		goto parent_ilock;
+
+	return XFS_IOLOCK_SHARED | XFS_ILOCK_EXCL;
+
+parent_ilock:
+	xchk_iunlock(sc, XFS_ILOCK_EXCL);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+parent_iolock:
+	xchk_iunlock(sc, XFS_IOLOCK_EXCL);
+	return 0;
+}
+
+/*
+ * Try for a limited time to grab the IOLOCK and ILOCK of both the scrub target
+ * (@sc->ip) and the inode at the other end (@ip) of a directory or parent
+ * pointer link so that we can check that link.
+ *
+ * We do not know ahead of time that the directory tree is /not/ corrupt, so we
+ * cannot use the "lock two inode" functions because we do not know that there
+ * is not a racing thread trying to take the locks in opposite order.  First
+ * take IOLOCK_EXCL of the scrub target, and then try to take IOLOCK_SHARED
+ * of @ip to synchronize with the VFS.  Next, take ILOCK_EXCL of the scrub
+ * target and @ip to synchronize with XFS.
+ *
+ * If the trylocks succeed, *lockmode will be set to the locks held for @ip;
+ * @sc->ilock_flags will be set for the locks held for @sc->ip; and zero will
+ * be returned.  If not, returns -EDEADLOCK to try again; or -ETIMEDOUT if
+ * XCHK_TRY_HARDER was set.  Returns -EINTR if the process has been killed.
+ */
+int
+xchk_dir_trylock_for_pptrs(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip,
+	unsigned int		*lockmode)
+{
+	unsigned int		nr;
+	int			error = 0;
+
+	ASSERT(sc->ilock_flags == 0);
+
+	for (nr = 0; nr < HZ; nr++) {
+		*lockmode = xchk_dir_trylock_both(sc, ip);
+		if (*lockmode)
+			return 0;
+
+		if (xchk_should_terminate(sc, &error))
+			return error;
+
+		delay(1);
+	}
+
+	if (sc->flags & XCHK_TRY_HARDER) {
+		xchk_set_incomplete(sc);
+		return -ETIMEDOUT;
+	}
+
+	return -EDEADLOCK;
 }

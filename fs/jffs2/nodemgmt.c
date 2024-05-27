@@ -49,27 +49,30 @@ static int jffs2_rp_can_write(struct jffs2_sb_info *c)
 	return 0;
 }
 
+static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize,
+				  uint32_t *len, uint32_t sumsize);
+
 /**
  *	jffs2_reserve_space - request physical space to write nodes to flash
  *	@c: superblock info
  *	@minsize: Minimum acceptable size of allocation
  *	@len: Returned value of allocation length
  *	@prio: Allocation type - ALLOC_{NORMAL,DELETION}
+ *	@sumsize: summary size requested or JFFS2_SUMMARY_NOSUM_SIZE for no summary
  *
- *	Requests a block of physical space on the flash. Returns zero for success
- *	and puts 'len' into the appropriate place, or returns -ENOSPC or other 
- *	error if appropriate. Doesn't return len since that's 
+ *	Requests a block of physical space on the flash.
  *
- *	If it returns zero, jffs2_reserve_space() also downs the per-filesystem
+ *	Returns: %0 for success	and puts 'len' into the appropriate place,
+ *	or returns -ENOSPC or other error if appropriate.
+ *	Doesn't return len since that's already returned in @len.
+ *
+ *	If it returns %0, jffs2_reserve_space() also downs the per-filesystem
  *	allocation semaphore, to prevent more than one allocation from being
- *	active at any time. The semaphore is later released by jffs2_commit_allocation()
+ *	active at any time. The semaphore is later released by jffs2_commit_allocation().
  *
  *	jffs2_reserve_space() may trigger garbage collection in order to make room
  *	for the requested allocation.
  */
-
-static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize,
-				  uint32_t *len, uint32_t sumsize);
 
 int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			uint32_t *len, int prio, uint32_t sumsize)
@@ -488,13 +491,16 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 /**
  *	jffs2_add_physical_node_ref - add a physical node reference to the list
  *	@c: superblock info
- *	@new: new node reference to add
+ *	@ofs: offset in the block
  *	@len: length of this physical node
+ *	@ic: inode cache pointer
  *
  *	Should only be used to report nodes for which space has been allocated
  *	by jffs2_reserve_space.
  *
  *	Must be called with the alloc_sem held.
+ *
+ *	Returns: pointer to new node on success or -errno code on error
  */
 
 struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,

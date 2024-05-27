@@ -6,10 +6,15 @@
 /dts-v1/;
 
 #include "sun50i-h616-orangepi-zero.dtsi"
+#include "sun50i-h616-cpu-opp.dtsi"
 
 / {
 	model = "OrangePi Zero2";
 	compatible = "xunlong,orangepi-zero2", "allwinner,sun50i-h616";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdca>;
 };
 
 &emac0 {

@@ -40,6 +40,7 @@ struct adf_tl_hw_data {
 	u8 num_dev_counters;
 	u8 num_rp_counters;
 	u8 max_rp;
+	u8 max_sl_cnt;
 };
 
 struct adf_telemetry {

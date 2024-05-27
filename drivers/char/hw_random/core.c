@@ -382,7 +382,7 @@ static ssize_t rng_current_show(struct device *dev,
 	if (IS_ERR(rng))
 		return PTR_ERR(rng);
 
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", rng ? rng->name : "none");
+	ret = sysfs_emit(buf, "%s\n", rng ? rng->name : "none");
 	put_rng(rng);
 
 	return ret;

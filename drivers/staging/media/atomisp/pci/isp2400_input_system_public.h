@@ -308,21 +308,6 @@ input_system_err_t	input_system_prbs_channel_cfg(
     target_cfg2400_t	target
 );
 
-input_system_err_t	input_system_tpg_channel_cfg(
-    u32		ch_id,
-    u32		nof_frames,//not used yet
-    u32		x_mask,
-    u32		y_mask,
-    u32		x_delta,
-    u32		y_delta,
-    u32		xy_mask,
-    u32		sync_gen_width,
-    u32		sync_gen_height,
-    u32		sync_gen_hblank_cycles,
-    u32		sync_gen_vblank_cycles,
-    target_cfg2400_t	target
-);
-
 input_system_err_t	input_system_gpfifo_channel_cfg(
     u32		ch_id,
     u32		nof_frames,

@@ -38,7 +38,7 @@ config SUPERH
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DYNAMIC_FTRACE
-	select HAVE_FAST_GUP if MMU
+	select HAVE_GUP_FAST if MMU
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -125,7 +125,8 @@ config ARCH_HAS_ILOG2_U64
 
 config NO_IOPORT_MAP
 	def_bool !PCI
-	depends on !SH_SHMIN && !SH_HP6XX && !SH_SOLUTION_ENGINE
+	depends on !SH_SHMIN && !SH_HP6XX && !SH_SOLUTION_ENGINE && \
+		   !SH_DREAMCAST
 
 config IO_TRAPPED
 	bool
@@ -709,7 +710,6 @@ config ROMIMAGE_MMCIF
 
 choice
 	prompt "Kernel command line"
-	optional
 	default CMDLINE_OVERWRITE
 	help
 	  Setting this option allows the kernel command line arguments
@@ -726,6 +726,11 @@ config CMDLINE_EXTEND
 	help
 	  Given string will be concatenated with arguments passed in
 	  by a bootloader.
+
+config CMDLINE_FROM_BOOTLOADER
+	bool "Use bootloader kernel arguments"
+	help
+	  Uses the command-line options passed by the boot loader.
 
 endchoice
 

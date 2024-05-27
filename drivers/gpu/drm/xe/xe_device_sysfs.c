@@ -35,7 +35,9 @@ vram_d3cold_threshold_show(struct device *dev,
 	if (!xe)
 		return -EINVAL;
 
+	xe_pm_runtime_get(xe);
 	ret = sysfs_emit(buf, "%d\n", xe->d3cold.vram_threshold);
+	xe_pm_runtime_put(xe);
 
 	return ret;
 }
@@ -58,7 +60,9 @@ vram_d3cold_threshold_store(struct device *dev, struct device_attribute *attr,
 
 	drm_dbg(&xe->drm, "vram_d3cold_threshold: %u\n", vram_d3cold_threshold);
 
+	xe_pm_runtime_get(xe);
 	ret = xe_pm_set_vram_threshold(xe, vram_d3cold_threshold);
+	xe_pm_runtime_put(xe);
 
 	return ret ?: count;
 }
@@ -72,18 +76,14 @@ static void xe_device_sysfs_fini(struct drm_device *drm, void *arg)
 	sysfs_remove_file(&xe->drm.dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
 }
 
-void xe_device_sysfs_init(struct xe_device *xe)
+int xe_device_sysfs_init(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
 	int ret;
 
 	ret = sysfs_create_file(&dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
-	if (ret) {
-		drm_warn(&xe->drm, "Failed to create sysfs file\n");
-		return;
-	}
-
-	ret = drmm_add_action_or_reset(&xe->drm, xe_device_sysfs_fini, xe);
 	if (ret)
-		drm_warn(&xe->drm, "Failed to add sysfs fini drm action\n");
+		return ret;
+
+	return drmm_add_action_or_reset(&xe->drm, xe_device_sysfs_fini, xe);
 }

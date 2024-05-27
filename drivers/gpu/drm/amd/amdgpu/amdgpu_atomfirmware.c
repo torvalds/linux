@@ -34,6 +34,7 @@ union firmware_info {
 	struct atom_firmware_info_v3_2 v32;
 	struct atom_firmware_info_v3_3 v33;
 	struct atom_firmware_info_v3_4 v34;
+	struct atom_firmware_info_v3_5 v35;
 };
 
 /*
@@ -211,6 +212,7 @@ union igp_info {
 	struct atom_integrated_system_info_v1_11 v11;
 	struct atom_integrated_system_info_v1_12 v12;
 	struct atom_integrated_system_info_v2_1 v21;
+	struct atom_integrated_system_info_v2_3 v23;
 };
 
 union umc_info {
@@ -350,6 +352,20 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 					if (!mem_channel_number)
 						mem_channel_number = 1;
 					mem_type = igp_info->v21.memorytype;
+					if (mem_type == LpDdr5MemType)
+						mem_channel_width = 32;
+					else
+						mem_channel_width = 64;
+					if (vram_width)
+						*vram_width = mem_channel_number * mem_channel_width;
+					if (vram_type)
+						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+					break;
+				case 3:
+					mem_channel_number = igp_info->v23.umachannelnumber;
+					if (!mem_channel_number)
+						mem_channel_number = 1;
+					mem_type = igp_info->v23.memorytype;
 					if (mem_type == LpDdr5MemType)
 						mem_channel_width = 32;
 					else
@@ -871,6 +887,10 @@ int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)
 	case 4:
 		fw_reserved_fb_size =
 			(firmware_info->v34.fw_reserved_size_in_kb << 10);
+		break;
+	case 5:
+		fw_reserved_fb_size =
+			(firmware_info->v35.fw_reserved_size_in_kb << 10);
 		break;
 	default:
 		fw_reserved_fb_size = 0;

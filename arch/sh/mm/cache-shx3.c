@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <asm/cache.h>
+#include <asm/cacheflush.h>
 
 #define CCR_CACHE_SNM	0x40000		/* Hardware-assisted synonym avoidance */
 #define CCR_CACHE_IBE	0x1000000	/* ICBI broadcast */

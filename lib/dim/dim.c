@@ -82,3 +82,6 @@ bool dim_calc_stats(struct dim_sample *start, struct dim_sample *end,
 	return true;
 }
 EXPORT_SYMBOL(dim_calc_stats);
+
+MODULE_DESCRIPTION("Dynamic Interrupt Moderation (DIM) library");
+MODULE_LICENSE("Dual BSD/GPL");

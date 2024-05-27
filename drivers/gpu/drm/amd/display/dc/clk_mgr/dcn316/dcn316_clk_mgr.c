@@ -485,7 +485,8 @@ static void dcn316_clk_mgr_helper_populate_bw_params(
 
 	j = -1;
 
-	ASSERT(NUM_DF_PSTATE_LEVELS <= MAX_NUM_DPM_LVL);
+	static_assert(NUM_DF_PSTATE_LEVELS <= MAX_NUM_DPM_LVL,
+		"number of reported pstate levels exceeds maximum");
 
 	/* Find lowest DPM, FCLK is filled in reverse order*/
 

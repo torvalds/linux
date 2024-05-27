@@ -973,7 +973,7 @@ static int __klp_disable_patch(struct klp_patch *patch)
 	if (klp_transition_patch)
 		return -EBUSY;
 
-	klp_init_transition(patch, KLP_UNPATCHED);
+	klp_init_transition(patch, KLP_TRANSITION_UNPATCHED);
 
 	klp_for_each_object(patch, obj)
 		if (obj->patched)
@@ -1008,7 +1008,7 @@ static int __klp_enable_patch(struct klp_patch *patch)
 
 	pr_notice("enabling patch '%s'\n", patch->mod->name);
 
-	klp_init_transition(patch, KLP_PATCHED);
+	klp_init_transition(patch, KLP_TRANSITION_PATCHED);
 
 	/*
 	 * Enforce the order of the func->transition writes in

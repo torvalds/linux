@@ -376,13 +376,17 @@ config ARM_SMMU_QCOM
 
 config ARM_SMMU_QCOM_DEBUG
 	bool "ARM SMMU QCOM implementation defined debug support"
-	depends on ARM_SMMU_QCOM
+	depends on ARM_SMMU_QCOM=y
 	help
 	  Support for implementation specific debug features in ARM SMMU
-	  hardware found in QTI platforms.
+	  hardware found in QTI platforms. This include support for
+	  the Translation Buffer Units (TBU) that can be used to obtain
+	  additional information when debugging memory management issues
+	  like context faults.
 
-	  Say Y here to enable debug for issues such as TLB sync timeouts
-	  which requires implementation defined register dumps.
+	  Say Y here to enable debug for issues such as context faults
+	  or TLB sync timeouts which requires implementation defined
+	  register dumps.
 
 config ARM_SMMU_V3
 	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
@@ -397,9 +401,9 @@ config ARM_SMMU_V3
 	  Say Y here if your system includes an IOMMU device implementing
 	  the ARM SMMUv3 architecture.
 
+if ARM_SMMU_V3
 config ARM_SMMU_V3_SVA
 	bool "Shared Virtual Addressing support for the ARM SMMUv3"
-	depends on ARM_SMMU_V3
 	select IOMMU_SVA
 	select IOMMU_IOPF
 	select MMU_NOTIFIER
@@ -409,6 +413,17 @@ config ARM_SMMU_V3_SVA
 
 	  Say Y here if your system supports SVA extensions such as PCIe PASID
 	  and PRI.
+
+config ARM_SMMU_V3_KUNIT_TEST
+	tristate "KUnit tests for arm-smmu-v3 driver"  if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on ARM_SMMU_V3_SVA
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to unit-test arm-smmu-v3 driver functions.
+
+	  If unsure, say N.
+endif
 
 config S390_IOMMU
 	def_bool y if S390 && PCI

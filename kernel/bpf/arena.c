@@ -37,7 +37,7 @@
  */
 
 /* number of bytes addressable by LDX/STX insn with 16-bit 'off' field */
-#define GUARD_SZ (1ull << sizeof(((struct bpf_insn *)0)->off) * 8)
+#define GUARD_SZ (1ull << sizeof_field(struct bpf_insn, off) * 8)
 #define KERN_VM_SZ (SZ_4G + GUARD_SZ)
 
 struct bpf_arena {
@@ -251,7 +251,7 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 	int ret;
 
 	kbase = bpf_arena_get_kern_vm_start(arena);
-	kaddr = kbase + (u32)(vmf->address & PAGE_MASK);
+	kaddr = kbase + (u32)(vmf->address);
 
 	guard(mutex)(&arena->lock);
 	page = vmalloc_to_page((void *)kaddr);
@@ -314,7 +314,7 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 			return -EINVAL;
 	}
 
-	ret = current->mm->get_unmapped_area(filp, addr, len * 2, 0, flags);
+	ret = mm_get_unmapped_area(current->mm, filp, addr, len * 2, 0, flags);
 	if (IS_ERR_VALUE(ret))
 		return ret;
 	if ((ret >> 32) == ((ret + len - 1) >> 32))

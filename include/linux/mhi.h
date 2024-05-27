@@ -353,6 +353,7 @@ struct mhi_controller_config {
  * @read_reg: Read a MHI register via the physical link (required)
  * @write_reg: Write a MHI register via the physical link (required)
  * @reset: Controller specific reset function (optional)
+ * @edl_trigger: CB function to trigger EDL mode (optional)
  * @buffer_len: Bounce buffer length
  * @index: Index of the MHI controller instance
  * @bounce_buf: Use of bounce buffer
@@ -435,6 +436,7 @@ struct mhi_controller {
 	void (*write_reg)(struct mhi_controller *mhi_cntrl, void __iomem *addr,
 			  u32 val);
 	void (*reset)(struct mhi_controller *mhi_cntrl);
+	int (*edl_trigger)(struct mhi_controller *mhi_cntrl);
 
 	size_t buffer_len;
 	int index;
@@ -630,11 +632,27 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl);
 int mhi_sync_power_up(struct mhi_controller *mhi_cntrl);
 
 /**
- * mhi_power_down - Start MHI power down sequence
+ * mhi_power_down - Power down the MHI device and also destroy the
+ *                  'struct device' for the channels associated with it.
+ *                  See also mhi_power_down_keep_dev() which is a variant
+ *                  of this API that keeps the 'struct device' for channels
+ *                  (useful during suspend/hibernation).
  * @mhi_cntrl: MHI controller
  * @graceful: Link is still accessible, so do a graceful shutdown process
  */
 void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful);
+
+/**
+ * mhi_power_down_keep_dev - Power down the MHI device but keep the 'struct
+ *                           device' for the channels associated with it.
+ *                           This is a variant of 'mhi_power_down()' and
+ *                           useful in scenarios such as suspend/hibernation
+ *                           where destroying of the 'struct device' is not
+ *                           needed.
+ * @mhi_cntrl: MHI controller
+ * @graceful: Link is still accessible, so do a graceful shutdown process
+ */
+void mhi_power_down_keep_dev(struct mhi_controller *mhi_cntrl, bool graceful);
 
 /**
  * mhi_unprepare_after_power_down - Free any allocated memory after power down
@@ -797,5 +815,14 @@ int mhi_queue_skb(struct mhi_device *mhi_dev, enum dma_data_direction dir,
  * @dir: DMA direction for the channel
  */
 bool mhi_queue_is_full(struct mhi_device *mhi_dev, enum dma_data_direction dir);
+
+/**
+ * mhi_get_channel_doorbell_offset - Get the channel doorbell offset
+ * @mhi_cntrl: MHI controller
+ * @chdb_offset: Read channel doorbell offset
+ *
+ * Return: 0 if the read succeeds, a negative error code otherwise
+ */
+int mhi_get_channel_doorbell_offset(struct mhi_controller *mhi_cntrl, u32 *chdb_offset);
 
 #endif /* _MHI_H_ */

@@ -19,34 +19,6 @@
 
 static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
 	{
-		.num = 0,
-		.name = "LOOPBACK",
-		.num_elements = 32,
-		.event_ring = 1,
-		.dir = DMA_TO_DEVICE,
-		.ee_mask = 0x4,
-		.pollcfg = 0,
-		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
-		.offload_channel = false,
-		.doorbell_mode_switch = false,
-		.auto_queue = false,
-	},
-	{
-		.num = 1,
-		.name = "LOOPBACK",
-		.num_elements = 32,
-		.event_ring = 1,
-		.dir = DMA_FROM_DEVICE,
-		.ee_mask = 0x4,
-		.pollcfg = 0,
-		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
-		.offload_channel = false,
-		.doorbell_mode_switch = false,
-		.auto_queue = false,
-	},
-	{
 		.num = 20,
 		.name = "IPCR",
 		.num_elements = 32,
@@ -112,34 +84,6 @@ const struct mhi_controller_config ath12k_mhi_config_qcn9274 = {
 
 static const struct mhi_channel_config ath12k_mhi_channels_wcn7850[] = {
 	{
-		.num = 0,
-		.name = "LOOPBACK",
-		.num_elements = 32,
-		.event_ring = 0,
-		.dir = DMA_TO_DEVICE,
-		.ee_mask = 0x4,
-		.pollcfg = 0,
-		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
-		.offload_channel = false,
-		.doorbell_mode_switch = false,
-		.auto_queue = false,
-	},
-	{
-		.num = 1,
-		.name = "LOOPBACK",
-		.num_elements = 32,
-		.event_ring = 0,
-		.dir = DMA_FROM_DEVICE,
-		.ee_mask = 0x4,
-		.pollcfg = 0,
-		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
-		.offload_channel = false,
-		.doorbell_mode_switch = false,
-		.auto_queue = false,
-	},
-	{
 		.num = 20,
 		.name = "IPCR",
 		.num_elements = 64,
@@ -196,7 +140,7 @@ const struct mhi_controller_config ath12k_mhi_config_wcn7850 = {
 	.max_channels = 128,
 	.timeout_ms = 2000,
 	.use_bounce_buf = false,
-	.buf_len = 0,
+	.buf_len = 8192,
 	.num_channels = ARRAY_SIZE(ath12k_mhi_channels_wcn7850),
 	.ch_cfg = ath12k_mhi_channels_wcn7850,
 	.num_events = ARRAY_SIZE(ath12k_mhi_events_wcn7850),
@@ -385,7 +329,6 @@ int ath12k_mhi_register(struct ath12k_pci *ab_pci)
 				   "failed to read board id\n");
 		} else if (board_id & OTP_VALID_DUALMAC_BOARD_ID_MASK) {
 			dualmac = true;
-			ab->slo_capable = false;
 			ath12k_dbg(ab, ATH12K_DBG_BOOT,
 				   "dualmac fw selected for board id: %x\n", board_id);
 		}
@@ -470,6 +413,8 @@ static char *ath12k_mhi_state_to_str(enum ath12k_mhi_state mhi_state)
 		return "POWER_ON";
 	case ATH12K_MHI_POWER_OFF:
 		return "POWER_OFF";
+	case ATH12K_MHI_POWER_OFF_KEEP_DEV:
+		return "POWER_OFF_KEEP_DEV";
 	case ATH12K_MHI_FORCE_POWER_OFF:
 		return "FORCE_POWER_OFF";
 	case ATH12K_MHI_SUSPEND:
@@ -501,6 +446,7 @@ static void ath12k_mhi_set_state_bit(struct ath12k_pci *ab_pci,
 		set_bit(ATH12K_MHI_POWER_ON, &ab_pci->mhi_state);
 		break;
 	case ATH12K_MHI_POWER_OFF:
+	case ATH12K_MHI_POWER_OFF_KEEP_DEV:
 	case ATH12K_MHI_FORCE_POWER_OFF:
 		clear_bit(ATH12K_MHI_POWER_ON, &ab_pci->mhi_state);
 		clear_bit(ATH12K_MHI_TRIGGER_RDDM, &ab_pci->mhi_state);
@@ -544,6 +490,7 @@ static int ath12k_mhi_check_state_bit(struct ath12k_pci *ab_pci,
 			return 0;
 		break;
 	case ATH12K_MHI_POWER_OFF:
+	case ATH12K_MHI_POWER_OFF_KEEP_DEV:
 	case ATH12K_MHI_SUSPEND:
 		if (test_bit(ATH12K_MHI_POWER_ON, &ab_pci->mhi_state) &&
 		    !test_bit(ATH12K_MHI_SUSPEND, &ab_pci->mhi_state))
@@ -594,10 +541,25 @@ static int ath12k_mhi_set_state(struct ath12k_pci *ab_pci,
 		ret = 0;
 		break;
 	case ATH12K_MHI_POWER_ON:
-		ret = mhi_async_power_up(ab_pci->mhi_ctrl);
+		/* In case of resume, QRTR's resume_early() is called
+		 * right after ath12k' resume_early(). Since QRTR requires
+		 * MHI mission mode state when preparing IPCR channels
+		 * (see ee_mask of that channel), we need to use the 'sync'
+		 * version here to make sure MHI is in that state when we
+		 * return. Or QRTR might resume before that state comes,
+		 * and as a result it fails.
+		 *
+		 * The 'sync' version works for non-resume (normal power on)
+		 * case as well.
+		 */
+		ret = mhi_sync_power_up(ab_pci->mhi_ctrl);
 		break;
 	case ATH12K_MHI_POWER_OFF:
 		mhi_power_down(ab_pci->mhi_ctrl, true);
+		ret = 0;
+		break;
+	case ATH12K_MHI_POWER_OFF_KEEP_DEV:
+		mhi_power_down_keep_dev(ab_pci->mhi_ctrl, true);
 		ret = 0;
 		break;
 	case ATH12K_MHI_FORCE_POWER_OFF:
@@ -653,9 +615,17 @@ out:
 	return ret;
 }
 
-void ath12k_mhi_stop(struct ath12k_pci *ab_pci)
+void ath12k_mhi_stop(struct ath12k_pci *ab_pci, bool is_suspend)
 {
-	ath12k_mhi_set_state(ab_pci, ATH12K_MHI_POWER_OFF);
+	/* During suspend we need to use mhi_power_down_keep_dev()
+	 * workaround, otherwise ath12k_core_resume() will timeout
+	 * during resume.
+	 */
+	if (is_suspend)
+		ath12k_mhi_set_state(ab_pci, ATH12K_MHI_POWER_OFF_KEEP_DEV);
+	else
+		ath12k_mhi_set_state(ab_pci, ATH12K_MHI_POWER_OFF);
+
 	ath12k_mhi_set_state(ab_pci, ATH12K_MHI_DEINIT);
 }
 

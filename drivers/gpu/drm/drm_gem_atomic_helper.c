@@ -224,8 +224,8 @@ __drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane,
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &new_shadow_plane_state->base);
 
-	drm_format_conv_state_copy(&shadow_plane_state->fmtcnv_state,
-				   &new_shadow_plane_state->fmtcnv_state);
+	drm_format_conv_state_copy(&new_shadow_plane_state->fmtcnv_state,
+				   &shadow_plane_state->fmtcnv_state);
 }
 EXPORT_SYMBOL(__drm_gem_duplicate_shadow_plane_state);
 
