@@ -917,6 +917,160 @@ static void __init of_unittest_changeset(void)
 #endif
 }
 
+static void __init __maybe_unused changeset_check_string(struct device_node *np,
+							 const char *prop_name,
+							 const char *expected_str)
+{
+	const char *str;
+	int ret;
+
+	ret = of_property_read_string(np, prop_name, &str);
+	if (unittest(ret == 0, "failed to read %s\n", prop_name))
+		return;
+
+	unittest(strcmp(str, expected_str) == 0,
+		 "%s value mismatch (read '%s', exp '%s')\n",
+		 prop_name, str, expected_str);
+}
+
+static void __init __maybe_unused changeset_check_string_array(struct device_node *np,
+							       const char *prop_name,
+							       const char * const *expected_array,
+							       unsigned int count)
+{
+	const char *str;
+	unsigned int i;
+	int ret;
+	int cnt;
+
+	cnt = of_property_count_strings(np, prop_name);
+	if (unittest(cnt >= 0, "failed to get %s count\n", prop_name))
+		return;
+
+	if (unittest(cnt == count,
+		     "%s count mismatch (read %d, exp %u)\n",
+		     prop_name, cnt, count))
+		return;
+
+	for (i = 0; i < count; i++) {
+		ret = of_property_read_string_index(np, prop_name, i, &str);
+		if (unittest(ret == 0, "failed to read %s[%d]\n", prop_name, i))
+			continue;
+
+		unittest(strcmp(str, expected_array[i]) == 0,
+			 "%s[%d] value mismatch (read '%s', exp '%s')\n",
+			 prop_name, i, str, expected_array[i]);
+	}
+}
+
+static void __init __maybe_unused changeset_check_u32(struct device_node *np,
+						      const char *prop_name,
+						      u32 expected_u32)
+{
+	u32 val32;
+	int ret;
+
+	ret = of_property_read_u32(np, prop_name, &val32);
+	if (unittest(ret == 0, "failed to read %s\n", prop_name))
+		return;
+
+	unittest(val32 == expected_u32,
+		 "%s value mismatch (read '%u', exp '%u')\n",
+		 prop_name, val32, expected_u32);
+}
+
+static void __init __maybe_unused changeset_check_u32_array(struct device_node *np,
+							    const char *prop_name,
+							    const u32 *expected_array,
+							    unsigned int count)
+{
+	unsigned int i;
+	u32 val32;
+	int ret;
+	int cnt;
+
+	cnt = of_property_count_u32_elems(np, prop_name);
+	if (unittest(cnt >= 0, "failed to get %s count\n", prop_name))
+		return;
+
+	if (unittest(cnt == count,
+		     "%s count mismatch (read %d, exp %u)\n",
+		     prop_name, cnt, count))
+		return;
+
+	for (i = 0; i < count; i++) {
+		ret = of_property_read_u32_index(np, prop_name, i, &val32);
+		if (unittest(ret == 0, "failed to read %s[%d]\n", prop_name, i))
+			continue;
+
+		unittest(val32 == expected_array[i],
+			 "%s[%d] value mismatch (read '%u', exp '%u')\n",
+			 prop_name, i, val32, expected_array[i]);
+	}
+}
+
+static void __init of_unittest_changeset_prop(void)
+{
+#ifdef CONFIG_OF_DYNAMIC
+	static const char * const str_array[] = { "abc", "defg", "hij" };
+	static const u32 u32_array[] = { 123, 4567, 89, 10, 11 };
+	struct device_node *nchangeset, *np;
+	struct of_changeset chgset;
+	int ret;
+
+	nchangeset = of_find_node_by_path("/testcase-data/changeset");
+	if (!nchangeset) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	of_changeset_init(&chgset);
+
+	np = of_changeset_create_node(&chgset, nchangeset, "test-prop");
+	if (unittest(np, "failed to create test-prop node\n"))
+		goto end_changeset_destroy;
+
+	ret = of_changeset_add_prop_string(&chgset, np, "prop-string", "abcde");
+	unittest(ret == 0, "failed to add prop-string\n");
+
+	ret = of_changeset_add_prop_string_array(&chgset, np, "prop-string-array",
+						 str_array, ARRAY_SIZE(str_array));
+	unittest(ret == 0, "failed to add prop-string-array\n");
+
+	ret = of_changeset_add_prop_u32(&chgset, np, "prop-u32", 1234);
+	unittest(ret == 0, "failed to add prop-u32\n");
+
+	ret = of_changeset_add_prop_u32_array(&chgset, np, "prop-u32-array",
+					      u32_array, ARRAY_SIZE(u32_array));
+	unittest(ret == 0, "failed to add prop-u32-array\n");
+
+	of_node_put(np);
+
+	ret = of_changeset_apply(&chgset);
+	if (unittest(ret == 0, "failed to apply changeset\n"))
+		goto end_changeset_destroy;
+
+	np = of_find_node_by_path("/testcase-data/changeset/test-prop");
+	if (unittest(np, "failed to find test-prop node\n"))
+		goto end_revert_changeset;
+
+	changeset_check_string(np, "prop-string", "abcde");
+	changeset_check_string_array(np, "prop-string-array", str_array, ARRAY_SIZE(str_array));
+	changeset_check_u32(np, "prop-u32", 1234);
+	changeset_check_u32_array(np, "prop-u32-array", u32_array, ARRAY_SIZE(u32_array));
+
+	of_node_put(np);
+
+end_revert_changeset:
+	ret = of_changeset_revert(&chgset);
+	unittest(ret == 0, "failed to revert changeset\n");
+
+end_changeset_destroy:
+	of_changeset_destroy(&chgset);
+	of_node_put(nchangeset);
+#endif
+}
+
 static void __init of_unittest_dma_get_max_cpu_address(void)
 {
 	struct device_node *np;
@@ -4101,6 +4255,7 @@ static int __init of_unittest(void)
 	of_unittest_property_string();
 	of_unittest_property_copy();
 	of_unittest_changeset();
+	of_unittest_changeset_prop();
 	of_unittest_parse_interrupts();
 	of_unittest_parse_interrupts_extended();
 	of_unittest_dma_get_max_cpu_address();
