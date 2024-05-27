@@ -393,9 +393,6 @@ static void test_valid_link_pair(struct kunit *test)
 	chandef_a.width = params->cw_a ?: NL80211_CHAN_WIDTH_20;
 	chandef_b.width = params->cw_b ?: NL80211_CHAN_WIDTH_20;
 
-#ifdef CONFIG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
-	trans->dbg_cfg = default_dbg_config;
-#endif
 	mvm.trans = trans;
 
 	mvm.last_bt_notif.wifi_loss_low_rssi = params->bt;
