@@ -221,6 +221,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-sa8775p", "qcom,scm";
+			memory-region = <&tz_ffi_mem>;
 		};
 	};
 
@@ -428,6 +429,12 @@
 
 		cdt_data_backup_mem: cdt-data-backup@91ba0000 {
 			reg = <0x0 0x91ba0000 0x0 0x1000>;
+			no-map;
+		};
+
+		tz_ffi_mem: tz-ffi@91c00000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x91c00000 0x0 0x1400000>;
 			no-map;
 		};
 
