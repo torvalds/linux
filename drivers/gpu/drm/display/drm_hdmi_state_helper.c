@@ -45,7 +45,8 @@ int drm_atomic_helper_connector_hdmi_check(struct drm_connector *connector,
 	struct drm_connector_state *new_conn_state =
 		drm_atomic_get_new_connector_state(state, connector);
 
-	if (old_conn_state->hdmi.output_bpc != new_conn_state->hdmi.output_bpc) {
+	if (old_conn_state->hdmi.output_bpc != new_conn_state->hdmi.output_bpc ||
+	    old_conn_state->hdmi.output_format != new_conn_state->hdmi.output_format) {
 		struct drm_crtc *crtc = new_conn_state->crtc;
 		struct drm_crtc_state *crtc_state;
 
