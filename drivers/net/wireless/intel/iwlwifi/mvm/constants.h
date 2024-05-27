@@ -114,7 +114,6 @@
 #define IWL_MVM_D3_DEBUG			false
 #define IWL_MVM_USE_TWT				true
 #define IWL_MVM_AMPDU_CONSEC_DROPS_DELBA	20
-#define IWL_MVM_USE_NSSN_SYNC			0
 #define IWL_MVM_FTM_INITIATOR_ENABLE_SMOOTH     false
 #define IWL_MVM_FTM_INITIATOR_SMOOTH_ALPHA      40
 /*  20016 pSec is 6 meter RTT, meaning 3 meter range */
