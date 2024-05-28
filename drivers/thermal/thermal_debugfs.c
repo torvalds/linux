@@ -784,7 +784,6 @@ static int tze_seq_show(struct seq_file *s, void *v)
 	struct thermal_zone_device *tz = thermal_dbg->tz_dbg.tz;
 	struct thermal_trip_desc *td;
 	struct tz_episode *tze;
-	const char *type;
 	u64 duration_ms;
 	int trip_id;
 	char c;
@@ -824,13 +823,6 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		if (trip_stats->trip_temp == THERMAL_TEMP_INVALID)
 			continue;
 
-		if (trip->type == THERMAL_TRIP_PASSIVE)
-			type = "passive";
-		else if (trip->type == THERMAL_TRIP_ACTIVE)
-			type = "active";
-		else
-			type = "hot";
-
 		if (trip_stats->timestamp != KTIME_MAX) {
 			/* Mitigation in progress. */
 			ktime_t delta = ktime_sub(ktime_get(),
@@ -846,7 +838,7 @@ static int tze_seq_show(struct seq_file *s, void *v)
 
 		seq_printf(s, "| %*d | %*s | %*d | %*d | %c%*lld | %*d | %*d |\n",
 			   4 , trip_id,
-			   8, type,
+			   8, thermal_trip_type_name(trip->type),
 			   9, trip_stats->trip_temp,
 			   9, trip_stats->trip_hyst,
 			   c, 11, duration_ms,
