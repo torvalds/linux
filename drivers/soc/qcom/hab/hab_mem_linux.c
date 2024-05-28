@@ -345,6 +345,7 @@ static int habmem_compress_pfns(
 	if (dmabuf->size < (page_count * PAGE_SIZE)) {
 		pr_err("given dmabuf size %u less than expected, page cnt %d\n",
 			dmabuf->size, page_count);
+		dump_stack();
 		return -EINVAL;
 	}
 
