@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 //
 
 /*
@@ -14,7 +14,7 @@
 #include "hda.h"
 #include "../sof-audio.h"
 
-struct snd_sof_dsp_ops sof_hda_common_ops = {
+const struct snd_sof_dsp_ops sof_hda_common_ops = {
 	/* probe/remove/shutdown */
 	.probe_early	= hda_dsp_probe_early,
 	.probe		= hda_dsp_probe,
@@ -56,6 +56,9 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 	.pcm_trigger	= hda_dsp_pcm_trigger,
 	.pcm_pointer	= hda_dsp_pcm_pointer,
 	.pcm_ack	= hda_dsp_pcm_ack,
+
+	.get_dai_frame_counter = hda_dsp_get_stream_llp,
+	.get_host_byte_counter = hda_dsp_get_stream_ldp,
 
 	/* firmware loading */
 	.load_firmware = snd_sof_load_firmware_raw,
@@ -102,3 +105,4 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 
 	.dsp_arch_ops = &sof_xtensa_arch_ops,
 };
+EXPORT_SYMBOL_NS(sof_hda_common_ops, SND_SOC_SOF_INTEL_HDA_GENERIC);

@@ -1870,6 +1870,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 				IWL_DEBUG_TX_REPLY(mvm,
 						   "Next reclaimed packet:%d\n",
 						   next_reclaimed);
+				iwl_mvm_count_mpdu(mvmsta, sta_id, 1, true, 0);
 			} else {
 				IWL_DEBUG_TX_REPLY(mvm,
 						   "NDP - don't update next_reclaimed\n");
@@ -2247,9 +2248,13 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 					   le32_to_cpu(ba_res->tx_rate), false);
 		}
 
-		if (mvmsta)
+		if (mvmsta) {
 			iwl_mvm_tx_airtime(mvm, mvmsta,
 					   le32_to_cpu(ba_res->wireless_time));
+
+			iwl_mvm_count_mpdu(mvmsta, sta_id,
+					   le16_to_cpu(ba_res->txed), true, 0);
+		}
 		rcu_read_unlock();
 		return;
 	}

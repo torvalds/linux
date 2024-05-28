@@ -185,6 +185,17 @@ found:
 			if (X86_REX_W(b))
 				/* REX.W overrides opnd_size */
 				insn->opnd_bytes = 8;
+		} else if (inat_is_rex2_prefix(attr)) {
+			insn_set_byte(&insn->rex_prefix, 0, b);
+			b = peek_nbyte_next(insn_byte_t, insn, 1);
+			insn_set_byte(&insn->rex_prefix, 1, b);
+			insn->rex_prefix.nbytes = 2;
+			insn->next_byte += 2;
+			if (X86_REX_W(b))
+				/* REX.W overrides opnd_size */
+				insn->opnd_bytes = 8;
+			insn->rex_prefix.got = 1;
+			goto vex_end;
 		}
 	}
 	insn->rex_prefix.got = 1;
@@ -283,6 +294,10 @@ int insn_get_opcode(struct insn *insn)
 		m = insn_vex_m_bits(insn);
 		p = insn_vex_p_bits(insn);
 		insn->attr = inat_get_avx_attribute(op, m, p);
+		/* SCALABLE EVEX uses p bits to encode operand size */
+		if (inat_evex_scalable(insn->attr) && !insn_vex_w_bit(insn) &&
+		    p == INAT_PFX_OPNDSZ)
+			insn->opnd_bytes = 2;
 		if ((inat_must_evex(insn->attr) && !insn_is_evex(insn)) ||
 		    (!inat_accept_vex(insn->attr) &&
 		     !inat_is_group(insn->attr))) {
@@ -291,6 +306,20 @@ int insn_get_opcode(struct insn *insn)
 			return -EINVAL;
 		}
 		/* VEX has only 1 byte for opcode */
+		goto end;
+	}
+
+	/* Check if there is REX2 prefix or not */
+	if (insn_is_rex2(insn)) {
+		if (insn_rex2_m_bit(insn)) {
+			/* map 1 is escape 0x0f */
+			insn_attr_t esc_attr = inat_get_opcode_attribute(0x0f);
+
+			pfx_id = insn_last_prefix_id(insn);
+			insn->attr = inat_get_escape_attribute(op, pfx_id, esc_attr);
+		} else {
+			insn->attr = inat_get_opcode_attribute(op);
+		}
 		goto end;
 	}
 

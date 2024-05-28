@@ -17,6 +17,27 @@ static const char nohelp_text[] = "There is no help available for this option.";
 struct menu rootmenu;
 static struct menu **last_entry_ptr;
 
+/**
+ * menu_next - return the next menu entry with depth-first traversal
+ * @menu: pointer to the current menu
+ * @root: root of the sub-tree to traverse. If NULL is given, the traveral
+ *        continues until it reaches the end of the entire menu tree.
+ * return: the menu to visit next, or NULL when it reaches the end.
+ */
+struct menu *menu_next(struct menu *menu, struct menu *root)
+{
+	if (menu->list)
+		return menu->list;
+
+	while (menu != root && !menu->next)
+		menu = menu->parent;
+
+	if (menu == root)
+		return NULL;
+
+	return menu->next;
+}
+
 void menu_warn(struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;
@@ -242,11 +263,9 @@ static void sym_check_prop(struct symbol *sym)
 					    sym->name);
 			}
 			if (sym_is_choice(sym)) {
-				struct property *choice_prop =
-					sym_get_choice_prop(sym2);
+				struct menu *choice = sym_get_choice_menu(sym2);
 
-				if (!choice_prop ||
-				    prop_get_symbol(choice_prop) != sym)
+				if (!choice || choice->sym != sym)
 					prop_warn(prop,
 						  "choice default symbol '%s' is not contained in the choice",
 						  sym2->name);
@@ -282,7 +301,7 @@ static void sym_check_prop(struct symbol *sym)
 	}
 }
 
-void menu_finalize(struct menu *parent)
+static void _menu_finalize(struct menu *parent, bool inside_choice)
 {
 	struct menu *menu, *last_menu;
 	struct symbol *sym;
@@ -296,7 +315,12 @@ void menu_finalize(struct menu *parent)
 		 * and propagate parent dependencies before moving on.
 		 */
 
-		if (sym && sym_is_choice(sym)) {
+		bool is_choice = false;
+
+		if (sym && sym_is_choice(sym))
+			is_choice = true;
+
+		if (is_choice) {
 			if (sym->type == S_UNKNOWN) {
 				/* find the first choice value to find out choice type */
 				current_entry = parent;
@@ -394,7 +418,7 @@ void menu_finalize(struct menu *parent)
 			}
 		}
 
-		if (sym && sym_is_choice(sym))
+		if (is_choice)
 			expr_free(parentdep);
 
 		/*
@@ -402,8 +426,8 @@ void menu_finalize(struct menu *parent)
 		 * moving on
 		 */
 		for (menu = parent->list; menu; menu = menu->next)
-			menu_finalize(menu);
-	} else if (sym) {
+			_menu_finalize(menu, is_choice);
+	} else if (!inside_choice && sym) {
 		/*
 		 * Automatic submenu creation. If sym is a symbol and A, B, C,
 		 * ... are consecutive items (symbols, menus, ifs, etc.) that
@@ -463,7 +487,7 @@ void menu_finalize(struct menu *parent)
 			/* Superset, put in submenu */
 			expr_free(dep2);
 		next:
-			menu_finalize(menu);
+			_menu_finalize(menu, false);
 			menu->parent = parent;
 			last_menu = menu;
 		}
@@ -481,18 +505,6 @@ void menu_finalize(struct menu *parent)
 		    menu->sym && !sym_is_choice_value(menu->sym)) {
 			current_entry = menu;
 			menu->sym->flags |= SYMBOL_CHOICEVAL;
-			if (!menu->prompt)
-				menu_warn(menu, "choice value must have a prompt");
-			for (prop = menu->sym->prop; prop; prop = prop->next) {
-				if (prop->type == P_DEFAULT)
-					prop_warn(prop, "defaults for choice "
-						  "values not supported");
-				if (prop->menu == menu)
-					continue;
-				if (prop->type == P_PROMPT &&
-				    prop->menu->parent->sym != sym)
-					prop_warn(prop, "choice value used outside its choice group");
-			}
 			/* Non-tristate choice values of tristate choices must
 			 * depend on the choice being set to Y. The choice
 			 * values' dependencies were propagated to their
@@ -567,19 +579,20 @@ void menu_finalize(struct menu *parent)
 	}
 
 	/*
-	 * For non-optional choices, add a reverse dependency (corresponding to
-	 * a select) of '<visibility> && m'. This prevents the user from
-	 * setting the choice mode to 'n' when the choice is visible.
-	 *
-	 * This would also work for non-choice symbols, but only non-optional
-	 * choices clear SYMBOL_OPTIONAL as of writing. Choices are implemented
-	 * as a type of symbol.
+	 * For choices, add a reverse dependency (corresponding to a select) of
+	 * '<visibility> && m'. This prevents the user from setting the choice
+	 * mode to 'n' when the choice is visible.
 	 */
-	if (sym && !sym_is_optional(sym) && parent->prompt) {
+	if (sym && sym_is_choice(sym) && parent->prompt) {
 		sym->rev_dep.expr = expr_alloc_or(sym->rev_dep.expr,
 				expr_alloc_and(parent->prompt->visible.expr,
 					expr_alloc_symbol(&symbol_mod)));
 	}
+}
+
+void menu_finalize(void)
+{
+	_menu_finalize(&rootmenu, false);
 }
 
 bool menu_has_prompt(struct menu *menu)

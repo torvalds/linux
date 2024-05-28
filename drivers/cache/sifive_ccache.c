@@ -15,6 +15,8 @@
 #include <linux/of_address.h>
 #include <linux/device.h>
 #include <linux/bitfield.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <asm/cacheflush.h>
 #include <asm/cacheinfo.h>
 #include <asm/dma-noncoherent.h>
@@ -247,13 +249,49 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 	return IRQ_HANDLED;
 }
 
+static int sifive_ccache_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	unsigned long quirks;
+	int intr_num, rc;
+
+	quirks = (unsigned long)device_get_match_data(dev);
+
+	intr_num = platform_irq_count(pdev);
+	if (!intr_num)
+		return dev_err_probe(dev, -ENODEV, "No interrupts property\n");
+
+	for (int i = 0; i < intr_num; i++) {
+		if (i == DATA_UNCORR && (quirks & QUIRK_BROKEN_DATA_UNCORR))
+			continue;
+
+		g_irq[i] = platform_get_irq(pdev, i);
+		if (g_irq[i] < 0)
+			return g_irq[i];
+
+		rc = devm_request_irq(dev, g_irq[i], ccache_int_handler, 0, "ccache_ecc", NULL);
+		if (rc)
+			return dev_err_probe(dev, rc, "Could not request IRQ %d\n", g_irq[i]);
+	}
+
+	return 0;
+}
+
+static struct platform_driver sifive_ccache_driver = {
+	.probe	= sifive_ccache_probe,
+	.driver	= {
+		.name		= "sifive_ccache",
+		.of_match_table	= sifive_ccache_ids,
+	},
+};
+
 static int __init sifive_ccache_init(void)
 {
 	struct device_node *np;
 	struct resource res;
-	int i, rc, intr_num;
 	const struct of_device_id *match;
-	unsigned long quirks;
+	unsigned long quirks __maybe_unused;
+	int rc;
 
 	np = of_find_matching_node_and_match(NULL, sifive_ccache_ids, &match);
 	if (!np)
@@ -277,28 +315,6 @@ static int __init sifive_ccache_init(void)
 		goto err_unmap;
 	}
 
-	intr_num = of_property_count_u32_elems(np, "interrupts");
-	if (!intr_num) {
-		pr_err("No interrupts property\n");
-		rc = -ENODEV;
-		goto err_unmap;
-	}
-
-	for (i = 0; i < intr_num; i++) {
-		g_irq[i] = irq_of_parse_and_map(np, i);
-
-		if (i == DATA_UNCORR && (quirks & QUIRK_BROKEN_DATA_UNCORR))
-			continue;
-
-		rc = request_irq(g_irq[i], ccache_int_handler, 0, "ccache_ecc",
-				 NULL);
-		if (rc) {
-			pr_err("Could not request IRQ %d\n", g_irq[i]);
-			goto err_free_irq;
-		}
-	}
-	of_node_put(np);
-
 #ifdef CONFIG_RISCV_NONSTANDARD_CACHE_OPS
 	if (quirks & QUIRK_NONSTANDARD_CACHE_OPS) {
 		riscv_cbom_block_size = SIFIVE_CCACHE_LINE_SIZE;
@@ -315,11 +331,15 @@ static int __init sifive_ccache_init(void)
 #ifdef CONFIG_DEBUG_FS
 	setup_sifive_debug();
 #endif
+
+	rc = platform_driver_register(&sifive_ccache_driver);
+	if (rc)
+		goto err_unmap;
+
+	of_node_put(np);
+
 	return 0;
 
-err_free_irq:
-	while (--i >= 0)
-		free_irq(g_irq[i], NULL);
 err_unmap:
 	iounmap(ccache_base);
 err_node_put:

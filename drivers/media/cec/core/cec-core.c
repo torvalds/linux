@@ -62,12 +62,12 @@ int cec_get_device(struct cec_devnode *devnode)
 	 */
 	mutex_lock(&devnode->lock);
 	/*
-	 * return ENXIO if the cec device has been removed
+	 * return ENODEV if the cec device has been removed
 	 * already or if it is not registered anymore.
 	 */
 	if (!devnode->registered) {
 		mutex_unlock(&devnode->lock);
-		return -ENXIO;
+		return -ENODEV;
 	}
 	/* and increase the device refcount */
 	get_device(&devnode->dev);

@@ -30,7 +30,7 @@ static inline unsigned bch2_sb_field_errors_u64s(unsigned nr)
 }
 
 static int bch2_sb_errors_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				   struct printbuf *err)
+				   enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_errors *e = field_to_type(f, errors);
 	unsigned i, nr = bch2_sb_field_errors_nr_entries(e);

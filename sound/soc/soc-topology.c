@@ -1083,8 +1083,15 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 			break;
 		}
 
-		/* add route, but keep going if some fail */
-		snd_soc_dapm_add_routes(dapm, route, 1);
+		ret = snd_soc_dapm_add_routes(dapm, route, 1);
+		if (ret) {
+			if (!dapm->card->disable_route_checks) {
+				dev_err(tplg->dev, "ASoC: dapm_add_routes failed: %d\n", ret);
+				break;
+			}
+			dev_info(tplg->dev,
+				 "ASoC: disable_route_checks set, ignoring dapm_add_routes errors\n");
+		}
 	}
 
 	return ret;
@@ -1761,83 +1768,13 @@ static int soc_tplg_pcm_create(struct soc_tplg *tplg,
 	return  soc_tplg_fe_link_create(tplg, pcm);
 }
 
-/* copy stream caps from the old version 4 of source */
-static void stream_caps_new_ver(struct snd_soc_tplg_stream_caps *dest,
-				struct snd_soc_tplg_stream_caps_v4 *src)
-{
-	dest->size = cpu_to_le32(sizeof(*dest));
-	memcpy(dest->name, src->name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
-	dest->formats = src->formats;
-	dest->rates = src->rates;
-	dest->rate_min = src->rate_min;
-	dest->rate_max = src->rate_max;
-	dest->channels_min = src->channels_min;
-	dest->channels_max = src->channels_max;
-	dest->periods_min = src->periods_min;
-	dest->periods_max = src->periods_max;
-	dest->period_size_min = src->period_size_min;
-	dest->period_size_max = src->period_size_max;
-	dest->buffer_size_min = src->buffer_size_min;
-	dest->buffer_size_max = src->buffer_size_max;
-}
-
-/**
- * pcm_new_ver - Create the new version of PCM from the old version.
- * @tplg: topology context
- * @src: older version of pcm as a source
- * @pcm: latest version of pcm created from the source
- *
- * Support from version 4. User should free the returned pcm manually.
- */
-static int pcm_new_ver(struct soc_tplg *tplg,
-		       struct snd_soc_tplg_pcm *src,
-		       struct snd_soc_tplg_pcm **pcm)
-{
-	struct snd_soc_tplg_pcm *dest;
-	struct snd_soc_tplg_pcm_v4 *src_v4;
-	int i;
-
-	*pcm = NULL;
-
-	if (le32_to_cpu(src->size) != sizeof(*src_v4)) {
-		dev_err(tplg->dev, "ASoC: invalid PCM size\n");
-		return -EINVAL;
-	}
-
-	dev_warn(tplg->dev, "ASoC: old version of PCM\n");
-	src_v4 = (struct snd_soc_tplg_pcm_v4 *)src;
-	dest = kzalloc(sizeof(*dest), GFP_KERNEL);
-	if (!dest)
-		return -ENOMEM;
-
-	dest->size = cpu_to_le32(sizeof(*dest)); /* size of latest abi version */
-	memcpy(dest->pcm_name, src_v4->pcm_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
-	memcpy(dest->dai_name, src_v4->dai_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
-	dest->pcm_id = src_v4->pcm_id;
-	dest->dai_id = src_v4->dai_id;
-	dest->playback = src_v4->playback;
-	dest->capture = src_v4->capture;
-	dest->compress = src_v4->compress;
-	dest->num_streams = src_v4->num_streams;
-	for (i = 0; i < le32_to_cpu(dest->num_streams); i++)
-		memcpy(&dest->stream[i], &src_v4->stream[i],
-		       sizeof(struct snd_soc_tplg_stream));
-
-	for (i = 0; i < 2; i++)
-		stream_caps_new_ver(&dest->caps[i], &src_v4->caps[i]);
-
-	*pcm = dest;
-	return 0;
-}
-
 static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_pcm *pcm, *_pcm;
+	struct snd_soc_tplg_pcm *pcm;
 	int count;
 	int size;
 	int i;
-	bool abi_match;
 	int ret;
 
 	count = le32_to_cpu(hdr->count);
@@ -1845,8 +1782,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	/* check the element size and count */
 	pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
 	size = le32_to_cpu(pcm->size);
-	if (size > sizeof(struct snd_soc_tplg_pcm)
-		|| size < sizeof(struct snd_soc_tplg_pcm_v4)) {
+	if (size > sizeof(struct snd_soc_tplg_pcm)) {
 		dev_err(tplg->dev, "ASoC: invalid size %d for PCM elems\n",
 			size);
 		return -EINVAL;
@@ -1865,31 +1801,18 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 		/* check ABI version by size, create a new version of pcm
 		 * if abi not match.
 		 */
-		if (size == sizeof(*pcm)) {
-			abi_match = true;
-			_pcm = pcm;
-		} else {
-			abi_match = false;
-			ret = pcm_new_ver(tplg, pcm, &_pcm);
-			if (ret < 0)
-				return ret;
-		}
+		if (size != sizeof(*pcm))
+			return -EINVAL;
 
 		/* create the FE DAIs and DAI links */
-		ret = soc_tplg_pcm_create(tplg, _pcm);
-		if (ret < 0) {
-			if (!abi_match)
-				kfree(_pcm);
+		ret = soc_tplg_pcm_create(tplg, pcm);
+		if (ret < 0)
 			return ret;
-		}
 
 		/* offset by version-specific struct size and
 		 * real priv data size
 		 */
-		tplg->pos += size + le32_to_cpu(_pcm->priv.size);
-
-		if (!abi_match)
-			kfree(_pcm); /* free the duplicated one */
+		tplg->pos += size + le32_to_cpu(pcm->priv.size);
 	}
 
 	dev_dbg(tplg->dev, "ASoC: adding %d PCM DAIs\n", count);
@@ -1963,49 +1886,6 @@ static void set_link_hw_format(struct snd_soc_dai_link *link,
 		else
 			link->dai_fmt |= SND_SOC_DAIFMT_CBC_CFC;
 	}
-}
-
-/**
- * link_new_ver - Create a new physical link config from the old
- * version of source.
- * @tplg: topology context
- * @src: old version of phyical link config as a source
- * @link: latest version of physical link config created from the source
- *
- * Support from version 4. User need free the returned link config manually.
- */
-static int link_new_ver(struct soc_tplg *tplg,
-			struct snd_soc_tplg_link_config *src,
-			struct snd_soc_tplg_link_config **link)
-{
-	struct snd_soc_tplg_link_config *dest;
-	struct snd_soc_tplg_link_config_v4 *src_v4;
-	int i;
-
-	*link = NULL;
-
-	if (le32_to_cpu(src->size) !=
-	    sizeof(struct snd_soc_tplg_link_config_v4)) {
-		dev_err(tplg->dev, "ASoC: invalid physical link config size\n");
-		return -EINVAL;
-	}
-
-	dev_warn(tplg->dev, "ASoC: old version of physical link config\n");
-
-	src_v4 = (struct snd_soc_tplg_link_config_v4 *)src;
-	dest = kzalloc(sizeof(*dest), GFP_KERNEL);
-	if (!dest)
-		return -ENOMEM;
-
-	dest->size = cpu_to_le32(sizeof(*dest));
-	dest->id = src_v4->id;
-	dest->num_streams = src_v4->num_streams;
-	for (i = 0; i < le32_to_cpu(dest->num_streams); i++)
-		memcpy(&dest->stream[i], &src_v4->stream[i],
-		       sizeof(struct snd_soc_tplg_stream));
-
-	*link = dest;
-	return 0;
 }
 
 /**
@@ -2113,19 +1993,17 @@ static int soc_tplg_link_config(struct soc_tplg *tplg,
 static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_link_config *link, *_link;
+	struct snd_soc_tplg_link_config *link;
 	int count;
 	int size;
 	int i, ret;
-	bool abi_match;
 
 	count = le32_to_cpu(hdr->count);
 
 	/* check the element size and count */
 	link = (struct snd_soc_tplg_link_config *)tplg->pos;
 	size = le32_to_cpu(link->size);
-	if (size > sizeof(struct snd_soc_tplg_link_config)
-		|| size < sizeof(struct snd_soc_tplg_link_config_v4)) {
+	if (size > sizeof(struct snd_soc_tplg_link_config)) {
 		dev_err(tplg->dev, "ASoC: invalid size %d for physical link elems\n",
 			size);
 		return -EINVAL;
@@ -2140,30 +2018,17 @@ static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
 	for (i = 0; i < count; i++) {
 		link = (struct snd_soc_tplg_link_config *)tplg->pos;
 		size = le32_to_cpu(link->size);
-		if (size == sizeof(*link)) {
-			abi_match = true;
-			_link = link;
-		} else {
-			abi_match = false;
-			ret = link_new_ver(tplg, link, &_link);
-			if (ret < 0)
-				return ret;
-		}
+		if (size != sizeof(*link))
+			return -EINVAL;
 
-		ret = soc_tplg_link_config(tplg, _link);
-		if (ret < 0) {
-			if (!abi_match)
-				kfree(_link);
+		ret = soc_tplg_link_config(tplg, link);
+		if (ret < 0)
 			return ret;
-		}
 
 		/* offset by version-specific struct size and
 		 * real priv data size
 		 */
-		tplg->pos += size + le32_to_cpu(_link->priv.size);
-
-		if (!abi_match)
-			kfree(_link); /* free the duplicated one */
+		tplg->pos += size + le32_to_cpu(link->priv.size);
 	}
 
 	return 0;
@@ -2273,84 +2138,21 @@ static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
 	return 0;
 }
 
-/**
- * manifest_new_ver - Create a new version of manifest from the old version
- * of source.
- * @tplg: topology context
- * @src: old version of manifest as a source
- * @manifest: latest version of manifest created from the source
- *
- * Support from version 4. Users need free the returned manifest manually.
- */
-static int manifest_new_ver(struct soc_tplg *tplg,
-			    struct snd_soc_tplg_manifest *src,
-			    struct snd_soc_tplg_manifest **manifest)
-{
-	struct snd_soc_tplg_manifest *dest;
-	struct snd_soc_tplg_manifest_v4 *src_v4;
-	int size;
-
-	*manifest = NULL;
-
-	size = le32_to_cpu(src->size);
-	if (size != sizeof(*src_v4)) {
-		dev_warn(tplg->dev, "ASoC: invalid manifest size %d\n",
-			 size);
-		if (size)
-			return -EINVAL;
-		src->size = cpu_to_le32(sizeof(*src_v4));
-	}
-
-	dev_warn(tplg->dev, "ASoC: old version of manifest\n");
-
-	src_v4 = (struct snd_soc_tplg_manifest_v4 *)src;
-	dest = kzalloc(sizeof(*dest) + le32_to_cpu(src_v4->priv.size),
-		       GFP_KERNEL);
-	if (!dest)
-		return -ENOMEM;
-
-	dest->size = cpu_to_le32(sizeof(*dest)); /* size of latest abi version */
-	dest->control_elems = src_v4->control_elems;
-	dest->widget_elems = src_v4->widget_elems;
-	dest->graph_elems = src_v4->graph_elems;
-	dest->pcm_elems = src_v4->pcm_elems;
-	dest->dai_link_elems = src_v4->dai_link_elems;
-	dest->priv.size = src_v4->priv.size;
-	if (dest->priv.size)
-		memcpy(dest->priv.data, src_v4->priv.data,
-		       le32_to_cpu(src_v4->priv.size));
-
-	*manifest = dest;
-	return 0;
-}
-
 static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 				  struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_manifest *manifest, *_manifest;
-	bool abi_match;
+	struct snd_soc_tplg_manifest *manifest;
 	int ret = 0;
 
 	manifest = (struct snd_soc_tplg_manifest *)tplg->pos;
 
 	/* check ABI version by size, create a new manifest if abi not match */
-	if (le32_to_cpu(manifest->size) == sizeof(*manifest)) {
-		abi_match = true;
-		_manifest = manifest;
-	} else {
-		abi_match = false;
-
-		ret = manifest_new_ver(tplg, manifest, &_manifest);
-		if (ret < 0)
-			return ret;
-	}
+	if (le32_to_cpu(manifest->size) != sizeof(*manifest))
+		return -EINVAL;
 
 	/* pass control to component driver for optional further init */
 	if (tplg->ops && tplg->ops->manifest)
-		ret = tplg->ops->manifest(tplg->comp, tplg->index, _manifest);
-
-	if (!abi_match)	/* free the duplicated one */
-		kfree(_manifest);
+		ret = tplg->ops->manifest(tplg->comp, tplg->index, manifest);
 
 	return ret;
 }

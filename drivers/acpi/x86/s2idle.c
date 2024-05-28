@@ -492,16 +492,14 @@ static int lps0_device_attach(struct acpi_device *adev,
 			unsigned int func_mask;
 
 			/*
-			 * Avoid evaluating the same _DSM function for two
-			 * different UUIDs and prioritize the MSFT one.
+			 * Log a message if the _DSM function sets for two
+			 * different UUIDs overlap.
 			 */
 			func_mask = lps0_dsm_func_mask & lps0_dsm_func_mask_microsoft;
-			if (func_mask) {
+			if (func_mask)
 				acpi_handle_info(adev->handle,
 						 "Duplicate LPS0 _DSM functions (mask: 0x%x)\n",
 						 func_mask);
-				lps0_dsm_func_mask &= ~func_mask;
-			}
 		}
 	}
 

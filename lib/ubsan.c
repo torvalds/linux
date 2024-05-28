@@ -44,9 +44,10 @@ const char *report_ubsan_failure(struct pt_regs *regs, u32 check_type)
 	case ubsan_shift_out_of_bounds:
 		return "UBSAN: shift out of bounds";
 #endif
-#ifdef CONFIG_UBSAN_DIV_ZERO
+#if defined(CONFIG_UBSAN_DIV_ZERO) || defined(CONFIG_UBSAN_SIGNED_WRAP)
 	/*
-	 * SanitizerKind::IntegerDivideByZero emits
+	 * SanitizerKind::IntegerDivideByZero and
+	 * SanitizerKind::SignedIntegerOverflow emit
 	 * SanitizerHandler::DivremOverflow.
 	 */
 	case ubsan_divrem_overflow:
@@ -77,6 +78,19 @@ const char *report_ubsan_failure(struct pt_regs *regs, u32 check_type)
 		return "UBSAN: alignment assumption";
 	case ubsan_type_mismatch:
 		return "UBSAN: type mismatch";
+#endif
+#ifdef CONFIG_UBSAN_SIGNED_WRAP
+	/*
+	 * SanitizerKind::SignedIntegerOverflow emits
+	 * SanitizerHandler::AddOverflow, SanitizerHandler::SubOverflow,
+	 * or SanitizerHandler::MulOverflow.
+	 */
+	case ubsan_add_overflow:
+		return "UBSAN: integer addition overflow";
+	case ubsan_sub_overflow:
+		return "UBSAN: integer subtraction overflow";
+	case ubsan_mul_overflow:
+		return "UBSAN: integer multiplication overflow";
 #endif
 	default:
 		return "UBSAN: unrecognized failure code";

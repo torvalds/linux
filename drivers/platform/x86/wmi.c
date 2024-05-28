@@ -1153,47 +1153,6 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * WMI can have EmbeddedControl access regions. In which case, we just want to
- * hand these off to the EC driver.
- */
-static acpi_status
-acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
-			  u32 bits, u64 *value,
-			  void *handler_context, void *region_context)
-{
-	int result = 0;
-	u8 temp = 0;
-
-	if ((address > 0xFF) || !value)
-		return AE_BAD_PARAMETER;
-
-	if (function != ACPI_READ && function != ACPI_WRITE)
-		return AE_BAD_PARAMETER;
-
-	if (bits != 8)
-		return AE_BAD_PARAMETER;
-
-	if (function == ACPI_READ) {
-		result = ec_read(address, &temp);
-		*value = temp;
-	} else {
-		temp = 0xff & *value;
-		result = ec_write(address, temp);
-	}
-
-	switch (result) {
-	case -EINVAL:
-		return AE_BAD_PARAMETER;
-	case -ENODEV:
-		return AE_NOT_FOUND;
-	case -ETIME:
-		return AE_TIME;
-	default:
-		return AE_OK;
-	}
-}
-
 static int wmi_get_notify_data(struct wmi_block *wblock, union acpi_object **obj)
 {
 	struct acpi_buffer data = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -1308,14 +1267,6 @@ static void acpi_wmi_remove_notify_handler(void *data)
 	acpi_remove_notify_handler(acpi_device->handle, ACPI_ALL_NOTIFY, acpi_wmi_notify_handler);
 }
 
-static void acpi_wmi_remove_address_space_handler(void *data)
-{
-	struct acpi_device *acpi_device = data;
-
-	acpi_remove_address_space_handler(acpi_device->handle, ACPI_ADR_SPACE_EC,
-					  &acpi_wmi_ec_space_handler);
-}
-
 static void acpi_wmi_remove_bus_device(void *data)
 {
 	struct device *wmi_bus_dev = data;
@@ -1346,19 +1297,6 @@ static int acpi_wmi_probe(struct platform_device *device)
 		return error;
 
 	dev_set_drvdata(&device->dev, wmi_bus_dev);
-
-	status = acpi_install_address_space_handler(acpi_device->handle,
-						    ACPI_ADR_SPACE_EC,
-						    &acpi_wmi_ec_space_handler,
-						    NULL, NULL);
-	if (ACPI_FAILURE(status)) {
-		dev_err(&device->dev, "Error installing EC region handler\n");
-		return -ENODEV;
-	}
-	error = devm_add_action_or_reset(&device->dev, acpi_wmi_remove_address_space_handler,
-					 acpi_device);
-	if (error < 0)
-		return error;
 
 	status = acpi_install_notify_handler(acpi_device->handle, ACPI_ALL_NOTIFY,
 					     acpi_wmi_notify_handler, wmi_bus_dev);

@@ -45,6 +45,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/init.h>
 #include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -157,16 +158,32 @@ enum {
 
 /* HKEY events */
 enum tpacpi_hkey_event_t {
-	/* Hotkey-related */
-	TP_HKEY_EV_HOTKEY_BASE		= 0x1001, /* first hotkey (FN+F1) */
+	/* Original hotkeys */
+	TP_HKEY_EV_ORIG_KEY_START	= 0x1001, /* First hotkey (FN+F1) */
 	TP_HKEY_EV_BRGHT_UP		= 0x1010, /* Brightness up */
 	TP_HKEY_EV_BRGHT_DOWN		= 0x1011, /* Brightness down */
 	TP_HKEY_EV_KBD_LIGHT		= 0x1012, /* Thinklight/kbd backlight */
 	TP_HKEY_EV_VOL_UP		= 0x1015, /* Volume up or unmute */
 	TP_HKEY_EV_VOL_DOWN		= 0x1016, /* Volume down or unmute */
 	TP_HKEY_EV_VOL_MUTE		= 0x1017, /* Mixer output mute */
+	TP_HKEY_EV_ORIG_KEY_END		= 0x1020, /* Last original hotkey code */
+
+	/* Adaptive keyboard (2014 X1 Carbon) */
+	TP_HKEY_EV_DFR_CHANGE_ROW	= 0x1101, /* Change adaptive kbd Fn row mode */
+	TP_HKEY_EV_DFR_S_QUICKVIEW_ROW	= 0x1102, /* Set adap. kbd Fn row to function mode */
+	TP_HKEY_EV_ADAPTIVE_KEY_START	= 0x1103, /* First hotkey code on adaptive kbd */
+	TP_HKEY_EV_ADAPTIVE_KEY_END	= 0x1116, /* Last hotkey code on adaptive kbd */
+
+	/* Extended hotkey events in 2017+ models */
+	TP_HKEY_EV_EXTENDED_KEY_START	= 0x1300, /* First extended hotkey code */
 	TP_HKEY_EV_PRIVACYGUARD_TOGGLE	= 0x130f, /* Toggle priv.guard on/off */
+	TP_HKEY_EV_EXTENDED_KEY_END	= 0x1319, /* Last extended hotkey code using
+						   * hkey -> scancode translation for
+						   * compat. Later codes are entered
+						   * directly in the sparse-keymap.
+						   */
 	TP_HKEY_EV_AMT_TOGGLE		= 0x131a, /* Toggle AMT on/off */
+	TP_HKEY_EV_DOUBLETAP_TOGGLE	= 0x131c, /* Toggle trackpoint doubletap on/off */
 	TP_HKEY_EV_PROFILE_TOGGLE	= 0x131f, /* Toggle platform profile */
 
 	/* Reasons for waking up from S3/S4 */
@@ -232,6 +249,9 @@ enum tpacpi_hkey_event_t {
 
 	/* Misc */
 	TP_HKEY_EV_RFKILL_CHANGED	= 0x7000, /* rfkill switch changed */
+
+	/* Misc2 */
+	TP_HKEY_EV_TRACK_DOUBLETAP      = 0x8036, /* trackpoint doubletap */
 };
 
 /****************************************************************************
@@ -353,6 +373,7 @@ static struct {
 	u32 hotkey_poll_active:1;
 	u32 has_adaptive_kbd:1;
 	u32 kbd_lang:1;
+	u32 trackpoint_doubletap:1;
 	struct quirk_entry *quirks;
 } tp_features;
 
@@ -1744,15 +1765,15 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_THINKPAD,
 	TP_ACPI_HOTKEYSCAN_UNK1,
 	TP_ACPI_HOTKEYSCAN_UNK2,
-	TP_ACPI_HOTKEYSCAN_UNK3,
+	TP_ACPI_HOTKEYSCAN_MICMUTE,
 	TP_ACPI_HOTKEYSCAN_UNK4,
-	TP_ACPI_HOTKEYSCAN_UNK5,
-	TP_ACPI_HOTKEYSCAN_UNK6,
-	TP_ACPI_HOTKEYSCAN_UNK7,
-	TP_ACPI_HOTKEYSCAN_UNK8,
+	TP_ACPI_HOTKEYSCAN_CONFIG,
+	TP_ACPI_HOTKEYSCAN_SEARCH,
+	TP_ACPI_HOTKEYSCAN_SCALE,
+	TP_ACPI_HOTKEYSCAN_FILE,
 
 	/* Adaptive keyboard keycodes */
-	TP_ACPI_HOTKEYSCAN_ADAPTIVE_START,
+	TP_ACPI_HOTKEYSCAN_ADAPTIVE_START, /* 32 / 0x20 */
 	TP_ACPI_HOTKEYSCAN_MUTE2        = TP_ACPI_HOTKEYSCAN_ADAPTIVE_START,
 	TP_ACPI_HOTKEYSCAN_BRIGHTNESS_ZERO,
 	TP_ACPI_HOTKEYSCAN_CLIPPING_TOOL,
@@ -1764,7 +1785,7 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_UNK11,
 	TP_ACPI_HOTKEYSCAN_UNK12,
 	TP_ACPI_HOTKEYSCAN_UNK13,
-	TP_ACPI_HOTKEYSCAN_CONFIG,
+	TP_ACPI_HOTKEYSCAN_CONFIG2,
 	TP_ACPI_HOTKEYSCAN_NEW_TAB,
 	TP_ACPI_HOTKEYSCAN_RELOAD,
 	TP_ACPI_HOTKEYSCAN_BACK,
@@ -1775,7 +1796,7 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_ROTATE_DISPLAY,
 
 	/* Lenovo extended keymap, starting at 0x1300 */
-	TP_ACPI_HOTKEYSCAN_EXTENDED_START,
+	TP_ACPI_HOTKEYSCAN_EXTENDED_START, /* 52 / 0x34 */
 	/* first new observed key (star, favorites) is 0x1311 */
 	TP_ACPI_HOTKEYSCAN_STAR = 69,
 	TP_ACPI_HOTKEYSCAN_CLIPPING_TOOL2,
@@ -1786,9 +1807,6 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_NOTIFICATION_CENTER,
 	TP_ACPI_HOTKEYSCAN_PICKUP_PHONE,
 	TP_ACPI_HOTKEYSCAN_HANGUP_PHONE,
-
-	/* Hotkey keymap size */
-	TPACPI_HOTKEY_MAP_LEN
 };
 
 enum {	/* Keys/events available through NVRAM polling */
@@ -1901,10 +1919,7 @@ static u32 hotkey_driver_mask;		/* events needed by the driver */
 static u32 hotkey_user_mask;		/* events visible to userspace */
 static u32 hotkey_acpi_mask;		/* events enabled in firmware */
 
-static u16 *hotkey_keycode_map;
-
-static void tpacpi_driver_event(const unsigned int hkey_event);
-static void hotkey_driver_event(const unsigned int scancode);
+static bool tpacpi_driver_event(const unsigned int hkey_event);
 static void hotkey_poll_setup(const bool may_warn);
 
 /* HKEY.MHKG() return bits */
@@ -2236,32 +2251,56 @@ static void tpacpi_input_send_tabletsw(void)
 	}
 }
 
-/* Do NOT call without validating scancode first */
-static void tpacpi_input_send_key(const unsigned int scancode)
+static bool tpacpi_input_send_key(const u32 hkey, bool *send_acpi_ev)
 {
-	const unsigned int keycode = hotkey_keycode_map[scancode];
+	bool known_ev;
+	u32 scancode;
 
-	if (keycode != KEY_RESERVED) {
-		mutex_lock(&tpacpi_inputdev_send_mutex);
+	if (tpacpi_driver_event(hkey))
+		return true;
 
-		input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
-		input_report_key(tpacpi_inputdev, keycode, 1);
-		input_sync(tpacpi_inputdev);
+	/*
+	 * Before the conversion to using the sparse-keymap helpers the driver used to
+	 * map the hkey event codes to 0x00 - 0x4d scancodes so that a straight scancode
+	 * indexed array could be used to map scancodes to keycodes:
+	 *
+	 * 0x1001 - 0x1020  ->  0x00 - 0x1f  (Original ThinkPad events)
+	 * 0x1103 - 0x1116  ->  0x20 - 0x33  (Adaptive keyboard, 2014 X1 Carbon)
+	 * 0x1300 - 0x1319  ->  0x34 - 0x4d  (Additional keys send in 2017+ models)
+	 *
+	 * The sparse-keymap tables still use these scancodes for these ranges to
+	 * preserve userspace API compatibility (e.g. hwdb keymappings).
+	 */
+	if (hkey >= TP_HKEY_EV_ORIG_KEY_START &&
+	    hkey <= TP_HKEY_EV_ORIG_KEY_END) {
+		scancode = hkey - TP_HKEY_EV_ORIG_KEY_START;
+		if (!(hotkey_user_mask & (1 << scancode)))
+			return true; /* Not reported but still a known code */
+	} else if (hkey >= TP_HKEY_EV_ADAPTIVE_KEY_START &&
+		   hkey <= TP_HKEY_EV_ADAPTIVE_KEY_END) {
+		scancode = hkey - TP_HKEY_EV_ADAPTIVE_KEY_START +
+			   TP_ACPI_HOTKEYSCAN_ADAPTIVE_START;
+	} else if (hkey >= TP_HKEY_EV_EXTENDED_KEY_START &&
+		   hkey <= TP_HKEY_EV_EXTENDED_KEY_END) {
+		scancode = hkey - TP_HKEY_EV_EXTENDED_KEY_START +
+			   TP_ACPI_HOTKEYSCAN_EXTENDED_START;
+	} else {
+		/*
+		 * Do not send ACPI netlink events for unknown hotkeys, to
+		 * avoid userspace starting to rely on them. Instead these
+		 * should be added to the keymap to send evdev events.
+		 */
+		if (send_acpi_ev)
+			*send_acpi_ev = false;
 
-		input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
-		input_report_key(tpacpi_inputdev, keycode, 0);
-		input_sync(tpacpi_inputdev);
-
-		mutex_unlock(&tpacpi_inputdev_send_mutex);
+		scancode = hkey;
 	}
-}
 
-/* Do NOT call without validating scancode first */
-static void tpacpi_input_send_key_masked(const unsigned int scancode)
-{
-	hotkey_driver_event(scancode);
-	if (hotkey_user_mask & (1 << scancode))
-		tpacpi_input_send_key(scancode);
+	mutex_lock(&tpacpi_inputdev_send_mutex);
+	known_ev = sparse_keymap_report_event(tpacpi_inputdev, scancode, 1, true);
+	mutex_unlock(&tpacpi_inputdev_send_mutex);
+
+	return known_ev;
 }
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
@@ -2270,7 +2309,7 @@ static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 /* Do NOT call without validating scancode first */
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
-	tpacpi_input_send_key_masked(scancode);
+	tpacpi_input_send_key(TP_HKEY_EV_ORIG_KEY_START + scancode, NULL);
 }
 
 static void hotkey_read_nvram(struct tp_nvram_state *n, const u32 m)
@@ -2575,6 +2614,9 @@ static void hotkey_poll_setup_safe(const bool __unused)
 {
 }
 
+static void hotkey_poll_stop_sync(void)
+{
+}
 #endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
 static int hotkey_inputdev_open(struct input_dev *dev)
@@ -2679,7 +2721,7 @@ static ssize_t hotkey_bios_enabled_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return sprintf(buf, "0\n");
+	return sysfs_emit(buf, "0\n");
 }
 
 static DEVICE_ATTR_RO(hotkey_bios_enabled);
@@ -3044,11 +3086,8 @@ static void tpacpi_send_radiosw_update(void)
 
 static void hotkey_exit(void)
 {
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 	mutex_lock(&hotkey_mutex);
 	hotkey_poll_stop_sync();
-	mutex_unlock(&hotkey_mutex);
-#endif
 	dbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_HKEY,
 		   "restoring original HKEY status and mask\n");
 	/* yes, there is a bitwise or below, we want the
@@ -3057,15 +3096,8 @@ static void hotkey_exit(void)
 	      hotkey_mask_set(hotkey_orig_mask)) |
 	     hotkey_status_set(false)) != 0)
 		pr_err("failed to restore hot key mask to BIOS defaults\n");
-}
 
-static void __init hotkey_unmap(const unsigned int scancode)
-{
-	if (hotkey_keycode_map[scancode] != KEY_RESERVED) {
-		clear_bit(hotkey_keycode_map[scancode],
-			  tpacpi_inputdev->keybit);
-		hotkey_keycode_map[scancode] = KEY_RESERVED;
-	}
+	mutex_unlock(&hotkey_mutex);
 }
 
 /*
@@ -3096,9 +3128,6 @@ static const struct tpacpi_quirk tpacpi_hotkey_qtable[] __initconst = {
 	TPACPI_Q_IBM('I', 'Z', TPACPI_HK_Q_INIMASK), /* X20, X21 */
 	TPACPI_Q_IBM('1', 'D', TPACPI_HK_Q_INIMASK), /* X22, X23, X24 */
 };
-
-typedef u16 tpacpi_keymap_entry_t;
-typedef tpacpi_keymap_entry_t tpacpi_keymap_t[TPACPI_HOTKEY_MAP_LEN];
 
 static int hotkey_init_tablet_mode(void)
 {
@@ -3136,207 +3165,124 @@ static int hotkey_init_tablet_mode(void)
 	return in_tablet_mode;
 }
 
+static const struct key_entry keymap_ibm[] __initconst = {
+	/* Original hotkey mappings translated scancodes 0x00 - 0x1f */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF1, { KEY_FN_F1 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF2, { KEY_BATTERY } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF3, { KEY_COFFEE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF4, { KEY_SLEEP } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF5, { KEY_WLAN } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF6, { KEY_FN_F6 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF7, { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF8, { KEY_FN_F8 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF9, { KEY_FN_F9 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF10, { KEY_FN_F10 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF11, { KEY_FN_F11 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF12, { KEY_SUSPEND } },
+	/* Brightness: firmware always reacts, suppressed through hotkey_reserved_mask. */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNHOME, { KEY_BRIGHTNESSUP } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNEND, { KEY_BRIGHTNESSDOWN } },
+	/* Thinklight: firmware always reacts, suppressed through hotkey_reserved_mask. */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNPAGEUP, { KEY_KBDILLUMTOGGLE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNSPACE, { KEY_ZOOM } },
+	/*
+	 * Volume: firmware always reacts and reprograms the built-in *extra* mixer.
+	 * Suppressed by default through hotkey_reserved_mask.
+	 */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_VOLUMEUP, { KEY_VOLUMEUP } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_VOLUMEDOWN, { KEY_VOLUMEDOWN } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_MUTE, { KEY_MUTE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_THINKPAD, { KEY_VENDOR } },
+	{ KE_END }
+};
+
+static const struct key_entry keymap_lenovo[] __initconst = {
+	/* Original hotkey mappings translated scancodes 0x00 - 0x1f */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF1, { KEY_FN_F1 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF2, { KEY_COFFEE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF3, { KEY_BATTERY } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF4, { KEY_SLEEP } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF5, { KEY_WLAN } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF6, { KEY_CAMERA, } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF7, { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF8, { KEY_FN_F8 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF9, { KEY_FN_F9 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF10, { KEY_FN_F10 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF11, { KEY_FN_F11 } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNF12, { KEY_SUSPEND } },
+	/*
+	 * These should be enabled --only-- when ACPI video is disabled and
+	 * are handled in a special way by the init code.
+	 */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNHOME, { KEY_BRIGHTNESSUP } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNEND, { KEY_BRIGHTNESSDOWN } },
+	/* Suppressed by default through hotkey_reserved_mask. */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNPAGEUP, { KEY_KBDILLUMTOGGLE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FNSPACE, { KEY_ZOOM } },
+	/*
+	 * Volume: z60/z61, T60 (BIOS version?): firmware always reacts and
+	 * reprograms the built-in *extra* mixer.
+	 * T60?, T61, R60?, R61: firmware and EC tries to send these over
+	 * the regular keyboard (not through tpacpi). There are still weird bugs
+	 * re. MUTE. May cause the BIOS to interfere with the HDA mixer.
+	 * Suppressed by default through hotkey_reserved_mask.
+	 */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_VOLUMEUP, { KEY_VOLUMEUP } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_VOLUMEDOWN, { KEY_VOLUMEDOWN } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_MUTE, { KEY_MUTE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_THINKPAD, { KEY_VENDOR } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_MICMUTE, { KEY_MICMUTE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_CONFIG, { KEY_CONFIG } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_SEARCH, { KEY_SEARCH } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_SCALE, { KEY_SCALE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FILE, { KEY_FILE } },
+	/* Adaptive keyboard mappings for Carbon X1 2014 translated scancodes 0x20 - 0x33 */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_MUTE2, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_BRIGHTNESS_ZERO, { KEY_BRIGHTNESS_MIN } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_CLIPPING_TOOL, { KEY_SELECTIVE_SCREENSHOT } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_CLOUD, { KEY_XFER } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_UNK9, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_VOICE, { KEY_VOICECOMMAND } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_UNK10, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_GESTURES, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_UNK11, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_UNK12, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_UNK13, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_CONFIG2, { KEY_CONFIG } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_NEW_TAB, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_RELOAD, { KEY_REFRESH } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_BACK, { KEY_BACK } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_MIC_DOWN, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_MIC_UP, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_MIC_CANCELLATION, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_CAMERA_MODE, { KEY_RESERVED } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_ROTATE_DISPLAY, { KEY_RESERVED } },
+	/* Extended hotkeys mappings translated scancodes 0x34 - 0x4d */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_STAR, { KEY_BOOKMARKS } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_CLIPPING_TOOL2, { KEY_SELECTIVE_SCREENSHOT } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_CALCULATOR, { KEY_CALC } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_BLUETOOTH, { KEY_BLUETOOTH } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_KEYBOARD, { KEY_KEYBOARD } },
+	/* Used by "Lenovo Quick Clean" */
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_FN_RIGHT_SHIFT, { KEY_FN_RIGHT_SHIFT } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_NOTIFICATION_CENTER, { KEY_NOTIFICATION_CENTER } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_PICKUP_PHONE, { KEY_PICKUP_PHONE } },
+	{ KE_KEY, TP_ACPI_HOTKEYSCAN_HANGUP_PHONE, { KEY_HANGUP_PHONE } },
+	/*
+	 * All mapping below are for raw untranslated hkey event codes mapped directly
+	 * after switching to sparse keymap support. The mappings above use translated
+	 * scancodes to preserve uAPI compatibility, see tpacpi_input_send_key().
+	 */
+	{ KE_KEY, 0x131d, { KEY_VENDOR } }, /* System debug info, similar to old ThinkPad key */
+	{ KE_KEY, TP_HKEY_EV_TRACK_DOUBLETAP /* 0x8036 */, { KEY_PROG4 } },
+	{ KE_END }
+};
+
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
-	/* Requirements for changing the default keymaps:
-	 *
-	 * 1. Many of the keys are mapped to KEY_RESERVED for very
-	 *    good reasons.  Do not change them unless you have deep
-	 *    knowledge on the IBM and Lenovo ThinkPad firmware for
-	 *    the various ThinkPad models.  The driver behaves
-	 *    differently for KEY_RESERVED: such keys have their
-	 *    hot key mask *unset* in mask_recommended, and also
-	 *    in the initial hot key mask programmed into the
-	 *    firmware at driver load time, which means the firm-
-	 *    ware may react very differently if you change them to
-	 *    something else;
-	 *
-	 * 2. You must be subscribed to the linux-thinkpad and
-	 *    ibm-acpi-devel mailing lists, and you should read the
-	 *    list archives since 2007 if you want to change the
-	 *    keymaps.  This requirement exists so that you will
-	 *    know the past history of problems with the thinkpad-
-	 *    acpi driver keymaps, and also that you will be
-	 *    listening to any bug reports;
-	 *
-	 * 3. Do not send thinkpad-acpi specific patches directly to
-	 *    for merging, *ever*.  Send them to the linux-acpi
-	 *    mailinglist for comments.  Merging is to be done only
-	 *    through acpi-test and the ACPI maintainer.
-	 *
-	 * If the above is too much to ask, don't change the keymap.
-	 * Ask the thinkpad-acpi maintainer to do it, instead.
-	 */
-
 	enum keymap_index {
 		TPACPI_KEYMAP_IBM_GENERIC = 0,
 		TPACPI_KEYMAP_LENOVO_GENERIC,
-	};
-
-	static const tpacpi_keymap_t tpacpi_keymaps[] __initconst = {
-	/* Generic keymap for IBM ThinkPads */
-	[TPACPI_KEYMAP_IBM_GENERIC] = {
-		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
-		KEY_FN_F1,	KEY_BATTERY,	KEY_COFFEE,	KEY_SLEEP,
-		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
-		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
-
-		/* Scan codes 0x0C to 0x1F: Other ACPI HKEY hot keys */
-		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
-		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
-		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
-
-		/* brightness: firmware always reacts to them */
-		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
-		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
-
-		/* Thinklight: firmware always react to it */
-		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
-
-		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
-		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
-
-		/* Volume: firmware always react to it and reprograms
-		 * the built-in *extra* mixer.  Never map it to control
-		 * another mixer by default. */
-		KEY_RESERVED,	/* 0x14: VOLUME UP */
-		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
-		KEY_RESERVED,	/* 0x16: MUTE */
-
-		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
-
-		/* (assignments unknown, please report if found) */
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-
-		/* No assignments, only used for Adaptive keyboards. */
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-
-		/* No assignment, used for newer Lenovo models */
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN
-
-		},
-
-	/* Generic keymap for Lenovo ThinkPads */
-	[TPACPI_KEYMAP_LENOVO_GENERIC] = {
-		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
-		KEY_FN_F1,	KEY_COFFEE,	KEY_BATTERY,	KEY_SLEEP,
-		KEY_WLAN,	KEY_CAMERA, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
-		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
-
-		/* Scan codes 0x0C to 0x1F: Other ACPI HKEY hot keys */
-		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
-		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
-		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
-
-		/* These should be enabled --only-- when ACPI video
-		 * is disabled (i.e. in "vendor" mode), and are handled
-		 * in a special way by the init code */
-		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
-		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
-
-		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
-
-		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
-		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
-
-		/* Volume: z60/z61, T60 (BIOS version?): firmware always
-		 * react to it and reprograms the built-in *extra* mixer.
-		 * Never map it to control another mixer by default.
-		 *
-		 * T60?, T61, R60?, R61: firmware and EC tries to send
-		 * these over the regular keyboard, so these are no-ops,
-		 * but there are still weird bugs re. MUTE, so do not
-		 * change unless you get test reports from all Lenovo
-		 * models.  May cause the BIOS to interfere with the
-		 * HDA mixer.
-		 */
-		KEY_RESERVED,	/* 0x14: VOLUME UP */
-		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
-		KEY_RESERVED,	/* 0x16: MUTE */
-
-		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
-
-		/* (assignments unknown, please report if found) */
-		KEY_UNKNOWN, KEY_UNKNOWN,
-
-		/*
-		 * The mic mute button only sends 0x1a.  It does not
-		 * automatically mute the mic or change the mute light.
-		 */
-		KEY_MICMUTE,	/* 0x1a: Mic mute (since ?400 or so) */
-
-		/* (assignments unknown, please report if found) */
-		KEY_UNKNOWN,
-
-		/* Extra keys in use since the X240 / T440 / T540 */
-		KEY_CONFIG, KEY_SEARCH, KEY_SCALE, KEY_FILE,
-
-		/*
-		 * These are the adaptive keyboard keycodes for Carbon X1 2014.
-		 * The first item in this list is the Mute button which is
-		 * emitted with 0x103 through
-		 * adaptive_keyboard_hotkey_notify_hotkey() when the sound
-		 * symbol is held.
-		 * We'll need to offset those by 0x20.
-		 */
-		KEY_RESERVED,        /* Mute held, 0x103 */
-		KEY_BRIGHTNESS_MIN,  /* Backlight off */
-		KEY_RESERVED,        /* Clipping tool */
-		KEY_RESERVED,        /* Cloud */
-		KEY_RESERVED,
-		KEY_VOICECOMMAND,    /* Voice */
-		KEY_RESERVED,
-		KEY_RESERVED,        /* Gestures */
-		KEY_RESERVED,
-		KEY_RESERVED,
-		KEY_RESERVED,
-		KEY_CONFIG,          /* Settings */
-		KEY_RESERVED,        /* New tab */
-		KEY_REFRESH,         /* Reload */
-		KEY_BACK,            /* Back */
-		KEY_RESERVED,        /* Microphone down */
-		KEY_RESERVED,        /* Microphone up */
-		KEY_RESERVED,        /* Microphone cancellation */
-		KEY_RESERVED,        /* Camera mode */
-		KEY_RESERVED,        /* Rotate display, 0x116 */
-
-		/*
-		 * These are found in 2017 models (e.g. T470s, X270).
-		 * The lowest known value is 0x311, which according to
-		 * the manual should launch a user defined favorite
-		 * application.
-		 *
-		 * The offset for these is TP_ACPI_HOTKEYSCAN_EXTENDED_START,
-		 * corresponding to 0x34.
-		 */
-
-		/* (assignments unknown, please report if found) */
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN,
-
-		KEY_BOOKMARKS,			/* Favorite app, 0x311 */
-		KEY_SELECTIVE_SCREENSHOT,	/* Clipping tool */
-		KEY_CALC,			/* Calculator (above numpad, P52) */
-		KEY_BLUETOOTH,			/* Bluetooth */
-		KEY_KEYBOARD,			/* Keyboard, 0x315 */
-		KEY_FN_RIGHT_SHIFT,		/* Fn + right Shift */
-		KEY_NOTIFICATION_CENTER,	/* Notification Center */
-		KEY_PICKUP_PHONE,		/* Answer incoming call */
-		KEY_HANGUP_PHONE,		/* Decline incoming call */
-		},
 	};
 
 	static const struct tpacpi_quirk tpacpi_keymap_qtable[] __initconst = {
@@ -3353,17 +3299,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		},
 	};
 
-#define TPACPI_HOTKEY_MAP_SIZE		sizeof(tpacpi_keymap_t)
-#define TPACPI_HOTKEY_MAP_TYPESIZE	sizeof(tpacpi_keymap_entry_t)
-
-	int res, i;
-	int status;
-	int hkeyv;
+	unsigned long keymap_id, quirks;
+	const struct key_entry *keymap;
 	bool radiosw_state  = false;
 	bool tabletsw_state = false;
-
-	unsigned long quirks;
-	unsigned long keymap_id;
+	int hkeyv, res, status;
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 			"initializing hotkey subdriver\n");
@@ -3503,30 +3443,29 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	/* Set up key map */
 	keymap_id = tpacpi_check_quirks(tpacpi_keymap_qtable,
 					ARRAY_SIZE(tpacpi_keymap_qtable));
-	BUG_ON(keymap_id >= ARRAY_SIZE(tpacpi_keymaps));
 	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 		   "using keymap number %lu\n", keymap_id);
 
-	hotkey_keycode_map = kmemdup(&tpacpi_keymaps[keymap_id],
-			TPACPI_HOTKEY_MAP_SIZE,	GFP_KERNEL);
-	if (!hotkey_keycode_map) {
-		pr_err("failed to allocate memory for key map\n");
-		return -ENOMEM;
+	/* Keys which should be reserved on both IBM and Lenovo models */
+	hotkey_reserved_mask = TP_ACPI_HKEY_KBD_LIGHT_MASK |
+			       TP_ACPI_HKEY_VOLUP_MASK |
+			       TP_ACPI_HKEY_VOLDWN_MASK |
+			       TP_ACPI_HKEY_MUTE_MASK;
+	/*
+	 * Reserve brightness up/down unconditionally on IBM models, on Lenovo
+	 * models these are disabled based on acpi_video_get_backlight_type().
+	 */
+	if (keymap_id == TPACPI_KEYMAP_IBM_GENERIC) {
+		hotkey_reserved_mask |= TP_ACPI_HKEY_BRGHTUP_MASK |
+					TP_ACPI_HKEY_BRGHTDWN_MASK;
+		keymap = keymap_ibm;
+	} else {
+		keymap = keymap_lenovo;
 	}
 
-	input_set_capability(tpacpi_inputdev, EV_MSC, MSC_SCAN);
-	tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
-	tpacpi_inputdev->keycodemax = TPACPI_HOTKEY_MAP_LEN;
-	tpacpi_inputdev->keycode = hotkey_keycode_map;
-	for (i = 0; i < TPACPI_HOTKEY_MAP_LEN; i++) {
-		if (hotkey_keycode_map[i] != KEY_RESERVED) {
-			input_set_capability(tpacpi_inputdev, EV_KEY,
-						hotkey_keycode_map[i]);
-		} else {
-			if (i < sizeof(hotkey_reserved_mask)*8)
-				hotkey_reserved_mask |= 1 << i;
-		}
-	}
+	res = sparse_keymap_setup(tpacpi_inputdev, keymap, NULL);
+	if (res)
+		return res;
 
 	if (tp_features.hotkey_wlsw) {
 		input_set_capability(tpacpi_inputdev, EV_SW, SW_RFKILL_ALL);
@@ -3549,11 +3488,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		/* Disable brightness up/down on Lenovo thinkpads when
 		 * ACPI is handling them, otherwise it is plain impossible
 		 * for userspace to do something even remotely sane */
-		hotkey_reserved_mask |=
-			(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
-			| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
-		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNHOME);
-		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNEND);
+		hotkey_reserved_mask |= TP_ACPI_HKEY_BRGHTUP_MASK |
+					TP_ACPI_HKEY_BRGHTDWN_MASK;
 	}
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
@@ -3593,6 +3529,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 	hotkey_poll_setup_safe(true);
 
+	/* Enable doubletap by default */
+	tp_features.trackpoint_doubletap = 1;
+
 	return 0;
 }
 
@@ -3609,10 +3548,6 @@ static const int adaptive_keyboard_modes[] = {
 	WEB_CONFERENCE_MODE = 3, */
 	FUNCTION_MODE
 };
-
-#define DFR_CHANGE_ROW			0x101
-#define DFR_SHOW_QUICKVIEW_ROW		0x102
-#define FIRST_ADAPTIVE_KEY		0x103
 
 /* press Fn key a while second, it will switch to Function Mode. Then
  * release Fn key, previous mode be restored.
@@ -3664,153 +3599,67 @@ static int adaptive_keyboard_get_next_mode(int mode)
 	return adaptive_keyboard_modes[i];
 }
 
-static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
+static void adaptive_keyboard_change_row(void)
 {
-	int current_mode = 0;
-	int new_mode = 0;
-	int keycode;
+	int mode;
 
-	switch (scancode) {
-	case DFR_CHANGE_ROW:
-		if (adaptive_keyboard_mode_is_saved) {
-			new_mode = adaptive_keyboard_prev_mode;
-			adaptive_keyboard_mode_is_saved = false;
-		} else {
-			current_mode = adaptive_keyboard_get_mode();
-			if (current_mode < 0)
-				return false;
-			new_mode = adaptive_keyboard_get_next_mode(
-					current_mode);
-		}
-
-		if (adaptive_keyboard_set_mode(new_mode) < 0)
-			return false;
-
-		return true;
-
-	case DFR_SHOW_QUICKVIEW_ROW:
-		current_mode = adaptive_keyboard_get_mode();
-		if (current_mode < 0)
-			return false;
-
-		adaptive_keyboard_prev_mode = current_mode;
-		adaptive_keyboard_mode_is_saved = true;
-
-		if (adaptive_keyboard_set_mode (FUNCTION_MODE) < 0)
-			return false;
-		return true;
-
-	default:
-		if (scancode < FIRST_ADAPTIVE_KEY ||
-		    scancode >= FIRST_ADAPTIVE_KEY +
-		    TP_ACPI_HOTKEYSCAN_EXTENDED_START -
-		    TP_ACPI_HOTKEYSCAN_ADAPTIVE_START) {
-			pr_info("Unhandled adaptive keyboard key: 0x%x\n",
-				scancode);
-			return false;
-		}
-		keycode = hotkey_keycode_map[scancode - FIRST_ADAPTIVE_KEY +
-					     TP_ACPI_HOTKEYSCAN_ADAPTIVE_START];
-		if (keycode != KEY_RESERVED) {
-			mutex_lock(&tpacpi_inputdev_send_mutex);
-
-			input_report_key(tpacpi_inputdev, keycode, 1);
-			input_sync(tpacpi_inputdev);
-
-			input_report_key(tpacpi_inputdev, keycode, 0);
-			input_sync(tpacpi_inputdev);
-
-			mutex_unlock(&tpacpi_inputdev_send_mutex);
-		}
-		return true;
+	if (adaptive_keyboard_mode_is_saved) {
+		mode = adaptive_keyboard_prev_mode;
+		adaptive_keyboard_mode_is_saved = false;
+	} else {
+		mode = adaptive_keyboard_get_mode();
+		if (mode < 0)
+			return;
+		mode = adaptive_keyboard_get_next_mode(mode);
 	}
+
+	adaptive_keyboard_set_mode(mode);
 }
 
-static bool hotkey_notify_extended_hotkey(const u32 hkey)
+static void adaptive_keyboard_s_quickview_row(void)
 {
-	unsigned int scancode;
+	int mode;
 
-	switch (hkey) {
-	case TP_HKEY_EV_PRIVACYGUARD_TOGGLE:
-	case TP_HKEY_EV_AMT_TOGGLE:
-	case TP_HKEY_EV_PROFILE_TOGGLE:
-		tpacpi_driver_event(hkey);
-		return true;
-	}
+	mode = adaptive_keyboard_get_mode();
+	if (mode < 0)
+		return;
 
-	/* Extended keycodes start at 0x300 and our offset into the map
-	 * TP_ACPI_HOTKEYSCAN_EXTENDED_START. The calculated scancode
-	 * will be positive, but might not be in the correct range.
-	 */
-	scancode = (hkey & 0xfff) - (0x300 - TP_ACPI_HOTKEYSCAN_EXTENDED_START);
-	if (scancode >= TP_ACPI_HOTKEYSCAN_EXTENDED_START &&
-	    scancode < TPACPI_HOTKEY_MAP_LEN) {
-		tpacpi_input_send_key(scancode);
-		return true;
-	}
+	adaptive_keyboard_prev_mode = mode;
+	adaptive_keyboard_mode_is_saved = true;
 
-	return false;
+	adaptive_keyboard_set_mode(FUNCTION_MODE);
 }
 
-static bool hotkey_notify_hotkey(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+/* 0x1000-0x1FFF: key presses */
+static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 {
-	/* 0x1000-0x1FFF: key presses */
-	unsigned int scancode = hkey & 0xfff;
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
+	/* Never send ACPI netlink events for original hotkeys (hkey: 0x1001 - 0x1020) */
+	if (hkey >= TP_HKEY_EV_ORIG_KEY_START && hkey <= TP_HKEY_EV_ORIG_KEY_END) {
+		*send_acpi_ev = false;
 
-	/*
-	 * Original events are in the 0x10XX range, the adaptive keyboard
-	 * found in 2014 X1 Carbon emits events are of 0x11XX. In 2017
-	 * models, additional keys are emitted through 0x13XX.
-	 */
-	switch ((hkey >> 8) & 0xf) {
-	case 0:
-		if (scancode > 0 &&
-		    scancode <= TP_ACPI_HOTKEYSCAN_ADAPTIVE_START) {
-			/* HKEY event 0x1001 is scancode 0x00 */
-			scancode--;
-			if (!(hotkey_source_mask & (1 << scancode))) {
-				tpacpi_input_send_key_masked(scancode);
-				*send_acpi_ev = false;
-			} else {
-				*ignore_acpi_ev = true;
-			}
+		/* Original hotkeys may be polled from NVRAM instead */
+		unsigned int scancode = hkey - TP_HKEY_EV_ORIG_KEY_START;
+		if (hotkey_source_mask & (1 << scancode))
 			return true;
-		}
-		break;
-
-	case 1:
-		return adaptive_keyboard_hotkey_notify_hotkey(scancode);
-
-	case 3:
-		return hotkey_notify_extended_hotkey(hkey);
 	}
 
-	return false;
+	return tpacpi_input_send_key(hkey, send_acpi_ev);
 }
 
-static bool hotkey_notify_wakeup(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+/* 0x2000-0x2FFF: Wakeup reason */
+static bool hotkey_notify_wakeup(const u32 hkey, bool *send_acpi_ev)
 {
-	/* 0x2000-0x2FFF: Wakeup reason */
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
-
 	switch (hkey) {
 	case TP_HKEY_EV_WKUP_S3_UNDOCK: /* suspend, undock */
 	case TP_HKEY_EV_WKUP_S4_UNDOCK: /* hibernation, undock */
 		hotkey_wakeup_reason = TP_ACPI_WAKEUP_UNDOCK;
-		*ignore_acpi_ev = true;
+		*send_acpi_ev = false;
 		break;
 
 	case TP_HKEY_EV_WKUP_S3_BAYEJ: /* suspend, bay eject */
 	case TP_HKEY_EV_WKUP_S4_BAYEJ: /* hibernation, bay eject */
 		hotkey_wakeup_reason = TP_ACPI_WAKEUP_BAYEJ;
-		*ignore_acpi_ev = true;
+		*send_acpi_ev = false;
 		break;
 
 	case TP_HKEY_EV_WKUP_S3_BATLOW: /* Battery on critical low level/S3 */
@@ -3832,14 +3681,9 @@ static bool hotkey_notify_wakeup(const u32 hkey,
 	return true;
 }
 
-static bool hotkey_notify_dockevent(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+/* 0x4000-0x4FFF: dock-related events */
+static bool hotkey_notify_dockevent(const u32 hkey, bool *send_acpi_ev)
 {
-	/* 0x4000-0x4FFF: dock-related events */
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
-
 	switch (hkey) {
 	case TP_HKEY_EV_UNDOCK_ACK:
 		/* ACPI undock operation completed after wakeup */
@@ -3869,7 +3713,6 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 	case TP_HKEY_EV_KBD_COVER_ATTACH:
 	case TP_HKEY_EV_KBD_COVER_DETACH:
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
 		return true;
 
 	default:
@@ -3877,14 +3720,9 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 	}
 }
 
-static bool hotkey_notify_usrevent(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+/* 0x5000-0x5FFF: human interface helpers */
+static bool hotkey_notify_usrevent(const u32 hkey, bool *send_acpi_ev)
 {
-	/* 0x5000-0x5FFF: human interface helpers */
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
-
 	switch (hkey) {
 	case TP_HKEY_EV_PEN_INSERTED:  /* X61t: tablet pen inserted into bay */
 	case TP_HKEY_EV_PEN_REMOVED:   /* X61t: tablet pen removed from bay */
@@ -3901,7 +3739,7 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 	case TP_HKEY_EV_LID_OPEN:	/* Lid opened */
 	case TP_HKEY_EV_BRGHT_CHANGED:	/* brightness changed */
 		/* do not propagate these events */
-		*ignore_acpi_ev = true;
+		*send_acpi_ev = false;
 		return true;
 
 	default:
@@ -3912,14 +3750,9 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 static void thermal_dump_all_sensors(void);
 static void palmsensor_refresh(void);
 
-static bool hotkey_notify_6xxx(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+/* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
+static bool hotkey_notify_6xxx(const u32 hkey, bool *send_acpi_ev)
 {
-	/* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
-
 	switch (hkey) {
 	case TP_HKEY_EV_THM_TABLE_CHANGED:
 		pr_debug("EC reports: Thermal Table has changed\n");
@@ -3965,14 +3798,12 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		/* key press events, we just ignore them as long as the EC
 		 * is still reporting them in the normal keyboard stream */
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
 		return true;
 
 	case TP_HKEY_EV_KEY_FN_ESC:
 		/* Get the media key status to force the status LED to update */
 		acpi_evalf(hkey_handle, NULL, "GMKS", "v");
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
 		return true;
 
 	case TP_HKEY_EV_TABLET_CHANGED:
@@ -3996,11 +3827,23 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 	return true;
 }
 
+static bool hotkey_notify_8xxx(const u32 hkey, bool *send_acpi_ev)
+{
+	switch (hkey) {
+	case TP_HKEY_EV_TRACK_DOUBLETAP:
+		if (tp_features.trackpoint_doubletap)
+			tpacpi_input_send_key(hkey, send_acpi_ev);
+
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
 	u32 hkey;
 	bool send_acpi_ev;
-	bool ignore_acpi_ev;
 	bool known_ev;
 
 	if (event != 0x80) {
@@ -4025,18 +3868,16 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		send_acpi_ev = true;
-		ignore_acpi_ev = false;
+		known_ev = false;
 
 		switch (hkey >> 12) {
 		case 1:
 			/* 0x1000-0x1FFF: key presses */
-			known_ev = hotkey_notify_hotkey(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			known_ev = hotkey_notify_hotkey(hkey, &send_acpi_ev);
 			break;
 		case 2:
 			/* 0x2000-0x2FFF: Wakeup reason */
-			known_ev = hotkey_notify_wakeup(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			known_ev = hotkey_notify_wakeup(hkey, &send_acpi_ev);
 			break;
 		case 3:
 			/* 0x3000-0x3FFF: bay-related wakeups */
@@ -4051,38 +3892,34 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				/* FIXME: kick libata if SATA link offline */
 				known_ev = true;
 				break;
-			default:
-				known_ev = false;
 			}
 			break;
 		case 4:
 			/* 0x4000-0x4FFF: dock-related events */
-			known_ev = hotkey_notify_dockevent(hkey, &send_acpi_ev,
-						&ignore_acpi_ev);
+			known_ev = hotkey_notify_dockevent(hkey, &send_acpi_ev);
 			break;
 		case 5:
 			/* 0x5000-0x5FFF: human interface helpers */
-			known_ev = hotkey_notify_usrevent(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			known_ev = hotkey_notify_usrevent(hkey, &send_acpi_ev);
 			break;
 		case 6:
 			/* 0x6000-0x6FFF: thermal alarms/notices and
 			 *                keyboard events */
-			known_ev = hotkey_notify_6xxx(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			known_ev = hotkey_notify_6xxx(hkey, &send_acpi_ev);
 			break;
 		case 7:
 			/* 0x7000-0x7FFF: misc */
 			if (tp_features.hotkey_wlsw &&
 					hkey == TP_HKEY_EV_RFKILL_CHANGED) {
 				tpacpi_send_radiosw_update();
-				send_acpi_ev = 0;
+				send_acpi_ev = false;
 				known_ev = true;
-				break;
 			}
-			fallthrough;	/* to default */
-		default:
-			known_ev = false;
+			break;
+		case 8:
+			/* 0x8000-0x8FFF: misc2 */
+			known_ev = hotkey_notify_8xxx(hkey, &send_acpi_ev);
+			break;
 		}
 		if (!known_ev) {
 			pr_notice("unhandled HKEY event 0x%04x\n", hkey);
@@ -4091,7 +3928,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		/* netlink events */
-		if (!ignore_acpi_ev && send_acpi_ev) {
+		if (send_acpi_ev) {
 			acpi_bus_generate_netlink_event(
 					ibm->acpi->device->pnp.device_class,
 					dev_name(&ibm->acpi->device->dev),
@@ -9789,7 +9626,7 @@ static ssize_t tpacpi_battery_show(int what,
 		battery = BAT_PRIMARY;
 	if (tpacpi_battery_get(what, battery, &ret))
 		return -ENODEV;
-	return sprintf(buf, "%d\n", ret);
+	return sysfs_emit(buf, "%d\n", ret);
 }
 
 static ssize_t charge_control_start_threshold_show(struct device *device,
@@ -10991,13 +10828,7 @@ static struct ibm_struct auxmac_data = {
 	.name = "auxmac",
 };
 
-static ssize_t auxmac_show(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	return sysfs_emit(buf, "%s\n", auxmac);
-}
-static DEVICE_ATTR_RO(auxmac);
+static DEVICE_STRING_ATTR_RO(auxmac, 0444, auxmac);
 
 static umode_t auxmac_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
@@ -11006,7 +10837,7 @@ static umode_t auxmac_attr_is_visible(struct kobject *kobj,
 }
 
 static struct attribute *auxmac_attributes[] = {
-	&dev_attr_auxmac.attr,
+	&dev_attr_auxmac.attr.attr,
 	NULL
 };
 
@@ -11126,92 +10957,93 @@ static struct platform_driver tpacpi_hwmon_pdriver = {
  * HKEY event callout for other subdrivers go here
  * (yes, it is ugly, but it is quick, safe, and gets the job done
  */
-static void tpacpi_driver_event(const unsigned int hkey_event)
+static bool tpacpi_driver_event(const unsigned int hkey_event)
 {
-	if (ibm_backlight_device) {
-		switch (hkey_event) {
-		case TP_HKEY_EV_BRGHT_UP:
-		case TP_HKEY_EV_BRGHT_DOWN:
+	switch (hkey_event) {
+	case TP_HKEY_EV_BRGHT_UP:
+	case TP_HKEY_EV_BRGHT_DOWN:
+		if (ibm_backlight_device)
 			tpacpi_brightness_notify_change();
-		}
-	}
-	if (alsa_card) {
-		switch (hkey_event) {
-		case TP_HKEY_EV_VOL_UP:
-		case TP_HKEY_EV_VOL_DOWN:
-		case TP_HKEY_EV_VOL_MUTE:
-			volume_alsa_notify_change();
-		}
-	}
-	if (tp_features.kbdlight && hkey_event == TP_HKEY_EV_KBD_LIGHT) {
-		enum led_brightness brightness;
-
-		mutex_lock(&kbdlight_mutex);
-
 		/*
-		 * Check the brightness actually changed, setting the brightness
-		 * through kbdlight_set_level() also triggers this event.
+		 * Key press events are suppressed by default hotkey_user_mask
+		 * and should still be reported if explicitly requested.
 		 */
-		brightness = kbdlight_sysfs_get(NULL);
-		if (kbdlight_brightness != brightness) {
-			kbdlight_brightness = brightness;
-			led_classdev_notify_brightness_hw_changed(
-				&tpacpi_led_kbdlight.led_classdev, brightness);
+		return false;
+	case TP_HKEY_EV_VOL_UP:
+	case TP_HKEY_EV_VOL_DOWN:
+	case TP_HKEY_EV_VOL_MUTE:
+		if (alsa_card)
+			volume_alsa_notify_change();
+
+		/* Key events are suppressed by default hotkey_user_mask */
+		return false;
+	case TP_HKEY_EV_KBD_LIGHT:
+		if (tp_features.kbdlight) {
+			enum led_brightness brightness;
+
+			mutex_lock(&kbdlight_mutex);
+
+			/*
+			 * Check the brightness actually changed, setting the brightness
+			 * through kbdlight_set_level() also triggers this event.
+			 */
+			brightness = kbdlight_sysfs_get(NULL);
+			if (kbdlight_brightness != brightness) {
+				kbdlight_brightness = brightness;
+				led_classdev_notify_brightness_hw_changed(
+					&tpacpi_led_kbdlight.led_classdev, brightness);
+			}
+
+			mutex_unlock(&kbdlight_mutex);
 		}
-
-		mutex_unlock(&kbdlight_mutex);
-	}
-
-	if (hkey_event == TP_HKEY_EV_THM_CSM_COMPLETED) {
+		/* Key events are suppressed by default hotkey_user_mask */
+		return false;
+	case TP_HKEY_EV_DFR_CHANGE_ROW:
+		adaptive_keyboard_change_row();
+		return true;
+	case TP_HKEY_EV_DFR_S_QUICKVIEW_ROW:
+		adaptive_keyboard_s_quickview_row();
+		return true;
+	case TP_HKEY_EV_THM_CSM_COMPLETED:
 		lapsensor_refresh();
 		/* If we are already accessing DYTC then skip dytc update */
 		if (!atomic_add_unless(&dytc_ignore_event, -1, 0))
 			dytc_profile_refresh();
-	}
 
-	if (lcdshadow_dev && hkey_event == TP_HKEY_EV_PRIVACYGUARD_TOGGLE) {
-		enum drm_privacy_screen_status old_hw_state;
-		bool changed;
+		return true;
+	case TP_HKEY_EV_PRIVACYGUARD_TOGGLE:
+		if (lcdshadow_dev) {
+			enum drm_privacy_screen_status old_hw_state;
+			bool changed;
 
-		mutex_lock(&lcdshadow_dev->lock);
-		old_hw_state = lcdshadow_dev->hw_state;
-		lcdshadow_get_hw_state(lcdshadow_dev);
-		changed = lcdshadow_dev->hw_state != old_hw_state;
-		mutex_unlock(&lcdshadow_dev->lock);
+			mutex_lock(&lcdshadow_dev->lock);
+			old_hw_state = lcdshadow_dev->hw_state;
+			lcdshadow_get_hw_state(lcdshadow_dev);
+			changed = lcdshadow_dev->hw_state != old_hw_state;
+			mutex_unlock(&lcdshadow_dev->lock);
 
-		if (changed)
-			drm_privacy_screen_call_notifier_chain(lcdshadow_dev);
-	}
-	if (hkey_event == TP_HKEY_EV_AMT_TOGGLE) {
+			if (changed)
+				drm_privacy_screen_call_notifier_chain(lcdshadow_dev);
+		}
+		return true;
+	case TP_HKEY_EV_AMT_TOGGLE:
 		/* If we're enabling AMT we need to force balanced mode */
 		if (!dytc_amt_active)
 			/* This will also set AMT mode enabled */
 			dytc_profile_set(NULL, PLATFORM_PROFILE_BALANCED);
 		else
 			dytc_control_amt(!dytc_amt_active);
-	}
-	if (hkey_event == TP_HKEY_EV_PROFILE_TOGGLE) {
-		switch (dytc_current_profile) {
-		case PLATFORM_PROFILE_LOW_POWER:
-			dytc_profile_set(NULL, PLATFORM_PROFILE_BALANCED);
-			break;
-		case PLATFORM_PROFILE_BALANCED:
-			dytc_profile_set(NULL, PLATFORM_PROFILE_PERFORMANCE);
-			break;
-		case PLATFORM_PROFILE_PERFORMANCE:
-			dytc_profile_set(NULL, PLATFORM_PROFILE_LOW_POWER);
-			break;
-		default:
-			pr_warn("Profile HKEY unexpected profile %d", dytc_current_profile);
-		}
-		/* Notify user space the profile changed */
-		platform_profile_notify();
-	}
-}
 
-static void hotkey_driver_event(const unsigned int scancode)
-{
-	tpacpi_driver_event(TP_HKEY_EV_HOTKEY_BASE + scancode);
+		return true;
+	case TP_HKEY_EV_DOUBLETAP_TOGGLE:
+		tp_features.trackpoint_doubletap = !tp_features.trackpoint_doubletap;
+		return true;
+	case TP_HKEY_EV_PROFILE_TOGGLE:
+		platform_profile_cycle();
+		return true;
+	}
+
+	return false;
 }
 
 /* --------------------------------------------------------------------- */
@@ -11814,7 +11646,6 @@ static void thinkpad_acpi_module_exit(void)
 			input_unregister_device(tpacpi_inputdev);
 		else
 			input_free_device(tpacpi_inputdev);
-		kfree(hotkey_keycode_map);
 	}
 
 	if (tpacpi_sensors_pdev)

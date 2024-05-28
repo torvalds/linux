@@ -62,10 +62,23 @@
 	status = "okay";
 
 	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		port@0 {
+			reg = <0>;
+
 			mipi_csi_0_in: endpoint {
 				remote-endpoint = <&imx219_to_mipi_csi2>;
 				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			mipi_csi_0_out: endpoint {
+				remote-endpoint = <&isi_in_0>;
 			};
 		};
 	};

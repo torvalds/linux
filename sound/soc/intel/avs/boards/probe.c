@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -69,4 +69,5 @@ static struct platform_driver avs_probe_mb_driver = {
 
 module_platform_driver(avs_probe_mb_driver);
 
+MODULE_DESCRIPTION("Intel probe machine driver");
 MODULE_LICENSE("GPL");

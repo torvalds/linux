@@ -102,6 +102,7 @@ static inline int do_encrypt_sg(struct crypto_sync_skcipher *tfm,
 	int ret;
 
 	skcipher_request_set_sync_tfm(req, tfm);
+	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, sg, sg, len, nonce.d);
 
 	ret = crypto_skcipher_encrypt(req);
@@ -232,7 +233,7 @@ struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
 		return ret;
 	}
 	default:
-		BUG();
+		return (struct bch_csum) {};
 	}
 }
 
@@ -306,7 +307,7 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 		return ret;
 	}
 	default:
-		BUG();
+		return (struct bch_csum) {};
 	}
 }
 
@@ -351,8 +352,12 @@ int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 		bytes += bv.bv_len;
 	}
 
-	sg_mark_end(sg - 1);
-	return do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
+	if (sg != sgl) {
+		sg_mark_end(sg - 1);
+		return do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
+	}
+
+	return ret;
 }
 
 struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
@@ -429,15 +434,20 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 				extent_nonce(version, crc_old), bio);
 
 	if (bch2_crc_cmp(merged, crc_old.csum) && !c->opts.no_data_io) {
-		bch_err(c, "checksum error in %s() (memory corruption or bug?)\n"
-			"expected %0llx:%0llx got %0llx:%0llx (old type %s new type %s)",
-			__func__,
-			crc_old.csum.hi,
-			crc_old.csum.lo,
-			merged.hi,
-			merged.lo,
-			bch2_csum_types[crc_old.csum_type],
-			bch2_csum_types[new_csum_type]);
+		struct printbuf buf = PRINTBUF;
+		prt_printf(&buf, "checksum error in %s() (memory corruption or bug?)\n"
+			   "expected %0llx:%0llx got %0llx:%0llx (old type ",
+			   __func__,
+			   crc_old.csum.hi,
+			   crc_old.csum.lo,
+			   merged.hi,
+			   merged.lo);
+		bch2_prt_csum_type(&buf, crc_old.csum_type);
+		prt_str(&buf, " new type ");
+		bch2_prt_csum_type(&buf, new_csum_type);
+		prt_str(&buf, ")");
+		bch_err(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		return -EIO;
 	}
 
@@ -463,9 +473,8 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 
 /* BCH_SB_FIELD_crypt: */
 
-static int bch2_sb_crypt_validate(struct bch_sb *sb,
-				  struct bch_sb_field *f,
-				  struct printbuf *err)
+static int bch2_sb_crypt_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
 
@@ -488,14 +497,10 @@ static void bch2_sb_crypt_to_text(struct printbuf *out, struct bch_sb *sb,
 {
 	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
 
-	prt_printf(out, "KFD:               %llu", BCH_CRYPT_KDF_TYPE(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt n:          %llu", BCH_KDF_SCRYPT_N(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt r:          %llu", BCH_KDF_SCRYPT_R(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt p:          %llu", BCH_KDF_SCRYPT_P(crypt));
-	prt_newline(out);
+	prt_printf(out, "KFD:               %llu\n", BCH_CRYPT_KDF_TYPE(crypt));
+	prt_printf(out, "scrypt n:          %llu\n", BCH_KDF_SCRYPT_N(crypt));
+	prt_printf(out, "scrypt r:          %llu\n", BCH_KDF_SCRYPT_R(crypt));
+	prt_printf(out, "scrypt p:          %llu\n", BCH_KDF_SCRYPT_P(crypt));
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_crypt = {
@@ -647,26 +652,26 @@ err:
 
 static int bch2_alloc_ciphers(struct bch_fs *c)
 {
-	int ret;
+	if (c->chacha20)
+		return 0;
 
-	if (!c->chacha20)
-		c->chacha20 = crypto_alloc_sync_skcipher("chacha20", 0, 0);
-	ret = PTR_ERR_OR_ZERO(c->chacha20);
-
+	struct crypto_sync_skcipher *chacha20 = crypto_alloc_sync_skcipher("chacha20", 0, 0);
+	int ret = PTR_ERR_OR_ZERO(chacha20);
 	if (ret) {
 		bch_err(c, "error requesting chacha20 module: %s", bch2_err_str(ret));
 		return ret;
 	}
 
-	if (!c->poly1305)
-		c->poly1305 = crypto_alloc_shash("poly1305", 0, 0);
-	ret = PTR_ERR_OR_ZERO(c->poly1305);
-
+	struct crypto_shash *poly1305 = crypto_alloc_shash("poly1305", 0, 0);
+	ret = PTR_ERR_OR_ZERO(poly1305);
 	if (ret) {
 		bch_err(c, "error requesting poly1305 module: %s", bch2_err_str(ret));
+		crypto_free_sync_skcipher(chacha20);
 		return ret;
 	}
 
+	c->chacha20	= chacha20;
+	c->poly1305	= poly1305;
 	return 0;
 }
 
@@ -761,11 +766,11 @@ err:
 
 void bch2_fs_encryption_exit(struct bch_fs *c)
 {
-	if (!IS_ERR_OR_NULL(c->poly1305))
+	if (c->poly1305)
 		crypto_free_shash(c->poly1305);
-	if (!IS_ERR_OR_NULL(c->chacha20))
+	if (c->chacha20)
 		crypto_free_sync_skcipher(c->chacha20);
-	if (!IS_ERR_OR_NULL(c->sha256))
+	if (c->sha256)
 		crypto_free_shash(c->sha256);
 }
 
@@ -778,6 +783,7 @@ int bch2_fs_encryption_init(struct bch_fs *c)
 	c->sha256 = crypto_alloc_shash("sha256", 0, 0);
 	ret = PTR_ERR_OR_ZERO(c->sha256);
 	if (ret) {
+		c->sha256 = NULL;
 		bch_err(c, "error requesting sha256 module: %s", bch2_err_str(ret));
 		goto out;
 	}

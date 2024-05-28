@@ -172,6 +172,7 @@ struct em_perf_table __rcu *em_table_alloc(struct em_perf_domain *pd);
 void em_table_free(struct em_perf_table __rcu *table);
 int em_dev_compute_costs(struct device *dev, struct em_perf_state *table,
 			 int nr_states);
+int em_dev_update_chip_binning(struct device *dev);
 
 /**
  * em_pd_get_efficient_state() - Get an efficient performance state from the EM
@@ -245,7 +246,6 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 * max utilization to the allowed CPU capacity before calculating
 	 * effective performance.
 	 */
-	max_util = map_util_perf(max_util);
 	max_util = min(max_util, allowed_cpu_cap);
 
 	/*
@@ -384,6 +384,10 @@ struct em_perf_state *em_perf_state_from_pd(struct em_perf_domain *pd)
 static inline
 int em_dev_compute_costs(struct device *dev, struct em_perf_state *table,
 			 int nr_states)
+{
+	return -EINVAL;
+}
+static inline int em_dev_update_chip_binning(struct device *dev)
 {
 	return -EINVAL;
 }

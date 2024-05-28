@@ -43,8 +43,48 @@ enum amdgpu_device_attr_states {
 	ATTR_STATE_SUPPORTED,
 };
 
+enum amdgpu_device_attr_id {
+	device_attr_id__unknown = -1,
+	device_attr_id__power_dpm_state = 0,
+	device_attr_id__power_dpm_force_performance_level,
+	device_attr_id__pp_num_states,
+	device_attr_id__pp_cur_state,
+	device_attr_id__pp_force_state,
+	device_attr_id__pp_table,
+	device_attr_id__pp_dpm_sclk,
+	device_attr_id__pp_dpm_mclk,
+	device_attr_id__pp_dpm_socclk,
+	device_attr_id__pp_dpm_fclk,
+	device_attr_id__pp_dpm_vclk,
+	device_attr_id__pp_dpm_vclk1,
+	device_attr_id__pp_dpm_dclk,
+	device_attr_id__pp_dpm_dclk1,
+	device_attr_id__pp_dpm_dcefclk,
+	device_attr_id__pp_dpm_pcie,
+	device_attr_id__pp_sclk_od,
+	device_attr_id__pp_mclk_od,
+	device_attr_id__pp_power_profile_mode,
+	device_attr_id__pp_od_clk_voltage,
+	device_attr_id__gpu_busy_percent,
+	device_attr_id__mem_busy_percent,
+	device_attr_id__vcn_busy_percent,
+	device_attr_id__pcie_bw,
+	device_attr_id__pp_features,
+	device_attr_id__unique_id,
+	device_attr_id__thermal_throttling_logging,
+	device_attr_id__apu_thermal_cap,
+	device_attr_id__gpu_metrics,
+	device_attr_id__smartshift_apu_power,
+	device_attr_id__smartshift_dgpu_power,
+	device_attr_id__smartshift_bias,
+	device_attr_id__xgmi_plpd_policy,
+	device_attr_id__pm_metrics,
+	device_attr_id__count,
+};
+
 struct amdgpu_device_attr {
 	struct device_attribute dev_attr;
+	enum amdgpu_device_attr_id attr_id;
 	enum amdgpu_device_attr_flags flags;
 	int (*attr_update)(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 			   uint32_t mask, enum amdgpu_device_attr_states *states);
@@ -61,6 +101,7 @@ struct amdgpu_device_attr_entry {
 
 #define __AMDGPU_DEVICE_ATTR(_name, _mode, _show, _store, _flags, ...)	\
 	{ .dev_attr = __ATTR(_name, _mode, _show, _store),		\
+	  .attr_id = device_attr_id__##_name,				\
 	  .flags = _flags,						\
 	  ##__VA_ARGS__, }
 

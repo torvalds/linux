@@ -198,16 +198,17 @@ struct mpi3_supported_devices_data {
 	struct mpi3_supported_device   supported_device[MPI3_SUPPORTED_DEVICE_MAX];
 };
 
-#ifndef MPI3_ENCRYPTED_HASH_MAX
-#define MPI3_ENCRYPTED_HASH_MAX                      (1)
+#ifndef MPI3_PUBLIC_KEY_MAX
+#define MPI3_PUBLIC_KEY_MAX                      (1)
 #endif
 struct mpi3_encrypted_hash_entry {
 	u8                         hash_image_type;
 	u8                         hash_algorithm;
 	u8                         encryption_algorithm;
 	u8                         reserved03;
-	__le32                     reserved04;
-	__le32                     encrypted_hash[MPI3_ENCRYPTED_HASH_MAX];
+	__le16                     public_key_size;
+	__le16                     signature_size;
+	__le32                     public_key[MPI3_PUBLIC_KEY_MAX];
 };
 
 #define MPI3_HASH_IMAGE_TYPE_KEY_WITH_SIGNATURE      (0x03)
@@ -228,17 +229,6 @@ struct mpi3_encrypted_hash_entry {
 #define MPI3_ENCRYPTION_ALGORITHM_RSA2048            (0x04)
 #define MPI3_ENCRYPTION_ALGORITHM_RSA4096            (0x05)
 #define MPI3_ENCRYPTION_ALGORITHM_RSA3072            (0x06)
-#ifndef MPI3_PUBLIC_KEY_MAX
-#define MPI3_PUBLIC_KEY_MAX                          (1)
-#endif
-struct mpi3_encrypted_key_with_hash_entry {
-	u8                         hash_image_type;
-	u8                         hash_algorithm;
-	u8                         encryption_algorithm;
-	u8                         reserved03;
-	__le32                     reserved04;
-	__le32                     public_key[MPI3_PUBLIC_KEY_MAX];
-};
 
 #ifndef MPI3_ENCRYPTED_HASH_ENTRY_MAX
 #define MPI3_ENCRYPTED_HASH_ENTRY_MAX               (1)

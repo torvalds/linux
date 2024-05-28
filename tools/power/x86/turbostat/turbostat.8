@@ -67,6 +67,10 @@ The column name "all" can be used to enable all disabled-by-default built-in cou
 .PP
 \fB--quiet\fP Do not decode and print the system configuration header information.
 .PP
++\fB--no-msr\fP Disable all the uses of the MSR driver.
++.PP
++\fB--no-perf\fP Disable all the uses of the perf API.
++.PP
 \fB--interval seconds\fP overrides the default 5.0 second measurement interval.
 .PP
 \fB--num_iterations num\fP number of the measurement iterations.
@@ -125,9 +129,17 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBPkgTmp\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
 .PP
-\fBGFX%rc6\fP The percentage of time the GPU is in the "render C6" state, rc6, during the measurement interval. From /sys/class/drm/card0/power/rc6_residency_ms.
+\fBGFX%rc6\fP The percentage of time the GPU is in the "render C6" state, rc6, during the measurement interval. From /sys/class/drm/card0/power/rc6_residency_ms or /sys/class/drm/card0/gt/gt0/rc6_residency_ms or /sys/class/drm/card0/device/tile0/gtN/gtidle/idle_residency_ms depending on the graphics driver being used.
 .PP
-\fBGFXMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz.
+\fBGFXMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz or /sys/class/drm/card0/gt_cur_freq_mhz or /sys/class/drm/card0/gt/gt0/rps_cur_freq_mhz or /sys/class/drm/card0/device/tile0/gtN/freq0/cur_freq depending on the graphics driver being used.
+.PP
+\fBGFXAMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz or /sys/class/drm/card0/gt_act_freq_mhz or /sys/class/drm/card0/gt/gt0/rps_act_freq_mhz or /sys/class/drm/card0/device/tile0/gtN/freq0/act_freq depending on the graphics driver being used.
+.PP
+\fBSAM%mc6\fP The percentage of time the SA Media is in the "module C6" state, mc6, during the measurement interval. From /sys/class/drm/card0/gt/gt1/rc6_residency_ms or /sys/class/drm/card0/device/tile0/gtN/gtidle/idle_residency_ms depending on the graphics driver being used.
+.PP
+\fBSAMMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/drm/card0/gt/gt1/rps_cur_freq_mhz or /sys/class/drm/card0/device/tile0/gtN/freq0/cur_freq depending on the graphics driver being used.
+.PP
+\fBSAMAMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/drm/card0/gt/gt1/rps_act_freq_mhz or /sys/class/drm/card0/device/tile0/gtN/freq0/act_freq depending on the graphics driver being used.
 .PP
 \fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.  These numbers are from hardware residency counters.
 .PP
@@ -143,7 +155,9 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .PP
-\fBUncMHz\fP uncore MHz, instantaneous sample.
+\fBUncMHz\fP per-package uncore MHz, instantaneous sample.
+.PP
+\fBUMHz1.0\fP per-package uncore MHz for domain=1 and fabric_cluster=0, instantaneous sample.  System summary is the average of all packages.
 .SH TOO MUCH INFORMATION EXAMPLE
 By default, turbostat dumps all possible information -- a system configuration header, followed by columns for all counters.
 This is ideal for remote debugging, use the "--out" option to save everything to a text file, and get that file to the expert helping you debug.
@@ -370,7 +384,7 @@ below the processor's base frequency.
 
 Busy% = MPERF_delta/TSC_delta
 
-Bzy_MHz = TSC_delta/APERF_delta/MPERF_delta/measurement_interval
+Bzy_MHz = TSC_delta*APERF_delta/MPERF_delta/measurement_interval
 
 Note that these calculations depend on TSC_delta, so they
 are not reliable during intervals when TSC_MHz is not running at the base frequency.

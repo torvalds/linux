@@ -37,7 +37,6 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 	const struct bch_logged_op_fn *fn = logged_op_fn(k.k->type);
 	struct bkey_buf sk;
 	u32 restart_count = trans->restart_count;
-	int ret;
 
 	if (!fn)
 		return 0;
@@ -45,11 +44,11 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 	bch2_bkey_buf_init(&sk);
 	bch2_bkey_buf_reassemble(&sk, c, k);
 
-	ret =   drop_locks_do(trans, (bch2_fs_lazy_rw(c), 0)) ?:
-		fn->resume(trans, sk.k) ?: trans_was_restarted(trans, restart_count);
+	fn->resume(trans, sk.k);
 
 	bch2_bkey_buf_exit(&sk, c);
-	return ret;
+
+	return trans_was_restarted(trans, restart_count);
 }
 
 int bch2_resume_logged_ops(struct bch_fs *c)
@@ -57,7 +56,7 @@ int bch2_resume_logged_ops(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter,
 				   BTREE_ID_logged_ops, POS_MIN,
-				   BTREE_ITER_PREFETCH, k,
+				   BTREE_ITER_prefetch, k,
 			resume_logged_op(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;

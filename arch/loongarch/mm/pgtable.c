@@ -11,13 +11,13 @@
 
 struct page *dmw_virt_to_page(unsigned long kaddr)
 {
-	return pfn_to_page(virt_to_pfn(kaddr));
+	return phys_to_page(__pa(kaddr));
 }
 EXPORT_SYMBOL(dmw_virt_to_page);
 
 struct page *tlb_virt_to_page(unsigned long kaddr)
 {
-	return pfn_to_page(pte_pfn(*virt_to_kpte(kaddr)));
+	return phys_to_page(pfn_to_phys(pte_pfn(*virt_to_kpte(kaddr))));
 }
 EXPORT_SYMBOL(tlb_virt_to_page);
 

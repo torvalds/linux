@@ -213,6 +213,8 @@
 #define regDTBCLK_DTO2_MODULO_BASE_IDX                                                                  2
 #define regDTBCLK_DTO3_MODULO                                                                           0x0022
 #define regDTBCLK_DTO3_MODULO_BASE_IDX                                                                  2
+#define regHDMICHARCLK0_CLOCK_CNTL                                                                      0x004a
+#define regHDMICHARCLK0_CLOCK_CNTL_BASE_IDX                                                             2
 #define regPHYASYMCLK_CLOCK_CNTL                                                                        0x0052
 #define regPHYASYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
 #define regPHYBSYMCLK_CLOCK_CNTL                                                                        0x0053
@@ -233,6 +235,8 @@
 #define regDCCG_AUDIO_DTBCLK_DTO_MODULO_BASE_IDX                                                        2
 #define regDTBCLK_DTO_DBUF_EN                                                                           0x0063
 #define regDTBCLK_DTO_DBUF_EN_BASE_IDX                                                                  2
+#define regHDMISTREAMCLK_CNTL                                                                           0x0059
+#define regHDMISTREAMCLK_CNTL_BASE_IDX                                                                  2
 
 
 // addressBlock: dce_dc_dccg_dccg_dcperfmon0_dc_perfmon_dispdec

@@ -232,7 +232,7 @@ bool kvm_set_pmuserenr(u64 val)
 	if (!vcpu || !vcpu_get_flag(vcpu, PMUSERENR_ON_CPU))
 		return false;
 
-	hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
+	hctxt = host_data_ptr(host_ctxt);
 	ctxt_sys_reg(hctxt, PMUSERENR_EL0) = val;
 	return true;
 }

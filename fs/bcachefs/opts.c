@@ -7,6 +7,7 @@
 #include "disk_groups.h"
 #include "error.h"
 #include "opts.h"
+#include "recovery_passes.h"
 #include "super-io.h"
 #include "util.h"
 
@@ -42,7 +43,7 @@ const char * const __bch2_btree_ids[] = {
 	NULL
 };
 
-const char * const bch2_csum_types[] = {
+static const char * const __bch2_csum_types[] = {
 	BCH_CSUM_TYPES()
 	NULL
 };
@@ -52,7 +53,7 @@ const char * const bch2_csum_opts[] = {
 	NULL
 };
 
-const char * const __bch2_compression_types[] = {
+static const char * const __bch2_compression_types[] = {
 	BCH_COMPRESSION_TYPES()
 	NULL
 };
@@ -82,17 +83,38 @@ const char * const bch2_member_states[] = {
 	NULL
 };
 
-const char * const bch2_jset_entry_types[] = {
+static const char * const __bch2_jset_entry_types[] = {
 	BCH_JSET_ENTRY_TYPES()
 	NULL
 };
 
-const char * const bch2_fs_usage_types[] = {
+static const char * const __bch2_fs_usage_types[] = {
 	BCH_FS_USAGE_TYPES()
 	NULL
 };
 
 #undef x
+
+static void prt_str_opt_boundscheck(struct printbuf *out, const char * const opts[],
+				    unsigned nr, const char *type, unsigned idx)
+{
+	if (idx < nr)
+		prt_str(out, opts[idx]);
+	else
+		prt_printf(out, "(unknown %s %u)", type, idx);
+}
+
+#define PRT_STR_OPT_BOUNDSCHECKED(name, type)					\
+void bch2_prt_##name(struct printbuf *out, type t)				\
+{										\
+	prt_str_opt_boundscheck(out, __bch2_##name##s, ARRAY_SIZE(__bch2_##name##s) - 1, #name, t);\
+}
+
+PRT_STR_OPT_BOUNDSCHECKED(jset_entry_type,	enum bch_jset_entry_type);
+PRT_STR_OPT_BOUNDSCHECKED(fs_usage_type,	enum bch_fs_usage_type);
+PRT_STR_OPT_BOUNDSCHECKED(data_type,		enum bch_data_type);
+PRT_STR_OPT_BOUNDSCHECKED(csum_type,		enum bch_csum_type);
+PRT_STR_OPT_BOUNDSCHECKED(compression_type,	enum bch_compression_type);
 
 static int bch2_opt_fix_errors_parse(struct bch_fs *c, const char *val, u64 *res,
 				     struct printbuf *err)
@@ -204,6 +226,9 @@ const struct bch_option bch2_opt_table[] = {
 				.min = _min, .max = _max
 #define OPT_STR(_choices)	.type = BCH_OPT_STR,			\
 				.min = 0, .max = ARRAY_SIZE(_choices),	\
+				.choices = _choices
+#define OPT_STR_NOLIMIT(_choices)	.type = BCH_OPT_STR,		\
+				.min = 0, .max = U64_MAX,		\
 				.choices = _choices
 #define OPT_FN(_fn)		.type = BCH_OPT_FN, .fn	= _fn
 

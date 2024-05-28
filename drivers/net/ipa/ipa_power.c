@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
 #include <linux/clk.h>
@@ -9,15 +9,15 @@
 #include <linux/interconnect.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/bitops.h>
 
 #include "linux/soc/qcom/qcom_aoss.h"
 
 #include "ipa.h"
-#include "ipa_power.h"
-#include "ipa_endpoint.h"
-#include "ipa_modem.h"
 #include "ipa_data.h"
+#include "ipa_endpoint.h"
+#include "ipa_interrupt.h"
+#include "ipa_modem.h"
+#include "ipa_power.h"
 
 /**
  * DOC: IPA Power Management
@@ -230,25 +230,6 @@ void ipa_power_retention(struct ipa *ipa, bool enable)
 	if (ret)
 		dev_err(power->dev, "error %d sending QMP %sable request\n",
 			ret, enable ? "en" : "dis");
-}
-
-int ipa_power_setup(struct ipa *ipa)
-{
-	int ret;
-
-	ipa_interrupt_enable(ipa, IPA_IRQ_TX_SUSPEND);
-
-	ret = device_init_wakeup(ipa->dev, true);
-	if (ret)
-		ipa_interrupt_disable(ipa, IPA_IRQ_TX_SUSPEND);
-
-	return ret;
-}
-
-void ipa_power_teardown(struct ipa *ipa)
-{
-	(void)device_init_wakeup(ipa->dev, false);
-	ipa_interrupt_disable(ipa, IPA_IRQ_TX_SUSPEND);
 }
 
 /* Initialize IPA power management */

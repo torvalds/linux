@@ -209,7 +209,7 @@
 #include "fifo.h"
 #include "nocow_locking_types.h"
 #include "opts.h"
-#include "recovery_types.h"
+#include "recovery_passes_types.h"
 #include "sb-errors_types.h"
 #include "seqmutex.h"
 #include "time_stats.h"
@@ -359,6 +359,8 @@ do {									\
 #define BCH_DEBUG_PARAMS_ALWAYS()					\
 	BCH_DEBUG_PARAM(key_merging_disabled,				\
 		"Disables merging of extents")				\
+	BCH_DEBUG_PARAM(btree_node_merging_disabled,			\
+		"Disables merging of btree nodes")			\
 	BCH_DEBUG_PARAM(btree_gc_always_rewrite,			\
 		"Causes mark and sweep to compact and rewrite every "	\
 		"btree node it traverses")				\
@@ -456,6 +458,7 @@ enum bch_time_stats {
 
 #include "alloc_types.h"
 #include "btree_types.h"
+#include "btree_node_scan_types.h"
 #include "btree_write_buffer_types.h"
 #include "buckets_types.h"
 #include "buckets_waiting_for_journal_types.h"
@@ -467,6 +470,7 @@ enum bch_time_stats {
 #include "quota_types.h"
 #include "rebalance_types.h"
 #include "replicas_types.h"
+#include "sb-members_types.h"
 #include "subvolume_types.h"
 #include "super_types.h"
 #include "thread_with_file_types.h"
@@ -515,8 +519,8 @@ enum gc_phase {
 
 struct gc_pos {
 	enum gc_phase		phase;
+	u16			level;
 	struct bpos		pos;
-	unsigned		level;
 };
 
 struct reflink_gc {
@@ -533,7 +537,13 @@ struct io_count {
 
 struct bch_dev {
 	struct kobject		kobj;
+#ifdef CONFIG_BCACHEFS_DEBUG
+	atomic_long_t		ref;
+	bool			dying;
+	unsigned long		last_put;
+#else
 	struct percpu_ref	ref;
+#endif
 	struct completion	ref_completion;
 	struct percpu_ref	io_ref;
 	struct completion	io_ref_completion;
@@ -559,14 +569,11 @@ struct bch_dev {
 
 	struct bch_devs_mask	self;
 
-	/* biosets used in cloned bios for writing multiple replicas */
-	struct bio_set		replica_set;
-
 	/*
 	 * Buckets:
 	 * Per-bucket arrays are protected by c->mark_lock, bucket_lock and
 	 * gc_lock, for device resize - holding any is sufficient for access:
-	 * Or rcu_read_lock(), but only for ptr_stale():
+	 * Or rcu_read_lock(), but only for dev_ptr_stale():
 	 */
 	struct bucket_array __rcu *buckets_gc;
 	struct bucket_gens __rcu *bucket_gens;
@@ -580,7 +587,7 @@ struct bch_dev {
 
 	/* Allocator: */
 	u64			new_fs_bucket_idx;
-	u64			alloc_cursor;
+	u64			alloc_cursor[3];
 
 	unsigned		nr_open_buckets;
 	unsigned		nr_btree_reserve;
@@ -614,6 +621,7 @@ struct bch_dev {
  */
 
 #define BCH_FS_FLAGS()			\
+	x(new_fs)			\
 	x(started)			\
 	x(may_go_rw)			\
 	x(rw)				\
@@ -625,12 +633,12 @@ struct bch_dev {
 	x(clean_shutdown)		\
 	x(fsck_running)			\
 	x(initial_gc_unfixed)		\
-	x(need_another_gc)		\
 	x(need_delete_dead_snapshots)	\
 	x(error)			\
 	x(topology_error)		\
 	x(errors_fixed)			\
-	x(errors_not_fixed)
+	x(errors_not_fixed)		\
+	x(no_invalid_checks)
 
 enum bch_fs_flags {
 #define x(n)		BCH_FS_##n,
@@ -707,10 +715,13 @@ struct btree_trans_buf {
 	x(stripe_delete)						\
 	x(reflink)							\
 	x(fallocate)							\
+	x(fsync)							\
+	x(dio_write)							\
 	x(discard)							\
 	x(discard_fast)							\
 	x(invalidate)							\
 	x(delete_dead_snapshots)					\
+	x(gc_gens)							\
 	x(snapshot_delete_pagecache)					\
 	x(sysfs)							\
 	x(btree_write_buffer)
@@ -796,6 +807,7 @@ struct bch_fs {
 		u64		features;
 		u64		compat;
 		unsigned long	errors_silent[BITS_TO_LONGS(BCH_SB_ERR_MAX)];
+		u64		btrees_lost_data;
 	}			sb;
 
 
@@ -810,7 +822,6 @@ struct bch_fs {
 
 	/* snapshot.c: */
 	struct snapshot_table __rcu *snapshots;
-	size_t			snapshot_table_size;
 	struct mutex		snapshot_table_lock;
 	struct rw_semaphore	snapshot_create_lock;
 
@@ -922,7 +933,6 @@ struct bch_fs {
 	/* JOURNAL SEQ BLACKLIST */
 	struct journal_seq_blacklist_table *
 				journal_seq_blacklist_table;
-	struct work_struct	journal_seq_blacklist_gc_work;
 
 	/* ALLOCATOR */
 	spinlock_t		freelist_lock;
@@ -953,8 +963,7 @@ struct bch_fs {
 	struct work_struct	discard_fast_work;
 
 	/* GARBAGE COLLECTION */
-	struct task_struct	*gc_thread;
-	atomic_t		kick_gc;
+	struct work_struct	gc_gens_work;
 	unsigned long		gc_count;
 
 	enum btree_id		gc_gens_btree;
@@ -984,6 +993,7 @@ struct bch_fs {
 	struct bio_set		bio_read;
 	struct bio_set		bio_read_split;
 	struct bio_set		bio_write;
+	struct bio_set		replica_set;
 	struct mutex		bio_bounce_pages_lock;
 	mempool_t		bio_bounce_pages;
 	struct bucket_nocow_lock_table
@@ -1104,12 +1114,13 @@ struct bch_fs {
 	struct journal_keys	journal_keys;
 	struct list_head	journal_iters;
 
+	struct find_btree_nodes	found_btree_nodes;
+
 	u64			last_bucket_seq_cleanup;
 
 	u64			counters_on_mount[BCH_COUNTER_NR];
 	u64 __percpu		*counters;
 
-	unsigned		btree_gc_periodic:1;
 	unsigned		copy_gc_enabled:1;
 	bool			promote_whole_extents;
 
@@ -1242,11 +1253,6 @@ static inline s64 bch2_current_time(const struct bch_fs *c)
 
 	ktime_get_coarse_real_ts64(&now);
 	return timespec_to_bch2_time(c, now);
-}
-
-static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
-{
-	return dev < c->sb.nr_devices && c->devs[dev];
 }
 
 static inline struct stdio_redirect *bch2_fs_stdio_redirect(struct bch_fs *c)

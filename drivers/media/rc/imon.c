@@ -845,13 +845,13 @@ static ssize_t imon_clock_show(struct device *d,
 	mutex_lock(&ictx->lock);
 
 	if (!ictx->display_supported) {
-		len = snprintf(buf, PAGE_SIZE, "Not supported.");
+		len = sysfs_emit(buf, "Not supported.");
 	} else {
-		len = snprintf(buf, PAGE_SIZE,
-			"To set the clock on your iMON display:\n"
-			"# date \"+%%y %%m %%d %%w %%H %%M %%S\" > imon_clock\n"
-			"%s", ictx->display_isopen ?
-			"\nNOTE: imon device must be closed\n" : "");
+		len = sysfs_emit(buf,
+				 "To set the clock on your iMON display:\n"
+				 "# date \"+%%y %%m %%d %%w %%H %%M %%S\" > imon_clock\n"
+				 "%s", ictx->display_isopen ?
+				 "\nNOTE: imon device must be closed\n" : "");
 	}
 
 	mutex_unlock(&ictx->lock);

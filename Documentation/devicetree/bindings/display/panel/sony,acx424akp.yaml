@@ -22,7 +22,10 @@ properties:
     enum:
       - sony,acx424akp
       - sony,acx424akm
-  reg: true
+
+  reg:
+    maxItems: 1
+
   reset-gpios: true
   vddi-supply:
     description: regulator that supplies the vddi voltage

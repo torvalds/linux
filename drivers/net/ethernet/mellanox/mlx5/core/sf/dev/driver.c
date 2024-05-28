@@ -60,6 +60,13 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 		goto remap_err;
 	}
 
+	/* Peer devlink logic expects to work on unregistered devlink instance. */
+	err = mlx5_core_peer_devlink_set(sf_dev, devlink);
+	if (err) {
+		mlx5_core_warn(mdev, "mlx5_core_peer_devlink_set err=%d\n", err);
+		goto peer_devlink_set_err;
+	}
+
 	if (MLX5_ESWITCH_MANAGER(sf_dev->parent_mdev))
 		err = mlx5_init_one_light(mdev);
 	else
@@ -69,21 +76,10 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 		goto init_one_err;
 	}
 
-	err = mlx5_core_peer_devlink_set(sf_dev, devlink);
-	if (err) {
-		mlx5_core_warn(mdev, "mlx5_core_peer_devlink_set err=%d\n", err);
-		goto peer_devlink_set_err;
-	}
-
-	devlink_register(devlink);
 	return 0;
 
-peer_devlink_set_err:
-	if (mlx5_dev_is_lightweight(sf_dev->mdev))
-		mlx5_uninit_one_light(sf_dev->mdev);
-	else
-		mlx5_uninit_one(sf_dev->mdev);
 init_one_err:
+peer_devlink_set_err:
 	iounmap(mdev->iseg);
 remap_err:
 	mlx5_mdev_uninit(mdev);
@@ -101,7 +97,6 @@ static void mlx5_sf_dev_remove(struct auxiliary_device *adev)
 	devlink = priv_to_devlink(mdev);
 	set_bit(MLX5_BREAK_FW_WAIT, &mdev->intf_state);
 	mlx5_drain_health_wq(mdev);
-	devlink_unregister(devlink);
 	if (mlx5_dev_is_lightweight(mdev))
 		mlx5_uninit_one_light(mdev);
 	else

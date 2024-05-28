@@ -11,6 +11,8 @@
 #include <asm/hwrpb.h>
 #include <asm/io.h>
 
+#include "proto.h"
+
 #if 0
 # define DBG_DEVS(args)         printk args
 #else
@@ -2430,13 +2432,15 @@ int __init smcc669_write( struct FILE *fp, int size, int number, unsigned char *
 }
 #endif
 
-void __init
+#if SMC_DEBUG
+static void __init
 SMC37c669_dump_registers(void)
 {
   int i;
   for (i = 0; i <= 0x29; i++)
     printk("-- CR%02x : %02x\n", i, SMC37c669_read_config(i));
 }
+#endif
 /*+
  * ============================================================================
  * = SMC_init - SMC37c669 Super I/O controller initialization                 =

@@ -189,11 +189,11 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, u8 expect_rsp,
 	 * If this command is for fabric controller and HBA running
 	 * in FIP mode send FLOGI, FDISC and LOGO as FIP frames.
 	 */
-	if ((did == Fabric_DID) &&
-	    (phba->hba_flag & HBA_FIP_SUPPORT) &&
-	    ((elscmd == ELS_CMD_FLOGI) ||
-	     (elscmd == ELS_CMD_FDISC) ||
-	     (elscmd == ELS_CMD_LOGO)))
+	if (did == Fabric_DID &&
+	    test_bit(HBA_FIP_SUPPORT, &phba->hba_flag) &&
+	    (elscmd == ELS_CMD_FLOGI ||
+	     elscmd == ELS_CMD_FDISC ||
+	     elscmd == ELS_CMD_LOGO))
 		switch (elscmd) {
 		case ELS_CMD_FLOGI:
 			elsiocb->cmd_flag |=
@@ -965,7 +965,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * In case of FIP mode, perform roundrobin FCF failover
 		 * due to new FCF discovery
 		 */
-		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
+		if (test_bit(HBA_FIP_SUPPORT, &phba->hba_flag) &&
 		    (phba->fcf.fcf_flag & FCF_DISCOVERY)) {
 			if (phba->link_state < LPFC_LINK_UP)
 				goto stop_rr_fcf_flogi;
@@ -999,7 +999,7 @@ stop_rr_fcf_flogi:
 					IOERR_LOOP_OPEN_FAILURE)))
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "2858 FLOGI failure Status:x%x/x%x TMO"
-					 ":x%x Data x%x x%x\n",
+					 ":x%x Data x%lx x%x\n",
 					 ulp_status, ulp_word4, tmo,
 					 phba->hba_flag, phba->fcf.fcf_flag);
 
@@ -1119,7 +1119,7 @@ stop_rr_fcf_flogi:
 		if (sp->cmn.fPort)
 			rc = lpfc_cmpl_els_flogi_fabric(vport, ndlp, sp,
 							ulp_word4);
-		else if (!(phba->hba_flag & HBA_FCOE_MODE))
+		else if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag))
 			rc = lpfc_cmpl_els_flogi_nport(vport, ndlp, sp);
 		else {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -1149,14 +1149,15 @@ stop_rr_fcf_flogi:
 			lpfc_nlp_put(ndlp);
 			spin_lock_irq(&phba->hbalock);
 			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
-			phba->hba_flag &= ~(FCF_RR_INPROG | HBA_DEVLOSS_TMO);
 			spin_unlock_irq(&phba->hbalock);
+			clear_bit(FCF_RR_INPROG, &phba->hba_flag);
+			clear_bit(HBA_DEVLOSS_TMO, &phba->hba_flag);
 			phba->fcf.fcf_redisc_attempted = 0; /* reset */
 			goto out;
 		}
 		if (!rc) {
 			/* Mark the FCF discovery process done */
-			if (phba->hba_flag & HBA_FIP_SUPPORT)
+			if (test_bit(HBA_FIP_SUPPORT, &phba->hba_flag))
 				lpfc_printf_vlog(vport, KERN_INFO, LOG_FIP |
 						LOG_ELS,
 						"2769 FLOGI to FCF (x%x) "
@@ -1164,8 +1165,9 @@ stop_rr_fcf_flogi:
 						phba->fcf.current_rec.fcf_indx);
 			spin_lock_irq(&phba->hbalock);
 			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
-			phba->hba_flag &= ~(FCF_RR_INPROG | HBA_DEVLOSS_TMO);
 			spin_unlock_irq(&phba->hbalock);
+			clear_bit(FCF_RR_INPROG, &phba->hba_flag);
+			clear_bit(HBA_DEVLOSS_TMO, &phba->hba_flag);
 			phba->fcf.fcf_redisc_attempted = 0; /* reset */
 			goto out;
 		}
@@ -1202,7 +1204,7 @@ flogifail:
 	}
 out:
 	if (!flogi_in_retry)
-		phba->hba_flag &= ~HBA_FLOGI_OUTSTANDING;
+		clear_bit(HBA_FLOGI_OUTSTANDING, &phba->hba_flag);
 
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
@@ -1372,11 +1374,13 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	}
 
 	/* Avoid race with FLOGI completion and hba_flags. */
-	phba->hba_flag |= (HBA_FLOGI_ISSUED | HBA_FLOGI_OUTSTANDING);
+	set_bit(HBA_FLOGI_ISSUED, &phba->hba_flag);
+	set_bit(HBA_FLOGI_OUTSTANDING, &phba->hba_flag);
 
 	rc = lpfc_issue_fabric_iocb(phba, elsiocb);
 	if (rc == IOCB_ERROR) {
-		phba->hba_flag &= ~(HBA_FLOGI_ISSUED | HBA_FLOGI_OUTSTANDING);
+		clear_bit(HBA_FLOGI_ISSUED, &phba->hba_flag);
+		clear_bit(HBA_FLOGI_OUTSTANDING, &phba->hba_flag);
 		lpfc_els_free_iocb(phba, elsiocb);
 		lpfc_nlp_put(ndlp);
 		return 1;
@@ -1413,7 +1417,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 				 "3354 Xmit deferred FLOGI ACC: rx_id: x%x,"
-				 " ox_id: x%x, hba_flag x%x\n",
+				 " ox_id: x%x, hba_flag x%lx\n",
 				 phba->defer_flogi_acc_rx_id,
 				 phba->defer_flogi_acc_ox_id, phba->hba_flag);
 
@@ -4437,23 +4441,23 @@ lpfc_els_retry_delay(struct timer_list *t)
 	unsigned long flags;
 	struct lpfc_work_evt  *evtp = &ndlp->els_retry_evt;
 
+	/* Hold a node reference for outstanding queued work */
+	if (!lpfc_nlp_get(ndlp))
+		return;
+
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (!list_empty(&evtp->evt_listp)) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
+		lpfc_nlp_put(ndlp);
 		return;
 	}
 
-	/* We need to hold the node by incrementing the reference
-	 * count until the queued work is done
-	 */
-	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
-	if (evtp->evt_arg1) {
-		evtp->evt = LPFC_EVT_ELS_RETRY;
-		list_add_tail(&evtp->evt_listp, &phba->work_list);
-		lpfc_worker_wake_up(phba);
-	}
+	evtp->evt_arg1 = ndlp;
+	evtp->evt = LPFC_EVT_ELS_RETRY;
+	list_add_tail(&evtp->evt_listp, &phba->work_list);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
-	return;
+
+	lpfc_worker_wake_up(phba);
 }
 
 /**
@@ -7238,7 +7242,7 @@ lpfc_get_rdp_info(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context)
 		goto rdp_fail;
 	mbox->vport = rdp_context->ndlp->vport;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a0;
-	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
+	mbox->ctx_u.rdp = rdp_context;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
 		lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
@@ -7290,7 +7294,7 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 		mbox->in_ext_byte_len = DMP_SFF_PAGE_A0_SIZE;
 		mbox->out_ext_byte_len = DMP_SFF_PAGE_A0_SIZE;
 		mbox->mbox_offset_word = 5;
-		mbox->ctx_buf = virt;
+		mbox->ext_buf = virt;
 	} else {
 		bf_set(lpfc_mbx_memory_dump_type3_length,
 		       &mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A0_SIZE);
@@ -7298,7 +7302,6 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 		mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
 	}
 	mbox->vport = phba->pport;
-	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 
 	rc = lpfc_sli_issue_mbox_wait(phba, mbox, 30);
 	if (rc == MBX_NOT_FINISHED) {
@@ -7307,7 +7310,7 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 	}
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
-		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
+		mp = mbox->ctx_buf;
 	else
 		mp = mpsave;
 
@@ -7350,7 +7353,7 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 		mbox->in_ext_byte_len = DMP_SFF_PAGE_A2_SIZE;
 		mbox->out_ext_byte_len = DMP_SFF_PAGE_A2_SIZE;
 		mbox->mbox_offset_word = 5;
-		mbox->ctx_buf = virt;
+		mbox->ext_buf = virt;
 	} else {
 		bf_set(lpfc_mbx_memory_dump_type3_length,
 		       &mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A2_SIZE);
@@ -7358,7 +7361,6 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 		mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
 	}
 
-	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 	rc = lpfc_sli_issue_mbox_wait(phba, mbox, 30);
 	if (bf_get(lpfc_mqe_status, &mbox->u.mqe)) {
 		rc = 1;
@@ -7417,7 +7419,8 @@ lpfc_els_rcv_rdp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		goto error;
 	}
 
-	if (phba->sli_rev < LPFC_SLI_REV4 || (phba->hba_flag & HBA_FCOE_MODE)) {
+	if (phba->sli_rev < LPFC_SLI_REV4 ||
+	    test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		rjt_err = LSRJT_UNABLE_TPC;
 		rjt_expl = LSEXP_REQ_UNSUPPORTED;
 		goto error;
@@ -7500,9 +7503,9 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	int rc;
 
 	mb = &pmb->u.mb;
-	lcb_context = (struct lpfc_lcb_context *)pmb->ctx_ndlp;
+	lcb_context = pmb->ctx_u.lcb;
 	ndlp = lcb_context->ndlp;
-	pmb->ctx_ndlp = NULL;
+	memset(&pmb->ctx_u, 0, sizeof(pmb->ctx_u));
 	pmb->ctx_buf = NULL;
 
 	shdr = (union lpfc_sli4_cfg_shdr *)
@@ -7642,7 +7645,7 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
 			 LPFC_MBOX_OPCODE_SET_BEACON_CONFIG, len,
 			 LPFC_SLI4_MBX_EMBED);
-	mbox->ctx_ndlp = (void *)lcb_context;
+	mbox->ctx_u.lcb = lcb_context;
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_els_lcb_rsp;
 	bf_set(lpfc_mbx_set_beacon_port_num, &mbox->u.mqe.un.beacon_config,
@@ -7740,7 +7743,7 @@ lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	}
 
 	if (phba->sli_rev < LPFC_SLI_REV4  ||
-	    phba->hba_flag & HBA_FCOE_MODE ||
+	    test_bit(HBA_FCOE_MODE, &phba->hba_flag) ||
 	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 	    LPFC_SLI_INTF_IF_TYPE_2)) {
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
@@ -8445,7 +8448,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	memcpy(&phba->fc_fabparam, sp, sizeof(struct serv_parm));
 
 	/* Defer ACC response until AFTER we issue a FLOGI */
-	if (!(phba->hba_flag & HBA_FLOGI_ISSUED)) {
+	if (!test_bit(HBA_FLOGI_ISSUED, &phba->hba_flag)) {
 		phba->defer_flogi_acc_rx_id = bf_get(wqe_ctxt_tag,
 						     &wqe->xmit_els_rsp.wqe_com);
 		phba->defer_flogi_acc_ox_id = bf_get(wqe_rcvoxid,
@@ -8455,7 +8458,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 				 "3344 Deferring FLOGI ACC: rx_id: x%x,"
-				 " ox_id: x%x, hba_flag x%x\n",
+				 " ox_id: x%x, hba_flag x%lx\n",
 				 phba->defer_flogi_acc_rx_id,
 				 phba->defer_flogi_acc_ox_id, phba->hba_flag);
 
@@ -8639,9 +8642,9 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb = &pmb->u.mb;
 
 	ndlp = pmb->ctx_ndlp;
-	rxid = (uint16_t)((unsigned long)(pmb->ctx_buf) & 0xffff);
-	oxid = (uint16_t)(((unsigned long)(pmb->ctx_buf) >> 16) & 0xffff);
-	pmb->ctx_buf = NULL;
+	rxid = (uint16_t)(pmb->ctx_u.ox_rx_id & 0xffff);
+	oxid = (uint16_t)((pmb->ctx_u.ox_rx_id >> 16) & 0xffff);
+	memset(&pmb->ctx_u, 0, sizeof(pmb->ctx_u));
 	pmb->ctx_ndlp = NULL;
 
 	if (mb->mbxStatus) {
@@ -8745,8 +8748,7 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
 	if (mbox) {
 		lpfc_read_lnk_stat(phba, mbox);
-		mbox->ctx_buf = (void *)((unsigned long)
-					 (ox_id << 16 | ctx));
+		mbox->ctx_u.ox_rx_id = ox_id << 16 | ctx;
 		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 		if (!mbox->ctx_ndlp)
 			goto node_err;

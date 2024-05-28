@@ -510,7 +510,7 @@ static void gfx_v11_0_check_fw_cp_gfx_shadow(struct amdgpu_device *adev)
 static int gfx_v11_0_init_microcode(struct amdgpu_device *adev)
 {
 	char fw_name[40];
-	char ucode_prefix[30];
+	char ucode_prefix[25];
 	int err;
 	const struct rlc_firmware_header_v2_0 *rlc_hdr;
 	uint16_t version_major;
@@ -1635,7 +1635,7 @@ static void gfx_v11_0_setup_rb(struct amdgpu_device *adev)
 			active_rb_bitmap |= (0x3 << (i * rb_bitmap_width_per_sa));
 	}
 
-	active_rb_bitmap |= global_active_rb_bitmap;
+	active_rb_bitmap &= global_active_rb_bitmap;
 	adev->gfx.config.backend_enable_mask = active_rb_bitmap;
 	adev->gfx.config.num_rbs = hweight32(active_rb_bitmap);
 }
@@ -4506,14 +4506,11 @@ static int gfx_v11_0_soft_reset(void *handle)
 
 	gfx_v11_0_set_safe_mode(adev, 0);
 
+	mutex_lock(&adev->srbm_mutex);
 	for (i = 0; i < adev->gfx.mec.num_mec; ++i) {
 		for (j = 0; j < adev->gfx.mec.num_queue_per_pipe; j++) {
 			for (k = 0; k < adev->gfx.mec.num_pipe_per_mec; k++) {
-				tmp = RREG32_SOC15(GC, 0, regGRBM_GFX_CNTL);
-				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, MEID, i);
-				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, QUEUEID, j);
-				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, PIPEID, k);
-				WREG32_SOC15(GC, 0, regGRBM_GFX_CNTL, tmp);
+				soc21_grbm_select(adev, i, k, j, 0);
 
 				WREG32_SOC15(GC, 0, regCP_HQD_DEQUEUE_REQUEST, 0x2);
 				WREG32_SOC15(GC, 0, regSPI_COMPUTE_QUEUE_RESET, 0x1);
@@ -4523,16 +4520,14 @@ static int gfx_v11_0_soft_reset(void *handle)
 	for (i = 0; i < adev->gfx.me.num_me; ++i) {
 		for (j = 0; j < adev->gfx.me.num_queue_per_pipe; j++) {
 			for (k = 0; k < adev->gfx.me.num_pipe_per_me; k++) {
-				tmp = RREG32_SOC15(GC, 0, regGRBM_GFX_CNTL);
-				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, MEID, i);
-				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, QUEUEID, j);
-				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, PIPEID, k);
-				WREG32_SOC15(GC, 0, regGRBM_GFX_CNTL, tmp);
+				soc21_grbm_select(adev, i, k, j, 0);
 
 				WREG32_SOC15(GC, 0, regCP_GFX_HQD_DEQUEUE_REQUEST, 0x1);
 			}
 		}
 	}
+	soc21_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
 
 	/* Try to acquire the gfx mutex before access to CP_VMID_RESET */
 	r = gfx_v11_0_request_gfx_index_mutex(adev, 1);
@@ -5465,6 +5460,7 @@ static void gfx_v11_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	/* Make sure that we can't skip the SET_Q_MODE packets when the VM
 	 * changed in any way.
 	 */
+	ring->set_q_mode_offs = 0;
 	ring->set_q_mode_ptr = NULL;
 }
 
@@ -6173,6 +6169,8 @@ static const struct amd_ip_funcs gfx_v11_0_ip_funcs = {
 	.set_clockgating_state = gfx_v11_0_set_clockgating_state,
 	.set_powergating_state = gfx_v11_0_set_powergating_state,
 	.get_clockgating_state = gfx_v11_0_get_clockgating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs gfx_v11_0_ring_funcs_gfx = {
@@ -6191,7 +6189,7 @@ static const struct amdgpu_ring_funcs gfx_v11_0_ring_funcs_gfx = {
 		7 + /* PIPELINE_SYNC */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 5 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 7 +
-		2 + /* VM_FLUSH */
+		4 + /* VM_FLUSH */
 		8 + /* FENCE for VM_FLUSH */
 		20 + /* GDS switch */
 		5 + /* COND_EXEC */
@@ -6277,7 +6275,6 @@ static const struct amdgpu_ring_funcs gfx_v11_0_ring_funcs_kiq = {
 		7 + /* gfx_v11_0_ring_emit_pipeline_sync */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 5 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 7 +
-		2 + /* gfx_v11_0_ring_emit_vm_flush */
 		8 + 8 + 8, /* gfx_v11_0_ring_emit_fence_kiq x3 for user fence, vm fence */
 	.emit_ib_size =	7, /* gfx_v11_0_ring_emit_ib_compute */
 	.emit_ib = gfx_v11_0_ring_emit_ib_compute,

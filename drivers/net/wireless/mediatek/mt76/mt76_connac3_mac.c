@@ -6,8 +6,11 @@
 #include "dma.h"
 
 #define HE_BITS(f)		cpu_to_le16(IEEE80211_RADIOTAP_HE_##f)
+#define EHT_BITS(f)		cpu_to_le32(IEEE80211_RADIOTAP_EHT_##f)
 #define HE_PREP(f, m, v)	le16_encode_bits(le32_get_bits(v, MT_CRXV_HE_##m),\
 						 IEEE80211_RADIOTAP_HE_##f)
+#define EHT_PREP(f, m, v)	le32_encode_bits(le32_get_bits(v, MT_CRXV_EHT_##m),\
+						 IEEE80211_RADIOTAP_EHT_##f)
 
 static void
 mt76_connac3_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
@@ -180,3 +183,85 @@ void mt76_connac3_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv,
 	}
 }
 EXPORT_SYMBOL_GPL(mt76_connac3_mac_decode_he_radiotap);
+
+static void *
+mt76_connac3_mac_radiotap_push_tlv(struct sk_buff *skb, u16 type, u16 len)
+{
+	struct ieee80211_radiotap_tlv *tlv;
+
+	tlv = skb_push(skb, sizeof(*tlv) + len);
+	tlv->type = cpu_to_le16(type);
+	tlv->len = cpu_to_le16(len);
+	memset(tlv->data, 0, len);
+
+	return tlv->data;
+}
+
+void mt76_connac3_mac_decode_eht_radiotap(struct sk_buff *skb, __le32 *rxv,
+					  u8 mode)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct ieee80211_radiotap_eht_usig *usig;
+	struct ieee80211_radiotap_eht *eht;
+	u32 ltf_size = le32_get_bits(rxv[4], MT_CRXV_HE_LTF_SIZE) + 1;
+	u8 bw = FIELD_GET(MT_PRXV_FRAME_MODE, le32_to_cpu(rxv[2]));
+
+	if (WARN_ONCE(skb_mac_header(skb) != skb->data,
+		      "Should push tlv at the top of mac hdr"))
+		return;
+
+	eht = mt76_connac3_mac_radiotap_push_tlv(skb, IEEE80211_RADIOTAP_EHT,
+						 sizeof(*eht) + sizeof(u32));
+	usig = mt76_connac3_mac_radiotap_push_tlv(skb, IEEE80211_RADIOTAP_EHT_USIG,
+						  sizeof(*usig));
+
+	status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
+
+	eht->known |= EHT_BITS(KNOWN_SPATIAL_REUSE) |
+		      EHT_BITS(KNOWN_GI) |
+		      EHT_BITS(KNOWN_EHT_LTF) |
+		      EHT_BITS(KNOWN_LDPC_EXTRA_SYM_OM) |
+		      EHT_BITS(KNOWN_PE_DISAMBIGUITY_OM) |
+		      EHT_BITS(KNOWN_NSS_S);
+
+	eht->data[0] |=
+		EHT_PREP(DATA0_SPATIAL_REUSE, SR_MASK, rxv[13]) |
+		cpu_to_le32(FIELD_PREP(IEEE80211_RADIOTAP_EHT_DATA0_GI, status->eht.gi) |
+			    FIELD_PREP(IEEE80211_RADIOTAP_EHT_DATA0_LTF, ltf_size)) |
+		EHT_PREP(DATA0_PE_DISAMBIGUITY_OM, PE_DISAMBIG, rxv[5]) |
+		EHT_PREP(DATA0_LDPC_EXTRA_SYM_OM, LDPC_EXT_SYM, rxv[4]);
+
+	eht->data[7] |= le32_encode_bits(status->nss, IEEE80211_RADIOTAP_EHT_DATA7_NSS_S);
+
+	eht->user_info[0] |=
+		EHT_BITS(USER_INFO_MCS_KNOWN) |
+		EHT_BITS(USER_INFO_CODING_KNOWN) |
+		EHT_BITS(USER_INFO_NSS_KNOWN_O) |
+		EHT_BITS(USER_INFO_BEAMFORMING_KNOWN_O) |
+		EHT_BITS(USER_INFO_DATA_FOR_USER) |
+		le32_encode_bits(status->rate_idx, IEEE80211_RADIOTAP_EHT_USER_INFO_MCS) |
+		le32_encode_bits(status->nss, IEEE80211_RADIOTAP_EHT_USER_INFO_NSS_O);
+
+	if (le32_to_cpu(rxv[0]) & MT_PRXV_TXBF)
+		eht->user_info[0] |= EHT_BITS(USER_INFO_BEAMFORMING_O);
+
+	if (le32_to_cpu(rxv[0]) & MT_PRXV_HT_AD_CODE)
+		eht->user_info[0] |= EHT_BITS(USER_INFO_CODING);
+
+	if (mode == MT_PHY_TYPE_EHT_MU)
+		eht->user_info[0] |= EHT_BITS(USER_INFO_STA_ID_KNOWN) |
+				     EHT_PREP(USER_INFO_STA_ID, MU_AID, rxv[8]);
+
+	usig->common |=
+		EHT_BITS(USIG_COMMON_PHY_VER_KNOWN) |
+		EHT_BITS(USIG_COMMON_BW_KNOWN) |
+		EHT_BITS(USIG_COMMON_UL_DL_KNOWN) |
+		EHT_BITS(USIG_COMMON_BSS_COLOR_KNOWN) |
+		EHT_BITS(USIG_COMMON_TXOP_KNOWN) |
+		le32_encode_bits(0, IEEE80211_RADIOTAP_EHT_USIG_COMMON_PHY_VER) |
+		le32_encode_bits(bw, IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW) |
+		EHT_PREP(USIG_COMMON_UL_DL, UPLINK, rxv[5]) |
+		EHT_PREP(USIG_COMMON_BSS_COLOR, BSS_COLOR, rxv[9]) |
+		EHT_PREP(USIG_COMMON_TXOP, TXOP_DUR, rxv[9]);
+}
+EXPORT_SYMBOL_GPL(mt76_connac3_mac_decode_eht_radiotap);

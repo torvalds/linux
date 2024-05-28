@@ -65,7 +65,7 @@ static void rxrpc_write_space(struct sock *sk)
 
 		if (skwq_has_sleeper(wq))
 			wake_up_interruptible(&wq->wait);
-		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
+		sk_wake_async_rcu(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 	rcu_read_unlock();
 }

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 
 #include <linux/debugfs.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/clock.h>
 #include <sound/sof/ipc4/header.h>
 #include "sof-priv.h"
 #include "ipc4-priv.h"
@@ -412,7 +413,6 @@ static int ipc4_mtrace_enable(struct snd_sof_dev *sdev)
 	const struct sof_ipc_ops *iops = sdev->ipc->ops;
 	struct sof_ipc4_msg msg;
 	u64 system_time;
-	ktime_t kt;
 	int ret;
 
 	if (priv->mtrace_state != SOF_MTRACE_DISABLED)
@@ -424,9 +424,12 @@ static int ipc4_mtrace_enable(struct snd_sof_dev *sdev)
 	msg.primary |= SOF_IPC4_MOD_INSTANCE(SOF_IPC4_MOD_INIT_BASEFW_INSTANCE_ID);
 	msg.extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_FW_PARAM_SYSTEM_TIME);
 
-	/* The system time is in usec, UTC, epoch is 1601-01-01 00:00:00 */
-	kt = ktime_add_us(ktime_get_real(), FW_EPOCH_DELTA * USEC_PER_SEC);
-	system_time = ktime_to_us(kt);
+	/*
+	 * local_clock() is used to align with dmesg, so both kernel and firmware logs have
+	 * the same base and a minor delta due to the IPC. system time is in us format but
+	 * local_clock() returns the time in ns, so convert to ns.
+	 */
+	system_time = div64_u64(local_clock(), NSEC_PER_USEC);
 	msg.data_size = sizeof(system_time);
 	msg.data_ptr = &system_time;
 	ret = iops->set_get_data(sdev, &msg, msg.data_size, true);

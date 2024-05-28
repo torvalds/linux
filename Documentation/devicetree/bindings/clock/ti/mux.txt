@@ -1,7 +1,5 @@
 Binding for TI mux clock.
 
-Binding status: Unstable - ABI compatibility may be broken in the future
-
 This binding uses the common clock binding[1].  It assumes a
 register-mapped multiplexer with multiple input clock signals or
 parents, one of which can be selected as output.  This clock does not

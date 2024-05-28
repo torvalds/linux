@@ -158,13 +158,13 @@ static unsigned int calc_v_total_from_duration(
 	if (duration_in_us > vrr->max_duration_in_us)
 		duration_in_us = vrr->max_duration_in_us;
 
-	if (dc_is_hdmi_signal(stream->signal)) {
+	if (dc_is_hdmi_signal(stream->signal)) { // change for HDMI to comply with spec
 		uint32_t h_total_up_scaled;
 
 		h_total_up_scaled = stream->timing.h_total * 10000;
 		v_total = div_u64((unsigned long long)duration_in_us
 					* stream->timing.pix_clk_100hz + (h_total_up_scaled - 1),
-					h_total_up_scaled);
+					h_total_up_scaled); //ceiling for MMax and MMin for MVRR
 	} else {
 		v_total = div64_u64(div64_u64(((unsigned long long)(
 					duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
@@ -1057,7 +1057,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 			in_out_vrr->fixed_refresh_in_uhz = 0;
 
 		refresh_range = div_u64(in_out_vrr->max_refresh_in_uhz + 500000, 1000000) -
-+				div_u64(in_out_vrr->min_refresh_in_uhz + 500000, 1000000);
+				div_u64(in_out_vrr->min_refresh_in_uhz + 500000, 1000000);
 
 		in_out_vrr->supported = true;
 	}
@@ -1126,6 +1126,8 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		in_out_vrr->adjust.v_total_min = stream->timing.v_total;
 		in_out_vrr->adjust.v_total_max = stream->timing.v_total;
 	}
+
+	in_out_vrr->adjust.allow_otg_v_count_halt = (in_config->state == VRR_STATE_ACTIVE_FIXED) ? true : false;
 }
 
 void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,

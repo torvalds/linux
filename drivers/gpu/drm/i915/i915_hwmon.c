@@ -72,12 +72,13 @@ hwm_locked_with_pm_intel_uncore_rmw(struct hwm_drvdata *ddat,
 	struct intel_uncore *uncore = ddat->uncore;
 	intel_wakeref_t wakeref;
 
-	mutex_lock(&hwmon->hwmon_lock);
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
+		mutex_lock(&hwmon->hwmon_lock);
 
-	with_intel_runtime_pm(uncore->rpm, wakeref)
 		intel_uncore_rmw(uncore, reg, clear, set);
 
-	mutex_unlock(&hwmon->hwmon_lock);
+		mutex_unlock(&hwmon->hwmon_lock);
+	}
 }
 
 /*
@@ -136,20 +137,21 @@ hwm_energy(struct hwm_drvdata *ddat, long *energy)
 	else
 		rgaddr = hwmon->rg.energy_status_all;
 
-	mutex_lock(&hwmon->hwmon_lock);
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
+		mutex_lock(&hwmon->hwmon_lock);
 
-	with_intel_runtime_pm(uncore->rpm, wakeref)
 		reg_val = intel_uncore_read(uncore, rgaddr);
 
-	if (reg_val >= ei->reg_val_prev)
-		ei->accum_energy += reg_val - ei->reg_val_prev;
-	else
-		ei->accum_energy += UINT_MAX - ei->reg_val_prev + reg_val;
-	ei->reg_val_prev = reg_val;
+		if (reg_val >= ei->reg_val_prev)
+			ei->accum_energy += reg_val - ei->reg_val_prev;
+		else
+			ei->accum_energy += UINT_MAX - ei->reg_val_prev + reg_val;
+		ei->reg_val_prev = reg_val;
 
-	*energy = mul_u64_u32_shr(ei->accum_energy, SF_ENERGY,
-				  hwmon->scl_shift_energy);
-	mutex_unlock(&hwmon->hwmon_lock);
+		*energy = mul_u64_u32_shr(ei->accum_energy, SF_ENERGY,
+					  hwmon->scl_shift_energy);
+		mutex_unlock(&hwmon->hwmon_lock);
+	}
 }
 
 static ssize_t
@@ -404,6 +406,7 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 
 	/* Block waiting for GuC reset to complete when needed */
 	for (;;) {
+		wakeref = intel_runtime_pm_get(ddat->uncore->rpm);
 		mutex_lock(&hwmon->hwmon_lock);
 
 		prepare_to_wait(&ddat->waitq, &wait, TASK_INTERRUPTIBLE);
@@ -417,14 +420,13 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 		}
 
 		mutex_unlock(&hwmon->hwmon_lock);
+		intel_runtime_pm_put(ddat->uncore->rpm, wakeref);
 
 		schedule();
 	}
 	finish_wait(&ddat->waitq, &wait);
 	if (ret)
-		goto unlock;
-
-	wakeref = intel_runtime_pm_get(ddat->uncore->rpm);
+		goto exit;
 
 	/* Disable PL1 limit and verify, because the limit cannot be disabled on all platforms */
 	if (val == PL1_DISABLE) {
@@ -444,9 +446,8 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 	intel_uncore_rmw(ddat->uncore, hwmon->rg.pkg_rapl_limit,
 			 PKG_PWR_LIM_1_EN | PKG_PWR_LIM_1, nval);
 exit:
-	intel_runtime_pm_put(ddat->uncore->rpm, wakeref);
-unlock:
 	mutex_unlock(&hwmon->hwmon_lock);
+	intel_runtime_pm_put(ddat->uncore->rpm, wakeref);
 	return ret;
 }
 
@@ -738,12 +739,6 @@ hwm_get_preregistration_info(struct drm_i915_private *i915)
 		hwmon->rg.pkg_rapl_limit = PCU_PACKAGE_RAPL_LIMIT;
 		hwmon->rg.energy_status_all = PCU_PACKAGE_ENERGY_STATUS;
 		hwmon->rg.energy_status_tile = INVALID_MMIO_REG;
-	} else if (IS_XEHPSDV(i915)) {
-		hwmon->rg.pkg_power_sku_unit = GT0_PACKAGE_POWER_SKU_UNIT;
-		hwmon->rg.pkg_power_sku = INVALID_MMIO_REG;
-		hwmon->rg.pkg_rapl_limit = GT0_PACKAGE_RAPL_LIMIT;
-		hwmon->rg.energy_status_all = GT0_PLATFORM_ENERGY_STATUS;
-		hwmon->rg.energy_status_tile = GT0_PACKAGE_ENERGY_STATUS;
 	} else {
 		hwmon->rg.pkg_power_sku_unit = INVALID_MMIO_REG;
 		hwmon->rg.pkg_power_sku = INVALID_MMIO_REG;
@@ -792,7 +787,7 @@ void i915_hwmon_register(struct drm_i915_private *i915)
 	if (!IS_DGFX(i915))
 		return;
 
-	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
+	hwmon = kzalloc(sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
 		return;
 
@@ -818,14 +813,12 @@ void i915_hwmon_register(struct drm_i915_private *i915)
 	hwm_get_preregistration_info(i915);
 
 	/*  hwmon_dev points to device hwmon<i> */
-	hwmon_dev = devm_hwmon_device_register_with_info(dev, ddat->name,
-							 ddat,
-							 &hwm_chip_info,
-							 hwm_groups);
-	if (IS_ERR(hwmon_dev)) {
-		i915->hwmon = NULL;
-		return;
-	}
+	hwmon_dev = hwmon_device_register_with_info(dev, ddat->name,
+						    ddat,
+						    &hwm_chip_info,
+						    hwm_groups);
+	if (IS_ERR(hwmon_dev))
+		goto err;
 
 	ddat->hwmon_dev = hwmon_dev;
 
@@ -838,16 +831,36 @@ void i915_hwmon_register(struct drm_i915_private *i915)
 		if (!hwm_gt_is_visible(ddat_gt, hwmon_energy, hwmon_energy_input, 0))
 			continue;
 
-		hwmon_dev = devm_hwmon_device_register_with_info(dev, ddat_gt->name,
-								 ddat_gt,
-								 &hwm_gt_chip_info,
-								 NULL);
+		hwmon_dev = hwmon_device_register_with_info(dev, ddat_gt->name,
+							    ddat_gt,
+							    &hwm_gt_chip_info,
+							    NULL);
 		if (!IS_ERR(hwmon_dev))
 			ddat_gt->hwmon_dev = hwmon_dev;
 	}
+	return;
+err:
+	i915_hwmon_unregister(i915);
 }
 
 void i915_hwmon_unregister(struct drm_i915_private *i915)
 {
-	fetch_and_zero(&i915->hwmon);
+	struct i915_hwmon *hwmon = i915->hwmon;
+	struct intel_gt *gt;
+	int i;
+
+	if (!hwmon)
+		return;
+
+	for_each_gt(gt, i915, i)
+		if (hwmon->ddat_gt[i].hwmon_dev)
+			hwmon_device_unregister(hwmon->ddat_gt[i].hwmon_dev);
+
+	if (hwmon->ddat.hwmon_dev)
+		hwmon_device_unregister(hwmon->ddat.hwmon_dev);
+
+	mutex_destroy(&hwmon->hwmon_lock);
+
+	kfree(i915->hwmon);
+	i915->hwmon = NULL;
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Authors: Keyon Jie <yang.jie@linux.intel.com>
 //
@@ -79,18 +79,27 @@ void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hda_codec *codec;
 	unsigned int mask = 0;
+	unsigned int val = 0;
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC_DEBUG_SUPPORT) &&
 	    sof_debug_check_flag(SOF_DBG_FORCE_NOCODEC))
 		return;
 
 	if (enable) {
-		list_for_each_codec(codec, hbus)
+		list_for_each_codec(codec, hbus) {
+			/* only set WAKEEN when needed for HDaudio codecs */
+			mask |= BIT(codec->core.addr);
 			if (codec->jacktbl.used)
-				mask |= BIT(codec->core.addr);
+				val |= BIT(codec->core.addr);
+		}
+	} else {
+		list_for_each_codec(codec, hbus) {
+			/* reset WAKEEN only HDaudio codecs */
+			mask |= BIT(codec->core.addr);
+		}
 	}
 
-	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, mask);
+	snd_hdac_chip_updatew(bus, WAKEEN, mask & STATESTS_INT_MASK, val);
 }
 EXPORT_SYMBOL_NS_GPL(hda_codec_jack_wake_enable, SND_SOC_SOF_HDA_AUDIO_CODEC);
 

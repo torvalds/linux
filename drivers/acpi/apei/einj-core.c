@@ -873,8 +873,14 @@ static void __exit einj_remove(struct platform_device *pdev)
 }
 
 static struct platform_device *einj_dev;
-static struct platform_driver einj_driver = {
-	.remove_new = einj_remove,
+/*
+ * einj_remove() lives in .exit.text. For drivers registered via
+ * platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver einj_driver __refdata = {
+	.remove_new = __exit_p(einj_remove),
 	.driver = {
 		.name = "acpi-einj",
 	},

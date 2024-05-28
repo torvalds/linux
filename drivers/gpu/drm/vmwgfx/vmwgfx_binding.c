@@ -54,6 +54,7 @@
 #include "vmwgfx_drv.h"
 #include "vmwgfx_binding.h"
 #include "device_include/svga3d_reg.h"
+#include <linux/vmalloc.h>
 
 #define VMW_BINDING_RT_BIT     0
 #define VMW_BINDING_PS_BIT     1

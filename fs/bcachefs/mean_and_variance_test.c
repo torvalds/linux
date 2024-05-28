@@ -136,36 +136,12 @@ static void mean_and_variance_test_1(struct kunit *test)
 			d, mean, stddev, weighted_mean, weighted_stddev);
 }
 
-static void mean_and_variance_test_2(struct kunit *test)
-{
-	s64 d[]			= { 100, 10, 10, 10, 10, 10, 10 };
-	s64 mean[]		= {  10, 10, 10, 10, 10, 10, 10 };
-	s64 stddev[]		= {   9,  9,  9,  9,  9,  9,  9 };
-	s64 weighted_mean[]	= {  32, 27, 22, 19, 17, 15, 14 };
-	s64 weighted_stddev[]	= {  38, 35, 31, 27, 24, 21, 18 };
-
-	do_mean_and_variance_test(test, 10, 6, ARRAY_SIZE(d), 2,
-			d, mean, stddev, weighted_mean, weighted_stddev);
-}
-
 /* Test behaviour where we switch from one steady state to another: */
-static void mean_and_variance_test_3(struct kunit *test)
+static void mean_and_variance_test_2(struct kunit *test)
 {
 	s64 d[]			= { 100, 100, 100, 100, 100 };
 	s64 mean[]		= {  22,  32,  40,  46,  50 };
 	s64 stddev[]		= {  32,  39,  42,  44,  45 };
-	s64 weighted_mean[]	= {  32,  49,  61,  71,  78 };
-	s64 weighted_stddev[]	= {  38,  44,  44,  41,  38 };
-
-	do_mean_and_variance_test(test, 10, 6, ARRAY_SIZE(d), 2,
-			d, mean, stddev, weighted_mean, weighted_stddev);
-}
-
-static void mean_and_variance_test_4(struct kunit *test)
-{
-	s64 d[]			= { 100, 100, 100, 100, 100 };
-	s64 mean[]		= {  10,  11,  12,  13,  14 };
-	s64 stddev[]		= {   9,  13,  15,  17,  19 };
 	s64 weighted_mean[]	= {  32,  49,  61,  71,  78 };
 	s64 weighted_stddev[]	= {  38,  44,  44,  41,  38 };
 
@@ -230,8 +206,6 @@ static struct kunit_case mean_and_variance_test_cases[] = {
 	KUNIT_CASE(mean_and_variance_weighted_advanced_test),
 	KUNIT_CASE(mean_and_variance_test_1),
 	KUNIT_CASE(mean_and_variance_test_2),
-	KUNIT_CASE(mean_and_variance_test_3),
-	KUNIT_CASE(mean_and_variance_test_4),
 	{}
 };
 

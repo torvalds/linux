@@ -7,7 +7,6 @@
 #include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/spi/pxa2xx_spi.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/soc/pxa/cpu.h>
 
@@ -664,23 +663,6 @@ struct platform_device pxa27x_device_gpio = {
 	.num_resources	= ARRAY_SIZE(pxa_resource_gpio),
 	.resource	= pxa_resource_gpio,
 };
-
-/* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1.
- * See comment in arch/arm/mach-pxa/ssp.c::ssp_probe() */
-void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_controller *info)
-{
-	struct platform_device *pd;
-
-	pd = platform_device_alloc("pxa2xx-spi", id);
-	if (pd == NULL) {
-		printk(KERN_ERR "pxa2xx-spi: failed to allocate device id %d\n",
-		       id);
-		return;
-	}
-
-	pd->dev.platform_data = info;
-	platform_device_add(pd);
-}
 
 static struct resource pxa_dma_resource[] = {
 	[0] = {

@@ -701,6 +701,12 @@ enum state_protect_how4 {
 	SP4_SSV		= 2
 };
 
+/* GET_DIR_DELEGATION non-fatal status codes */
+enum gddrnf4_status {
+	GDD4_OK		= 0,
+	GDD4_UNAVAIL	= 1
+};
+
 enum pnfs_layouttype {
 	LAYOUT_NFSV4_1_FILES  = 1,
 	LAYOUT_OSD2_OBJECTS = 2,

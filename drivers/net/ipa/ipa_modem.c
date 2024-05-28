@@ -1,29 +1,27 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
 #include <linux/errno.h>
-#include <linux/if_arp.h>
-#include <linux/netdevice.h>
-#include <linux/skbuff.h>
-#include <linux/if_rmnet.h>
 #include <linux/etherdevice.h>
-#include <net/pkt_sched.h>
+#include <linux/if_arp.h>
+#include <linux/if_rmnet.h>
+#include <linux/netdevice.h>
 #include <linux/pm_runtime.h>
+#include <linux/skbuff.h>
+#include <net/pkt_sched.h>
+
 #include <linux/remoteproc/qcom_rproc.h>
 
 #include "ipa.h"
-#include "ipa_data.h"
 #include "ipa_endpoint.h"
-#include "ipa_table.h"
 #include "ipa_mem.h"
 #include "ipa_modem.h"
 #include "ipa_smp2p.h"
-#include "ipa_qmi.h"
+#include "ipa_table.h"
 #include "ipa_uc.h"
-#include "ipa_power.h"
 
 #define IPA_NETDEV_NAME		"rmnet_ipa%d"
 #define IPA_NETDEV_TAILROOM	0	/* for padding by mux layer */

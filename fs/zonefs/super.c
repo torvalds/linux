@@ -1048,7 +1048,7 @@ static int zonefs_init_zgroup(struct super_block *sb,
 	zonefs_info(sb, "Zone group \"%s\" has %u file%s\n",
 		    zonefs_zgroup_name(ztype),
 		    zgroup->g_nr_zones,
-		    zgroup->g_nr_zones > 1 ? "s" : "");
+		    str_plural(zgroup->g_nr_zones));
 
 	return 0;
 }

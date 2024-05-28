@@ -765,15 +765,13 @@ framer_exit:
 	return ret;
 }
 
-static int qmc_hdlc_remove(struct platform_device *pdev)
+static void qmc_hdlc_remove(struct platform_device *pdev)
 {
 	struct qmc_hdlc *qmc_hdlc = platform_get_drvdata(pdev);
 
 	unregister_hdlc_device(qmc_hdlc->netdev);
 	free_netdev(qmc_hdlc->netdev);
 	qmc_hdlc_framer_exit(qmc_hdlc);
-
-	return 0;
 }
 
 static const struct of_device_id qmc_hdlc_id_table[] = {
@@ -788,7 +786,7 @@ static struct platform_driver qmc_hdlc_driver = {
 		.of_match_table = qmc_hdlc_id_table,
 	},
 	.probe = qmc_hdlc_probe,
-	.remove = qmc_hdlc_remove,
+	.remove_new = qmc_hdlc_remove,
 };
 module_platform_driver(qmc_hdlc_driver);
 

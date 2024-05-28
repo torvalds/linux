@@ -28,7 +28,12 @@ MODULE_AUTHOR("Manoj N. Kumar <manoj@linux.vnet.ibm.com>");
 MODULE_AUTHOR("Matthew R. Ochs <mrochs@linux.vnet.ibm.com>");
 MODULE_LICENSE("GPL");
 
-static struct class *cxlflash_class;
+static char *cxlflash_devnode(const struct device *dev, umode_t *mode);
+static const struct class cxlflash_class = {
+	.name = "cxlflash",
+	.devnode = cxlflash_devnode,
+};
+
 static u32 cxlflash_major;
 static DECLARE_BITMAP(cxlflash_minor, CXLFLASH_MAX_ADAPTERS);
 
@@ -3275,13 +3280,13 @@ static char *decode_hioctl(unsigned int cmd)
 /**
  * cxlflash_lun_provision() - host LUN provisioning handler
  * @cfg:	Internal structure associated with the host.
- * @lunprov:	Kernel copy of userspace ioctl data structure.
+ * @arg:	Kernel copy of userspace ioctl data structure.
  *
  * Return: 0 on success, -errno on failure
  */
-static int cxlflash_lun_provision(struct cxlflash_cfg *cfg,
-				  struct ht_cxlflash_lun_provision *lunprov)
+static int cxlflash_lun_provision(struct cxlflash_cfg *cfg, void *arg)
 {
+	struct ht_cxlflash_lun_provision *lunprov = arg;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 	struct sisl_ioarcb rcb;
@@ -3366,16 +3371,16 @@ out:
 /**
  * cxlflash_afu_debug() - host AFU debug handler
  * @cfg:	Internal structure associated with the host.
- * @afu_dbg:	Kernel copy of userspace ioctl data structure.
+ * @arg:	Kernel copy of userspace ioctl data structure.
  *
  * For debug requests requiring a data buffer, always provide an aligned
  * (cache line) buffer to the AFU to appease any alignment requirements.
  *
  * Return: 0 on success, -errno on failure
  */
-static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
-			      struct ht_cxlflash_afu_debug *afu_dbg)
+static int cxlflash_afu_debug(struct cxlflash_cfg *cfg, void *arg)
 {
+	struct ht_cxlflash_afu_debug *afu_dbg = arg;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 	struct sisl_ioarcb rcb;
@@ -3489,10 +3494,8 @@ static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
 		size_t size;
 		hioctl ioctl;
 	} ioctl_tbl[] = {	/* NOTE: order matters here */
-	{ sizeof(struct ht_cxlflash_lun_provision),
-		(hioctl)cxlflash_lun_provision },
-	{ sizeof(struct ht_cxlflash_afu_debug),
-		(hioctl)cxlflash_afu_debug },
+	{ sizeof(struct ht_cxlflash_lun_provision), cxlflash_lun_provision },
+	{ sizeof(struct ht_cxlflash_afu_debug), cxlflash_afu_debug },
 	};
 
 	/* Hold read semaphore so we can drain if needed */
@@ -3602,7 +3605,7 @@ static int init_chrdev(struct cxlflash_cfg *cfg)
 		goto err1;
 	}
 
-	char_dev = device_create(cxlflash_class, NULL, devno,
+	char_dev = device_create(&cxlflash_class, NULL, devno,
 				 NULL, "cxlflash%d", minor);
 	if (IS_ERR(char_dev)) {
 		rc = PTR_ERR(char_dev);
@@ -3880,14 +3883,12 @@ static int cxlflash_class_init(void)
 
 	cxlflash_major = MAJOR(devno);
 
-	cxlflash_class = class_create("cxlflash");
-	if (IS_ERR(cxlflash_class)) {
-		rc = PTR_ERR(cxlflash_class);
+	rc = class_register(&cxlflash_class);
+	if (rc) {
 		pr_err("%s: class_create failed rc=%d\n", __func__, rc);
 		goto err;
 	}
 
-	cxlflash_class->devnode = cxlflash_devnode;
 out:
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
@@ -3903,7 +3904,7 @@ static void cxlflash_class_exit(void)
 {
 	dev_t devno = MKDEV(cxlflash_major, 0);
 
-	class_destroy(cxlflash_class);
+	class_unregister(&cxlflash_class);
 	unregister_chrdev_region(devno, CXLFLASH_MAX_ADAPTERS);
 }
 

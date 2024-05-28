@@ -1,11 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "btree_cache.h"
 #include "disk_groups.h"
+#include "error.h"
 #include "opts.h"
 #include "replicas.h"
 #include "sb-members.h"
 #include "super-io.h"
+
+void bch2_dev_missing(struct bch_fs *c, unsigned dev)
+{
+	bch2_fs_inconsistent(c, "pointer to nonexistent device %u", dev);
+}
+
+void bch2_dev_bucket_missing(struct bch_fs *c, struct bpos bucket)
+{
+	bch2_fs_inconsistent(c, "pointer to nonexistent bucket %llu:%llu", bucket.inode, bucket.offset);
+}
 
 #define x(t, n, ...) [n] = #t,
 static const char * const bch2_iops_measurements[] = {
@@ -123,9 +135,9 @@ static int validate_member(struct printbuf *err,
 			   struct bch_sb *sb,
 			   int i)
 {
-	if (le64_to_cpu(m.nbuckets) > LONG_MAX) {
-		prt_printf(err, "device %u: too many buckets (got %llu, max %lu)",
-			   i, le64_to_cpu(m.nbuckets), LONG_MAX);
+	if (le64_to_cpu(m.nbuckets) > BCH_MEMBER_NBUCKETS_MAX) {
+		prt_printf(err, "device %u: too many buckets (got %llu, max %u)",
+			   i, le64_to_cpu(m.nbuckets), BCH_MEMBER_NBUCKETS_MAX);
 		return -BCH_ERR_invalid_sb_members;
 	}
 
@@ -163,18 +175,14 @@ static void member_to_text(struct printbuf *out,
 	u64 bucket_size = le16_to_cpu(m.bucket_size);
 	u64 device_size = le64_to_cpu(m.nbuckets) * bucket_size;
 
-	if (!bch2_member_exists(&m))
+	if (!bch2_member_alive(&m))
 		return;
 
-	prt_printf(out, "Device:");
-	prt_tab(out);
-	prt_printf(out, "%u", i);
-	prt_newline(out);
+	prt_printf(out, "Device:\t%u\n", i);
 
 	printbuf_indent_add(out, 2);
 
-	prt_printf(out, "Label:");
-	prt_tab(out);
+	prt_printf(out, "Label:\t");
 	if (BCH_MEMBER_GROUP(&m)) {
 		unsigned idx = BCH_MEMBER_GROUP(&m) - 1;
 
@@ -188,103 +196,73 @@ static void member_to_text(struct printbuf *out,
 	}
 	prt_newline(out);
 
-	prt_printf(out, "UUID:");
-	prt_tab(out);
+	prt_printf(out, "UUID:\t");
 	pr_uuid(out, m.uuid.b);
 	prt_newline(out);
 
-	prt_printf(out, "Size:");
-	prt_tab(out);
+	prt_printf(out, "Size:\t");
 	prt_units_u64(out, device_size << 9);
 	prt_newline(out);
 
-	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
-		prt_printf(out, "%s errors:", bch2_member_error_strs[i]);
-		prt_tab(out);
-		prt_u64(out, le64_to_cpu(m.errors[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++)
+		prt_printf(out, "%s errors:\t%llu\n", bch2_member_error_strs[i], le64_to_cpu(m.errors[i]));
 
-	for (unsigned i = 0; i < BCH_IOPS_NR; i++) {
-		prt_printf(out, "%s iops:", bch2_iops_measurements[i]);
-		prt_tab(out);
-		prt_printf(out, "%u", le32_to_cpu(m.iops[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < BCH_IOPS_NR; i++)
+		prt_printf(out, "%s iops:\t%u\n", bch2_iops_measurements[i], le32_to_cpu(m.iops[i]));
 
-	prt_printf(out, "Bucket size:");
-	prt_tab(out);
+	prt_printf(out, "Bucket size:\t");
 	prt_units_u64(out, bucket_size << 9);
 	prt_newline(out);
 
-	prt_printf(out, "First bucket:");
-	prt_tab(out);
-	prt_printf(out, "%u", le16_to_cpu(m.first_bucket));
-	prt_newline(out);
+	prt_printf(out, "First bucket:\t%u\n", le16_to_cpu(m.first_bucket));
+	prt_printf(out, "Buckets:\t%llu\n", le64_to_cpu(m.nbuckets));
 
-	prt_printf(out, "Buckets:");
-	prt_tab(out);
-	prt_printf(out, "%llu", le64_to_cpu(m.nbuckets));
-	prt_newline(out);
-
-	prt_printf(out, "Last mount:");
-	prt_tab(out);
+	prt_printf(out, "Last mount:\t");
 	if (m.last_mount)
 		bch2_prt_datetime(out, le64_to_cpu(m.last_mount));
 	else
 		prt_printf(out, "(never)");
 	prt_newline(out);
 
-	prt_printf(out, "Last superblock write:");
-	prt_tab(out);
-	prt_u64(out, le64_to_cpu(m.seq));
-	prt_newline(out);
+	prt_printf(out, "Last superblock write:\t%llu\n", le64_to_cpu(m.seq));
 
-	prt_printf(out, "State:");
-	prt_tab(out);
-	prt_printf(out, "%s",
+	prt_printf(out, "State:\t%s\n",
 		   BCH_MEMBER_STATE(&m) < BCH_MEMBER_STATE_NR
 		   ? bch2_member_states[BCH_MEMBER_STATE(&m)]
 		   : "unknown");
-	prt_newline(out);
 
-	prt_printf(out, "Data allowed:");
-	prt_tab(out);
+	prt_printf(out, "Data allowed:\t");
 	if (BCH_MEMBER_DATA_ALLOWED(&m))
 		prt_bitflags(out, __bch2_data_types, BCH_MEMBER_DATA_ALLOWED(&m));
 	else
 		prt_printf(out, "(none)");
 	prt_newline(out);
 
-	prt_printf(out, "Has data:");
-	prt_tab(out);
+	prt_printf(out, "Has data:\t");
 	if (data_have)
 		prt_bitflags(out, __bch2_data_types, data_have);
 	else
 		prt_printf(out, "(none)");
 	prt_newline(out);
 
-	prt_str(out, "Durability:");
-	prt_tab(out);
-	prt_printf(out, "%llu", BCH_MEMBER_DURABILITY(&m) ? BCH_MEMBER_DURABILITY(&m) - 1 : 1);
+	prt_printf(out, "Btree allocated bitmap blocksize:\t");
+	prt_units_u64(out, 1ULL << m.btree_bitmap_shift);
 	prt_newline(out);
 
-	prt_printf(out, "Discard:");
-	prt_tab(out);
-	prt_printf(out, "%llu", BCH_MEMBER_DISCARD(&m));
+	prt_printf(out, "Btree allocated bitmap:\t");
+	bch2_prt_u64_base2_nbits(out, le64_to_cpu(m.btree_allocated_bitmap), 64);
 	prt_newline(out);
 
-	prt_printf(out, "Freespace initialized:");
-	prt_tab(out);
-	prt_printf(out, "%llu", BCH_MEMBER_FREESPACE_INITIALIZED(&m));
-	prt_newline(out);
+	prt_printf(out, "Durability:\t%llu\n", BCH_MEMBER_DURABILITY(&m) ? BCH_MEMBER_DURABILITY(&m) - 1 : 1);
+
+	prt_printf(out, "Discard:\t%llu\n", BCH_MEMBER_DISCARD(&m));
+	prt_printf(out, "Freespace initialized:\t%llu\n", BCH_MEMBER_FREESPACE_INITIALIZED(&m));
 
 	printbuf_indent_sub(out, 2);
 }
 
-static int bch2_sb_members_v1_validate(struct bch_sb *sb,
-				    struct bch_sb_field *f,
-				    struct printbuf *err)
+static int bch2_sb_members_v1_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_members_v1 *mi = field_to_type(f, members_v1);
 	unsigned i;
@@ -332,9 +310,8 @@ static void bch2_sb_members_v2_to_text(struct printbuf *out, struct bch_sb *sb,
 		member_to_text(out, members_v2_get(mi, i), gi, sb, i);
 }
 
-static int bch2_sb_members_v2_validate(struct bch_sb *sb,
-				       struct bch_sb_field *f,
-				       struct printbuf *err)
+static int bch2_sb_members_v2_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_members_v2 *mi = field_to_type(f, members_v2);
 	size_t mi_bytes = (void *) __bch2_members_v2_get_mut(mi, sb->nr_devices) -
@@ -389,12 +366,8 @@ void bch2_dev_io_errors_to_text(struct printbuf *out, struct bch_dev *ca)
 	prt_newline(out);
 
 	printbuf_indent_add(out, 2);
-	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
-		prt_printf(out, "%s:", bch2_member_error_strs[i]);
-		prt_tab(out);
-		prt_u64(out, atomic64_read(&ca->errors[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++)
+		prt_printf(out, "%s:\t%llu\n", bch2_member_error_strs[i], atomic64_read(&ca->errors[i]));
 	printbuf_indent_sub(out, 2);
 
 	prt_str(out, "IO errors since ");
@@ -403,12 +376,9 @@ void bch2_dev_io_errors_to_text(struct printbuf *out, struct bch_dev *ca)
 	prt_newline(out);
 
 	printbuf_indent_add(out, 2);
-	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
-		prt_printf(out, "%s:", bch2_member_error_strs[i]);
-		prt_tab(out);
-		prt_u64(out, atomic64_read(&ca->errors[i]) - le64_to_cpu(m.errors_at_reset[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++)
+		prt_printf(out, "%s:\t%llu\n", bch2_member_error_strs[i],
+			   atomic64_read(&ca->errors[i]) - le64_to_cpu(m.errors_at_reset[i]));
 	printbuf_indent_sub(out, 2);
 }
 
@@ -425,4 +395,72 @@ void bch2_dev_errors_reset(struct bch_dev *ca)
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
+}
+
+/*
+ * Per member "range has btree nodes" bitmap:
+ *
+ * This is so that if we ever have to run the btree node scan to repair we don't
+ * have to scan full devices:
+ */
+
+bool bch2_dev_btree_bitmap_marked(struct bch_fs *c, struct bkey_s_c k)
+{
+	bool ret = true;
+	rcu_read_lock();
+	bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
+		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+		if (!ca)
+			continue;
+
+		if (!bch2_dev_btree_bitmap_marked_sectors(ca, ptr->offset, btree_sectors(c))) {
+			ret = false;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return ret;
+}
+
+static void __bch2_dev_btree_bitmap_mark(struct bch_sb_field_members_v2 *mi, unsigned dev,
+				u64 start, unsigned sectors)
+{
+	struct bch_member *m = __bch2_members_v2_get_mut(mi, dev);
+	u64 bitmap = le64_to_cpu(m->btree_allocated_bitmap);
+
+	u64 end = start + sectors;
+
+	int resize = ilog2(roundup_pow_of_two(end)) - (m->btree_bitmap_shift + 6);
+	if (resize > 0) {
+		u64 new_bitmap = 0;
+
+		for (unsigned i = 0; i < 64; i++)
+			if (bitmap & BIT_ULL(i))
+				new_bitmap |= BIT_ULL(i >> resize);
+		bitmap = new_bitmap;
+		m->btree_bitmap_shift += resize;
+	}
+
+	BUG_ON(m->btree_bitmap_shift > 57);
+	BUG_ON(end > 64ULL << m->btree_bitmap_shift);
+
+	for (unsigned bit = start >> m->btree_bitmap_shift;
+	     (u64) bit << m->btree_bitmap_shift < end;
+	     bit++)
+		bitmap |= BIT_ULL(bit);
+
+	m->btree_allocated_bitmap = cpu_to_le64(bitmap);
+}
+
+void bch2_dev_btree_bitmap_mark(struct bch_fs *c, struct bkey_s_c k)
+{
+	lockdep_assert_held(&c->sb_lock);
+
+	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
+	bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
+		if (!bch2_member_exists(c->disk_sb.sb, ptr->dev))
+			continue;
+
+		__bch2_dev_btree_bitmap_mark(mi, ptr->dev, ptr->offset, btree_sectors(c));
+	}
 }

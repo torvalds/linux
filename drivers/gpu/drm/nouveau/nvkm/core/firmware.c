@@ -205,9 +205,7 @@ nvkm_firmware_dtor(struct nvkm_firmware *fw)
 		break;
 	case NVKM_FIRMWARE_IMG_DMA:
 		nvkm_memory_unref(&memory);
-		dma_unmap_single(fw->device->dev, fw->phys, sg_dma_len(&fw->mem.sgl),
-				 DMA_TO_DEVICE);
-		kfree(fw->img);
+		dma_free_coherent(fw->device->dev, sg_dma_len(&fw->mem.sgl), fw->img, fw->phys);
 		break;
 	case NVKM_FIRMWARE_IMG_SGT:
 		nvkm_memory_unref(&memory);
@@ -237,17 +235,14 @@ nvkm_firmware_ctor(const struct nvkm_firmware_func *func, const char *name,
 		fw->img = kmemdup(src, fw->len, GFP_KERNEL);
 		break;
 	case NVKM_FIRMWARE_IMG_DMA: {
+		dma_addr_t addr;
+
 		len = ALIGN(fw->len, PAGE_SIZE);
 
-		fw->img = kmalloc(len, GFP_KERNEL);
-		if (!fw->img)
-			return -ENOMEM;
-
-		memcpy(fw->img, src, fw->len);
-		fw->phys = dma_map_single(fw->device->dev, fw->img, len, DMA_TO_DEVICE);
-		if (dma_mapping_error(fw->device->dev, fw->phys)) {
-			kfree(fw->img);
-			return -EFAULT;
+		fw->img = dma_alloc_coherent(fw->device->dev, len, &addr, GFP_KERNEL);
+		if (fw->img) {
+			memcpy(fw->img, src, fw->len);
+			fw->phys = addr;
 		}
 
 		sg_init_one(&fw->mem.sgl, fw->img, len);

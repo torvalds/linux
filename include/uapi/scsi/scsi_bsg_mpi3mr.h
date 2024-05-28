@@ -382,7 +382,7 @@ struct mpi3mr_bsg_in_reply_buf {
 	__u8	mpi_reply_type;
 	__u8	rsvd1;
 	__u16	rsvd2;
-	__u8	reply_buf[1];
+	__u8	reply_buf[];
 };
 
 /**
@@ -401,7 +401,7 @@ struct mpi3mr_buf_entry {
 	__u32	buf_len;
 };
 /**
- * struct mpi3mr_bsg_buf_entry_list - list of user buffer
+ * struct mpi3mr_buf_entry_list - list of user buffer
  * descriptor for MPI Passthrough requests.
  *
  * @num_of_entries: Number of buffer descriptors
@@ -424,6 +424,7 @@ struct mpi3mr_buf_entry_list {
  * @mrioc_id: Controller ID
  * @rsvd1: Reserved
  * @timeout: MPI request timeout
+ * @rsvd2: Reserved
  * @buf_entry_list: Buffer descriptor list
  */
 struct mpi3mr_bsg_mptcmd {
@@ -441,8 +442,9 @@ struct mpi3mr_bsg_mptcmd {
  * @cmd_type: represents drvrcmd or mptcmd
  * @rsvd1: Reserved
  * @rsvd2: Reserved
- * @drvrcmd: driver request structure
- * @mptcmd: mpt request structure
+ * @rsvd3: Reserved
+ * @cmd.drvrcmd: driver request structure
+ * @cmd.mptcmd: mpt request structure
  */
 struct mpi3mr_bsg_packet {
 	__u8	cmd_type;

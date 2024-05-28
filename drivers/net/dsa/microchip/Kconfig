@@ -4,6 +4,8 @@ menuconfig NET_DSA_MICROCHIP_KSZ_COMMON
 	depends on NET_DSA
 	select NET_DSA_TAG_KSZ
 	select NET_DSA_TAG_NONE
+	select NET_IEEE8021Q_HELPERS
+	select DCB
 	help
 	  This driver adds support for Microchip KSZ9477 series switch and
 	  KSZ8795/KSZ88x3 switch chips.

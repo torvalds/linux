@@ -135,7 +135,7 @@ and does not want to suffer the performance impact, one can always
 disable the mitigation with spec_rstack_overflow=off.
 
 Similarly, 'Mitigation: IBPB' is another full mitigation type employing
-an indrect branch prediction barrier after having applied the required
+an indirect branch prediction barrier after having applied the required
 microcode patch for one's system. This mitigation comes also at
 a performance cost.
 

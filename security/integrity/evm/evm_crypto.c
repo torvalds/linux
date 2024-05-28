@@ -221,9 +221,10 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 				 const char *req_xattr_name,
 				 const char *req_xattr_value,
 				 size_t req_xattr_value_len,
-				 uint8_t type, struct evm_digest *data)
+				 uint8_t type, struct evm_digest *data,
+				 struct evm_iint_cache *iint)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct inode *inode = d_inode(d_real(dentry, D_REAL_METADATA));
 	struct xattr_list *xattr;
 	struct shash_desc *desc;
 	size_t xattr_size = 0;
@@ -231,6 +232,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 	int error;
 	int size, user_space_size;
 	bool ima_present = false;
+	u64 i_version = 0;
 
 	if (!(inode->i_opflags & IOP_XATTR) ||
 	    inode->i_sb->s_user_ns != &init_user_ns)
@@ -294,6 +296,13 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 	}
 	hmac_add_misc(desc, inode, type, data->digest);
 
+	if (inode != d_backing_inode(dentry) && iint) {
+		if (IS_I_VERSION(inode))
+			i_version = inode_query_iversion(inode);
+		integrity_inode_attrs_store(&iint->metadata_inode, i_version,
+					    inode);
+	}
+
 	/* Portable EVM signatures must include an IMA hash */
 	if (type == EVM_XATTR_PORTABLE_DIGSIG && !ima_present)
 		error = -EPERM;
@@ -305,18 +314,19 @@ out:
 
 int evm_calc_hmac(struct dentry *dentry, const char *req_xattr_name,
 		  const char *req_xattr_value, size_t req_xattr_value_len,
-		  struct evm_digest *data)
+		  struct evm_digest *data, struct evm_iint_cache *iint)
 {
 	return evm_calc_hmac_or_hash(dentry, req_xattr_name, req_xattr_value,
-				    req_xattr_value_len, EVM_XATTR_HMAC, data);
+				    req_xattr_value_len, EVM_XATTR_HMAC, data,
+				    iint);
 }
 
 int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
 		  const char *req_xattr_value, size_t req_xattr_value_len,
-		  char type, struct evm_digest *data)
+		  char type, struct evm_digest *data, struct evm_iint_cache *iint)
 {
 	return evm_calc_hmac_or_hash(dentry, req_xattr_name, req_xattr_value,
-				     req_xattr_value_len, type, data);
+				     req_xattr_value_len, type, data, iint);
 }
 
 static int evm_is_immutable(struct dentry *dentry, struct inode *inode)
@@ -357,6 +367,7 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 			const char *xattr_value, size_t xattr_value_len)
 {
 	struct inode *inode = d_backing_inode(dentry);
+	struct evm_iint_cache *iint = evm_iint_inode(inode);
 	struct evm_digest data;
 	int rc = 0;
 
@@ -372,7 +383,7 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 
 	data.hdr.algo = HASH_ALGO_SHA1;
 	rc = evm_calc_hmac(dentry, xattr_name, xattr_value,
-			   xattr_value_len, &data);
+			   xattr_value_len, &data, iint);
 	if (rc == 0) {
 		data.hdr.xattr.sha1.type = EVM_XATTR_HMAC;
 		rc = __vfs_setxattr_noperm(&nop_mnt_idmap, dentry,

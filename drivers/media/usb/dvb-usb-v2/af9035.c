@@ -868,6 +868,9 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		if ((le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_AVERMEDIA) &&
 		    (le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_AVERMEDIA_TD310)) {
 			state->it930x_addresses = 1;
+			/* TD310 RC works with NEC defaults */
+			state->ir_mode = 0x05;
+			state->ir_type = 0x00;
 		}
 		return 0;
 	}
@@ -2066,6 +2069,11 @@ static const struct dvb_usb_device_properties it930x_props = {
 	.tuner_attach = it930x_tuner_attach,
 	.tuner_detach = it930x_tuner_detach,
 	.init = it930x_init,
+	/*
+	 * dvb_usbv2_remote_init() calls rc_config() only for those devices
+	 * which have non-empty rc_map, so it's safe to enable it for every IT930x
+	 */
+	.get_rc_config = af9035_get_rc_config,
 	.get_stream_config = af9035_get_stream_config,
 
 	.get_adapter_count = af9035_get_adapter_count,
@@ -2157,7 +2165,7 @@ static const struct usb_device_id af9035_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9303,
 		&it930x_props, "ITE 9303 Generic", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_TD310,
-		&it930x_props, "AVerMedia TD310 DVB-T2", NULL) },
+		&it930x_props, "AVerMedia TD310 DVB-T2", RC_MAP_AVERMEDIA_RM_KS) },
 	{ DVB_USB_DEVICE(USB_VID_DEXATEK, 0x0100,
 		&it930x_props, "Logilink VG0022A", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_TC2_STICK,

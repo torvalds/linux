@@ -4,30 +4,30 @@
 # Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
-snd-ad1889-objs := ad1889.o
-snd-als300-objs := als300.o
-snd-als4000-objs := als4000.o
-snd-atiixp-objs := atiixp.o
-snd-atiixp-modem-objs := atiixp_modem.o
-snd-azt3328-objs := azt3328.o
-snd-bt87x-objs := bt87x.o
-snd-cmipci-objs := cmipci.o
-snd-cs4281-objs := cs4281.o
-snd-cs5530-objs := cs5530.o
-snd-ens1370-objs := ens1370.o ak4531_codec.o
-snd-ens1371-objs := ens1371.o
-snd-es1938-objs := es1938.o
-snd-es1968-objs := es1968.o
-snd-fm801-objs := fm801.o
-snd-intel8x0-objs := intel8x0.o
-snd-intel8x0m-objs := intel8x0m.o
-snd-maestro3-objs := maestro3.o
-snd-rme32-objs := rme32.o
-snd-rme96-objs := rme96.o
-snd-sis7019-objs := sis7019.o
-snd-sonicvibes-objs := sonicvibes.o
-snd-via82xx-objs := via82xx.o
-snd-via82xx-modem-objs := via82xx_modem.o
+snd-ad1889-y := ad1889.o
+snd-als300-y := als300.o
+snd-als4000-y := als4000.o
+snd-atiixp-y := atiixp.o
+snd-atiixp-modem-y := atiixp_modem.o
+snd-azt3328-y := azt3328.o
+snd-bt87x-y := bt87x.o
+snd-cmipci-y := cmipci.o
+snd-cs4281-y := cs4281.o
+snd-cs5530-y := cs5530.o
+snd-ens1370-y := ens1370.o ak4531_codec.o
+snd-ens1371-y := ens1371.o
+snd-es1938-y := es1938.o
+snd-es1968-y := es1968.o
+snd-fm801-y := fm801.o
+snd-intel8x0-y := intel8x0.o
+snd-intel8x0m-y := intel8x0m.o
+snd-maestro3-y := maestro3.o
+snd-rme32-y := rme32.o
+snd-rme96-y := rme96.o
+snd-sis7019-y := sis7019.o
+snd-sonicvibes-y := sonicvibes.o
+snd-via82xx-y := via82xx.o
+snd-via82xx-modem-y := via82xx_modem.o
 
 # Toplevel Module Dependency
 obj-$(CONFIG_SND_AD1889) += snd-ad1889.o

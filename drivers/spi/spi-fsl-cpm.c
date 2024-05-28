@@ -98,19 +98,13 @@ static void fsl_spi_cpm_bufs_start(struct mpc8xxx_spi *mspi)
 	mpc8xxx_spi_write_reg(&reg_base->command, SPCOM_STR);
 }
 
-int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
-		     struct spi_transfer *t, bool is_dma_mapped)
+int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi, struct spi_transfer *t)
 {
 	struct device *dev = mspi->dev;
 	struct fsl_spi_reg __iomem *reg_base = mspi->reg_base;
 
-	if (is_dma_mapped) {
-		mspi->map_tx_dma = 0;
-		mspi->map_rx_dma = 0;
-	} else {
-		mspi->map_tx_dma = 1;
-		mspi->map_rx_dma = 1;
-	}
+	mspi->map_tx_dma = 1;
+	mspi->map_rx_dma = 1;
 
 	if (!t->tx_buf) {
 		mspi->tx_dma = mspi->dma_dummy_tx;
@@ -147,7 +141,7 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 			return -ENOMEM;
 		}
 	} else if (t->tx_buf) {
-		mspi->tx_dma = t->tx_dma;
+		mspi->tx_dma = 0;
 	}
 
 	if (mspi->map_rx_dma) {

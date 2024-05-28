@@ -8,6 +8,8 @@
  */
 #include <linux/kernel.h>
 
+#include <asm/processor.h>
+
 /*
  * Instructions on SH are generally fixed at 16-bits, however, SH-2A
  * introduces some 32-bit instructions. Since there are no real

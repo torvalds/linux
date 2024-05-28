@@ -75,6 +75,9 @@ int mscode_note_digest_algo(void *context, size_t hdrlen,
 
 	oid = look_up_OID(value, vlen);
 	switch (oid) {
+	case OID_sha1:
+		ctx->digest_algo = "sha1";
+		break;
 	case OID_sha256:
 		ctx->digest_algo = "sha256";
 		break;

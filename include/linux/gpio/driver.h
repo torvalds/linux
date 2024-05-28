@@ -376,9 +376,7 @@ struct gpio_irq_chip {
  * @names: if set, must be an array of strings to use as alternative
  *      names for the GPIOs in this chip. Any entry in the array
  *      may be NULL if there is no alias for the GPIO, however the
- *      array must be @ngpio entries long.  A name can include a single printk
- *      format specifier for an unsigned int.  It is substituted by the actual
- *      number of the gpio.
+ *      array must be @ngpio entries long.
  * @can_sleep: flag must be set iff get()/set() methods sleep, as they
  *	must while accessing GPIO expander chips over I2C or SPI. This
  *	implies that if the chip supports IRQs, these IRQs need to be threaded
@@ -646,8 +644,6 @@ int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc,
 struct gpio_device *gpio_device_find(const void *data,
 				int (*match)(struct gpio_chip *gc,
 					     const void *data));
-struct gpio_device *gpio_device_find_by_label(const char *label);
-struct gpio_device *gpio_device_find_by_fwnode(const struct fwnode_handle *fwnode);
 
 struct gpio_device *gpio_device_get(struct gpio_device *gdev);
 void gpio_device_put(struct gpio_device *gdev);
@@ -814,6 +810,9 @@ struct gpio_device *gpiod_to_gpio_device(struct gpio_desc *desc);
 int gpio_device_get_base(struct gpio_device *gdev);
 const char *gpio_device_get_label(struct gpio_device *gdev);
 
+struct gpio_device *gpio_device_find_by_label(const char *label);
+struct gpio_device *gpio_device_find_by_fwnode(const struct fwnode_handle *fwnode);
+
 #else /* CONFIG_GPIOLIB */
 
 #include <asm/bug.h>
@@ -838,6 +837,18 @@ static inline int gpio_device_get_base(struct gpio_device *gdev)
 }
 
 static inline const char *gpio_device_get_label(struct gpio_device *gdev)
+{
+	WARN_ON(1);
+	return NULL;
+}
+
+static inline struct gpio_device *gpio_device_find_by_label(const char *label)
+{
+	WARN_ON(1);
+	return NULL;
+}
+
+static inline struct gpio_device *gpio_device_find_by_fwnode(const struct fwnode_handle *fwnode)
 {
 	WARN_ON(1);
 	return NULL;

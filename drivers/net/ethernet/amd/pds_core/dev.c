@@ -229,6 +229,9 @@ int pdsc_devcmd_reset(struct pdsc *pdsc)
 		.reset.opcode = PDS_CORE_CMD_RESET,
 	};
 
+	if (!pdsc_is_fw_running(pdsc))
+		return 0;
+
 	return pdsc_devcmd(pdsc, &cmd, &comp, pdsc->devcmd_timeout);
 }
 

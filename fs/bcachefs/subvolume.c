@@ -162,7 +162,7 @@ int bch2_check_subvols(struct bch_fs *c)
 {
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
-				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
+				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			check_subvol(trans, &iter, k)));
 	bch_err_fn(c, ret);
@@ -198,7 +198,7 @@ int bch2_check_subvol_children(struct bch_fs *c)
 {
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
-				BTREE_ID_subvolume_children, POS_MIN, BTREE_ITER_PREFETCH, k,
+				BTREE_ID_subvolume_children, POS_MIN, BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			check_subvol_child(trans, &iter, k)));
 	bch_err_fn(c, ret);
@@ -208,14 +208,23 @@ int bch2_check_subvol_children(struct bch_fs *c)
 /* Subvolumes: */
 
 int bch2_subvolume_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bkey_invalid_flags flags, struct printbuf *err)
+			   enum bch_validate_flags flags, struct printbuf *err)
 {
+	struct bkey_s_c_subvolume subvol = bkey_s_c_to_subvolume(k);
 	int ret = 0;
 
 	bkey_fsck_err_on(bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
 			 bkey_gt(k.k->p, SUBVOL_POS_MAX), c, err,
 			 subvol_pos_bad,
 			 "invalid pos");
+
+	bkey_fsck_err_on(!subvol.v->snapshot, c, err,
+			 subvol_snapshot_bad,
+			 "invalid snapshot");
+
+	bkey_fsck_err_on(!subvol.v->inode, c, err,
+			 subvol_inode_bad,
+			 "invalid inode");
 fsck_err:
 	return ret;
 }
@@ -245,9 +254,9 @@ static int subvolume_children_mod(struct btree_trans *trans, struct bpos pos, bo
 int bch2_subvolume_trigger(struct btree_trans *trans,
 			   enum btree_id btree_id, unsigned level,
 			   struct bkey_s_c old, struct bkey_s new,
-			   unsigned flags)
+			   enum btree_iter_update_trigger_flags flags)
 {
-	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+	if (flags & BTREE_TRIGGER_transactional) {
 		struct bpos children_pos_old = subvolume_children_pos(old);
 		struct bpos children_pos_new = subvolume_children_pos(new.s_c);
 
@@ -333,7 +342,7 @@ int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvolid,
 
 	subvol = bch2_bkey_get_iter_typed(trans, &iter,
 					  BTREE_ID_subvolumes, POS(0, subvolid),
-					  BTREE_ITER_CACHED|BTREE_ITER_WITH_UPDATES,
+					  BTREE_ITER_cached|BTREE_ITER_with_updates,
 					  subvolume);
 	ret = bkey_err(subvol);
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), trans->c,
@@ -383,9 +392,9 @@ static int bch2_subvolumes_reparent(struct btree_trans *trans, u32 subvolid_to_d
 
 	return lockrestart_do(trans,
 			bch2_subvolume_get(trans, subvolid_to_delete, true,
-				   BTREE_ITER_CACHED, &s)) ?:
+				   BTREE_ITER_cached, &s)) ?:
 		for_each_btree_key_commit(trans, iter,
-				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
+				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			bch2_subvolume_reparent(trans, &iter, k,
 					subvolid_to_delete, le32_to_cpu(s.creation_parent)));
@@ -404,7 +413,7 @@ static int __bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 
 	subvol = bch2_bkey_get_iter_typed(trans, &iter,
 				BTREE_ID_subvolumes, POS(0, subvolid),
-				BTREE_ITER_CACHED|BTREE_ITER_INTENT,
+				BTREE_ITER_cached|BTREE_ITER_intent,
 				subvolume);
 	ret = bkey_err(subvol);
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), trans->c,
@@ -505,7 +514,7 @@ int bch2_subvolume_unlink(struct btree_trans *trans, u32 subvolid)
 
 	n = bch2_bkey_get_mut_typed(trans, &iter,
 			BTREE_ID_subvolumes, POS(0, subvolid),
-			BTREE_ITER_CACHED, subvolume);
+			BTREE_ITER_cached, subvolume);
 	ret = PTR_ERR_OR_ZERO(n);
 	if (unlikely(ret)) {
 		bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), trans->c,
@@ -547,7 +556,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 
 		src_subvol = bch2_bkey_get_mut_typed(trans, &src_iter,
 				BTREE_ID_subvolumes, POS(0, src_subvolid),
-				BTREE_ITER_CACHED, subvolume);
+				BTREE_ITER_cached, subvolume);
 		ret = PTR_ERR_OR_ZERO(src_subvol);
 		if (unlikely(ret)) {
 			bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
@@ -592,6 +601,78 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 err:
 	bch2_trans_iter_exit(trans, &src_iter);
 	bch2_trans_iter_exit(trans, &dst_iter);
+	return ret;
+}
+
+int bch2_initialize_subvolumes(struct bch_fs *c)
+{
+	struct bkey_i_snapshot_tree	root_tree;
+	struct bkey_i_snapshot		root_snapshot;
+	struct bkey_i_subvolume		root_volume;
+	int ret;
+
+	bkey_snapshot_tree_init(&root_tree.k_i);
+	root_tree.k.p.offset		= 1;
+	root_tree.v.master_subvol	= cpu_to_le32(1);
+	root_tree.v.root_snapshot	= cpu_to_le32(U32_MAX);
+
+	bkey_snapshot_init(&root_snapshot.k_i);
+	root_snapshot.k.p.offset = U32_MAX;
+	root_snapshot.v.flags	= 0;
+	root_snapshot.v.parent	= 0;
+	root_snapshot.v.subvol	= cpu_to_le32(BCACHEFS_ROOT_SUBVOL);
+	root_snapshot.v.tree	= cpu_to_le32(1);
+	SET_BCH_SNAPSHOT_SUBVOL(&root_snapshot.v, true);
+
+	bkey_subvolume_init(&root_volume.k_i);
+	root_volume.k.p.offset = BCACHEFS_ROOT_SUBVOL;
+	root_volume.v.flags	= 0;
+	root_volume.v.snapshot	= cpu_to_le32(U32_MAX);
+	root_volume.v.inode	= cpu_to_le64(BCACHEFS_ROOT_INO);
+
+	ret =   bch2_btree_insert(c, BTREE_ID_snapshot_trees,	&root_tree.k_i, NULL, 0) ?:
+		bch2_btree_insert(c, BTREE_ID_snapshots,	&root_snapshot.k_i, NULL, 0) ?:
+		bch2_btree_insert(c, BTREE_ID_subvolumes,	&root_volume.k_i, NULL, 0);
+	bch_err_fn(c, ret);
+	return ret;
+}
+
+static int __bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_inode_unpacked inode;
+	int ret;
+
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+			       SPOS(0, BCACHEFS_ROOT_INO, U32_MAX), 0);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	if (!bkey_is_inode(k.k)) {
+		bch_err(trans->c, "root inode not found");
+		ret = -BCH_ERR_ENOENT_inode;
+		goto err;
+	}
+
+	ret = bch2_inode_unpack(k, &inode);
+	BUG_ON(ret);
+
+	inode.bi_subvol = BCACHEFS_ROOT_SUBVOL;
+
+	ret = bch2_inode_write(trans, &iter, &inode);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+/* set bi_subvol on root inode */
+int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
+{
+	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
+				__bch2_fs_upgrade_for_subvolumes(trans));
+	bch_err_fn(c, ret);
 	return ret;
 }
 

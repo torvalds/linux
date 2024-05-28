@@ -17,10 +17,15 @@ static inline int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
 {
 	struct xe_bo *bo;
 	int err;
-	u32 flags = XE_BO_CREATE_PINNED_BIT | XE_BO_CREATE_STOLEN_BIT;
+	u32 flags = XE_BO_FLAG_PINNED | XE_BO_FLAG_STOLEN;
 
-	if (align)
+	if (start < SZ_4K)
+		start = SZ_4K;
+
+	if (align) {
 		size = ALIGN(size, align);
+		start = ALIGN(start, align);
+	}
 
 	bo = xe_bo_create_locked_range(xe, xe_device_get_root_tile(xe),
 				       NULL, size, start, end,

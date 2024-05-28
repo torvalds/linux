@@ -44,12 +44,12 @@ struct mdp4_kms {
 
 static inline void mdp4_write(struct mdp4_kms *mdp4_kms, u32 reg, u32 data)
 {
-	msm_writel(data, mdp4_kms->mmio + reg);
+	writel(data, mdp4_kms->mmio + reg);
 }
 
 static inline u32 mdp4_read(struct mdp4_kms *mdp4_kms, u32 reg)
 {
-	return msm_readl(mdp4_kms->mmio + reg);
+	return readl(mdp4_kms->mmio + reg);
 }
 
 static inline uint32_t pipe2flush(enum mdp4_pipe pipe)

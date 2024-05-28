@@ -224,7 +224,7 @@ static int find_dml_pipe_idx_by_plane_id(struct dml2_context *ctx, unsigned int 
 static bool get_plane_id(struct dml2_context *dml2, const struct dc_state *state, const struct dc_plane_state *plane,
 	unsigned int stream_id, unsigned int plane_index, unsigned int *plane_id)
 {
-	int i, j;
+	unsigned int i, j;
 	bool is_plane_duplicate = dml2->v20.scratch.plane_duplicate_exists;
 
 	if (!plane_id)
@@ -327,6 +327,8 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 			dml_pipe_idx = dml2_helper_find_dml_pipe_idx_by_stream_id(in_ctx, context->res_ctx.pipe_ctx[dc_pipe_ctx_index].stream->stream_id);
 		}
 
+		if (dml_pipe_idx == 0xFFFFFFFF)
+			continue;
 		ASSERT(in_ctx->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_stream_id_valid[dml_pipe_idx]);
 		ASSERT(in_ctx->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_stream_id[dml_pipe_idx] == context->res_ctx.pipe_ctx[dc_pipe_ctx_index].stream->stream_id);
 
@@ -374,10 +376,16 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 
 	context->bw_ctx.bw.dcn.clk.bw_dppclk_khz = context->bw_ctx.bw.dcn.clk.dppclk_khz;
 	context->bw_ctx.bw.dcn.clk.bw_dispclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz;
+
 	context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz = in_ctx->v20.dml_core_ctx.states.state_array[in_ctx->v20.scratch.mode_support_params.out_lowest_state_idx].dppclk_mhz
 		* 1000;
 	context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz = in_ctx->v20.dml_core_ctx.states.state_array[in_ctx->v20.scratch.mode_support_params.out_lowest_state_idx].dispclk_mhz
 		* 1000;
+
+	if (dc->config.forced_clocks || dc->debug.max_disp_clk) {
+		context->bw_ctx.bw.dcn.clk.bw_dispclk_khz = context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz;
+		context->bw_ctx.bw.dcn.clk.bw_dppclk_khz = context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz ;
+	}
 }
 
 void dml2_extract_watermark_set(struct dcn_watermarks *watermark, struct display_mode_lib_st *dml_core_ctx)
@@ -396,6 +404,71 @@ void dml2_extract_watermark_set(struct dcn_watermarks *watermark, struct display
 	watermark->cstate_pstate.cstate_exit_z8_ns = dml_get_wm_z8_stutter(dml_core_ctx) * 1000;
 }
 
+unsigned int dml2_calc_max_scaled_time(
+		unsigned int time_per_pixel,
+		enum mmhubbub_wbif_mode mode,
+		unsigned int urgent_watermark)
+{
+	unsigned int time_per_byte = 0;
+	unsigned int total_free_entry = 0xb40;
+	unsigned int buf_lh_capability;
+	unsigned int max_scaled_time;
+
+	if (mode == PACKED_444) /* packed mode 32 bpp */
+		time_per_byte = time_per_pixel/4;
+	else if (mode == PACKED_444_FP16) /* packed mode 64 bpp */
+		time_per_byte = time_per_pixel/8;
+
+	if (time_per_byte == 0)
+		time_per_byte = 1;
+
+	buf_lh_capability = (total_free_entry*time_per_byte*32) >> 6; /* time_per_byte is in u6.6*/
+	max_scaled_time   = buf_lh_capability - urgent_watermark;
+	return max_scaled_time;
+}
+
+void dml2_extract_writeback_wm(struct dc_state *context, struct display_mode_lib_st *dml_core_ctx)
+{
+	int i, j = 0;;
+	struct mcif_arb_params *wb_arb_params = NULL;
+	struct dcn_bw_writeback *bw_writeback = NULL;
+	enum mmhubbub_wbif_mode wbif_mode = PACKED_444_FP16; /*for now*/
+
+	if (context->stream_count != 0) {
+		for (i = 0; i < context->stream_count; i++) {
+			if (context->streams[i]->num_wb_info != 0)
+				j++;
+		}
+	}
+	if (j == 0) /*no dwb */
+		return;
+	for (i = 0; i < __DML_NUM_DMB__; i++) {
+		bw_writeback = &context->bw_ctx.bw.dcn.bw_writeback;
+		wb_arb_params = &context->bw_ctx.bw.dcn.bw_writeback.mcif_wb_arb[i];
+
+		for (j = 0 ; j < 4; j++) {
+			/*current dml only has one set of watermark, need to follow up*/
+			bw_writeback->mcif_wb_arb[i].cli_watermark[j] =
+					dml_get_wm_writeback_urgent(dml_core_ctx) * 1000;
+			bw_writeback->mcif_wb_arb[i].pstate_watermark[j] =
+					dml_get_wm_writeback_dram_clock_change(dml_core_ctx) * 1000;
+		}
+		if (context->res_ctx.pipe_ctx[i].stream->phy_pix_clk != 0) {
+			/* time_per_pixel should be in u6.6 format */
+			bw_writeback->mcif_wb_arb[i].time_per_pixel =
+				(1000000 << 6) / context->res_ctx.pipe_ctx[i].stream->phy_pix_clk;
+		}
+		bw_writeback->mcif_wb_arb[i].slice_lines = 32;
+		bw_writeback->mcif_wb_arb[i].arbitration_slice = 2;
+		bw_writeback->mcif_wb_arb[i].max_scaled_time =
+			dml2_calc_max_scaled_time(wb_arb_params->time_per_pixel,
+					wbif_mode, 	wb_arb_params->cli_watermark[0]);
+		/*not required any more*/
+		bw_writeback->mcif_wb_arb[i].dram_speed_change_duration =
+			dml_get_wm_writeback_dram_clock_change(dml_core_ctx) * 1000;
+
+	}
+}
 void dml2_initialize_det_scratch(struct dml2_context *in_ctx)
 {
 	int i;
@@ -468,6 +541,9 @@ bool dml2_verify_det_buffer_configuration(struct dml2_context *in_ctx, struct dc
 			dml_pipe_idx = find_dml_pipe_idx_by_plane_id(in_ctx, plane_id);
 		else
 			dml_pipe_idx = dml2_helper_find_dml_pipe_idx_by_stream_id(in_ctx, display_state->res_ctx.pipe_ctx[i].stream->stream_id);
+
+		if (dml_pipe_idx == 0xFFFFFFFF)
+			continue;
 		total_det_allocated += dml_get_det_buffer_size_kbytes(&in_ctx->v20.dml_core_ctx, dml_pipe_idx);
 		if (total_det_allocated > max_det_size) {
 			need_recalculation = true;

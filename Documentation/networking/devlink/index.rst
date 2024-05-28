@@ -67,6 +67,7 @@ general.
    devlink-selftests
    devlink-trap
    devlink-linecard
+   devlink-eswitch-attr
 
 Driver-specific documentation
 -----------------------------

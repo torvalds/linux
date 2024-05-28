@@ -3613,12 +3613,6 @@ static void ibmvscsis_remove(struct vio_dev *vdev)
 	kfree(vscsi);
 }
 
-static ssize_t system_id_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "%s\n", system_id);
-}
-
 static ssize_t partition_number_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
@@ -3982,8 +3976,7 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 
 static void ibmvscsis_dev_release(struct device *dev) {};
 
-static struct device_attribute dev_attr_system_id =
-	__ATTR(system_id, S_IRUGO, system_id_show, NULL);
+static DEVICE_STRING_ATTR_RO(system_id, S_IRUGO, system_id);
 
 static struct device_attribute dev_attr_partition_number =
 	__ATTR(partition_number, S_IRUGO, partition_number_show, NULL);
@@ -3992,7 +3985,7 @@ static struct device_attribute dev_attr_unit_address =
 	__ATTR(unit_address, S_IRUGO, unit_address_show, NULL);
 
 static struct attribute *ibmvscsis_dev_attrs[] = {
-	&dev_attr_system_id.attr,
+	&dev_attr_system_id.attr.attr,
 	&dev_attr_partition_number.attr,
 	&dev_attr_unit_address.attr,
 };

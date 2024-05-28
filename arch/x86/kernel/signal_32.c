@@ -34,7 +34,7 @@
 #include <asm/gsseg.h>
 
 #ifdef CONFIG_IA32_EMULATION
-#include <asm/ia32_unistd.h>
+#include <asm/unistd_32_ia32.h>
 
 static inline void reload_segments(struct sigcontext_32 *sc)
 {

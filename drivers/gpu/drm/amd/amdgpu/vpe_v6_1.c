@@ -144,6 +144,12 @@ static int vpe_v6_1_load_microcode(struct amdgpu_vpe *vpe)
 			WREG32(vpe_get_reg_offset(vpe, j, regVPEC_CNTL), ret);
 	}
 
+	/* setup collaborate mode */
+	vpe_v6_1_set_collaborate_mode(vpe, true);
+	/* setup DPM */
+	if (amdgpu_vpe_configure_dpm(vpe))
+		dev_warn(adev->dev, "VPE failed to enable DPM\n");
+
 	/*
 	 * For VPE 6.1.1, still only need to add master's offset, and psp will apply it to slave as well.
 	 * Here use instance 0 as master.
@@ -159,11 +165,7 @@ static int vpe_v6_1_load_microcode(struct amdgpu_vpe *vpe)
 		adev->vpe.cmdbuf_cpu_addr[0] = f32_offset;
 		adev->vpe.cmdbuf_cpu_addr[1] = f32_cntl;
 
-		amdgpu_vpe_psp_update_sram(adev);
-		vpe_v6_1_set_collaborate_mode(vpe, true);
-		amdgpu_vpe_configure_dpm(vpe);
-
-		return 0;
+		return amdgpu_vpe_psp_update_sram(adev);
 	}
 
 	vpe_hdr = (const struct vpe_firmware_header_v1_0 *)adev->vpe.fw->data;
@@ -196,8 +198,6 @@ static int vpe_v6_1_load_microcode(struct amdgpu_vpe *vpe)
 	}
 
 	vpe_v6_1_halt(vpe, false);
-	vpe_v6_1_set_collaborate_mode(vpe, true);
-	amdgpu_vpe_configure_dpm(vpe);
 
 	return 0;
 }

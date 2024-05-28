@@ -15,13 +15,7 @@ struct pt_regs;
 struct task_struct;
 struct pci_dev;
 struct pci_controller;
-
-/* core_apecs.c */
-extern struct pci_ops apecs_pci_ops;
-extern void apecs_init_arch(void);
-extern void apecs_pci_clr_err(void);
-extern void apecs_machine_check(unsigned long vector, unsigned long la_ptr);
-extern void apecs_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
+struct pci_bus;
 
 /* core_cia.c */
 extern struct pci_ops cia_pci_ops;
@@ -37,12 +31,6 @@ extern struct pci_ops irongate_pci_ops;
 extern int irongate_pci_clr_err(void);
 extern void irongate_init_arch(void);
 #define irongate_pci_tbi ((void *)0)
-
-/* core_lca.c */
-extern struct pci_ops lca_pci_ops;
-extern void lca_init_arch(void);
-extern void lca_machine_check(unsigned long vector, unsigned long la_ptr);
-extern void lca_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 
 /* core_marvel.c */
 extern struct pci_ops marvel_pci_ops;
@@ -114,6 +102,9 @@ extern int boot_cpuid;
 #ifdef CONFIG_VERBOSE_MCHECK
 extern unsigned long alpha_verbose_mcheck;
 #endif
+#ifdef CONFIG_BLK_DEV_INITRD
+extern void * __init move_initrd(unsigned long);
+#endif
 extern struct screen_info vgacon_screen_info;
 
 /* srmcons.c */
@@ -128,6 +119,7 @@ extern void unregister_srm_console(void);
 /* smp.c */
 extern void setup_smp(void);
 extern void handle_ipi(struct pt_regs *);
+extern void __init smp_callin(void);
 
 /* bios32.c */
 /* extern void reset_for_srm(void); */
@@ -139,13 +131,13 @@ extern void common_init_rtc(void);
 extern unsigned long est_cycle_freq;
 
 /* smc37c93x.c */
-extern void SMC93x_Init(void);
+extern int __init SMC93x_Init(void);
 
 /* smc37c669.c */
-extern void SMC669_Init(int);
+extern void __init SMC669_Init(int);
 
 /* es1888.c */
-extern void es1888_init(void);
+extern void __init es1888_init(void);
 
 /* ../lib/fpreg.c */
 extern void alpha_write_fp_reg (unsigned long reg, unsigned long val);
@@ -166,19 +158,37 @@ extern void entSys(void);
 extern void entUna(void);
 extern void entDbg(void);
 
+/* pci.c */
+extern void pcibios_claim_one_bus(struct pci_bus *);
+
 /* ptrace.c */
 extern int ptrace_set_bpt (struct task_struct *child);
 extern int ptrace_cancel_bpt (struct task_struct *child);
+extern void syscall_trace_leave(void);
+extern unsigned long syscall_trace_enter(void);
+
+/* signal.c */
+struct sigcontext;
+extern void do_sigreturn(struct sigcontext __user *);
+struct rt_sigframe;
+extern void do_rt_sigreturn(struct rt_sigframe __user *);
+extern void do_work_pending(struct pt_regs *, unsigned long, unsigned long, unsigned long);
 
 /* traps.c */
 extern void dik_show_regs(struct pt_regs *regs, unsigned long *r9_15);
 extern void die_if_kernel(char *, struct pt_regs *, long, unsigned long *);
+extern void do_entInt(unsigned long, unsigned long, unsigned long, struct pt_regs *);
+extern void do_entArith(unsigned long, unsigned long, struct pt_regs *);
+extern void do_entIF(unsigned long, struct pt_regs *);
+extern void do_entDbg(struct pt_regs *);
+struct allregs;
+extern void do_entUna(void *, unsigned long, unsigned long, struct allregs *);
+extern void do_entUnaUser(void __user *, unsigned long, unsigned long, struct pt_regs *);
 
 /* sys_titan.c */
 extern void titan_dispatch_irqs(u64);
 
 /* ../mm/init.c */
-extern void switch_to_system_map(void);
 extern void srm_paging_stop(void);
 
 static inline int

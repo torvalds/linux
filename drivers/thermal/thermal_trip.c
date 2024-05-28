@@ -13,11 +13,11 @@ int for_each_thermal_trip(struct thermal_zone_device *tz,
 			  int (*cb)(struct thermal_trip *, void *),
 			  void *data)
 {
-	struct thermal_trip *trip;
+	struct thermal_trip_desc *td;
 	int ret;
 
-	for_each_trip(tz, trip) {
-		ret = cb(trip, data);
+	for_each_trip_desc(tz, td) {
+		ret = cb(&td->trip, data);
 		if (ret)
 			return ret;
 	}
@@ -63,9 +63,8 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
  */
 void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 {
-	const struct thermal_trip *trip;
+	const struct thermal_trip_desc *td;
 	int low = -INT_MAX, high = INT_MAX;
-	bool same_trip = false;
 	int ret;
 
 	lockdep_assert_held(&tz->lock);
@@ -73,35 +72,22 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 	if (!tz->ops.set_trips)
 		return;
 
-	for_each_trip(tz, trip) {
-		bool low_set = false;
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
 		int trip_low;
 
 		trip_low = trip->temperature - trip->hysteresis;
 
-		if (trip_low < tz->temperature && trip_low > low) {
+		if (trip_low < tz->temperature && trip_low > low)
 			low = trip_low;
-			low_set = true;
-			same_trip = false;
-		}
 
 		if (trip->temperature > tz->temperature &&
-		    trip->temperature < high) {
+		    trip->temperature < high)
 			high = trip->temperature;
-			same_trip = low_set;
-		}
 	}
 
 	/* No need to change trip points */
 	if (tz->prev_low_trip == low && tz->prev_high_trip == high)
-		return;
-
-	/*
-	 * If "high" and "low" are the same, skip the change unless this is the
-	 * first time.
-	 */
-	if (same_trip && (tz->prev_low_trip != -INT_MAX ||
-	    tz->prev_high_trip != INT_MAX))
 		return;
 
 	tz->prev_low_trip = low;
@@ -125,7 +111,7 @@ int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 	if (!tz || trip_id < 0 || trip_id >= tz->num_trips || !trip)
 		return -EINVAL;
 
-	*trip = tz->trips[trip_id];
+	*trip = tz->trips[trip_id].trip;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__thermal_zone_get_trip);
@@ -150,8 +136,9 @@ int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 	 * Assume the trip to be located within the bounds of the thermal
 	 * zone's trips[] table.
 	 */
-	return trip - tz->trips;
+	return trip_to_trip_desc(trip) - tz->trips;
 }
+
 void thermal_zone_trip_updated(struct thermal_zone_device *tz,
 			       const struct thermal_trip *trip)
 {
@@ -165,6 +152,24 @@ void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
 	if (trip->temperature == temp)
 		return;
 
+	if (temp == THERMAL_TEMP_INVALID) {
+		struct thermal_trip_desc *td = trip_to_trip_desc(trip);
+
+		if (trip->type == THERMAL_TRIP_PASSIVE &&
+		    tz->temperature >= td->threshold) {
+			/*
+			 * The trip has been crossed, so the thermal zone's
+			 * passive count needs to be adjusted.
+			 */
+			tz->passive--;
+			WARN_ON_ONCE(tz->passive < 0);
+		}
+		/*
+		 * Invalidate the threshold to avoid triggering a spurious
+		 * trip crossing notification when the trip becomes valid.
+		 */
+		td->threshold = INT_MAX;
+	}
 	trip->temperature = temp;
 	thermal_notify_tz_trip_change(tz, trip);
 }

@@ -6,6 +6,8 @@
 #ifndef _DRM_LEASE_H_
 #define _DRM_LEASE_H_
 
+#include <linux/types.h>
+
 struct drm_file;
 struct drm_device;
 struct drm_master;

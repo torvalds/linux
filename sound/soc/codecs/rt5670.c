@@ -2871,9 +2871,9 @@ static const struct regmap_config rt5670_regmap = {
 };
 
 static const struct i2c_device_id rt5670_i2c_id[] = {
-	{ "rt5670", 0 },
-	{ "rt5671", 0 },
-	{ "rt5672", 0 },
+	{ "rt5670" },
+	{ "rt5671" },
+	{ "rt5672" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5670_i2c_id);

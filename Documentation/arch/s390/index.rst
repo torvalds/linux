@@ -8,6 +8,7 @@ s390 Architecture
     cds
     3270
     driver-model
+    mm
     monreader
     qeth
     s390dbf

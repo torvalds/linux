@@ -41,7 +41,7 @@ struct irq_remap_ops {
 	int  (*reenable)(int);
 
 	/* Enable fault handling */
-	int  (*enable_faulting)(void);
+	int  (*enable_faulting)(unsigned int);
 };
 
 extern struct irq_remap_ops intel_irq_remap_ops;

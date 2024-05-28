@@ -236,7 +236,6 @@ static struct platform_driver mtx1_wdt_driver = {
 	.probe = mtx1_wdt_probe,
 	.remove_new = mtx1_wdt_remove,
 	.driver.name = "mtx1-wdt",
-	.driver.owner = THIS_MODULE,
 };
 
 module_platform_driver(mtx1_wdt_driver);

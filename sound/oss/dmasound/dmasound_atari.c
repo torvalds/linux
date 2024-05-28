@@ -1618,4 +1618,6 @@ static void __exit dmasound_atari_cleanup(void)
 
 module_init(dmasound_atari_init);
 module_exit(dmasound_atari_cleanup);
+
+MODULE_DESCRIPTION("Atari TT and Falcon DMA Sound Driver");
 MODULE_LICENSE("GPL");

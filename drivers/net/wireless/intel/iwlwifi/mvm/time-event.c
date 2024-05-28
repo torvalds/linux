@@ -47,6 +47,10 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 
 static void iwl_mvm_cleanup_roc(struct iwl_mvm *mvm)
 {
+	struct ieee80211_vif *vif = mvm->p2p_device_vif;
+
+	lockdep_assert_held(&mvm->mutex);
+
 	/*
 	 * Clear the ROC_RUNNING status bit.
 	 * This will cause the TX path to drop offchannel transmissions.
@@ -70,9 +74,7 @@ static void iwl_mvm_cleanup_roc(struct iwl_mvm *mvm)
 		 * not really racy.
 		 */
 
-		if (!WARN_ON(!mvm->p2p_device_vif)) {
-			struct ieee80211_vif *vif = mvm->p2p_device_vif;
-
+		if (!WARN_ON(!vif)) {
 			mvmvif = iwl_mvm_vif_from_mac80211(vif);
 			iwl_mvm_flush_sta(mvm, mvmvif->deflink.bcast_sta.sta_id,
 					  mvmvif->deflink.bcast_sta.tfd_queue_msk);
@@ -106,6 +108,7 @@ static void iwl_mvm_cleanup_roc(struct iwl_mvm *mvm)
 
 		if (mvm->mld_api_is_used) {
 			iwl_mvm_mld_rm_aux_sta(mvm);
+			mutex_unlock(&mvm->mutex);
 			return;
 		}
 
@@ -115,6 +118,10 @@ static void iwl_mvm_cleanup_roc(struct iwl_mvm *mvm)
 		if (iwl_mvm_has_new_station_api(mvm->fw))
 			iwl_mvm_rm_aux_sta(mvm);
 	}
+
+	mutex_unlock(&mvm->mutex);
+	if (vif)
+		iwl_mvm_esr_non_bss_link(mvm, vif, 0, false);
 }
 
 void iwl_mvm_roc_done_wk(struct work_struct *wk)
@@ -122,8 +129,8 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, roc_done_wk);
 
 	mutex_lock(&mvm->mutex);
+	/* Mutex is released inside */
 	iwl_mvm_cleanup_roc(mvm);
-	mutex_unlock(&mvm->mutex);
 }
 
 static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
@@ -879,9 +886,8 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_session_prot_notif *notif = (void *)pkt->data;
 	unsigned int ver =
-		iwl_fw_lookup_cmd_ver(mvm->fw,
-				      WIDE_ID(MAC_CONF_GROUP,
-					      SESSION_PROTECTION_CMD), 2);
+		iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+					SESSION_PROTECTION_NOTIF, 2);
 	int id = le32_to_cpu(notif->mac_link_id);
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_vif *mvmvif;
@@ -1221,6 +1227,8 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	struct iwl_mvm_vif *mvmvif;
 	struct iwl_mvm_time_event_data *te_data;
 
+	mutex_lock(&mvm->mutex);
+
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD)) {
 		mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -1264,6 +1272,8 @@ cleanup_roc:
 	set_bit(vif->type == NL80211_IFTYPE_P2P_DEVICE ?
 		IWL_MVM_STATUS_ROC_RUNNING : IWL_MVM_STATUS_ROC_AUX_RUNNING,
 		&mvm->status);
+
+	/* Mutex is released inside this function */
 	iwl_mvm_cleanup_roc(mvm);
 }
 

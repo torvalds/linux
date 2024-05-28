@@ -268,7 +268,7 @@ static inline void *offset_to_ptr(const int *off)
  *   - When one operand is a null pointer constant (i.e. when x is an integer
  *     constant expression) and the other is an object pointer (i.e. our
  *     third operand), the conditional operator returns the type of the
- *     object pointer operand (i.e. "int *). Here, within the sizeof(), we
+ *     object pointer operand (i.e. "int *"). Here, within the sizeof(), we
  *     would then get:
  *       sizeof(*((int *)(...))  == sizeof(int)  == 4
  *   - When one operand is a void pointer (i.e. when x is not an integer

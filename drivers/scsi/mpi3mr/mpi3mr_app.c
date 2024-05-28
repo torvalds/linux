@@ -1598,26 +1598,33 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 		rval = -EAGAIN;
 		if (mrioc->bsg_cmds.state & MPI3MR_CMD_RESET)
 			goto out_unlock;
-		dprint_bsg_err(mrioc,
-		    "%s: bsg request timedout after %d seconds\n", __func__,
-		    karg->timeout);
-		if (mrioc->logging_level & MPI3_DEBUG_BSG_ERROR) {
-			dprint_dump(mpi_req, MPI3MR_ADMIN_REQ_FRAME_SZ,
+		if (((mpi_header->function != MPI3_FUNCTION_SCSI_IO) &&
+		    (mpi_header->function != MPI3_FUNCTION_NVME_ENCAPSULATED))
+		    || (mrioc->logging_level & MPI3_DEBUG_BSG_ERROR)) {
+			ioc_info(mrioc, "%s: bsg request timedout after %d seconds\n",
+			    __func__, karg->timeout);
+			if (!(mrioc->logging_level & MPI3_DEBUG_BSG_INFO)) {
+				dprint_dump(mpi_req, MPI3MR_ADMIN_REQ_FRAME_SZ,
 			    "bsg_mpi3_req");
 			if (mpi_header->function ==
-			    MPI3_BSG_FUNCTION_MGMT_PASSTHROUGH) {
+			    MPI3_FUNCTION_MGMT_PASSTHROUGH) {
 				drv_buf_iter = &drv_bufs[0];
 				dprint_dump(drv_buf_iter->kern_buf,
 				    rmc_size, "mpi3_mgmt_req");
+				}
 			}
 		}
 		if ((mpi_header->function == MPI3_BSG_FUNCTION_NVME_ENCAPSULATED) ||
-		    (mpi_header->function == MPI3_BSG_FUNCTION_SCSI_IO))
+			(mpi_header->function == MPI3_BSG_FUNCTION_SCSI_IO)) {
+			dprint_bsg_err(mrioc, "%s: bsg request timedout after %d seconds,\n"
+				"issuing target reset to (0x%04x)\n", __func__,
+				karg->timeout, mpi_header->function_dependent);
 			mpi3mr_issue_tm(mrioc,
 			    MPI3_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
 			    mpi_header->function_dependent, 0,
 			    MPI3MR_HOSTTAG_BLK_TMS, MPI3MR_RESETTM_TIMEOUT,
 			    &mrioc->host_tm_cmds, &resp_code, NULL);
+		}
 		if (!(mrioc->bsg_cmds.state & MPI3MR_CMD_COMPLETE) &&
 		    !(mrioc->bsg_cmds.state & MPI3MR_CMD_RESET))
 			mpi3mr_soft_reset_handler(mrioc,
@@ -1644,7 +1651,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 	if ((mpirep_offset != 0xFF) &&
 	    drv_bufs[mpirep_offset].bsg_buf_len) {
 		drv_buf_iter = &drv_bufs[mpirep_offset];
-		drv_buf_iter->kern_buf_len = (sizeof(*bsg_reply_buf) - 1 +
+		drv_buf_iter->kern_buf_len = (sizeof(*bsg_reply_buf) +
 					   mrioc->reply_sz);
 		bsg_reply_buf = kzalloc(drv_buf_iter->kern_buf_len, GFP_KERNEL);
 
@@ -1838,6 +1845,10 @@ void mpi3mr_bsg_init(struct mpi3mr_ioc *mrioc)
 {
 	struct device *bsg_dev = &mrioc->bsg_dev;
 	struct device *parent = &mrioc->shost->shost_gendev;
+	struct queue_limits lim = {
+		.max_hw_sectors		= MPI3MR_MAX_APP_XFER_SECTORS,
+		.max_segments		= MPI3MR_MAX_APP_XFER_SEGMENTS,
+	};
 
 	device_initialize(bsg_dev);
 
@@ -1853,20 +1864,14 @@ void mpi3mr_bsg_init(struct mpi3mr_ioc *mrioc)
 		return;
 	}
 
-	mrioc->bsg_queue = bsg_setup_queue(bsg_dev, dev_name(bsg_dev),
+	mrioc->bsg_queue = bsg_setup_queue(bsg_dev, dev_name(bsg_dev), &lim,
 			mpi3mr_bsg_request, NULL, 0);
 	if (IS_ERR(mrioc->bsg_queue)) {
 		ioc_err(mrioc, "%s: bsg registration failed\n",
 		    dev_name(bsg_dev));
 		device_del(bsg_dev);
 		put_device(bsg_dev);
-		return;
 	}
-
-	blk_queue_max_segments(mrioc->bsg_queue, MPI3MR_MAX_APP_XFER_SEGMENTS);
-	blk_queue_max_hw_sectors(mrioc->bsg_queue, MPI3MR_MAX_APP_XFER_SECTORS);
-
-	return;
 }
 
 /**

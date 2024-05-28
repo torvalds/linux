@@ -17,22 +17,13 @@ struct dialog_info dlg;
 
 static void set_mono_theme(void)
 {
-	dlg.screen.atr = A_NORMAL;
-	dlg.shadow.atr = A_NORMAL;
-	dlg.dialog.atr = A_NORMAL;
 	dlg.title.atr = A_BOLD;
-	dlg.border.atr = A_NORMAL;
 	dlg.button_active.atr = A_REVERSE;
 	dlg.button_inactive.atr = A_DIM;
 	dlg.button_key_active.atr = A_REVERSE;
 	dlg.button_key_inactive.atr = A_BOLD;
 	dlg.button_label_active.atr = A_REVERSE;
-	dlg.button_label_inactive.atr = A_NORMAL;
-	dlg.inputbox.atr = A_NORMAL;
 	dlg.position_indicator.atr = A_BOLD;
-	dlg.menubox.atr = A_NORMAL;
-	dlg.menubox_border.atr = A_NORMAL;
-	dlg.item.atr = A_NORMAL;
 	dlg.item_selected.atr = A_REVERSE;
 	dlg.tag.atr = A_BOLD;
 	dlg.tag_selected.atr = A_REVERSE;
@@ -291,7 +282,7 @@ int init_dialog(const char *backtitle)
 	getyx(stdscr, saved_y, saved_x);
 
 	getmaxyx(stdscr, height, width);
-	if (height < WINDOW_HEIGTH_MIN || width < WINDOW_WIDTH_MIN) {
+	if (height < WINDOW_HEIGHT_MIN || width < WINDOW_WIDTH_MIN) {
 		endwin();
 		return -ERRDISPLAYTOOSMALL;
 	}

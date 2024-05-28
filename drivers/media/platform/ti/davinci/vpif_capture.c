@@ -1132,7 +1132,7 @@ vpif_query_dv_timings(struct file *file, void *priv,
 	if (input.capabilities != V4L2_IN_CAP_DV_TIMINGS)
 		return -ENODATA;
 
-	ret = v4l2_subdev_call(ch->sd, video, query_dv_timings, timings);
+	ret = v4l2_subdev_call(ch->sd, pad, query_dv_timings, 0, timings);
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		return -ENODATA;
 
@@ -1177,7 +1177,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 		return -EBUSY;
 
 	/* Configure subdevice timings, if any */
-	ret = v4l2_subdev_call(ch->sd, video, s_dv_timings, timings);
+	ret = v4l2_subdev_call(ch->sd, pad, s_dv_timings, 0, timings);
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		ret = 0;
 	if (ret < 0) {

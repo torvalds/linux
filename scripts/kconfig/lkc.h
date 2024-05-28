@@ -79,6 +79,11 @@ void str_printf(struct gstr *gs, const char *fmt, ...);
 char *str_get(struct gstr *gs);
 
 /* menu.c */
+struct menu *menu_next(struct menu *menu, struct menu *root);
+#define menu_for_each_sub_entry(menu, root) \
+	for (menu = menu_next(root, root); menu; menu = menu_next(menu, root))
+#define menu_for_each_entry(menu) \
+	menu_for_each_sub_entry(menu, &rootmenu)
 void _menu_init(void);
 void menu_warn(struct menu *menu, const char *fmt, ...);
 struct menu *menu_add_menu(void);
@@ -89,7 +94,7 @@ void menu_add_visibility(struct expr *dep);
 struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep);
-void menu_finalize(struct menu *parent);
+void menu_finalize(void);
 void menu_set_type(int type);
 
 extern struct menu rootmenu;
@@ -124,17 +129,13 @@ static inline struct symbol *sym_get_choice_value(struct symbol *sym)
 
 static inline bool sym_is_choice(struct symbol *sym)
 {
-	return sym->flags & SYMBOL_CHOICE ? true : false;
+	/* A choice is a symbol with no name */
+	return sym->name == NULL;
 }
 
 static inline bool sym_is_choice_value(struct symbol *sym)
 {
 	return sym->flags & SYMBOL_CHOICEVAL ? true : false;
-}
-
-static inline bool sym_is_optional(struct symbol *sym)
-{
-	return sym->flags & SYMBOL_OPTIONAL ? true : false;
 }
 
 static inline bool sym_has_value(struct symbol *sym)

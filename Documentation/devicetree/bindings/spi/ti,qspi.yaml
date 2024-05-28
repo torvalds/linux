@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/ti,qspi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI QSPI controller
+
+maintainers:
+  - Kousik Sanagavarapu <five231003@gmail.com>
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,am4372-qspi
+      - ti,dra7xxx-qspi
+
+  reg:
+    items:
+      - description: base registers
+      - description: mapped memory
+
+  reg-names:
+    items:
+      - const: qspi_base
+      - const: qspi_mmap
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: fck
+
+  interrupts:
+    maxItems: 1
+
+  num-cs:
+    minimum: 1
+    maximum: 4
+    default: 1
+
+  ti,hwmods:
+    description:
+      Name of the hwmod associated to the QSPI.  This is for legacy
+      platforms only.
+    $ref: /schemas/types.yaml#/definitions/string
+    deprecated: true
+
+  syscon-chipselects:
+    description:
+      Handle to system control region containing QSPI chipselect register
+      and offset of that register.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to system control register
+          - description: register offset
+
+  spi-max-frequency:
+    description: Maximum SPI clocking speed of the controller in Hz.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/dra7.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    spi@4b300000 {
+        compatible = "ti,dra7xxx-qspi";
+        reg = <0x4b300000 0x100>,
+              <0x5c000000 0x4000000>;
+        reg-names = "qspi_base", "qspi_mmap";
+        syscon-chipselects = <&scm_conf 0x558>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        clocks = <&l4per2_clkctrl DRA7_L4PER2_QSPI_CLKCTRL 25>;
+        clock-names = "fck";
+        num-cs = <4>;
+        spi-max-frequency = <48000000>;
+        interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
+    };
+...

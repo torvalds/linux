@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Author: Cezary Rojewski <cezary.rojewski@intel.com>
 //
@@ -35,7 +35,7 @@ struct hda_cldma {
 
 	unsigned int buffer_size;
 	unsigned int num_periods;
-	unsigned int stream_tag;
+	unsigned char stream_tag;
 	void __iomem *sd_addr;
 
 	struct snd_dma_buffer dmab_data;
@@ -248,32 +248,20 @@ void hda_cldma_setup(struct hda_cldma *cl)
 	snd_hdac_stream_writel(cl, CL_SPBFCTL, 1);
 }
 
-static irqreturn_t cldma_irq_handler(int irq, void *dev_id)
+void hda_cldma_interrupt(struct hda_cldma *cl)
 {
-	struct hda_cldma *cl = dev_id;
-	u32 adspis;
-
-	adspis = snd_hdac_adsp_readl(cl, AVS_ADSP_REG_ADSPIS);
-	if (adspis == UINT_MAX)
-		return IRQ_NONE;
-	if (!(adspis & AVS_ADSP_ADSPIS_CLDMA))
-		return IRQ_NONE;
-
-	cl->sd_status = snd_hdac_stream_readb(cl, SD_STS);
-	dev_warn(cl->dev, "%s sd_status: 0x%08x\n", __func__, cl->sd_status);
-
 	/* disable CLDMA interrupt */
 	snd_hdac_adsp_updatel(cl, AVS_ADSP_REG_ADSPIC, AVS_ADSP_ADSPIC_CLDMA, 0);
 
-	complete(&cl->completion);
+	cl->sd_status = snd_hdac_stream_readb(cl, SD_STS);
+	dev_dbg(cl->dev, "%s sd_status: 0x%08x\n", __func__, cl->sd_status);
 
-	return IRQ_HANDLED;
+	complete(&cl->completion);
 }
 
 int hda_cldma_init(struct hda_cldma *cl, struct hdac_bus *bus, void __iomem *dsp_ba,
 		   unsigned int buffer_size)
 {
-	struct pci_dev *pci = to_pci_dev(bus->dev);
 	int ret;
 
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, bus->dev, buffer_size, &cl->dmab_data);
@@ -281,8 +269,10 @@ int hda_cldma_init(struct hda_cldma *cl, struct hdac_bus *bus, void __iomem *dsp
 		return ret;
 
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, bus->dev, BDL_SIZE, &cl->dmab_bdl);
-	if (ret < 0)
-		goto alloc_err;
+	if (ret < 0) {
+		snd_dma_free_pages(&cl->dmab_data);
+		return ret;
+	}
 
 	cl->dev = bus->dev;
 	cl->bus = bus;
@@ -290,27 +280,11 @@ int hda_cldma_init(struct hda_cldma *cl, struct hdac_bus *bus, void __iomem *dsp
 	cl->buffer_size = buffer_size;
 	cl->sd_addr = dsp_ba + AZX_CL_SD_BASE;
 
-	ret = pci_request_irq(pci, 0, cldma_irq_handler, NULL, cl, "CLDMA");
-	if (ret < 0) {
-		dev_err(cl->dev, "Failed to request CLDMA IRQ handler: %d\n", ret);
-		goto req_err;
-	}
-
 	return 0;
-
-req_err:
-	snd_dma_free_pages(&cl->dmab_bdl);
-alloc_err:
-	snd_dma_free_pages(&cl->dmab_data);
-
-	return ret;
 }
 
 void hda_cldma_free(struct hda_cldma *cl)
 {
-	struct pci_dev *pci = to_pci_dev(cl->dev);
-
-	pci_free_irq(pci, 0, cl);
 	snd_dma_free_pages(&cl->dmab_data);
 	snd_dma_free_pages(&cl->dmab_bdl);
 }

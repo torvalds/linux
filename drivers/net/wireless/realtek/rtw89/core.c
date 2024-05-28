@@ -18,6 +18,7 @@
 #include "ser.h"
 #include "txrx.h"
 #include "util.h"
+#include "wow.h"
 
 static bool rtw89_disable_ps_mode;
 module_param_named(disable_ps_mode, rtw89_disable_ps_mode, bool, 0644);
@@ -81,6 +82,9 @@ static struct ieee80211_channel rtw89_channels_5ghz[] = {
 	RTW89_DEF_CHAN_5G(5865, 173),
 	RTW89_DEF_CHAN_5G(5885, 177),
 };
+
+static_assert(RTW89_5GHZ_UNII4_START_INDEX + RTW89_5GHZ_UNII4_CHANNEL_NUM ==
+	      ARRAY_SIZE(rtw89_channels_5ghz));
 
 static struct ieee80211_channel rtw89_channels_6ghz[] = {
 	RTW89_DEF_CHAN_6G(5955, 1),
@@ -251,6 +255,9 @@ static void rtw89_traffic_stats_accu(struct rtw89_dev *rtwdev,
 				     struct sk_buff *skb, bool tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
+	if (tx && ieee80211_is_assoc_req(hdr->frame_control))
+		rtw89_wow_parse_akm(rtwdev, skb);
 
 	if (!ieee80211_is_data(hdr->frame_control))
 		return;
@@ -4069,6 +4076,24 @@ void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg eve
 	}
 }
 
+void rtw89_check_quirks(struct rtw89_dev *rtwdev, const struct dmi_system_id *quirks)
+{
+	const struct dmi_system_id *match;
+	enum rtw89_quirks quirk;
+
+	if (!quirks)
+		return;
+
+	for (match = dmi_first_match(quirks); match; match = dmi_first_match(match + 1)) {
+		quirk = (uintptr_t)match->driver_data;
+		if (quirk >= NUM_OF_RTW89_QUIRKS)
+			continue;
+
+		set_bit(quirk, rtwdev->quirks);
+	}
+}
+EXPORT_SYMBOL(rtw89_check_quirks);
+
 int rtw89_core_start(struct rtw89_dev *rtwdev)
 {
 	int ret;
@@ -4486,7 +4511,15 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP |
-			    WIPHY_FLAG_AP_UAPSD | WIPHY_FLAG_SPLIT_SCAN_6GHZ;
+			    WIPHY_FLAG_AP_UAPSD |
+			    WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK;
+
+	if (!chip->support_rnr)
+		hw->wiphy->flags |= WIPHY_FLAG_SPLIT_SCAN_6GHZ;
+
+	if (chip->chip_gen == RTW89_CHIP_BE)
+		hw->wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
+
 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	hw->wiphy->max_scan_ssids = RTW89_SCANOFLD_MAX_SSID;

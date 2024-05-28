@@ -578,6 +578,15 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		/* Check new size. */
 		u8 cluster_bits = sbi->cluster_bits;
 
+		/* Be sure file is non resident. */
+		if (is_resident(ni)) {
+			ni_lock(ni);
+			err = attr_force_nonresident(ni);
+			ni_unlock(ni);
+			if (err)
+				goto out;
+		}
+
 		/* generic/213: expected -ENOSPC instead of -EFBIG. */
 		if (!is_supported_holes) {
 			loff_t to_alloc = new_size - inode_get_bytes(inode);
@@ -1234,6 +1243,14 @@ const struct file_operations ntfs_file_operations = {
 	.fsync		= generic_file_fsync,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= ntfs_fallocate,
+	.release	= ntfs_file_release,
+};
+
+const struct file_operations ntfs_legacy_file_operations = {
+	.llseek		= generic_file_llseek,
+	.read_iter	= ntfs_file_read_iter,
+	.splice_read	= ntfs_file_splice_read,
+	.open		= ntfs_file_open,
 	.release	= ntfs_file_release,
 };
 // clang-format on

@@ -986,10 +986,12 @@ static void dpa_perf_setup(struct cxl_port *endpoint, struct range *range,
 {
 	dpa_perf->qos_class = FAKE_QTG_ID;
 	dpa_perf->dpa_range = *range;
-	dpa_perf->coord.read_latency = 500;
-	dpa_perf->coord.write_latency = 500;
-	dpa_perf->coord.read_bandwidth = 1000;
-	dpa_perf->coord.write_bandwidth = 1000;
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
+		dpa_perf->coord[i].read_latency = 500;
+		dpa_perf->coord[i].write_latency = 500;
+		dpa_perf->coord[i].read_bandwidth = 1000;
+		dpa_perf->coord[i].write_bandwidth = 1000;
+	}
 }
 
 static void mock_cxl_endpoint_parse_cdat(struct cxl_port *port)
@@ -999,6 +1001,7 @@ static void mock_cxl_endpoint_parse_cdat(struct cxl_port *port)
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
+	struct access_coordinate ep_c[ACCESS_COORDINATE_MAX];
 	struct range pmem_range = {
 		.start = cxlds->pmem_res.start,
 		.end = cxlds->pmem_res.end,
@@ -1018,6 +1021,12 @@ static void mock_cxl_endpoint_parse_cdat(struct cxl_port *port)
 		dpa_perf_setup(port, &pmem_range, &mds->pmem_perf);
 
 	cxl_memdev_update_perf(cxlmd);
+
+	/*
+	 * This function is here to only test the topology iterator. It serves
+	 * no other purpose.
+	 */
+	cxl_endpoint_get_perf_coordinates(port, ep_c);
 }
 
 static struct cxl_mock_ops cxl_mock_ops = {

@@ -31,26 +31,34 @@ static const struct dwc_pwm_info ehl_pwm_info = {
 	.size = 0x1000,
 };
 
-static int dwc_pwm_init_one(struct device *dev, void __iomem *base, unsigned int offset)
+static int dwc_pwm_init_one(struct device *dev, struct dwc_pwm_drvdata *ddata, unsigned int idx)
 {
 	struct pwm_chip *chip;
 	struct dwc_pwm *dwc;
+	int ret;
 
 	chip = dwc_pwm_alloc(dev);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
 	dwc = to_dwc_pwm(chip);
-	dwc->base = base + offset;
+	dwc->base = ddata->io_base + (ddata->info->size * idx);
 
-	return devm_pwmchip_add(dev, chip);
+	ret = devm_pwmchip_add(dev, chip);
+	if (ret)
+		return ret;
+
+	ddata->chips[idx] = chip;
+	return 0;
 }
 
 static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 {
 	const struct dwc_pwm_info *info;
 	struct device *dev = &pci->dev;
-	int i, ret;
+	struct dwc_pwm_drvdata *ddata;
+	unsigned int idx;
+	int ret;
 
 	ret = pcim_enable_device(pci);
 	if (ret)
@@ -63,16 +71,24 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		return dev_err_probe(dev, ret, "Failed to iomap PCI BAR\n");
 
 	info = (const struct dwc_pwm_info *)id->driver_data;
+	ddata = devm_kzalloc(dev, struct_size(ddata, chips, info->nr), GFP_KERNEL);
+	if (!ddata)
+		return -ENOMEM;
 
-	for (i = 0; i < info->nr; i++) {
-		/*
-		 * No need to check for pcim_iomap_table() failure,
-		 * pcim_iomap_regions() already does it for us.
-		 */
-		ret = dwc_pwm_init_one(dev, pcim_iomap_table(pci)[0], i * info->size);
+	/*
+	 * No need to check for pcim_iomap_table() failure,
+	 * pcim_iomap_regions() already does it for us.
+	 */
+	ddata->io_base = pcim_iomap_table(pci)[0];
+	ddata->info = info;
+
+	for (idx = 0; idx < ddata->info->nr; idx++) {
+		ret = dwc_pwm_init_one(dev, ddata, idx);
 		if (ret)
 			return ret;
 	}
+
+	dev_set_drvdata(dev, ddata);
 
 	pm_runtime_put(dev);
 	pm_runtime_allow(dev);
@@ -88,19 +104,24 @@ static void dwc_pwm_remove(struct pci_dev *pci)
 
 static int dwc_pwm_suspend(struct device *dev)
 {
-	struct pwm_chip *chip = dev_get_drvdata(dev);
-	struct dwc_pwm *dwc = to_dwc_pwm(chip);
-	int i;
+	struct dwc_pwm_drvdata *ddata = dev_get_drvdata(dev);
+	unsigned int idx;
 
-	for (i = 0; i < DWC_TIMERS_TOTAL; i++) {
-		if (chip->pwms[i].state.enabled) {
-			dev_err(dev, "PWM %u in use by consumer (%s)\n",
-				i, chip->pwms[i].label);
-			return -EBUSY;
+	for (idx = 0; idx < ddata->info->nr; idx++) {
+		struct pwm_chip *chip = ddata->chips[idx];
+		struct dwc_pwm *dwc = to_dwc_pwm(chip);
+		unsigned int i;
+
+		for (i = 0; i < DWC_TIMERS_TOTAL; i++) {
+			if (chip->pwms[i].state.enabled) {
+				dev_err(dev, "PWM %u in use by consumer (%s)\n",
+					i, chip->pwms[i].label);
+				return -EBUSY;
+			}
+			dwc->ctx[i].cnt = dwc_pwm_readl(dwc, DWC_TIM_LD_CNT(i));
+			dwc->ctx[i].cnt2 = dwc_pwm_readl(dwc, DWC_TIM_LD_CNT2(i));
+			dwc->ctx[i].ctrl = dwc_pwm_readl(dwc, DWC_TIM_CTRL(i));
 		}
-		dwc->ctx[i].cnt = dwc_pwm_readl(dwc, DWC_TIM_LD_CNT(i));
-		dwc->ctx[i].cnt2 = dwc_pwm_readl(dwc, DWC_TIM_LD_CNT2(i));
-		dwc->ctx[i].ctrl = dwc_pwm_readl(dwc, DWC_TIM_CTRL(i));
 	}
 
 	return 0;
@@ -108,14 +129,19 @@ static int dwc_pwm_suspend(struct device *dev)
 
 static int dwc_pwm_resume(struct device *dev)
 {
-	struct pwm_chip *chip = dev_get_drvdata(dev);
-	struct dwc_pwm *dwc = to_dwc_pwm(chip);
-	int i;
+	struct dwc_pwm_drvdata *ddata = dev_get_drvdata(dev);
+	unsigned int idx;
 
-	for (i = 0; i < DWC_TIMERS_TOTAL; i++) {
-		dwc_pwm_writel(dwc, dwc->ctx[i].cnt, DWC_TIM_LD_CNT(i));
-		dwc_pwm_writel(dwc, dwc->ctx[i].cnt2, DWC_TIM_LD_CNT2(i));
-		dwc_pwm_writel(dwc, dwc->ctx[i].ctrl, DWC_TIM_CTRL(i));
+	for (idx = 0; idx < ddata->info->nr; idx++) {
+		struct pwm_chip *chip = ddata->chips[idx];
+		struct dwc_pwm *dwc = to_dwc_pwm(chip);
+		unsigned int i;
+
+		for (i = 0; i < DWC_TIMERS_TOTAL; i++) {
+			dwc_pwm_writel(dwc, dwc->ctx[i].cnt, DWC_TIM_LD_CNT(i));
+			dwc_pwm_writel(dwc, dwc->ctx[i].cnt2, DWC_TIM_LD_CNT2(i));
+			dwc_pwm_writel(dwc, dwc->ctx[i].ctrl, DWC_TIM_CTRL(i));
+		}
 	}
 
 	return 0;

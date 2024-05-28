@@ -382,6 +382,7 @@ static void otx2_qos_read_txschq_cfg_tl(struct otx2_qos_node *parent,
 		otx2_qos_read_txschq_cfg_tl(node, cfg);
 		cnt = cfg->static_node_pos[node->level];
 		cfg->schq_contig_list[node->level][cnt] = node->schq;
+		cfg->schq_index_used[node->level][cnt] = true;
 		cfg->schq_contig[node->level]++;
 		cfg->static_node_pos[node->level]++;
 		otx2_qos_read_txschq_cfg_schq(node, cfg);
@@ -539,6 +540,20 @@ otx2_qos_sw_create_leaf_node(struct otx2_nic *pfvf,
 	if (err) {
 		otx2_qos_sw_node_delete(pfvf, node);
 		return ERR_PTR(-ENOMEM);
+	}
+
+	return node;
+}
+
+static struct otx2_qos_node
+*otx2_sw_node_find_by_qid(struct otx2_nic *pfvf, u16 qid)
+{
+	struct otx2_qos_node *node = NULL;
+	int bkt;
+
+	hash_for_each(pfvf->qos.qos_hlist, bkt, node, hlist) {
+		if (node->qid == qid)
+			break;
 	}
 
 	return node;
@@ -916,6 +931,7 @@ static void otx2_qos_enadis_sq(struct otx2_nic *pfvf,
 		otx2_qos_disable_sq(pfvf, qid);
 
 	pfvf->qos.qid_to_sqmap[qid] = node->schq;
+	otx2_qos_txschq_config(pfvf, node);
 	otx2_qos_enable_sq(pfvf, qid);
 }
 
@@ -1474,13 +1490,45 @@ out:
 	return ret;
 }
 
+static int otx2_qos_cur_leaf_nodes(struct otx2_nic *pfvf)
+{
+	int last = find_last_bit(pfvf->qos.qos_sq_bmap, pfvf->hw.tc_tx_queues);
+
+	return last ==  pfvf->hw.tc_tx_queues ? 0 : last + 1;
+}
+
+static void otx2_reset_qdisc(struct net_device *dev, u16 qid)
+{
+	struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, qid);
+	struct Qdisc *qdisc = rtnl_dereference(dev_queue->qdisc_sleeping);
+
+	if (!qdisc)
+		return;
+
+	spin_lock_bh(qdisc_lock(qdisc));
+	qdisc_reset(qdisc);
+	spin_unlock_bh(qdisc_lock(qdisc));
+}
+
+static void otx2_cfg_smq(struct otx2_nic *pfvf, struct otx2_qos_node *node,
+			 int qid)
+{
+	struct otx2_qos_node *tmp;
+
+	list_for_each_entry(tmp, &node->child_schq_list, list)
+		if (tmp->level == NIX_TXSCH_LVL_MDQ) {
+			otx2_qos_txschq_config(pfvf, tmp);
+			pfvf->qos.qid_to_sqmap[qid] = tmp->schq;
+		}
+}
+
 static int otx2_qos_leaf_del(struct otx2_nic *pfvf, u16 *classid,
 			     struct netlink_ext_ack *extack)
 {
 	struct otx2_qos_node *node, *parent;
 	int dwrr_del_node = false;
+	u16 qid, moved_qid;
 	u64 prio;
-	u16 qid;
 
 	netdev_dbg(pfvf->netdev, "TC_HTB_LEAF_DEL classid %04x\n", *classid);
 
@@ -1516,6 +1564,37 @@ static int otx2_qos_leaf_del(struct otx2_nic *pfvf, u16 *classid,
 	if (!parent->child_static_cnt)
 		parent->max_static_prio = 0;
 
+	moved_qid = otx2_qos_cur_leaf_nodes(pfvf);
+
+	/* last node just deleted */
+	if (moved_qid == 0 || moved_qid == qid)
+		return 0;
+
+	moved_qid--;
+
+	node = otx2_sw_node_find_by_qid(pfvf, moved_qid);
+	if (!node)
+		return 0;
+
+	/* stop traffic to the old queue and disable
+	 * SQ associated with it
+	 */
+	node->qid =  OTX2_QOS_QID_INNER;
+	__clear_bit(moved_qid, pfvf->qos.qos_sq_bmap);
+	otx2_qos_disable_sq(pfvf, moved_qid);
+
+	otx2_reset_qdisc(pfvf->netdev, pfvf->hw.tx_queues + moved_qid);
+
+	/* enable SQ associated with qid and
+	 * update the node
+	 */
+	otx2_cfg_smq(pfvf, node, qid);
+
+	otx2_qos_enable_sq(pfvf, qid);
+	__set_bit(qid, pfvf->qos.qos_sq_bmap);
+	node->qid = qid;
+
+	*classid = node->classid;
 	return 0;
 }
 

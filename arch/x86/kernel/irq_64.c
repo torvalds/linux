@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/sched/task_stack.h>
+#include <linux/vmalloc.h>
 
 #include <asm/cpu_entry_area.h>
 #include <asm/softirq_stack.h>

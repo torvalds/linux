@@ -3319,7 +3319,7 @@ static const struct acpi_device_id rt5682s_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5682s_acpi_match);
 
 static const struct i2c_device_id rt5682s_i2c_id[] = {
-	{"rt5682s", 0},
+	{"rt5682s"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt5682s_i2c_id);

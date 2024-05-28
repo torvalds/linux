@@ -17,7 +17,6 @@ test_dev_cgroup
 test_verifier_log
 feature
 test_sock
-test_sock_addr
 urandom_read
 test_sockmap
 test_lirc_mode2_user

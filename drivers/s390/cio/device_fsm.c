@@ -504,6 +504,11 @@ callback:
 		ccw_device_done(cdev, DEV_STATE_ONLINE);
 		/* Deliver fake irb to device driver, if needed. */
 		if (cdev->private->flags.fake_irb) {
+			CIO_MSG_EVENT(2, "fakeirb: deliver device 0.%x.%04x intparm %lx type=%d\n",
+				      cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno,
+				      cdev->private->intparm,
+				      cdev->private->flags.fake_irb);
 			create_fake_irb(&cdev->private->dma_area->irb,
 					cdev->private->flags.fake_irb);
 			cdev->private->flags.fake_irb = 0;

@@ -31,6 +31,7 @@
 #include <asm/crw.h>
 #include <asm/asm-offsets.h>
 #include <asm/pai.h>
+#include <asm/vtime.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;

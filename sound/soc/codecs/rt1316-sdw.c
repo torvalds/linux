@@ -537,7 +537,7 @@ static int rt1316_sdw_hw_params(struct snd_pcm_substream *substream,
 	retval = sdw_stream_add_slave(rt1316->sdw_slave, &stream_config,
 				&port_config, 1, sdw_stream);
 	if (retval) {
-		dev_err(dai->dev, "Unable to configure port\n");
+		dev_err(dai->dev, "%s: Unable to configure port\n", __func__);
 		return retval;
 	}
 
@@ -577,12 +577,12 @@ static int rt1316_sdw_parse_dt(struct rt1316_sdw_priv *rt1316, struct device *de
 	if (rt1316->bq_params_cnt) {
 		rt1316->bq_params = devm_kzalloc(dev, rt1316->bq_params_cnt, GFP_KERNEL);
 		if (!rt1316->bq_params) {
-			dev_err(dev, "Could not allocate bq_params memory\n");
+			dev_err(dev, "%s: Could not allocate bq_params memory\n", __func__);
 			ret = -ENOMEM;
 		} else {
 			ret = device_property_read_u8_array(dev, "realtek,bq-params", rt1316->bq_params, rt1316->bq_params_cnt);
 			if (ret < 0)
-				dev_err(dev, "Could not read list of realtek,bq-params\n");
+				dev_err(dev, "%s: Could not read list of realtek,bq-params\n", __func__);
 		}
 	}
 
@@ -759,7 +759,7 @@ static int __maybe_unused rt1316_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT1316_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n", __func__);
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;
@@ -781,7 +781,6 @@ static const struct dev_pm_ops rt1316_pm = {
 static struct sdw_driver rt1316_sdw_driver = {
 	.driver = {
 		.name = "rt1316-sdca",
-		.owner = THIS_MODULE,
 		.pm = &rt1316_pm,
 	},
 	.probe = rt1316_sdw_probe,

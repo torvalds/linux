@@ -16,6 +16,7 @@
 #include "../vdec_drv_base.h"
 #include "../vdec_vpu_if.h"
 
+#define VP9_MAX_SUPER_FRAMES_NUM 8
 #define VP9_SUPER_FRAME_BS_SZ 64
 #define MAX_VP9_DPB_SIZE	9
 
@@ -41,7 +42,7 @@ struct vp9_dram_buf {
 
 /**
  * struct vp9_fb_info - contains frame buffer info
- * @fb : frmae buffer
+ * @fb : frame buffer
  * @reserved : reserved field used by vpu
  */
 struct vp9_fb_info {
@@ -89,7 +90,7 @@ struct vp9_sf_ref_fb {
  *	AP-W/R : AP is writer/reader on this item
  *	VPU-W/R: VPU is write/reader on this item
  * @sf_bs_buf : super frame backup buffer (AP-W, VPU-R)
- * @sf_ref_fb : record supoer frame reference buffer information
+ * @sf_ref_fb : record super frame reference buffer information
  *	(AP-R/W, VPU-R/W)
  * @sf_next_ref_fb_idx : next available super frame (AP-W, VPU-R)
  * @sf_frm_cnt : super frame count, filled by vpu (AP-R, VPU-W)
@@ -133,11 +134,11 @@ struct vp9_sf_ref_fb {
  */
 struct vdec_vp9_vsi {
 	unsigned char sf_bs_buf[VP9_SUPER_FRAME_BS_SZ];
-	struct vp9_sf_ref_fb sf_ref_fb[VP9_MAX_FRM_BUF_NUM-1];
+	struct vp9_sf_ref_fb sf_ref_fb[VP9_MAX_SUPER_FRAMES_NUM];
 	int sf_next_ref_fb_idx;
 	unsigned int sf_frm_cnt;
-	unsigned int sf_frm_offset[VP9_MAX_FRM_BUF_NUM-1];
-	unsigned int sf_frm_sz[VP9_MAX_FRM_BUF_NUM-1];
+	unsigned int sf_frm_offset[VP9_MAX_SUPER_FRAMES_NUM];
+	unsigned int sf_frm_sz[VP9_MAX_SUPER_FRAMES_NUM];
 	unsigned int sf_frm_idx;
 	unsigned int sf_init;
 	struct vdec_fb fb;
@@ -526,7 +527,7 @@ static void vp9_swap_frm_bufs(struct vdec_vp9_inst *inst)
 	/* if this super frame and it is not last sub-frame, get next fb for
 	 * sub-frame decode
 	 */
-	if (vsi->sf_frm_cnt > 0 && vsi->sf_frm_idx != vsi->sf_frm_cnt - 1)
+	if (vsi->sf_frm_cnt > 0 && vsi->sf_frm_idx != vsi->sf_frm_cnt)
 		vsi->sf_next_ref_fb_idx = vp9_get_sf_ref_fb(inst);
 }
 
@@ -735,7 +736,7 @@ static void get_free_fb(struct vdec_vp9_inst *inst, struct vdec_fb **out_fb)
 
 static int validate_vsi_array_indexes(struct vdec_vp9_inst *inst,
 		struct vdec_vp9_vsi *vsi) {
-	if (vsi->sf_frm_idx >= VP9_MAX_FRM_BUF_NUM - 1) {
+	if (vsi->sf_frm_idx > VP9_MAX_SUPER_FRAMES_NUM) {
 		mtk_vdec_err(inst->ctx, "Invalid vsi->sf_frm_idx=%u.", vsi->sf_frm_idx);
 		return -EIO;
 	}

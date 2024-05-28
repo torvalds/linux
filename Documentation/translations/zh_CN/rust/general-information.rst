@@ -32,7 +32,7 @@ Rust内核代码使用其内置的文档生成器 ``rustdoc`` 进行记录。
 
 要在你的网络浏览器中本地阅读该文档，请运行如::
 
-	xdg-open rust/doc/kernel/index.html
+	xdg-open Documentation/output/rust/rustdoc/kernel/index.html
 
 要了解如何编写文档，请看 coding-guidelines.rst 。
 
