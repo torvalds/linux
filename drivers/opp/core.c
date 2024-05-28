@@ -2443,8 +2443,10 @@ static int _opp_attach_genpd(struct opp_table *opp_table, struct device *dev,
 		 * Cross check it again and fix if required.
 		 */
 		gdev = dev_to_genpd_dev(virt_dev);
-		if (IS_ERR(gdev))
-			return PTR_ERR(gdev);
+		if (IS_ERR(gdev)) {
+			ret = PTR_ERR(gdev);
+			goto err;
+		}
 
 		genpd_table = _find_opp_table(gdev);
 		if (!IS_ERR(genpd_table)) {
