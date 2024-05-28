@@ -178,7 +178,7 @@ def parse_operations(operations: List[Dict[str, Any]], namespace: str) -> str:
 
     for operation in operations:
         lines.append(rst_section(namespace, 'operation', operation["name"]))
-        lines.append(rst_paragraph(sanitize(operation["doc"])) + "\n")
+        lines.append(rst_paragraph(operation["doc"]) + "\n")
 
         for key in operation.keys():
             if key in preprocessed:
