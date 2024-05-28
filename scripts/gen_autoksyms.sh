@@ -31,7 +31,7 @@ fi
 
 ksym_wl=$(sed -n 's/^CONFIG_UNUSED_KSYMS_WHITELIST=\(.*\)$/\1/p' include/config/auto.conf)
 if [ -n "$ksym_wl" ]; then
-	[ "${ksym_wl}" != "${ksym_wl#/}" ] || [ -f "$ksym_wl" ] || ksym_wl="$abs_srctree/$ksym_wl"
+	[ "${ksym_wl}" != "${ksym_wl#/}" ] || ksym_wl="$abs_srctree/$ksym_wl"
 	if [ ! -f "$ksym_wl" ] || [ ! -r "$ksym_wl" ]; then
 		echo "ERROR: '$ksym_wl' whitelist file not found" >&2
 		exit 1
