@@ -350,6 +350,7 @@ static int rtq2208_of_get_ldo_dvs_ability(struct device *dev)
 	struct of_regulator_match *match;
 	struct regulator_desc *desc;
 	struct regulator_init_data *init_data;
+	u32 fixed_uV;
 	int ret, i;
 
 	if (!dev->of_node)
@@ -374,9 +375,15 @@ static int rtq2208_of_get_ldo_dvs_ability(struct device *dev)
 		if (!init_data || !desc)
 			continue;
 
-		if (init_data->constraints.min_uV == init_data->constraints.max_uV) {
-			desc->fixed_uV = init_data->constraints.min_uV;
+		/* specify working fixed voltage if the propery exists */
+		ret = of_property_read_u32(match->of_node, "richtek,fixed-microvolt", &fixed_uV);
+
+		if (!ret) {
+			if (fixed_uV != init_data->constraints.min_uV ||
+				fixed_uV != init_data->constraints.max_uV)
+				return -EINVAL;
 			desc->n_voltages = 1;
+			desc->fixed_uV = fixed_uV;
 			desc->fixed_uV = init_data->constraints.min_uV;
 			desc->ops = &rtq2208_regulator_ldo_fix_ops;
 		} else {
