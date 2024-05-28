@@ -6186,13 +6186,33 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCGHWTSTAMP:
 		ret = stmmac_hwtstamp_get(dev, rq);
 		fallthrough;
-	case SIOCDEVPRIVATE:
-		ret = priv->plat->handle_prv_ioctl(dev, rq, cmd);
-		break;
 	default:
 		break;
 	}
 
+	return ret;
+}
+
+static int stmmac_private_ioctl(struct net_device *dev,
+				struct ifreq *ifr,
+				void __user *data,
+				int cmd)
+{
+	int ret = -EOPNOTSUPP;
+	struct stmmac_priv *priv;
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	priv = netdev_priv(dev);
+
+	if (cmd == SIOCDEVPRIVATE) {
+		pr_info("stmmac private ioctl cmd=%d\n", cmd);
+		ret = priv->plat->handle_prv_ioctl(dev, ifr, cmd);
+		return ret;
+	}
+
+	pr_err("stmmac private ioctl not supported & cmd=%d\n", cmd);
 	return ret;
 }
 
@@ -6985,6 +7005,7 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_set_rx_mode = stmmac_set_rx_mode,
 	.ndo_tx_timeout = stmmac_tx_timeout,
 	.ndo_eth_ioctl = stmmac_ioctl,
+	.ndo_siocdevprivate = stmmac_private_ioctl,
 	.ndo_setup_tc = stmmac_setup_tc,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = stmmac_poll_controller,
