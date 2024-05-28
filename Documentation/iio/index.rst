@@ -9,6 +9,7 @@ Industrial I/O
 
    iio_configfs
    iio_devbuf
+   iio_tools
 
 Industrial I/O Kernel Drivers
 =============================
