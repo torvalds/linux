@@ -9,6 +9,7 @@
 #include <net/flow.h>
 #include <net/neighbour.h>
 #include <net/sock.h>
+#include <net/ipv6.h>
 
 /* structs from net/ip6_fib.h */
 struct fib6_info;
@@ -72,6 +73,8 @@ struct ipv6_stub {
 			     int (*output)(struct net *, struct sock *, struct sk_buff *));
 	struct net_device *(*ipv6_dev_find)(struct net *net, const struct in6_addr *addr,
 					    struct net_device *dev);
+	int (*ip6_xmit)(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
+			__u32 mark, struct ipv6_txoptions *opt, int tclass, u32 priority);
 };
 extern const struct ipv6_stub *ipv6_stub __read_mostly;
 

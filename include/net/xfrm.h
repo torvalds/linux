@@ -229,6 +229,10 @@ struct xfrm_state {
 	struct xfrm_encap_tmpl	*encap;
 	struct sock __rcu	*encap_sk;
 
+	/* NAT keepalive */
+	u32			nat_keepalive_interval; /* seconds */
+	time64_t		nat_keepalive_expiration;
+
 	/* Data for care-of address */
 	xfrm_address_t	*coaddr;
 
@@ -2202,5 +2206,11 @@ static inline int register_xfrm_state_bpf(void)
 	return 0;
 }
 #endif
+
+int xfrm_nat_keepalive_init(unsigned short family);
+void xfrm_nat_keepalive_fini(unsigned short family);
+int xfrm_nat_keepalive_net_init(struct net *net);
+int xfrm_nat_keepalive_net_fini(struct net *net);
+void xfrm_nat_keepalive_state_updated(struct xfrm_state *x);
 
 #endif	/* _NET_XFRM_H */
