@@ -31,12 +31,10 @@
 #define __vstring(item, fmt, ap) __dynamic_array(char, item, -1)
 
 #undef __assign_str
-#define __assign_str(dst, src)						\
+#define __assign_str(dst)						\
 	do {								\
 		char *__str__ = __get_str(dst);				\
 		int __len__ = __get_dynamic_array_len(dst) - 1;		\
-		WARN_ON_ONCE(!(void *)(src) != !(void *)__data_offsets.dst##_ptr_); \
-		WARN_ON_ONCE((src) && strcmp((src), __data_offsets.dst##_ptr_)); \
 		memcpy(__str__, __data_offsets.dst##_ptr_ ? :		\
 		       EVENT_NULL_STR, __len__);			\
 		__str__[__len__] = '\0';				\

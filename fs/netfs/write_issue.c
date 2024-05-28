@@ -254,7 +254,7 @@ static void netfs_issue_write(struct netfs_io_request *wreq,
 	stream->construct = NULL;
 
 	if (subreq->start + subreq->len > wreq->start + wreq->submitted)
-		wreq->len = wreq->submitted = subreq->start + subreq->len - wreq->start;
+		WRITE_ONCE(wreq->submitted, subreq->start + subreq->len - wreq->start);
 	netfs_do_issue_write(stream, subreq);
 }
 
@@ -636,7 +636,12 @@ int netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_contr
 
 	mutex_unlock(&ictx->wb_lock);
 
-	ret = wreq->error;
+	if (wreq->iocb) {
+		ret = -EIOCBQUEUED;
+	} else {
+		wait_on_bit(&wreq->flags, NETFS_RREQ_IN_PROGRESS, TASK_UNINTERRUPTIBLE);
+		ret = wreq->error;
+	}
 	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
 	return ret;
 }

@@ -27,7 +27,7 @@ DECLARE_EVENT_CLASS(habanalabs_mmu_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->virt_addr = virt_addr;
 		__entry->phys_addr = phys_addr;
 		__entry->page_size = page_size;
@@ -64,7 +64,7 @@ DECLARE_EVENT_CLASS(habanalabs_dma_alloc_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->cpu_addr = cpu_addr;
 		__entry->dma_addr = dma_addr;
 		__entry->size = size;
@@ -103,7 +103,7 @@ DECLARE_EVENT_CLASS(habanalabs_dma_map_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->phys_addr = phys_addr;
 		__entry->dma_addr = dma_addr;
 		__entry->len = len;
@@ -141,7 +141,7 @@ DECLARE_EVENT_CLASS(habanalabs_comms_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->op_str = op_str;
 	),
 
@@ -178,7 +178,7 @@ DECLARE_EVENT_CLASS(habanalabs_reg_access_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->addr = addr;
 		__entry->val = val;
 	),
