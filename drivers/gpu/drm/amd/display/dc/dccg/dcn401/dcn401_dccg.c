@@ -603,6 +603,10 @@ static void dccg401_set_dp_dto(
 		BREAK_TO_DEBUGGER();
 		return;
 	}
+	if (!params->refclk_hz) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
 
 	if (!dc_is_tmds_signal(params->signal)) {
 		uint64_t dto_integer;
