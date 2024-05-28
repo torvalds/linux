@@ -389,38 +389,6 @@ void dlm_put_rsb(struct dlm_rsb *r)
 	put_rsb(r);
 }
 
-static int pre_rsb_struct(struct dlm_ls *ls)
-{
-	struct dlm_rsb *r1, *r2;
-	int count = 0;
-
-	spin_lock_bh(&ls->ls_new_rsb_spin);
-	if (ls->ls_new_rsb_count > dlm_config.ci_new_rsb_count / 2) {
-		spin_unlock_bh(&ls->ls_new_rsb_spin);
-		return 0;
-	}
-	spin_unlock_bh(&ls->ls_new_rsb_spin);
-
-	r1 = dlm_allocate_rsb(ls);
-	r2 = dlm_allocate_rsb(ls);
-
-	spin_lock_bh(&ls->ls_new_rsb_spin);
-	if (r1) {
-		list_add(&r1->res_hashchain, &ls->ls_new_rsb);
-		ls->ls_new_rsb_count++;
-	}
-	if (r2) {
-		list_add(&r2->res_hashchain, &ls->ls_new_rsb);
-		ls->ls_new_rsb_count++;
-	}
-	count = ls->ls_new_rsb_count;
-	spin_unlock_bh(&ls->ls_new_rsb_spin);
-
-	if (!count)
-		return -ENOMEM;
-	return 0;
-}
-
 /* connected with timer_delete_sync() in dlm_ls_stop() to stop
  * new timers when recovery is triggered and don't run them
  * again until a dlm_timer_resume() tries it again.
@@ -652,22 +620,10 @@ static int get_rsb_struct(struct dlm_ls *ls, const void *name, int len,
 			  struct dlm_rsb **r_ret)
 {
 	struct dlm_rsb *r;
-	int count;
 
-	spin_lock_bh(&ls->ls_new_rsb_spin);
-	if (list_empty(&ls->ls_new_rsb)) {
-		count = ls->ls_new_rsb_count;
-		spin_unlock_bh(&ls->ls_new_rsb_spin);
-		log_debug(ls, "find_rsb retry %d %d %s",
-			  count, dlm_config.ci_new_rsb_count,
-			  (const char *)name);
-		return -EAGAIN;
-	}
-
-	r = list_first_entry(&ls->ls_new_rsb, struct dlm_rsb, res_hashchain);
-	list_del(&r->res_hashchain);
-	ls->ls_new_rsb_count--;
-	spin_unlock_bh(&ls->ls_new_rsb_spin);
+	r = dlm_allocate_rsb(ls);
+	if (!r)
+		return -ENOMEM;
 
 	r->res_ls = ls;
 	r->res_length = len;
@@ -792,13 +748,6 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 	}
 
  retry:
-	if (create) {
-		error = pre_rsb_struct(ls);
-		if (error < 0)
-			goto out;
-	}
-
- retry_lookup:
 
 	/* check if the rsb is in keep state under read lock - likely path */
 	read_lock_bh(&ls->ls_rsbtbl_lock);
@@ -832,7 +781,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 	if (!error) {
 		if (!rsb_flag(r, RSB_TOSS)) {
 			write_unlock_bh(&ls->ls_rsbtbl_lock);
-			goto retry_lookup;
+			goto retry;
 		}
 	} else {
 		write_unlock_bh(&ls->ls_rsbtbl_lock);
@@ -898,9 +847,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 		goto out;
 
 	error = get_rsb_struct(ls, name, len, &r);
-	if (error == -EAGAIN)
-		goto retry;
-	if (error)
+	if (WARN_ON_ONCE(error))
 		goto out;
 
 	r->res_hash = hash;
@@ -952,7 +899,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 		 */
 		write_unlock_bh(&ls->ls_rsbtbl_lock);
 		dlm_free_rsb(r);
-		goto retry_lookup;
+		goto retry;
 	} else if (!error) {
 		list_add(&r->res_rsbs_list, &ls->ls_keep);
 	}
@@ -976,11 +923,6 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 	int error;
 
  retry:
-	error = pre_rsb_struct(ls);
-	if (error < 0)
-		goto out;
-
- retry_lookup:
 
 	/* check if the rsb is in keep state under read lock - likely path */
 	read_lock_bh(&ls->ls_rsbtbl_lock);
@@ -1015,7 +957,7 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 	if (!error) {
 		if (!rsb_flag(r, RSB_TOSS)) {
 			write_unlock_bh(&ls->ls_rsbtbl_lock);
-			goto retry_lookup;
+			goto retry;
 		}
 	} else {
 		write_unlock_bh(&ls->ls_rsbtbl_lock);
@@ -1070,10 +1012,7 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 	 */
 
 	error = get_rsb_struct(ls, name, len, &r);
-	if (error == -EAGAIN) {
-		goto retry;
-	}
-	if (error)
+	if (WARN_ON_ONCE(error))
 		goto out;
 
 	r->res_hash = hash;
@@ -1090,7 +1029,7 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 		 */
 		write_unlock_bh(&ls->ls_rsbtbl_lock);
 		dlm_free_rsb(r);
-		goto retry_lookup;
+		goto retry;
 	} else if (!error) {
 		list_add(&r->res_rsbs_list, &ls->ls_keep);
 	}
@@ -1304,11 +1243,6 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 	}
 
  retry:
-	error = pre_rsb_struct(ls);
-	if (error < 0)
-		return error;
-
- retry_lookup:
 
 	/* check if the rsb is in keep state under read lock - likely path */
 	read_lock_bh(&ls->ls_rsbtbl_lock);
@@ -1354,7 +1288,7 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 			/* something as changed, very unlikely but
 			 * try again
 			 */
-			goto retry_lookup;
+			goto retry;
 		}
 	} else {
 		write_unlock_bh(&ls->ls_rsbtbl_lock);
@@ -1376,9 +1310,7 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 
  not_found:
 	error = get_rsb_struct(ls, name, len, &r);
-	if (error == -EAGAIN)
-		goto retry;
-	if (error)
+	if (WARN_ON_ONCE(error))
 		goto out;
 
 	r->res_hash = hash;
@@ -1395,7 +1327,7 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 		 */
 		write_unlock_bh(&ls->ls_rsbtbl_lock);
 		dlm_free_rsb(r);
-		goto retry_lookup;
+		goto retry;
 	} else if (error) {
 		write_unlock_bh(&ls->ls_rsbtbl_lock);
 		/* should never happen */

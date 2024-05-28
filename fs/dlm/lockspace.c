@@ -428,9 +428,6 @@ static int new_lockspace(const char *name, const char *cluster,
 	INIT_LIST_HEAD(&ls->ls_orphans);
 	spin_lock_init(&ls->ls_orphans_lock);
 
-	INIT_LIST_HEAD(&ls->ls_new_rsb);
-	spin_lock_init(&ls->ls_new_rsb_spin);
-
 	INIT_LIST_HEAD(&ls->ls_nodes);
 	INIT_LIST_HEAD(&ls->ls_nodes_gone);
 	ls->ls_num_nodes = 0;
@@ -688,7 +685,6 @@ static void rhash_free_rsb(void *ptr, void *arg)
 
 static int release_lockspace(struct dlm_ls *ls, int force)
 {
-	struct dlm_rsb *rsb;
 	int busy, rv;
 
 	busy = lockspace_busy(ls, force);
@@ -755,13 +751,6 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	 * Free all rsb's on rsbtbl
 	 */
 	rhashtable_free_and_destroy(&ls->ls_rsbtbl, rhash_free_rsb, NULL);
-
-	while (!list_empty(&ls->ls_new_rsb)) {
-		rsb = list_first_entry(&ls->ls_new_rsb, struct dlm_rsb,
-				       res_hashchain);
-		list_del(&rsb->res_hashchain);
-		dlm_free_rsb(rsb);
-	}
 
 	/*
 	 * Free structures on any other lists

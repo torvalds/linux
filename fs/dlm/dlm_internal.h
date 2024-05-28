@@ -322,10 +322,7 @@ struct dlm_rsb {
 	unsigned long		res_toss_time;
 	uint32_t		res_first_lkid;
 	struct list_head	res_lookup;	/* lkbs waiting on first */
-	union {
-		struct list_head	res_hashchain;
-		struct rhash_head	res_node; /* rsbtbl */
-	};
+	struct rhash_head	res_node;	/* rsbtbl */
 	struct list_head	res_grantqueue;
 	struct list_head	res_convertqueue;
 	struct list_head	res_waitqueue;
@@ -595,10 +592,6 @@ struct dlm_ls {
 
 	spinlock_t		ls_orphans_lock;
 	struct list_head	ls_orphans;
-
-	spinlock_t		ls_new_rsb_spin;
-	int			ls_new_rsb_count;
-	struct list_head	ls_new_rsb;	/* new rsb structs */
 
 	struct list_head	ls_nodes;	/* current nodes in ls */
 	struct list_head	ls_nodes_gone;	/* dead node list, recovery */
