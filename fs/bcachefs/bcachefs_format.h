@@ -513,6 +513,7 @@ struct bch_sb_field {
 #include "snapshot_format.h"
 #include "subvolume_format.h"
 #include "sb-counters_format.h"
+#include "sb-downgrade_format.h"
 #include "sb-members_format.h"
 
 enum bch_sb_field_type {
@@ -545,7 +546,6 @@ struct bch_sb_field_journal_v2 {
 		__le64		nr;
 	}			d[];
 };
-
 
 /* BCH_SB_FIELD_crypt: */
 
@@ -736,18 +736,6 @@ struct bch_sb_field_ext {
 	__le64			recovery_passes_required[2];
 	__le64			errors_silent[8];
 	__le64			btrees_lost_data;
-};
-
-struct bch_sb_field_downgrade_entry {
-	__le16			version;
-	__le64			recovery_passes[2];
-	__le16			nr_errors;
-	__le16			errors[] __counted_by(nr_errors);
-} __packed __aligned(2);
-
-struct bch_sb_field_downgrade {
-	struct bch_sb_field	field;
-	struct bch_sb_field_downgrade_entry entries[];
 };
 
 /* Superblock: */
