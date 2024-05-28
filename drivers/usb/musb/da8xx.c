@@ -191,7 +191,7 @@ static void otg_timer(struct timer_list *t)
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
-static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
+static void __maybe_unused da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 {
 	static unsigned long last_timer;
 
@@ -476,7 +476,10 @@ static const struct musb_platform_ops da8xx_ops = {
 	.disable	= da8xx_musb_disable,
 
 	.set_mode	= da8xx_musb_set_mode,
+
+#ifndef CONFIG_USB_MUSB_HOST
 	.try_idle	= da8xx_musb_try_idle,
+#endif
 
 	.set_vbus	= da8xx_musb_set_vbus,
 };
