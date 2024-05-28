@@ -207,9 +207,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	if (crtc->mode_flags & I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP)
 		return __intel_get_crtc_scanline_from_timestamp(crtc);
 
-	vtotal = mode->crtc_vtotal;
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		vtotal /= 2;
+	vtotal = intel_mode_vtotal(mode);
 
 	position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & PIPEDSL_LINE_MASK;
 
@@ -249,11 +247,7 @@ int intel_crtc_scanline_to_hw(struct intel_crtc *crtc, int scanline)
 {
 	const struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(&crtc->base);
 	const struct drm_display_mode *mode = &vblank->hwmode;
-	int vtotal;
-
-	vtotal = mode->crtc_vtotal;
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		vtotal /= 2;
+	int vtotal = intel_mode_vtotal(mode);
 
 	return (scanline + vtotal - crtc->scanline_offset) % vtotal;
 }
@@ -310,12 +304,9 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 
 	htotal = mode->crtc_htotal;
 	hsync_start = mode->crtc_hsync_start;
-	vtotal = mode->crtc_vtotal;
+	vtotal = intel_mode_vtotal(mode);
 	vbl_start = intel_mode_vblank_start(mode);
 	vbl_end = intel_mode_vblank_end(mode);
-
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		vtotal /= 2;
 
 	/*
 	 * Enter vblank critical section, as we will do multiple
@@ -508,19 +499,12 @@ static int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state)
 	 * However if queried just before the start of vblank we'll get an
 	 * answer that's slightly in the future.
 	 */
-	if (DISPLAY_VER(i915) == 2) {
-		int vtotal;
-
-		vtotal = adjusted_mode->crtc_vtotal;
-		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-			vtotal /= 2;
-
-		return vtotal - 1;
-	} else if (HAS_DDI(i915) && intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+	if (DISPLAY_VER(i915) == 2)
+		return intel_mode_vtotal(adjusted_mode) - 1;
+	else if (HAS_DDI(i915) && intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return 2;
-	} else {
+	else
 		return 1;
-	}
 }
 
 void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
@@ -590,6 +574,16 @@ int intel_mode_vblank_end(const struct drm_display_mode *mode)
 		vblank_end /= 2;
 
 	return vblank_end;
+}
+
+int intel_mode_vtotal(const struct drm_display_mode *mode)
+{
+	int vtotal = mode->crtc_vtotal;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vtotal /= 2;
+
+	return vtotal;
 }
 
 void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,

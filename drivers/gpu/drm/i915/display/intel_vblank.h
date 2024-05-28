@@ -22,6 +22,7 @@ struct intel_vblank_evade_ctx {
 
 int intel_mode_vblank_start(const struct drm_display_mode *mode);
 int intel_mode_vblank_end(const struct drm_display_mode *mode);
+int intel_mode_vtotal(const struct drm_display_mode *mode);
 
 void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 			     const struct intel_crtc_state *new_crtc_state,
