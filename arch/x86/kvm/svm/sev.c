@@ -263,6 +263,21 @@ static void sev_decommission(unsigned int handle)
 }
 
 /*
+ * Transition a page to hypervisor-owned/shared state in the RMP table. This
+ * should not fail under normal conditions, but leak the page should that
+ * happen since it will no longer be usable by the host due to RMP protections.
+ */
+static int kvm_rmp_make_shared(struct kvm *kvm, u64 pfn, enum pg_level level)
+{
+	if (KVM_BUG_ON(rmp_make_shared(pfn, level), kvm)) {
+		snp_leak_pages(pfn, page_level_size(level) >> PAGE_SHIFT);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/*
  * Certain page-states, such as Pre-Guest and Firmware pages (as documented
  * in Chapter 5 of the SEV-SNP Firmware ABI under "Page States") cannot be
  * directly transitioned back to normal/hypervisor-owned state via RMPUPDATE
@@ -271,32 +286,25 @@ static void sev_decommission(unsigned int handle)
  * Until they are reclaimed and subsequently transitioned via RMPUPDATE, they
  * might not be usable by the host due to being set as immutable or still
  * being associated with a guest ASID.
+ *
+ * Bug the VM and leak the page if reclaim fails, or if the RMP entry can't be
+ * converted back to shared, as the page is no longer usable due to RMP
+ * protections, and it's infeasible for the guest to continue on.
  */
-static int snp_page_reclaim(u64 pfn)
+static int snp_page_reclaim(struct kvm *kvm, u64 pfn)
 {
 	struct sev_data_snp_page_reclaim data = {0};
-	int err, rc;
+	int fw_err, rc;
 
 	data.paddr = __sme_set(pfn << PAGE_SHIFT);
-	rc = sev_do_cmd(SEV_CMD_SNP_PAGE_RECLAIM, &data, &err);
-	if (WARN_ONCE(rc, "Failed to reclaim PFN %llx", pfn))
+	rc = sev_do_cmd(SEV_CMD_SNP_PAGE_RECLAIM, &data, &fw_err);
+	if (KVM_BUG(rc, kvm, "Failed to reclaim PFN %llx, rc %d fw_err %d", pfn, rc, fw_err)) {
 		snp_leak_pages(pfn, 1);
+		return -EIO;
+	}
 
-	return rc;
-}
-
-/*
- * Transition a page to hypervisor-owned/shared state in the RMP table. This
- * should not fail under normal conditions, but leak the page should that
- * happen since it will no longer be usable by the host due to RMP protections.
- */
-static int host_rmp_make_shared(u64 pfn, enum pg_level level)
-{
-	int rc;
-
-	rc = rmp_make_shared(pfn, level);
-	if (WARN_ON_ONCE(rc))
-		snp_leak_pages(pfn, page_level_size(level) >> PAGE_SHIFT);
+	if (kvm_rmp_make_shared(kvm, pfn, PG_LEVEL_4K))
+		return -EIO;
 
 	return rc;
 }
@@ -2244,7 +2252,7 @@ fw_err:
 	 * information to provide information on which CPUID leaves/fields
 	 * failed CPUID validation.
 	 */
-	if (!snp_page_reclaim(pfn + i) && !host_rmp_make_shared(pfn + i, PG_LEVEL_4K) &&
+	if (!snp_page_reclaim(kvm, pfn + i) &&
 	    sev_populate_args->type == KVM_SEV_SNP_PAGE_TYPE_CPUID &&
 	    sev_populate_args->fw_error == SEV_RET_INVALID_PARAM) {
 		void *vaddr = kmap_local_pfn(pfn + i);
@@ -2262,7 +2270,7 @@ err:
 	pr_debug("%s: exiting with error ret %d (fw_error %d), restoring %d gmem PFNs to shared.\n",
 		 __func__, ret, sev_populate_args->fw_error, n_private);
 	for (i = 0; i < n_private; i++)
-		host_rmp_make_shared(pfn + i, PG_LEVEL_4K);
+		kvm_rmp_make_shared(kvm, pfn + i, PG_LEVEL_4K);
 
 	return ret;
 }
@@ -2380,8 +2388,7 @@ static int snp_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_SNP_LAUNCH_UPDATE,
 				      &data, &argp->error);
 		if (ret) {
-			if (!snp_page_reclaim(pfn))
-				host_rmp_make_shared(pfn, PG_LEVEL_4K);
+			snp_page_reclaim(kvm, pfn);
 
 			return ret;
 		}
@@ -3069,7 +3076,7 @@ void sev_free_vcpu(struct kvm_vcpu *vcpu)
 	if (sev_snp_guest(vcpu->kvm)) {
 		u64 pfn = __pa(svm->sev_es.vmsa) >> PAGE_SHIFT;
 
-		if (host_rmp_make_shared(pfn, PG_LEVEL_4K))
+		if (kvm_rmp_make_shared(vcpu->kvm, pfn, PG_LEVEL_4K))
 			goto skip_vmsa_free;
 	}
 
