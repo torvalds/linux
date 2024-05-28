@@ -106,4 +106,6 @@ static struct platform_driver clk_mt8188_vpp1_drv = {
 	.id_table = clk_mt8188_vpp1_id_table,
 };
 module_platform_driver(clk_mt8188_vpp1_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8188 Video Processing Pipe 1 clocks driver");
 MODULE_LICENSE("GPL");

@@ -59,4 +59,6 @@ static struct platform_driver clk_mt2701_vdec_drv = {
 	},
 };
 module_platform_driver(clk_mt2701_vdec_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2701 Video Decoders clocks driver");
 MODULE_LICENSE("GPL");

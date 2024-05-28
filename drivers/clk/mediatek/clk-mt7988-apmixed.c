@@ -111,4 +111,6 @@ static struct platform_driver clk_mt7988_apmixed_drv = {
 	},
 };
 builtin_platform_driver(clk_mt7988_apmixed_drv);
+
+MODULE_DESCRIPTION("MediaTek MT7988 apmixedsys clocks driver");
 MODULE_LICENSE("GPL");

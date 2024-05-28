@@ -49,4 +49,6 @@ static struct platform_driver clk_mt8192_scp_adsp_drv = {
 	},
 };
 module_platform_driver(clk_mt8192_scp_adsp_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8192 SCP AudioDSP clocks driver");
 MODULE_LICENSE("GPL");

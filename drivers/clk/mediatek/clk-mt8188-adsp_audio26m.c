@@ -47,4 +47,6 @@ static struct platform_driver clk_mt8188_adsp_audio26m_drv = {
 	},
 };
 module_platform_driver(clk_mt8188_adsp_audio26m_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8188 AudioDSP clocks driver");
 MODULE_LICENSE("GPL");

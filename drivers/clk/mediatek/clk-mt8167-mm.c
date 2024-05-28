@@ -92,4 +92,6 @@ static struct platform_driver clk_mt8167_mm_drv = {
 	.id_table = clk_mt8167_mm_id_table,
 };
 module_platform_driver(clk_mt8167_mm_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8167 MultiMedia clocks driver");
 MODULE_LICENSE("GPL");
