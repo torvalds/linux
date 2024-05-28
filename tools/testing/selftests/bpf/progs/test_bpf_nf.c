@@ -9,10 +9,14 @@
 #define EINVAL 22
 #define ENOENT 2
 
+#define NF_CT_ZONE_DIR_ORIG (1 << IP_CT_DIR_ORIGINAL)
+#define NF_CT_ZONE_DIR_REPL (1 << IP_CT_DIR_REPLY)
+
 extern unsigned long CONFIG_HZ __kconfig;
 
 int test_einval_bpf_tuple = 0;
 int test_einval_reserved = 0;
+int test_einval_reserved_new = 0;
 int test_einval_netns_id = 0;
 int test_einval_len_opts = 0;
 int test_eproto_l4proto = 0;
@@ -22,6 +26,11 @@ int test_eafnosupport = 0;
 int test_alloc_entry = -EINVAL;
 int test_insert_entry = -EAFNOSUPPORT;
 int test_succ_lookup = -ENOENT;
+int test_ct_zone_id_alloc_entry = -EINVAL;
+int test_ct_zone_id_insert_entry = -EAFNOSUPPORT;
+int test_ct_zone_id_succ_lookup = -ENOENT;
+int test_ct_zone_dir_enoent_lookup = 0;
+int test_ct_zone_id_enoent_lookup = 0;
 u32 test_delta_timeout = 0;
 u32 test_status = 0;
 u32 test_insert_lookup_mark = 0;
@@ -45,6 +54,17 @@ struct bpf_ct_opts___local {
 	s32 netns_id;
 	s32 error;
 	u8 l4proto;
+	u8 dir;
+	u8 reserved[2];
+};
+
+struct bpf_ct_opts___new {
+	s32 netns_id;
+	s32 error;
+	u8 l4proto;
+	u8 dir;
+	u16 ct_zone_id;
+	u8 ct_zone_dir;
 	u8 reserved[3];
 } __attribute__((preserve_access_index));
 
@@ -220,10 +240,97 @@ nf_ct_test(struct nf_conn *(*lookup_fn)(void *, struct bpf_sock_tuple *, u32,
 	}
 }
 
+static __always_inline void
+nf_ct_opts_new_test(struct nf_conn *(*lookup_fn)(void *, struct bpf_sock_tuple *, u32,
+						 struct bpf_ct_opts___new *, u32),
+		    struct nf_conn *(*alloc_fn)(void *, struct bpf_sock_tuple *, u32,
+						struct bpf_ct_opts___new *, u32),
+		    void *ctx)
+{
+	struct bpf_ct_opts___new opts_def = { .l4proto = IPPROTO_TCP, .netns_id = -1 };
+	struct bpf_sock_tuple bpf_tuple;
+	struct nf_conn *ct;
+
+	__builtin_memset(&bpf_tuple, 0, sizeof(bpf_tuple.ipv4));
+
+	opts_def.reserved[0] = 1;
+	ct = lookup_fn(ctx, &bpf_tuple, sizeof(bpf_tuple.ipv4), &opts_def,
+		       sizeof(opts_def));
+	opts_def.reserved[0] = 0;
+	if (ct)
+		bpf_ct_release(ct);
+	else
+		test_einval_reserved_new = opts_def.error;
+
+	bpf_tuple.ipv4.saddr = bpf_get_prandom_u32(); /* src IP */
+	bpf_tuple.ipv4.daddr = bpf_get_prandom_u32(); /* dst IP */
+	bpf_tuple.ipv4.sport = bpf_get_prandom_u32(); /* src port */
+	bpf_tuple.ipv4.dport = bpf_get_prandom_u32(); /* dst port */
+
+	/* use non-default ct zone */
+	opts_def.ct_zone_id = 10;
+	opts_def.ct_zone_dir = NF_CT_ZONE_DIR_ORIG;
+	ct = alloc_fn(ctx, &bpf_tuple, sizeof(bpf_tuple.ipv4), &opts_def,
+		      sizeof(opts_def));
+	if (ct) {
+		__u16 sport = bpf_get_prandom_u32();
+		__u16 dport = bpf_get_prandom_u32();
+		union nf_inet_addr saddr = {};
+		union nf_inet_addr daddr = {};
+		struct nf_conn *ct_ins;
+
+		bpf_ct_set_timeout(ct, 10000);
+
+		/* snat */
+		saddr.ip = bpf_get_prandom_u32();
+		bpf_ct_set_nat_info(ct, &saddr, sport, NF_NAT_MANIP_SRC___local);
+		/* dnat */
+		daddr.ip = bpf_get_prandom_u32();
+		bpf_ct_set_nat_info(ct, &daddr, dport, NF_NAT_MANIP_DST___local);
+
+		ct_ins = bpf_ct_insert_entry(ct);
+		if (ct_ins) {
+			struct nf_conn *ct_lk;
+
+			/* entry should exist in same ct zone we inserted it */
+			ct_lk = lookup_fn(ctx, &bpf_tuple, sizeof(bpf_tuple.ipv4),
+					  &opts_def, sizeof(opts_def));
+			if (ct_lk) {
+				bpf_ct_release(ct_lk);
+				test_ct_zone_id_succ_lookup = 0;
+			}
+
+			/* entry should not exist with wrong direction */
+			opts_def.ct_zone_dir = NF_CT_ZONE_DIR_REPL;
+			ct_lk = lookup_fn(ctx, &bpf_tuple, sizeof(bpf_tuple.ipv4),
+					  &opts_def, sizeof(opts_def));
+			opts_def.ct_zone_dir = NF_CT_ZONE_DIR_ORIG;
+			if (ct_lk)
+				bpf_ct_release(ct_lk);
+			else
+				test_ct_zone_dir_enoent_lookup = opts_def.error;
+
+			/* entry should not exist in default ct zone */
+			opts_def.ct_zone_id = 0;
+			ct_lk = lookup_fn(ctx, &bpf_tuple, sizeof(bpf_tuple.ipv4),
+					  &opts_def, sizeof(opts_def));
+			if (ct_lk)
+				bpf_ct_release(ct_lk);
+			else
+				test_ct_zone_id_enoent_lookup = opts_def.error;
+
+			bpf_ct_release(ct_ins);
+			test_ct_zone_id_insert_entry = 0;
+		}
+		test_ct_zone_id_alloc_entry = 0;
+	}
+}
+
 SEC("xdp")
 int nf_xdp_ct_test(struct xdp_md *ctx)
 {
 	nf_ct_test((void *)bpf_xdp_ct_lookup, (void *)bpf_xdp_ct_alloc, ctx);
+	nf_ct_opts_new_test((void *)bpf_xdp_ct_lookup, (void *)bpf_xdp_ct_alloc, ctx);
 	return 0;
 }
 
@@ -231,6 +338,7 @@ SEC("tc")
 int nf_skb_ct_test(struct __sk_buff *ctx)
 {
 	nf_ct_test((void *)bpf_skb_ct_lookup, (void *)bpf_skb_ct_alloc, ctx);
+	nf_ct_opts_new_test((void *)bpf_skb_ct_lookup, (void *)bpf_skb_ct_alloc, ctx);
 	return 0;
 }
 

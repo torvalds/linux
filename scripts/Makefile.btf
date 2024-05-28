@@ -14,9 +14,7 @@ pahole-flags-$(call test-ge, $(pahole-ver), 121)	+= --btf_gen_floats
 
 pahole-flags-$(call test-ge, $(pahole-ver), 122)	+= -j
 
-ifeq ($(pahole-ver), 125)
-pahole-flags-y	+= --skip_encoding_btf_inconsistent_proto --btf_gen_optimized
-endif
+pahole-flags-$(call test-ge, $(pahole-ver), 125)	+= --skip_encoding_btf_inconsistent_proto --btf_gen_optimized
 
 else
 

@@ -537,8 +537,10 @@ static void emit_atomic(u8 rd, u8 rs, s16 off, s32 imm, bool is64,
 	/* r0 = atomic_cmpxchg(dst_reg + off16, r0, src_reg); */
 	case BPF_CMPXCHG:
 		r0 = bpf_to_rv_reg(BPF_REG_0, ctx);
-		emit(is64 ? rv_addi(RV_REG_T2, r0, 0) :
-		     rv_addiw(RV_REG_T2, r0, 0), ctx);
+		if (is64)
+			emit_mv(RV_REG_T2, r0, ctx);
+		else
+			emit_addiw(RV_REG_T2, r0, 0, ctx);
 		emit(is64 ? rv_lr_d(r0, 0, rd, 0, 0) :
 		     rv_lr_w(r0, 0, rd, 0, 0), ctx);
 		jmp_offset = ninsns_rvoff(8);
@@ -868,7 +870,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	stack_size += 8;
 	sreg_off = stack_size;
 
-	stack_size = round_up(stack_size, 16);
+	stack_size = round_up(stack_size, STACK_ALIGN);
 
 	if (!is_struct_ops) {
 		/* For the trampoline called from function entry,
@@ -1960,7 +1962,7 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog)
 {
 	int i, stack_adjust = 0, store_offset, bpf_stack_adjust;
 
-	bpf_stack_adjust = round_up(ctx->prog->aux->stack_depth, 16);
+	bpf_stack_adjust = round_up(ctx->prog->aux->stack_depth, STACK_ALIGN);
 	if (bpf_stack_adjust)
 		mark_fp(ctx);
 
@@ -1982,7 +1984,7 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog)
 	if (ctx->arena_vm_start)
 		stack_adjust += 8;
 
-	stack_adjust = round_up(stack_adjust, 16);
+	stack_adjust = round_up(stack_adjust, STACK_ALIGN);
 	stack_adjust += bpf_stack_adjust;
 
 	store_offset = stack_adjust - 8;

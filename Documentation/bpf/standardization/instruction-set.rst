@@ -14,6 +14,13 @@ set architecture (ISA).
 Documentation conventions
 =========================
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in
+BCP 14 `<https://www.rfc-editor.org/info/rfc2119>`_
+`RFC8174 <https://www.rfc-editor.org/info/rfc8174>`_
+when, and only when, they appear in all capitals, as shown here.
+
 For brevity and consistency, this document refers to families
 of types using a shorthand syntax and refers to several expository,
 mnemonic functions when describing the semantics of instructions.
@@ -25,7 +32,7 @@ Types
 This document refers to integer types with the notation `SN` to specify
 a type's signedness (`S`) and bit width (`N`), respectively.
 
-.. table:: Meaning of signedness notation.
+.. table:: Meaning of signedness notation
 
   ==== =========
   S    Meaning
@@ -34,7 +41,7 @@ a type's signedness (`S`) and bit width (`N`), respectively.
   s    signed
   ==== =========
 
-.. table:: Meaning of bit-width notation.
+.. table:: Meaning of bit-width notation
 
   ===== =========
   N     Bit width
@@ -106,9 +113,9 @@ Conformance groups
 
 An implementation does not need to support all instructions specified in this
 document (e.g., deprecated instructions).  Instead, a number of conformance
-groups are specified.  An implementation must support the base32 conformance
-group and may support additional conformance groups, where supporting a
-conformance group means it must support all instructions in that conformance
+groups are specified.  An implementation MUST support the base32 conformance
+group and MAY support additional conformance groups, where supporting a
+conformance group means it MUST support all instructions in that conformance
 group.
 
 The use of named conformance groups enables interoperability between a runtime
@@ -209,7 +216,7 @@ For example::
   07     1       0        00 00  11 22 33 44  r1 += 0x11223344 // big
 
 Note that most instructions do not use all of the fields.
-Unused fields shall be cleared to zero.
+Unused fields SHALL be cleared to zero.
 
 Wide instruction encoding
 --------------------------
@@ -256,18 +263,20 @@ Instruction classes
 
 The three least significant bits of the 'opcode' field store the instruction class:
 
-=====  =====  ===============================  ===================================
-class  value  description                      reference
-=====  =====  ===============================  ===================================
-LD     0x0    non-standard load operations     `Load and store instructions`_
-LDX    0x1    load into register operations    `Load and store instructions`_
-ST     0x2    store from immediate operations  `Load and store instructions`_
-STX    0x3    store from register operations   `Load and store instructions`_
-ALU    0x4    32-bit arithmetic operations     `Arithmetic and jump instructions`_
-JMP    0x5    64-bit jump operations           `Arithmetic and jump instructions`_
-JMP32  0x6    32-bit jump operations           `Arithmetic and jump instructions`_
-ALU64  0x7    64-bit arithmetic operations     `Arithmetic and jump instructions`_
-=====  =====  ===============================  ===================================
+.. table:: Instruction class
+
+  =====  =====  ===============================  ===================================
+  class  value  description                      reference
+  =====  =====  ===============================  ===================================
+  LD     0x0    non-standard load operations     `Load and store instructions`_
+  LDX    0x1    load into register operations    `Load and store instructions`_
+  ST     0x2    store from immediate operations  `Load and store instructions`_
+  STX    0x3    store from register operations   `Load and store instructions`_
+  ALU    0x4    32-bit arithmetic operations     `Arithmetic and jump instructions`_
+  JMP    0x5    64-bit jump operations           `Arithmetic and jump instructions`_
+  JMP32  0x6    32-bit jump operations           `Arithmetic and jump instructions`_
+  ALU64  0x7    64-bit arithmetic operations     `Arithmetic and jump instructions`_
+  =====  =====  ===============================  ===================================
 
 Arithmetic and jump instructions
 ================================
@@ -285,12 +294,14 @@ For arithmetic and jump instructions (``ALU``, ``ALU64``, ``JMP`` and
 **s (source)**
   the source operand location, which unless otherwise specified is one of:
 
-  ======  =====  ==============================================
-  source  value  description
-  ======  =====  ==============================================
-  K       0      use 32-bit 'imm' value as source operand
-  X       1      use 'src_reg' register value as source operand
-  ======  =====  ==============================================
+  .. table:: Source operand location
+
+    ======  =====  ==============================================
+    source  value  description
+    ======  =====  ==============================================
+    K       0      use 32-bit 'imm' value as source operand
+    X       1      use 'src_reg' register value as source operand
+    ======  =====  ==============================================
 
 **instruction class**
   the instruction class (see `Instruction classes`_)
@@ -305,27 +316,29 @@ The 'code' field encodes the operation as below, where 'src' refers to the
 the source operand and 'dst' refers to the value of the destination
 register.
 
-=====  =====  =======  ==========================================================
-name   code   offset   description
-=====  =====  =======  ==========================================================
-ADD    0x0    0        dst += src
-SUB    0x1    0        dst -= src
-MUL    0x2    0        dst \*= src
-DIV    0x3    0        dst = (src != 0) ? (dst / src) : 0
-SDIV   0x3    1        dst = (src != 0) ? (dst s/ src) : 0
-OR     0x4    0        dst \|= src
-AND    0x5    0        dst &= src
-LSH    0x6    0        dst <<= (src & mask)
-RSH    0x7    0        dst >>= (src & mask)
-NEG    0x8    0        dst = -dst
-MOD    0x9    0        dst = (src != 0) ? (dst % src) : dst
-SMOD   0x9    1        dst = (src != 0) ? (dst s% src) : dst
-XOR    0xa    0        dst ^= src
-MOV    0xb    0        dst = src
-MOVSX  0xb    8/16/32  dst = (s8,s16,s32)src
-ARSH   0xc    0        :term:`sign extending<Sign Extend>` dst >>= (src & mask)
-END    0xd    0        byte swap operations (see `Byte swap instructions`_ below)
-=====  =====  =======  ==========================================================
+.. table:: Arithmetic instructions
+
+  =====  =====  =======  ==========================================================
+  name   code   offset   description
+  =====  =====  =======  ==========================================================
+  ADD    0x0    0        dst += src
+  SUB    0x1    0        dst -= src
+  MUL    0x2    0        dst \*= src
+  DIV    0x3    0        dst = (src != 0) ? (dst / src) : 0
+  SDIV   0x3    1        dst = (src != 0) ? (dst s/ src) : 0
+  OR     0x4    0        dst \|= src
+  AND    0x5    0        dst &= src
+  LSH    0x6    0        dst <<= (src & mask)
+  RSH    0x7    0        dst >>= (src & mask)
+  NEG    0x8    0        dst = -dst
+  MOD    0x9    0        dst = (src != 0) ? (dst % src) : dst
+  SMOD   0x9    1        dst = (src != 0) ? (dst s% src) : dst
+  XOR    0xa    0        dst ^= src
+  MOV    0xb    0        dst = src
+  MOVSX  0xb    8/16/32  dst = (s8,s16,s32)src
+  ARSH   0xc    0        :term:`sign extending<Sign Extend>` dst >>= (src & mask)
+  END    0xd    0        byte swap operations (see `Byte swap instructions`_ below)
+  =====  =====  =======  ==========================================================
 
 Underflow and overflow are allowed during arithmetic operations, meaning
 the 64-bit or 32-bit value will wrap. If BPF program execution would
@@ -374,7 +387,7 @@ interpreted as a 64-bit signed value.
 Note that there are varying definitions of the signed modulo operation
 when the dividend or divisor are negative, where implementations often
 vary by language such that Python, Ruby, etc.  differ from C, Go, Java,
-etc. This specification requires that signed modulo use truncated division
+etc. This specification requires that signed modulo MUST use truncated division
 (where -13 % 3 == -1) as implemented in C, Go, etc.::
 
    a % n = a - n * trunc(a / n)
@@ -385,6 +398,19 @@ The ``MOVSX`` instruction does a move operation with sign extension.
 ``{MOVSX, X, ALU64}`` :term:`sign extends<Sign Extend>` 8-bit, 16-bit, and 32-bit
 operands into 64-bit operands.  Unlike other arithmetic instructions,
 ``MOVSX`` is only defined for register source operands (``X``).
+
+``{MOV, K, ALU64}`` means::
+
+  dst = (s64)imm
+
+``{MOV, X, ALU}`` means::
+
+  dst = (u32)src
+
+``{MOVSX, X, ALU}`` with 'offset' 8 means::
+
+  dst = (u32)(s32)(s8)src
+
 
 The ``NEG`` instruction is only defined when the source bit is clear
 (``K``).
@@ -404,15 +430,17 @@ only and do not use a separate source register or immediate value.
 For ``ALU``, the 1-bit source operand field in the opcode is used to
 select what byte order the operation converts from or to. For
 ``ALU64``, the 1-bit source operand field in the opcode is reserved
-and must be set to 0.
+and MUST be set to 0.
 
-=====  ========  =====  =================================================
-class  source    value  description
-=====  ========  =====  =================================================
-ALU    TO_LE     0      convert between host byte order and little endian
-ALU    TO_BE     1      convert between host byte order and big endian
-ALU64  Reserved  0      do byte swap unconditionally
-=====  ========  =====  =================================================
+.. table:: Byte swap instructions
+
+  =====  ========  =====  =================================================
+  class  source    value  description
+  =====  ========  =====  =================================================
+  ALU    TO_LE     0      convert between host byte order and little endian
+  ALU    TO_BE     1      convert between host byte order and big endian
+  ALU64  Reserved  0      do byte swap unconditionally
+  =====  ========  =====  =================================================
 
 The 'imm' field encodes the width of the swap operations.  The following widths
 are supported: 16, 32 and 64.  Width 64 operations belong to the base64
@@ -448,36 +476,35 @@ otherwise identical operations, and indicates the base64 conformance
 group unless otherwise specified.
 The 'code' field encodes the operation as below:
 
-========  =====  =======  =================================  ===================================================
-code      value  src_reg  description                        notes
-========  =====  =======  =================================  ===================================================
-JA        0x0    0x0      PC += offset                       {JA, K, JMP} only
-JA        0x0    0x0      PC += imm                          {JA, K, JMP32} only
-JEQ       0x1    any      PC += offset if dst == src
-JGT       0x2    any      PC += offset if dst > src          unsigned
-JGE       0x3    any      PC += offset if dst >= src         unsigned
-JSET      0x4    any      PC += offset if dst & src
-JNE       0x5    any      PC += offset if dst != src
-JSGT      0x6    any      PC += offset if dst > src          signed
-JSGE      0x7    any      PC += offset if dst >= src         signed
-CALL      0x8    0x0      call helper function by static ID  {CALL, K, JMP} only, see `Helper functions`_
-CALL      0x8    0x1      call PC += imm                     {CALL, K, JMP} only, see `Program-local functions`_
-CALL      0x8    0x2      call helper function by BTF ID     {CALL, K, JMP} only, see `Helper functions`_
-EXIT      0x9    0x0      return                             {CALL, K, JMP} only
-JLT       0xa    any      PC += offset if dst < src          unsigned
-JLE       0xb    any      PC += offset if dst <= src         unsigned
-JSLT      0xc    any      PC += offset if dst < src          signed
-JSLE      0xd    any      PC += offset if dst <= src         signed
-========  =====  =======  =================================  ===================================================
+.. table:: Jump instructions
+
+  ========  =====  =======  =================================  ===================================================
+  code      value  src_reg  description                        notes
+  ========  =====  =======  =================================  ===================================================
+  JA        0x0    0x0      PC += offset                       {JA, K, JMP} only
+  JA        0x0    0x0      PC += imm                          {JA, K, JMP32} only
+  JEQ       0x1    any      PC += offset if dst == src
+  JGT       0x2    any      PC += offset if dst > src          unsigned
+  JGE       0x3    any      PC += offset if dst >= src         unsigned
+  JSET      0x4    any      PC += offset if dst & src
+  JNE       0x5    any      PC += offset if dst != src
+  JSGT      0x6    any      PC += offset if dst > src          signed
+  JSGE      0x7    any      PC += offset if dst >= src         signed
+  CALL      0x8    0x0      call helper function by static ID  {CALL, K, JMP} only, see `Helper functions`_
+  CALL      0x8    0x1      call PC += imm                     {CALL, K, JMP} only, see `Program-local functions`_
+  CALL      0x8    0x2      call helper function by BTF ID     {CALL, K, JMP} only, see `Helper functions`_
+  EXIT      0x9    0x0      return                             {CALL, K, JMP} only
+  JLT       0xa    any      PC += offset if dst < src          unsigned
+  JLE       0xb    any      PC += offset if dst <= src         unsigned
+  JSLT      0xc    any      PC += offset if dst < src          signed
+  JSLE      0xd    any      PC += offset if dst <= src         signed
+  ========  =====  =======  =================================  ===================================================
 
 where 'PC' denotes the program counter, and the offset to increment by
 is in units of 64-bit instructions relative to the instruction following
 the jump instruction.  Thus 'PC += 1' skips execution of the next
 instruction if it's a basic instruction or results in undefined behavior
 if the next instruction is a 128-bit wide instruction.
-
-The BPF program needs to store the return value into register R0 before doing an
-``EXIT``.
 
 Example:
 
@@ -486,6 +513,10 @@ Example:
   if (s32)dst s>= (s32)src goto +offset
 
 where 's>=' indicates a signed '>=' comparison.
+
+``{JLE, K, JMP}`` means::
+
+  if dst <= (u64)(s64)imm goto +offset
 
 ``{JA, K, JMP32}`` means::
 
@@ -515,14 +546,16 @@ for each program type, but static IDs are unique across all program types.
 
 Platforms that support the BPF Type Format (BTF) support identifying
 a helper function by a BTF ID encoded in the 'imm' field, where the BTF ID
-identifies the helper name and type.
+identifies the helper name and type.  Further documentation of BTF
+is outside the scope of this document and is left for future work.
 
 Program-local functions
 ~~~~~~~~~~~~~~~~~~~~~~~
 Program-local functions are functions exposed by the same BPF program as the
-caller, and are referenced by offset from the call instruction, similar to
-``JA``.  The offset is encoded in the 'imm' field of the call instruction.
-An ``EXIT`` within the program-local function will return to the caller.
+caller, and are referenced by offset from the instruction following the call
+instruction, similar to ``JA``.  The offset is encoded in the 'imm' field of
+the call instruction. An ``EXIT`` within the program-local function will
+return to the caller.
 
 Load and store instructions
 ===========================
@@ -537,6 +570,8 @@ For load and store instructions (``LD``, ``LDX``, ``ST``, and ``STX``), the
 **mode**
   The mode modifier is one of:
 
+  .. table:: Mode modifier
+
     =============  =====  ====================================  =============
     mode modifier  value  description                           reference
     =============  =====  ====================================  =============
@@ -550,6 +585,8 @@ For load and store instructions (``LD``, ``LDX``, ``ST``, and ``STX``), the
 
 **sz (size)**
   The size modifier is one of:
+
+  .. table:: Size modifier
 
     ====  =====  =====================
     size  value  description
@@ -619,14 +656,16 @@ The 'imm' field is used to encode the actual atomic operation.
 Simple atomic operation use a subset of the values defined to encode
 arithmetic operations in the 'imm' field to encode the atomic operation:
 
-========  =====  ===========
-imm       value  description
-========  =====  ===========
-ADD       0x00   atomic add
-OR        0x40   atomic or
-AND       0x50   atomic and
-XOR       0xa0   atomic xor
-========  =====  ===========
+.. table:: Simple atomic operations
+
+  ========  =====  ===========
+  imm       value  description
+  ========  =====  ===========
+  ADD       0x00   atomic add
+  OR        0x40   atomic or
+  AND       0x50   atomic and
+  XOR       0xa0   atomic xor
+  ========  =====  ===========
 
 
 ``{ATOMIC, W, STX}`` with 'imm' = ADD means::
@@ -640,13 +679,15 @@ XOR       0xa0   atomic xor
 In addition to the simple atomic operations, there also is a modifier and
 two complex atomic operations:
 
-===========  ================  ===========================
-imm          value             description
-===========  ================  ===========================
-FETCH        0x01              modifier: return old value
-XCHG         0xe0 | FETCH      atomic exchange
-CMPXCHG      0xf0 | FETCH      atomic compare and exchange
-===========  ================  ===========================
+.. table:: Complex atomic operations
+
+  ===========  ================  ===========================
+  imm          value             description
+  ===========  ================  ===========================
+  FETCH        0x01              modifier: return old value
+  XCHG         0xe0 | FETCH      atomic exchange
+  CMPXCHG      0xf0 | FETCH      atomic compare and exchange
+  ===========  ================  ===========================
 
 The ``FETCH`` modifier is optional for simple atomic operations, and
 always set for the complex atomic operations.  If the ``FETCH`` flag
@@ -673,17 +714,19 @@ The following table defines a set of ``{IMM, DW, LD}`` instructions
 with opcode subtypes in the 'src_reg' field, using new terms such as "map"
 defined further below:
 
-=======  =========================================  ===========  ==============
-src_reg  pseudocode                                 imm type     dst type
-=======  =========================================  ===========  ==============
-0x0      dst = (next_imm << 32) | imm               integer      integer
-0x1      dst = map_by_fd(imm)                       map fd       map
-0x2      dst = map_val(map_by_fd(imm)) + next_imm   map fd       data address
-0x3      dst = var_addr(imm)                        variable id  data address
-0x4      dst = code_addr(imm)                       integer      code address
-0x5      dst = map_by_idx(imm)                      map index    map
-0x6      dst = map_val(map_by_idx(imm)) + next_imm  map index    data address
-=======  =========================================  ===========  ==============
+.. table:: 64-bit immediate instructions
+
+  =======  =========================================  ===========  ==============
+  src_reg  pseudocode                                 imm type     dst type
+  =======  =========================================  ===========  ==============
+  0x0      dst = (next_imm << 32) | imm               integer      integer
+  0x1      dst = map_by_fd(imm)                       map fd       map
+  0x2      dst = map_val(map_by_fd(imm)) + next_imm   map fd       data address
+  0x3      dst = var_addr(imm)                        variable id  data address
+  0x4      dst = code_addr(imm)                       integer      code address
+  0x5      dst = map_by_idx(imm)                      map index    map
+  0x6      dst = map_val(map_by_idx(imm)) + next_imm  map index    data address
+  =======  =========================================  ===========  ==============
 
 where
 
@@ -725,5 +768,5 @@ carried over from classic BPF. These instructions used an instruction
 class of ``LD``, a size modifier of ``W``, ``H``, or ``B``, and a
 mode modifier of ``ABS`` or ``IND``.  The 'dst_reg' and 'offset' fields were
 set to zero, and 'src_reg' was set to zero for ``ABS``.  However, these
-instructions are deprecated and should no longer be used.  All legacy packet
+instructions are deprecated and SHOULD no longer be used.  All legacy packet
 access instructions belong to the "packet" conformance group.
