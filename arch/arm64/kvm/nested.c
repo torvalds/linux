@@ -58,8 +58,10 @@ static u64 limit_nv_id_reg(u32 id, u64 val)
 		break;
 
 	case SYS_ID_AA64PFR1_EL1:
-		/* Only support SSBS */
-		val &= NV_FTR(PFR1, SSBS);
+		/* Only support BTI, SSBS, CSV2_frac */
+		val &= (NV_FTR(PFR1, BT)	|
+			NV_FTR(PFR1, SSBS)	|
+			NV_FTR(PFR1, CSV2_frac));
 		break;
 
 	case SYS_ID_AA64MMFR0_EL1:
