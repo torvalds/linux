@@ -84,37 +84,6 @@
 		vin-supply = <&vddao_3v3>;
 		regulator-always-on;
 	};
-};
-
-/* Bluetooth HCI H4 */
-&uart_AO {
-	status = "okay";
-	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
-	pinctrl-names = "default";
-};
-
-&uart_AO_B {
-	status = "okay";
-};
-
-&saradc {
-	status = "okay";
-	vref-supply = <&vddio_1v8>;
-};
-
-&spifc {
-	status = "okay";
-	pinctrl-0 = <&spifc_pins>;
-	pinctrl-names = "default";
-
-	flash@0 {
-		compatible = "spi-nand";
-		status = "okay";
-		reg = <0>;
-		spi-max-frequency = <96000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-	};
 
 	thermal-zones {
 		soc_thermal: soc_thermal {
@@ -158,6 +127,37 @@
 				};
 			};
 		};
+	};
+};
+
+/* Bluetooth HCI H4 */
+&uart_AO {
+	status = "okay";
+	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
+	pinctrl-names = "default";
+};
+
+&uart_AO_B {
+	status = "okay";
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vddio_1v8>;
+};
+
+&spifc {
+	status = "okay";
+	pinctrl-0 = <&spifc_pins>;
+	pinctrl-names = "default";
+
+	flash@0 {
+		compatible = "spi-nand";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <96000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 };
 
