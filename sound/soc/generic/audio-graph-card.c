@@ -149,26 +149,44 @@ static int graph_parse_node(struct simple_util_priv *priv,
 }
 
 static int graph_link_init(struct simple_util_priv *priv,
-			   struct device_node *cpu_ep,
-			   struct device_node *codec_ep,
+			   struct device_node *ep_cpu,
+			   struct device_node *ep_codec,
 			   struct link_info *li,
 			   char *name)
 {
 	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *top = dev->of_node;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct device_node *port_cpu = ep_to_port(ep_cpu);
+	struct device_node *port_codec = ep_to_port(ep_codec);
+	bool playback_only = 0, capture_only = 0;
 	int ret;
 
-	ret = simple_util_parse_daifmt(dev, cpu_ep, codec_ep,
+	ret = simple_util_parse_daifmt(dev, ep_cpu, ep_codec,
 				       NULL, &dai_link->dai_fmt);
 	if (ret < 0)
-		return ret;
+		goto init_end;
+
+	graph_util_parse_link_direction(top,		&playback_only, &capture_only);
+	graph_util_parse_link_direction(port_cpu,	&playback_only, &capture_only);
+	graph_util_parse_link_direction(port_codec,	&playback_only, &capture_only);
+	graph_util_parse_link_direction(ep_cpu,		&playback_only, &capture_only);
+	graph_util_parse_link_direction(ep_codec,	&playback_only, &capture_only);
+
+	dai_link->playback_only	= playback_only;
+	dai_link->capture_only	= capture_only;
 
 	dai_link->init		= simple_util_dai_init;
 	dai_link->ops		= &graph_ops;
 	if (priv->ops)
 		dai_link->ops	= priv->ops;
 
-	return simple_util_set_dailink_name(dev, dai_link, name);
+	ret = simple_util_set_dailink_name(dev, dai_link, name);
+init_end:
+	of_node_put(port_cpu);
+	of_node_put(port_codec);
+
+	return ret;
 }
 
 static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
