@@ -29,7 +29,6 @@
 #include <linux/lockdep.h>
 #include <linux/cleanup.h>
 #include <asm/processor.h>
-#include <linux/cpumask.h>
 #include <linux/context_tracking_irq.h>
 
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
