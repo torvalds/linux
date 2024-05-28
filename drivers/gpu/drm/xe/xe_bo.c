@@ -1758,11 +1758,10 @@ void xe_bo_unpin_external(struct xe_bo *bo)
 	xe_assert(xe, xe_bo_is_pinned(bo));
 	xe_assert(xe, xe_bo_is_user(bo));
 
-	if (bo->ttm.pin_count == 1 && !list_empty(&bo->pinned_link)) {
-		spin_lock(&xe->pinned.lock);
+	spin_lock(&xe->pinned.lock);
+	if (bo->ttm.pin_count == 1 && !list_empty(&bo->pinned_link))
 		list_del_init(&bo->pinned_link);
-		spin_unlock(&xe->pinned.lock);
-	}
+	spin_unlock(&xe->pinned.lock);
 
 	ttm_bo_unpin(&bo->ttm);
 
@@ -1785,9 +1784,8 @@ void xe_bo_unpin(struct xe_bo *bo)
 		struct ttm_place *place = &(bo->placements[0]);
 
 		if (mem_type_is_vram(place->mem_type)) {
-			xe_assert(xe, !list_empty(&bo->pinned_link));
-
 			spin_lock(&xe->pinned.lock);
+			xe_assert(xe, !list_empty(&bo->pinned_link));
 			list_del_init(&bo->pinned_link);
 			spin_unlock(&xe->pinned.lock);
 		}
