@@ -4034,11 +4034,12 @@ static int icl_add_linked_planes(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
+static int icl_check_nv12_planes(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_plane *plane, *linked;
 	struct intel_plane_state *plane_state;
 	int i;
@@ -5819,7 +5820,7 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 					    new_crtc_state, i) {
 		u8 old_active_planes, new_active_planes;
 
-		ret = icl_check_nv12_planes(new_crtc_state);
+		ret = icl_check_nv12_planes(state, crtc);
 		if (ret)
 			return ret;
 
