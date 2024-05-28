@@ -36,7 +36,6 @@
 #include <linux/miscdevice.h>
 #include <linux/rhashtable.h>
 #include <linux/mutex.h>
-#include <linux/idr.h>
 #include <linux/xarray.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
@@ -317,7 +316,7 @@ struct dlm_rsb {
 	int			res_nodeid;
 	int			res_master_nodeid;
 	int			res_dir_nodeid;
-	int			res_id;		/* for ls_recover_idr */
+	unsigned long		res_id;		/* for ls_recover_xa */
 	uint32_t                res_lvbseq;
 	uint32_t		res_hash;
 	unsigned long		res_toss_time;
@@ -649,8 +648,8 @@ struct dlm_ls {
 	struct list_head	ls_recover_list;
 	spinlock_t		ls_recover_list_lock;
 	int			ls_recover_list_count;
-	struct idr		ls_recover_idr;
-	spinlock_t		ls_recover_idr_lock;
+	struct xarray		ls_recover_xa;
+	spinlock_t		ls_recover_xa_lock;
 	wait_queue_head_t	ls_wait_general;
 	wait_queue_head_t	ls_recover_lock_wait;
 	spinlock_t		ls_clear_proc_locks;

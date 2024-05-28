@@ -481,8 +481,8 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	INIT_LIST_HEAD(&ls->ls_recover_list);
 	spin_lock_init(&ls->ls_recover_list_lock);
-	idr_init(&ls->ls_recover_idr);
-	spin_lock_init(&ls->ls_recover_idr_lock);
+	xa_init_flags(&ls->ls_recover_xa, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_BH);
+	spin_lock_init(&ls->ls_recover_xa_lock);
 	ls->ls_recover_list_count = 0;
 	init_waitqueue_head(&ls->ls_wait_general);
 	INIT_LIST_HEAD(&ls->ls_masters_list);
@@ -570,7 +570,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	spin_lock_bh(&lslist_lock);
 	list_del(&ls->ls_list);
 	spin_unlock_bh(&lslist_lock);
-	idr_destroy(&ls->ls_recover_idr);
+	xa_destroy(&ls->ls_recover_xa);
 	kfree(ls->ls_recover_buf);
  out_lkbxa:
 	xa_destroy(&ls->ls_lkbxa);
@@ -736,7 +736,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	dlm_delete_debug_file(ls);
 
-	idr_destroy(&ls->ls_recover_idr);
+	xa_destroy(&ls->ls_recover_xa);
 	kfree(ls->ls_recover_buf);
 
 	/*
