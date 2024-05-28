@@ -2154,6 +2154,8 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 
 	dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
 
+	for (i = 0; i < context->stream_count; i++)
+		resource_update_pipes_for_stream_with_slice_count(context, dc->current_state, dc->res_pool, context->streams[i], 1);
 	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 
 	if (!pipe_cnt) {
