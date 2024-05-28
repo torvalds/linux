@@ -24,7 +24,7 @@ struct ams_iaqcore_reading {
 	u8 status;
 	__be32 resistance;
 	__be16 voc_ppb;
-} __attribute__((__packed__));
+} __packed;
 
 struct ams_iaqcore_data {
 	struct i2c_client *client;
