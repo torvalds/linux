@@ -148,6 +148,9 @@
 #define WLED5_SINK_MOD_B_BRT_LSB_REG	0x63
 #define WLED5_SINK_MOD_B_BRT_MSB_REG	0x64
 
+#define WLED5_SINK_CABC_STRETCH_CTL_REG	0x57
+#define WLED5_SINK_EN_CABC_STRETCH	BIT(7)
+
 #define WLED5_SINK_MOD_SYNC_BIT_REG	0x65
 #define  WLED5_SINK_SYNC_MODA_BIT	BIT(0)
 #define  WLED5_SINK_SYNC_MODB_BIT	BIT(1)
@@ -185,6 +188,9 @@
 #define WLED5_EN_SLEW_CTL		BIT(7)
 #define WLED5_EN_EXP_LUT		BIT(6)
 #define WLED5_SLEW_RAMP_TIME_SEL	GENMASK(3, 0)
+
+#define  WLED5_SINK_DIG_HYS_FILT_REG	0xbc
+#define  WLED5_SINK_LSB_NOISE_THRESH	GENMASK(2, 0)
 
 #define WLED5_SINK_DIMMING_EXP_LUT0_LSB_REG	0xc0
 #define WLED5_SINK_DIMMING_EXP_LUT0_MSB_REG	0xc1
@@ -694,8 +700,22 @@ static int wled5_cabc_config(struct wled *wled, bool enable)
 		return rc;
 	}
 
-	if (!wled->cfg.cabc_sel)
+	if (!wled->cfg.cabc_sel) {
 		wled->cabc_disabled = true;
+		if (wled_exp_dimming_supported(wled)) {
+			rc = regmap_update_bits(wled->regmap,
+				wled->sink_addr + WLED5_SINK_CABC_STRETCH_CTL_REG,
+				WLED5_SINK_EN_CABC_STRETCH, 0);
+			if (rc < 0)
+				return rc;
+
+			rc = regmap_update_bits(wled->regmap,
+				wled->sink_addr + WLED5_SINK_DIG_HYS_FILT_REG,
+				WLED5_SINK_LSB_NOISE_THRESH, 0);
+			if (rc < 0)
+				return rc;
+		}
+	}
 
 	return 0;
 }
