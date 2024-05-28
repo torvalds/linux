@@ -94,29 +94,12 @@ static void graph_parse_convert(struct device *dev,
 	of_node_put(node);
 }
 
-static void graph_parse_mclk_fs(struct device_node *top,
-				struct device_node *ep,
-				struct simple_dai_props *props)
-{
-	struct device_node *port	= ep_to_port(ep);
-	struct device_node *ports	= port_to_ports(port);
-
-	of_property_read_u32(top,	"mclk-fs", &props->mclk_fs);
-	of_property_read_u32(ports,	"mclk-fs", &props->mclk_fs);
-	of_property_read_u32(port,	"mclk-fs", &props->mclk_fs);
-	of_property_read_u32(ep,	"mclk-fs", &props->mclk_fs);
-
-	of_node_put(port);
-	of_node_put(ports);
-}
-
 static int graph_parse_node(struct simple_util_priv *priv,
 			    struct device_node *ep,
 			    struct link_info *li,
 			    int *cpu)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *top = dev->of_node;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct snd_soc_dai_link_component *dlc;
@@ -130,8 +113,6 @@ static int graph_parse_node(struct simple_util_priv *priv,
 		dlc = snd_soc_link_to_codec(dai_link, 0);
 		dai = simple_props_to_dai_codec(dai_props, 0);
 	}
-
-	graph_parse_mclk_fs(top, ep, dai_props);
 
 	ret = graph_util_parse_dai(dev, ep, dlc, cpu);
 	if (ret < 0)
@@ -157,8 +138,11 @@ static int graph_link_init(struct simple_util_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *top = dev->of_node;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct device_node *port_cpu = ep_to_port(ep_cpu);
 	struct device_node *port_codec = ep_to_port(ep_codec);
+	struct device_node *ports_cpu = port_to_ports(port_cpu);
+	struct device_node *ports_codec = port_to_ports(port_codec);
 	bool playback_only = 0, capture_only = 0;
 	int ret;
 
@@ -173,6 +157,14 @@ static int graph_link_init(struct simple_util_priv *priv,
 	graph_util_parse_link_direction(ep_cpu,		&playback_only, &capture_only);
 	graph_util_parse_link_direction(ep_codec,	&playback_only, &capture_only);
 
+	of_property_read_u32(top,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ports_cpu,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ports_codec,	"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(port_cpu,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(port_codec,	"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ep_cpu,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ep_codec,		"mclk-fs", &dai_props->mclk_fs);
+
 	dai_link->playback_only	= playback_only;
 	dai_link->capture_only	= capture_only;
 
@@ -183,6 +175,8 @@ static int graph_link_init(struct simple_util_priv *priv,
 
 	ret = simple_util_set_dailink_name(dev, dai_link, name);
 init_end:
+	of_node_put(ports_cpu);
+	of_node_put(ports_codec);
 	of_node_put(port_cpu);
 	of_node_put(port_codec);
 
