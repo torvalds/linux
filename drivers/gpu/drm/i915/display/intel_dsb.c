@@ -328,14 +328,10 @@ static int intel_dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
 	unsigned int latency = skl_watermark_max_latency(i915, 0);
 	int vblank_start;
 
-	if (crtc_state->vrr.enable) {
+	if (crtc_state->vrr.enable)
 		vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
-	} else {
-		vblank_start = adjusted_mode->crtc_vblank_start;
-
-		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-			vblank_start = DIV_ROUND_UP(vblank_start, 2);
-	}
+	else
+		vblank_start = intel_mode_vblank_start(adjusted_mode);
 
 	return max(0, vblank_start - intel_usecs_to_scanlines(adjusted_mode, latency));
 }

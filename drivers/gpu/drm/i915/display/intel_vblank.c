@@ -89,9 +89,7 @@ u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 
 	htotal = mode->crtc_htotal;
 	hsync_start = mode->crtc_hsync_start;
-	vbl_start = mode->crtc_vblank_start;
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		vbl_start = DIV_ROUND_UP(vbl_start, 2);
+	vbl_start = intel_mode_vblank_start(mode);
 
 	/* Convert to pixel count */
 	vbl_start *= htotal;
@@ -313,11 +311,10 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	htotal = mode->crtc_htotal;
 	hsync_start = mode->crtc_hsync_start;
 	vtotal = mode->crtc_vtotal;
-	vbl_start = mode->crtc_vblank_start;
+	vbl_start = intel_mode_vblank_start(mode);
 	vbl_end = mode->crtc_vblank_end;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		vbl_start = DIV_ROUND_UP(vbl_start, 2);
 		vbl_end /= 2;
 		vtotal /= 2;
 	}
@@ -577,7 +574,7 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 	spin_unlock_irqrestore(&i915->drm.vblank_time_lock, irqflags);
 }
 
-static int intel_mode_vblank_start(const struct drm_display_mode *mode)
+int intel_mode_vblank_start(const struct drm_display_mode *mode)
 {
 	int vblank_start = mode->crtc_vblank_start;
 
