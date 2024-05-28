@@ -172,7 +172,7 @@ def parse_do_attributes(attrs: Dict[str, Any], level: int = 0) -> str:
 
 def parse_operations(operations: List[Dict[str, Any]], namespace: str) -> str:
     """Parse operations block"""
-    preprocessed = ["name", "doc", "title", "do", "dump"]
+    preprocessed = ["name", "doc", "title", "do", "dump", "flags"]
     linkable = ["fixed-header", "attribute-set"]
     lines = []
 
@@ -188,6 +188,8 @@ def parse_operations(operations: List[Dict[str, Any]], namespace: str) -> str:
             if key in linkable:
                 value = rst_ref(namespace, key, value)
             lines.append(rst_fields(key, value, 0))
+        if 'flags' in operation:
+            lines.append(rst_fields('flags', rst_list_inline(operation['flags'])))
 
         if "do" in operation:
             lines.append(rst_paragraph(":do:", 0))
