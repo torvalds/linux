@@ -377,7 +377,7 @@ int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
 #define P_REG_TIMETUS_L			0x410
 #define P_REG_TIMETUS_U			0x414
 
-#define P_REG_40B_LOW_M			0xFF
+#define P_REG_40B_LOW_M			GENMASK(7, 0)
 #define P_REG_40B_HIGH_S		8
 
 /* PHY window length registers */
