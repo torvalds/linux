@@ -20,6 +20,13 @@ pub struct AllocError;
 #[derive(Clone, Copy)]
 pub struct Flags(u32);
 
+impl Flags {
+    /// Get the raw representation of this flag.
+    pub(crate) fn as_raw(self) -> u32 {
+        self.0
+    }
+}
+
 impl core::ops::BitOr for Flags {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self::Output {
