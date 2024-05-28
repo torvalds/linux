@@ -7,6 +7,7 @@
  *
  * Datasheets of supported parts:
  * ad7380/1 : https://www.analog.com/media/en/technical-documentation/data-sheets/AD7380-7381.pdf
+ * ad7383/4 : https://www.analog.com/media/en/technical-documentation/data-sheets/ad7383-7384.pdf
  */
 
 #include <linux/bitfield.h>
@@ -66,16 +67,19 @@ struct ad7380_chip_info {
 	const char *name;
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
+	const char * const *vcm_supplies;
+	unsigned int num_vcm_supplies;
 };
 
-#define AD7380_CHANNEL(index, bits) {				\
+#define AD7380_CHANNEL(index, bits, diff) {			\
 	.type = IIO_VOLTAGE,					\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+		((diff) ? 0 : BIT(IIO_CHAN_INFO_OFFSET)),	\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 	.indexed = 1,						\
-	.differential = 1,					\
-	.channel = 2 * (index),					\
-	.channel2 = 2 * (index) + 1,				\
+	.differential = (diff),					\
+	.channel = (diff) ? (2 * (index)) : (index),		\
+	.channel2 = (diff) ? (2 * (index) + 1) : 0,		\
 	.scan_index = (index),					\
 	.scan_type = {						\
 		.sign = 's',					\
@@ -85,15 +89,23 @@ struct ad7380_chip_info {
 	},							\
 }
 
-#define DEFINE_AD7380_2_CHANNEL(name, bits)	\
-static const struct iio_chan_spec name[] = {	\
-	AD7380_CHANNEL(0, bits),		\
-	AD7380_CHANNEL(1, bits),		\
-	IIO_CHAN_SOFT_TIMESTAMP(2),		\
+#define DEFINE_AD7380_2_CHANNEL(name, bits, diff)	\
+static const struct iio_chan_spec name[] = {		\
+	AD7380_CHANNEL(0, bits, diff),			\
+	AD7380_CHANNEL(1, bits, diff),			\
+	IIO_CHAN_SOFT_TIMESTAMP(2),			\
 }
 
-DEFINE_AD7380_2_CHANNEL(ad7380_channels, 16);
-DEFINE_AD7380_2_CHANNEL(ad7381_channels, 14);
+/* fully differential */
+DEFINE_AD7380_2_CHANNEL(ad7380_channels, 16, 1);
+DEFINE_AD7380_2_CHANNEL(ad7381_channels, 14, 1);
+/* pseudo differential */
+DEFINE_AD7380_2_CHANNEL(ad7383_channels, 16, 0);
+DEFINE_AD7380_2_CHANNEL(ad7384_channels, 14, 0);
+
+static const char * const ad7380_2_channel_vcm_supplies[] = {
+	"aina", "ainb",
+};
 
 /* Since this is simultaneous sampling, we don't allow individual channels. */
 static const unsigned long ad7380_2_channel_scan_masks[] = {
@@ -113,11 +125,28 @@ static const struct ad7380_chip_info ad7381_chip_info = {
 	.num_channels = ARRAY_SIZE(ad7381_channels),
 };
 
+static const struct ad7380_chip_info ad7383_chip_info = {
+	.name = "ad7383",
+	.channels = ad7383_channels,
+	.num_channels = ARRAY_SIZE(ad7383_channels),
+	.vcm_supplies = ad7380_2_channel_vcm_supplies,
+	.num_vcm_supplies = ARRAY_SIZE(ad7380_2_channel_vcm_supplies),
+};
+
+static const struct ad7380_chip_info ad7384_chip_info = {
+	.name = "ad7384",
+	.channels = ad7384_channels,
+	.num_channels = ARRAY_SIZE(ad7384_channels),
+	.vcm_supplies = ad7380_2_channel_vcm_supplies,
+	.num_vcm_supplies = ARRAY_SIZE(ad7380_2_channel_vcm_supplies),
+};
+
 struct ad7380_state {
 	const struct ad7380_chip_info *chip_info;
 	struct spi_device *spi;
 	struct regmap *regmap;
 	unsigned int vref_mv;
+	unsigned int vcm_mv[2];
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -288,13 +317,24 @@ static int ad7380_read_raw(struct iio_dev *indio_dev,
 		unreachable();
 	case IIO_CHAN_INFO_SCALE:
 		/*
-		 * According to the datasheet, the LSB size for fully differential ADC is
-		 * (2 × VREF) / 2^N, where N is the ADC resolution (i.e realbits)
+		 * According to the datasheet, the LSB size is:
+		 *    * (2 × VREF) / 2^N, for differential chips
+		 *    * VREF / 2^N, for pseudo-differential chips
+		 * where N is the ADC resolution (i.e realbits)
 		 */
 		*val = st->vref_mv;
-		*val2 = chan->scan_type.realbits - 1;
+		*val2 = chan->scan_type.realbits - chan->differential;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
+	case IIO_CHAN_INFO_OFFSET:
+		/*
+		 * According to IIO ABI, offset is applied before scale,
+		 * so offset is: vcm_mv / scale
+		 */
+		*val = st->vcm_mv[chan->channel] * (1 << chan->scan_type.realbits)
+			/ st->vref_mv;
+
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -341,7 +381,7 @@ static int ad7380_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	struct ad7380_state *st;
 	struct regulator *vref;
-	int ret;
+	int ret, i;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
@@ -385,6 +425,40 @@ static int ad7380_probe(struct spi_device *spi)
 		st->vref_mv = AD7380_INTERNAL_REF_MV;
 	}
 
+	if (st->chip_info->num_vcm_supplies > ARRAY_SIZE(st->vcm_mv))
+		return dev_err_probe(&spi->dev, -EINVAL,
+				     "invalid number of VCM supplies\n");
+
+	/*
+	 * pseudo-differential chips have common mode supplies for the negative
+	 * input pin.
+	 */
+	for (i = 0; i < st->chip_info->num_vcm_supplies; i++) {
+		struct regulator *vcm;
+
+		vcm = devm_regulator_get(&spi->dev,
+					 st->chip_info->vcm_supplies[i]);
+		if (IS_ERR(vcm))
+			return dev_err_probe(&spi->dev, PTR_ERR(vcm),
+					     "Failed to get %s regulator\n",
+					     st->chip_info->vcm_supplies[i]);
+
+		ret = regulator_enable(vcm);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(&spi->dev,
+					       ad7380_regulator_disable, vcm);
+		if (ret)
+			return ret;
+
+		ret = regulator_get_voltage(vcm);
+		if (ret < 0)
+			return ret;
+
+		st->vcm_mv[i] = ret / 1000;
+	}
+
 	st->regmap = devm_regmap_init(&spi->dev, NULL, st, &ad7380_regmap_config);
 	if (IS_ERR(st->regmap))
 		return dev_err_probe(&spi->dev, PTR_ERR(st->regmap),
@@ -413,12 +487,16 @@ static int ad7380_probe(struct spi_device *spi)
 static const struct of_device_id ad7380_of_match_table[] = {
 	{ .compatible = "adi,ad7380", .data = &ad7380_chip_info },
 	{ .compatible = "adi,ad7381", .data = &ad7381_chip_info },
+	{ .compatible = "adi,ad7383", .data = &ad7383_chip_info },
+	{ .compatible = "adi,ad7384", .data = &ad7384_chip_info },
 	{ }
 };
 
 static const struct spi_device_id ad7380_id_table[] = {
 	{ "ad7380", (kernel_ulong_t)&ad7380_chip_info },
 	{ "ad7381", (kernel_ulong_t)&ad7381_chip_info },
+	{ "ad7383", (kernel_ulong_t)&ad7383_chip_info },
+	{ "ad7384", (kernel_ulong_t)&ad7384_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7380_id_table);
