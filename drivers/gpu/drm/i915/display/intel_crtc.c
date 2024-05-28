@@ -411,8 +411,8 @@ static void intel_crtc_vblank_work(struct kthread_work *base)
 	if (crtc_state->uapi.event) {
 		spin_lock_irq(&crtc->base.dev->event_lock);
 		drm_crtc_send_vblank_event(&crtc->base, crtc_state->uapi.event);
-		crtc_state->uapi.event = NULL;
 		spin_unlock_irq(&crtc->base.dev->event_lock);
+		crtc_state->uapi.event = NULL;
 	}
 
 	trace_intel_crtc_vblank_work_end(crtc);
