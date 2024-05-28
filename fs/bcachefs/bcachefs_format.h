@@ -516,6 +516,7 @@ struct bch_sb_field {
 #include "subvolume_format.h"
 #include "sb-counters_format.h"
 #include "sb-downgrade_format.h"
+#include "sb-errors_format.h"
 #include "sb-members_format.h"
 #include "xattr_format.h"
 
@@ -666,17 +667,6 @@ struct bch_sb_field_clean {
 	struct jset_entry	start[0];
 	__u64			_data[];
 };
-
-struct bch_sb_field_errors {
-	struct bch_sb_field	field;
-	struct bch_sb_field_error_entry {
-		__le64		v;
-		__le64		last_error_time;
-	}			entries[];
-};
-
-LE64_BITMASK(BCH_SB_ERROR_ENTRY_ID,	struct bch_sb_field_error_entry, v,  0, 16);
-LE64_BITMASK(BCH_SB_ERROR_ENTRY_NR,	struct bch_sb_field_error_entry, v, 16, 64);
 
 struct bch_sb_field_ext {
 	struct bch_sb_field	field;
