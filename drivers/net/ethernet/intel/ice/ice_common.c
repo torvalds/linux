@@ -2314,8 +2314,13 @@ ice_parse_1588_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_p,
 	info->tmr_index_owned = ((number & ICE_TS_TMR_IDX_OWND_M) != 0);
 	info->tmr_index_assoc = ((number & ICE_TS_TMR_IDX_ASSOC_M) != 0);
 
-	info->clk_freq = FIELD_GET(ICE_TS_CLK_FREQ_M, number);
-	info->clk_src = ((number & ICE_TS_CLK_SRC_M) != 0);
+	if (!ice_is_e825c(hw)) {
+		info->clk_freq = FIELD_GET(ICE_TS_CLK_FREQ_M, number);
+		info->clk_src = ((number & ICE_TS_CLK_SRC_M) != 0);
+	} else {
+		info->clk_freq = ICE_TIME_REF_FREQ_156_250;
+		info->clk_src = ICE_CLK_SRC_TCXO;
+	}
 
 	if (info->clk_freq < NUM_ICE_TIME_REF_FREQ) {
 		info->time_ref = (enum ice_time_ref_freq)info->clk_freq;
