@@ -3067,11 +3067,13 @@ bool ice_is_100m_speed_supported(struct ice_hw *hw)
  * Note: In the structure of [phy_type_low, phy_type_high], there should
  * be one bit set, as this function will convert one PHY type to its
  * speed.
- * If no bit gets set, ICE_AQ_LINK_SPEED_UNKNOWN will be returned
- * If more than one bit gets set, ICE_AQ_LINK_SPEED_UNKNOWN will be returned
+ *
+ * Return:
+ * * PHY speed for recognized PHY type
+ * * If no bit gets set, ICE_AQ_LINK_SPEED_UNKNOWN will be returned
+ * * If more than one bit gets set, ICE_AQ_LINK_SPEED_UNKNOWN will be returned
  */
-static u16
-ice_get_link_speed_based_on_phy_type(u64 phy_type_low, u64 phy_type_high)
+u16 ice_get_link_speed_based_on_phy_type(u64 phy_type_low, u64 phy_type_high)
 {
 	u16 speed_phy_type_high = ICE_AQ_LINK_SPEED_UNKNOWN;
 	u16 speed_phy_type_low = ICE_AQ_LINK_SPEED_UNKNOWN;

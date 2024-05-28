@@ -322,7 +322,9 @@ enum ice_time_ref_freq {
 	ICE_TIME_REF_FREQ_156_250	= 4,
 	ICE_TIME_REF_FREQ_245_760	= 5,
 
-	NUM_ICE_TIME_REF_FREQ
+	NUM_ICE_TIME_REF_FREQ,
+
+	ICE_TIME_REF_FREQ_INVALID	= -1,
 };
 
 /* Clock source specification */
@@ -821,15 +823,29 @@ struct ice_mbx_data {
 #define ICE_PORTS_PER_QUAD	4
 #define ICE_GET_QUAD_NUM(port) ((port) / ICE_PORTS_PER_QUAD)
 
+struct ice_eth56g_params {
+	u8 num_phys;
+	u8 phy_addr[2];
+	bool onestep_ena;
+	bool sfd_ena;
+	u32 peer_delay;
+};
+
+union ice_phy_params {
+	struct ice_eth56g_params eth56g;
+};
+
 /* PHY model */
 enum ice_phy_model {
 	ICE_PHY_UNSUP = -1,
-	ICE_PHY_E810  = 1,
+	ICE_PHY_E810 = 1,
 	ICE_PHY_E82X,
+	ICE_PHY_ETH56G,
 };
 
 struct ice_ptp_hw {
 	enum ice_phy_model phy_model;
+	union ice_phy_params phy;
 	u8 num_lports;
 	u8 ports_per_phy;
 };

@@ -1012,6 +1012,28 @@ ice_ptp_release_tx_tracker(struct ice_pf *pf, struct ice_ptp_tx *tx)
 }
 
 /**
+ * ice_ptp_init_tx_eth56g - Initialize tracking for Tx timestamps
+ * @pf: Board private structure
+ * @tx: the Tx tracking structure to initialize
+ * @port: the port this structure tracks
+ *
+ * Initialize the Tx timestamp tracker for this port. ETH56G PHYs
+ * have independent memory blocks for all ports.
+ *
+ * Return: 0 for success, -ENOMEM when failed to allocate Tx tracker
+ */
+static int ice_ptp_init_tx_eth56g(struct ice_pf *pf, struct ice_ptp_tx *tx,
+				  u8 port)
+{
+	tx->block = port;
+	tx->offset = 0;
+	tx->len = INDEX_PER_PORT_ETH56G;
+	tx->has_ready_bitmap = 1;
+
+	return ice_ptp_alloc_tx_tracker(tx);
+}
+
+/**
  * ice_ptp_init_tx_e82x - Initialize tracking for Tx timestamps
  * @pf: Board private structure
  * @tx: the Tx tracking structure to initialize
@@ -1341,10 +1363,19 @@ ice_ptp_port_phy_stop(struct ice_ptp_port *ptp_port)
 
 	mutex_lock(&ptp_port->ps_lock);
 
-	kthread_cancel_delayed_work_sync(&ptp_port->ov_work);
+	switch (hw->ptp.phy_model) {
+	case ICE_PHY_ETH56G:
+		err = ice_stop_phy_timer_eth56g(hw, port, true);
+		break;
+	case ICE_PHY_E82X:
+		kthread_cancel_delayed_work_sync(&ptp_port->ov_work);
 
-	err = ice_stop_phy_timer_e82x(hw, port, true);
-	if (err)
+		err = ice_stop_phy_timer_e82x(hw, port, true);
+		break;
+	default:
+		err = -ENODEV;
+	}
+	if (err && err != -EBUSY)
 		dev_err(ice_pf_to_dev(pf), "PTP failed to set PHY port %d down, err %d\n",
 			port, err);
 
@@ -1378,27 +1409,39 @@ ice_ptp_port_phy_restart(struct ice_ptp_port *ptp_port)
 
 	mutex_lock(&ptp_port->ps_lock);
 
-	kthread_cancel_delayed_work_sync(&ptp_port->ov_work);
+	switch (hw->ptp.phy_model) {
+	case ICE_PHY_ETH56G:
+		err = ice_start_phy_timer_eth56g(hw, port);
+		break;
+	case ICE_PHY_E82X:
+		/* Start the PHY timer in Vernier mode */
+		kthread_cancel_delayed_work_sync(&ptp_port->ov_work);
 
-	/* temporarily disable Tx timestamps while calibrating PHY offset */
-	spin_lock_irqsave(&ptp_port->tx.lock, flags);
-	ptp_port->tx.calibrating = true;
-	spin_unlock_irqrestore(&ptp_port->tx.lock, flags);
-	ptp_port->tx_fifo_busy_cnt = 0;
+		/* temporarily disable Tx timestamps while calibrating
+		 * PHY offset
+		 */
+		spin_lock_irqsave(&ptp_port->tx.lock, flags);
+		ptp_port->tx.calibrating = true;
+		spin_unlock_irqrestore(&ptp_port->tx.lock, flags);
+		ptp_port->tx_fifo_busy_cnt = 0;
 
-	/* Start the PHY timer in Vernier mode */
-	err = ice_start_phy_timer_e82x(hw, port);
-	if (err)
-		goto out_unlock;
+		/* Start the PHY timer in Vernier mode */
+		err = ice_start_phy_timer_e82x(hw, port);
+		if (err)
+			break;
 
-	/* Enable Tx timestamps right away */
-	spin_lock_irqsave(&ptp_port->tx.lock, flags);
-	ptp_port->tx.calibrating = false;
-	spin_unlock_irqrestore(&ptp_port->tx.lock, flags);
+		/* Enable Tx timestamps right away */
+		spin_lock_irqsave(&ptp_port->tx.lock, flags);
+		ptp_port->tx.calibrating = false;
+		spin_unlock_irqrestore(&ptp_port->tx.lock, flags);
 
-	kthread_queue_delayed_work(pf->ptp.kworker, &ptp_port->ov_work, 0);
+		kthread_queue_delayed_work(pf->ptp.kworker, &ptp_port->ov_work,
+					   0);
+		break;
+	default:
+		err = -ENODEV;
+	}
 
-out_unlock:
 	if (err)
 		dev_err(ice_pf_to_dev(pf), "PTP failed to set PHY port %d up, err %d\n",
 			port, err);
@@ -1436,6 +1479,7 @@ void ice_ptp_link_change(struct ice_pf *pf, u8 port, bool linkup)
 	case ICE_PHY_E810:
 		/* Do not reconfigure E810 PHY */
 		return;
+	case ICE_PHY_ETH56G:
 	case ICE_PHY_E82X:
 		ice_ptp_port_phy_restart(ptp_port);
 		return;
@@ -1465,6 +1509,22 @@ static int ice_ptp_cfg_phy_interrupt(struct ice_pf *pf, bool ena, u32 threshold)
 	ice_ptp_reset_ts_memory(hw);
 
 	switch (hw->ptp.phy_model) {
+	case ICE_PHY_ETH56G: {
+		int port;
+
+		for (port = 0; port < hw->ptp.num_lports; port++) {
+			int err;
+
+			err = ice_phy_cfg_intr_eth56g(hw, port, ena, threshold);
+			if (err) {
+				dev_err(dev, "Failed to configure PHY interrupt for port %d, err %d\n",
+					port, err);
+				return err;
+			}
+		}
+
+		return 0;
+	}
 	case ICE_PHY_E82X: {
 		int quad;
 
@@ -3075,6 +3135,9 @@ static int ice_ptp_init_port(struct ice_pf *pf, struct ice_ptp_port *ptp_port)
 	mutex_init(&ptp_port->ps_lock);
 
 	switch (hw->ptp.phy_model) {
+	case ICE_PHY_ETH56G:
+		return ice_ptp_init_tx_eth56g(pf, &ptp_port->tx,
+					      ptp_port->port_num);
 	case ICE_PHY_E810:
 		return ice_ptp_init_tx_e810(pf, &ptp_port->tx);
 	case ICE_PHY_E82X:

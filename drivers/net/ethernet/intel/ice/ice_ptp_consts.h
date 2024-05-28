@@ -9,6 +9,321 @@
  */
 /* Constants defined for the PTP 1588 clock hardware. */
 
+const struct ice_phy_reg_info_eth56g eth56g_phy_res[NUM_ETH56G_PHY_RES] = {
+	/* ETH56G_PHY_REG_PTP */
+	{
+		/* base_addr */
+		{
+			0x092000,
+			0x126000,
+			0x1BA000,
+			0x24E000,
+			0x2E2000,
+		},
+		/* step */
+		0x98,
+	},
+	/* ETH56G_PHY_MEM_PTP */
+	{
+		/* base_addr */
+		{
+			0x093000,
+			0x127000,
+			0x1BB000,
+			0x24F000,
+			0x2E3000,
+		},
+		/* step */
+		0x200,
+	},
+	/* ETH56G_PHY_REG_XPCS */
+	{
+		/* base_addr */
+		{
+			0x000000,
+			0x009400,
+			0x128000,
+			0x1BC000,
+			0x250000,
+		},
+		/* step */
+		0x21000,
+	},
+	/* ETH56G_PHY_REG_MAC */
+	{
+		/* base_addr */
+		{
+			0x085000,
+			0x119000,
+			0x1AD000,
+			0x241000,
+			0x2D5000,
+		},
+		/* step */
+		0x1000,
+	},
+	/* ETH56G_PHY_REG_GPCS */
+	{
+		/* base_addr */
+		{
+			0x084000,
+			0x118000,
+			0x1AC000,
+			0x240000,
+			0x2D4000,
+		},
+		/* step */
+		0x400,
+	},
+};
+
+const
+struct ice_eth56g_mac_reg_cfg eth56g_mac_cfg[NUM_ICE_ETH56G_LNK_SPD] = {
+	[ICE_ETH56G_LNK_SPD_1G] = {
+		.tx_mode = { .def = 6, },
+		.rx_mode = { .def = 6, },
+		.blks_per_clk = 1,
+		.blktime = 0x4000, /* 32 */
+		.tx_offset = {
+			.serdes = 0x6666, /* 51.2 */
+			.no_fec = 0xd066, /* 104.2 */
+			.sfd = 0x3000, /* 24 */
+			.onestep = 0x30000 /* 384 */
+		},
+		.rx_offset = {
+			.serdes = 0xffffc59a, /* -29.2 */
+			.no_fec = 0xffff0a80, /* -122.75 */
+			.sfd = 0x2c00, /* 22 */
+			.bs_ds = 0x19a /* 0.8 */
+			/* Dynamic bitslip 0 equals to 10 */
+		}
+	},
+	[ICE_ETH56G_LNK_SPD_2_5G] = {
+		.tx_mode = { .def = 6, },
+		.rx_mode = { .def = 6, },
+		.blks_per_clk = 1,
+		.blktime = 0x199a, /* 12.8 */
+		.tx_offset = {
+			.serdes = 0x28f6, /* 20.48 */
+			.no_fec = 0x53b8, /* 41.86 */
+			.sfd = 0x1333, /* 9.6 */
+			.onestep = 0x13333 /* 153.6 */
+		},
+		.rx_offset = {
+			.serdes = 0xffffe8a4, /* -11.68 */
+			.no_fec = 0xffff9a76, /* -50.77 */
+			.sfd = 0xf33, /* 7.6 */
+			.bs_ds = 0xa4 /* 0.32 */
+		}
+	},
+	[ICE_ETH56G_LNK_SPD_10G] = {
+		.tx_mode = { .def = 1, },
+		.rx_mode = { .def = 1, },
+		.blks_per_clk = 1,
+		.blktime = 0x666, /* 3.2 */
+		.tx_offset = {
+			.serdes = 0x234c, /* 17.6484848 */
+			.no_fec = 0x8e80, /* 71.25 */
+			.fc = 0xb4a4, /* 90.32 */
+			.sfd = 0x4a4, /* 2.32 */
+			.onestep = 0x4ccd /* 38.4 */
+		},
+		.rx_offset = {
+			.serdes = 0xffffeb27, /* -10.42424 */
+			.no_fec = 0xffffcccd, /* -25.6 */
+			.fc = 0xfffe0014, /* -255.96 */
+			.sfd = 0x4a4, /* 2.32 */
+			.bs_ds = 0x32 /* 0.0969697 */
+		}
+	},
+	[ICE_ETH56G_LNK_SPD_25G] = {
+		.tx_mode = {
+			.def = 1,
+			.rs = 4
+		},
+		.tx_mk_dly = 4,
+		.tx_cw_dly = {
+			.def = 1,
+			.onestep = 6
+		},
+		.rx_mode = {
+			.def = 1,
+			.rs = 4
+		},
+		.rx_mk_dly = {
+			.def = 1,
+			.rs = 1
+		},
+		.rx_cw_dly = {
+			.def = 1,
+			.rs = 1
+		},
+		.blks_per_clk = 1,
+		.blktime = 0x28f, /* 1.28 */
+		.mktime = 0x147b, /* 10.24, only if RS-FEC enabled */
+		.tx_offset = {
+			.serdes = 0xe1e, /* 7.0593939 */
+			.no_fec = 0x3857, /* 28.17 */
+			.fc = 0x48c3, /* 36.38 */
+			.rs = 0x8100, /* 64.5 */
+			.sfd = 0x1dc, /* 0.93 */
+			.onestep = 0x1eb8 /* 15.36 */
+		},
+		.rx_offset = {
+			.serdes = 0xfffff7a9, /* -4.1697 */
+			.no_fec = 0xffffe71a, /* -12.45 */
+			.fc = 0xfffe894d, /* -187.35 */
+			.rs = 0xfffff8cd, /* -3.6 */
+			.sfd = 0x1dc, /* 0.93 */
+			.bs_ds = 0x14 /* 0.0387879, RS-FEC 0 */
+		}
+	},
+	[ICE_ETH56G_LNK_SPD_40G] = {
+		.tx_mode = { .def = 3 },
+		.tx_mk_dly = 4,
+		.tx_cw_dly = {
+			.def = 1,
+			.onestep = 6
+		},
+		.rx_mode = { .def = 4 },
+		.rx_mk_dly = { .def = 1 },
+		.rx_cw_dly = { .def = 1 },
+		.blktime = 0x333, /* 1.6 */
+		.mktime = 0xccd, /* 6.4 */
+		.tx_offset = {
+			.serdes = 0x234c, /* 17.6484848 */
+			.no_fec = 0x5a8a, /* 45.27 */
+			.fc = 0x81b8, /* 64.86 */
+			.sfd = 0x4a4, /* 2.32 */
+			.onestep = 0x1333 /* 9.6 */
+		},
+		.rx_offset = {
+			.serdes = 0xffffeb27, /* -10.42424 */
+			.no_fec = 0xfffff594, /* -5.21 */
+			.fc = 0xfffe3080, /* -231.75 */
+			.sfd = 0x4a4, /* 2.32 */
+			.bs_ds = 0xccd /* 6.4 */
+		}
+	},
+	[ICE_ETH56G_LNK_SPD_50G] = {
+		.tx_mode = { .def = 5 },
+		.tx_mk_dly = 4,
+		.tx_cw_dly = {
+			.def = 1,
+			.onestep = 6
+		},
+		.rx_mode = { .def = 5 },
+		.rx_mk_dly = { .def = 1 },
+		.rx_cw_dly = { .def = 1 },
+		.blktime = 0x28f, /* 1.28 */
+		.mktime = 0xa3d, /* 5.12 */
+		.tx_offset = {
+			.serdes = 0x13ba, /* 9.86353 */
+			.rs = 0x5400, /* 42 */
+			.sfd = 0xe6, /* 0.45 */
+			.onestep = 0xf5c /* 7.68 */
+		},
+		.rx_offset = {
+			.serdes = 0xfffff7e8, /* -4.04706 */
+			.rs = 0xfffff994, /* -3.21 */
+			.sfd = 0xe6 /* 0.45 */
+		}
+	},
+	[ICE_ETH56G_LNK_SPD_50G2] = {
+		.tx_mode = {
+			.def = 3,
+			.rs = 2
+		},
+		.tx_mk_dly = 4,
+		.tx_cw_dly = {
+			.def = 1,
+			.onestep = 6
+		},
+		.rx_mode = {
+			.def = 4,
+			.rs = 1
+		},
+		.rx_mk_dly = { .def = 1 },
+		.rx_cw_dly = { .def = 1 },
+		.blktime = 0x28f, /* 1.28 */
+		.mktime = 0xa3d, /* 5.12 */
+		.tx_offset = {
+			.serdes = 0xe1e, /* 7.0593939 */
+			.no_fec = 0x3d33, /* 30.6 */
+			.rs = 0x5057, /* 40.17 */
+			.sfd = 0x1dc, /* 0.93 */
+			.onestep = 0xf5c /* 7.68 */
+		},
+		.rx_offset = {
+			.serdes = 0xfffff7a9, /* -4.1697 */
+			.no_fec = 0xfffff8cd, /* -3.6 */
+			.rs = 0xfffff21a, /* -6.95 */
+			.sfd = 0x1dc, /* 0.93 */
+			.bs_ds = 0xa3d /* 5.12, RS-FEC 0x633 (3.1) */
+		}
+	},
+	[ICE_ETH56G_LNK_SPD_100G] = {
+		.tx_mode = {
+			.def = 3,
+			.rs = 2
+		},
+		.tx_mk_dly = 10,
+		.tx_cw_dly = {
+			.def = 3,
+			.onestep = 6
+		},
+		.rx_mode = {
+			.def = 4,
+			.rs = 1
+		},
+		.rx_mk_dly = { .def = 5 },
+		.rx_cw_dly = { .def = 5 },
+		.blks_per_clk = 1,
+		.blktime = 0x148, /* 0.64 */
+		.mktime = 0x199a, /* 12.8 */
+		.tx_offset = {
+			.serdes = 0xe1e, /* 7.0593939 */
+			.no_fec = 0x67ec, /* 51.96 */
+			.rs = 0x44fb, /* 34.49 */
+			.sfd = 0x1dc, /* 0.93 */
+			.onestep = 0xf5c /* 7.68 */
+		},
+		.rx_offset = {
+			.serdes = 0xfffff7a9, /* -4.1697 */
+			.no_fec = 0xfffff5a9, /* -5.17 */
+			.rs = 0xfffff6e6, /* -4.55 */
+			.sfd = 0x1dc, /* 0.93 */
+			.bs_ds = 0x199a /* 12.8, RS-FEC 0x31b (1.552) */
+		}
+	},
+	[ICE_ETH56G_LNK_SPD_100G2] = {
+		.tx_mode = { .def = 5 },
+		.tx_mk_dly = 10,
+		.tx_cw_dly = {
+			.def = 3,
+			.onestep = 6
+		},
+		.rx_mode = { .def = 5 },
+		.rx_mk_dly = { .def = 5 },
+		.rx_cw_dly = { .def = 5 },
+		.blks_per_clk = 1,
+		.blktime = 0x148, /* 0.64 */
+		.mktime = 0x199a, /* 12.8 */
+		.tx_offset = {
+			.serdes = 0x13ba, /* 9.86353 */
+			.rs = 0x460a, /* 35.02 */
+			.sfd = 0xe6, /* 0.45 */
+			.onestep = 0xf5c /* 7.68 */
+		},
+		.rx_offset = {
+			.serdes = 0xfffff7e8, /* -4.04706 */
+			.rs = 0xfffff548, /* -5.36 */
+			.sfd = 0xe6, /* 0.45 */
+			.bs_ds = 0x303 /* 1.506 */
+		}
+	}
+};
+
 /* struct ice_time_ref_info_e82x
  *
  * E822 hardware can use different sources as the reference for the PTP
