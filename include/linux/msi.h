@@ -19,7 +19,7 @@
  */
 
 #include <linux/irqdomain_defs.h>
-#include <linux/cpumask.h>
+#include <linux/cpumask_types.h>
 #include <linux/msi_api.h>
 #include <linux/xarray.h>
 #include <linux/mutex.h>

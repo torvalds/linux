@@ -12,7 +12,7 @@
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 
 # include <linux/clocksource.h>
-# include <linux/cpumask.h>
+# include <linux/cpumask_types.h>
 # include <linux/ktime.h>
 # include <linux/notifier.h>
 
