@@ -172,6 +172,8 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 {
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint64_t reserved_for_ras = (con ? con->reserved_pages_in_bytes : 0);
 	size_t system_mem_needed, ttm_mem_needed, vram_needed;
 	int ret = 0;
 	uint64_t vram_size = 0;
@@ -220,7 +222,7 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	    (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
 	     kfd_mem_limit.max_ttm_mem_limit) ||
 	    (adev && xcp_id >= 0 && adev->kfd.vram_used[xcp_id] + vram_needed >
-	     vram_size - reserved_for_pt - atomic64_read(&adev->vram_pin_size))) {
+	     vram_size - reserved_for_pt - reserved_for_ras - atomic64_read(&adev->vram_pin_size))) {
 		ret = -ENOMEM;
 		goto release;
 	}
@@ -1673,6 +1675,8 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
 {
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint64_t reserved_for_ras = (con ? con->reserved_pages_in_bytes : 0);
 	ssize_t available;
 	uint64_t vram_available, system_mem_available, ttm_mem_available;
 
@@ -1680,7 +1684,8 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
 	vram_available = KFD_XCP_MEMORY_SIZE(adev, xcp_id)
 		- adev->kfd.vram_used_aligned[xcp_id]
 		- atomic64_read(&adev->vram_pin_size)
-		- reserved_for_pt;
+		- reserved_for_pt
+		- reserved_for_ras;
 
 	if (adev->flags & AMD_IS_APU) {
 		system_mem_available = no_system_mem_limit ?

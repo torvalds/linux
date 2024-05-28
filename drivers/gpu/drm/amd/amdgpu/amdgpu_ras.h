@@ -64,6 +64,9 @@ struct amdgpu_iv_entry;
 #define AMDGPU_RAS_FEATURES_SOCKETID_SHIFT 29
 #define AMDGPU_RAS_FEATURES_SOCKETID_MASK 0xe0000000
 
+/* Reserve 8 physical dram row for possible retirement.
+ * In worst cases, it will lose 8 * 2MB memory in vram domain */
+#define AMDGPU_RAS_RESERVED_VRAM_SIZE	(16ULL << 20)
 /* The high three bits indicates socketid */
 #define AMDGPU_RAS_GET_FEATURES(val)  ((val) & ~AMDGPU_RAS_FEATURES_SOCKETID_MASK)
 
@@ -541,6 +544,7 @@ struct amdgpu_ras {
 	struct ras_event_manager __event_mgr;
 	struct ras_event_manager *event_mgr;
 
+	uint64_t reserved_pages_in_bytes;
 };
 
 struct ras_fs_data {

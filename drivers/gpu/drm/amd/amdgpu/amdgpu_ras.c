@@ -3298,6 +3298,24 @@ static void amdgpu_ras_event_mgr_init(struct amdgpu_device *adev)
 		amdgpu_put_xgmi_hive(hive);
 }
 
+static void amdgpu_ras_init_reserved_vram_size(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	if (!con || (adev->flags & AMD_IS_APU))
+		return;
+
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
+	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 14):
+		con->reserved_pages_in_bytes = AMDGPU_RAS_RESERVED_VRAM_SIZE;
+		break;
+	default:
+		break;
+	}
+}
+
 int amdgpu_ras_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -3402,6 +3420,8 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	/* Get RAS schema for particular SOC */
 	con->schema = amdgpu_get_ras_schema(adev);
+
+	amdgpu_ras_init_reserved_vram_size(adev);
 
 	if (amdgpu_ras_fs_init(adev)) {
 		r = -EINVAL;
