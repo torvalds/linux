@@ -236,6 +236,18 @@ enum graph_type {
 
 #define port_to_endpoint(port) of_get_child_by_name(port, "endpoint")
 
+#define ep_to_port(ep)	of_get_parent(ep)
+static struct device_node *port_to_ports(struct device_node *port)
+{
+	struct device_node *ports = of_get_parent(port);
+
+	if (!of_node_name_eq(ports, "ports")) {
+		of_node_put(ports);
+		return NULL;
+	}
+	return ports;
+}
+
 static enum graph_type __graph_get_type(struct device_node *lnk)
 {
 	struct device_node *np, *parent_np;
@@ -320,7 +332,7 @@ static int graph_lnk_is_multi(struct device_node *lnk)
 
 static struct device_node *graph_get_next_multi_ep(struct device_node **port)
 {
-	struct device_node *ports = of_get_parent(*port);
+	struct device_node *ports = port_to_ports(*port);
 	struct device_node *ep = NULL;
 	struct device_node *rep = NULL;
 
@@ -365,8 +377,8 @@ static const struct snd_soc_ops graph_ops = {
 static void graph_parse_convert(struct device_node *ep,
 				struct simple_dai_props *props)
 {
-	struct device_node *port = of_get_parent(ep);
-	struct device_node *ports = of_get_parent(port);
+	struct device_node *port = ep_to_port(ep);
+	struct device_node *ports = port_to_ports(port);
 	struct simple_util_data *adata = &props->adata;
 
 	if (of_node_name_eq(ports, "ports"))
@@ -381,8 +393,8 @@ static void graph_parse_convert(struct device_node *ep,
 static void graph_parse_mclk_fs(struct device_node *ep,
 				struct simple_dai_props *props)
 {
-	struct device_node *port	= of_get_parent(ep);
-	struct device_node *ports	= of_get_parent(port);
+	struct device_node *port	= ep_to_port(ep);
+	struct device_node *ports	= port_to_ports(port);
 
 	if (of_node_name_eq(ports, "ports"))
 		of_property_read_u32(ports, "mclk-fs", &props->mclk_fs);
@@ -481,8 +493,8 @@ static int __graph_parse_node(struct simple_util_priv *priv,
 	if (!is_cpu && gtype == GRAPH_DPCM) {
 		struct snd_soc_dai_link_component *codecs = snd_soc_link_to_codec(dai_link, idx);
 		struct snd_soc_codec_conf *cconf = simple_props_to_codec_conf(dai_props, idx);
-		struct device_node *rport  = of_get_parent(ep);
-		struct device_node *rports = of_get_parent(rport);
+		struct device_node *rport  = ep_to_port(ep);
+		struct device_node *rports = port_to_ports(rport);
 
 		if (of_node_name_eq(rports, "ports"))
 			snd_soc_of_parse_node_prefix(rports, cconf, codecs->of_node, "prefix");
@@ -539,11 +551,11 @@ static int graph_parse_node_multi_nm(struct snd_soc_dai_link *dai_link,
 	 */
 	struct device_node *mcpu_ep		= port_to_endpoint(mcpu_port);
 	struct device_node *mcpu_ep_n		= mcpu_ep;
-	struct device_node *mcpu_port_top	= of_get_next_child(of_get_parent(mcpu_port), NULL);
+	struct device_node *mcpu_port_top	= of_get_next_child(port_to_ports(mcpu_port), NULL);
 	struct device_node *mcpu_ep_top		= port_to_endpoint(mcpu_port_top);
 	struct device_node *mcodec_ep_top	= of_graph_get_remote_endpoint(mcpu_ep_top);
-	struct device_node *mcodec_port_top	= of_get_parent(mcodec_ep_top);
-	struct device_node *mcodec_ports	= of_get_parent(mcodec_port_top);
+	struct device_node *mcodec_port_top	= ep_to_port(mcodec_ep_top);
+	struct device_node *mcodec_ports	= port_to_ports(mcodec_port_top);
 	int nm_max = max(dai_link->num_cpus, dai_link->num_codecs);
 	int ret = -EINVAL;
 
@@ -566,9 +578,9 @@ static int graph_parse_node_multi_nm(struct snd_soc_dai_link *dai_link,
 		}
 
 		mcodec_ep_n	= of_graph_get_remote_endpoint(mcpu_ep_n);
-		mcodec_port	= of_get_parent(mcodec_ep_n);
+		mcodec_port	= ep_to_port(mcodec_ep_n);
 
-		if (mcodec_ports != of_get_parent(mcodec_port))
+		if (mcodec_ports != port_to_ports(mcodec_port))
 			goto mcpu_err;
 
 		codec_idx = 0;
@@ -765,12 +777,12 @@ static void graph_link_init(struct simple_util_priv *priv,
 	if (graph_lnk_is_multi(port)) {
 		of_node_get(port);
 		ep = graph_get_next_multi_ep(&port);
-		port = of_get_parent(ep);
+		port = ep_to_port(ep);
 	} else {
 		ep = port_to_endpoint(port);
 	}
 
-	ports = of_get_parent(port);
+	ports = port_to_ports(port);
 
 	/*
 	 *	ports {
@@ -966,7 +978,7 @@ int audio_graph2_link_c2c(struct simple_util_priv *priv,
 	 */
 	of_node_get(lnk);
 	port0 = lnk;
-	ports = of_get_parent(port0);
+	ports = port_to_ports(port0);
 	port1 = of_get_next_child(ports, lnk);
 
 	/*
@@ -1098,7 +1110,7 @@ static int graph_counter(struct device_node *lnk)
 	 * ignore first lnk part
 	 */
 	if (graph_lnk_is_multi(lnk)) {
-		struct device_node *ports = of_get_parent(lnk);
+		struct device_node *ports = port_to_ports(lnk);
 		struct device_node *port = NULL;
 		int cnt = 0;
 
@@ -1195,7 +1207,7 @@ static int graph_count_c2c(struct simple_util_priv *priv,
 			   struct device_node *lnk,
 			   struct link_info *li)
 {
-	struct device_node *ports = of_get_parent(lnk);
+	struct device_node *ports = port_to_ports(lnk);
 	struct device_node *port0 = lnk;
 	struct device_node *port1 = of_get_next_child(ports, of_node_get(lnk));
 	struct device_node *ep0 = port_to_endpoint(port0);
