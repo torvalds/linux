@@ -240,7 +240,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	 * See update_scanline_offset() for the details on the
 	 * scanline_offset adjustment.
 	 */
-	return (position + crtc->scanline_offset) % vtotal;
+	return (position + vtotal + crtc->scanline_offset) % vtotal;
 }
 
 int intel_crtc_scanline_to_hw(struct intel_crtc *crtc, int scanline)
@@ -470,7 +470,6 @@ void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc)
 static int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 
 	/*
 	 * The scanline counter increments at the leading edge of hsync.
@@ -482,8 +481,7 @@ static int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state)
 	 * last active line), the scanline counter will read vblank_start-1.
 	 *
 	 * On gen2 the scanline counter starts counting from 1 instead
-	 * of vtotal-1, so we have to subtract one (or rather add vtotal-1
-	 * to keep the value positive), instead of adding one.
+	 * of vtotal-1, so we have to subtract one.
 	 *
 	 * On HSW+ the behaviour of the scanline counter depends on the output
 	 * type. For DP ports it behaves like most other platforms, but on HDMI
@@ -500,7 +498,7 @@ static int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state)
 	 * answer that's slightly in the future.
 	 */
 	if (DISPLAY_VER(i915) == 2)
-		return intel_mode_vtotal(adjusted_mode) - 1;
+		return -1;
 	else if (HAS_DDI(i915) && intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return 2;
 	else
