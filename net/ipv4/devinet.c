@@ -1903,7 +1903,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 
 	cb->seq = inet_base_seq(tgt_net);
 
-	for_each_netdev_dump(net, dev, ctx->ifindex) {
+	for_each_netdev_dump(tgt_net, dev, ctx->ifindex) {
 		in_dev = __in_dev_get_rcu(dev);
 		if (!in_dev)
 			continue;
