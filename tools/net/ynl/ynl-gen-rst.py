@@ -156,7 +156,10 @@ def parse_do(do_dict: Dict[str, Any], level: int = 0) -> str:
     lines = []
     for key in do_dict.keys():
         lines.append(rst_paragraph(bold(key), level + 1))
-        lines.append(parse_do_attributes(do_dict[key], level + 1) + "\n")
+        if key in ['request', 'reply']:
+            lines.append(parse_do_attributes(do_dict[key], level + 1) + "\n")
+        else:
+            lines.append(headroom(level + 2) + do_dict[key] + "\n")
 
     return "\n".join(lines)
 
