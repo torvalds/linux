@@ -104,18 +104,6 @@ static int isp_v4_1_0_hw_init(struct amdgpu_isp *isp)
 		goto failure;
 	}
 
-	/*
-	 * Temporary WA added to disable MMHUB TLSi until the GART initialization
-	 * is ready to support MMHUB TLSi and SAW for ISP HW to access GART memory
-	 * using the TLSi path
-	 */
-	WREG32(mmDAGB0_WRCLI5_V4_1 >> 2, 0xFE5FEAA8);
-	WREG32(mmDAGB0_WRCLI9_V4_1 >> 2, 0xFE5FEAA8);
-	WREG32(mmDAGB0_WRCLI10_V4_1 >> 2, 0xFE5FEAA8);
-	WREG32(mmDAGB0_WRCLI14_V4_1 >> 2, 0xFE5FEAA8);
-	WREG32(mmDAGB0_WRCLI19_V4_1 >> 2, 0xFE5FEAA8);
-	WREG32(mmDAGB0_WRCLI20_V4_1 >> 2, 0xFE5FEAA8);
-
 	return 0;
 
 failure:

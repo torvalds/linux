@@ -32,13 +32,6 @@
 
 #include "ivsrcid/isp/irqsrcs_isp_4_1.h"
 
-#define mmDAGB1_WRCLI5_V4_1_1   0x68420
-#define mmDAGB1_WRCLI9_V4_1_1   0x68430
-#define mmDAGB1_WRCLI10_V4_1_1  0x68434
-#define mmDAGB1_WRCLI14_V4_1_1  0x68444
-#define mmDAGB1_WRCLI19_V4_1_1  0x68458
-#define mmDAGB1_WRCLI20_V4_1_1  0x6845C
-
 #define MAX_ISP411_INT_SRC 8
 
 void isp_v4_1_1_set_isp_funcs(struct amdgpu_isp *isp);
