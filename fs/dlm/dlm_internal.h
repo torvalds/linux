@@ -37,6 +37,7 @@
 #include <linux/rhashtable.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 
@@ -569,8 +570,8 @@ struct dlm_ls {
 	unsigned long		ls_flags;	/* LSFL_ */
 	struct kobject		ls_kobj;
 
-	struct idr		ls_lkbidr;
-	rwlock_t		ls_lkbidr_lock;
+	struct xarray		ls_lkbxa;
+	rwlock_t		ls_lkbxa_lock;
 
 	struct rhashtable	ls_rsbtbl;
 	rwlock_t		ls_rsbtbl_lock;

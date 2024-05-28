@@ -420,8 +420,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	if (error)
 		goto out_lsfree;
 
-	idr_init(&ls->ls_lkbidr);
-	rwlock_init(&ls->ls_lkbidr_lock);
+	xa_init_flags(&ls->ls_lkbxa, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_BH);
+	rwlock_init(&ls->ls_lkbxa_lock);
 
 	INIT_LIST_HEAD(&ls->ls_waiters);
 	spin_lock_init(&ls->ls_waiters_lock);
@@ -471,7 +471,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	ls->ls_recover_buf = kmalloc(DLM_MAX_SOCKET_BUFSIZE, GFP_NOFS);
 	if (!ls->ls_recover_buf) {
 		error = -ENOMEM;
-		goto out_lkbidr;
+		goto out_lkbxa;
 	}
 
 	ls->ls_slot = 0;
@@ -572,8 +572,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	spin_unlock_bh(&lslist_lock);
 	idr_destroy(&ls->ls_recover_idr);
 	kfree(ls->ls_recover_buf);
- out_lkbidr:
-	idr_destroy(&ls->ls_lkbidr);
+ out_lkbxa:
+	xa_destroy(&ls->ls_lkbxa);
 	rhashtable_destroy(&ls->ls_rsbtbl);
  out_lsfree:
 	if (do_unreg)
@@ -633,22 +633,8 @@ int dlm_new_user_lockspace(const char *name, const char *cluster,
 				   ops_arg, ops_result, lockspace);
 }
 
-static int lkb_idr_is_local(int id, void *p, void *data)
+static int lkb_idr_free(struct dlm_lkb *lkb)
 {
-	struct dlm_lkb *lkb = p;
-
-	return lkb->lkb_nodeid == 0 && lkb->lkb_grmode != DLM_LOCK_IV;
-}
-
-static int lkb_idr_is_any(int id, void *p, void *data)
-{
-	return 1;
-}
-
-static int lkb_idr_free(int id, void *p, void *data)
-{
-	struct dlm_lkb *lkb = p;
-
 	if (lkb->lkb_lvbptr && test_bit(DLM_IFL_MSTCPY_BIT, &lkb->lkb_iflags))
 		dlm_free_lvb(lkb->lkb_lvbptr);
 
@@ -656,23 +642,34 @@ static int lkb_idr_free(int id, void *p, void *data)
 	return 0;
 }
 
-/* NOTE: We check the lkbidr here rather than the resource table.
+/* NOTE: We check the lkbxa here rather than the resource table.
    This is because there may be LKBs queued as ASTs that have been unlinked
    from their RSBs and are pending deletion once the AST has been delivered */
 
 static int lockspace_busy(struct dlm_ls *ls, int force)
 {
-	int rv;
+	struct dlm_lkb *lkb;
+	unsigned long id;
+	int rv = 0;
 
-	read_lock_bh(&ls->ls_lkbidr_lock);
+	read_lock_bh(&ls->ls_lkbxa_lock);
 	if (force == 0) {
-		rv = idr_for_each(&ls->ls_lkbidr, lkb_idr_is_any, ls);
+		xa_for_each(&ls->ls_lkbxa, id, lkb) {
+			rv = 1;
+			break;
+		}
 	} else if (force == 1) {
-		rv = idr_for_each(&ls->ls_lkbidr, lkb_idr_is_local, ls);
+		xa_for_each(&ls->ls_lkbxa, id, lkb) {
+			if (lkb->lkb_nodeid == 0 &&
+			    lkb->lkb_grmode != DLM_LOCK_IV) {
+				rv = 1;
+				break;
+			}
+		}
 	} else {
 		rv = 0;
 	}
-	read_unlock_bh(&ls->ls_lkbidr_lock);
+	read_unlock_bh(&ls->ls_lkbxa_lock);
 	return rv;
 }
 
@@ -685,6 +682,8 @@ static void rhash_free_rsb(void *ptr, void *arg)
 
 static int release_lockspace(struct dlm_ls *ls, int force)
 {
+	struct dlm_lkb *lkb;
+	unsigned long id;
 	int busy, rv;
 
 	busy = lockspace_busy(ls, force);
@@ -741,11 +740,12 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	kfree(ls->ls_recover_buf);
 
 	/*
-	 * Free all lkb's in idr
+	 * Free all lkb's in xa
 	 */
-
-	idr_for_each(&ls->ls_lkbidr, lkb_idr_free, ls);
-	idr_destroy(&ls->ls_lkbidr);
+	xa_for_each(&ls->ls_lkbxa, id, lkb) {
+		lkb_idr_free(lkb);
+	}
+	xa_destroy(&ls->ls_lkbxa);
 
 	/*
 	 * Free all rsb's on rsbtbl

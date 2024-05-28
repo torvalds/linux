@@ -1435,10 +1435,14 @@ static void detach_lkb(struct dlm_lkb *lkb)
 }
 
 static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
-		       int start, int end)
+		       unsigned long start, unsigned long end)
 {
+	struct xa_limit limit;
 	struct dlm_lkb *lkb;
 	int rv;
+
+	limit.max = end;
+	limit.min = start;
 
 	lkb = dlm_allocate_lkb(ls);
 	if (!lkb)
@@ -1453,14 +1457,12 @@ static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
 	INIT_LIST_HEAD(&lkb->lkb_ownqueue);
 	INIT_LIST_HEAD(&lkb->lkb_rsb_lookup);
 
-	write_lock_bh(&ls->ls_lkbidr_lock);
-	rv = idr_alloc(&ls->ls_lkbidr, lkb, start, end, GFP_NOWAIT);
-	if (rv >= 0)
-		lkb->lkb_id = rv;
-	write_unlock_bh(&ls->ls_lkbidr_lock);
+	write_lock_bh(&ls->ls_lkbxa_lock);
+	rv = xa_alloc(&ls->ls_lkbxa, &lkb->lkb_id, lkb, limit, GFP_ATOMIC);
+	write_unlock_bh(&ls->ls_lkbxa_lock);
 
 	if (rv < 0) {
-		log_error(ls, "create_lkb idr error %d", rv);
+		log_error(ls, "create_lkb xa error %d", rv);
 		dlm_free_lkb(lkb);
 		return rv;
 	}
@@ -1471,18 +1473,18 @@ static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
 
 static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 {
-	return _create_lkb(ls, lkb_ret, 1, 0);
+	return _create_lkb(ls, lkb_ret, 1, ULONG_MAX);
 }
 
 static int find_lkb(struct dlm_ls *ls, uint32_t lkid, struct dlm_lkb **lkb_ret)
 {
 	struct dlm_lkb *lkb;
 
-	read_lock_bh(&ls->ls_lkbidr_lock);
-	lkb = idr_find(&ls->ls_lkbidr, lkid);
+	read_lock_bh(&ls->ls_lkbxa_lock);
+	lkb = xa_load(&ls->ls_lkbxa, lkid);
 	if (lkb)
 		kref_get(&lkb->lkb_ref);
-	read_unlock_bh(&ls->ls_lkbidr_lock);
+	read_unlock_bh(&ls->ls_lkbxa_lock);
 
 	*lkb_ret = lkb;
 	return lkb ? 0 : -ENOENT;
@@ -1507,10 +1509,10 @@ static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 	int rv;
 
 	rv = dlm_kref_put_write_lock_bh(&lkb->lkb_ref, kill_lkb,
-					&ls->ls_lkbidr_lock);
+					&ls->ls_lkbxa_lock);
 	if (rv) {
-		idr_remove(&ls->ls_lkbidr, lkid);
-		write_unlock_bh(&ls->ls_lkbidr_lock);
+		xa_erase(&ls->ls_lkbxa, lkid);
+		write_unlock_bh(&ls->ls_lkbxa_lock);
 
 		detach_lkb(lkb);
 
