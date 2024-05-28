@@ -171,20 +171,6 @@ can be installed manually::
 The standalone installers also come with ``clippy``.
 
 
-cargo
-*****
-
-``cargo`` is the Rust native build system. It is currently required to run
-the tests since it is used to build a custom standard library that contains
-the facilities provided by the custom ``alloc`` in the kernel. The tests can
-be run using the ``rusttest`` Make target.
-
-If ``rustup`` is being used, all the profiles already install the tool,
-thus nothing needs to be done.
-
-The standalone installers also come with ``cargo``.
-
-
 rustdoc
 *******
 
