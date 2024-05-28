@@ -381,8 +381,7 @@ static void graph_parse_convert(struct device_node *ep,
 	struct device_node *ports = port_to_ports(port);
 	struct simple_util_data *adata = &props->adata;
 
-	if (of_node_name_eq(ports, "ports"))
-		simple_util_parse_convert(ports, NULL, adata);
+	simple_util_parse_convert(ports, NULL, adata);
 	simple_util_parse_convert(port, NULL, adata);
 	simple_util_parse_convert(ep,   NULL, adata);
 
@@ -396,8 +395,7 @@ static void graph_parse_mclk_fs(struct device_node *ep,
 	struct device_node *port	= ep_to_port(ep);
 	struct device_node *ports	= port_to_ports(port);
 
-	if (of_node_name_eq(ports, "ports"))
-		of_property_read_u32(ports, "mclk-fs", &props->mclk_fs);
+	of_property_read_u32(ports,	"mclk-fs", &props->mclk_fs);
 	of_property_read_u32(port,	"mclk-fs", &props->mclk_fs);
 	of_property_read_u32(ep,	"mclk-fs", &props->mclk_fs);
 
@@ -496,8 +494,7 @@ static int __graph_parse_node(struct simple_util_priv *priv,
 		struct device_node *rport  = ep_to_port(ep);
 		struct device_node *rports = port_to_ports(rport);
 
-		if (of_node_name_eq(rports, "ports"))
-			snd_soc_of_parse_node_prefix(rports, cconf, codecs->of_node, "prefix");
+		snd_soc_of_parse_node_prefix(rports, cconf, codecs->of_node, "prefix");
 		snd_soc_of_parse_node_prefix(rport,  cconf, codecs->of_node, "prefix");
 
 		of_node_put(rport);
@@ -717,6 +714,9 @@ static void graph_parse_daifmt(struct device_node *node,
 {
 	unsigned int fmt;
 
+	if (!node)
+		return;
+
 	/*
 	 * see also above "daifmt" explanation
 	 * and samples.
@@ -798,8 +798,7 @@ static void graph_link_init(struct simple_util_priv *priv,
 	 */
 	graph_parse_daifmt(ep,    &daifmt, &bit_frame);		/* (C) */
 	graph_parse_daifmt(port,  &daifmt, &bit_frame);		/* (B) */
-	if (of_node_name_eq(ports, "ports"))
-		graph_parse_daifmt(ports, &daifmt, &bit_frame);	/* (A) */
+	graph_parse_daifmt(ports, &daifmt, &bit_frame);		/* (A) */
 
 	/*
 	 * convert bit_frame
