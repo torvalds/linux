@@ -119,5 +119,20 @@ int psp_init_hsti(struct psp_device *psp)
 			return ret;
 	}
 
+	/*
+	 * At this stage, if security information hasn't been populated by
+	 * either the PSP or by the driver through the platform command,
+	 * then there is nothing more to do.
+	 */
+	if (!psp->capability.security_reporting)
+		return 0;
+
+	if (psp->capability.tsme_status) {
+		if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
+			dev_notice(psp->dev, "psp: Both TSME and SME are active, SME is unnecessary when TSME is active.\n");
+		else
+			dev_notice(psp->dev, "psp: TSME enabled\n");
+	}
+
 	return 0;
 }
