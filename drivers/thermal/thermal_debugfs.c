@@ -653,14 +653,24 @@ unlock:
 	mutex_unlock(&thermal_dbg->lock);
 }
 
+static void tz_episode_close_trip(struct tz_episode *tze, int trip_id, ktime_t now)
+{
+	struct trip_stats *trip_stats = &tze->trip_stats[trip_id];
+	ktime_t delta = ktime_sub(now, trip_stats->timestamp);
+
+	trip_stats->duration = ktime_add(delta, trip_stats->duration);
+	/* Mark the end of mitigation for this trip point. */
+	trip_stats->timestamp = KTIME_MAX;
+}
+
 void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 				const struct thermal_trip *trip)
 {
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	int trip_id = thermal_zone_trip_id(tz, trip);
+	ktime_t now = ktime_get();
 	struct tz_episode *tze;
 	struct tz_debugfs *tz_dbg;
-	ktime_t delta, now = ktime_get();
-	int trip_id = thermal_zone_trip_id(tz, trip);
 	int i;
 
 	if (!thermal_dbg)
@@ -695,13 +705,7 @@ void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 
 	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
 
-	delta = ktime_sub(now, tze->trip_stats[trip_id].timestamp);
-
-	tze->trip_stats[trip_id].duration =
-		ktime_add(delta, tze->trip_stats[trip_id].duration);
-
-	/* Mark the end of mitigation for this trip point. */
-	tze->trip_stats[trip_id].timestamp = KTIME_MAX;
+	tz_episode_close_trip(tze, trip_id, now);
 
 	/*
 	 * This event closes the mitigation as we are crossing the
