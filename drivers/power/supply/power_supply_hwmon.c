@@ -48,6 +48,18 @@ static int power_supply_hwmon_curr_to_property(u32 attr)
 	}
 }
 
+static int power_supply_hwmon_power_to_property(u32 attr)
+{
+	switch (attr) {
+	case hwmon_power_input:
+		return POWER_SUPPLY_PROP_POWER_NOW;
+	case hwmon_power_average:
+		return POWER_SUPPLY_PROP_POWER_AVG;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int power_supply_hwmon_temp_to_property(u32 attr, int channel)
 {
 	if (channel) {
@@ -90,6 +102,8 @@ power_supply_hwmon_to_property(enum hwmon_sensor_types type,
 		return power_supply_hwmon_in_to_property(attr);
 	case hwmon_curr:
 		return power_supply_hwmon_curr_to_property(attr);
+	case hwmon_power:
+		return power_supply_hwmon_power_to_property(attr);
 	case hwmon_temp:
 		return power_supply_hwmon_temp_to_property(attr, channel);
 	default:
@@ -229,6 +243,11 @@ power_supply_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_in:
 		pspval.intval = DIV_ROUND_CLOSEST(pspval.intval, 1000);
 		break;
+	case hwmon_power:
+		/*
+		 * Power properties are already in microwatts.
+		 */
+		break;
 	/*
 	 * Temp needs to be converted from 1/10 C to milli-C
 	 */
@@ -311,6 +330,10 @@ static const struct hwmon_channel_info * const power_supply_hwmon_info[] = {
 			   HWMON_C_MAX     |
 			   HWMON_C_INPUT),
 
+	HWMON_CHANNEL_INFO(power,
+			   HWMON_P_INPUT |
+			   HWMON_P_AVERAGE),
+
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_AVERAGE |
 			   HWMON_I_MIN     |
@@ -359,6 +382,8 @@ int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 		case POWER_SUPPLY_PROP_CURRENT_AVG:
 		case POWER_SUPPLY_PROP_CURRENT_MAX:
 		case POWER_SUPPLY_PROP_CURRENT_NOW:
+		case POWER_SUPPLY_PROP_POWER_AVG:
+		case POWER_SUPPLY_PROP_POWER_NOW:
 		case POWER_SUPPLY_PROP_TEMP:
 		case POWER_SUPPLY_PROP_TEMP_MAX:
 		case POWER_SUPPLY_PROP_TEMP_MIN:
