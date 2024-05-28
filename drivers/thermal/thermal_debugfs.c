@@ -800,7 +800,7 @@ static int tze_seq_show(struct seq_file *s, void *v)
 	seq_printf(s, ",-Mitigation at %llums, duration%c%llums\n",
 		   ktime_to_ms(tze->timestamp), c, duration_ms);
 
-	seq_printf(s, "| trip |     type | temp(°mC) | hyst(°mC) |  duration   |  avg(°mC) |  min(°mC) |  max(°mC) |\n");
+	seq_printf(s, "| trip |     type | temp(m°C) | hyst(m°C) | duration(ms) |  avg(m°C) |  min(m°C) |  max(m°C) |\n");
 
 	for_each_trip_desc(tz, td) {
 		const struct thermal_trip *trip = &td->trip;
@@ -846,7 +846,7 @@ static int tze_seq_show(struct seq_file *s, void *v)
 			   8, type,
 			   9, trip_stats->trip_temp,
 			   9, trip_stats->trip_hyst,
-			   c, 10, duration_ms,
+			   c, 11, duration_ms,
 			   9, trip_stats->avg,
 			   9, trip_stats->min,
 			   9, trip_stats->max);
