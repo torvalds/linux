@@ -657,24 +657,22 @@ bool md_flush_request(struct mddev *mddev, struct bio *bio)
 		WARN_ON(percpu_ref_is_zero(&mddev->active_io));
 		percpu_ref_get(&mddev->active_io);
 		mddev->flush_bio = bio;
-		bio = NULL;
-	}
-	spin_unlock_irq(&mddev->lock);
-
-	if (!bio) {
+		spin_unlock_irq(&mddev->lock);
 		INIT_WORK(&mddev->flush_work, submit_flushes);
 		queue_work(md_wq, &mddev->flush_work);
-	} else {
-		/* flush was performed for some other bio while we waited. */
-		if (bio->bi_iter.bi_size == 0)
-			/* an empty barrier - all done */
-			bio_endio(bio);
-		else {
-			bio->bi_opf &= ~REQ_PREFLUSH;
-			return false;
-		}
+		return true;
 	}
-	return true;
+
+	/* flush was performed for some other bio while we waited. */
+	spin_unlock_irq(&mddev->lock);
+	if (bio->bi_iter.bi_size == 0) {
+		/* pure flush without data - all done */
+		bio_endio(bio);
+		return true;
+	}
+
+	bio->bi_opf &= ~REQ_PREFLUSH;
+	return false;
 }
 EXPORT_SYMBOL(md_flush_request);
 
