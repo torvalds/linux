@@ -641,10 +641,8 @@ static int mlx5_cache_ent_insert(struct mlx5_mkey_cache *cache,
 			new = &((*new)->rb_left);
 		if (cmp < 0)
 			new = &((*new)->rb_right);
-		if (cmp == 0) {
-			mutex_unlock(&cache->rb_lock);
+		if (cmp == 0)
 			return -EEXIST;
-		}
 	}
 
 	/* Add new node and rebalance tree. */
