@@ -209,9 +209,8 @@ static enum drm_mode_status
 sun4i_hdmi_connector_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
-	unsigned long long rate =
-		drm_connector_hdmi_compute_mode_clock(mode, 8,
-						      HDMI_COLORSPACE_RGB);
+	unsigned long long rate = drm_hdmi_compute_mode_clock(mode, 8,
+							      HDMI_COLORSPACE_RGB);
 
 	return sun4i_hdmi_connector_clock_valid(connector, mode, rate);
 }
