@@ -43,6 +43,8 @@ static void device_run(void *prv)
 	rga->curr = ctx;
 
 	src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	src->sequence = ctx->osequence++;
+
 	dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
 	rga_hw_start(rga, vb_to_rga(src), vb_to_rga(dst));
@@ -74,6 +76,8 @@ static irqreturn_t rga_isr(int irq, void *prv)
 		WARN_ON(!dst);
 
 		v4l2_m2m_buf_copy_metadata(src, dst, true);
+
+		dst->sequence = ctx->csequence++;
 
 		v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 		v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
