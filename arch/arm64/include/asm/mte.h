@@ -182,7 +182,7 @@ void mte_check_tfsr_el1(void);
 
 static inline void mte_check_tfsr_entry(void)
 {
-	if (!system_supports_mte())
+	if (!kasan_hw_tags_enabled())
 		return;
 
 	mte_check_tfsr_el1();
@@ -190,7 +190,7 @@ static inline void mte_check_tfsr_entry(void)
 
 static inline void mte_check_tfsr_exit(void)
 {
-	if (!system_supports_mte())
+	if (!kasan_hw_tags_enabled())
 		return;
 
 	/*
