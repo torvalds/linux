@@ -394,21 +394,6 @@ enum tpm2_object_attributes {
 	TPM2_OA_SIGN			= BIT(18),
 };
 
-/*
- * definitions for the canonical template.  These are mandated
- * by the TCG key template documents
- */
-
-#define AES_KEY_BYTES	AES_KEYSIZE_128
-#define AES_KEY_BITS	(AES_KEY_BYTES*8)
-#define TPM2_OA_TMPL	(TPM2_OA_NO_DA |			\
-			 TPM2_OA_FIXED_TPM |			\
-			 TPM2_OA_FIXED_PARENT |			\
-			 TPM2_OA_SENSITIVE_DATA_ORIGIN |	\
-			 TPM2_OA_USER_WITH_AUTH |		\
-			 TPM2_OA_DECRYPT |			\
-			 TPM2_OA_RESTRICTED)
-
 enum tpm2_session_attributes {
 	TPM2_SA_CONTINUE_SESSION	= BIT(0),
 	TPM2_SA_AUDIT_EXCLUSIVE		= BIT(1),
