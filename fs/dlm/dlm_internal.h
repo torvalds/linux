@@ -559,13 +559,6 @@ struct rcom_lock {
 	char			rl_lvb[];
 };
 
-/*
- * The max number of resources per rsbtbl bucket that shrink will attempt
- * to remove in each iteration.
- */
-
-#define DLM_REMOVE_NAMES_MAX 8
-
 struct dlm_ls {
 	struct list_head	ls_list;	/* list of lockspaces */
 	dlm_lockspace_t		*ls_local_handle;
@@ -578,7 +571,6 @@ struct dlm_ls {
 	wait_queue_head_t	ls_count_wait;
 	int			ls_create_count; /* create/release refcount */
 	unsigned long		ls_flags;	/* LSFL_ */
-	unsigned long		ls_scan_time;
 	struct kobject		ls_kobj;
 
 	struct idr		ls_lkbidr;
