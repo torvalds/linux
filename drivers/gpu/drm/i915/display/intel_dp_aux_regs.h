@@ -28,6 +28,10 @@
 #define VLV_DP_AUX_CH_CTL(aux_ch)	_MMIO(VLV_DISPLAY_BASE + \
 					      _PORT(aux_ch, _DPA_AUX_CH_CTL, _DPB_AUX_CH_CTL))
 
+#define _PCH_DPB_AUX_CH_CTL		0xe4110
+#define _PCH_DPC_AUX_CH_CTL		0xe4210
+#define PCH_DP_AUX_CH_CTL(aux_ch)	_MMIO_PORT((aux_ch) - AUX_CH_B, _PCH_DPB_AUX_CH_CTL, _PCH_DPC_AUX_CH_CTL)
+
 #define _XELPDP_USBC1_AUX_CH_CTL	0x16f210
 #define _XELPDP_USBC2_AUX_CH_CTL	0x16f410
 #define _XELPDP_DP_AUX_CH_CTL(aux_ch)						\
@@ -77,6 +81,10 @@
 						    _DPB_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 #define VLV_DP_AUX_CH_DATA(aux_ch, i)	_MMIO(VLV_DISPLAY_BASE + _PORT(aux_ch, _DPA_AUX_CH_DATA1, \
 								       _DPB_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
+
+#define _PCH_DPB_AUX_CH_DATA1		0xe4114
+#define _PCH_DPC_AUX_CH_DATA1		0xe4214
+#define PCH_DP_AUX_CH_DATA(aux_ch, i)	_MMIO(_PORT((aux_ch) - AUX_CH_B, _PCH_DPB_AUX_CH_DATA1, _PCH_DPC_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 
 #define _XELPDP_USBC1_AUX_CH_DATA1	0x16f214
 #define _XELPDP_USBC2_AUX_CH_DATA1	0x16f414
