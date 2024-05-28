@@ -379,6 +379,8 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 
 static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 {
+	struct wl12xx_vif *wlvifsta;
+	struct wl12xx_vif *wlvifap;
 	struct wl12xx_vif *wlvif;
 	u32 old_tx_blk_count = wl->tx_blocks_available;
 	int avail, freed_blocks;
@@ -410,23 +412,100 @@ static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 		wl->tx_pkts_freed[i] = status->counters.tx_released_pkts[i];
 	}
 
+	/* Find an authorized STA vif */
+	wlvifsta = NULL;
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		if (wlvif->sta.hlid != WL12XX_INVALID_LINK_ID &&
+		    test_bit(WLVIF_FLAG_STA_AUTHORIZED, &wlvif->flags)) {
+			wlvifsta = wlvif;
+			break;
+		}
+	}
+
+	/* Find a started AP vif */
+	wlvifap = NULL;
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		if (wlvif->bss_type == BSS_TYPE_AP_BSS &&
+		    wlvif->inconn_count == 0 &&
+		    test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags)) {
+			wlvifap = wlvif;
+			break;
+		}
+	}
 
 	for_each_set_bit(i, wl->links_map, wl->num_links) {
+		u16 diff16, sec_pn16;
 		u8 diff, tx_lnk_free_pkts;
+
 		lnk = &wl->links[i];
 
 		/* prevent wrap-around in freed-packets counter */
 		tx_lnk_free_pkts = status->counters.tx_lnk_free_pkts[i];
 		diff = (tx_lnk_free_pkts - lnk->prev_freed_pkts) & 0xff;
 
-		if (diff == 0)
+		if (diff) {
+			lnk->allocated_pkts -= diff;
+			lnk->prev_freed_pkts = tx_lnk_free_pkts;
+		}
+
+		/* Get the current sec_pn16 value if present */
+		if (status->counters.tx_lnk_sec_pn16)
+			sec_pn16 = __le16_to_cpu(status->counters.tx_lnk_sec_pn16[i]);
+		else
+			sec_pn16 = 0;
+		/* prevent wrap-around in pn16 counter */
+		diff16 = (sec_pn16 - lnk->prev_sec_pn16) & 0xffff;
+
+		/* FIXME: since free_pkts is a 8-bit counter of packets that
+		 * rolls over, it can become zero. If it is zero, then we
+		 * omit processing below. Is that really correct?
+		 */
+		if (tx_lnk_free_pkts <= 0)
 			continue;
 
-		lnk->allocated_pkts -= diff;
-		lnk->prev_freed_pkts = tx_lnk_free_pkts;
+		/* For a station that has an authorized link: */
+		if (wlvifsta && wlvifsta->sta.hlid == i) {
+			if (wlvifsta->encryption_type == KEY_TKIP ||
+			    wlvifsta->encryption_type == KEY_AES) {
+				if (diff16) {
+					lnk->prev_sec_pn16 = sec_pn16;
+					/* accumulate the prev_freed_pkts
+					 * counter according to the PN from
+					 * firmware
+					 */
+					lnk->total_freed_pkts += diff16;
+				}
+			} else {
+				if (diff)
+					/* accumulate the prev_freed_pkts
+					 * counter according to the free packets
+					 * count from firmware
+					 */
+					lnk->total_freed_pkts += diff;
+			}
+		}
 
-		/* accumulate the prev_freed_pkts counter */
-		lnk->total_freed_pkts += diff;
+		/* For an AP that has been started */
+		if (wlvifap && test_bit(i, wlvifap->ap.sta_hlid_map)) {
+			if (wlvifap->encryption_type == KEY_TKIP ||
+			    wlvifap->encryption_type == KEY_AES) {
+				if (diff16) {
+					lnk->prev_sec_pn16 = sec_pn16;
+					/* accumulate the prev_freed_pkts
+					 * counter according to the PN from
+					 * firmware
+					 */
+					lnk->total_freed_pkts += diff16;
+				}
+			} else {
+				if (diff)
+					/* accumulate the prev_freed_pkts
+					 * counter according to the free packets
+					 * count from firmware
+					 */
+					lnk->total_freed_pkts += diff;
+			}
+		}
 	}
 
 	/* prevent wrap-around in total blocks counter */
