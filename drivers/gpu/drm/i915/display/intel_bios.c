@@ -1120,6 +1120,18 @@ parse_sdvo_lvds_data(struct drm_i915_private *i915,
 	if (!dtd)
 		return;
 
+	/*
+	 * This should not happen, as long as the panel_type
+	 * enumeration doesn't grow over 4 items.  But if it does, it
+	 * could lead to hard-to-detect bugs, so better double-check
+	 * it here to be sure.
+	 */
+	if (index >= ARRAY_SIZE(dtd->dtd)) {
+		drm_err(&i915->drm, "index %d is larger than dtd->dtd[4] array\n",
+			index);
+		return;
+	}
+
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 	if (!panel_fixed_mode)
 		return;
