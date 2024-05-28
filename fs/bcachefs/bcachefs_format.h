@@ -503,19 +503,20 @@ struct bch_sb_field {
 
 #include "alloc_background_format.h"
 #include "extents_format.h"
-#include "reflink_format.h"
 #include "ec_format.h"
-#include "inode_format.h"
 #include "dirent_format.h"
 #include "disk_groups_format.h"
-#include "xattr_format.h"
-#include "quota_format.h"
+#include "inode_format.h"
 #include "logged_ops_format.h"
+#include "quota_format.h"
+#include "reflink_format.h"
+#include "replicas_format.h"
 #include "snapshot_format.h"
 #include "subvolume_format.h"
 #include "sb-counters_format.h"
 #include "sb-downgrade_format.h"
 #include "sb-members_format.h"
+#include "xattr_format.h"
 
 enum bch_sb_field_type {
 #define x(f, nr)	BCH_SB_FIELD_##f = nr,
@@ -596,8 +597,6 @@ LE64_BITMASK(BCH_KDF_SCRYPT_N,	struct bch_sb_field_crypt, kdf_flags,  0, 16);
 LE64_BITMASK(BCH_KDF_SCRYPT_R,	struct bch_sb_field_crypt, kdf_flags, 16, 32);
 LE64_BITMASK(BCH_KDF_SCRYPT_P,	struct bch_sb_field_crypt, kdf_flags, 32, 48);
 
-/* BCH_SB_FIELD_replicas: */
-
 #define BCH_DATA_TYPES()		\
 	x(free,		0)		\
 	x(sb,		1)		\
@@ -639,32 +638,6 @@ static inline bool data_type_is_hidden(enum bch_data_type type)
 		return false;
 	}
 }
-
-struct bch_replicas_entry_v0 {
-	__u8			data_type;
-	__u8			nr_devs;
-	__u8			devs[];
-} __packed;
-
-struct bch_sb_field_replicas_v0 {
-	struct bch_sb_field	field;
-	struct bch_replicas_entry_v0 entries[];
-} __packed __aligned(8);
-
-struct bch_replicas_entry_v1 {
-	__u8			data_type;
-	__u8			nr_devs;
-	__u8			nr_required;
-	__u8			devs[];
-} __packed;
-
-#define replicas_entry_bytes(_i)					\
-	(offsetof(typeof(*(_i)), devs) + (_i)->nr_devs)
-
-struct bch_sb_field_replicas {
-	struct bch_sb_field	field;
-	struct bch_replicas_entry_v1 entries[];
-} __packed __aligned(8);
 
 /*
  * On clean shutdown, store btree roots and current journal sequence number in
