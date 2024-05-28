@@ -187,24 +187,39 @@ static int simple_parse_node(struct simple_util_priv *priv,
 }
 
 static int simple_link_init(struct simple_util_priv *priv,
-			    struct device_node *node,
+			    struct device_node *cpu,
 			    struct device_node *codec,
 			    struct link_info *li,
 			    char *prefix, char *name)
 {
 	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *top = dev->of_node;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct device_node *node = of_get_parent(cpu);
+	bool playback_only = 0, capture_only = 0;
 	int ret;
 
 	ret = simple_util_parse_daifmt(dev, node, codec,
 				       prefix, &dai_link->dai_fmt);
 	if (ret < 0)
-		return 0;
+		goto init_end;
+
+	graph_util_parse_link_direction(top,	&playback_only, &capture_only);
+	graph_util_parse_link_direction(node,	&playback_only, &capture_only);
+	graph_util_parse_link_direction(cpu,	&playback_only, &capture_only);
+	graph_util_parse_link_direction(codec,	&playback_only, &capture_only);
+
+	dai_link->playback_only		= playback_only;
+	dai_link->capture_only		= capture_only;
 
 	dai_link->init			= simple_util_dai_init;
 	dai_link->ops			= &simple_ops;
 
-	return simple_util_set_dailink_name(dev, dai_link, name);
+	ret = simple_util_set_dailink_name(dev, dai_link, name);
+init_end:
+	of_node_put(node);
+
+	return ret;
 }
 
 static int simple_dai_link_of_dpcm(struct simple_util_priv *priv,
@@ -278,7 +293,7 @@ static int simple_dai_link_of_dpcm(struct simple_util_priv *priv,
 
 	snd_soc_dai_link_set_capabilities(dai_link);
 
-	ret = simple_link_init(priv, node, codec, li, prefix, dai_name);
+	ret = simple_link_init(priv, np, codec, li, prefix, dai_name);
 
 out_put_node:
 	li->link++;
@@ -336,7 +351,7 @@ static int simple_dai_link_of(struct simple_util_priv *priv,
 	simple_util_canonicalize_cpu(cpus, single_cpu);
 	simple_util_canonicalize_platform(platforms, cpus);
 
-	ret = simple_link_init(priv, node, codec, li, prefix, dai_name);
+	ret = simple_link_init(priv, cpu, codec, li, prefix, dai_name);
 
 dai_link_of_err:
 	of_node_put(plat);
