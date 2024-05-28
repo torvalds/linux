@@ -215,6 +215,13 @@ static int dw_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	int ret, type;
 	u32 reg;
 
+	/*
+	 * DWC does not allow BAR pairs to overlap, e.g. you cannot combine BARs
+	 * 1 and 2 to form a 64-bit BAR.
+	 */
+	if ((flags & PCI_BASE_ADDRESS_MEM_TYPE_64) && (bar & 1))
+		return -EINVAL;
+
 	reg = PCI_BASE_ADDRESS_0 + (4 * bar);
 
 	if (!(flags & PCI_BASE_ADDRESS_SPACE))
