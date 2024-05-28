@@ -378,6 +378,10 @@ int bch2_opt_parse(struct bch_fs *c,
 		break;
 	case BCH_OPT_FN:
 		ret = opt->fn.parse(c, val, res, err);
+
+		if (ret == -BCH_ERR_option_needs_open_fs)
+			return ret;
+
 		if (ret < 0) {
 			if (err)
 				prt_printf(err, "%s: parse error",
@@ -495,6 +499,17 @@ int bch2_parse_one_mount_opt(struct bch_fs *c, struct bch_opts *opts,
 		goto bad_opt;
 
 	ret = bch2_opt_parse(c, &bch2_opt_table[id], val, &v, &err);
+	if (ret == -BCH_ERR_option_needs_open_fs && parse_later) {
+		prt_printf(parse_later, "%s=%s,", name, val);
+		if (parse_later->allocation_failure) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = 0;
+		goto out;
+	}
+
 	if (ret < 0)
 		goto bad_val;
 
