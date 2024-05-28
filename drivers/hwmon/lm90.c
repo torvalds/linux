@@ -1270,42 +1270,6 @@ static int lm90_update_device(struct device *dev)
 	return 0;
 }
 
-/* pec used for devices with PEC support */
-static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
-			char *buf)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-
-	return sprintf(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
-}
-
-static ssize_t pec_store(struct device *dev, struct device_attribute *dummy,
-			 const char *buf, size_t count)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	long val;
-	int err;
-
-	err = kstrtol(buf, 10, &val);
-	if (err < 0)
-		return err;
-
-	switch (val) {
-	case 0:
-		client->flags &= ~I2C_CLIENT_PEC;
-		break;
-	case 1:
-		client->flags |= I2C_CLIENT_PEC;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return count;
-}
-
-static DEVICE_ATTR_RW(pec);
-
 static int lm90_temp_get_resolution(struct lm90_data *data, int index)
 {
 	switch (index) {
@@ -2659,11 +2623,6 @@ static irqreturn_t lm90_irq_thread(int irq, void *dev_id)
 		return IRQ_NONE;
 }
 
-static void lm90_remove_pec(void *dev)
-{
-	device_remove_file(dev, &dev_attr_pec);
-}
-
 static int lm90_probe_channel_from_dt(struct i2c_client *client,
 				      struct device_node *child,
 				      struct lm90_data *data)
@@ -2802,6 +2761,8 @@ static int lm90_probe(struct i2c_client *client)
 		data->chip_config[0] |= HWMON_C_UPDATE_INTERVAL;
 	if (data->flags & LM90_HAVE_FAULTQUEUE)
 		data->chip_config[0] |= HWMON_C_TEMP_SAMPLES;
+	if (data->flags & (LM90_HAVE_PEC | LM90_HAVE_PARTIAL_PEC))
+		data->chip_config[0] |= HWMON_C_PEC;
 	data->info[1] = &data->temp_info;
 
 	info = &data->temp_info;
@@ -2876,19 +2837,6 @@ static int lm90_probe(struct i2c_client *client)
 	if (err < 0) {
 		dev_err(dev, "Failed to initialize device\n");
 		return err;
-	}
-
-	/*
-	 * The 'pec' attribute is attached to the i2c device and thus created
-	 * separately.
-	 */
-	if (data->flags & (LM90_HAVE_PEC | LM90_HAVE_PARTIAL_PEC)) {
-		err = device_create_file(dev, &dev_attr_pec);
-		if (err)
-			return err;
-		err = devm_add_action_or_reset(dev, lm90_remove_pec, dev);
-		if (err)
-			return err;
 	}
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
