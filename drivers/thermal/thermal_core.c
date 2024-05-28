@@ -513,12 +513,12 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	if (tz->temperature == THERMAL_TEMP_INVALID)
 		return;
 
-	thermal_zone_set_trips(tz);
-
 	tz->notify_event = event;
 
 	for_each_trip_desc(tz, td)
 		handle_thermal_trip(tz, td, &way_up_list, &way_down_list);
+
+	thermal_zone_set_trips(tz);
 
 	list_sort(&way_up_list, &way_up_list, thermal_trip_notify_cmp);
 	list_for_each_entry(td, &way_up_list, notify_list_node)
