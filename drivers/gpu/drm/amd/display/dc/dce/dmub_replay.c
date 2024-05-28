@@ -38,21 +38,15 @@
  */
 static void dmub_replay_get_state(struct dmub_replay *dmub, enum replay_state *state, uint8_t panel_inst)
 {
-	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
-	/* uint32_t raw_state = 0; */
 	uint32_t retry_count = 0;
-	enum dmub_status status;
 
 	do {
 		// Send gpint command and wait for ack
-		status = dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_REPLAY_STATE, panel_inst, 30);
-
-		if (status == DMUB_STATUS_OK) {
-			// GPINT was executed, get response
-			dmub_srv_get_gpint_response(srv, (uint32_t *)state);
-		} else
+		if (!dc_wake_and_execute_gpint(dmub->ctx, DMUB_GPINT__GET_REPLAY_STATE, panel_inst,
+					       (uint32_t *)state, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
 			// Return invalid state when GPINT times out
 			*state = REPLAY_STATE_INVALID;
+		}
 	} while (++retry_count <= 1000 && *state == REPLAY_STATE_INVALID);
 
 	// Assert if max retry hit
