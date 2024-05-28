@@ -220,6 +220,13 @@ static void __maybe_unused da8xx_musb_try_idle(struct musb *musb, unsigned long 
 	mod_timer(&musb->dev_timer, timeout);
 }
 
+static int da8xx_babble_recover(struct musb *musb)
+{
+	dev_dbg(musb->controller, "resetting controller to recover from babble\n");
+	musb_writel(musb->ctrl_base, DA8XX_USB_CTRL_REG, DA8XX_SOFT_RESET_MASK);
+	return 0;
+}
+
 static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 {
 	struct musb		*musb = hci;
@@ -480,6 +487,7 @@ static const struct musb_platform_ops da8xx_ops = {
 #ifndef CONFIG_USB_MUSB_HOST
 	.try_idle	= da8xx_musb_try_idle,
 #endif
+	.recover	= da8xx_babble_recover,
 
 	.set_vbus	= da8xx_musb_set_vbus,
 };
