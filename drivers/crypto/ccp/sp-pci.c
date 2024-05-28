@@ -397,10 +397,12 @@ static const struct psp_vdata pspv1 = {
 
 static const struct psp_vdata pspv2 = {
 	.sev			= &sevv2,
+	.platform_access	= &pa_v1,
 	.bootloader_info_reg	= 0x109ec,	/* C2PMSG_59 */
 	.feature_reg		= 0x109fc,	/* C2PMSG_63 */
 	.inten_reg		= 0x10690,	/* P2CMSG_INTEN */
 	.intsts_reg		= 0x10694,	/* P2CMSG_INTSTS */
+	.platform_features	= PLATFORM_FEATURE_HSTI,
 };
 
 static const struct psp_vdata pspv3 = {
@@ -413,7 +415,8 @@ static const struct psp_vdata pspv3 = {
 	.feature_reg		= 0x109fc,	/* C2PMSG_63 */
 	.inten_reg		= 0x10690,	/* P2CMSG_INTEN */
 	.intsts_reg		= 0x10694,	/* P2CMSG_INTSTS */
-	.platform_features	= PLATFORM_FEATURE_DBC,
+	.platform_features	= PLATFORM_FEATURE_DBC |
+				  PLATFORM_FEATURE_HSTI,
 };
 
 static const struct psp_vdata pspv4 = {

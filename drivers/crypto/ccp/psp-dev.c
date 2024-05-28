@@ -220,6 +220,11 @@ static int psp_init(struct psp_device *psp)
 			return ret;
 	}
 
+	/* HSTI uses platform access on some systems. */
+	ret = psp_init_hsti(psp);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 

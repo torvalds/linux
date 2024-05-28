@@ -12,6 +12,13 @@
 #include "psp-dev.h"
 #include "hsti.h"
 
+#define PSP_CAPABILITY_PSP_SECURITY_OFFSET	8
+
+struct hsti_request {
+	struct psp_req_buffer_hdr header;
+	u32 hsti;
+} __packed;
+
 #define security_attribute_show(name)						\
 static ssize_t name##_show(struct device *d, struct device_attribute *attr,	\
 			   char *buf)						\
@@ -66,3 +73,51 @@ struct attribute_group psp_security_attr_group = {
 	.attrs = psp_security_attrs,
 	.is_visible = psp_security_is_visible,
 };
+
+static int psp_poulate_hsti(struct psp_device *psp)
+{
+	struct hsti_request *req;
+	int ret;
+
+	/* Are the security attributes already reported? */
+	if (psp->capability.security_reporting)
+		return 0;
+
+	/* Allocate command-response buffer */
+	req = kzalloc(sizeof(*req), GFP_KERNEL | __GFP_ZERO);
+	if (!req)
+		return -ENOMEM;
+
+	req->header.payload_size = sizeof(req);
+
+	ret = psp_send_platform_access_msg(PSP_CMD_HSTI_QUERY, (struct psp_request *)req);
+	if (ret)
+		goto out;
+
+	if (req->header.status != 0) {
+		dev_dbg(psp->dev, "failed to populate HSTI state: %d\n", req->header.status);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	psp->capability.security_reporting = 1;
+	psp->capability.raw |= req->hsti << PSP_CAPABILITY_PSP_SECURITY_OFFSET;
+
+out:
+	kfree(req);
+
+	return ret;
+}
+
+int psp_init_hsti(struct psp_device *psp)
+{
+	int ret;
+
+	if (PSP_FEATURE(psp, HSTI)) {
+		ret = psp_poulate_hsti(psp);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}

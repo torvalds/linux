@@ -12,4 +12,6 @@
 
 extern struct attribute_group psp_security_attr_group;
 
+int psp_init_hsti(struct psp_device *psp);
+
 #endif /* __HSTI_H */

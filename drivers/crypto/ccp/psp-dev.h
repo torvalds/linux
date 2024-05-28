@@ -78,8 +78,6 @@ void psp_clear_sev_irq_handler(struct psp_device *psp);
 
 struct psp_device *psp_get_master_device(void);
 
-#define PSP_CAPABILITY_PSP_SECURITY_OFFSET	8
-
 /**
  * enum psp_cmd - PSP mailbox commands
  * @PSP_CMD_TEE_RING_INIT:	Initialize TEE ring buffer
