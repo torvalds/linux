@@ -563,6 +563,7 @@ static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_dev
 	tze->duration = KTIME_MIN;
 
 	for (i = 0; i < tz->num_trips; i++) {
+		tze->trip_stats[i].trip_temp = THERMAL_TEMP_INVALID;
 		tze->trip_stats[i].min = INT_MAX;
 		tze->trip_stats[i].max = INT_MIN;
 	}
@@ -818,7 +819,7 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		trip_stats = &tze->trip_stats[trip_id];
 
 		/* Skip trips without any stats. */
-		if (trip_stats->min > trip_stats->max)
+		if (trip_stats->trip_temp == THERMAL_TEMP_INVALID)
 			continue;
 
 		if (trip->type == THERMAL_TRIP_PASSIVE)
