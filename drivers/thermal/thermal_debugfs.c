@@ -574,19 +574,19 @@ static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_dev
 void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 			      const struct thermal_trip *trip)
 {
-	struct tz_episode *tze;
-	struct tz_debugfs *tz_dbg;
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
 	int trip_id = thermal_zone_trip_id(tz, trip);
 	ktime_t now = ktime_get();
 	struct trip_stats *trip_stats;
+	struct tz_debugfs *tz_dbg;
+	struct tz_episode *tze;
 
 	if (!thermal_dbg)
 		return;
 
-	mutex_lock(&thermal_dbg->lock);
-
 	tz_dbg = &thermal_dbg->tz_dbg;
+
+	mutex_lock(&thermal_dbg->lock);
 
 	/*
 	 * The mitigation is starting. A mitigation can contain
@@ -677,9 +677,9 @@ void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 	if (!thermal_dbg)
 		return;
 
-	mutex_lock(&thermal_dbg->lock);
-
 	tz_dbg = &thermal_dbg->tz_dbg;
+
+	mutex_lock(&thermal_dbg->lock);
 
 	/*
 	 * The temperature crosses the way down but there was not
@@ -729,9 +729,9 @@ void thermal_debug_update_trip_stats(struct thermal_zone_device *tz)
 	if (!thermal_dbg)
 		return;
 
-	mutex_lock(&thermal_dbg->lock);
-
 	tz_dbg = &thermal_dbg->tz_dbg;
+
+	mutex_lock(&thermal_dbg->lock);
 
 	if (!tz_dbg->nr_trips)
 		goto out;
