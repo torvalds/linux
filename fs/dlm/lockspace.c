@@ -38,7 +38,7 @@ static ssize_t dlm_control_store(struct dlm_ls *ls, const char *buf, size_t len)
 
 	if (rc)
 		return rc;
-	ls = dlm_find_lockspace_local(ls->ls_local_handle);
+	ls = dlm_find_lockspace_local(ls);
 	if (!ls)
 		return -EINVAL;
 
@@ -265,18 +265,9 @@ struct dlm_ls *dlm_find_lockspace_global(uint32_t id)
 
 struct dlm_ls *dlm_find_lockspace_local(dlm_lockspace_t *lockspace)
 {
-	struct dlm_ls *ls;
+	struct dlm_ls *ls = lockspace;
 
-	spin_lock_bh(&lslist_lock);
-	list_for_each_entry(ls, &lslist, ls_list) {
-		if (ls->ls_local_handle == lockspace) {
-			atomic_inc(&ls->ls_count);
-			goto out;
-		}
-	}
-	ls = NULL;
- out:
-	spin_unlock_bh(&lslist_lock);
+	atomic_inc(&ls->ls_count);
 	return ls;
 }
 
@@ -496,7 +487,6 @@ static int new_lockspace(const char *name, const char *cluster,
 	idr_init(&ls->ls_recover_idr);
 	spin_lock_init(&ls->ls_recover_idr_lock);
 	ls->ls_recover_list_count = 0;
-	ls->ls_local_handle = ls;
 	init_waitqueue_head(&ls->ls_wait_general);
 	INIT_LIST_HEAD(&ls->ls_masters_list);
 	rwlock_init(&ls->ls_masters_lock);

@@ -561,7 +561,6 @@ struct rcom_lock {
 
 struct dlm_ls {
 	struct list_head	ls_list;	/* list of lockspaces */
-	dlm_lockspace_t		*ls_local_handle;
 	uint32_t		ls_global_id;	/* global unique lockspace ID */
 	uint32_t		ls_generation;
 	uint32_t		ls_exflags;

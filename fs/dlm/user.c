@@ -454,7 +454,7 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 	if (params->flags & DLM_USER_LSFLG_FORCEFREE)
 		force = 2;
 
-	lockspace = ls->ls_local_handle;
+	lockspace = ls;
 	dlm_put_lockspace(ls);
 
 	/* The final dlm_release_lockspace waits for references to go to
@@ -657,7 +657,7 @@ static int device_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	proc->lockspace = ls->ls_local_handle;
+	proc->lockspace = ls;
 	INIT_LIST_HEAD(&proc->asts);
 	INIT_LIST_HEAD(&proc->locks);
 	INIT_LIST_HEAD(&proc->unlocking);
