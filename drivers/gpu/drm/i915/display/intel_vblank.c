@@ -312,12 +312,10 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	hsync_start = mode->crtc_hsync_start;
 	vtotal = mode->crtc_vtotal;
 	vbl_start = intel_mode_vblank_start(mode);
-	vbl_end = mode->crtc_vblank_end;
+	vbl_end = intel_mode_vblank_end(mode);
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		vbl_end /= 2;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vtotal /= 2;
-	}
 
 	/*
 	 * Enter vblank critical section, as we will do multiple
@@ -582,6 +580,16 @@ int intel_mode_vblank_start(const struct drm_display_mode *mode)
 		vblank_start = DIV_ROUND_UP(vblank_start, 2);
 
 	return vblank_start;
+}
+
+int intel_mode_vblank_end(const struct drm_display_mode *mode)
+{
+	int vblank_end = mode->crtc_vblank_end;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vblank_end /= 2;
+
+	return vblank_end;
 }
 
 void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
