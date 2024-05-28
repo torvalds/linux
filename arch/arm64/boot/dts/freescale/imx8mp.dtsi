@@ -1949,7 +1949,7 @@
 			};
 
 			irqsteer_hdmi: interrupt-controller@32fc2000 {
-				compatible = "fsl,imx-irqsteer";
+				compatible = "fsl,imx8mp-irqsteer", "fsl,imx-irqsteer";
 				reg = <0x32fc2000 0x1000>;
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
