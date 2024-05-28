@@ -146,4 +146,23 @@ l0_%=:	exit;						\
 	: __clobber_all);
 }
 
+SEC("flow_dissector")
+__description("flow_keys illegal alu op with variable offset")
+__failure __msg("R7 pointer arithmetic on flow_keys prohibited")
+__naked void flow_keys_illegal_variable_offset_alu(void)
+{
+	asm volatile("					\
+	r6 = r1;					\
+	r7 = *(u64*)(r6 + %[flow_keys_off]);		\
+	r8 = 8;						\
+	r8 /= 1;					\
+	r8 &= 8;					\
+	r7 += r8;					\
+	r0 = *(u64*)(r7 + 0);				\
+	exit;						\
+"	:
+	: __imm_const(flow_keys_off, offsetof(struct __sk_buff, flow_keys))
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

@@ -16,9 +16,6 @@
 #define CTRL_MBOX_MAX_PF	128
 #define CTRL_MBOX_SZ		((size_t)(0x400000 / CTRL_MBOX_MAX_PF))
 
-#define FW_HB_INTERVAL_IN_SECS		1
-#define FW_HB_MISS_COUNT		10
-
 /* Names of Hardware non-queue generic interrupts */
 static char *cn93_non_ioq_msix_names[] = {
 	"epf_ire_rint",
@@ -219,16 +216,21 @@ static void octep_init_config_cn93_pf(struct octep_device *oct)
 	conf->sriov_cfg.vf_srn = CN93_SDP_EPF_RINFO_SRN(val);
 
 	val = octep_read_csr64(oct, CN93_SDP_MAC_PF_RING_CTL(oct->pcie_port));
-	conf->pf_ring_cfg.srn =  CN93_SDP_MAC_PF_RING_CTL_SRN(val);
-	conf->pf_ring_cfg.max_io_rings = CN93_SDP_MAC_PF_RING_CTL_RPPF(val);
-	conf->pf_ring_cfg.active_io_rings = conf->pf_ring_cfg.max_io_rings;
+	if (oct->chip_id == OCTEP_PCI_DEVICE_ID_CN98_PF) {
+		conf->pf_ring_cfg.srn =  CN98_SDP_MAC_PF_RING_CTL_SRN(val);
+		conf->pf_ring_cfg.max_io_rings = CN98_SDP_MAC_PF_RING_CTL_RPPF(val);
+		conf->pf_ring_cfg.active_io_rings = conf->pf_ring_cfg.max_io_rings;
+	} else {
+		conf->pf_ring_cfg.srn =  CN93_SDP_MAC_PF_RING_CTL_SRN(val);
+		conf->pf_ring_cfg.max_io_rings = CN93_SDP_MAC_PF_RING_CTL_RPPF(val);
+		conf->pf_ring_cfg.active_io_rings = conf->pf_ring_cfg.max_io_rings;
+	}
 	dev_info(&pdev->dev, "pf_srn=%u rpvf=%u nvfs=%u rppf=%u\n",
 		 conf->pf_ring_cfg.srn, conf->sriov_cfg.active_rings_per_vf,
 		 conf->sriov_cfg.active_vfs, conf->pf_ring_cfg.active_io_rings);
 
 	conf->iq.num_descs = OCTEP_IQ_MAX_DESCRIPTORS;
 	conf->iq.instr_type = OCTEP_64BYTE_INSTR;
-	conf->iq.pkind = 0;
 	conf->iq.db_min = OCTEP_DB_MIN;
 	conf->iq.intr_threshold = OCTEP_IQ_INTR_THRESHOLD;
 
@@ -250,12 +252,11 @@ static void octep_init_config_cn93_pf(struct octep_device *oct)
 		link = PCI_DEVFN(PCI_SLOT(oct->pdev->devfn), link);
 	}
 	conf->ctrl_mbox_cfg.barmem_addr = (void __iomem *)oct->mmio[2].hw_addr +
-					   (0x400000ull * 7) +
+					   CN93_PEM_BAR4_INDEX_OFFSET +
 					   (link * CTRL_MBOX_SZ);
 
-	conf->hb_interval = FW_HB_INTERVAL_IN_SECS;
-	conf->max_hb_miss_cnt = FW_HB_MISS_COUNT;
-
+	conf->fw_info.hb_interval = OCTEP_DEFAULT_FW_HB_INTERVAL;
+	conf->fw_info.hb_miss_count = OCTEP_DEFAULT_FW_HB_MISS_COUNT;
 }
 
 /* Setup registers for a hardware Tx Queue  */
@@ -361,46 +362,92 @@ static void octep_setup_mbox_regs_cn93_pf(struct octep_device *oct, int q_no)
 {
 	struct octep_mbox *mbox = oct->mbox[q_no];
 
-	mbox->q_no = q_no;
-
-	/* PF mbox interrupt reg */
-	mbox->mbox_int_reg = oct->mmio[0].hw_addr + CN93_SDP_EPF_MBOX_RINT(0);
-
 	/* PF to VF DATA reg. PF writes into this reg */
-	mbox->mbox_write_reg = oct->mmio[0].hw_addr + CN93_SDP_R_MBOX_PF_VF_DATA(q_no);
+	mbox->pf_vf_data_reg = oct->mmio[0].hw_addr + CN93_SDP_MBOX_PF_VF_DATA(q_no);
 
 	/* VF to PF DATA reg. PF reads from this reg */
-	mbox->mbox_read_reg = oct->mmio[0].hw_addr + CN93_SDP_R_MBOX_VF_PF_DATA(q_no);
+	mbox->vf_pf_data_reg = oct->mmio[0].hw_addr + CN93_SDP_MBOX_VF_PF_DATA(q_no);
+}
+
+/* Poll for mailbox messages from VF */
+static void octep_poll_pfvf_mailbox(struct octep_device *oct)
+{
+	u32 vf, active_vfs, active_rings_per_vf, vf_mbox_queue;
+	u64 reg0, reg1;
+
+	reg0 = octep_read_csr64(oct, CN93_SDP_EPF_MBOX_RINT(0));
+	reg1 = octep_read_csr64(oct, CN93_SDP_EPF_MBOX_RINT(1));
+	if (reg0 || reg1) {
+		active_vfs = CFG_GET_ACTIVE_VFS(oct->conf);
+		active_rings_per_vf = CFG_GET_ACTIVE_RPVF(oct->conf);
+		for (vf = 0; vf < active_vfs; vf++) {
+			vf_mbox_queue = vf * active_rings_per_vf;
+
+			if (vf_mbox_queue < 64) {
+				if (!(reg0 & (0x1UL << vf_mbox_queue)))
+					continue;
+			} else {
+				if (!(reg1 & (0x1UL << (vf_mbox_queue - 64))))
+					continue;
+			}
+
+			if (!oct->mbox[vf_mbox_queue]) {
+				dev_err(&oct->pdev->dev, "bad mbox vf %d\n", vf);
+				continue;
+			}
+			schedule_work(&oct->mbox[vf_mbox_queue]->wk.work);
+		}
+		if (reg0)
+			octep_write_csr64(oct, CN93_SDP_EPF_MBOX_RINT(0), reg0);
+		if (reg1)
+			octep_write_csr64(oct, CN93_SDP_EPF_MBOX_RINT(1), reg1);
+	}
+}
+
+/* PF-VF mailbox interrupt handler */
+static irqreturn_t octep_pfvf_mbox_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+
+	octep_poll_pfvf_mailbox(oct);
+	return IRQ_HANDLED;
+}
+
+/* Poll OEI events like heartbeat */
+static void octep_poll_oei_cn93_pf(struct octep_device *oct)
+{
+	u64 reg;
+
+	reg = octep_read_csr64(oct, CN93_SDP_EPF_OEI_RINT);
+	if (reg) {
+		octep_write_csr64(oct, CN93_SDP_EPF_OEI_RINT, reg);
+		if (reg & CN93_SDP_EPF_OEI_RINT_DATA_BIT_MBOX)
+			queue_work(octep_wq, &oct->ctrl_mbox_task);
+		else if (reg & CN93_SDP_EPF_OEI_RINT_DATA_BIT_HBEAT)
+			atomic_set(&oct->hb_miss_cnt, 0);
+	}
+}
+
+/* OEI interrupt handler */
+static irqreturn_t octep_oei_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+
+	octep_poll_oei_cn93_pf(oct);
+	return IRQ_HANDLED;
 }
 
 /* Process non-ioq interrupts required to keep pf interface running.
  * OEI_RINT is needed for control mailbox
  */
-static bool octep_poll_non_ioq_interrupts_cn93_pf(struct octep_device *oct)
+static void octep_poll_non_ioq_interrupts_cn93_pf(struct octep_device *oct)
 {
-	bool handled = false;
-	u64 reg0;
-
-	/* Check for OEI INTR */
-	reg0 = octep_read_csr64(oct, CN93_SDP_EPF_OEI_RINT);
-	if (reg0) {
-		dev_info(&oct->pdev->dev,
-			 "Received OEI_RINT intr: 0x%llx\n",
-			 reg0);
-		octep_write_csr64(oct, CN93_SDP_EPF_OEI_RINT, reg0);
-		if (reg0 & CN93_SDP_EPF_OEI_RINT_DATA_BIT_MBOX)
-			queue_work(octep_wq, &oct->ctrl_mbox_task);
-		else if (reg0 & CN93_SDP_EPF_OEI_RINT_DATA_BIT_HBEAT)
-			atomic_set(&oct->hb_miss_cnt, 0);
-
-		handled = true;
-	}
-
-	return handled;
+	octep_poll_pfvf_mailbox(oct);
+	octep_poll_oei_cn93_pf(oct);
 }
 
-/* Interrupts handler for all non-queue generic interrupts. */
-static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
+/* Interrupt handler for input ring error interrupts. */
+static irqreturn_t octep_ire_intr_handler_cn93_pf(void *dev)
 {
 	struct octep_device *oct = (struct octep_device *)dev;
 	struct pci_dev *pdev = oct->pdev;
@@ -425,8 +472,17 @@ static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
 						  reg_val);
 			}
 		}
-		goto irq_handled;
 	}
+	return IRQ_HANDLED;
+}
+
+/* Interrupt handler for output ring error interrupts. */
+static irqreturn_t octep_ore_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+	struct pci_dev *pdev = oct->pdev;
+	u64 reg_val = 0;
+	int i = 0;
 
 	/* Check for ORERR INTR */
 	reg_val = octep_read_csr64(oct, CN93_SDP_EPF_ORERR_RINT);
@@ -444,9 +500,16 @@ static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
 						  reg_val);
 			}
 		}
-
-		goto irq_handled;
 	}
+	return IRQ_HANDLED;
+}
+
+/* Interrupt handler for vf input ring error interrupts. */
+static irqreturn_t octep_vfire_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+	struct pci_dev *pdev = oct->pdev;
+	u64 reg_val = 0;
 
 	/* Check for VFIRE INTR */
 	reg_val = octep_read_csr64(oct, CN93_SDP_EPF_VFIRE_RINT(0));
@@ -454,8 +517,16 @@ static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
 		dev_info(&pdev->dev,
 			 "Received VFIRE_RINT intr: 0x%llx\n", reg_val);
 		octep_write_csr64(oct, CN93_SDP_EPF_VFIRE_RINT(0), reg_val);
-		goto irq_handled;
 	}
+	return IRQ_HANDLED;
+}
+
+/* Interrupt handler for vf output ring error interrupts. */
+static irqreturn_t octep_vfore_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+	struct pci_dev *pdev = oct->pdev;
+	u64 reg_val = 0;
 
 	/* Check for VFORE INTR */
 	reg_val = octep_read_csr64(oct, CN93_SDP_EPF_VFORE_RINT(0));
@@ -463,19 +534,30 @@ static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
 		dev_info(&pdev->dev,
 			 "Received VFORE_RINT intr: 0x%llx\n", reg_val);
 		octep_write_csr64(oct, CN93_SDP_EPF_VFORE_RINT(0), reg_val);
-		goto irq_handled;
 	}
+	return IRQ_HANDLED;
+}
 
-	/* Check for MBOX INTR and OEI INTR */
-	if (octep_poll_non_ioq_interrupts_cn93_pf(oct))
-		goto irq_handled;
+/* Interrupt handler for dpi dma related interrupts. */
+static irqreturn_t octep_dma_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+	u64 reg_val = 0;
 
 	/* Check for DMA INTR */
 	reg_val = octep_read_csr64(oct, CN93_SDP_EPF_DMA_RINT);
 	if (reg_val) {
 		octep_write_csr64(oct, CN93_SDP_EPF_DMA_RINT, reg_val);
-		goto irq_handled;
 	}
+	return IRQ_HANDLED;
+}
+
+/* Interrupt handler for dpi dma transaction error interrupts for VFs  */
+static irqreturn_t octep_dma_vf_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+	struct pci_dev *pdev = oct->pdev;
+	u64 reg_val = 0;
 
 	/* Check for DMA VF INTR */
 	reg_val = octep_read_csr64(oct, CN93_SDP_EPF_DMA_VF_RINT(0));
@@ -483,8 +565,16 @@ static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
 		dev_info(&pdev->dev,
 			 "Received DMA_VF_RINT intr: 0x%llx\n", reg_val);
 		octep_write_csr64(oct, CN93_SDP_EPF_DMA_VF_RINT(0), reg_val);
-		goto irq_handled;
 	}
+	return IRQ_HANDLED;
+}
+
+/* Interrupt handler for pp transaction error interrupts for VFs  */
+static irqreturn_t octep_pp_vf_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+	struct pci_dev *pdev = oct->pdev;
+	u64 reg_val = 0;
 
 	/* Check for PPVF INTR */
 	reg_val = octep_read_csr64(oct, CN93_SDP_EPF_PP_VF_RINT(0));
@@ -492,8 +582,16 @@ static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
 		dev_info(&pdev->dev,
 			 "Received PP_VF_RINT intr: 0x%llx\n", reg_val);
 		octep_write_csr64(oct, CN93_SDP_EPF_PP_VF_RINT(0), reg_val);
-		goto irq_handled;
 	}
+	return IRQ_HANDLED;
+}
+
+/* Interrupt handler for mac related interrupts. */
+static irqreturn_t octep_misc_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+	struct pci_dev *pdev = oct->pdev;
+	u64 reg_val = 0;
 
 	/* Check for MISC INTR */
 	reg_val = octep_read_csr64(oct, CN93_SDP_EPF_MISC_RINT);
@@ -501,11 +599,17 @@ static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
 		dev_info(&pdev->dev,
 			 "Received MISC_RINT intr: 0x%llx\n", reg_val);
 		octep_write_csr64(oct, CN93_SDP_EPF_MISC_RINT, reg_val);
-		goto irq_handled;
 	}
+	return IRQ_HANDLED;
+}
+
+/* Interrupts handler for all reserved interrupts. */
+static irqreturn_t octep_rsvd_intr_handler_cn93_pf(void *dev)
+{
+	struct octep_device *oct = (struct octep_device *)dev;
+	struct pci_dev *pdev = oct->pdev;
 
 	dev_info(&pdev->dev, "Reserved interrupts raised; Ignore\n");
-irq_handled:
 	return IRQ_HANDLED;
 }
 
@@ -517,6 +621,13 @@ static irqreturn_t octep_ioq_intr_handler_cn93_pf(void *data)
 
 	napi_schedule_irqoff(oq->napi);
 	return IRQ_HANDLED;
+}
+
+/* soft reset of 98xx */
+static int octep_soft_reset_cn98_pf(struct octep_device *oct)
+{
+	dev_info(&oct->pdev->dev, "CN98XX: skip soft reset\n");
+	return 0;
 }
 
 /* soft reset of 93xx */
@@ -569,8 +680,17 @@ static void octep_enable_interrupts_cn93_pf(struct octep_device *oct)
 	octep_write_csr64(oct, CN93_SDP_EPF_IRERR_RINT_ENA_W1S, intr_mask);
 	octep_write_csr64(oct, CN93_SDP_EPF_ORERR_RINT_ENA_W1S, intr_mask);
 	octep_write_csr64(oct, CN93_SDP_EPF_OEI_RINT_ENA_W1S, -1ULL);
+
+	octep_write_csr64(oct, CN93_SDP_EPF_VFIRE_RINT_ENA_W1S(0), -1ULL);
+	octep_write_csr64(oct, CN93_SDP_EPF_VFORE_RINT_ENA_W1S(0), -1ULL);
+
 	octep_write_csr64(oct, CN93_SDP_EPF_MISC_RINT_ENA_W1S, intr_mask);
 	octep_write_csr64(oct, CN93_SDP_EPF_DMA_RINT_ENA_W1S, intr_mask);
+	octep_write_csr64(oct, CN93_SDP_EPF_MBOX_RINT_ENA_W1S(0), -1ULL);
+	octep_write_csr64(oct, CN93_SDP_EPF_MBOX_RINT_ENA_W1S(1), -1ULL);
+
+	octep_write_csr64(oct, CN93_SDP_EPF_DMA_VF_RINT_ENA_W1S(0), -1ULL);
+	octep_write_csr64(oct, CN93_SDP_EPF_PP_VF_RINT_ENA_W1S(0), -1ULL);
 }
 
 /* Disable all interrupts */
@@ -588,8 +708,17 @@ static void octep_disable_interrupts_cn93_pf(struct octep_device *oct)
 	octep_write_csr64(oct, CN93_SDP_EPF_IRERR_RINT_ENA_W1C, intr_mask);
 	octep_write_csr64(oct, CN93_SDP_EPF_ORERR_RINT_ENA_W1C, intr_mask);
 	octep_write_csr64(oct, CN93_SDP_EPF_OEI_RINT_ENA_W1C, -1ULL);
+
+	octep_write_csr64(oct, CN93_SDP_EPF_VFIRE_RINT_ENA_W1C(0), -1ULL);
+	octep_write_csr64(oct, CN93_SDP_EPF_VFORE_RINT_ENA_W1C(0), -1ULL);
+
 	octep_write_csr64(oct, CN93_SDP_EPF_MISC_RINT_ENA_W1C, intr_mask);
 	octep_write_csr64(oct, CN93_SDP_EPF_DMA_RINT_ENA_W1C, intr_mask);
+	octep_write_csr64(oct, CN93_SDP_EPF_MBOX_RINT_ENA_W1C(0), -1ULL);
+	octep_write_csr64(oct, CN93_SDP_EPF_MBOX_RINT_ENA_W1C(1), -1ULL);
+
+	octep_write_csr64(oct, CN93_SDP_EPF_DMA_VF_RINT_ENA_W1C(0), -1ULL);
+	octep_write_csr64(oct, CN93_SDP_EPF_PP_VF_RINT_ENA_W1C(0), -1ULL);
 }
 
 /* Get new Octeon Read Index: index of descriptor that Octeon reads next. */
@@ -722,9 +851,22 @@ void octep_device_setup_cn93_pf(struct octep_device *oct)
 	oct->hw_ops.setup_oq_regs = octep_setup_oq_regs_cn93_pf;
 	oct->hw_ops.setup_mbox_regs = octep_setup_mbox_regs_cn93_pf;
 
-	oct->hw_ops.non_ioq_intr_handler = octep_non_ioq_intr_handler_cn93_pf;
+	oct->hw_ops.mbox_intr_handler = octep_pfvf_mbox_intr_handler_cn93_pf;
+	oct->hw_ops.oei_intr_handler = octep_oei_intr_handler_cn93_pf;
+	oct->hw_ops.ire_intr_handler = octep_ire_intr_handler_cn93_pf;
+	oct->hw_ops.ore_intr_handler = octep_ore_intr_handler_cn93_pf;
+	oct->hw_ops.vfire_intr_handler = octep_vfire_intr_handler_cn93_pf;
+	oct->hw_ops.vfore_intr_handler = octep_vfore_intr_handler_cn93_pf;
+	oct->hw_ops.dma_intr_handler = octep_dma_intr_handler_cn93_pf;
+	oct->hw_ops.dma_vf_intr_handler = octep_dma_vf_intr_handler_cn93_pf;
+	oct->hw_ops.pp_vf_intr_handler = octep_pp_vf_intr_handler_cn93_pf;
+	oct->hw_ops.misc_intr_handler = octep_misc_intr_handler_cn93_pf;
+	oct->hw_ops.rsvd_intr_handler = octep_rsvd_intr_handler_cn93_pf;
 	oct->hw_ops.ioq_intr_handler = octep_ioq_intr_handler_cn93_pf;
-	oct->hw_ops.soft_reset = octep_soft_reset_cn93_pf;
+	if (oct->chip_id == OCTEP_PCI_DEVICE_ID_CN98_PF)
+		oct->hw_ops.soft_reset = octep_soft_reset_cn98_pf;
+	else
+		oct->hw_ops.soft_reset = octep_soft_reset_cn93_pf;
 	oct->hw_ops.reinit_regs = octep_reinit_regs_cn93_pf;
 
 	oct->hw_ops.enable_interrupts = octep_enable_interrupts_cn93_pf;

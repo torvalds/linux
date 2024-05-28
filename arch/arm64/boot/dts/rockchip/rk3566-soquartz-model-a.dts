@@ -8,6 +8,10 @@
 	model = "PINE64 RK3566 SOQuartz on Model A carrier board";
 	compatible = "pine64,soquartz-model-a", "pine64,soquartz", "rockchip,rk3566";
 
+	aliases {
+		ethernet0 = &gmac1;
+	};
+
 	/* labeled DCIN_12V in schematic */
 	vcc12v_dcin: vcc12v-dcin-regulator {
 		compatible = "regulator-fixed";

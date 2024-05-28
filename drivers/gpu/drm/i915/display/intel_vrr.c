@@ -42,6 +42,15 @@ bool intel_vrr_is_capable(struct intel_connector *connector)
 		info->monitor_range.max_vfreq - info->monitor_range.min_vfreq > 10;
 }
 
+bool intel_vrr_is_in_range(struct intel_connector *connector, int vrefresh)
+{
+	const struct drm_display_info *info = &connector->base.display_info;
+
+	return intel_vrr_is_capable(connector) &&
+		vrefresh >= info->monitor_range.min_vfreq &&
+		vrefresh <= info->monitor_range.max_vfreq;
+}
+
 void
 intel_vrr_check_modeset(struct intel_atomic_state *state)
 {
@@ -108,11 +117,23 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	const struct drm_display_info *info = &connector->base.display_info;
 	int vmin, vmax;
 
-	if (!intel_vrr_is_capable(connector))
+	/*
+	 * FIXME all joined pipes share the same transcoder.
+	 * Need to account for that during VRR toggle/push/etc.
+	 */
+	if (crtc_state->bigjoiner_pipes)
 		return;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return;
+
+	crtc_state->vrr.in_range =
+		intel_vrr_is_in_range(connector, drm_mode_vrefresh(adjusted_mode));
+	if (!crtc_state->vrr.in_range)
+		return;
+
+	if (HAS_LRR(i915))
+		crtc_state->update_lrr = true;
 
 	vmin = DIV_ROUND_UP(adjusted_mode->crtc_clock * 1000,
 			    adjusted_mode->crtc_htotal * info->monitor_range.max_vfreq);
@@ -173,10 +194,11 @@ void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	/*
-	 * TRANS_SET_CONTEXT_LATENCY with VRR enabled
-	 * requires this chicken bit on ADL/DG2.
+	 * This bit seems to have two meanings depending on the platform:
+	 * TGL: generate VRR "safe window" for DSB vblank waits
+	 * ADL/DG2: make TRANS_SET_CONTEXT_LATENCY effective with VRR
 	 */
-	if (DISPLAY_VER(dev_priv) == 13)
+	if (IS_DISPLAY_VER(dev_priv, 12, 13))
 		intel_de_rmw(dev_priv, CHICKEN_TRANS(cpu_transcoder),
 			     0, PIPE_VBLANK_WITH_DELAY);
 

@@ -36,6 +36,7 @@ struct wfx_tx_policy_cache {
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
 	unsigned char icv_size;
+	unsigned char vif_id;
 };
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);
@@ -45,22 +46,8 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control, struc
 void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct wfx_hif_cnf_tx *arg);
 void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u32 queues, bool drop);
 
-static inline struct wfx_tx_priv *wfx_skb_tx_priv(struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *tx_info;
-
-	if (!skb)
-		return NULL;
-	tx_info = IEEE80211_SKB_CB(skb);
-	return (struct wfx_tx_priv *)tx_info->rate_driver_data;
-}
-
-static inline struct wfx_hif_req_tx *wfx_skb_txreq(struct sk_buff *skb)
-{
-	struct wfx_hif_msg *hif = (struct wfx_hif_msg *)skb->data;
-	struct wfx_hif_req_tx *req = (struct wfx_hif_req_tx *)hif->body;
-
-	return req;
-}
+struct wfx_tx_priv *wfx_skb_tx_priv(struct sk_buff *skb);
+struct wfx_hif_req_tx *wfx_skb_txreq(struct sk_buff *skb);
+struct wfx_vif *wfx_skb_wvif(struct wfx_dev *wdev, struct sk_buff *skb);
 
 #endif

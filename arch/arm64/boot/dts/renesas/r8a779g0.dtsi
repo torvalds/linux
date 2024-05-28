@@ -161,11 +161,6 @@
 		};
 	};
 
-	psci {
-		compatible = "arm,psci-1.0", "arm,psci-0.2";
-		method = "smc";
-	};
-
 	extal_clk: extal {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -185,8 +180,19 @@
 		interrupts-extended = <&gic GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
 	};
 
-	/* External SCIF clock - to be overridden by boards that provide it */
+	psci {
+		compatible = "arm,psci-1.0", "arm,psci-0.2";
+		method = "smc";
+	};
+
+	/* External SCIF clocks - to be overridden by boards that provide them */
 	scif_clk: scif {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
+	scif_clk2: scif2 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
@@ -479,6 +485,7 @@
 			interrupts = <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2";
 			clocks = <&cpg CPG_MOD 713>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
@@ -491,7 +498,9 @@
 			reg = <0 0xe6fc0000 0 0x30>;
 			interrupts = <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
 			clocks = <&cpg CPG_MOD 714>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
@@ -504,7 +513,9 @@
 			reg = <0 0xe6fd0000 0 0x30>;
 			interrupts = <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
 			clocks = <&cpg CPG_MOD 715>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
@@ -517,7 +528,9 @@
 			reg = <0 0xe6fe0000 0 0x30>;
 			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
 			clocks = <&cpg CPG_MOD 716>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
@@ -530,7 +543,9 @@
 			reg = <0 0xffc00000 0 0x30>;
 			interrupts = <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
 			clocks = <&cpg CPG_MOD 717>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
@@ -681,7 +696,7 @@
 			interrupts = <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 516>,
 				 <&cpg CPG_CORE R8A779G0_CLK_SASYNCPERD1>,
-				 <&scif_clk>;
+				 <&scif_clk2>;
 			clock-names = "fck", "brg_int", "scif_clk";
 			dmas = <&dmac0 0x35>, <&dmac0 0x34>,
 			       <&dmac1 0x35>, <&dmac1 0x34>;
@@ -761,7 +776,7 @@
 		avb0: ethernet@e6800000 {
 			compatible = "renesas,etheravb-r8a779g0",
 				     "renesas,etheravb-rcar-gen4";
-			reg = <0 0xe6800000 0 0x800>;
+			reg = <0 0xe6800000 0 0x1000>;
 			interrupts = <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>,
@@ -808,7 +823,7 @@
 		avb1: ethernet@e6810000 {
 			compatible = "renesas,etheravb-r8a779g0",
 				     "renesas,etheravb-rcar-gen4";
-			reg = <0 0xe6810000 0 0x800>;
+			reg = <0 0xe6810000 0 0x1000>;
 			interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 362 IRQ_TYPE_LEVEL_HIGH>,
@@ -1057,7 +1072,7 @@
 			interrupts = <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 705>,
 				 <&cpg CPG_CORE R8A779G0_CLK_SASYNCPERD1>,
-				 <&scif_clk>;
+				 <&scif_clk2>;
 			clock-names = "fck", "brg_int", "scif_clk";
 			dmas = <&dmac0 0x59>, <&dmac0 0x58>,
 			       <&dmac1 0x59>, <&dmac1 0x58>;
@@ -1777,6 +1792,37 @@
 			};
 		};
 
+		mmc0: mmc@ee140000 {
+			compatible = "renesas,sdhi-r8a779g0",
+				     "renesas,rcar-gen4-sdhi";
+			reg = <0 0xee140000 0 0x2000>;
+			interrupts = <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 706>,
+				 <&cpg CPG_CORE R8A779G0_CLK_SD0H>;
+			clock-names = "core", "clkh";
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			resets = <&cpg 706>;
+			max-frequency = <200000000>;
+			iommus = <&ipmmu_ds0 32>;
+			status = "disabled";
+		};
+
+		rpc: spi@ee200000 {
+			compatible = "renesas,r8a779g0-rpc-if",
+				     "renesas,rcar-gen4-rpc-if";
+			reg = <0 0xee200000 0 0x200>,
+			      <0 0x08000000 0 0x04000000>,
+			      <0 0xee208000 0 0x100>;
+			reg-names = "regs", "dirmap", "wbuf";
+			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 629>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			resets = <&cpg 629>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		ipmmu_rt0: iommu@ee480000 {
 			compatible = "renesas,ipmmu-r8a779g0",
 				     "renesas,rcar-gen4-ipmmu-vmsa";
@@ -1884,37 +1930,6 @@
 				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
 			#iommu-cells = <1>;
-		};
-
-		mmc0: mmc@ee140000 {
-			compatible = "renesas,sdhi-r8a779g0",
-				     "renesas,rcar-gen4-sdhi";
-			reg = <0 0xee140000 0 0x2000>;
-			interrupts = <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 706>,
-				 <&cpg CPG_CORE R8A779G0_CLK_SD0H>;
-			clock-names = "core", "clkh";
-			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
-			resets = <&cpg 706>;
-			max-frequency = <200000000>;
-			iommus = <&ipmmu_ds0 32>;
-			status = "disabled";
-		};
-
-		rpc: spi@ee200000 {
-			compatible = "renesas,r8a779g0-rpc-if",
-				     "renesas,rcar-gen4-rpc-if";
-			reg = <0 0xee200000 0 0x200>,
-			      <0 0x08000000 0 0x04000000>,
-			      <0 0xee208000 0 0x100>;
-			reg-names = "regs", "dirmap", "wbuf";
-			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 629>;
-			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
-			resets = <&cpg 629>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "disabled";
 		};
 
 		gic: interrupt-controller@f1000000 {

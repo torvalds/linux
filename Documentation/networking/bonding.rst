@@ -444,6 +444,18 @@ arp_missed_max
 
 	The default value is 2, and the allowable range is 1 - 255.
 
+coupled_control
+
+    Specifies whether the LACP state machine's MUX in the 802.3ad mode
+    should have separate Collecting and Distributing states.
+
+    This is by implementing the independent control state machine per
+    IEEE 802.1AX-2008 5.4.15 in addition to the existing coupled control
+    state machine.
+
+    The default value is 1. This setting does not separate the Collecting
+    and Distributing states, maintaining the bond in coupled control.
+
 downdelay
 
 	Specifies the time, in milliseconds, to wait before disabling
@@ -1636,7 +1648,7 @@ your init script::
 -----------------------------------------
 
 This section applies to distros which use /etc/network/interfaces file
-to describe network interface configuration, most notably Debian and it's
+to describe network interface configuration, most notably Debian and its
 derivatives.
 
 The ifup and ifdown commands on Debian don't support bonding out of

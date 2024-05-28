@@ -35,6 +35,7 @@
 #define DWMAC_CORE_5_10		0x51
 #define DWMAC_CORE_5_20		0x52
 #define DWXGMAC_CORE_2_10	0x21
+#define DWXGMAC_CORE_2_20	0x22
 #define DWXLGMAC_CORE_2_00	0x20
 
 /* Device ID */
@@ -58,14 +59,49 @@
 #undef FRAME_FILTER_DEBUG
 /* #define FRAME_FILTER_DEBUG */
 
+struct stmmac_q_tx_stats {
+	u64_stats_t tx_bytes;
+	u64_stats_t tx_set_ic_bit;
+	u64_stats_t tx_tso_frames;
+	u64_stats_t tx_tso_nfrags;
+};
+
+struct stmmac_napi_tx_stats {
+	u64_stats_t tx_packets;
+	u64_stats_t tx_pkt_n;
+	u64_stats_t poll;
+	u64_stats_t tx_clean;
+	u64_stats_t tx_set_ic_bit;
+};
+
 struct stmmac_txq_stats {
-	unsigned long tx_pkt_n;
-	unsigned long tx_normal_irq_n;
+	/* Updates protected by tx queue lock. */
+	struct u64_stats_sync q_syncp;
+	struct stmmac_q_tx_stats q;
+
+	/* Updates protected by NAPI poll logic. */
+	struct u64_stats_sync napi_syncp;
+	struct stmmac_napi_tx_stats napi;
+} ____cacheline_aligned_in_smp;
+
+struct stmmac_napi_rx_stats {
+	u64_stats_t rx_bytes;
+	u64_stats_t rx_packets;
+	u64_stats_t rx_pkt_n;
+	u64_stats_t poll;
 };
 
 struct stmmac_rxq_stats {
-	unsigned long rx_pkt_n;
-	unsigned long rx_normal_irq_n;
+	/* Updates protected by NAPI poll logic. */
+	struct u64_stats_sync napi_syncp;
+	struct stmmac_napi_rx_stats napi;
+} ____cacheline_aligned_in_smp;
+
+/* Updates on each CPU protected by not allowing nested irqs. */
+struct stmmac_pcpu_stats {
+	struct u64_stats_sync syncp;
+	u64_stats_t rx_normal_irq_n[MTL_MAX_TX_QUEUES];
+	u64_stats_t tx_normal_irq_n[MTL_MAX_RX_QUEUES];
 };
 
 /* Extra statistic and debug information exposed by ethtool */
@@ -81,6 +117,7 @@ struct stmmac_extra_stats {
 	unsigned long tx_frame_flushed;
 	unsigned long tx_payload_error;
 	unsigned long tx_ip_header_error;
+	unsigned long tx_collision;
 	/* Receive errors */
 	unsigned long rx_desc;
 	unsigned long sa_filter_fail;
@@ -113,14 +150,6 @@ struct stmmac_extra_stats {
 	/* Tx/Rx IRQ Events */
 	unsigned long rx_early_irq;
 	unsigned long threshold;
-	unsigned long tx_pkt_n;
-	unsigned long rx_pkt_n;
-	unsigned long normal_irq_n;
-	unsigned long rx_normal_irq_n;
-	unsigned long napi_poll;
-	unsigned long tx_normal_irq_n;
-	unsigned long tx_clean;
-	unsigned long tx_set_ic_bit;
 	unsigned long irq_receive_pmt_irq_n;
 	/* MMC info */
 	unsigned long mmc_tx_irq_n;
@@ -190,18 +219,22 @@ struct stmmac_extra_stats {
 	unsigned long mtl_rx_fifo_ctrl_active;
 	unsigned long mac_rx_frame_ctrl_fifo;
 	unsigned long mac_gmii_rx_proto_engine;
-	/* TSO */
-	unsigned long tx_tso_frames;
-	unsigned long tx_tso_nfrags;
 	/* EST */
 	unsigned long mtl_est_cgce;
 	unsigned long mtl_est_hlbs;
 	unsigned long mtl_est_hlbf;
 	unsigned long mtl_est_btre;
 	unsigned long mtl_est_btrlm;
+	unsigned long max_sdu_txq_drop[MTL_MAX_TX_QUEUES];
+	unsigned long mtl_est_txq_hlbf[MTL_MAX_TX_QUEUES];
 	/* per queue statistics */
 	struct stmmac_txq_stats txq_stats[MTL_MAX_TX_QUEUES];
 	struct stmmac_rxq_stats rxq_stats[MTL_MAX_RX_QUEUES];
+	struct stmmac_pcpu_stats __percpu *pcpu_stats;
+	unsigned long rx_dropped;
+	unsigned long rx_errors;
+	unsigned long tx_dropped;
+	unsigned long tx_errors;
 };
 
 /* Safety Feature statistics exposed by ethtool */
@@ -209,6 +242,7 @@ struct stmmac_safety_stats {
 	unsigned long mac_errors[32];
 	unsigned long mtl_errors[32];
 	unsigned long dma_errors[32];
+	unsigned long dma_dpp_errors[32];
 };
 
 /* Number of fields in Safety Stats */
@@ -286,7 +320,7 @@ struct stmmac_safety_stats {
 #define MIN_DMA_RIWT		0x10
 #define DEF_DMA_RIWT		0xa0
 /* Tx coalesce parameters */
-#define STMMAC_COAL_TX_TIMER	1000
+#define STMMAC_COAL_TX_TIMER	5000
 #define STMMAC_MAX_COAL_TX_TICK	100000
 #define STMMAC_TX_MAX_FRAMES	256
 #define STMMAC_TX_FRAMES	25
@@ -337,6 +371,7 @@ enum request_irq_err {
 	REQ_IRQ_ERR_ALL,
 	REQ_IRQ_ERR_TX,
 	REQ_IRQ_ERR_RX,
+	REQ_IRQ_ERR_SFTY,
 	REQ_IRQ_ERR_SFTY_UE,
 	REQ_IRQ_ERR_SFTY_CE,
 	REQ_IRQ_ERR_LPI,
@@ -406,6 +441,18 @@ struct dma_features {
 	unsigned int number_tx_queues;
 	/* PPS output */
 	unsigned int pps_out_num;
+	/* Number of Traffic Classes */
+	unsigned int numtc;
+	/* DCB Feature Enable */
+	unsigned int dcben;
+	/* IEEE 1588 High Word Register Enable */
+	unsigned int advthword;
+	/* PTP Offload Enable */
+	unsigned int ptoen;
+	/* One-Step Timestamping Enable */
+	unsigned int osten;
+	/* Priority-Based Flow Control Enable */
+	unsigned int pfcen;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
 	/* TX and RX FIFO sizes */
@@ -426,14 +473,40 @@ struct dma_features {
 	unsigned int dvlan;
 	unsigned int l3l4fnum;
 	unsigned int arpoffsel;
+	/* One Step for PTP over UDP/IP Feature Enable */
+	unsigned int pou_ost_en;
+	/* Tx Timestamp FIFO Depth */
+	unsigned int ttsfd;
+	/* Queue/Channel-Based VLAN tag insertion on Tx */
+	unsigned int cbtisel;
+	/* Supported Parallel Instruction Processor Engines */
+	unsigned int frppipe_num;
+	/* Number of Extended VLAN Tag Filters */
+	unsigned int nrvf_num;
 	/* TSN Features */
 	unsigned int estwid;
 	unsigned int estdep;
 	unsigned int estsel;
 	unsigned int fpesel;
 	unsigned int tbssel;
+	/* Number of DMA channels enabled for TBS */
+	unsigned int tbs_ch_num;
+	/* Per-Stream Filtering Enable */
+	unsigned int sgfsel;
 	/* Numbers of Auxiliary Snapshot Inputs */
 	unsigned int aux_snapshot_n;
+	/* Timestamp System Time Source */
+	unsigned int tssrc;
+	/* Enhanced DMA Enable */
+	unsigned int edma;
+	/* Different Descriptor Cache Enable */
+	unsigned int ediffc;
+	/* VxLAN/NVGRE Enable */
+	unsigned int vxn;
+	/* Debug Memory Interface Enable */
+	unsigned int dbgmem;
+	/* Number of Policing Counters */
+	unsigned int pcsel;
 };
 
 /* RX Buffer size must be multiple of 4/8/16 bytes */
@@ -480,6 +553,7 @@ extern const struct stmmac_hwtimestamp stmmac_ptp;
 extern const struct stmmac_mode_ops dwmac4_ring_mode_ops;
 
 struct mac_link {
+	u32 caps;
 	u32 speed_mask;
 	u32 speed10;
 	u32 speed100;
@@ -518,6 +592,7 @@ struct mac_device_info {
 	const struct stmmac_hwtimestamp *ptp;
 	const struct stmmac_tc_ops *tc;
 	const struct stmmac_mmc_ops *mmc;
+	const struct stmmac_est_ops *est;
 	struct dw_xpcs *xpcs;
 	struct phylink_pcs *lynx_pcs; /* Lynx external PCS */
 	struct mii_regs mii;	/* MII register Addresses */
@@ -535,6 +610,7 @@ struct mac_device_info {
 	u32 vlan_filter[32];
 	bool vlan_fail_q_en;
 	u8 vlan_fail_q;
+	bool hw_vlan_en;
 };
 
 struct stmmac_rx_routing {

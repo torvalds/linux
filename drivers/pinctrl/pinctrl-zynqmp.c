@@ -415,6 +415,10 @@ static int zynqmp_pinconf_cfg_set(struct pinctrl_dev *pctldev,
 
 			break;
 		case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+			param = PM_PINCTRL_CONFIG_TRI_STATE;
+			arg = PM_PINCTRL_TRI_STATE_ENABLE;
+			ret = zynqmp_pm_pinctrl_set_config(pin, param, arg);
+			break;
 		case PIN_CONFIG_MODE_LOW_POWER:
 			/*
 			 * These cases are mentioned in dts but configurable
@@ -422,6 +426,11 @@ static int zynqmp_pinconf_cfg_set(struct pinctrl_dev *pctldev,
 			 * boot time warnings as of now.
 			 */
 			ret = 0;
+			break;
+		case PIN_CONFIG_OUTPUT_ENABLE:
+			param = PM_PINCTRL_CONFIG_TRI_STATE;
+			arg = PM_PINCTRL_TRI_STATE_DISABLE;
+			ret = zynqmp_pm_pinctrl_set_config(pin, param, arg);
 			break;
 		default:
 			dev_warn(pctldev->dev,
@@ -553,7 +562,7 @@ static int zynqmp_pinctrl_prepare_func_groups(struct device *dev, u32 fid,
 	const char **fgroups;
 	int ret, index, i;
 
-	fgroups = devm_kzalloc(dev, sizeof(*fgroups) * func->ngroups, GFP_KERNEL);
+	fgroups = devm_kcalloc(dev, func->ngroups, sizeof(*fgroups), GFP_KERNEL);
 	if (!fgroups)
 		return -ENOMEM;
 
@@ -745,7 +754,7 @@ static int zynqmp_pinctrl_prepare_function_info(struct device *dev,
 	if (ret)
 		return ret;
 
-	funcs = devm_kzalloc(dev, sizeof(*funcs) * pctrl->nfuncs, GFP_KERNEL);
+	funcs = devm_kcalloc(dev, pctrl->nfuncs, sizeof(*funcs), GFP_KERNEL);
 	if (!funcs)
 		return -ENOMEM;
 
@@ -759,7 +768,7 @@ static int zynqmp_pinctrl_prepare_function_info(struct device *dev,
 		pctrl->ngroups += funcs[i].ngroups;
 	}
 
-	groups = devm_kzalloc(dev, sizeof(*groups) * pctrl->ngroups, GFP_KERNEL);
+	groups = devm_kcalloc(dev, pctrl->ngroups, sizeof(*groups), GFP_KERNEL);
 	if (!groups)
 		return -ENOMEM;
 
@@ -821,7 +830,7 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 	if (ret)
 		return ret;
 
-	pins = devm_kzalloc(dev, sizeof(*pins) * *npins, GFP_KERNEL);
+	pins = devm_kcalloc(dev, *npins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		return -ENOMEM;
 

@@ -6,7 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -75,7 +75,7 @@ static int sun50i_dmic_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct sun50i_dmic_dev *host = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct sun50i_dmic_dev *host = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 
 	/* only support capture */
 	if (substream->stream != SNDRV_PCM_STREAM_CAPTURE)
@@ -236,6 +236,7 @@ static int sun50i_dmic_soc_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops sun50i_dmic_dai_ops = {
+	.probe		= sun50i_dmic_soc_dai_probe,
 	.startup        = sun50i_dmic_startup,
 	.trigger        = sun50i_dmic_trigger,
 	.hw_params      = sun50i_dmic_hw_params,
@@ -260,7 +261,6 @@ static struct snd_soc_dai_driver sun50i_dmic_dai = {
 		.formats = SUN50I_DMIC_FORMATS,
 		.sig_bits = 21,
 	},
-	.probe = sun50i_dmic_soc_dai_probe,
 	.ops = &sun50i_dmic_dai_ops,
 	.name = "dmic",
 };

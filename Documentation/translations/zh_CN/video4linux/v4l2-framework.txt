@@ -768,18 +768,6 @@ const char *video_device_node_name(struct video_device *vdev);
 此功能，而非访问 video_device::num 和 video_device::minor 域。
 
 
-视频缓冲辅助函数
----------------
-
-v4l2 核心 API 提供了一个处理视频缓冲的标准方法(称为“videobuf”)。
-这些方法使驱动可以通过统一的方式实现 read()、mmap() 和 overlay()。
-目前在设备上支持视频缓冲的方法有分散/聚集 DMA(videobuf-dma-sg)、
-线性 DMA(videobuf-dma-contig)以及大多用于 USB 设备的用 vmalloc
-分配的缓冲(videobuf-vmalloc)。
-
-请参阅 Documentation/driver-api/media/v4l2-videobuf.rst，以获得更多关于 videobuf
-层的使用信息。
-
 v4l2_fh 结构体
 -------------
 

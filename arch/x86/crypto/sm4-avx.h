@@ -14,10 +14,6 @@ int sm4_cbc_encrypt(struct skcipher_request *req);
 int sm4_avx_cbc_decrypt(struct skcipher_request *req,
 			unsigned int bsize, sm4_crypt_func func);
 
-int sm4_cfb_encrypt(struct skcipher_request *req);
-int sm4_avx_cfb_decrypt(struct skcipher_request *req,
-			unsigned int bsize, sm4_crypt_func func);
-
 int sm4_avx_ctr_crypt(struct skcipher_request *req,
 			unsigned int bsize, sm4_crypt_func func);
 

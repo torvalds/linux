@@ -78,7 +78,7 @@ static inline int ili9225_command(struct mipi_dbi *dbi, u8 cmd, u16 data)
 }
 
 static void ili9225_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
-			     struct drm_rect *rect)
+			     struct drm_rect *rect, struct drm_format_conv_state *fmtcnv_state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
@@ -98,7 +98,7 @@ static void ili9225_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
 	if (!dbi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
 		tr = dbidev->tx_buf;
-		ret = mipi_dbi_buf_copy(tr, src, fb, rect, swap);
+		ret = mipi_dbi_buf_copy(tr, src, fb, rect, swap, fmtcnv_state);
 		if (ret)
 			goto err_msg;
 	} else {
@@ -171,7 +171,8 @@ static void ili9225_pipe_update(struct drm_simple_display_pipe *pipe,
 		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+		ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
+				 &shadow_plane_state->fmtcnv_state);
 
 	drm_dev_exit(idx);
 }
@@ -281,7 +282,8 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+	ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
+			 &shadow_plane_state->fmtcnv_state);
 
 out_exit:
 	drm_dev_exit(idx);
@@ -316,19 +318,24 @@ static int ili9225_dbi_command(struct mipi_dbi *dbi, u8 *cmd, u8 *par,
 	u32 speed_hz;
 	int ret;
 
+	spi_bus_lock(spi->controller);
 	gpiod_set_value_cansleep(dbi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
 	ret = mipi_dbi_spi_transfer(spi, speed_hz, 8, cmd, 1);
+	spi_bus_unlock(spi->controller);
 	if (ret || !num)
 		return ret;
 
 	if (*cmd == ILI9225_WRITE_DATA_TO_GRAM && !dbi->swap_bytes)
 		bpw = 16;
 
+	spi_bus_lock(spi->controller);
 	gpiod_set_value_cansleep(dbi->dc, 1);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, num);
+	ret = mipi_dbi_spi_transfer(spi, speed_hz, bpw, par, num);
+	spi_bus_unlock(spi->controller);
 
-	return mipi_dbi_spi_transfer(spi, speed_hz, bpw, par, num);
+	return ret;
 }
 
 static const struct drm_simple_display_pipe_funcs ili9225_pipe_funcs = {

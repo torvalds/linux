@@ -13,6 +13,9 @@ struct node_acquire {
 	struct bpf_refcount refcount;
 };
 
+extern void bpf_rcu_read_lock(void) __ksym;
+extern void bpf_rcu_read_unlock(void) __ksym;
+
 #define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
 private(A) struct bpf_spin_lock glock;
 private(A) struct bpf_rb_root groot __contains(node_acquire, node);
@@ -51,6 +54,25 @@ long rbtree_refcounted_node_ref_escapes(void *ctx)
 }
 
 SEC("?tc")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
+long refcount_acquire_maybe_null(void *ctx)
+{
+	struct node_acquire *n, *m;
+
+	n = bpf_obj_new(typeof(*n));
+	/* Intentionally not testing !n
+	 * it's MAYBE_NULL for refcount_acquire
+	 */
+	m = bpf_refcount_acquire(n);
+	if (m)
+		bpf_obj_drop(m);
+	if (n)
+		bpf_obj_drop(n);
+
+	return 0;
+}
+
+SEC("?tc")
 __failure __msg("Unreleased reference id=3 alloc_insn=9")
 long rbtree_refcounted_node_ref_escapes_owning_input(void *ctx)
 {
@@ -67,6 +89,31 @@ long rbtree_refcounted_node_ref_escapes_owning_input(void *ctx)
 	bpf_spin_lock(&glock);
 	bpf_rbtree_add(&groot, &n->node, less);
 	bpf_spin_unlock(&glock);
+
+	return 0;
+}
+
+SEC("?fentry.s/bpf_testmod_test_read")
+__failure __msg("function calls are not allowed while holding a lock")
+int BPF_PROG(rbtree_fail_sleepable_lock_across_rcu,
+	     struct file *file, struct kobject *kobj,
+	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
+{
+	struct node_acquire *n;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 0;
+
+	/* spin_{lock,unlock} are in different RCU CS */
+	bpf_rcu_read_lock();
+	bpf_spin_lock(&glock);
+	bpf_rbtree_add(&groot, &n->node, less);
+	bpf_rcu_read_unlock();
+
+	bpf_rcu_read_lock();
+	bpf_spin_unlock(&glock);
+	bpf_rcu_read_unlock();
 
 	return 0;
 }

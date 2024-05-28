@@ -14,6 +14,7 @@
  * @max:	the address that the last allocated memory page shall not
  *		exceed
  * @align:	minimum alignment of the base of the allocation
+ * @memory_type: the type of memory to allocate
  *
  * Allocate pages as EFI_LOADER_DATA. The allocated pages are aligned according
  * to @align, which should be >= EFI_ALLOC_ALIGN. The last allocated page will

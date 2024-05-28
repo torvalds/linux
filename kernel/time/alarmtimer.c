@@ -134,7 +134,7 @@ static struct class_interface alarmtimer_rtc_interface = {
 
 static int alarmtimer_rtc_interface_setup(void)
 {
-	alarmtimer_rtc_interface.class = rtc_class;
+	alarmtimer_rtc_interface.class = &rtc_class;
 	return class_interface_register(&alarmtimer_rtc_interface);
 }
 static void alarmtimer_rtc_interface_remove(void)
@@ -290,6 +290,17 @@ static int alarmtimer_suspend(struct device *dev)
 	rtc_timer_cancel(rtc, &rtctimer);
 	rtc_read_time(rtc, &tm);
 	now = rtc_tm_to_ktime(tm);
+
+	/*
+	 * If the RTC alarm timer only supports a limited time offset, set the
+	 * alarm time to the maximum supported value.
+	 * The system may wake up earlier (possibly much earlier) than expected
+	 * when the alarmtimer runs. This is the best the kernel can do if
+	 * the alarmtimer exceeds the time that the rtc device can be programmed
+	 * for.
+	 */
+	min = rtc_bound_alarmtime(rtc, min);
+
 	now = ktime_add(now, min);
 
 	/* Set alarm, if in the past reject suspend briefly to handle */

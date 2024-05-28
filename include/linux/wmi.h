@@ -11,7 +11,6 @@
 #include <linux/device.h>
 #include <linux/acpi.h>
 #include <linux/mod_devicetable.h>
-#include <uapi/linux/wmi.h>
 
 /**
  * struct wmi_device - WMI device structure
@@ -22,10 +21,16 @@
  */
 struct wmi_device {
 	struct device dev;
-
-	/* private: used by the WMI driver core */
 	bool setable;
 };
+
+/**
+ * to_wmi_device() - Helper macro to cast a device to a wmi_device
+ * @device: device struct
+ *
+ * Cast a struct device to a struct wmi_device.
+ */
+#define to_wmi_device(device)	container_of(device, struct wmi_device, dev)
 
 extern acpi_status wmidev_evaluate_method(struct wmi_device *wdev,
 					  u8 instance, u32 method_id,
@@ -35,34 +40,31 @@ extern acpi_status wmidev_evaluate_method(struct wmi_device *wdev,
 extern union acpi_object *wmidev_block_query(struct wmi_device *wdev,
 					     u8 instance);
 
-u8 wmidev_instance_count(struct wmi_device *wdev);
+acpi_status wmidev_block_set(struct wmi_device *wdev, u8 instance, const struct acpi_buffer *in);
 
-extern int set_required_buffer_size(struct wmi_device *wdev, u64 length);
+u8 wmidev_instance_count(struct wmi_device *wdev);
 
 /**
  * struct wmi_driver - WMI driver structure
  * @driver: Driver model structure
  * @id_table: List of WMI GUIDs supported by this driver
- * @no_notify_data: WMI events provide no event data
+ * @no_notify_data: Driver supports WMI events which provide no event data
+ * @no_singleton: Driver can be instantiated multiple times
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
  * @notify: Callback for receiving WMI events
- * @filter_callback: Callback for filtering device IOCTLs
  *
  * This represents WMI drivers which handle WMI devices.
- * @filter_callback is only necessary for drivers which
- * want to set up a WMI IOCTL interface.
  */
 struct wmi_driver {
 	struct device_driver driver;
 	const struct wmi_device_id *id_table;
 	bool no_notify_data;
+	bool no_singleton;
 
 	int (*probe)(struct wmi_device *wdev, const void *context);
 	void (*remove)(struct wmi_device *wdev);
 	void (*notify)(struct wmi_device *device, union acpi_object *data);
-	long (*filter_callback)(struct wmi_device *wdev, unsigned int cmd,
-				struct wmi_ioctl_buffer *arg);
 };
 
 extern int __must_check __wmi_driver_register(struct wmi_driver *driver,

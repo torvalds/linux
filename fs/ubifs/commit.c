@@ -70,18 +70,29 @@ static int nothing_to_commit(struct ubifs_info *c)
 		return 0;
 
 	/*
+	 * Increasing @c->dirty_pn_cnt/@c->dirty_nn_cnt and marking
+	 * nnodes/pnodes as dirty in run_gc() could race with following
+	 * checking, which leads inconsistent states between @c->nroot
+	 * and @c->dirty_pn_cnt/@c->dirty_nn_cnt, holding @c->lp_mutex
+	 * to avoid that.
+	 */
+	mutex_lock(&c->lp_mutex);
+	/*
 	 * Even though the TNC is clean, the LPT tree may have dirty nodes. For
 	 * example, this may happen if the budgeting subsystem invoked GC to
 	 * make some free space, and the GC found an LEB with only dirty and
 	 * free space. In this case GC would just change the lprops of this
 	 * LEB (by turning all space into free space) and unmap it.
 	 */
-	if (c->nroot && test_bit(DIRTY_CNODE, &c->nroot->flags))
+	if (c->nroot && test_bit(DIRTY_CNODE, &c->nroot->flags)) {
+		mutex_unlock(&c->lp_mutex);
 		return 0;
+	}
 
 	ubifs_assert(c, atomic_long_read(&c->dirty_zn_cnt) == 0);
 	ubifs_assert(c, c->dirty_pn_cnt == 0);
 	ubifs_assert(c, c->dirty_nn_cnt == 0);
+	mutex_unlock(&c->lp_mutex);
 
 	return 1;
 }

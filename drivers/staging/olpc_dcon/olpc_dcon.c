@@ -777,7 +777,7 @@ static struct i2c_driver dcon_driver = {
 		.name	= "olpc_dcon",
 		.pm = &dcon_pm_ops,
 	},
-	.class = I2C_CLASS_DDC | I2C_CLASS_HWMON,
+	.class = I2C_CLASS_HWMON,
 	.id_table = dcon_idtable,
 	.probe = dcon_probe,
 	.remove = dcon_remove,

@@ -58,7 +58,7 @@
 		vin-supply = <&vdd_corereg>;
 	};
 
-	v1_8dreg: fixed-regulator-v1_8dreg{
+	v1_8dreg: fixed-regulator-v1_8dreg {
 		compatible = "regulator-fixed";
 		regulator-name = "V1_8DREG";
 		regulator-min-microvolt = <1800000>;
@@ -68,7 +68,7 @@
 		vin-supply = <&v24_0d>;
 	};
 
-	v1_8d: fixed-regulator-v1_8d{
+	v1_8d: fixed-regulator-v1_8d {
 		compatible = "regulator-fixed";
 		regulator-name = "V1_8D";
 		regulator-min-microvolt = <1800000>;
@@ -78,7 +78,7 @@
 		vin-supply = <&v1_8dreg>;
 	};
 
-	v1_5dreg: fixed-regulator-v1_5dreg{
+	v1_5dreg: fixed-regulator-v1_5dreg {
 		compatible = "regulator-fixed";
 		regulator-name = "V1_5DREG";
 		regulator-min-microvolt = <1500000>;
@@ -88,7 +88,7 @@
 		vin-supply = <&v24_0d>;
 	};
 
-	v1_5d: fixed-regulator-v1_5d{
+	v1_5d: fixed-regulator-v1_5d {
 		compatible = "regulator-fixed";
 		regulator-name = "V1_5D";
 		regulator-min-microvolt = <1500000>;
@@ -527,11 +527,13 @@
 	 * Supply voltage supervisor on board will not allow opp50 so
 	 * disable it and set opp100 as suspend OPP.
 	 */
-	opp50-300000000 {
+	opp-50-300000000 {
+		/* opp50-300000000 */
 		status = "disabled";
 	};
 
-	opp100-600000000 {
+	opp-100-600000000 {
+		/* opp100-600000000 */
 		opp-suspend;
 	};
 };

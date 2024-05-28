@@ -42,6 +42,7 @@ int hdac_bus_eml_power_down_unlocked(struct hdac_bus *bus, bool alt, int elid, i
 int hdac_bus_eml_sdw_power_up_unlocked(struct hdac_bus *bus, int sublink);
 int hdac_bus_eml_sdw_power_down_unlocked(struct hdac_bus *bus, int sublink);
 
+int hdac_bus_eml_sdw_get_lsdiid_unlocked(struct hdac_bus *bus, int sublink, u16 *lsdiid);
 int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num);
 
 int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
@@ -146,6 +147,9 @@ static inline int
 hdac_bus_eml_sdw_power_down_unlocked(struct hdac_bus *bus, int sublink) { return 0; }
 
 static inline int
+hdac_bus_eml_sdw_get_lsdiid_unlocked(struct hdac_bus *bus, int sublink, u16 *lsdiid) { return 0; }
+
+static inline int
 hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num) { return 0; }
 
 static inline int
@@ -177,4 +181,4 @@ hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enabl
 {
 	return 0;
 }
-#endif /* CONFIG_SND_SOC_SOF_HDA */
+#endif /* CONFIG_SND_SOC_SOF_HDA_MLINK */

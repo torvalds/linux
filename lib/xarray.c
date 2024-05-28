@@ -206,7 +206,7 @@ static void *xas_descend(struct xa_state *xas, struct xa_node *node)
 	void *entry = xa_entry(xas->xa, node, offset);
 
 	xas->xa_node = node;
-	if (xa_is_sibling(entry)) {
+	while (xa_is_sibling(entry)) {
 		offset = xa_to_sibling(entry);
 		entry = xa_entry(xas->xa, node, offset);
 		if (node->shift && xa_is_node(entry))
@@ -969,8 +969,22 @@ static unsigned int node_get_marks(struct xa_node *node, unsigned int offset)
 	return marks;
 }
 
+static inline void node_mark_slots(struct xa_node *node, unsigned int sibs,
+		xa_mark_t mark)
+{
+	int i;
+
+	if (sibs == 0)
+		node_mark_all(node, mark);
+	else {
+		for (i = 0; i < XA_CHUNK_SIZE; i += sibs + 1)
+			node_set_mark(node, i, mark);
+	}
+}
+
 static void node_set_marks(struct xa_node *node, unsigned int offset,
-			struct xa_node *child, unsigned int marks)
+			struct xa_node *child, unsigned int sibs,
+			unsigned int marks)
 {
 	xa_mark_t mark = XA_MARK_0;
 
@@ -978,7 +992,7 @@ static void node_set_marks(struct xa_node *node, unsigned int offset,
 		if (marks & (1 << (__force unsigned int)mark)) {
 			node_set_mark(node, offset, mark);
 			if (child)
-				node_mark_all(child, mark);
+				node_mark_slots(child, sibs, mark);
 		}
 		if (mark == XA_MARK_MAX)
 			break;
@@ -1077,7 +1091,8 @@ void xas_split(struct xa_state *xas, void *entry, unsigned int order)
 			child->nr_values = xa_is_value(entry) ?
 					XA_CHUNK_SIZE : 0;
 			RCU_INIT_POINTER(child->parent, node);
-			node_set_marks(node, offset, child, marks);
+			node_set_marks(node, offset, child, xas->xa_sibs,
+					marks);
 			rcu_assign_pointer(node->slots[offset],
 					xa_mk_node(child));
 			if (xa_is_value(curr))
@@ -1086,7 +1101,7 @@ void xas_split(struct xa_state *xas, void *entry, unsigned int order)
 		} else {
 			unsigned int canon = offset - xas->xa_sibs;
 
-			node_set_marks(node, canon, NULL, marks);
+			node_set_marks(node, canon, NULL, 0, marks);
 			rcu_assign_pointer(node->slots[canon], entry);
 			while (offset > canon)
 				rcu_assign_pointer(node->slots[offset--],
@@ -1802,6 +1817,9 @@ EXPORT_SYMBOL(xa_get_order);
  * stores the index into the @id pointer, then stores the entry at
  * that index.  A concurrent lookup will not see an uninitialised @id.
  *
+ * Must only be operated on an xarray initialized with flag XA_FLAGS_ALLOC set
+ * in xa_init_flags().
+ *
  * Context: Any context.  Expects xa_lock to be held on entry.  May
  * release and reacquire xa_lock if @gfp flags permit.
  * Return: 0 on success, -ENOMEM if memory could not be allocated or
@@ -1849,6 +1867,9 @@ EXPORT_SYMBOL(__xa_alloc);
  * that index.  A concurrent lookup will not see an uninitialised @id.
  * The search for an empty entry will start at @next and will wrap
  * around if necessary.
+ *
+ * Must only be operated on an xarray initialized with flag XA_FLAGS_ALLOC set
+ * in xa_init_flags().
  *
  * Context: Any context.  Expects xa_lock to be held on entry.  May
  * release and reacquire xa_lock if @gfp flags permit.

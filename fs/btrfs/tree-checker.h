@@ -6,10 +6,12 @@
 #ifndef BTRFS_TREE_CHECKER_H
 #define BTRFS_TREE_CHECKER_H
 
+#include <linux/types.h>
 #include <uapi/linux/btrfs_tree.h>
 
 struct extent_buffer;
 struct btrfs_chunk;
+struct btrfs_key;
 
 /* All the extra info needed to verify the parentness of a tree block. */
 struct btrfs_tree_parent_check {
@@ -22,7 +24,7 @@ struct btrfs_tree_parent_check {
 
 	/*
 	 * Expected transid, can be 0 to skip the check, but such skip
-	 * should only be utlized for backref walk related code.
+	 * should only be utilized for backref walk related code.
 	 */
 	u64 transid;
 
@@ -51,6 +53,7 @@ enum btrfs_tree_block_status {
 	BTRFS_TREE_BLOCK_INVALID_BLOCKPTR,
 	BTRFS_TREE_BLOCK_INVALID_ITEM,
 	BTRFS_TREE_BLOCK_INVALID_OWNER,
+	BTRFS_TREE_BLOCK_WRITTEN_NOT_SET,
 };
 
 /*

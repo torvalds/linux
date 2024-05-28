@@ -121,4 +121,5 @@ static struct platform_driver st_rng_driver = {
 module_platform_driver(st_rng_driver);
 
 MODULE_AUTHOR("Pankaj Dev <pankaj.dev@st.com>");
+MODULE_DESCRIPTION("ST Microelectronics HW Random Number Generator");
 MODULE_LICENSE("GPL v2");

@@ -13,9 +13,9 @@
  *  - flush_cache_page(mm, vmaddr, pfn) flushes a single page
  *  - flush_cache_range(vma, start, end) flushes a range of pages
  *
- *  - flush_dcache_page(pg) flushes(wback&invalidates) a page for dcache
+ *  - flush_dcache_folio(folio) flushes(wback&invalidates) a folio for dcache
  *  - flush_icache_range(start, end) flushes(invalidates) a range for icache
- *  - flush_icache_page(vma, pg) flushes(invalidates) a page for icache
+ *  - flush_icache_pages(vma, pg, nr) flushes(invalidates) pages for icache
  *  - flush_cache_sigtramp(vaddr) flushes the signal trampoline
  */
 extern void (*local_flush_cache_all)(void *args);
@@ -23,9 +23,9 @@ extern void (*local_flush_cache_mm)(void *args);
 extern void (*local_flush_cache_dup_mm)(void *args);
 extern void (*local_flush_cache_page)(void *args);
 extern void (*local_flush_cache_range)(void *args);
-extern void (*local_flush_dcache_page)(void *args);
+extern void (*local_flush_dcache_folio)(void *args);
 extern void (*local_flush_icache_range)(void *args);
-extern void (*local_flush_icache_page)(void *args);
+extern void (*local_flush_icache_folio)(void *args);
 extern void (*local_flush_cache_sigtramp)(void *args);
 
 static inline void cache_noop(void *args) { }
@@ -42,11 +42,18 @@ extern void flush_cache_page(struct vm_area_struct *vma,
 extern void flush_cache_range(struct vm_area_struct *vma,
 				 unsigned long start, unsigned long end);
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-void flush_dcache_page(struct page *page);
+void flush_dcache_folio(struct folio *folio);
+#define flush_dcache_folio flush_dcache_folio
+static inline void flush_dcache_page(struct page *page)
+{
+	flush_dcache_folio(page_folio(page));
+}
+
 extern void flush_icache_range(unsigned long start, unsigned long end);
 #define flush_icache_user_range flush_icache_range
-extern void flush_icache_page(struct vm_area_struct *vma,
-				 struct page *page);
+void flush_icache_pages(struct vm_area_struct *vma, struct page *page,
+		unsigned int nr);
+#define flush_icache_pages flush_icache_pages
 extern void flush_cache_sigtramp(unsigned long address);
 
 struct flusher_data {
@@ -83,6 +90,7 @@ extern void copy_from_user_page(struct vm_area_struct *vma,
 	unsigned long len);
 
 #define flush_cache_vmap(start, end)		local_flush_cache_all(NULL)
+#define flush_cache_vmap_early(start, end)	do { } while (0)
 #define flush_cache_vunmap(start, end)		local_flush_cache_all(NULL)
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)

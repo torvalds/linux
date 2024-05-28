@@ -72,6 +72,10 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, unsigned long size,
 	    flags == _CACHE_UNCACHED)
 		return (void __iomem *) CKSEG1ADDR(phys_addr);
 
+	/* Early remaps should use the unmapped regions til' VM is available */
+	if (WARN_ON_ONCE(!slab_is_available()))
+		return NULL;
+
 	/*
 	 * Don't allow anybody to remap RAM that may be allocated by the page
 	 * allocator, since that could lead to races & data clobbering.

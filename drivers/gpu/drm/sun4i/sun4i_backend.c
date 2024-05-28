@@ -965,11 +965,9 @@ static int sun4i_backend_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sun4i_backend_ops);
 }
 
-static int sun4i_backend_remove(struct platform_device *pdev)
+static void sun4i_backend_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sun4i_backend_ops);
-
-	return 0;
 }
 
 static const struct sun4i_backend_quirks sun4i_backend_quirks = {
@@ -1028,7 +1026,7 @@ MODULE_DEVICE_TABLE(of, sun4i_backend_of_table);
 
 static struct platform_driver sun4i_backend_platform_driver = {
 	.probe		= sun4i_backend_probe,
-	.remove		= sun4i_backend_remove,
+	.remove_new	= sun4i_backend_remove,
 	.driver		= {
 		.name		= "sun4i-backend",
 		.of_match_table	= sun4i_backend_of_table,

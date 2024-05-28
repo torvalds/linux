@@ -5,8 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
@@ -104,7 +103,7 @@ void mtk_merge_stop_cmdq(struct device *dev, struct cmdq_pkt *cmdq_pkt)
 	mtk_ddp_write(cmdq_pkt, 0, &priv->cmdq_reg, priv->regs,
 		      DISP_REG_MERGE_CTRL);
 
-	if (priv->async_clk)
+	if (!cmdq_pkt && priv->async_clk)
 		reset_control_reset(priv->reset_ctl);
 }
 
@@ -223,6 +222,71 @@ void mtk_merge_clk_disable(struct device *dev)
 	clk_disable_unprepare(priv->clk);
 }
 
+enum drm_mode_status mtk_merge_mode_valid(struct device *dev,
+					  const struct drm_display_mode *mode)
+{
+	struct mtk_disp_merge *priv = dev_get_drvdata(dev);
+	unsigned long rate;
+
+	rate = clk_get_rate(priv->clk);
+
+	/* Convert to KHz and round the number */
+	rate = (rate + 500) / 1000;
+
+	if (rate && mode->clock > rate) {
+		dev_dbg(dev, "invalid clock: %d (>%lu)\n", mode->clock, rate);
+		return MODE_CLOCK_HIGH;
+	}
+
+	/*
+	 * Measure the bandwidth requirement of hardware prefetch (per frame)
+	 *
+	 * let N = prefetch buffer size in lines
+	 *         (ex. N=3, then prefetch buffer size = 3 lines)
+	 *
+	 * prefetch size = htotal * N (pixels)
+	 * time per line = 1 / fps / vtotal (seconds)
+	 * duration      = vbp * time per line
+	 *               = vbp / fps / vtotal
+	 *
+	 * data rate = prefetch size / duration
+	 *           = htotal * N / (vbp / fps / vtotal)
+	 *           = htotal * vtotal * fps * N / vbp
+	 *           = clk * N / vbp (pixels per second)
+	 *
+	 * Say 4K60 (CEA-861) is the maximum mode supported by the SoC
+	 * data rate = 594000K * N / 72 = 8250 (standard)
+	 * (remove K * N due to the same unit)
+	 *
+	 * For 2560x1440@144 (clk=583600K, vbp=17):
+	 * data rate = 583600 / 17 ~= 34329 > 8250 (NG)
+	 *
+	 * For 2560x1440@120 (clk=497760K, vbp=77):
+	 * data rate = 497760 / 77 ~= 6464 < 8250 (OK)
+	 *
+	 * A non-standard 4K60 timing (clk=521280K, vbp=54)
+	 * data rate = 521280 / 54 ~= 9653 > 8250 (NG)
+	 *
+	 * Bandwidth requirement of hardware prefetch increases significantly
+	 * when the VBP decreases (more than 4x in this example).
+	 *
+	 * The proposed formula is only one way to estimate whether our SoC
+	 * supports the mode setting. The basic idea behind it is just to check
+	 * if the data rate requirement is too high (directly proportional to
+	 * pixel clock, inversely proportional to vbp). Please adjust the
+	 * function if it doesn't fit your situation in the future.
+	 */
+	rate = mode->clock / (mode->vtotal - mode->vsync_end);
+
+	if (rate > 8250) {
+		dev_dbg(dev, "invalid rate: %lu (>8250): " DRM_MODE_FMT "\n",
+			rate, DRM_MODE_ARG(mode));
+		return MODE_BAD;
+	}
+
+	return MODE_OK;
+}
+
 static int mtk_disp_merge_bind(struct device *dev, struct device *master,
 			       void *data)
 {
@@ -295,11 +359,9 @@ static int mtk_disp_merge_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mtk_disp_merge_remove(struct platform_device *pdev)
+static void mtk_disp_merge_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_disp_merge_component_ops);
-
-	return 0;
 }
 
 static const struct of_device_id mtk_disp_merge_driver_dt_match[] = {
@@ -311,7 +373,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_merge_driver_dt_match);
 
 struct platform_driver mtk_disp_merge_driver = {
 	.probe = mtk_disp_merge_probe,
-	.remove = mtk_disp_merge_remove,
+	.remove_new = mtk_disp_merge_remove,
 	.driver = {
 		.name = "mediatek-disp-merge",
 		.owner = THIS_MODULE,

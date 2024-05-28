@@ -40,7 +40,7 @@ grep "id: \(unknown_\|sys_\)" events/raw_syscalls/sys_exit/hist > /dev/null || \
 
 reset_trigger
 
-echo "Test histgram with log2 modifier"
+echo "Test histogram with log2 modifier"
 
 echo 'hist:keys=bytes_req.log2' > events/kmem/kmalloc/trigger
 for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done

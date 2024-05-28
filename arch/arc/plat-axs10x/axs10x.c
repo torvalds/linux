@@ -6,7 +6,6 @@
  */
 
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <linux/libfdt.h>
 
 #include <asm/asm-offsets.h>

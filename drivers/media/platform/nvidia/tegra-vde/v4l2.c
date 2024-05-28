@@ -813,7 +813,7 @@ static int tegra_open(struct file *file)
 	struct tegra_ctx *ctx;
 	int err;
 
-	ctx = kzalloc(offsetof(struct tegra_ctx, ctrls[ARRAY_SIZE(ctrl_cfgs)]),
+	ctx = kzalloc(struct_size(ctx, ctrls, ARRAY_SIZE(ctrl_cfgs)),
 		      GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;

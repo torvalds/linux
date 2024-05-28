@@ -16,6 +16,7 @@ GNU General Public License for more details. */
 
 #include <linux/compiler.h>
 #include <linux/export.h>
+#include <linux/libgcc.h>
 
 #ifdef CONFIG_CPU_HAS_NO_MULDIV64
 

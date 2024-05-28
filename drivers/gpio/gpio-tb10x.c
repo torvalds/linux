@@ -195,7 +195,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 				handle_edge_irq, IRQ_NOREQUEST, IRQ_NOPROBE,
 				IRQ_GC_INIT_MASK_CACHE);
 		if (ret)
-			return ret;
+			goto err_remove_domain;
 
 		gc = tb10x_gpio->domain->gc->gc[0];
 		gc->reg_base                         = tb10x_gpio->base;
@@ -209,9 +209,13 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+
+err_remove_domain:
+	irq_domain_remove(tb10x_gpio->domain);
+	return ret;
 }
 
-static int tb10x_gpio_remove(struct platform_device *pdev)
+static void tb10x_gpio_remove(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio = platform_get_drvdata(pdev);
 
@@ -221,8 +225,6 @@ static int tb10x_gpio_remove(struct platform_device *pdev)
 		kfree(tb10x_gpio->domain->gc);
 		irq_domain_remove(tb10x_gpio->domain);
 	}
-
-	return 0;
 }
 
 static const struct of_device_id tb10x_gpio_dt_ids[] = {
@@ -233,7 +235,7 @@ MODULE_DEVICE_TABLE(of, tb10x_gpio_dt_ids);
 
 static struct platform_driver tb10x_gpio_driver = {
 	.probe		= tb10x_gpio_probe,
-	.remove		= tb10x_gpio_remove,
+	.remove_new	= tb10x_gpio_remove,
 	.driver = {
 		.name	= "tb10x-gpio",
 		.of_match_table = tb10x_gpio_dt_ids,

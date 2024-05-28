@@ -27,6 +27,8 @@
 #include <asm/mac_via.h>
 #include <asm/mac_oss.h>
 
+#include "mac.h"
+
 int oss_present;
 volatile struct mac_oss *oss;
 

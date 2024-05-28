@@ -784,8 +784,7 @@ static unsigned int dscComputeDelay(enum output_format_class pixelFormat, enum o
 		Delay = Delay + 1;
 		//   sft
 		Delay = Delay + 1;
-	}
-	else {
+	} else {
 		//   sfr
 		Delay = Delay + 2;
 		//   dsccif
@@ -3489,8 +3488,7 @@ static double TruncToValidBPP(
 		if (Format == dm_n422) {
 			MinDSCBPP = 7;
 			MaxDSCBPP = 2 * DSCInputBitPerComponent - 1.0 / 16.0;
-		}
-		else {
+		} else {
 			MinDSCBPP = 8;
 			MaxDSCBPP = 3 * DSCInputBitPerComponent - 1.0 / 16.0;
 		}
@@ -3544,7 +3542,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 {
 	struct vba_vars_st *v = &mode_lib->vba;
 	int MinPrefetchMode, MaxPrefetchMode;
-	int i;
+	int i, start_state;
 	unsigned int j, k, m;
 	bool   EnoughWritebackUnits = true;
 	bool   WritebackModeSupport = true;
@@ -3554,6 +3552,11 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	bool NotUrgentLatencyHiding[DC__NUM_DPP__MAX] = { 0 };
 
 	/*MODE SUPPORT, VOLTAGE STATE AND SOC CONFIGURATION*/
+
+	if (mode_lib->validate_max_state)
+		start_state = v->soc.num_states - 1;
+	else
+		start_state = 0;
 
 	CalculateMinAndMaxPrefetchMode(
 		mode_lib->vba.AllowDRAMSelfRefreshOrDRAMClockChangeInVblank,
@@ -3853,7 +3856,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			v->SingleDPPViewportSizeSupportPerPlane,
 			&v->ViewportSizeSupport[0][0]);
 
-	for (i = 0; i < v->soc.num_states; i++) {
+	for (i = start_state; i < v->soc.num_states; i++) {
 		for (j = 0; j < 2; j++) {
 			v->MaxDispclkRoundedDownToDFSGranularity = RoundToDFSGranularityDown(v->MaxDispclk[i], v->DISPCLKDPPCLKVCOSpeed);
 			v->MaxDppclkRoundedDownToDFSGranularity = RoundToDFSGranularityDown(v->MaxDppclk[i], v->DISPCLKDPPCLKVCOSpeed);
@@ -4009,7 +4012,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	/*Total Available Pipes Support Check*/
 
-	for (i = 0; i < v->soc.num_states; i++) {
+	for (i = start_state; i < v->soc.num_states; i++) {
 		for (j = 0; j < 2; j++) {
 			if (v->TotalNumberOfActiveDPP[i][j] <= v->MaxNumDPP) {
 				v->TotalAvailablePipesSupport[i][j] = true;
@@ -4048,7 +4051,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 
-	for (i = 0; i < v->soc.num_states; i++) {
+	for (i = start_state; i < v->soc.num_states; i++) {
 		for (k = 0; k <= v->NumberOfActivePlanes - 1; k++) {
 			v->RequiresDSC[i][k] = false;
 			v->RequiresFEC[i][k] = false;
@@ -4176,7 +4179,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			}
 		}
 	}
-	for (i = 0; i < v->soc.num_states; i++) {
+	for (i = start_state; i < v->soc.num_states; i++) {
 		v->DIOSupport[i] = true;
 		for (k = 0; k <= v->NumberOfActivePlanes - 1; k++) {
 			if (!v->skip_dio_check[k] && v->BlendingAndTiming[k] == k && (v->Output[k] == dm_dp || v->Output[k] == dm_edp || v->Output[k] == dm_hdmi)
@@ -4187,7 +4190,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 
-	for (i = 0; i < v->soc.num_states; ++i) {
+	for (i = start_state; i < v->soc.num_states; ++i) {
 		v->ODMCombine4To1SupportCheckOK[i] = true;
 		for (k = 0; k < v->NumberOfActivePlanes; ++k) {
 			if (v->BlendingAndTiming[k] == k && v->ODMCombineEnablePerState[i][k] == dm_odm_combine_mode_4to1
@@ -4199,7 +4202,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	/* Skip dscclk validation: as long as dispclk is supported, dscclk is also implicitly supported */
 
-	for (i = 0; i < v->soc.num_states; i++) {
+	for (i = start_state; i < v->soc.num_states; i++) {
 		v->NotEnoughDSCUnits[i] = false;
 		v->TotalDSCUnitsRequired = 0.0;
 		for (k = 0; k <= v->NumberOfActivePlanes - 1; k++) {
@@ -4219,7 +4222,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 	/*DSC Delay per state*/
 
-	for (i = 0; i < v->soc.num_states; i++) {
+	for (i = start_state; i < v->soc.num_states; i++) {
 		for (k = 0; k <= v->NumberOfActivePlanes - 1; k++) {
 			if (v->OutputBppPerState[i][k] == BPP_INVALID) {
 				v->BPP = 0.0;
@@ -4270,7 +4273,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	//Calculate Swath, DET Configuration, DCFCLKDeepSleep
 	//
-	for (i = 0; i < mode_lib->soc.num_states; ++i) {
+	for (i = start_state; i < mode_lib->soc.num_states; ++i) {
 		for (j = 0; j <= 1; ++j) {
 			for (k = 0; k < v->NumberOfActivePlanes; ++k) {
 				v->RequiredDPPCLKThisState[k] = v->RequiredDPPCLK[i][j][k];
@@ -4335,7 +4338,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		v->cursor_bw[k] = v->NumberOfCursors[k] * v->CursorWidth[k][0] * v->CursorBPP[k][0] / 8.0 / (v->HTotal[k] / v->PixelClock[k]) * v->VRatio[k];
 	}
 
-	for (i = 0; i < v->soc.num_states; i++) {
+	for (i = start_state; i < v->soc.num_states; i++) {
 		for (j = 0; j < 2; j++) {
 			for (k = 0; k <= v->NumberOfActivePlanes - 1; k++) {
 				v->swath_width_luma_ub_this_state[k] = v->swath_width_luma_ub_all_states[i][j][k];
@@ -4573,7 +4576,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	//Calculate Return BW
 
-	for (i = 0; i < mode_lib->soc.num_states; ++i) {
+	for (i = start_state; i < mode_lib->soc.num_states; ++i) {
 		for (j = 0; j <= 1; ++j) {
 			for (k = 0; k <= v->NumberOfActivePlanes - 1; k++) {
 				if (v->BlendingAndTiming[k] == k) {
@@ -4632,7 +4635,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					v->UrgentOutOfOrderReturnPerChannelVMDataOnly);
 	v->FinalDRAMClockChangeLatency = (v->DRAMClockChangeLatencyOverride > 0 ? v->DRAMClockChangeLatencyOverride : v->DRAMClockChangeLatency);
 
-	for (i = 0; i < mode_lib->soc.num_states; ++i) {
+	for (i = start_state; i < mode_lib->soc.num_states; ++i) {
 		for (j = 0; j <= 1; ++j) {
 			v->DCFCLKState[i][j] = v->DCFCLKPerState[i];
 		}
@@ -4643,7 +4646,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 		if (v->ClampMinDCFCLK) {
 			/* Clamp calculated values to actual minimum */
-			for (i = 0; i < mode_lib->soc.num_states; ++i) {
+			for (i = start_state; i < mode_lib->soc.num_states; ++i) {
 				for (j = 0; j <= 1; ++j) {
 					if (v->DCFCLKState[i][j] < mode_lib->soc.min_dcfclk) {
 						v->DCFCLKState[i][j] = mode_lib->soc.min_dcfclk;
@@ -4653,7 +4656,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 
-	for (i = 0; i < mode_lib->soc.num_states; ++i) {
+	for (i = start_state; i < mode_lib->soc.num_states; ++i) {
 		for (j = 0; j <= 1; ++j) {
 			v->IdealSDPPortBandwidthPerState[i][j] = dml_min3(
 					v->ReturnBusWidth * v->DCFCLKState[i][j],
@@ -4671,7 +4674,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	//Re-ordering Buffer Support Check
 
-	for (i = 0; i < mode_lib->soc.num_states; ++i) {
+	for (i = start_state; i < mode_lib->soc.num_states; ++i) {
 		for (j = 0; j <= 1; ++j) {
 			if ((v->ROBBufferSizeInKByte - v->PixelChunkSizeInKByte) * 1024 / v->ReturnBWPerState[i][j]
 					> (v->RoundTripPingLatencyCycles + 32) / v->DCFCLKState[i][j] + ReorderingBytes / v->ReturnBWPerState[i][j]) {
@@ -4689,7 +4692,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		MaxTotalVActiveRDBandwidth = MaxTotalVActiveRDBandwidth + v->ReadBandwidthLuma[k] + v->ReadBandwidthChroma[k];
 	}
 
-	for (i = 0; i < mode_lib->soc.num_states; ++i) {
+	for (i = start_state; i < mode_lib->soc.num_states; ++i) {
 		for (j = 0; j <= 1; ++j) {
 			v->MaxTotalVerticalActiveAvailableBandwidth[i][j] = dml_min(
 					v->IdealSDPPortBandwidthPerState[i][j] * v->MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInNormalSystemOperation / 100,
@@ -4705,7 +4708,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	//Prefetch Check
 
-	for (i = 0; i < mode_lib->soc.num_states; ++i) {
+	for (i = start_state; i < mode_lib->soc.num_states; ++i) {
 		for (j = 0; j <= 1; ++j) {
 			int NextPrefetchModeState = MinPrefetchMode;
 
@@ -5077,7 +5080,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	/*PTE Buffer Size Check*/
 
-	for (i = 0; i < v->soc.num_states; i++) {
+	for (i = start_state; i < v->soc.num_states; i++) {
 		for (j = 0; j < 2; j++) {
 			v->PTEBufferSizeNotExceeded[i][j] = true;
 			for (k = 0; k <= v->NumberOfActivePlanes - 1; k++) {
@@ -5130,7 +5133,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			ViewportExceedsSurface = true;
 
 		if (v->SourcePixelFormat[k] != dm_444_64 && v->SourcePixelFormat[k] != dm_444_32 && v->SourcePixelFormat[k] != dm_444_16
-				&& v->SourcePixelFormat[k] != dm_444_16 && v->SourcePixelFormat[k] != dm_444_8 && v->SourcePixelFormat[k] != dm_rgbe) {
+				&& v->SourcePixelFormat[k] != dm_444_8 && v->SourcePixelFormat[k] != dm_rgbe) {
 			if (v->ViewportWidthChroma[k] > v->SurfaceWidthC[k] || v->ViewportHeightChroma[k] > v->SurfaceHeightC[k]) {
 				ViewportExceedsSurface = true;
 			}
@@ -5138,7 +5141,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 	/*Mode Support, Voltage State and SOC Configuration*/
 
-	for (i = v->soc.num_states - 1; i >= 0; i--) {
+	for (i = v->soc.num_states - 1; i >= start_state; i--) {
 		for (j = 0; j < 2; j++) {
 			if (v->ScaleRatioAndTapsSupport == 1 && v->SourceFormatPixelAndScanSupport == 1 && v->ViewportSizeSupport[i][j] == 1
 					&& v->DIOSupport[i] == 1 && v->ODMCombine4To1SupportCheckOK[i] == 1
@@ -5160,7 +5163,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 	{
 		unsigned int MaximumMPCCombine = 0;
-		for (i = v->soc.num_states; i >= 0; i--) {
+		for (i = v->soc.num_states; i >= start_state; i--) {
 			if (i == v->soc.num_states || v->ModeSupport[i][0] == true || v->ModeSupport[i][1] == true) {
 				v->VoltageLevel = i;
 				v->ModeIsSupported = v->ModeSupport[i][0] == true || v->ModeSupport[i][1] == true;

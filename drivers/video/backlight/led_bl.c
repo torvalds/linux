@@ -243,7 +243,7 @@ MODULE_DEVICE_TABLE(of, led_bl_of_match);
 static struct platform_driver led_bl_driver = {
 	.driver		= {
 		.name		= "led-backlight",
-		.of_match_table	= of_match_ptr(led_bl_of_match),
+		.of_match_table	= led_bl_of_match,
 	},
 	.probe		= led_bl_probe,
 	.remove_new	= led_bl_remove,

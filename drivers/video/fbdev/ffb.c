@@ -37,9 +37,10 @@ static void ffb_imageblit(struct fb_info *, const struct fb_image *);
 static void ffb_fillrect(struct fb_info *, const struct fb_fillrect *);
 static void ffb_copyarea(struct fb_info *, const struct fb_copyarea *);
 static int ffb_sync(struct fb_info *);
-static int ffb_mmap(struct fb_info *, struct vm_area_struct *);
-static int ffb_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int ffb_pan_display(struct fb_var_screeninfo *, struct fb_info *);
+
+static int ffb_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
+static int ffb_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
 
 /*
  *  Frame buffer operations
@@ -47,6 +48,7 @@ static int ffb_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 static const struct fb_ops ffb_ops = {
 	.owner			= THIS_MODULE,
+	__FB_DEFAULT_SBUS_OPS_RDWR(ffb),
 	.fb_setcolreg		= ffb_setcolreg,
 	.fb_blank		= ffb_blank,
 	.fb_pan_display		= ffb_pan_display,
@@ -54,11 +56,8 @@ static const struct fb_ops ffb_ops = {
 	.fb_copyarea		= ffb_copyarea,
 	.fb_imageblit		= ffb_imageblit,
 	.fb_sync		= ffb_sync,
-	.fb_mmap		= ffb_mmap,
-	.fb_ioctl		= ffb_ioctl,
-#ifdef CONFIG_COMPAT
-	.fb_compat_ioctl	= sbusfb_compat_ioctl,
-#endif
+	__FB_DEFAULT_SBUS_OPS_IOCTL(ffb),
+	__FB_DEFAULT_SBUS_OPS_MMAP(ffb),
 };
 
 /* Register layout and definitions */
@@ -850,7 +849,7 @@ static struct sbus_mmap_map ffb_mmap_map[] = {
 	{ .size = 0 }
 };
 
-static int ffb_mmap(struct fb_info *info, struct vm_area_struct *vma)
+static int ffb_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct ffb_par *par = (struct ffb_par *)info->par;
 
@@ -859,7 +858,7 @@ static int ffb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 				  0, vma);
 }
 
-static int ffb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+static int ffb_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct ffb_par *par = (struct ffb_par *)info->par;
 
@@ -930,8 +929,7 @@ static int ffb_probe(struct platform_device *op)
 	/* Don't mention copyarea, so SCROLL_REDRAW is always
 	 * used.  It is the fastest on this chip.
 	 */
-	info->flags = (FBINFO_DEFAULT |
-		       /* FBINFO_HWACCEL_COPYAREA | */
+	info->flags = (/* FBINFO_HWACCEL_COPYAREA | */
 		       FBINFO_HWACCEL_FILLRECT |
 		       FBINFO_HWACCEL_IMAGEBLIT);
 

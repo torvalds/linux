@@ -60,6 +60,16 @@ struct scom_access {
  */
 
 /**
+ * FSI_SBEFIFO_CMD_TIMEOUT sets the timeout for writing data to the SBEFIFO.
+ *
+ * The command timeout is specified in seconds.  The minimum value of command
+ * timeout is 1 seconds (default) and the maximum value of command timeout is
+ * 120 seconds.  A command timeout of 0 will reset the value to the default of
+ * 1 seconds.
+ */
+#define FSI_SBEFIFO_CMD_TIMEOUT_SECONDS		_IOW('s', 0x01, __u32)
+
+/**
  * FSI_SBEFIFO_READ_TIMEOUT sets the read timeout for response from SBE.
  *
  * The read timeout is specified in seconds.  The minimum value of read

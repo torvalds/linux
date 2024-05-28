@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <asm/byteorder.h>
-#include <asm/lppaca.h>
+#include <asm/vphn.h>
 
 /*
  * The associativity domain numbers are returned from the hypervisor as a

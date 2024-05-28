@@ -23,7 +23,7 @@
 
 static DEFINE_PER_CPU(u64, mdcr_el2);
 
-/**
+/*
  * save/restore_guest_debug_regs
  *
  * For some debug operations we need to tweak some guest registers. As
@@ -143,6 +143,7 @@ void kvm_arm_vcpu_init_debug(struct kvm_vcpu *vcpu)
 
 /**
  * kvm_arm_reset_debug_ptr - reset the debug ptr to point to the vcpu state
+ * @vcpu:	the vcpu pointer
  */
 
 void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)

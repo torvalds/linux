@@ -92,6 +92,7 @@ SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
 
 	IBRS_ENTER
 	UNTRAIN_RET
+	CLEAR_BRANCH_HISTORY
 
 	/*
 	 * SYSENTER doesn't filter flags, so we need to clear NT and AC
@@ -118,9 +119,6 @@ SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
 
 	movq	%rsp, %rdi
 	call	do_SYSENTER_32
-	/* XEN PV guests always use IRET path */
-	ALTERNATIVE "testl %eax, %eax; jz swapgs_restore_regs_and_return_to_usermode", \
-		    "jmp swapgs_restore_regs_and_return_to_usermode", X86_FEATURE_XENPV
 	jmp	sysret32_from_system_call
 
 .Lsysenter_fix_flags:
@@ -209,16 +207,19 @@ SYM_INNER_LABEL(entry_SYSCALL_compat_after_hwframe, SYM_L_GLOBAL)
 
 	IBRS_ENTER
 	UNTRAIN_RET
+	CLEAR_BRANCH_HISTORY
 
 	movq	%rsp, %rdi
 	call	do_fast_syscall_32
+
+sysret32_from_system_call:
 	/* XEN PV guests always use IRET path */
-	ALTERNATIVE "testl %eax, %eax; jz swapgs_restore_regs_and_return_to_usermode", \
+	ALTERNATIVE "testb %al, %al; jz swapgs_restore_regs_and_return_to_usermode", \
 		    "jmp swapgs_restore_regs_and_return_to_usermode", X86_FEATURE_XENPV
 
-	/* Opportunistic SYSRET */
-sysret32_from_system_call:
 	/*
+	 * Opportunistic SYSRET
+	 *
 	 * We are not going to return to userspace from the trampoline
 	 * stack. So let's erase the thread stack right now.
 	 */
@@ -271,6 +272,7 @@ SYM_INNER_LABEL(entry_SYSRETL_compat_unsafe_stack, SYM_L_GLOBAL)
 	xorl	%r9d, %r9d
 	xorl	%r10d, %r10d
 	swapgs
+	CLEAR_CPU_BUFFERS
 	sysretl
 SYM_INNER_LABEL(entry_SYSRETL_compat_end, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
@@ -278,78 +280,15 @@ SYM_INNER_LABEL(entry_SYSRETL_compat_end, SYM_L_GLOBAL)
 SYM_CODE_END(entry_SYSCALL_compat)
 
 /*
- * 32-bit legacy system call entry.
- *
- * 32-bit x86 Linux system calls traditionally used the INT $0x80
- * instruction.  INT $0x80 lands here.
- *
- * This entry point can be used by 32-bit and 64-bit programs to perform
- * 32-bit system calls.  Instances of INT $0x80 can be found inline in
- * various programs and libraries.  It is also used by the vDSO's
- * __kernel_vsyscall fallback for hardware that doesn't support a faster
- * entry method.  Restarted 32-bit system calls also fall back to INT
- * $0x80 regardless of what instruction was originally used to do the
- * system call.
- *
- * This is considered a slow path.  It is not used by most libc
- * implementations on modern hardware except during process startup.
- *
- * Arguments:
- * eax  system call number
- * ebx  arg1
- * ecx  arg2
- * edx  arg3
- * esi  arg4
- * edi  arg5
- * ebp  arg6
+ * int 0x80 is used by 32 bit mode as a system call entry. Normally idt entries
+ * point to C routines, however since this is a system call interface the branch
+ * history needs to be scrubbed to protect against BHI attacks, and that
+ * scrubbing needs to take place in assembly code prior to entering any C
+ * routines.
  */
-SYM_CODE_START(entry_INT80_compat)
-	UNWIND_HINT_ENTRY
-	ENDBR
-	/*
-	 * Interrupts are off on entry.
-	 */
-	ASM_CLAC			/* Do this early to minimize exposure */
-	ALTERNATIVE "swapgs", "", X86_FEATURE_XENPV
-
-	/*
-	 * User tracing code (ptrace or signal handlers) might assume that
-	 * the saved RAX contains a 32-bit number when we're invoking a 32-bit
-	 * syscall.  Just in case the high bits are nonzero, zero-extend
-	 * the syscall number.  (This could almost certainly be deleted
-	 * with no ill effects.)
-	 */
-	movl	%eax, %eax
-
-	/* switch to thread stack expects orig_ax and rdi to be pushed */
-	pushq	%rax			/* pt_regs->orig_ax */
-
-	/* Need to switch before accessing the thread stack. */
-	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
-
-	/* In the Xen PV case we already run on the thread stack. */
-	ALTERNATIVE "", "jmp .Lint80_keep_stack", X86_FEATURE_XENPV
-
-	movq	%rsp, %rax
-	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
-
-	pushq	5*8(%rax)		/* regs->ss */
-	pushq	4*8(%rax)		/* regs->rsp */
-	pushq	3*8(%rax)		/* regs->eflags */
-	pushq	2*8(%rax)		/* regs->cs */
-	pushq	1*8(%rax)		/* regs->ip */
-	pushq	0*8(%rax)		/* regs->orig_ax */
-.Lint80_keep_stack:
-
-	PUSH_AND_CLEAR_REGS rax=$-ENOSYS
-	UNWIND_HINT_REGS
-
-	cld
-
-	IBRS_ENTER
-	UNTRAIN_RET
-
-	movq	%rsp, %rdi
-	call	do_int80_syscall_32
-	jmp	swapgs_restore_regs_and_return_to_usermode
-SYM_CODE_END(entry_INT80_compat)
+SYM_CODE_START(int80_emulation)
+	ANNOTATE_NOENDBR
+	UNWIND_HINT_FUNC
+	CLEAR_BRANCH_HISTORY
+	jmp do_int80_emulation
+SYM_CODE_END(int80_emulation)

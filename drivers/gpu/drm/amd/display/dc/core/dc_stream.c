@@ -31,6 +31,8 @@
 #include "ipp.h"
 #include "timing_generator.h"
 #include "dc_dmub_srv.h"
+#include "dc_state_priv.h"
+#include "dc_stream_priv.h"
 
 #define DC_LOGGER dc->ctx->logger
 
@@ -54,7 +56,7 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 	}
 }
 
-static bool dc_stream_construct(struct dc_stream_state *stream,
+bool dc_stream_construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
@@ -71,8 +73,7 @@ static bool dc_stream_construct(struct dc_stream_state *stream,
 
 	/* Copy audio modes */
 	/* TODO - Remove this translation */
-	for (i = 0; i < (dc_sink_data->edid_caps.audio_mode_count); i++)
-	{
+	for (i = 0; i < (dc_sink_data->edid_caps.audio_mode_count); i++) {
 		stream->audio_info.modes[i].channel_count = dc_sink_data->edid_caps.audio_modes[i].channel_count;
 		stream->audio_info.modes[i].format_code = dc_sink_data->edid_caps.audio_modes[i].format_code;
 		stream->audio_info.modes[i].sample_rates.all = dc_sink_data->edid_caps.audio_modes[i].sample_rate;
@@ -122,19 +123,25 @@ static bool dc_stream_construct(struct dc_stream_state *stream,
 	}
 	stream->out_transfer_func->type = TF_TYPE_BYPASS;
 
-	stream->stream_id = stream->ctx->dc_stream_id_count;
-	stream->ctx->dc_stream_id_count++;
+	dc_stream_assign_stream_id(stream);
 
 	return true;
 }
 
-static void dc_stream_destruct(struct dc_stream_state *stream)
+void dc_stream_destruct(struct dc_stream_state *stream)
 {
 	dc_sink_release(stream->sink);
 	if (stream->out_transfer_func != NULL) {
 		dc_transfer_func_release(stream->out_transfer_func);
 		stream->out_transfer_func = NULL;
 	}
+}
+
+void dc_stream_assign_stream_id(struct dc_stream_state *stream)
+{
+	/* MSB is reserved to indicate phantoms */
+	stream->stream_id = stream->ctx->dc_stream_id_count;
+	stream->ctx->dc_stream_id_count++;
 }
 
 void dc_stream_retain(struct dc_stream_state *stream)
@@ -197,8 +204,7 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	if (new_stream->out_transfer_func)
 		dc_transfer_func_retain(new_stream->out_transfer_func);
 
-	new_stream->stream_id = new_stream->ctx->dc_stream_id_count;
-	new_stream->ctx->dc_stream_id_count++;
+	dc_stream_assign_stream_id(new_stream);
 
 	/* If using dynamic encoder assignment, wait till stream committed to assign encoder. */
 	if (new_stream->ctx->dc->res_pool->funcs->link_encs_assign)
@@ -207,31 +213,6 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	kref_init(&new_stream->refcount);
 
 	return new_stream;
-}
-
-/**
- * dc_stream_get_status_from_state - Get stream status from given dc state
- * @state: DC state to find the stream status in
- * @stream: The stream to get the stream status for
- *
- * The given stream is expected to exist in the given dc state. Otherwise, NULL
- * will be returned.
- */
-struct dc_stream_status *dc_stream_get_status_from_state(
-	struct dc_state *state,
-	struct dc_stream_state *stream)
-{
-	uint8_t i;
-
-	if (state == NULL)
-		return NULL;
-
-	for (i = 0; i < state->stream_count; i++) {
-		if (stream == state->streams[i])
-			return &state->stream_status[i];
-	}
-
-	return NULL;
 }
 
 /**
@@ -245,7 +226,7 @@ struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *stream)
 {
 	struct dc *dc = stream->ctx->dc;
-	return dc_stream_get_status_from_state(dc->current_state, stream);
+	return dc_state_get_stream_status(dc->current_state, stream);
 }
 
 static void program_cursor_attributes(
@@ -289,23 +270,6 @@ static void program_cursor_attributes(
 	}
 }
 
-#ifndef TRIM_FSFT
-/*
- * dc_optimize_timing_for_fsft() - dc to optimize timing
- */
-bool dc_optimize_timing_for_fsft(
-	struct dc_stream_state *pStream,
-	unsigned int max_input_rate_in_khz)
-{
-	struct dc  *dc;
-
-	dc = pStream->ctx->dc;
-
-	return (dc->hwss.optimize_timing_for_fsft &&
-		dc->hwss.optimize_timing_for_fsft(dc, &pStream->timing, max_input_rate_in_khz));
-}
-#endif
-
 /*
  * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
  */
@@ -334,17 +298,12 @@ bool dc_stream_set_cursor_attributes(
 
 	/* SubVP is not compatible with HW cursor larger than 64 x 64 x 4.
 	 * Therefore, if cursor is greater than 64 x 64 x 4, fallback to SW cursor in the following case:
-	 * 1. For single display cases, if resolution is >= 5K and refresh rate < 120hz
-	 * 2. For multi display cases, if resolution is >= 4K and refresh rate < 120hz
-	 *
-	 * [< 120hz is a requirement for SubVP configs]
+	 * 1. If the config is a candidate for SubVP high refresh (both single an dual display configs)
+	 * 2. If not subvp high refresh, for single display cases, if resolution is >= 5K and refresh rate < 120hz
+	 * 3. If not subvp high refresh, for multi display cases, if resolution is >= 4K and refresh rate < 120hz
 	 */
 	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384) {
-		if (dc->current_state->stream_count == 1 && stream->timing.v_addressable >= 2880 &&
-				((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
-			return false;
-		else if (dc->current_state->stream_count > 1 && stream->timing.v_addressable >= 2160 &&
-				((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
+		if (check_subvp_sw_cursor_fallback_req(dc, stream))
 			return false;
 	}
 
@@ -464,6 +423,8 @@ bool dc_stream_add_writeback(struct dc *dc,
 		return false;
 	}
 
+	dc_exit_ips_for_hw_access(dc);
+
 	wb_info->dwb_params.out_transfer_func = stream->out_transfer_func;
 
 	dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
@@ -488,8 +449,57 @@ bool dc_stream_add_writeback(struct dc *dc,
 	if (dc->hwss.enable_writeback) {
 		struct dc_stream_status *stream_status = dc_stream_get_status(stream);
 		struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
-		dwb->otg_inst = stream_status->primary_otg_inst;
+		if (stream_status)
+			dwb->otg_inst = stream_status->primary_otg_inst;
 	}
+
+	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
+		dm_error("DC: update_bandwidth failed!\n");
+		return false;
+	}
+
+	/* enable writeback */
+	if (dc->hwss.enable_writeback) {
+		struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+
+		if (dwb->funcs->is_enabled(dwb)) {
+			/* writeback pipe already enabled, only need to update */
+			dc->hwss.update_writeback(dc, wb_info, dc->current_state);
+		} else {
+			/* Enable writeback pipe from scratch*/
+			dc->hwss.enable_writeback(dc, wb_info, dc->current_state);
+		}
+	}
+
+	return true;
+}
+
+bool dc_stream_fc_disable_writeback(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t dwb_pipe_inst)
+{
+	struct dwbc *dwb = dc->res_pool->dwbc[dwb_pipe_inst];
+
+	if (stream == NULL) {
+		dm_error("DC: dc_stream is NULL!\n");
+		return false;
+	}
+
+	if (dwb_pipe_inst >= MAX_DWB_PIPES) {
+		dm_error("DC: writeback pipe is invalid!\n");
+		return false;
+	}
+
+	if (stream->num_wb_info > MAX_DWB_PIPES) {
+		dm_error("DC: num_wb_info is invalid!\n");
+		return false;
+	}
+
+	dc_exit_ips_for_hw_access(dc);
+
+	if (dwb->funcs->set_fc_enable)
+		dwb->funcs->set_fc_enable(dwb, DWB_FRAME_CAPTURE_DISABLE);
+
 	return true;
 }
 
@@ -513,26 +523,38 @@ bool dc_stream_remove_writeback(struct dc *dc,
 		return false;
 	}
 
-//	stream->writeback_info[dwb_pipe_inst].wb_enabled = false;
-	for (i = 0; i < stream->num_wb_info; i++) {
-		/*dynamic update*/
-		if (stream->writeback_info[i].wb_enabled &&
-			stream->writeback_info[i].dwb_pipe_inst == dwb_pipe_inst) {
-			stream->writeback_info[i].wb_enabled = false;
-		}
-	}
-
 	/* remove writeback info for disabled writeback pipes from stream */
 	for (i = 0, j = 0; i < stream->num_wb_info; i++) {
 		if (stream->writeback_info[i].wb_enabled) {
-			if (j < i)
-				/* trim the array */
+
+			if (stream->writeback_info[i].dwb_pipe_inst == dwb_pipe_inst)
+				stream->writeback_info[i].wb_enabled = false;
+
+			/* trim the array */
+			if (j < i) {
 				memcpy(&stream->writeback_info[j], &stream->writeback_info[i],
 						sizeof(struct dc_writeback_info));
-			j++;
+				j++;
+			}
 		}
 	}
 	stream->num_wb_info = j;
+
+	/* recalculate and apply DML parameters */
+	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
+		dm_error("DC: update_bandwidth failed!\n");
+		return false;
+	}
+
+	dc_exit_ips_for_hw_access(dc);
+
+	/* disable writeback */
+	if (dc->hwss.disable_writeback) {
+		struct dwbc *dwb = dc->res_pool->dwbc[dwb_pipe_inst];
+
+		if (dwb->funcs->is_enabled(dwb))
+			dc->hwss.disable_writeback(dc, dwb_pipe_inst);
+	}
 
 	return true;
 }
@@ -541,6 +563,8 @@ bool dc_stream_warmup_writeback(struct dc *dc,
 		int num_dwb,
 		struct dc_writeback_info *wb_info)
 {
+	dc_exit_ips_for_hw_access(dc);
+
 	if (dc->hwss.mmhubbub_warmup)
 		return dc->hwss.mmhubbub_warmup(dc, num_dwb, wb_info);
 	else
@@ -553,10 +577,12 @@ uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 	struct resource_context *res_ctx =
 		&dc->current_state->res_ctx;
 
+	dc_exit_ips_for_hw_access(dc);
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct timing_generator *tg = res_ctx->pipe_ctx[i].stream_res.tg;
 
-		if (res_ctx->pipe_ctx[i].stream != stream)
+		if (res_ctx->pipe_ctx[i].stream != stream || !tg)
 			continue;
 
 		return tg->funcs->get_frame_count(tg);
@@ -580,6 +606,8 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 
 	dc = stream->ctx->dc;
 	res_ctx = &dc->current_state->res_ctx;
+
+	dc_exit_ips_for_hw_access(dc);
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
@@ -612,10 +640,12 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 	struct resource_context *res_ctx =
 		&dc->current_state->res_ctx;
 
+	dc_exit_ips_for_hw_access(dc);
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct timing_generator *tg = res_ctx->pipe_ctx[i].stream_res.tg;
 
-		if (res_ctx->pipe_ctx[i].stream != stream)
+		if (res_ctx->pipe_ctx[i].stream != stream || !tg)
 			continue;
 
 		tg->funcs->get_scanoutpos(tg,
@@ -647,6 +677,8 @@ bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream)
 	/* Stream not found, by default we'll assume HUBP fetched dm data */
 	if (i == MAX_PIPES)
 		return true;
+
+	dc_exit_ips_for_hw_access(dc);
 
 	return dc->hwss.dmdata_status_done(pipe);
 }
@@ -681,6 +713,8 @@ bool dc_stream_set_dynamic_metadata(struct dc *dc,
 		return false;
 
 	pipe_ctx->stream->dmdata_address = attr->address;
+
+	dc_exit_ips_for_hw_access(dc);
 
 	dc->hwss.program_dmdata_engine(pipe_ctx);
 

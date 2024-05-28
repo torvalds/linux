@@ -229,7 +229,18 @@
 			reg-names = "nand", "nand-int-base";
 			status = "disabled";
 			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "nand";
+			interrupt-names = "nand_ctlrdy";
+
+			nandcs: nand@0 {
+				compatible = "brcm,nandcs";
+				reg = <0>;
+			};
+		};
+
+		serial@4400 {
+			compatible = "brcm,bcm63138-hs-uart", "brcm,bcmbca-hs-uart";
+			reg = <0x4400 0x1e0>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		bootlut: bootlut@8000 {

@@ -14,51 +14,6 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
-	adc-joystick {
-		compatible = "adc-joystick";
-		io-channels = <&adc_mux 0>,
-			      <&adc_mux 1>,
-			      <&adc_mux 2>,
-			      <&adc_mux 3>;
-		pinctrl-0 = <&joy_mux_en>;
-		pinctrl-names = "default";
-		poll-interval = <60>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		axis@0 {
-			reg = <0>;
-			abs-flat = <32>;
-			abs-fuzz = <32>;
-			abs-range = <1023 15>;
-			linux,code = <ABS_X>;
-		};
-
-		axis@1 {
-			reg = <1>;
-			abs-flat = <32>;
-			abs-fuzz = <32>;
-			abs-range = <15 1023>;
-			linux,code = <ABS_RX>;
-		};
-
-		axis@2 {
-			reg = <2>;
-			abs-flat = <32>;
-			abs-fuzz = <32>;
-			abs-range = <15 1023>;
-			linux,code = <ABS_Y>;
-		};
-
-		axis@3 {
-			reg = <3>;
-			abs-flat = <32>;
-			abs-fuzz = <32>;
-			abs-range = <1023 15>;
-			linux,code = <ABS_RY>;
-		};
-	};
-
 	adc_keys: adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
@@ -75,16 +30,6 @@
 			linux,code = <BTN_MODE>;
 			press-threshold-microvolt = <1750>;
 		};
-	};
-
-	adc_mux: adc-mux {
-		compatible = "io-channel-mux";
-		channels = "left_x", "right_x", "left_y", "right_y";
-		#io-channel-cells = <1>;
-		io-channels = <&saradc 3>;
-		io-channel-names = "parent";
-		mux-controls = <&gpio_mux>;
-		settle-time-us = <100>;
 	};
 
 	gpio_keys_control: gpio-keys-control {
@@ -128,18 +73,6 @@
 			linux,code = <BTN_START>;
 		};
 
-		button-thumbl {
-			gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
-			label = "THUMBL";
-			linux,code = <BTN_THUMBL>;
-		};
-
-		button-thumbr {
-			gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_LOW>;
-			label = "THUMBR";
-			linux,code = <BTN_THUMBR>;
-		};
-
 		button-up {
 			gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
 			label = "DPAD-UP";
@@ -170,13 +103,6 @@
 			label = "VOLUMEUP";
 			linux,code = <KEY_VOLUMEUP>;
 		};
-	};
-
-	gpio_mux: mux-controller {
-		compatible = "gpio-mux";
-		mux-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>,
-			    <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
-		#mux-control-cells = <0>;
 	};
 
 	hdmi-con {

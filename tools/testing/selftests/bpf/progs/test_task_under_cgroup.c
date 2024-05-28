@@ -18,7 +18,7 @@ const volatile __u64 cgid;
 int remote_pid;
 
 SEC("tp_btf/task_newtask")
-int BPF_PROG(handle__task_newtask, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(tp_btf_run, struct task_struct *task, u64 clone_flags)
 {
 	struct cgroup *cgrp = NULL;
 	struct task_struct *acquired;
@@ -46,6 +46,32 @@ out:
 	bpf_task_release(acquired);
 
 	return 0;
+}
+
+SEC("lsm.s/bpf")
+int BPF_PROG(lsm_run, int cmd, union bpf_attr *attr, unsigned int size)
+{
+	struct cgroup *cgrp = NULL;
+	struct task_struct *task;
+	int ret = 0;
+
+	task = bpf_get_current_task_btf();
+	if (local_pid != task->pid)
+		return 0;
+
+	if (cmd != BPF_LINK_CREATE)
+		return 0;
+
+	/* 1 is the root cgroup */
+	cgrp = bpf_cgroup_from_id(1);
+	if (!cgrp)
+		goto out;
+	if (!bpf_task_under_cgroup(task, cgrp))
+		ret = -1;
+	bpf_cgroup_release(cgrp);
+
+out:
+	return ret;
 }
 
 char _license[] SEC("license") = "GPL";

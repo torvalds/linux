@@ -61,6 +61,22 @@ static bool ex_handler_ua_load_reg(const struct exception_table_entry *ex,
 	return true;
 }
 
+static bool ex_handler_zeropad(const struct exception_table_entry *ex, struct pt_regs *regs)
+{
+	unsigned int reg_addr = FIELD_GET(EX_DATA_REG_ADDR, ex->data);
+	unsigned int reg_data = FIELD_GET(EX_DATA_REG_ERR, ex->data);
+	unsigned long data, addr, offset;
+
+	addr = regs->gprs[reg_addr];
+	offset = addr & (sizeof(unsigned long) - 1);
+	addr &= ~(sizeof(unsigned long) - 1);
+	data = *(unsigned long *)addr;
+	data <<= BITS_PER_BYTE * offset;
+	regs->gprs[reg_data] = data;
+	regs->psw.addr = extable_fixup(ex);
+	return true;
+}
+
 bool fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *ex;
@@ -81,6 +97,8 @@ bool fixup_exception(struct pt_regs *regs)
 		return ex_handler_ua_load_reg(ex, false, regs);
 	case EX_TYPE_UA_LOAD_REGPAIR:
 		return ex_handler_ua_load_reg(ex, true, regs);
+	case EX_TYPE_ZEROPAD:
+		return ex_handler_zeropad(ex, regs);
 	}
 	panic("invalid exception table entry");
 }

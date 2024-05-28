@@ -28,40 +28,6 @@ Description:
 		drivers, non-authorized one are not.  By default, wired
 		USB devices are authorized.
 
-		Certified Wireless USB devices are not authorized
-		initially and should be (by writing 1) after the
-		device has been authenticated.
-
-What:		/sys/bus/usb/device/.../wusb_cdid
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		A devices's CDID, as 16 space-separated hex octets.
-
-What:		/sys/bus/usb/device/.../wusb_ck
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		Write the device's connection key (CK) to start the
-		authentication of the device.  The CK is 16
-		space-separated hex octets.
-
-What:		/sys/bus/usb/device/.../wusb_disconnect
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		Write a 1 to force the device to disconnect
-		(equivalent to unplugging a wired USB device).
-
 What:		/sys/bus/usb/drivers/.../new_id
 Date:		October 2011
 Contact:	linux-usb@vger.kernel.org
@@ -347,6 +313,15 @@ Description:
 		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
 		direction. Devices before USB 3.2 are single lane (tx_lanes = 1)
 
+What:		/sys/bus/usb/devices/.../typec
+Date:		November 2023
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Symlink to the USB Type-C partner device. USB Type-C partner
+		represents the component that communicates over the
+		Configuration Channel (CC signal on USB Type-C connectors and
+		cables) with the local port.
+
 What:		/sys/bus/usb/devices/usbX/bAlternateSetting
 Description:
 		The current interface alternate setting number, in decimal.
@@ -466,6 +441,16 @@ Description:
 What:		/sys/bus/usb/devices/usbX/descriptors
 Description:
 		Contains the interface descriptors, in binary.
+
+What:		/sys/bus/usb/devices/usbX/bos_descriptors
+Date:		March 2024
+Contact:	Elbert Mai <code@elbertmai.com>
+Description:
+		Binary file containing the cached binary device object store (BOS)
+		of the device. This consists of the BOS descriptor followed by the
+		set of device capability descriptors. All descriptors read from
+		this file are in bus-endian format. Note that the kernel will not
+		request the BOS from a device if its bcdUSB is less than 0x0201.
 
 What:		/sys/bus/usb/devices/usbX/idProduct
 Description:

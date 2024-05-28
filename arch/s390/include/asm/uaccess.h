@@ -15,7 +15,6 @@
  */
 #include <asm/asm-extable.h>
 #include <asm/processor.h>
-#include <asm/ctl_reg.h>
 #include <asm/extable.h>
 #include <asm/facility.h>
 #include <asm-generic/access_ok.h>

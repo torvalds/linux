@@ -30,6 +30,24 @@
 #define FDO_PWM_MODE_STATIC  1
 #define FDO_PWM_MODE_STATIC_RPM 5
 
+#define SMU_IH_INTERRUPT_ID_TO_DRIVER                   0xFE
+#define SMU_IH_INTERRUPT_CONTEXT_ID_BACO                0x2
+#define SMU_IH_INTERRUPT_CONTEXT_ID_AC                  0x3
+#define SMU_IH_INTERRUPT_CONTEXT_ID_DC                  0x4
+#define SMU_IH_INTERRUPT_CONTEXT_ID_AUDIO_D0            0x5
+#define SMU_IH_INTERRUPT_CONTEXT_ID_AUDIO_D3            0x6
+#define SMU_IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING  0x7
+#define SMU_IH_INTERRUPT_CONTEXT_ID_FAN_ABNORMAL        0x8
+#define SMU_IH_INTERRUPT_CONTEXT_ID_FAN_RECOVERY        0x9
+
+extern const int link_speed[];
+
+/* Helper to Convert from PCIE Gen 1/2/3/4/5/6 to 0.1 GT/s speed units */
+static inline int pcie_gen_to_speed(uint32_t gen)
+{
+	return ((gen == 0) ? link_speed[0] : link_speed[gen - 1]);
+}
+
 int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 				     uint16_t msg_index,
 				     uint32_t param);

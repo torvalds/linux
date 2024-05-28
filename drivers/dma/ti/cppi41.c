@@ -1156,7 +1156,7 @@ err_get_sync:
 	return ret;
 }
 
-static int cppi41_dma_remove(struct platform_device *pdev)
+static void cppi41_dma_remove(struct platform_device *pdev)
 {
 	struct cppi41_dd *cdd = platform_get_drvdata(pdev);
 	int error;
@@ -1173,7 +1173,6 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int __maybe_unused cppi41_suspend(struct device *dev)
@@ -1244,7 +1243,7 @@ static const struct dev_pm_ops cppi41_pm_ops = {
 
 static struct platform_driver cpp41_dma_driver = {
 	.probe  = cppi41_dma_probe,
-	.remove = cppi41_dma_remove,
+	.remove_new = cppi41_dma_remove,
 	.driver = {
 		.name = "cppi41-dma-engine",
 		.pm = &cppi41_pm_ops,

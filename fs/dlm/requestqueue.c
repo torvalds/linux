@@ -30,7 +30,8 @@ struct rq_entry {
  * lockspace is enabled on some while still suspended on others.
  */
 
-void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
+void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid,
+			  const struct dlm_message *ms)
 {
 	struct rq_entry *e;
 	int length = le16_to_cpu(ms->m_header.h_length) -

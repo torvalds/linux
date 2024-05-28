@@ -222,9 +222,7 @@ struct fm801 {
 	struct snd_tea575x tea;
 #endif
 
-#ifdef CONFIG_PM_SLEEP
 	u16 saved_regs[0x20];
-#endif
 };
 
 /*
@@ -1339,7 +1337,6 @@ static int snd_card_fm801_probe(struct pci_dev *pci,
 	return snd_card_free_on_error(&pci->dev, __snd_card_fm801_probe(pci, pci_id));
 }
 
-#ifdef CONFIG_PM_SLEEP
 static const unsigned char saved_regs[] = {
 	FM801_PCM_VOL, FM801_I2S_VOL, FM801_FM_VOL, FM801_REC_SRC,
 	FM801_PLY_CTRL, FM801_PLY_COUNT, FM801_PLY_BUF1, FM801_PLY_BUF2,
@@ -1396,18 +1393,14 @@ static int snd_fm801_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(snd_fm801_pm, snd_fm801_suspend, snd_fm801_resume);
-#define SND_FM801_PM_OPS	&snd_fm801_pm
-#else
-#define SND_FM801_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(snd_fm801_pm, snd_fm801_suspend, snd_fm801_resume);
 
 static struct pci_driver fm801_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
 	.driver = {
-		.pm = SND_FM801_PM_OPS,
+		.pm = &snd_fm801_pm,
 	},
 };
 

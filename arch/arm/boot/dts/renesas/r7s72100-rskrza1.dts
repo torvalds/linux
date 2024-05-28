@@ -29,6 +29,48 @@
 		reg = <0x08000000 0x02000000>;
 	};
 
+	flash@18000000 {
+		compatible = "mtd-rom";
+		reg = <0x18000000 0x08000000>;
+		clocks = <&mstp9_clks R7S72100_CLK_SPIBSC0>;
+		power-domains = <&cpg_clocks>;
+		bank-width = <4>;
+		device-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00080000>;
+			};
+
+			partition@80000 {
+				label = "uboot-env";
+				reg = <0x00080000 0x00040000>;
+			};
+
+			partition@c0000 {
+				label = "dt";
+				reg = <0x000c0000 0x00040000>;
+			};
+
+			partition@100000 {
+				label = "kernel";
+				reg = <0x00100000 0x00280000>;
+			};
+
+			partition@400000 {
+				label = "rootfs";
+				reg = <0x00400000 0x01c00000>;
+			};
+		};
+	};
+
 	keyboard {
 		compatible = "gpio-keys";
 
@@ -58,11 +100,6 @@
 			label = "SW3";
 			wakeup-source;
 		};
-	};
-
-	lbsc {
-		#address-cells = <1>;
-		#size-cells = <1>;
 	};
 
 	leds {
@@ -115,6 +152,30 @@
 		compatible = "renesas,r1ex24016", "atmel,24c16";
 		reg = <0x50>;
 		pagesize = <16>;
+	};
+};
+
+&bsc {
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0x00000000 0x4000000>;
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "apps";
+				reg = <0x00000000 0x01000000>;
+			};
+
+			partition@1000000 {
+				label = "data";
+				reg = <0x01000000 0x03000000>;
+			};
+		};
 	};
 };
 

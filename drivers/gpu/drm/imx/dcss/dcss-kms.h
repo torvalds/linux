@@ -34,6 +34,7 @@ struct dcss_kms_dev {
 
 struct dcss_kms_dev *dcss_kms_attach(struct dcss_dev *dcss);
 void dcss_kms_detach(struct dcss_kms_dev *kms);
+void dcss_kms_shutdown(struct dcss_kms_dev *kms);
 int dcss_crtc_init(struct dcss_crtc *crtc, struct drm_device *drm);
 void dcss_crtc_deinit(struct dcss_crtc *crtc, struct drm_device *drm);
 struct dcss_plane *dcss_plane_init(struct drm_device *drm,

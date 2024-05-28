@@ -11,6 +11,8 @@
 #include <asm/sn/arch.h>
 #include <asm/sn/agent.h>
 
+#include "ip27-common.h"
+
 #if 0
 #define NODE_NUM_CPUS(n)	CNODE_NUM_CPUS(n)
 #else
@@ -23,16 +25,7 @@
 typedef unsigned long machreg_t;
 
 static arch_spinlock_t nmi_lock = __ARCH_SPIN_LOCK_UNLOCKED;
-
-/*
- * Let's see what else we need to do here. Set up sp, gp?
- */
-void nmi_dump(void)
-{
-	void cont_nmi_dump(void);
-
-	cont_nmi_dump();
-}
+static void nmi_dump(void);
 
 void install_cpu_nmi_handler(int slice)
 {
@@ -53,7 +46,7 @@ void install_cpu_nmi_handler(int slice)
  * into the eframe format for the node under consideration.
  */
 
-void nmi_cpu_eframe_save(nasid_t nasid, int slice)
+static void nmi_cpu_eframe_save(nasid_t nasid, int slice)
 {
 	struct reg_struct *nr;
 	int		i;
@@ -129,7 +122,7 @@ void nmi_cpu_eframe_save(nasid_t nasid, int slice)
 	pr_emerg("\n");
 }
 
-void nmi_dump_hub_irq(nasid_t nasid, int slice)
+static void nmi_dump_hub_irq(nasid_t nasid, int slice)
 {
 	u64 mask0, mask1, pend0, pend1;
 
@@ -153,7 +146,7 @@ void nmi_dump_hub_irq(nasid_t nasid, int slice)
  * Copy the cpu registers which have been saved in the IP27prom format
  * into the eframe format for the node under consideration.
  */
-void nmi_node_eframe_save(nasid_t nasid)
+static void nmi_node_eframe_save(nasid_t nasid)
 {
 	int slice;
 
@@ -170,8 +163,7 @@ void nmi_node_eframe_save(nasid_t nasid)
 /*
  * Save the nmi cpu registers for all cpus in the system.
  */
-void
-nmi_eframes_save(void)
+static void nmi_eframes_save(void)
 {
 	nasid_t nasid;
 
@@ -179,8 +171,7 @@ nmi_eframes_save(void)
 		nmi_node_eframe_save(nasid);
 }
 
-void
-cont_nmi_dump(void)
+static void nmi_dump(void)
 {
 #ifndef REAL_NMI_SIGNAL
 	static atomic_t nmied_cpus = ATOMIC_INIT(0);

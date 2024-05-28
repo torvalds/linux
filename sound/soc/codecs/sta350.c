@@ -22,8 +22,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
@@ -1065,7 +1064,7 @@ static const struct regmap_config sta350_regmap = {
 	.max_register =		STA350_MISC2,
 	.reg_defaults =		sta350_regs,
 	.num_reg_defaults =	ARRAY_SIZE(sta350_regs),
-	.cache_type =		REGCACHE_RBTREE,
+	.cache_type =		REGCACHE_MAPLE,
 	.wr_table =		&sta350_write_regs,
 	.rd_table =		&sta350_read_regs,
 	.volatile_table =	&sta350_volatile_regs,

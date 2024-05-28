@@ -107,20 +107,21 @@ enum {
 /*
  * Return an I/O priority value based on a class, a level and a hint.
  */
-static __always_inline __u16 ioprio_value(int class, int level, int hint)
+static __always_inline __u16 ioprio_value(int prioclass, int priolevel,
+					  int priohint)
 {
-	if (IOPRIO_BAD_VALUE(class, IOPRIO_NR_CLASSES) ||
-	    IOPRIO_BAD_VALUE(level, IOPRIO_NR_LEVELS) ||
-	    IOPRIO_BAD_VALUE(hint, IOPRIO_NR_HINTS))
+	if (IOPRIO_BAD_VALUE(prioclass, IOPRIO_NR_CLASSES) ||
+	    IOPRIO_BAD_VALUE(priolevel, IOPRIO_NR_LEVELS) ||
+	    IOPRIO_BAD_VALUE(priohint, IOPRIO_NR_HINTS))
 		return IOPRIO_CLASS_INVALID << IOPRIO_CLASS_SHIFT;
 
-	return (class << IOPRIO_CLASS_SHIFT) |
-		(hint << IOPRIO_HINT_SHIFT) | level;
+	return (prioclass << IOPRIO_CLASS_SHIFT) |
+		(priohint << IOPRIO_HINT_SHIFT) | priolevel;
 }
 
-#define IOPRIO_PRIO_VALUE(class, level)			\
-	ioprio_value(class, level, IOPRIO_HINT_NONE)
-#define IOPRIO_PRIO_VALUE_HINT(class, level, hint)	\
-	ioprio_value(class, level, hint)
+#define IOPRIO_PRIO_VALUE(prioclass, priolevel)			\
+	ioprio_value(prioclass, priolevel, IOPRIO_HINT_NONE)
+#define IOPRIO_PRIO_VALUE_HINT(prioclass, priolevel, priohint)	\
+	ioprio_value(prioclass, priolevel, priohint)
 
 #endif /* _UAPI_LINUX_IOPRIO_H */

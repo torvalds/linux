@@ -146,7 +146,7 @@ static int proc_getattr(struct mnt_idmap *idmap,
 		}
 	}
 
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 	return 0;
 }
 

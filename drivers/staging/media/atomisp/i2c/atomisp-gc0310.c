@@ -83,7 +83,6 @@ struct gc0310_device {
 	struct mutex input_lock;
 	bool is_streaming;
 
-	struct fwnode_handle *ep_fwnode;
 	struct gpio_desc *reset;
 	struct gpio_desc *powerdown;
 
@@ -362,7 +361,7 @@ gc0310_get_pad_format(struct gc0310_device *dev,
 		      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&dev->sd, state, pad);
+		return v4l2_subdev_state_get_format(state, pad);
 
 	return &dev->mode.fmt;
 }
@@ -442,11 +441,6 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	dev_dbg(&client->dev, "%s S enable=%d\n", __func__, enable);
 	mutex_lock(&dev->input_lock);
 
-	if (dev->is_streaming == enable) {
-		dev_warn(&client->dev, "stream already %s\n", enable ? "started" : "stopped");
-		goto error_unlock;
-	}
-
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0)
@@ -498,14 +492,21 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 error_power_down:
 	pm_runtime_put(&client->dev);
 	dev->is_streaming = false;
-error_unlock:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
 
-static int gc0310_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *interval)
+static int gc0310_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *interval)
 {
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	interval->interval.numerator = 1;
 	interval->interval.denominator = GC0310_FPS;
 
@@ -552,7 +553,6 @@ static const struct v4l2_subdev_sensor_ops gc0310_sensor_ops = {
 
 static const struct v4l2_subdev_video_ops gc0310_video_ops = {
 	.s_stream = gc0310_s_stream,
-	.g_frame_interval = gc0310_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
@@ -560,6 +560,7 @@ static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.enum_frame_size = gc0310_enum_frame_size,
 	.get_fmt = gc0310_get_fmt,
 	.set_fmt = gc0310_set_fmt,
+	.get_frame_interval = gc0310_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc0310_ops = {
@@ -599,37 +600,37 @@ static void gc0310_remove(struct i2c_client *client)
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrls.handler);
 	mutex_destroy(&dev->input_lock);
-	fwnode_handle_put(dev->ep_fwnode);
 	pm_runtime_disable(&client->dev);
 }
 
 static int gc0310_probe(struct i2c_client *client)
 {
+	struct fwnode_handle *ep_fwnode;
 	struct gc0310_device *dev;
 	int ret;
-
-	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
 
 	/*
 	 * Sometimes the fwnode graph is initialized by the bridge driver.
 	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
 	 */
-	dev->ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
-	if (!dev->ep_fwnode)
+	ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	if (!ep_fwnode)
 		return dev_err_probe(&client->dev, -EPROBE_DEFER, "waiting for fwnode graph endpoint\n");
+
+	fwnode_handle_put(ep_fwnode);
+
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
 
 	dev->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(dev->reset)) {
-		fwnode_handle_put(dev->ep_fwnode);
 		return dev_err_probe(&client->dev, PTR_ERR(dev->reset),
 				     "getting reset GPIO\n");
 	}
 
 	dev->powerdown = devm_gpiod_get(&client->dev, "powerdown", GPIOD_OUT_HIGH);
 	if (IS_ERR(dev->powerdown)) {
-		fwnode_handle_put(dev->ep_fwnode);
 		return dev_err_probe(&client->dev, PTR_ERR(dev->powerdown),
 				     "getting powerdown GPIO\n");
 	}
@@ -652,7 +653,6 @@ static int gc0310_probe(struct i2c_client *client)
 	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	dev->sd.fwnode = dev->ep_fwnode;
 
 	ret = gc0310_init_controls(dev);
 	if (ret) {

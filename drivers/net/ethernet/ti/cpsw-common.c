@@ -3,7 +3,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 
@@ -91,4 +90,5 @@ int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr)
 }
 EXPORT_SYMBOL_GPL(ti_cm_get_macid);
 
+MODULE_DESCRIPTION("TI CPSW Switch common module");
 MODULE_LICENSE("GPL");

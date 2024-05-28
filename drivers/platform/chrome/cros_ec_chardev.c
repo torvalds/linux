@@ -396,13 +396,11 @@ static int cros_ec_chardev_probe(struct platform_device *pdev)
 	return misc_register(&data->misc);
 }
 
-static int cros_ec_chardev_remove(struct platform_device *pdev)
+static void cros_ec_chardev_remove(struct platform_device *pdev)
 {
 	struct chardev_data *data = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&data->misc);
-
-	return 0;
 }
 
 static struct platform_driver cros_ec_chardev_driver = {
@@ -410,7 +408,7 @@ static struct platform_driver cros_ec_chardev_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_ec_chardev_probe,
-	.remove = cros_ec_chardev_remove,
+	.remove_new = cros_ec_chardev_remove,
 };
 
 module_platform_driver(cros_ec_chardev_driver);

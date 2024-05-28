@@ -618,18 +618,17 @@ static int memac_accept_rx_pause_frames(struct fman_mac *memac, bool en)
 	return 0;
 }
 
-static void memac_validate(struct phylink_config *config,
-			   unsigned long *supported,
-			   struct phylink_link_state *state)
+static unsigned long memac_get_caps(struct phylink_config *config,
+				    phy_interface_t interface)
 {
 	struct fman_mac *memac = fman_config_to_mac(config)->fman_mac;
 	unsigned long caps = config->mac_capabilities;
 
-	if (phy_interface_mode_is_rgmii(state->interface) &&
+	if (phy_interface_mode_is_rgmii(interface) &&
 	    memac->rgmii_no_half_duplex)
 		caps &= ~(MAC_10HD | MAC_100HD);
 
-	phylink_validate_mask_caps(supported, state, caps);
+	return caps;
 }
 
 /**
@@ -776,7 +775,7 @@ static void memac_link_down(struct phylink_config *config, unsigned int mode,
 }
 
 static const struct phylink_mac_ops memac_mac_ops = {
-	.validate = memac_validate,
+	.mac_get_caps = memac_get_caps,
 	.mac_select_pcs = memac_select_pcs,
 	.mac_prepare = memac_prepare,
 	.mac_config = memac_mac_config,
@@ -1074,6 +1073,14 @@ int memac_initialization(struct mac_device *mac_dev,
 	unsigned long		 capabilities;
 	unsigned long		*supported;
 
+	/* The internal connection to the serdes is XGMII, but this isn't
+	 * really correct for the phy mode (which is the external connection).
+	 * However, this is how all older device trees say that they want
+	 * 10GBASE-R (aka XFI), so just convert it for them.
+	 */
+	if (mac_dev->phy_if == PHY_INTERFACE_MODE_XGMII)
+		mac_dev->phy_if = PHY_INTERFACE_MODE_10GBASER;
+
 	mac_dev->phylink_ops		= &memac_mac_ops;
 	mac_dev->set_promisc		= memac_set_promiscuous;
 	mac_dev->change_addr		= memac_modify_mac_address;
@@ -1140,7 +1147,7 @@ int memac_initialization(struct mac_device *mac_dev,
 	 * (and therefore that xfi_pcs cannot be set). If we are defaulting to
 	 * XGMII, assume this is for XFI. Otherwise, assume it is for SGMII.
 	 */
-	if (err && mac_dev->phy_if == PHY_INTERFACE_MODE_XGMII)
+	if (err && mac_dev->phy_if == PHY_INTERFACE_MODE_10GBASER)
 		memac->xfi_pcs = pcs;
 	else
 		memac->sgmii_pcs = pcs;
@@ -1153,14 +1160,6 @@ int memac_initialization(struct mac_device *mac_dev,
 		err = PTR_ERR(memac->serdes);
 		goto _return_fm_mac_free;
 	}
-
-	/* The internal connection to the serdes is XGMII, but this isn't
-	 * really correct for the phy mode (which is the external connection).
-	 * However, this is how all older device trees say that they want
-	 * 10GBASE-R (aka XFI), so just convert it for them.
-	 */
-	if (mac_dev->phy_if == PHY_INTERFACE_MODE_XGMII)
-		mac_dev->phy_if = PHY_INTERFACE_MODE_10GBASER;
 
 	/* TODO: The following interface modes are supported by (some) hardware
 	 * but not by this driver:

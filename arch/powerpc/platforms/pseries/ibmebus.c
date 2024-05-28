@@ -47,6 +47,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <asm/ibmebus.h>
 #include <asm/machdep.h>
 
@@ -54,7 +55,7 @@ static struct device ibmebus_bus_device = { /* fake "parent" device */
 	.init_name = "ibmebus",
 };
 
-struct bus_type ibmebus_bus_type;
+const struct bus_type ibmebus_bus_type;
 
 /* These devices will automatically be added to the bus during init */
 static const struct of_device_id ibmebus_matches[] __initconst = {
@@ -431,7 +432,7 @@ static int ibmebus_bus_modalias(const struct device *dev, struct kobj_uevent_env
 	return of_device_uevent_modalias(dev, env);
 }
 
-struct bus_type ibmebus_bus_type = {
+const struct bus_type ibmebus_bus_type = {
 	.name      = "ibmebus",
 	.uevent    = ibmebus_bus_modalias,
 	.bus_groups = ibmbus_bus_groups,
@@ -460,6 +461,7 @@ static int __init ibmebus_bus_init(void)
 	if (err) {
 		printk(KERN_WARNING "%s: device_register returned %i\n",
 		       __func__, err);
+		put_device(&ibmebus_bus_device);
 		bus_unregister(&ibmebus_bus_type);
 
 		return err;

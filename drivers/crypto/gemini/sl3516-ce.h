@@ -17,7 +17,6 @@
 #include <crypto/engine.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
-#include <linux/crypto.h>
 #include <linux/debugfs.h>
 #include <linux/hw_random.h>
 
@@ -292,16 +291,12 @@ struct sl3516_ce_cipher_req_ctx {
 
 /*
  * struct sl3516_ce_cipher_tfm_ctx - context for a skcipher TFM
- * @enginectx:		crypto_engine used by this TFM
  * @key:		pointer to key data
  * @keylen:		len of the key
  * @ce:			pointer to the private data of driver handling this TFM
  * @fallback_tfm:	pointer to the fallback TFM
- *
- * enginectx must be the first element
  */
 struct sl3516_ce_cipher_tfm_ctx {
-	struct crypto_engine_ctx enginectx;
 	u32 *key;
 	u32 keylen;
 	struct sl3516_ce_dev *ce;
@@ -324,7 +319,7 @@ struct sl3516_ce_alg_template {
 	u32 mode;
 	struct sl3516_ce_dev *ce;
 	union {
-		struct skcipher_alg skcipher;
+		struct skcipher_engine_alg skcipher;
 	} alg;
 	unsigned long stat_req;
 	unsigned long stat_fb;
@@ -345,3 +340,4 @@ int sl3516_ce_run_task(struct sl3516_ce_dev *ce,
 
 int sl3516_ce_rng_register(struct sl3516_ce_dev *ce);
 void sl3516_ce_rng_unregister(struct sl3516_ce_dev *ce);
+int sl3516_ce_handle_cipher_request(struct crypto_engine *engine, void *areq);

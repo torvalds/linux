@@ -13,8 +13,7 @@
 struct hl_device;
 
 /* special blocks */
-#define HL_MAX_NUM_OF_GLBL_ERR_CAUSE		10
-#define HL_GLBL_ERR_ADDRESS_MASK		GENMASK(11, 0)
+#define HL_GLBL_ERR_ADDRESS_MASK	GENMASK(11, 0)
 /* GLBL_ERR_ADDR register offset from the start of the block */
 #define HL_GLBL_ERR_ADDR_OFFSET		0xF44
 /* GLBL_ERR_CAUSE register offset from the start of the block */

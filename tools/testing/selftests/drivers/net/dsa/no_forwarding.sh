@@ -1,1 +1,1 @@
-../../../net/forwarding/no_forwarding.sh
+run_net_forwarding_test.sh

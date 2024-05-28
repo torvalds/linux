@@ -9,8 +9,8 @@
 #include "util/evsel.h"
 
 #include "util/bpf-filter.h"
-#include "util/bpf-filter-flex.h"
-#include "util/bpf-filter-bison.h"
+#include <util/bpf-filter-flex.h>
+#include <util/bpf-filter-bison.h>
 
 #include "bpf_skel/sample-filter.h"
 #include "bpf_skel/sample_filter.skel.h"
@@ -61,6 +61,16 @@ static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *
 
 	if (evsel->core.attr.sample_type & expr->sample_flags)
 		return 0;
+
+	if (expr->op == PBF_OP_GROUP_BEGIN) {
+		struct perf_bpf_filter_expr *group;
+
+		list_for_each_entry(group, &expr->groups, list) {
+			if (check_sample_flags(evsel, group) < 0)
+				return -1;
+		}
+		return 0;
+	}
 
 	info = get_sample_info(expr->sample_flags);
 	if (info == NULL) {

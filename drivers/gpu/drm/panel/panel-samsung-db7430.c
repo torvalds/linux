@@ -56,10 +56,6 @@ struct db7430 {
 	struct mipi_dbi dbi;
 	/** @panel: the DRM panel instance for this device */
 	struct drm_panel panel;
-	/** @width: the width of this panel in mm */
-	u32 width;
-	/** @height: the height of this panel in mm */
-	u32 height;
 	/** @reset: reset GPIO line */
 	struct gpio_desc *reset;
 	/** @regulators: VCCIO and VIO supply regulators */

@@ -609,7 +609,7 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 	if (!iolat->blkiolat->enabled)
 		return;
 
-	now = ktime_to_ns(ktime_get());
+	now = blk_time_get_ns();
 	while (blkg && blkg->parent) {
 		iolat = blkg_to_lat(blkg);
 		if (!iolat) {
@@ -661,7 +661,7 @@ static void blkiolatency_timer_fn(struct timer_list *t)
 	struct blk_iolatency *blkiolat = from_timer(blkiolat, t, timer);
 	struct blkcg_gq *blkg;
 	struct cgroup_subsys_state *pos_css;
-	u64 now = ktime_to_ns(ktime_get());
+	u64 now = blk_time_get_ns();
 
 	rcu_read_lock();
 	blkg_for_each_descendant_pre(blkg, pos_css,
@@ -824,29 +824,6 @@ static void iolatency_clear_scaling(struct blkcg_gq *blkg)
 	}
 }
 
-static int blk_iolatency_try_init(struct blkg_conf_ctx *ctx)
-{
-	static DEFINE_MUTEX(init_mutex);
-	int ret;
-
-	ret = blkg_conf_open_bdev(ctx);
-	if (ret)
-		return ret;
-
-	/*
-	 * blk_iolatency_init() may fail after rq_qos_add() succeeds which can
-	 * confuse iolat_rq_qos() test. Make the test and init atomic.
-	 */
-	mutex_lock(&init_mutex);
-
-	if (!iolat_rq_qos(ctx->bdev->bd_queue))
-		ret = blk_iolatency_init(ctx->bdev->bd_disk);
-
-	mutex_unlock(&init_mutex);
-
-	return ret;
-}
-
 static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 			     size_t nbytes, loff_t off)
 {
@@ -861,7 +838,17 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 
 	blkg_conf_init(&ctx, buf);
 
-	ret = blk_iolatency_try_init(&ctx);
+	ret = blkg_conf_open_bdev(&ctx);
+	if (ret)
+		goto out;
+
+	/*
+	 * blk_iolatency_init() may fail after rq_qos_add() succeeds which can
+	 * confuse iolat_rq_qos() test. Make the test and init atomic.
+	 */
+	lockdep_assert_held(&ctx.bdev->bd_queue->rq_qos_mutex);
+	if (!iolat_rq_qos(ctx.bdev->bd_queue))
+		ret = blk_iolatency_init(ctx.bdev->bd_disk);
 	if (ret)
 		goto out;
 
@@ -998,7 +985,7 @@ static void iolatency_pd_init(struct blkg_policy_data *pd)
 	struct blkcg_gq *blkg = lat_to_blkg(iolat);
 	struct rq_qos *rqos = iolat_rq_qos(blkg->q);
 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
-	u64 now = ktime_to_ns(ktime_get());
+	u64 now = blk_time_get_ns();
 	int cpu;
 
 	if (blk_queue_nonrot(blkg->q))

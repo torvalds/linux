@@ -376,14 +376,9 @@ static void __init of_omap2_apll_setup(struct device_node *node)
 	}
 	clk_hw->fixed_rate = val;
 
-	if (of_property_read_u32(node, "ti,bit-shift", &val)) {
-		pr_err("%pOFn missing bit-shift\n", node);
-		goto cleanup;
-	}
-
-	clk_hw->enable_bit = val;
-	ad->enable_mask = 0x3 << val;
-	ad->autoidle_mask = 0x3 << val;
+	clk_hw->enable_bit = ti_clk_get_legacy_bit_shift(node);
+	ad->enable_mask = 0x3 << clk_hw->enable_bit;
+	ad->autoidle_mask = 0x3 << clk_hw->enable_bit;
 
 	if (of_property_read_u32(node, "ti,idlest-shift", &val)) {
 		pr_err("%pOFn missing idlest-shift\n", node);

@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/tpm/microsoft,ftpm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microsoft firmware-based Trusted Platform Module (fTPM)
+
+maintainers:
+  - Thirupathaiah Annapureddy <thiruan@microsoft.com>
+  - Sasha Levin <sashal@kernel.org>
+
+description: |
+  Commodity CPU architectures, such as ARM and Intel CPUs, have started to
+  offer trusted computing features in their CPUs aimed at displacing dedicated
+  trusted hardware.  Unfortunately, these CPU architectures raise serious
+  challenges to building trusted systems because they omit providing secure
+  resources outside the CPU perimeter.
+
+  Microsoft's firmware-based TPM 2.0 (fTPM) leverages ARM TrustZone to overcome
+  these challenges and provide software with security guarantees similar to
+  those of dedicated trusted hardware.
+
+  https://www.microsoft.com/en-us/research/publication/ftpm-software-implementation-tpm-chip/
+  https://github.com/Microsoft/ms-tpm-20-ref/tree/main/Samples/ARM32-FirmwareTPM
+
+properties:
+  compatible:
+    const: microsoft,ftpm
+
+required:
+  - compatible
+  - linux,sml-base
+  - linux,sml-size
+
+allOf:
+  - $ref: tpm-common.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    tpm {
+        compatible = "microsoft,ftpm";
+        linux,sml-base = <0x0 0xc0000000>;
+        linux,sml-size = <0x10000>;
+    };

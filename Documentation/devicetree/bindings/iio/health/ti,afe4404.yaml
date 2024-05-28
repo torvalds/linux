@@ -23,7 +23,8 @@ properties:
     maxItems: 1
     description: Connected to ADC_RDY pin.
 
-  reset-gpios: true
+  reset-gpios:
+    maxItems: 1
 
 additionalProperties: false
 

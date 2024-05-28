@@ -32,8 +32,8 @@ void pdsc_debugfs_del_dev(struct pdsc *pdsc)
 
 static int identity_show(struct seq_file *seq, void *v)
 {
-	struct pdsc *pdsc = seq->private;
 	struct pds_core_dev_identity *ident;
+	struct pdsc *pdsc = seq->private;
 	int vt;
 
 	ident = &pdsc->dev_ident;
@@ -64,6 +64,10 @@ DEFINE_SHOW_ATTRIBUTE(identity);
 
 void pdsc_debugfs_add_ident(struct pdsc *pdsc)
 {
+	/* This file will already exist in the reset flow */
+	if (debugfs_lookup("identity", pdsc->dentry))
+		return;
+
 	debugfs_create_file("identity", 0400, pdsc->dentry,
 			    pdsc, &identity_fops);
 }
@@ -102,10 +106,8 @@ static const struct debugfs_reg32 intr_ctrl_regs[] = {
 
 void pdsc_debugfs_add_qcq(struct pdsc *pdsc, struct pdsc_qcq *qcq)
 {
-	struct dentry *qcq_dentry, *q_dentry, *cq_dentry;
-	struct dentry *intr_dentry;
+	struct dentry *qcq_dentry, *q_dentry, *cq_dentry, *intr_dentry;
 	struct debugfs_regset32 *intr_ctrl_regset;
-	struct pdsc_intr_info *intr = &pdsc->intr_info[qcq->intx];
 	struct pdsc_queue *q = &qcq->q;
 	struct pdsc_cq *cq = &qcq->cq;
 
@@ -143,6 +145,8 @@ void pdsc_debugfs_add_qcq(struct pdsc *pdsc, struct pdsc_qcq *qcq)
 	debugfs_create_u16("tail", 0400, cq_dentry, &cq->tail_idx);
 
 	if (qcq->flags & PDS_CORE_QCQ_F_INTR) {
+		struct pdsc_intr_info *intr = &pdsc->intr_info[qcq->intx];
+
 		intr_dentry = debugfs_create_dir("intr", qcq->dentry);
 		if (IS_ERR_OR_NULL(intr_dentry))
 			return;

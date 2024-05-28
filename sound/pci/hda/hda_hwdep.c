@@ -114,8 +114,8 @@ int snd_hda_create_hwdep(struct hda_codec *codec)
 #endif
 
 	/* for sysfs */
-	hwdep->dev.groups = snd_hda_dev_attr_groups;
-	dev_set_drvdata(&hwdep->dev, codec);
+	hwdep->dev->groups = snd_hda_dev_attr_groups;
+	dev_set_drvdata(hwdep->dev, codec);
 
 	return 0;
 }

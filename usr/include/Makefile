@@ -59,12 +59,6 @@ ifeq ($(SRCARCH),arc)
 no-header-test += linux/bpf_perf_event.h
 endif
 
-ifeq ($(SRCARCH),ia64)
-no-header-test += asm/setup.h
-no-header-test += asm/sigcontext.h
-no-header-test += linux/if_bonding.h
-endif
-
 ifeq ($(SRCARCH),powerpc)
 no-header-test += linux/bpf_perf_event.h
 endif

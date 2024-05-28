@@ -279,7 +279,7 @@
 			reg = <0x080000 0x0100000>;
 		};
 
-		partition@180000{
+		partition@180000 {
 			label = "devinfo";
 			reg = <0x0180000 0x080000>;
 		};

@@ -9,7 +9,6 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -44,19 +43,6 @@ enum {
 	P_HDMIPLL,
 	P_DPVCO,
 	P_DPLINK,
-};
-
-static struct clk_fixed_factor gpll0_div = {
-	.mult = 1,
-	.div = 2,
-	.hw.init = &(struct clk_init_data){
-		.name = "mmss_gpll0_div",
-		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "gpll0"
-		},
-		.num_parents = 1,
-		.ops = &clk_fixed_factor_ops,
-	},
 };
 
 static const struct clk_div_table post_div_table_fabia_even[] = {
@@ -354,7 +340,7 @@ static const struct parent_map mmss_xo_gpll0_gpll0_div_map[] = {
 static const struct clk_parent_data mmss_xo_gpll0_gpll0_div[] = {
 	{ .fw_name = "xo" },
 	{ .fw_name = "gpll0" },
-	{ .hw = &gpll0_div.hw },
+	{ .fw_name = "gpll0_div", .name = "gcc_mmss_gpll0_div_clk" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_gpll0_gpll0_div_map[] = {
@@ -368,7 +354,7 @@ static const struct clk_parent_data mmss_xo_mmpll0_gpll0_gpll0_div[] = {
 	{ .fw_name = "xo" },
 	{ .hw = &mmpll0_out_even.clkr.hw },
 	{ .fw_name = "gpll0" },
-	{ .hw = &gpll0_div.hw },
+	{ .fw_name = "gpll0_div", .name = "gcc_mmss_gpll0_div_clk" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div_map[] = {
@@ -384,7 +370,7 @@ static const struct clk_parent_data mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div[] = {
 	{ .hw = &mmpll0_out_even.clkr.hw },
 	{ .hw = &mmpll1_out_even.clkr.hw },
 	{ .fw_name = "gpll0" },
-	{ .hw = &gpll0_div.hw },
+	{ .fw_name = "gpll0_div", .name = "gcc_mmss_gpll0_div_clk" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div_map[] = {
@@ -400,7 +386,7 @@ static const struct clk_parent_data mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div[] = {
 	{ .hw = &mmpll0_out_even.clkr.hw },
 	{ .hw = &mmpll5_out_even.clkr.hw },
 	{ .fw_name = "gpll0" },
-	{ .hw = &gpll0_div.hw },
+	{ .fw_name = "gpll0_div", .name = "gcc_mmss_gpll0_div_clk" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll3_mmpll6_gpll0_gpll0_div_map[] = {
@@ -418,7 +404,7 @@ static const struct clk_parent_data mmss_xo_mmpll0_mmpll3_mmpll6_gpll0_gpll0_div
 	{ .hw = &mmpll3_out_even.clkr.hw },
 	{ .hw = &mmpll6_out_even.clkr.hw },
 	{ .fw_name = "gpll0" },
-	{ .hw = &gpll0_div.hw },
+	{ .fw_name = "gpll0_div", .name = "gcc_mmss_gpll0_div_clk" },
 };
 
 static const struct parent_map mmss_xo_mmpll4_mmpll7_mmpll10_gpll0_gpll0_div_map[] = {
@@ -436,7 +422,7 @@ static const struct clk_parent_data mmss_xo_mmpll4_mmpll7_mmpll10_gpll0_gpll0_di
 	{ .hw = &mmpll7_out_even.clkr.hw },
 	{ .hw = &mmpll10_out_even.clkr.hw },
 	{ .fw_name = "gpll0" },
-	{ .hw = &gpll0_div.hw },
+	{ .fw_name = "gpll0_div", .name = "gcc_mmss_gpll0_div_clk" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll7_mmpll10_gpll0_gpll0_div_map[] = {
@@ -454,7 +440,7 @@ static const struct clk_parent_data mmss_xo_mmpll0_mmpll7_mmpll10_gpll0_gpll0_di
 	{ .hw = &mmpll7_out_even.clkr.hw },
 	{ .hw = &mmpll10_out_even.clkr.hw },
 	{ .fw_name = "gpll0" },
-	{ .hw = &gpll0_div.hw },
+	{ .fw_name = "gpll0_div", .name = "gcc_mmss_gpll0_div_clk" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll4_mmpll7_mmpll10_gpll0_gpll0_div_map[] = {
@@ -474,7 +460,7 @@ static const struct clk_parent_data mmss_xo_mmpll0_mmpll4_mmpll7_mmpll10_gpll0_g
 	{ .hw = &mmpll7_out_even.clkr.hw },
 	{ .hw = &mmpll10_out_even.clkr.hw },
 	{ .fw_name = "gpll0" },
-	{ .hw = &gpll0_div.hw },
+	{ .fw_name = "gpll0_div", .name = "gcc_mmss_gpll0_div_clk" },
 };
 
 static struct clk_rcg2 byte0_clk_src = {
@@ -2453,6 +2439,7 @@ static struct clk_branch fd_ahb_clk = {
 
 static struct clk_branch mnoc_ahb_clk = {
 	.halt_reg = 0x5024,
+	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x5024,
 		.enable_mask = BIT(0),
@@ -2468,6 +2455,7 @@ static struct clk_branch mnoc_ahb_clk = {
 
 static struct clk_branch bimc_smmu_ahb_clk = {
 	.halt_reg = 0xe004,
+	.halt_check = BRANCH_HALT_SKIP,
 	.hwcg_reg = 0xe004,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -2485,6 +2473,7 @@ static struct clk_branch bimc_smmu_ahb_clk = {
 
 static struct clk_branch bimc_smmu_axi_clk = {
 	.halt_reg = 0xe008,
+	.halt_check = BRANCH_HALT_SKIP,
 	.hwcg_reg = 0xe008,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -2542,10 +2531,6 @@ static struct clk_branch vmem_ahb_clk = {
 			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
-};
-
-static struct clk_hw *mmcc_msm8998_hws[] = {
-	&gpll0_div.hw,
 };
 
 static struct gdsc video_top_gdsc = {
@@ -2625,11 +2610,13 @@ static struct gdsc camss_cpp_gdsc = {
 static struct gdsc bimc_smmu_gdsc = {
 	.gdscr = 0xe020,
 	.gds_hw_ctrl = 0xe024,
+	.cxcs = (unsigned int []){ 0xe008 },
+	.cxc_count = 1,
 	.pd = {
 		.name = "bimc_smmu",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
-	.flags = HW_CTRL | ALWAYS_ON,
+	.flags = VOTABLE,
 };
 
 static struct clk_regmap *mmcc_msm8998_clocks[] = {
@@ -2855,8 +2842,6 @@ static const struct qcom_cc_desc mmcc_msm8998_desc = {
 	.num_resets = ARRAY_SIZE(mmcc_msm8998_resets),
 	.gdscs = mmcc_msm8998_gdscs,
 	.num_gdscs = ARRAY_SIZE(mmcc_msm8998_gdscs),
-	.clk_hws = mmcc_msm8998_hws,
-	.num_clk_hws = ARRAY_SIZE(mmcc_msm8998_hws),
 };
 
 static const struct of_device_id mmcc_msm8998_match_table[] = {

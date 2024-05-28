@@ -17,7 +17,6 @@
 static int udplitev6_sk_init(struct sock *sk)
 {
 	udpv6_init_sock(sk);
-	udp_sk(sk)->pcflag = UDPLITE_BIT;
 	pr_warn_once("UDP-Lite is deprecated and scheduled to be removed in 2025, "
 		     "please contact the netdev mailing list\n");
 	return 0;
@@ -67,6 +66,7 @@ struct proto udplitev6_prot = {
 	.sysctl_wmem_offset = offsetof(struct net, ipv4.sysctl_udp_wmem_min),
 	.sysctl_rmem_offset = offsetof(struct net, ipv4.sysctl_udp_rmem_min),
 	.obj_size	   = sizeof(struct udp6_sock),
+	.ipv6_pinfo_offset = offsetof(struct udp6_sock, inet6),
 	.h.udp_table	   = &udplite_table,
 };
 

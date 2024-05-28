@@ -43,6 +43,7 @@ struct wfx_dev {
 	struct delayed_work        cooling_timeout_work;
 	bool                       poll_irq;
 	bool                       chip_frozen;
+	struct mutex               scan_lock;
 	struct mutex               conf_mutex;
 
 	struct wfx_hif_cmd         hif_cmd;
@@ -69,6 +70,7 @@ struct wfx_vif {
 
 	bool                       after_dtim_tx_allowed;
 	bool                       join_in_progress;
+	struct completion          set_pm_mode_complete;
 
 	struct delayed_work        beacon_loss_work;
 
@@ -80,15 +82,15 @@ struct wfx_vif {
 
 	unsigned long              uapsd_mask;
 
-	/* avoid some operations in parallel with scan */
-	struct mutex               scan_lock;
 	struct work_struct         scan_work;
 	struct completion          scan_complete;
 	int                        scan_nb_chan_done;
 	bool                       scan_abort;
 	struct ieee80211_scan_request *scan_req;
 
-	struct completion          set_pm_mode_complete;
+	struct ieee80211_channel   *remain_on_channel_chan;
+	int                        remain_on_channel_duration;
+	struct work_struct         remain_on_channel_work;
 };
 
 static inline struct ieee80211_vif *wvif_to_vif(struct wfx_vif *wvif)

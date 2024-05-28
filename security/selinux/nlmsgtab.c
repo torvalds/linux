@@ -153,7 +153,8 @@ static const struct nlmsg_perm nlmsg_audit_perms[] = {
 
 static int nlmsg_perm(u16 nlmsg_type, u32 *perm, const struct nlmsg_perm *tab, size_t tabsize)
 {
-	int i, err = -EINVAL;
+	unsigned int i;
+	int err = -EINVAL;
 
 	for (i = 0; i < tabsize/sizeof(struct nlmsg_perm); i++)
 		if (nlmsg_type == tab[i].nlmsg_type) {

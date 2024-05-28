@@ -1185,12 +1185,11 @@ err_range:
 	return ret;
 }
 
-static int pmic_gpio_remove(struct platform_device *pdev)
+static void pmic_gpio_remove(struct platform_device *pdev)
 {
 	struct pmic_gpio_state *state = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&state->chip);
-	return 0;
 }
 
 static const struct of_device_id pmic_gpio_of_match[] = {
@@ -1205,6 +1204,7 @@ static const struct of_device_id pmic_gpio_of_match[] = {
 	{ .compatible = "qcom,pm6350-gpio", .data = (void *) 9 },
 	{ .compatible = "qcom,pm7250b-gpio", .data = (void *) 12 },
 	{ .compatible = "qcom,pm7325-gpio", .data = (void *) 10 },
+	{ .compatible = "qcom,pm7550ba-gpio", .data = (void *) 8},
 	{ .compatible = "qcom,pm8005-gpio", .data = (void *) 4 },
 	{ .compatible = "qcom,pm8008-gpio", .data = (void *) 2 },
 	{ .compatible = "qcom,pm8019-gpio", .data = (void *) 6 },
@@ -1252,6 +1252,7 @@ static const struct of_device_id pmic_gpio_of_match[] = {
 	/* pmx55 has 11 GPIOs with holes on 3, 7, 10, 11 */
 	{ .compatible = "qcom,pmx55-gpio", .data = (void *) 11 },
 	{ .compatible = "qcom,pmx65-gpio", .data = (void *) 16 },
+	{ .compatible = "qcom,pmx75-gpio", .data = (void *) 16 },
 	{ },
 };
 
@@ -1263,7 +1264,7 @@ static struct platform_driver pmic_gpio_driver = {
 		   .of_match_table = pmic_gpio_of_match,
 	},
 	.probe	= pmic_gpio_probe,
-	.remove = pmic_gpio_remove,
+	.remove_new = pmic_gpio_remove,
 };
 
 module_platform_driver(pmic_gpio_driver);

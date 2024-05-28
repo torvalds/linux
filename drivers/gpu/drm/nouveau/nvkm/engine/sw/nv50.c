@@ -99,7 +99,7 @@ nv50_sw_chan = {
 };
 
 static int
-nv50_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifoch,
+nv50_sw_chan_new(struct nvkm_sw *sw, struct nvkm_chan *fifoch,
 		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
 	struct nvkm_disp *disp = sw->engine.subdev.device->disp;

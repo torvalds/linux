@@ -16,7 +16,7 @@ start_test "basic shadow variable API"
 load_mod $MOD_TEST
 unload_mod $MOD_TEST
 
-check_result "% modprobe $MOD_TEST
+check_result "% insmod test_modules/$MOD_TEST.ko
 $MOD_TEST: klp_shadow_get(obj=PTR1, id=0x1234) = PTR0
 $MOD_TEST:   got expected NULL result
 $MOD_TEST: shadow_ctor: PTR3 -> PTR2

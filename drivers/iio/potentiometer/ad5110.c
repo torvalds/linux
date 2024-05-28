@@ -278,14 +278,19 @@ static const struct of_device_id ad5110_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ad5110_of_match);
 
+#define AD5110_ID_TABLE(_name, cfg) {				\
+	.name = _name,						\
+	.driver_data = (kernel_ulong_t)&ad5110_cfg[cfg],	\
+}
+
 static const struct i2c_device_id ad5110_id[] = {
-	{ "ad5110-10", AD5110_10 },
-	{ "ad5110-80", AD5110_80 },
-	{ "ad5112-05", AD5112_05 },
-	{ "ad5112-10", AD5112_10 },
-	{ "ad5112-80", AD5112_80 },
-	{ "ad5114-10", AD5114_10 },
-	{ "ad5114-80", AD5114_80 },
+	AD5110_ID_TABLE("ad5110-10", AD5110_10),
+	AD5110_ID_TABLE("ad5110-80", AD5110_80),
+	AD5110_ID_TABLE("ad5112-05", AD5112_05),
+	AD5110_ID_TABLE("ad5112-10", AD5112_10),
+	AD5110_ID_TABLE("ad5112-80", AD5112_80),
+	AD5110_ID_TABLE("ad5114-10", AD5114_10),
+	AD5110_ID_TABLE("ad5114-80", AD5114_80),
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5110_id);
@@ -305,7 +310,7 @@ static int ad5110_probe(struct i2c_client *client)
 	data->client = client;
 	mutex_init(&data->lock);
 	data->enable = 1;
-	data->cfg = device_get_match_data(dev);
+	data->cfg = i2c_get_match_data(client);
 
 	/* refresh RDAC register with EEPROM */
 	ret = ad5110_write(data, AD5110_RESET, 0);

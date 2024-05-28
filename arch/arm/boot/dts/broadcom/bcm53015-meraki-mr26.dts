@@ -124,6 +124,14 @@
 				full-duplex;
 			};
 		};
+
+		port@7 {
+			status = "disabled";
+		};
+
+		port@8 {
+			status = "disabled";
+		};
 	};
 };
 

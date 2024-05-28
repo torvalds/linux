@@ -245,12 +245,11 @@ static void perfmon_pmu_event_update(struct perf_event *event)
 	int shift = 64 - idxd->idxd_pmu->counter_width;
 	struct hw_perf_event *hwc = &event->hw;
 
+	prev_raw_count = local64_read(&hwc->prev_count);
 	do {
-		prev_raw_count = local64_read(&hwc->prev_count);
 		new_raw_count = perfmon_pmu_read_counter(event);
-	} while (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
-			new_raw_count) != prev_raw_count);
-
+	} while (!local64_try_cmpxchg(&hwc->prev_count,
+				      &prev_raw_count, new_raw_count));
 	n = (new_raw_count << shift);
 	p = (prev_raw_count << shift);
 
@@ -529,14 +528,11 @@ static int perf_event_cpu_offline(unsigned int cpu, struct hlist_node *node)
 		return 0;
 
 	target = cpumask_any_but(cpu_online_mask, cpu);
-
 	/* migrate events if there is a valid target */
-	if (target < nr_cpu_ids)
+	if (target < nr_cpu_ids) {
 		cpumask_set_cpu(target, &perfmon_dsa_cpu_mask);
-	else
-		target = -1;
-
-	perf_pmu_migrate_context(&idxd_pmu->pmu, cpu, target);
+		perf_pmu_migrate_context(&idxd_pmu->pmu, cpu, target);
+	}
 
 	return 0;
 }

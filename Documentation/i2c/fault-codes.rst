@@ -39,6 +39,10 @@ Also, codes returned by adapter probe methods follow rules which are
 specific to their host bus (such as PCI, or the platform bus).
 
 
+EAFNOSUPPORT
+	Returned by I2C adapters not supporting 10 bit addresses when
+	they are requested to use such an address.
+
 EAGAIN
 	Returned by I2C adapters when they lose arbitration in master
 	transmit mode:  some other master was transmitting different

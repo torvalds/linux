@@ -8,6 +8,7 @@
 #include <asm/fpu/api.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/regset.h>
+#include <asm/prctl.h>
 
 #include "context.h"
 #include "internal.h"
@@ -173,6 +174,86 @@ out:
 	vfree(tmpbuf);
 	return ret;
 }
+
+#ifdef CONFIG_X86_USER_SHADOW_STACK
+int ssp_active(struct task_struct *target, const struct user_regset *regset)
+{
+	if (target->thread.features & ARCH_SHSTK_SHSTK)
+		return regset->n;
+
+	return 0;
+}
+
+int ssp_get(struct task_struct *target, const struct user_regset *regset,
+	    struct membuf to)
+{
+	struct fpu *fpu = &target->thread.fpu;
+	struct cet_user_state *cetregs;
+
+	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK))
+		return -ENODEV;
+
+	sync_fpstate(fpu);
+	cetregs = get_xsave_addr(&fpu->fpstate->regs.xsave, XFEATURE_CET_USER);
+	if (WARN_ON(!cetregs)) {
+		/*
+		 * This shouldn't ever be NULL because shadow stack was
+		 * verified to be enabled above. This means
+		 * MSR_IA32_U_CET.CET_SHSTK_EN should be 1 and so
+		 * XFEATURE_CET_USER should not be in the init state.
+		 */
+		return -ENODEV;
+	}
+
+	return membuf_write(&to, (unsigned long *)&cetregs->user_ssp,
+			    sizeof(cetregs->user_ssp));
+}
+
+int ssp_set(struct task_struct *target, const struct user_regset *regset,
+	    unsigned int pos, unsigned int count,
+	    const void *kbuf, const void __user *ubuf)
+{
+	struct fpu *fpu = &target->thread.fpu;
+	struct xregs_state *xsave = &fpu->fpstate->regs.xsave;
+	struct cet_user_state *cetregs;
+	unsigned long user_ssp;
+	int r;
+
+	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK) ||
+	    !ssp_active(target, regset))
+		return -ENODEV;
+
+	if (pos != 0 || count != sizeof(user_ssp))
+		return -EINVAL;
+
+	r = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &user_ssp, 0, -1);
+	if (r)
+		return r;
+
+	/*
+	 * Some kernel instructions (IRET, etc) can cause exceptions in the case
+	 * of disallowed CET register values. Just prevent invalid values.
+	 */
+	if (user_ssp >= TASK_SIZE_MAX || !IS_ALIGNED(user_ssp, 8))
+		return -EINVAL;
+
+	fpu_force_restore(fpu);
+
+	cetregs = get_xsave_addr(xsave, XFEATURE_CET_USER);
+	if (WARN_ON(!cetregs)) {
+		/*
+		 * This shouldn't ever be NULL because shadow stack was
+		 * verified to be enabled above. This means
+		 * MSR_IA32_U_CET.CET_SHSTK_EN should be 1 and so
+		 * XFEATURE_CET_USER should not be in the init state.
+		 */
+		return -ENODEV;
+	}
+
+	cetregs->user_ssp = user_ssp;
+	return 0;
+}
+#endif /* CONFIG_X86_USER_SHADOW_STACK */
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 

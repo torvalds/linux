@@ -95,6 +95,15 @@ struct clk;
 
 #define ETNA_NR_EVENTS 30
 
+enum etnaviv_gpu_state {
+	ETNA_GPU_STATE_UNKNOWN = 0,
+	ETNA_GPU_STATE_IDENTIFIED,
+	ETNA_GPU_STATE_RESET,
+	ETNA_GPU_STATE_INITIALIZED,
+	ETNA_GPU_STATE_RUNNING,
+	ETNA_GPU_STATE_FAULT,
+};
+
 struct etnaviv_gpu {
 	struct drm_device *drm;
 	struct thermal_cooling_device *cooling;
@@ -105,8 +114,7 @@ struct etnaviv_gpu {
 	struct workqueue_struct *wq;
 	struct mutex sched_lock;
 	struct drm_gpu_scheduler sched;
-	bool initialized;
-	bool fe_running;
+	enum etnaviv_gpu_state state;
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf buffer;
@@ -150,6 +158,7 @@ struct etnaviv_gpu {
 	struct clk *clk_shader;
 
 	unsigned int freq_scale;
+	unsigned int fe_waitcycles;
 	unsigned long base_rate_core;
 	unsigned long base_rate_shader;
 };

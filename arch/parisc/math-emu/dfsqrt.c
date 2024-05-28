@@ -15,7 +15,7 @@
  *	Double Floating-point Square Root
  *
  *  External Interfaces:
- *	dbl_fsqrt(srcptr,nullptr,dstptr,status)
+ *	dbl_fsqrt(srcptr,_nullptr,dstptr,status)
  *
  *  Internal Interfaces:
  *
@@ -37,7 +37,7 @@
 unsigned int
 dbl_fsqrt(
 	    dbl_floating_point *srcptr,
-	    unsigned int *nullptr,
+	    unsigned int *_nullptr,
 	    dbl_floating_point *dstptr,
 	    unsigned int *status)
 {

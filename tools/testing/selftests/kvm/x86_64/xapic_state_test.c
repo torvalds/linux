@@ -65,17 +65,17 @@ static void ____test_icr(struct xapic_vcpu *x, uint64_t val)
 	vcpu_ioctl(vcpu, KVM_SET_LAPIC, &xapic);
 
 	vcpu_run(vcpu);
-	ASSERT_EQ(get_ucall(vcpu, &uc), UCALL_SYNC);
-	ASSERT_EQ(uc.args[1], val);
+	TEST_ASSERT_EQ(get_ucall(vcpu, &uc), UCALL_SYNC);
+	TEST_ASSERT_EQ(uc.args[1], val);
 
 	vcpu_ioctl(vcpu, KVM_GET_LAPIC, &xapic);
 	icr = (u64)(*((u32 *)&xapic.regs[APIC_ICR])) |
 	      (u64)(*((u32 *)&xapic.regs[APIC_ICR2])) << 32;
 	if (!x->is_x2apic) {
 		val &= (-1u | (0xffull << (32 + 24)));
-		ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
+		TEST_ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
 	} else {
-		ASSERT_EQ(icr & ~APIC_ICR_BUSY, val & ~APIC_ICR_BUSY);
+		TEST_ASSERT_EQ(icr & ~APIC_ICR_BUSY, val & ~APIC_ICR_BUSY);
 	}
 }
 

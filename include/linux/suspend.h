@@ -40,65 +40,6 @@ typedef int __bitwise suspend_state_t;
 #define PM_SUSPEND_MIN		PM_SUSPEND_TO_IDLE
 #define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
 
-enum suspend_stat_step {
-	SUSPEND_FREEZE = 1,
-	SUSPEND_PREPARE,
-	SUSPEND_SUSPEND,
-	SUSPEND_SUSPEND_LATE,
-	SUSPEND_SUSPEND_NOIRQ,
-	SUSPEND_RESUME_NOIRQ,
-	SUSPEND_RESUME_EARLY,
-	SUSPEND_RESUME
-};
-
-struct suspend_stats {
-	int	success;
-	int	fail;
-	int	failed_freeze;
-	int	failed_prepare;
-	int	failed_suspend;
-	int	failed_suspend_late;
-	int	failed_suspend_noirq;
-	int	failed_resume;
-	int	failed_resume_early;
-	int	failed_resume_noirq;
-#define	REC_FAILED_NUM	2
-	int	last_failed_dev;
-	char	failed_devs[REC_FAILED_NUM][40];
-	int	last_failed_errno;
-	int	errno[REC_FAILED_NUM];
-	int	last_failed_step;
-	u64	last_hw_sleep;
-	u64	total_hw_sleep;
-	u64	max_hw_sleep;
-	enum suspend_stat_step	failed_steps[REC_FAILED_NUM];
-};
-
-extern struct suspend_stats suspend_stats;
-
-static inline void dpm_save_failed_dev(const char *name)
-{
-	strscpy(suspend_stats.failed_devs[suspend_stats.last_failed_dev],
-		name,
-		sizeof(suspend_stats.failed_devs[0]));
-	suspend_stats.last_failed_dev++;
-	suspend_stats.last_failed_dev %= REC_FAILED_NUM;
-}
-
-static inline void dpm_save_failed_errno(int err)
-{
-	suspend_stats.errno[suspend_stats.last_failed_errno] = err;
-	suspend_stats.last_failed_errno++;
-	suspend_stats.last_failed_errno %= REC_FAILED_NUM;
-}
-
-static inline void dpm_save_failed_step(enum suspend_stat_step step)
-{
-	suspend_stats.failed_steps[suspend_stats.last_failed_step] = step;
-	suspend_stats.last_failed_step++;
-	suspend_stats.last_failed_step %= REC_FAILED_NUM;
-}
-
 /**
  * struct platform_suspend_ops - Callbacks for managing platform dependent
  *	system sleep states.
@@ -625,5 +566,20 @@ void queue_up_suspend_work(void);
 static inline void queue_up_suspend_work(void) {}
 
 #endif /* !CONFIG_PM_AUTOSLEEP */
+
+enum suspend_stat_step {
+	SUSPEND_WORKING = 0,
+	SUSPEND_FREEZE,
+	SUSPEND_PREPARE,
+	SUSPEND_SUSPEND,
+	SUSPEND_SUSPEND_LATE,
+	SUSPEND_SUSPEND_NOIRQ,
+	SUSPEND_RESUME_NOIRQ,
+	SUSPEND_RESUME_EARLY,
+	SUSPEND_RESUME
+};
+
+void dpm_save_failed_dev(const char *name);
+void dpm_save_failed_step(enum suspend_stat_step step);
 
 #endif /* _LINUX_SUSPEND_H */

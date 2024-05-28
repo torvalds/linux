@@ -11,17 +11,11 @@
 #include "sc7180-trogdor-parade-ps8640.dtsi"
 #include <arm/cros-ec-keyboard.dtsi>
 #include "sc7180-trogdor-lte-sku.dtsi"
+#include "sc7180-trogdor-rt5682s-sku.dtsi"
 
 / {
 	model = "Google Kingoftown";
 	compatible = "google,kingoftown", "qcom,sc7180";
-};
-
-&alc5682 {
-	compatible = "realtek,rt5682s";
-	/delete-property/ VBAT-supply;
-	realtek,dmic1-clk-pin = <2>;
-	realtek,dmic-clk-rate-hz = <2048000>;
 };
 
 &ap_tp_i2c {
@@ -82,11 +76,6 @@ ap_ts_pen_1v8: &i2c4 {
 
 &pp3300_dx_edp {
 	gpio = <&tlmm 67 GPIO_ACTIVE_HIGH>;
-};
-
-&sound {
-	compatible = "google,sc7180-trogdor";
-	model = "sc7180-rt5682s-max98357a-1mic";
 };
 
 &wifi {

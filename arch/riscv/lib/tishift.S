@@ -4,7 +4,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm-generic/export.h>
+#include <linux/export.h>
 
 SYM_FUNC_START(__lshrti3)
 	beqz	a2, .L1

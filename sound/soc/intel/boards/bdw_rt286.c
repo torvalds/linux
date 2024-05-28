@@ -61,7 +61,7 @@ static const struct snd_soc_dapm_route card_routes[] = {
 
 static int codec_link_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *codec = asoc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_component *codec = snd_soc_rtd_to_codec(rtd, 0)->component;
 	int ret;
 
 	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset", SND_JACK_HEADSET | SND_JACK_BTN_0,
@@ -75,7 +75,7 @@ static int codec_link_init(struct snd_soc_pcm_runtime *rtd)
 
 static void codec_link_exit(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *codec = asoc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_component *codec = snd_soc_rtd_to_codec(rtd, 0)->component;
 
 	snd_soc_component_set_jack(codec, NULL, NULL);
 }
@@ -98,8 +98,8 @@ static int codec_link_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 static int codec_link_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	int ret;
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, RT286_SCLK_S_PLL, 24000000, SND_SOC_CLOCK_IN);
@@ -187,12 +187,18 @@ static int card_suspend_pre(struct snd_soc_card *card)
 {
 	struct snd_soc_dai *codec_dai = snd_soc_card_get_codec_dai(card, "rt286-aif1");
 
+	if (!codec_dai)
+		return 0;
+
 	return snd_soc_component_set_jack(codec_dai->component, NULL, NULL);
 }
 
 static int card_resume_post(struct snd_soc_card *card)
 {
 	struct snd_soc_dai *codec_dai = snd_soc_card_get_codec_dai(card, "rt286-aif1");
+
+	if (!codec_dai)
+		return 0;
 
 	return snd_soc_component_set_jack(codec_dai->component, &card_headset, NULL);
 }

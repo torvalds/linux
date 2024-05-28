@@ -4,7 +4,7 @@ LAN9303 Ethernet switch driver
 
 The LAN9303 is a three port 10/100 Mbps ethernet switch with integrated phys for
 the two external ethernet ports. The third port is an RMII/MII interface to a
-host master network interface (e.g. fixed link).
+host conduit network interface (e.g. fixed link).
 
 
 Driver details

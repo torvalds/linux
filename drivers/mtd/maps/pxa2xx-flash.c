@@ -98,7 +98,7 @@ static int pxa2xx_flash_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pxa2xx_flash_remove(struct platform_device *dev)
+static void pxa2xx_flash_remove(struct platform_device *dev)
 {
 	struct pxa2xx_flash_info *info = platform_get_drvdata(dev);
 
@@ -109,7 +109,6 @@ static int pxa2xx_flash_remove(struct platform_device *dev)
 	if (info->map.cached)
 		iounmap(info->map.cached);
 	kfree(info);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -129,7 +128,7 @@ static struct platform_driver pxa2xx_flash_driver = {
 		.name		= "pxa2xx-flash",
 	},
 	.probe		= pxa2xx_flash_probe,
-	.remove		= pxa2xx_flash_remove,
+	.remove_new	= pxa2xx_flash_remove,
 	.shutdown	= pxa2xx_flash_shutdown,
 };
 

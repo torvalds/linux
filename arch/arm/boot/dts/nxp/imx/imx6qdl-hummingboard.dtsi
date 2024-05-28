@@ -41,6 +41,11 @@
 #include <dt-bindings/sound/fsl-imx-audmux.h>
 
 / {
+	aliases {
+		rtc0 = &carrier_rtc;
+		rtc1 = &snvs_rtc;
+	};
+
 	/* Will be filled by the bootloader */
 	memory@10000000 {
 		device_type = "memory";
@@ -187,7 +192,7 @@
 	status = "okay";
 
 	/* Pro baseboard model */
-	rtc@68 {
+	carrier_rtc: rtc@68 {
 		compatible = "nxp,pcf8523";
 		reg = <0x68>;
 	};

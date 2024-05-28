@@ -152,11 +152,11 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	if (dev->of_node) {
 		const struct of_device_id *id =
 			of_match_device(of_match_ptr(pxa_ssp_of_ids), dev);
-		ssp->type = (int) id->data;
+		ssp->type = (uintptr_t) id->data;
 	} else {
 		const struct platform_device_id *id =
 			platform_get_device_id(pdev);
-		ssp->type = (int) id->driver_data;
+		ssp->type = id->driver_data;
 
 		/* PXA2xx/3xx SSP ports starts from 1 and the internal pdev->id
 		 * starts from 0, do a translation here
@@ -176,15 +176,13 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pxa_ssp_remove(struct platform_device *pdev)
+static void pxa_ssp_remove(struct platform_device *pdev)
 {
 	struct ssp_device *ssp = platform_get_drvdata(pdev);
 
 	mutex_lock(&ssp_lock);
 	list_del(&ssp->node);
 	mutex_unlock(&ssp_lock);
-
-	return 0;
 }
 
 static const struct platform_device_id ssp_id_table[] = {
@@ -199,7 +197,7 @@ static const struct platform_device_id ssp_id_table[] = {
 
 static struct platform_driver pxa_ssp_driver = {
 	.probe		= pxa_ssp_probe,
-	.remove		= pxa_ssp_remove,
+	.remove_new	= pxa_ssp_remove,
 	.driver		= {
 		.name		= "pxa2xx-ssp",
 		.of_match_table	= of_match_ptr(pxa_ssp_of_ids),

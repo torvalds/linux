@@ -63,7 +63,6 @@ static const struct of_device_id __maybe_unused ir36021_of_id[] = {
 MODULE_DEVICE_TABLE(of, ir36021_of_id);
 
 static struct i2c_driver ir36021_driver = {
-	.class = I2C_CLASS_HWMON,
 	.driver = {
 		.name = "ir36021",
 		.of_match_table = of_match_ptr(ir36021_of_id),

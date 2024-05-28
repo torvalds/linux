@@ -27,7 +27,7 @@ static int process_stat_config_event(struct perf_tool *tool __maybe_unused,
 				     struct machine *machine __maybe_unused)
 {
 	struct perf_record_stat_config *config = &event->stat_config;
-	struct perf_stat_config stat_config;
+	struct perf_stat_config stat_config = {};
 
 #define HAS(term, val) \
 	has_term(config, PERF_STAT_CONFIG_TERM__##term, val)

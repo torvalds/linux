@@ -527,28 +527,23 @@ xchk_xattr_check_sf(
 	struct xfs_scrub		*sc)
 {
 	struct xchk_xattr_buf		*ab = sc->buf;
-	struct xfs_attr_shortform	*sf;
-	struct xfs_attr_sf_entry	*sfe;
+	struct xfs_ifork		*ifp = &sc->ip->i_af;
+	struct xfs_attr_sf_hdr		*sf = ifp->if_data;
+	struct xfs_attr_sf_entry	*sfe = xfs_attr_sf_firstentry(sf);
 	struct xfs_attr_sf_entry	*next;
-	struct xfs_ifork		*ifp;
-	unsigned char			*end;
+	unsigned char			*end = ifp->if_data + ifp->if_bytes;
 	int				i;
 	int				error = 0;
 
-	ifp = xfs_ifork_ptr(sc->ip, XFS_ATTR_FORK);
-
 	bitmap_zero(ab->usedmap, ifp->if_bytes);
-	sf = (struct xfs_attr_shortform *)sc->ip->i_af.if_u1.if_data;
-	end = (unsigned char *)ifp->if_u1.if_data + ifp->if_bytes;
-	xchk_xattr_set_map(sc, ab->usedmap, 0, sizeof(sf->hdr));
+	xchk_xattr_set_map(sc, ab->usedmap, 0, sizeof(*sf));
 
-	sfe = &sf->list[0];
 	if ((unsigned char *)sfe > end) {
 		xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
 		return 0;
 	}
 
-	for (i = 0; i < sf->hdr.count; i++) {
+	for (i = 0; i < sf->count; i++) {
 		unsigned char		*name = sfe->nameval;
 		unsigned char		*value = &sfe->nameval[sfe->namelen];
 

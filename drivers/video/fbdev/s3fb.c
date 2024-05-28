@@ -252,7 +252,6 @@ static int s3fb_setup_ddc_bus(struct fb_info *info)
 	strscpy(par->ddc_adapter.name, info->fix.id,
 		sizeof(par->ddc_adapter.name));
 	par->ddc_adapter.owner		= THIS_MODULE;
-	par->ddc_adapter.class		= I2C_CLASS_DDC;
 	par->ddc_adapter.algo_data	= &par->ddc_algo;
 	par->ddc_adapter.dev.parent	= info->device;
 	par->ddc_algo.setsda		= s3fb_ddc_setsda;
@@ -618,8 +617,13 @@ static int s3fb_set_par(struct fb_info *info)
 		info->tileops = NULL;
 
 		/* in 4bpp supports 8p wide tiles only, any tiles otherwise */
-		info->pixmap.blit_x = (bpp == 4) ? (1 << (8 - 1)) : (~(u32)0);
-		info->pixmap.blit_y = ~(u32)0;
+		if (bpp == 4) {
+			bitmap_zero(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+			set_bit(8 - 1, info->pixmap.blit_x);
+		} else {
+			bitmap_fill(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+		}
+		bitmap_fill(info->pixmap.blit_y, FB_MAX_BLIT_HEIGHT);
 
 		offset_value = (info->var.xres_virtual * bpp) / 64;
 		screen_size = info->var.yres_virtual * info->fix.line_length;
@@ -631,8 +635,10 @@ static int s3fb_set_par(struct fb_info *info)
 		info->tileops = fasttext ? &s3fb_fast_tile_ops : &s3fb_tile_ops;
 
 		/* supports 8x16 tiles only */
-		info->pixmap.blit_x = 1 << (8 - 1);
-		info->pixmap.blit_y = 1 << (16 - 1);
+		bitmap_zero(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+		set_bit(8 - 1, info->pixmap.blit_x);
+		bitmap_zero(info->pixmap.blit_y, FB_MAX_BLIT_HEIGHT);
+		set_bit(16 - 1, info->pixmap.blit_y);
 
 		offset_value = info->var.xres_virtual / 16;
 		screen_size = (info->var.xres_virtual * info->var.yres_virtual) / 64;
@@ -1047,6 +1053,7 @@ static const struct fb_ops s3fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= s3fb_open,
 	.fb_release	= s3fb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= s3fb_check_var,
 	.fb_set_par	= s3fb_set_par,
 	.fb_setcolreg	= s3fb_setcolreg,
@@ -1055,6 +1062,7 @@ static const struct fb_ops s3fb_ops = {
 	.fb_fillrect	= s3fb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= s3fb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 	.fb_get_caps    = svga_get_caps,
 };
 

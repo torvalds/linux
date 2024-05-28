@@ -27,10 +27,10 @@
 	gpio_keys {
 		compatible = "gpio-keys";
 
-		button-esc {
+		button-reset {
 			debounce-interval = <100>;
 			wakeup-source;
-			linux,code = <KEY_ESC>;
+			linux,code = <KEY_RESTART>;
 			label = "reset";
 			/* Collides with LPC_LAD[0], UART DCD, SSP 97RST */
 			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
@@ -187,7 +187,7 @@
 	};
 
 	/* This is a RealTek RTL8366RB switch and PHY using SMI over GPIO */
-	switch {
+	ethernet-switch {
 		compatible = "realtek,rtl8366rb";
 		/* 22 = MDIO (has input reads), 21 = MDC (clock, output only) */
 		mdc-gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;
@@ -204,36 +204,36 @@
 			#interrupt-cells = <1>;
 		};
 
-		ports {
+		ethernet-ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			port@0 {
+			ethernet-port@0 {
 				reg = <0>;
 				label = "lan0";
 				phy-handle = <&phy0>;
 			};
-			port@1 {
+			ethernet-port@1 {
 				reg = <1>;
 				label = "lan1";
 				phy-handle = <&phy1>;
 			};
-			port@2 {
+			ethernet-port@2 {
 				reg = <2>;
 				label = "lan2";
 				phy-handle = <&phy2>;
 			};
-			port@3 {
+			ethernet-port@3 {
 				reg = <3>;
 				label = "lan3";
 				phy-handle = <&phy3>;
 			};
-			port@4 {
+			ethernet-port@4 {
 				reg = <4>;
 				label = "wan";
 				phy-handle = <&phy4>;
 			};
-			rtl8366rb_cpu_port: port@5 {
+			rtl8366rb_cpu_port: ethernet-port@5 {
 				reg = <5>;
 				label = "cpu";
 				ethernet = <&gmac0>;
@@ -252,27 +252,27 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			phy0: phy@0 {
+			phy0: ethernet-phy@0 {
 				reg = <0>;
 				interrupt-parent = <&switch_intc>;
 				interrupts = <0>;
 			};
-			phy1: phy@1 {
+			phy1: ethernet-phy@1 {
 				reg = <1>;
 				interrupt-parent = <&switch_intc>;
 				interrupts = <1>;
 			};
-			phy2: phy@2 {
+			phy2: ethernet-phy@2 {
 				reg = <2>;
 				interrupt-parent = <&switch_intc>;
 				interrupts = <2>;
 			};
-			phy3: phy@3 {
+			phy3: ethernet-phy@3 {
 				reg = <3>;
 				interrupt-parent = <&switch_intc>;
 				interrupts = <3>;
 			};
-			phy4: phy@4 {
+			phy4: ethernet-phy@4 {
 				reg = <4>;
 				interrupt-parent = <&switch_intc>;
 				interrupts = <12>;

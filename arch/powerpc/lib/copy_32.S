@@ -4,11 +4,11 @@
  *
  * Copyright (C) 1996-2005 Paul Mackerras.
  */
+#include <linux/export.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
-#include <asm/export.h>
 #include <asm/code-patching-asm.h>
 #include <asm/kasan.h>
 

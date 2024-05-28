@@ -91,7 +91,6 @@ struct ov2685 {
 	struct gpio_desc	*reset_gpio;
 	struct regulator_bulk_data supplies[OV2685_NUM_SUPPLIES];
 
-	bool			streaming;
 	struct mutex		mutex;
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
@@ -405,7 +404,7 @@ __ov2685_get_pad_crop(struct ov2685 *ov2685,
 
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&ov2685->subdev, state, pad);
+		return v4l2_subdev_state_get_crop(state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return mode->analog_crop;
 	}
@@ -513,10 +512,6 @@ static int ov2685_s_stream(struct v4l2_subdev *sd, int on)
 
 	mutex_lock(&ov2685->mutex);
 
-	on = !!on;
-	if (on == ov2685->streaming)
-		goto unlock_and_return;
-
 	if (on) {
 		ret = pm_runtime_resume_and_get(&ov2685->client->dev);
 		if (ret < 0)
@@ -539,15 +534,12 @@ static int ov2685_s_stream(struct v4l2_subdev *sd, int on)
 		pm_runtime_put(&ov2685->client->dev);
 	}
 
-	ov2685->streaming = on;
-
 unlock_and_return:
 	mutex_unlock(&ov2685->mutex);
 
 	return ret;
 }
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static int ov2685_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ov2685 *ov2685 = to_ov2685(sd);
@@ -555,7 +547,7 @@ static int ov2685_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov2685->mutex);
 
-	try_fmt = v4l2_subdev_get_try_format(sd, fh->state, 0);
+	try_fmt = v4l2_subdev_state_get_format(fh->state, 0);
 	/* Initialize try_fmt */
 	ov2685_fill_fmt(&supported_modes[0], try_fmt);
 
@@ -563,7 +555,6 @@ static int ov2685_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	return 0;
 }
-#endif
 
 static int __maybe_unused ov2685_runtime_resume(struct device *dev)
 {
@@ -660,11 +651,9 @@ static const struct v4l2_subdev_ops ov2685_subdev_ops = {
 	.pad	= &ov2685_pad_ops,
 };
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static const struct v4l2_subdev_internal_ops ov2685_internal_ops = {
 	.open = ov2685_open,
 };
-#endif
 
 static const struct v4l2_ctrl_ops ov2685_ctrl_ops = {
 	.s_ctrl = ov2685_set_ctrl,
@@ -833,17 +822,13 @@ static int ov2685_probe(struct i2c_client *client)
 	if (ret)
 		goto err_power_off;
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	ov2685->subdev.internal_ops = &ov2685_internal_ops;
 	ov2685->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-#endif
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	ov2685->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ov2685->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&ov2685->subdev.entity, 1, &ov2685->pad);
 	if (ret < 0)
 		goto err_power_off;
-#endif
 
 	ret = v4l2_async_register_subdev(&ov2685->subdev);
 	if (ret) {
@@ -858,9 +843,7 @@ static int ov2685_probe(struct i2c_client *client)
 	return 0;
 
 err_clean_entity:
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&ov2685->subdev.entity);
-#endif
 err_power_off:
 	__ov2685_power_off(ov2685);
 err_free_handler:
@@ -877,9 +860,7 @@ static void ov2685_remove(struct i2c_client *client)
 	struct ov2685 *ov2685 = to_ov2685(sd);
 
 	v4l2_async_unregister_subdev(sd);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
-#endif
 	v4l2_ctrl_handler_free(&ov2685->ctrl_handler);
 	mutex_destroy(&ov2685->mutex);
 

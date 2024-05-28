@@ -604,9 +604,9 @@ MODULE_DEVICE_TABLE(i2c, mma9551_id);
 static struct i2c_driver mma9551_driver = {
 	.driver = {
 		   .name = MMA9551_DRV_NAME,
-		   .acpi_match_table = ACPI_PTR(mma9551_acpi_match),
+		   .acpi_match_table = mma9551_acpi_match,
 		   .pm = pm_ptr(&mma9551_pm_ops),
-		   },
+	},
 	.probe = mma9551_probe,
 	.remove = mma9551_remove,
 	.id_table = mma9551_id,

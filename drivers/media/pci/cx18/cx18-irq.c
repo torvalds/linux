@@ -30,7 +30,7 @@ static void epu_cmd(struct cx18 *cx, u32 sw1)
 
 irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 {
-	struct cx18 *cx = (struct cx18 *)dev_id;
+	struct cx18 *cx = dev_id;
 	u32 sw1, sw2, hw2;
 
 	sw1 = cx18_read_reg(cx, SW1_INT_STATUS) & cx->sw1_irq_mask;

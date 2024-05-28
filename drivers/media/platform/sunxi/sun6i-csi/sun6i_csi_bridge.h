@@ -34,7 +34,7 @@ struct sun6i_csi_bridge_source {
 };
 
 struct sun6i_csi_bridge_async_subdev {
-	struct v4l2_async_subdev	async_subdev;
+	struct v4l2_async_connection	async_subdev;
 	struct sun6i_csi_bridge_source	*source;
 };
 

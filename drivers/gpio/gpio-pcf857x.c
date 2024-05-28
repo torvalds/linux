@@ -36,19 +36,19 @@ static const struct i2c_device_id pcf857x_id[] = {
 MODULE_DEVICE_TABLE(i2c, pcf857x_id);
 
 static const struct of_device_id pcf857x_of_table[] = {
-	{ .compatible = "nxp,pcf8574" },
-	{ .compatible = "nxp,pcf8574a" },
-	{ .compatible = "nxp,pca8574" },
-	{ .compatible = "nxp,pca9670" },
-	{ .compatible = "nxp,pca9672" },
-	{ .compatible = "nxp,pca9674" },
-	{ .compatible = "nxp,pcf8575" },
-	{ .compatible = "nxp,pca8575" },
-	{ .compatible = "nxp,pca9671" },
-	{ .compatible = "nxp,pca9673" },
-	{ .compatible = "nxp,pca9675" },
-	{ .compatible = "maxim,max7328" },
-	{ .compatible = "maxim,max7329" },
+	{ .compatible = "nxp,pcf8574", (void *)8 },
+	{ .compatible = "nxp,pcf8574a", (void *)8 },
+	{ .compatible = "nxp,pca8574", (void *)8 },
+	{ .compatible = "nxp,pca9670", (void *)8 },
+	{ .compatible = "nxp,pca9672", (void *)8 },
+	{ .compatible = "nxp,pca9674", (void *)8 },
+	{ .compatible = "nxp,pcf8575", (void *)16 },
+	{ .compatible = "nxp,pca8575", (void *)16 },
+	{ .compatible = "nxp,pca9671", (void *)16 },
+	{ .compatible = "nxp,pca9673", (void *)16 },
+	{ .compatible = "nxp,pca9675", (void *)16 },
+	{ .compatible = "maxim,max7328", (void *)8 },
+	{ .compatible = "maxim,max7329", (void *)8 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcf857x_of_table);
@@ -272,7 +272,6 @@ static const struct irq_chip pcf857x_irq_chip = {
 
 static int pcf857x_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct pcf857x *gpio;
 	unsigned int n_latch = 0;
 	int status;
@@ -296,7 +295,7 @@ static int pcf857x_probe(struct i2c_client *client)
 	gpio->chip.set_multiple		= pcf857x_set_multiple;
 	gpio->chip.direction_input	= pcf857x_input;
 	gpio->chip.direction_output	= pcf857x_output;
-	gpio->chip.ngpio		= id->driver_data;
+	gpio->chip.ngpio		= (uintptr_t)i2c_get_match_data(client);
 
 	/* NOTE:  the OnSemi jlc1562b is also largely compatible with
 	 * these parts, notably for output.  It has a low-resolution

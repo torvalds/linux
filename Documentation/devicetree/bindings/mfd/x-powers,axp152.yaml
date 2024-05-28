@@ -67,7 +67,10 @@ allOf:
         properties:
           compatible:
             contains:
-              const: x-powers,axp305
+              enum:
+                - x-powers,axp15060
+                - x-powers,axp305
+                - x-powers,axp313a
 
     then:
       required:

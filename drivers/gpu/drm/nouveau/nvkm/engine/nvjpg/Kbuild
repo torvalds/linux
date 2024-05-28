@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/engine/nvjpg/ga100.o
+nvkm-y += nvkm/engine/nvjpg/ad102.o
+
+nvkm-y += nvkm/engine/nvjpg/r535.o

@@ -1186,7 +1186,6 @@ static int
 netxen_p3_has_mn(struct netxen_adapter *adapter)
 {
 	u32 capability, flashed_ver;
-	capability = 0;
 
 	/* NX2031 always had MN */
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
@@ -1197,7 +1196,6 @@ netxen_p3_has_mn(struct netxen_adapter *adapter)
 	flashed_ver = NETXEN_DECODE_VERSION(flashed_ver);
 
 	if (flashed_ver >= NETXEN_VERSION_CODE(4, 0, 220)) {
-
 		capability = NXRD32(adapter, NX_PEG_TUNE_CAPABILITY);
 		if (capability & NX_PEG_TUNE_MN_PRESENT)
 			return 1;

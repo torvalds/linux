@@ -59,17 +59,9 @@ static const char *board[] __initdata = {
 	NULL
 };
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init mpc5200_simple_probe(void)
-{
-	return of_device_compatible_match(of_root, board);
-}
-
 define_machine(mpc5200_simple_platform) {
 	.name		= "mpc5200-simple-platform",
-	.probe		= mpc5200_simple_probe,
+	.compatibles	= board,
 	.setup_arch	= mpc5200_simple_setup_arch,
 	.discover_phbs	= mpc52xx_setup_pci,
 	.init		= mpc52xx_declare_of_platform_devices,

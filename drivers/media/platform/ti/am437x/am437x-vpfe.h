@@ -84,7 +84,7 @@ struct vpfe_config {
 	/* information about each subdev */
 	struct vpfe_subdev_info sub_devs[VPFE_MAX_SUBDEV];
 	/* Flat array, arranged in groups */
-	struct v4l2_async_subdev *asd[VPFE_MAX_SUBDEV];
+	struct v4l2_async_connection *asd[VPFE_MAX_SUBDEV];
 };
 
 struct vpfe_cap_buffer {

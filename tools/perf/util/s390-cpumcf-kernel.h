@@ -12,6 +12,8 @@
 #define	S390_CPUMCF_DIAG_DEF	0xfeef	/* Counter diagnostic entry ID */
 #define	PERF_EVENT_CPUM_CF_DIAG	0xBC000	/* Event: Counter sets */
 #define PERF_EVENT_CPUM_SF_DIAG	0xBD000 /* Event: Combined-sampling */
+#define PERF_EVENT_PAI_CRYPTO_ALL	0x1000 /* Event: CRYPTO_ALL */
+#define PERF_EVENT_PAI_NNPA_ALL	0x1800 /* Event: NNPA_ALL */
 
 struct cf_ctrset_entry {	/* CPU-M CF counter set entry (8 byte) */
 	unsigned int def:16;	/* 0-15  Data Entry Format */

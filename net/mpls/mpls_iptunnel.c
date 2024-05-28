@@ -55,8 +55,6 @@ static int mpls_xmit(struct sk_buff *skb)
 	out_dev = dst->dev;
 	net = dev_net(out_dev);
 
-	skb_orphan(skb);
-
 	if (!mpls_output_possible(out_dev) ||
 	    !dst->lwtstate || skb_warn_if_lro(skb))
 		goto drop;

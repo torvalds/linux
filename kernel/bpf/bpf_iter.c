@@ -548,7 +548,7 @@ int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
 		return -ENOENT;
 
 	/* Only allow sleepable program for resched-able iterator */
-	if (prog->aux->sleepable && !bpf_iter_target_support_resched(tinfo))
+	if (prog->sleepable && !bpf_iter_target_support_resched(tinfo))
 		return -EINVAL;
 
 	link = kzalloc(sizeof(*link), GFP_USER | __GFP_NOWARN);
@@ -697,7 +697,7 @@ int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 	struct bpf_run_ctx run_ctx, *old_run_ctx;
 	int ret;
 
-	if (prog->aux->sleepable) {
+	if (prog->sleepable) {
 		rcu_read_lock_trace();
 		migrate_disable();
 		might_fault();
@@ -782,9 +782,7 @@ struct bpf_iter_num_kern {
 	int end; /* final value, exclusive */
 } __aligned(8);
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in vmlinux BTF");
+__bpf_kfunc_start_defs();
 
 __bpf_kfunc int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end)
 {
@@ -792,8 +790,6 @@ __bpf_kfunc int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end)
 
 	BUILD_BUG_ON(sizeof(struct bpf_iter_num_kern) != sizeof(struct bpf_iter_num));
 	BUILD_BUG_ON(__alignof__(struct bpf_iter_num_kern) != __alignof__(struct bpf_iter_num));
-
-	BTF_TYPE_EMIT(struct btf_iter_num);
 
 	/* start == end is legit, it's an empty range and we'll just get NULL
 	 * on first (and any subsequent) bpf_iter_num_next() call
@@ -845,4 +841,4 @@ __bpf_kfunc void bpf_iter_num_destroy(struct bpf_iter_num *it)
 	s->cur = s->end = 0;
 }
 
-__diag_pop();
+__bpf_kfunc_end_defs();

@@ -429,7 +429,7 @@ static void odm_RefreshRateAdaptiveMaskCE(struct dm_odm_t *pDM_Odm)
 		PSTA_INFO_T pstat = pDM_Odm->pODM_StaInfo[i];
 
 		if (IS_STA_VALID(pstat)) {
-			if (IS_MCAST(pstat->hwaddr))  /* if (psta->mac_id == 1) */
+			if (is_multicast_ether_addr(pstat->hwaddr))  /* if (psta->mac_id == 1) */
 				continue;
 
 			if (true == ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level)) {
@@ -576,7 +576,7 @@ static void odm_RSSIMonitorCheckCE(struct dm_odm_t *pDM_Odm)
 		for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 			psta = pDM_Odm->pODM_StaInfo[i];
 			if (IS_STA_VALID(psta)) {
-				if (IS_MCAST(psta->hwaddr))  /* if (psta->mac_id == 1) */
+				if (is_multicast_ether_addr(psta->hwaddr))  /* if (psta->mac_id == 1) */
 					continue;
 
 				if (psta->rssi_stat.UndecoratedSmoothedPWDB == (-1))

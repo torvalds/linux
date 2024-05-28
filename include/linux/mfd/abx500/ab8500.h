@@ -382,10 +382,6 @@ struct ab8500_platform_data {
 	struct ab8500_sysctrl_platform_data *sysctrl;
 };
 
-extern int ab8500_init(struct ab8500 *ab8500,
-				 enum ab8500_version version);
-extern int ab8500_exit(struct ab8500 *ab8500);
-
 extern int ab8500_suspend(struct ab8500 *ab8500);
 
 static inline int is_ab8500(struct ab8500 *ab)
@@ -503,13 +499,7 @@ static inline int is_ab9540_2p0_or_earlier(struct ab8500 *ab)
 
 void ab8500_override_turn_on_stat(u8 mask, u8 set);
 
-#ifdef CONFIG_AB8500_DEBUG
-extern int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
-void ab8500_dump_all_banks(struct device *dev);
-void ab8500_debug_register_interrupt(int line);
-#else
 static inline void ab8500_dump_all_banks(struct device *dev) {}
 static inline void ab8500_debug_register_interrupt(int line) {}
-#endif
 
 #endif /* MFD_AB8500_H */

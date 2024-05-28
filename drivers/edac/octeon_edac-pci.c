@@ -87,19 +87,17 @@ err:
 	return res;
 }
 
-static int octeon_pci_remove(struct platform_device *pdev)
+static void octeon_pci_remove(struct platform_device *pdev)
 {
 	struct edac_pci_ctl_info *pci = platform_get_drvdata(pdev);
 
 	edac_pci_del_device(&pdev->dev);
 	edac_pci_free_ctl_info(pci);
-
-	return 0;
 }
 
 static struct platform_driver octeon_pci_driver = {
 	.probe = octeon_pci_probe,
-	.remove = octeon_pci_remove,
+	.remove_new = octeon_pci_remove,
 	.driver = {
 		   .name = "octeon_pci_edac",
 	}

@@ -775,4 +775,7 @@ bool dpp2_construct(struct dcn20_dpp *dpp2,
 void dpp2_power_on_obuf(
 		struct dpp *dpp_base,
 	bool power_on);
+
+void dpp2_cm_get_gamut_remap(struct dpp *dpp_base,
+			     struct dpp_grph_csc_adjustment *adjust);
 #endif /* __DC_HWSS_DCN20_H__ */

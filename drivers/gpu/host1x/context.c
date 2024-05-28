@@ -6,7 +6,7 @@
 #include <linux/device.h>
 #include <linux/kref.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/of_device.h>
 #include <linux/pid.h>
 #include <linux/slab.h>
 
@@ -34,10 +34,10 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 	if (err < 0)
 		return 0;
 
-	cdl->devs = kcalloc(err, sizeof(*cdl->devs), GFP_KERNEL);
+	cdl->len = err / 4;
+	cdl->devs = kcalloc(cdl->len, sizeof(*cdl->devs), GFP_KERNEL);
 	if (!cdl->devs)
 		return -ENOMEM;
-	cdl->len = err / 4;
 
 	for (i = 0; i < cdl->len; i++) {
 		ctx = &cdl->devs[i];
@@ -79,6 +79,14 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 		    !device_iommu_mapped(&ctx->dev)) {
 			dev_err(host1x->dev, "Context device %d has no IOMMU!\n", i);
 			device_unregister(&ctx->dev);
+
+			/*
+			 * This means that if IOMMU is disabled but context devices
+			 * are defined in the device tree, Host1x will fail to probe.
+			 * That's probably OK in this time and age.
+			 */
+			err = -EINVAL;
+
 			goto unreg_devices;
 		}
 	}

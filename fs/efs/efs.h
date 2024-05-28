@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 1999 Al Smith
+ * Copyright (c) 1999 Al Smith, <Al.Smith@aeschi.ch.eu.org>
  *
  * Portions derived from work (c) 1995,1996 Christian Vogelgsang.
  * Portions derived from IRIX header files (c) 1988 Silicon Graphics
@@ -18,9 +18,6 @@
 #include <linux/uaccess.h>
 
 #define EFS_VERSION "1.0a"
-
-static const char cprt[] = "EFS: "EFS_VERSION" - (c) 1999 Al Smith <Al.Smith@aeschi.ch.eu.org>";
-
 
 /* 1 block is 512 bytes */
 #define	EFS_BLOCKSIZE_BITS	9

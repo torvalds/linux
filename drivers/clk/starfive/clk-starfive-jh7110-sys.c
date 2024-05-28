@@ -7,6 +7,7 @@
  */
 
 #include <linux/auxiliary_bus.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -35,18 +36,18 @@
 
 static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	/* root */
-	JH71X0__MUX(JH7110_SYSCLK_CPU_ROOT, "cpu_root", 2,
+	JH71X0__MUX(JH7110_SYSCLK_CPU_ROOT, "cpu_root", 0, 2,
 		    JH7110_SYSCLK_OSC,
 		    JH7110_SYSCLK_PLL0_OUT),
 	JH71X0__DIV(JH7110_SYSCLK_CPU_CORE, "cpu_core", 7, JH7110_SYSCLK_CPU_ROOT),
 	JH71X0__DIV(JH7110_SYSCLK_CPU_BUS, "cpu_bus", 2, JH7110_SYSCLK_CPU_CORE),
-	JH71X0__MUX(JH7110_SYSCLK_GPU_ROOT, "gpu_root", 2,
+	JH71X0__MUX(JH7110_SYSCLK_GPU_ROOT, "gpu_root", 0, 2,
 		    JH7110_SYSCLK_PLL2_OUT,
 		    JH7110_SYSCLK_PLL1_OUT),
 	JH71X0_MDIV(JH7110_SYSCLK_PERH_ROOT, "perh_root", 2, 2,
 		    JH7110_SYSCLK_PLL0_OUT,
 		    JH7110_SYSCLK_PLL2_OUT),
-	JH71X0__MUX(JH7110_SYSCLK_BUS_ROOT, "bus_root", 2,
+	JH71X0__MUX(JH7110_SYSCLK_BUS_ROOT, "bus_root", 0, 2,
 		    JH7110_SYSCLK_OSC,
 		    JH7110_SYSCLK_PLL2_OUT),
 	JH71X0__DIV(JH7110_SYSCLK_NOCSTG_BUS, "nocstg_bus", 3, JH7110_SYSCLK_BUS_ROOT),
@@ -61,7 +62,7 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0__DIV(JH7110_SYSCLK_PLL2_DIV2, "pll2_div2", 2, JH7110_SYSCLK_PLL2_OUT),
 	JH71X0__DIV(JH7110_SYSCLK_AUDIO_ROOT, "audio_root", 8, JH7110_SYSCLK_PLL2_OUT),
 	JH71X0__DIV(JH7110_SYSCLK_MCLK_INNER, "mclk_inner", 64, JH7110_SYSCLK_AUDIO_ROOT),
-	JH71X0__MUX(JH7110_SYSCLK_MCLK, "mclk", 2,
+	JH71X0__MUX(JH7110_SYSCLK_MCLK, "mclk", 0, 2,
 		    JH7110_SYSCLK_MCLK_INNER,
 		    JH7110_SYSCLK_MCLK_EXT),
 	JH71X0_GATE(JH7110_SYSCLK_MCLK_OUT, "mclk_out", 0, JH7110_SYSCLK_MCLK_INNER),
@@ -95,7 +96,7 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0__DIV(JH7110_SYSCLK_OSC_DIV2, "osc_div2", 2, JH7110_SYSCLK_OSC),
 	JH71X0__DIV(JH7110_SYSCLK_PLL1_DIV4, "pll1_div4", 2, JH7110_SYSCLK_PLL1_DIV2),
 	JH71X0__DIV(JH7110_SYSCLK_PLL1_DIV8, "pll1_div8", 2, JH7110_SYSCLK_PLL1_DIV4),
-	JH71X0__MUX(JH7110_SYSCLK_DDR_BUS, "ddr_bus", 4,
+	JH71X0__MUX(JH7110_SYSCLK_DDR_BUS, "ddr_bus", 0, 4,
 		    JH7110_SYSCLK_OSC_DIV2,
 		    JH7110_SYSCLK_PLL1_DIV2,
 		    JH7110_SYSCLK_PLL1_DIV4,
@@ -185,7 +186,7 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0__DIV(JH7110_SYSCLK_GMAC1_RMII_RTX, "gmac1_rmii_rtx", 30,
 		    JH7110_SYSCLK_GMAC1_RMII_REFIN),
 	JH71X0_GDIV(JH7110_SYSCLK_GMAC1_PTP, "gmac1_ptp", 0, 31, JH7110_SYSCLK_GMAC_SRC),
-	JH71X0__MUX(JH7110_SYSCLK_GMAC1_RX, "gmac1_rx", 2,
+	JH71X0__MUX(JH7110_SYSCLK_GMAC1_RX, "gmac1_rx", 0, 2,
 		    JH7110_SYSCLK_GMAC1_RGMII_RXIN,
 		    JH7110_SYSCLK_GMAC1_RMII_RTX),
 	JH71X0__INV(JH7110_SYSCLK_GMAC1_RX_INV, "gmac1_rx_inv", JH7110_SYSCLK_GMAC1_RX),
@@ -269,11 +270,11 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0_MDIV(JH7110_SYSCLK_I2STX0_LRCK_MST, "i2stx0_lrck_mst", 64, 2,
 		    JH7110_SYSCLK_I2STX0_BCLK_MST_INV,
 		    JH7110_SYSCLK_I2STX0_BCLK_MST),
-	JH71X0__MUX(JH7110_SYSCLK_I2STX0_BCLK, "i2stx0_bclk",	2,
+	JH71X0__MUX(JH7110_SYSCLK_I2STX0_BCLK, "i2stx0_bclk", 0, 2,
 		    JH7110_SYSCLK_I2STX0_BCLK_MST,
 		    JH7110_SYSCLK_I2STX_BCLK_EXT),
 	JH71X0__INV(JH7110_SYSCLK_I2STX0_BCLK_INV, "i2stx0_bclk_inv", JH7110_SYSCLK_I2STX0_BCLK),
-	JH71X0__MUX(JH7110_SYSCLK_I2STX0_LRCK, "i2stx0_lrck", 2,
+	JH71X0__MUX(JH7110_SYSCLK_I2STX0_LRCK, "i2stx0_lrck", 0, 2,
 		    JH7110_SYSCLK_I2STX0_LRCK_MST,
 		    JH7110_SYSCLK_I2STX_LRCK_EXT),
 	/* i2stx1 */
@@ -284,11 +285,11 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0_MDIV(JH7110_SYSCLK_I2STX1_LRCK_MST, "i2stx1_lrck_mst", 64, 2,
 		    JH7110_SYSCLK_I2STX1_BCLK_MST_INV,
 		    JH7110_SYSCLK_I2STX1_BCLK_MST),
-	JH71X0__MUX(JH7110_SYSCLK_I2STX1_BCLK, "i2stx1_bclk", 2,
+	JH71X0__MUX(JH7110_SYSCLK_I2STX1_BCLK, "i2stx1_bclk", 0, 2,
 		    JH7110_SYSCLK_I2STX1_BCLK_MST,
 		    JH7110_SYSCLK_I2STX_BCLK_EXT),
 	JH71X0__INV(JH7110_SYSCLK_I2STX1_BCLK_INV, "i2stx1_bclk_inv", JH7110_SYSCLK_I2STX1_BCLK),
-	JH71X0__MUX(JH7110_SYSCLK_I2STX1_LRCK, "i2stx1_lrck", 2,
+	JH71X0__MUX(JH7110_SYSCLK_I2STX1_LRCK, "i2stx1_lrck", 0, 2,
 		    JH7110_SYSCLK_I2STX1_LRCK_MST,
 		    JH7110_SYSCLK_I2STX_LRCK_EXT),
 	/* i2srx */
@@ -299,11 +300,11 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0_MDIV(JH7110_SYSCLK_I2SRX_LRCK_MST, "i2srx_lrck_mst", 64, 2,
 		    JH7110_SYSCLK_I2SRX_BCLK_MST_INV,
 		    JH7110_SYSCLK_I2SRX_BCLK_MST),
-	JH71X0__MUX(JH7110_SYSCLK_I2SRX_BCLK, "i2srx_bclk", 2,
+	JH71X0__MUX(JH7110_SYSCLK_I2SRX_BCLK, "i2srx_bclk", 0, 2,
 		    JH7110_SYSCLK_I2SRX_BCLK_MST,
 		    JH7110_SYSCLK_I2SRX_BCLK_EXT),
 	JH71X0__INV(JH7110_SYSCLK_I2SRX_BCLK_INV, "i2srx_bclk_inv", JH7110_SYSCLK_I2SRX_BCLK),
-	JH71X0__MUX(JH7110_SYSCLK_I2SRX_LRCK, "i2srx_lrck", 2,
+	JH71X0__MUX(JH7110_SYSCLK_I2SRX_LRCK, "i2srx_lrck", 0, 2,
 		    JH7110_SYSCLK_I2SRX_LRCK_MST,
 		    JH7110_SYSCLK_I2SRX_LRCK_EXT),
 	/* pdm */
@@ -313,7 +314,7 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0_GATE(JH7110_SYSCLK_TDM_AHB, "tdm_ahb", 0, JH7110_SYSCLK_AHB0),
 	JH71X0_GATE(JH7110_SYSCLK_TDM_APB, "tdm_apb", 0, JH7110_SYSCLK_APB0),
 	JH71X0_GDIV(JH7110_SYSCLK_TDM_INTERNAL, "tdm_internal", 0, 64, JH7110_SYSCLK_MCLK),
-	JH71X0__MUX(JH7110_SYSCLK_TDM_TDM, "tdm_tdm", 2,
+	JH71X0__MUX(JH7110_SYSCLK_TDM_TDM, "tdm_tdm", 0, 2,
 		    JH7110_SYSCLK_TDM_INTERNAL,
 		    JH7110_SYSCLK_TDM_EXT),
 	JH71X0__INV(JH7110_SYSCLK_TDM_TDM_INV, "tdm_tdm_inv", JH7110_SYSCLK_TDM_TDM),
@@ -389,6 +390,7 @@ static int __init jh7110_syscrg_probe(struct platform_device *pdev)
 	struct jh71x0_clk_priv *priv;
 	unsigned int idx;
 	int ret;
+	struct clk *pllclk;
 
 	priv = devm_kzalloc(&pdev->dev,
 			    struct_size(priv, reg, JH7110_SYSCLK_END),
@@ -402,28 +404,42 @@ static int __init jh7110_syscrg_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	/*
-	 * These PLL clocks are not actually fixed factor clocks and can be
-	 * controlled by the syscon registers of JH7110. They will be dropped
-	 * and registered in the PLL clock driver instead.
-	 */
-	/* 24MHz -> 1000.0MHz */
-	priv->pll[0] = devm_clk_hw_register_fixed_factor(priv->dev, "pll0_out",
-							 "osc", 0, 125, 3);
-	if (IS_ERR(priv->pll[0]))
-		return PTR_ERR(priv->pll[0]);
+	/* Use fixed factor clocks if can not get the PLL clocks from DTS */
+	pllclk = clk_get(priv->dev, "pll0_out");
+	if (IS_ERR(pllclk)) {
+		/* 24MHz -> 1000.0MHz */
+		priv->pll[0] = devm_clk_hw_register_fixed_factor(priv->dev, "pll0_out",
+								 "osc", 0, 125, 3);
+		if (IS_ERR(priv->pll[0]))
+			return PTR_ERR(priv->pll[0]);
+	} else {
+		clk_put(pllclk);
+		priv->pll[0] = NULL;
+	}
 
-	/* 24MHz -> 1066.0MHz */
-	priv->pll[1] = devm_clk_hw_register_fixed_factor(priv->dev, "pll1_out",
-							 "osc", 0, 533, 12);
-	if (IS_ERR(priv->pll[1]))
-		return PTR_ERR(priv->pll[1]);
+	pllclk = clk_get(priv->dev, "pll1_out");
+	if (IS_ERR(pllclk)) {
+		/* 24MHz -> 1066.0MHz */
+		priv->pll[1] = devm_clk_hw_register_fixed_factor(priv->dev, "pll1_out",
+								 "osc", 0, 533, 12);
+		if (IS_ERR(priv->pll[1]))
+			return PTR_ERR(priv->pll[1]);
+	} else {
+		clk_put(pllclk);
+		priv->pll[1] = NULL;
+	}
 
-	/* 24MHz -> 1188.0MHz */
-	priv->pll[2] = devm_clk_hw_register_fixed_factor(priv->dev, "pll2_out",
-							 "osc", 0, 99, 2);
-	if (IS_ERR(priv->pll[2]))
-		return PTR_ERR(priv->pll[2]);
+	pllclk = clk_get(priv->dev, "pll2_out");
+	if (IS_ERR(pllclk)) {
+		/* 24MHz -> 1188.0MHz */
+		priv->pll[2] = devm_clk_hw_register_fixed_factor(priv->dev, "pll2_out",
+								 "osc", 0, 99, 2);
+		if (IS_ERR(priv->pll[2]))
+			return PTR_ERR(priv->pll[2]);
+	} else {
+		clk_put(pllclk);
+		priv->pll[2] = NULL;
+	}
 
 	for (idx = 0; idx < JH7110_SYSCLK_END; idx++) {
 		u32 max = jh7110_sysclk_data[idx].max;
@@ -462,6 +478,12 @@ static int __init jh7110_syscrg_probe(struct platform_device *pdev)
 				parents[i].fw_name = "tdm_ext";
 			else if (pidx == JH7110_SYSCLK_MCLK_EXT)
 				parents[i].fw_name = "mclk_ext";
+			else if (pidx == JH7110_SYSCLK_PLL0_OUT && !priv->pll[0])
+				parents[i].fw_name = "pll0_out";
+			else if (pidx == JH7110_SYSCLK_PLL1_OUT && !priv->pll[1])
+				parents[i].fw_name = "pll1_out";
+			else if (pidx == JH7110_SYSCLK_PLL2_OUT && !priv->pll[2])
+				parents[i].fw_name = "pll2_out";
 			else
 				parents[i].hw = priv->pll[pidx - JH7110_SYSCLK_PLL0_OUT];
 		}

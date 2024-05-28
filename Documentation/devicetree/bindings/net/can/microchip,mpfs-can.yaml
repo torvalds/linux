@@ -24,7 +24,9 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    items:
+      - description: AHB peripheral clock
+      - description: CAN bus clock
 
 required:
   - compatible
@@ -39,7 +41,7 @@ examples:
     can@2010c000 {
         compatible = "microchip,mpfs-can";
         reg = <0x2010c000 0x1000>;
-        clocks = <&clkcfg 17>;
+        clocks = <&clkcfg 17>, <&clkcfg 37>;
         interrupt-parent = <&plic>;
         interrupts = <56>;
     };

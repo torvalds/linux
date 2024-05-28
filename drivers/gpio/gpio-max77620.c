@@ -331,8 +331,6 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	girq->init_hw = max77620_gpio_irq_init_hw;
 	girq->threaded = true;
 
-	platform_set_drvdata(pdev, mgpio);
-
 	ret = devm_gpiochip_add_data(&pdev->dev, &mgpio->gpio_chip, mgpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "gpio_init: Failed to add max77620_gpio\n");

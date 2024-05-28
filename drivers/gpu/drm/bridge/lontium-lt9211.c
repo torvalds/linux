@@ -16,7 +16,6 @@
 #include <linux/i2c.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -90,7 +89,7 @@ static const struct regmap_config lt9211_regmap_config = {
 	.volatile_table	= &lt9211_rw_table,
 	.ranges = &lt9211_range,
 	.num_ranges = 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = 0xda00,
 };
 

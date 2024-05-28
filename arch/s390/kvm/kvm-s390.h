@@ -20,6 +20,24 @@
 #include <asm/processor.h>
 #include <asm/sclp.h>
 
+static inline void kvm_s390_fpu_store(struct kvm_run *run)
+{
+	fpu_stfpc(&run->s.regs.fpc);
+	if (cpu_has_vx())
+		save_vx_regs((__vector128 *)&run->s.regs.vrs);
+	else
+		save_fp_regs((freg_t *)&run->s.regs.fprs);
+}
+
+static inline void kvm_s390_fpu_load(struct kvm_run *run)
+{
+	fpu_lfpc_safe(&run->s.regs.fpc);
+	if (cpu_has_vx())
+		load_vx_regs((__vector128 *)&run->s.regs.vrs);
+	else
+		load_fp_regs((freg_t *)&run->s.regs.fprs);
+}
+
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & ECB_TE))
 #define TDB_FORMAT1		1
@@ -268,18 +286,6 @@ static inline u64 kvm_s390_pv_get_handle(struct kvm *kvm)
 static inline u64 kvm_s390_pv_cpu_get_handle(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.pv.handle;
-}
-
-static inline bool kvm_s390_pv_is_protected(struct kvm *kvm)
-{
-	lockdep_assert_held(&kvm->lock);
-	return !!kvm_s390_pv_get_handle(kvm);
-}
-
-static inline bool kvm_s390_pv_cpu_is_protected(struct kvm_vcpu *vcpu)
-{
-	lockdep_assert_held(&vcpu->mutex);
-	return !!kvm_s390_pv_cpu_get_handle(vcpu);
 }
 
 /* implemented in interrupt.c */

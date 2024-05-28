@@ -251,4 +251,4 @@ const struct snd_soc_dai_ops asoc_qcom_lpass_hdmi_dai_ops = {
 EXPORT_SYMBOL_GPL(asoc_qcom_lpass_hdmi_dai_ops);
 
 MODULE_DESCRIPTION("QTi LPASS HDMI Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

@@ -1076,8 +1076,6 @@ out:
 	snd_card_free(card);
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int snd_at73c213_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
@@ -1109,18 +1107,13 @@ static int snd_at73c213_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(at73c213_pm_ops, snd_at73c213_suspend,
+static DEFINE_SIMPLE_DEV_PM_OPS(at73c213_pm_ops, snd_at73c213_suspend,
 		snd_at73c213_resume);
-#define AT73C213_PM_OPS (&at73c213_pm_ops)
-
-#else
-#define AT73C213_PM_OPS NULL
-#endif
 
 static struct spi_driver at73c213_driver = {
 	.driver		= {
 		.name	= "at73c213",
-		.pm	= AT73C213_PM_OPS,
+		.pm	= &at73c213_pm_ops,
 	},
 	.probe		= snd_at73c213_probe,
 	.remove		= snd_at73c213_remove,

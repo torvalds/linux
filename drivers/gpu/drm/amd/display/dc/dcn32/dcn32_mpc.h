@@ -232,7 +232,6 @@
 	SF(MPCC_OGAM0_MPCC_OGAM_CONTROL, MPCC_OGAM_SELECT_CURRENT, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_LUT_CONTROL, MPCC_OGAM_LUT_WRITE_COLOR_MASK, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_LUT_CONTROL, MPCC_OGAM_LUT_READ_COLOR_SEL, mask_sh),\
-	SF(MPCC_OGAM0_MPCC_OGAM_LUT_CONTROL, MPCC_OGAM_LUT_READ_DBG, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_LUT_CONTROL, MPCC_OGAM_LUT_HOST_SEL, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_LUT_CONTROL, MPCC_OGAM_LUT_CONFIG_MODE, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_LUT_DATA, MPCC_OGAM_LUT_DATA, mask_sh),\
@@ -276,7 +275,6 @@
 	SF(MPCC_MCM0_MPCC_MCM_1DLUT_LUT_DATA, MPCC_MCM_1DLUT_LUT_DATA, mask_sh),\
 	SF(MPCC_MCM0_MPCC_MCM_1DLUT_LUT_CONTROL, MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, mask_sh),\
 	SF(MPCC_MCM0_MPCC_MCM_1DLUT_LUT_CONTROL, MPCC_MCM_1DLUT_LUT_READ_COLOR_SEL, mask_sh),\
-	SF(MPCC_MCM0_MPCC_MCM_1DLUT_LUT_CONTROL, MPCC_MCM_1DLUT_LUT_READ_DBG, mask_sh),\
 	SF(MPCC_MCM0_MPCC_MCM_1DLUT_LUT_CONTROL, MPCC_MCM_1DLUT_LUT_HOST_SEL, mask_sh),\
 	SF(MPCC_MCM0_MPCC_MCM_1DLUT_LUT_CONTROL, MPCC_MCM_1DLUT_LUT_CONFIG_MODE, mask_sh),\
 	SF(MPCC_MCM0_MPCC_MCM_1DLUT_RAMA_START_CNTL_B, MPCC_MCM_1DLUT_RAMA_EXP_REGION_START_B, mask_sh),\
@@ -332,4 +330,65 @@ void dcn32_mpc_construct(struct dcn30_mpc *mpc30,
 	int num_mpcc,
 	int num_rmu);
 
+void mpc32_power_on_blnd_lut(
+	struct mpc *mpc,
+	uint32_t mpcc_id,
+	bool power_on);
+void mpc32_program_post1dlut_pwl(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		const struct pwl_result_data *rgb,
+		uint32_t num);
+void mpc32_program_post1dlutb_settings(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		const struct pwl_params *params);
+void mpc32_program_post1dluta_settings(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		const struct pwl_params *params);
+void mpc32_configure_post1dlut(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		bool is_ram_a);
+void mpc32_program_shaper_lut(
+		struct mpc *mpc,
+		const struct pwl_result_data *rgb,
+		uint32_t num,
+		uint32_t mpcc_id);
+void mpc32_program_shaper_lutb_settings(
+		struct mpc *mpc,
+		const struct pwl_params *params,
+		uint32_t mpcc_id);
+void mpc32_program_shaper_luta_settings(
+		struct mpc *mpc,
+		const struct pwl_params *params,
+		uint32_t mpcc_id);
+void mpc32_configure_shaper_lut(
+		struct mpc *mpc,
+		bool is_ram_a,
+		uint32_t mpcc_id);
+void mpc32_power_on_shaper_3dlut(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		bool power_on);
+void mpc32_set3dlut_ram10(
+		struct mpc *mpc,
+		const struct dc_rgb *lut,
+		uint32_t entries,
+		uint32_t mpcc_id);
+void mpc32_set3dlut_ram12(
+		struct mpc *mpc,
+		const struct dc_rgb *lut,
+		uint32_t entries,
+		uint32_t mpcc_id);
+void mpc32_select_3dlut_ram_mask(
+		struct mpc *mpc,
+		uint32_t ram_selection_mask,
+		uint32_t mpcc_id);
+void mpc32_select_3dlut_ram(
+		struct mpc *mpc,
+		enum dc_lut_mode mode,
+		bool is_color_channel_12bits,
+		uint32_t mpcc_id);
 #endif		//__DC_MPCC_DCN32_H__

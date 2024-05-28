@@ -647,7 +647,7 @@ err_w1:
 	return ret;
 }
 
-static int omap_hdq_remove(struct platform_device *pdev)
+static void omap_hdq_remove(struct platform_device *pdev)
 {
 	int active;
 
@@ -661,8 +661,6 @@ static int omap_hdq_remove(struct platform_device *pdev)
 	if (active >= 0)
 		pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id omap_hdq_dt_ids[] = {
@@ -674,7 +672,7 @@ MODULE_DEVICE_TABLE(of, omap_hdq_dt_ids);
 
 static struct platform_driver omap_hdq_driver = {
 	.probe = omap_hdq_probe,
-	.remove = omap_hdq_remove,
+	.remove_new = omap_hdq_remove,
 	.driver = {
 		.name =	"omap_hdq",
 		.of_match_table = omap_hdq_dt_ids,

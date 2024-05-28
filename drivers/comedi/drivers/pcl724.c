@@ -124,10 +124,10 @@ static int pcl724_attach(struct comedi_device *dev,
 		s = &dev->subdevices[i];
 		if (board->is_pet48) {
 			iobase = dev->iobase + (i * 0x1000);
-			ret = subdev_8255_init(dev, s, pcl724_8255mapped_io,
-					       iobase);
+			ret = subdev_8255_cb_init(dev, s, pcl724_8255mapped_io,
+						  iobase);
 		} else {
-			ret = subdev_8255_init(dev, s, NULL, i * I8255_SIZE);
+			ret = subdev_8255_io_init(dev, s, i * I8255_SIZE);
 		}
 		if (ret)
 			return ret;

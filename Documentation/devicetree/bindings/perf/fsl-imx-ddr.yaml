@@ -27,6 +27,9 @@ properties:
               - fsl,imx8mq-ddr-pmu
               - fsl,imx8mp-ddr-pmu
           - const: fsl,imx8m-ddr-pmu
+      - items:
+          - const: fsl,imx8dxl-ddr-pmu
+          - const: fsl,imx8-ddr-pmu
 
   reg:
     maxItems: 1

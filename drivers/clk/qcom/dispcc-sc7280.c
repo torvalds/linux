@@ -878,11 +878,8 @@ static int disp_cc_sc7280_probe(struct platform_device *pdev)
 
 	clk_lucid_pll_configure(&disp_cc_pll0, regmap, &disp_cc_pll0_config);
 
-	/*
-	 * Keep the clocks always-ON
-	 * DISP_CC_XO_CLK
-	 */
-	regmap_update_bits(regmap, 0x5008, BIT(0), BIT(0));
+	/* Keep some clocks always-on */
+	qcom_branch_set_clk_en(regmap, 0x5008); /* DISP_CC_XO_CLK */
 
 	return qcom_cc_really_probe(pdev, &disp_cc_sc7280_desc, regmap);
 }
@@ -895,17 +892,7 @@ static struct platform_driver disp_cc_sc7280_driver = {
 	},
 };
 
-static int __init disp_cc_sc7280_init(void)
-{
-	return platform_driver_register(&disp_cc_sc7280_driver);
-}
-subsys_initcall(disp_cc_sc7280_init);
-
-static void __exit disp_cc_sc7280_exit(void)
-{
-	platform_driver_unregister(&disp_cc_sc7280_driver);
-}
-module_exit(disp_cc_sc7280_exit);
+module_platform_driver(disp_cc_sc7280_driver);
 
 MODULE_DESCRIPTION("QTI DISP_CC sc7280 Driver");
 MODULE_LICENSE("GPL v2");

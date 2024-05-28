@@ -78,7 +78,7 @@ int BPF_PROG(cgrp_kfunc_acquire_fp, struct cgroup *cgrp, const char *path)
 }
 
 SEC("kretprobe/cgroup_destroy_locked")
-__failure __msg("reg type unsupported for arg#0 function")
+__failure __msg("calling kernel function bpf_cgroup_acquire is not allowed")
 int BPF_PROG(cgrp_kfunc_acquire_unsafe_kretprobe, struct cgroup *cgrp)
 {
 	struct cgroup *acquired;

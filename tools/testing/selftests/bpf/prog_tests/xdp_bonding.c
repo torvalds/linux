@@ -511,7 +511,7 @@ static void test_xdp_bonding_features(struct skeletons *skeletons)
 	if (!ASSERT_OK(err, "bond bpf_xdp_query"))
 		goto out;
 
-	if (!ASSERT_EQ(query_opts.feature_flags, NETDEV_XDP_ACT_MASK,
+	if (!ASSERT_EQ(query_opts.feature_flags, 0,
 		       "bond query_opts.feature_flags"))
 		goto out;
 
@@ -601,7 +601,7 @@ static void test_xdp_bonding_features(struct skeletons *skeletons)
 	if (!ASSERT_OK(err, "bond bpf_xdp_query"))
 		goto out;
 
-	ASSERT_EQ(query_opts.feature_flags, NETDEV_XDP_ACT_MASK,
+	ASSERT_EQ(query_opts.feature_flags, 0,
 		  "bond query_opts.feature_flags");
 out:
 	bpf_link__destroy(link);

@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "ste-db8500.dtsi"
+#include "ste-href-ab8500.dtsi"
 #include "ste-hrefv60plus.dtsi"
 #include "ste-href-stuib.dtsi"
 
@@ -29,7 +30,7 @@
 			  2900000 0x0>;
 
 		gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-		enable-gpio = <&gpio5 9 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";

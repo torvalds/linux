@@ -12,10 +12,10 @@
 #define _OWL_COMMON_H_
 
 #include <linux/clk-provider.h>
-#include <linux/of_platform.h>
 #include <linux/regmap.h>
 
 struct device_node;
+struct platform_device;
 
 struct owl_clk_common {
 	struct regmap			*regmap;

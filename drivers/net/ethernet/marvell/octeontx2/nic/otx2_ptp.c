@@ -10,6 +10,65 @@
 #include "otx2_common.h"
 #include "otx2_ptp.h"
 
+static bool is_tstmp_atomic_update_supported(struct otx2_ptp *ptp)
+{
+	struct ptp_get_cap_rsp *rsp;
+	struct msg_req *req;
+	int err;
+
+	if (!ptp->nic)
+		return false;
+
+	mutex_lock(&ptp->nic->mbox.lock);
+	req = otx2_mbox_alloc_msg_ptp_get_cap(&ptp->nic->mbox);
+	if (!req) {
+		mutex_unlock(&ptp->nic->mbox.lock);
+		return false;
+	}
+
+	err = otx2_sync_mbox_msg(&ptp->nic->mbox);
+	if (err) {
+		mutex_unlock(&ptp->nic->mbox.lock);
+		return false;
+	}
+	rsp = (struct ptp_get_cap_rsp *)otx2_mbox_get_rsp(&ptp->nic->mbox.mbox, 0,
+							  &req->hdr);
+	mutex_unlock(&ptp->nic->mbox.lock);
+
+	if (IS_ERR(rsp))
+		return false;
+
+	if (rsp->cap & PTP_CAP_HW_ATOMIC_UPDATE)
+		return true;
+
+	return false;
+}
+
+static int otx2_ptp_hw_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
+{
+	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
+					    ptp_info);
+	struct otx2_nic *pfvf = ptp->nic;
+	struct ptp_req *req;
+	int rc;
+
+	if (!ptp->nic)
+		return -ENODEV;
+
+	mutex_lock(&pfvf->mbox.lock);
+	req = otx2_mbox_alloc_msg_ptp_op(&ptp->nic->mbox);
+	if (!req) {
+		mutex_unlock(&pfvf->mbox.lock);
+		return -ENOMEM;
+	}
+	req->op = PTP_OP_ADJTIME;
+	req->delta = delta;
+	rc = otx2_sync_mbox_msg(&ptp->nic->mbox);
+	mutex_unlock(&pfvf->mbox.lock);
+
+	return rc;
+}
+
 static u64 otx2_ptp_get_clock(struct otx2_ptp *ptp)
 {
 	struct ptp_req *req;
@@ -35,6 +94,49 @@ static u64 otx2_ptp_get_clock(struct otx2_ptp *ptp)
 		return 0;
 
 	return rsp->clk;
+}
+
+static int otx2_ptp_hw_gettime(struct ptp_clock_info *ptp_info,
+			       struct timespec64 *ts)
+{
+	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
+					    ptp_info);
+	u64 tstamp;
+
+	tstamp = otx2_ptp_get_clock(ptp);
+
+	*ts = ns_to_timespec64(tstamp);
+	return 0;
+}
+
+static int otx2_ptp_hw_settime(struct ptp_clock_info *ptp_info,
+			       const struct timespec64 *ts)
+{
+	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
+					    ptp_info);
+	struct otx2_nic *pfvf = ptp->nic;
+	struct ptp_req *req;
+	u64 nsec;
+	int rc;
+
+	if (!ptp->nic)
+		return -ENODEV;
+
+	nsec = timespec64_to_ns(ts);
+
+	mutex_lock(&pfvf->mbox.lock);
+	req = otx2_mbox_alloc_msg_ptp_op(&ptp->nic->mbox);
+	if (!req) {
+		mutex_unlock(&pfvf->mbox.lock);
+		return -ENOMEM;
+	}
+
+	req->op = PTP_OP_SET_CLOCK;
+	req->clk = nsec;
+	rc = otx2_sync_mbox_msg(&ptp->nic->mbox);
+	mutex_unlock(&pfvf->mbox.lock);
+
+	return rc;
 }
 
 static int otx2_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
@@ -73,7 +175,7 @@ static int ptp_set_thresh(struct otx2_ptp *ptp, u64 thresh)
 	return otx2_sync_mbox_msg(&ptp->nic->mbox);
 }
 
-static int ptp_extts_on(struct otx2_ptp *ptp, int on)
+static int ptp_pps_on(struct otx2_ptp *ptp, int on, u64 period)
 {
 	struct ptp_req *req;
 
@@ -84,8 +186,9 @@ static int ptp_extts_on(struct otx2_ptp *ptp, int on)
 	if (!req)
 		return -ENOMEM;
 
-	req->op = PTP_OP_EXTTS_ON;
-	req->extts_on = on;
+	req->op = PTP_OP_PPS_ON;
+	req->pps_on = on;
+	req->period = period;
 
 	return otx2_sync_mbox_msg(&ptp->nic->mbox);
 }
@@ -124,16 +227,7 @@ static u64 ptp_tstmp_read(struct otx2_ptp *ptp)
 	return rsp->clk;
 }
 
-static void otx2_get_ptpclock(struct otx2_ptp *ptp, u64 *tstamp)
-{
-	struct otx2_nic *pfvf = ptp->nic;
-
-	mutex_lock(&pfvf->mbox.lock);
-	*tstamp = timecounter_read(&ptp->time_counter);
-	mutex_unlock(&pfvf->mbox.lock);
-}
-
-static int otx2_ptp_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
+static int otx2_ptp_tc_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
 {
 	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
 					    ptp_info);
@@ -146,32 +240,33 @@ static int otx2_ptp_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
 	return 0;
 }
 
-static int otx2_ptp_gettime(struct ptp_clock_info *ptp_info,
-			    struct timespec64 *ts)
+static int otx2_ptp_tc_gettime(struct ptp_clock_info *ptp_info,
+			       struct timespec64 *ts)
 {
 	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
 					    ptp_info);
 	u64 tstamp;
 
-	otx2_get_ptpclock(ptp, &tstamp);
+	mutex_lock(&ptp->nic->mbox.lock);
+	tstamp = timecounter_read(&ptp->time_counter);
+	mutex_unlock(&ptp->nic->mbox.lock);
 	*ts = ns_to_timespec64(tstamp);
 
 	return 0;
 }
 
-static int otx2_ptp_settime(struct ptp_clock_info *ptp_info,
-			    const struct timespec64 *ts)
+static int otx2_ptp_tc_settime(struct ptp_clock_info *ptp_info,
+			       const struct timespec64 *ts)
 {
 	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
 					    ptp_info);
-	struct otx2_nic *pfvf = ptp->nic;
 	u64 nsec;
 
 	nsec = timespec64_to_ns(ts);
 
-	mutex_lock(&pfvf->mbox.lock);
+	mutex_lock(&ptp->nic->mbox.lock);
 	timecounter_init(&ptp->time_counter, &ptp->cycle_counter, nsec);
-	mutex_unlock(&pfvf->mbox.lock);
+	mutex_unlock(&ptp->nic->mbox.lock);
 
 	return 0;
 }
@@ -182,12 +277,18 @@ static int otx2_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 	switch (func) {
 	case PTP_PF_NONE:
 	case PTP_PF_EXTTS:
-		break;
 	case PTP_PF_PEROUT:
+		break;
 	case PTP_PF_PHYSYNC:
 		return -1;
 	}
 	return 0;
+}
+
+static u64 otx2_ptp_hw_tstamp2time(const struct timecounter *time_counter, u64 tstamp)
+{
+	/* On HW which supports atomic updates, timecounter is not initialized */
+	return tstamp;
 }
 
 static void otx2_ptp_extts_check(struct work_struct *work)
@@ -204,7 +305,7 @@ static void otx2_ptp_extts_check(struct work_struct *work)
 	if (tstmp != ptp->last_extts) {
 		event.type = PTP_CLOCK_EXTTS;
 		event.index = 0;
-		event.timestamp = timecounter_cyc2time(&ptp->time_counter, tstmp);
+		event.timestamp = ptp->ptp_tstamp2nsec(&ptp->time_counter, tstmp);
 		ptp_clock_event(ptp->ptp_clock, &event);
 		new_thresh = tstmp % 500000000;
 		if (ptp->thresh != new_thresh) {
@@ -229,7 +330,7 @@ static void otx2_sync_tstamp(struct work_struct *work)
 	tstamp = otx2_ptp_get_clock(ptp);
 	mutex_unlock(&pfvf->mbox.lock);
 
-	ptp->tstamp = timecounter_cyc2time(&pfvf->ptp->time_counter, tstamp);
+	ptp->tstamp = ptp->ptp_tstamp2nsec(&ptp->time_counter, tstamp);
 	ptp->base_ns = tstamp % NSEC_PER_SEC;
 
 	schedule_delayed_work(&ptp->synctstamp_work, msecs_to_jiffies(250));
@@ -240,6 +341,7 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 {
 	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
 					    ptp_info);
+	u64 period = 0;
 	int pin;
 
 	if (!ptp->nic)
@@ -251,12 +353,24 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 				   rq->extts.index);
 		if (pin < 0)
 			return -EBUSY;
-		if (on) {
-			ptp_extts_on(ptp, on);
+		if (on)
 			schedule_delayed_work(&ptp->extts_work, msecs_to_jiffies(200));
-		} else {
-			ptp_extts_on(ptp, on);
+		else
 			cancel_delayed_work_sync(&ptp->extts_work);
+
+		return 0;
+	case PTP_CLK_REQ_PEROUT:
+		if (rq->perout.flags)
+			return -EOPNOTSUPP;
+
+		if (rq->perout.index >= ptp_info->n_pins)
+			return -EINVAL;
+		if (on) {
+			period = rq->perout.period.sec * NSEC_PER_SEC +
+				 rq->perout.period.nsec;
+			ptp_pps_on(ptp, on, period);
+		} else {
+			ptp_pps_on(ptp, on, period);
 		}
 		return 0;
 	default:
@@ -302,15 +416,6 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 
 	ptp_ptr->nic = pfvf;
 
-	cc = &ptp_ptr->cycle_counter;
-	cc->read = ptp_cc_read;
-	cc->mask = CYCLECOUNTER_MASK(64);
-	cc->mult = 1;
-	cc->shift = 0;
-
-	timecounter_init(&ptp_ptr->time_counter, &ptp_ptr->cycle_counter,
-			 ktime_to_ns(ktime_get_real()));
-
 	snprintf(ptp_ptr->extts_config.name, sizeof(ptp_ptr->extts_config.name), "TSTAMP");
 	ptp_ptr->extts_config.index = 0;
 	ptp_ptr->extts_config.func = PTP_PF_NONE;
@@ -320,16 +425,37 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 		.name           = "OcteonTX2 PTP",
 		.max_adj        = 1000000000ull,
 		.n_ext_ts       = 1,
+		.n_per_out      = 1,
 		.n_pins         = 1,
 		.pps            = 0,
 		.pin_config     = &ptp_ptr->extts_config,
 		.adjfine        = otx2_ptp_adjfine,
-		.adjtime        = otx2_ptp_adjtime,
-		.gettime64      = otx2_ptp_gettime,
-		.settime64      = otx2_ptp_settime,
 		.enable         = otx2_ptp_enable,
 		.verify         = otx2_ptp_verify_pin,
 	};
+
+	/* Check whether hardware supports atomic updates to timestamp */
+	if (is_tstmp_atomic_update_supported(ptp_ptr)) {
+		ptp_ptr->ptp_info.adjtime = otx2_ptp_hw_adjtime;
+		ptp_ptr->ptp_info.gettime64 = otx2_ptp_hw_gettime;
+		ptp_ptr->ptp_info.settime64 = otx2_ptp_hw_settime;
+
+		ptp_ptr->ptp_tstamp2nsec = otx2_ptp_hw_tstamp2time;
+	} else {
+		ptp_ptr->ptp_info.adjtime = otx2_ptp_tc_adjtime;
+		ptp_ptr->ptp_info.gettime64 = otx2_ptp_tc_gettime;
+		ptp_ptr->ptp_info.settime64 = otx2_ptp_tc_settime;
+
+		cc = &ptp_ptr->cycle_counter;
+		cc->read = ptp_cc_read;
+		cc->mask = CYCLECOUNTER_MASK(64);
+		cc->mult = 1;
+		cc->shift = 0;
+		ptp_ptr->ptp_tstamp2nsec = timecounter_cyc2time;
+
+		timecounter_init(&ptp_ptr->time_counter, &ptp_ptr->cycle_counter,
+				 ktime_to_ns(ktime_get_real()));
+	}
 
 	INIT_DELAYED_WORK(&ptp_ptr->extts_work, otx2_ptp_extts_check);
 
@@ -387,7 +513,7 @@ int otx2_ptp_tstamp2time(struct otx2_nic *pfvf, u64 tstamp, u64 *tsns)
 	if (!pfvf->ptp)
 		return -ENODEV;
 
-	*tsns = timecounter_cyc2time(&pfvf->ptp->time_counter, tstamp);
+	*tsns = pfvf->ptp->ptp_tstamp2nsec(&pfvf->ptp->time_counter, tstamp);
 
 	return 0;
 }

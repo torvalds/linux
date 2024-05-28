@@ -163,18 +163,6 @@ struct dc_edid {
 
 #define AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS 20
 
-union display_content_support {
-	unsigned int raw;
-	struct {
-		unsigned int valid_content_type :1;
-		unsigned int game_content :1;
-		unsigned int cinema_content :1;
-		unsigned int photo_content :1;
-		unsigned int graphics_content :1;
-		unsigned int reserved :27;
-	} bits;
-};
-
 struct dc_panel_patch {
 	unsigned int dppowerup_delay;
 	unsigned int extra_t12_ms;
@@ -189,7 +177,7 @@ struct dc_panel_patch {
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
-	unsigned int delay_disable_aux_intercept_ms;
+	unsigned int remove_sink_ext_caps;
 };
 
 struct dc_edid_caps {
@@ -207,8 +195,6 @@ struct dc_edid_caps {
 	struct dc_cea_audio_mode audio_modes[DC_MAX_AUDIO_DESC_COUNT];
 	uint32_t audio_latency;
 	uint32_t video_latency;
-
-	union display_content_support content_support;
 
 	uint8_t qs_bit;
 	uint8_t qy_bit;
@@ -788,6 +774,7 @@ struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
+	struct dal_logger *logger;
 	struct dc_perf_trace *perf_trace;
 	void *cgs_device;
 
@@ -809,6 +796,7 @@ struct dc_context {
 	struct cp_psp cp_psp;
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
 };
 
 /* DSC DPCD capabilities */
@@ -879,7 +867,7 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_overall_throughput_0_mps; /* In MPs */
 	uint32_t branch_overall_throughput_1_mps; /* In MPs */
 	uint32_t branch_max_line_width;
-	bool is_dp;
+	bool is_dp; /* Decoded format */
 };
 
 struct dc_golden_table {
@@ -900,6 +888,14 @@ enum dc_gpu_mem_alloc_type {
 	DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
 	DC_MEM_ALLOC_TYPE_INVISIBLE_FRAME_BUFFER,
 	DC_MEM_ALLOC_TYPE_AGP
+};
+
+enum dc_link_encoding_format {
+	DC_LINK_ENCODING_UNSPECIFIED = 0,
+	DC_LINK_ENCODING_DP_8b_10b,
+	DC_LINK_ENCODING_DP_128b_132b,
+	DC_LINK_ENCODING_HDMI_TMDS,
+	DC_LINK_ENCODING_HDMI_FRL
 };
 
 enum dc_psr_version {
@@ -1014,6 +1010,92 @@ struct psr_settings {
 	unsigned int psr_power_opt;
 };
 
+enum replay_coasting_vtotal_type {
+	PR_COASTING_TYPE_NOM = 0,
+	PR_COASTING_TYPE_STATIC,
+	PR_COASTING_TYPE_FULL_SCREEN_VIDEO,
+	PR_COASTING_TYPE_TEST_HARNESS,
+	PR_COASTING_TYPE_NUM,
+};
+
+enum replay_link_off_frame_count_level {
+	PR_LINK_OFF_FRAME_COUNT_FAIL = 0x0,
+	PR_LINK_OFF_FRAME_COUNT_GOOD = 0x2,
+	PR_LINK_OFF_FRAME_COUNT_BEST = 0x6,
+};
+
+/*
+ * This is general Interface for Replay to
+ * set an 32 bit variable to dmub
+ * The Message_type indicates which variable
+ * passed to DMUB.
+ */
+enum replay_FW_Message_type {
+	Replay_Msg_Not_Support = -1,
+	Replay_Set_Timing_Sync_Supported,
+	Replay_Set_Residency_Frameupdate_Timer,
+	Replay_Set_Pseudo_VTotal,
+};
+
+union replay_error_status {
+	struct {
+		unsigned char STATE_TRANSITION_ERROR    :1;
+		unsigned char LINK_CRC_ERROR            :1;
+		unsigned char DESYNC_ERROR              :1;
+		unsigned char RESERVED                  :5;
+	} bits;
+	unsigned char raw;
+};
+
+struct replay_config {
+	/* Replay feature is supported */
+	bool replay_supported;
+	/* Power opt flags that are supported */
+	unsigned int replay_power_opt_supported;
+	/* SMU optimization is supported */
+	bool replay_smu_opt_supported;
+	/* Replay enablement option */
+	unsigned int replay_enable_option;
+	/* Replay debug flags */
+	uint32_t debug_flags;
+	/* Replay sync is supported */
+	bool replay_timing_sync_supported;
+	/* Replay Disable desync error check. */
+	bool force_disable_desync_error_check;
+	/* Replay Received Desync Error HPD. */
+	bool received_desync_error_hpd;
+	/* Replay feature is supported long vblank */
+	bool replay_support_fast_resync_in_ultra_sleep_mode;
+	/* Replay error status */
+	union replay_error_status replay_error_status;
+};
+
+/* Replay feature flags*/
+struct replay_settings {
+	/* Replay configuration */
+	struct replay_config config;
+	/* Replay feature is ready for activating */
+	bool replay_feature_enabled;
+	/* Replay is currently active */
+	bool replay_allow_active;
+	/* Replay is currently active */
+	bool replay_allow_long_vblank;
+	/* Power opt flags that are activated currently */
+	unsigned int replay_power_opt_active;
+	/* SMU optimization is enabled */
+	bool replay_smu_opt_enable;
+	/* Current Coasting vtotal */
+	uint32_t coasting_vtotal;
+	/* Coasting vtotal table */
+	uint32_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
+	/* Maximum link off frame count */
+	enum replay_link_off_frame_count_level link_off_frame_count_level;
+	/* Replay pseudo vtotal for abm + ips on full screen video which can improve ips residency */
+	uint16_t abm_with_ips_on_full_screen_video_pseudo_vtotal;
+	/* Replay last pseudo vtotal set to DMUB */
+	uint16_t last_pseudo_vtotal;
+};
+
 /* To split out "global" and "per-panel" config settings.
  * Add a struct dc_panel_config under dc_link
  */
@@ -1040,9 +1122,11 @@ struct dc_panel_config {
 	struct psr {
 		bool disable_psr;
 		bool disallow_psrsu;
+		bool disallow_replay;
 		bool rc_disable;
 		bool rc_allow_static_screen;
 		bool rc_allow_fullscreen_VPB;
+		unsigned int replay_enable_option;
 	} psr;
 	/* ABM */
 	struct varib {
@@ -1061,20 +1145,24 @@ struct dc_panel_config {
 	} ilr;
 };
 
+#define MAX_SINKS_PER_LINK 4
+
 /*
  *  USB4 DPIA BW ALLOCATION STRUCTS
  */
 struct dc_dpia_bw_alloc {
-	int sink_verified_bw;  // The Verified BW that sink can allocated and use that has been verified already
-	int sink_allocated_bw; // The Actual Allocated BW that sink currently allocated
-	int sink_max_bw;       // The Max BW that sink can require/support
+	int remote_sink_req_bw[MAX_SINKS_PER_LINK]; // BW requested by remote sinks
+	int link_verified_bw;  // The Verified BW that link can allocated and use that has been verified already
+	int link_max_bw;       // The Max BW that link can require/support
+	int allocated_bw;      // The Actual Allocated BW for this DPIA
 	int estimated_bw;      // The estimated available BW for this DPIA
 	int bw_granularity;    // BW Granularity
+	int dp_overhead;       // DP overhead in dp tunneling
 	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
 	bool response_ready;   // Response ready from the CM side
+	uint8_t nrd_max_lane_count; // Non-reduced max lane count
+	uint8_t nrd_max_link_rate; // Non-reduced max link rate
 };
-
-#define MAX_SINKS_PER_LINK 4
 
 enum dc_hpd_enable_select {
 	HPD_EN_FOR_ALL_EDP = 0,
@@ -1082,4 +1170,9 @@ enum dc_hpd_enable_select {
 	HPD_EN_FOR_SECONDARY_EDP_ONLY,
 };
 
+enum mall_stream_type {
+	SUBVP_NONE, // subvp not in use
+	SUBVP_MAIN, // subvp in use, this stream is main stream
+	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
+};
 #endif /* DC_TYPES_H_ */

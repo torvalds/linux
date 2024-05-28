@@ -26,6 +26,23 @@ int kprobe_typedef_ctx(void *ctx)
 	return kprobe_typedef_ctx_subprog(ctx);
 }
 
+/* s390x defines:
+ *
+ * typedef user_pt_regs bpf_user_pt_regs_t;
+ * typedef struct { ... } user_pt_regs;
+ *
+ * And so "canonical" underlying struct type is anonymous.
+ * So on s390x only valid ways to have PTR_TO_CTX argument in global subprogs
+ * are:
+ *   - bpf_user_pt_regs_t *ctx (typedef);
+ *   - struct bpf_user_pt_regs_t *ctx (backwards compatible struct hack);
+ *   - void *ctx __arg_ctx (arg:ctx tag)
+ *
+ * Other architectures also allow using underlying struct types (e.g.,
+ * `struct pt_regs *ctx` for x86-64)
+ */
+#ifndef bpf_target_s390
+
 #define pt_regs_struct_t typeof(*(__PT_REGS_CAST((struct pt_regs *)NULL)))
 
 __weak int kprobe_struct_ctx_subprog(pt_regs_struct_t *ctx)
@@ -39,6 +56,8 @@ int kprobe_resolved_ctx(void *ctx)
 {
 	return kprobe_struct_ctx_subprog(ctx);
 }
+
+#endif
 
 /* this is current hack to make this work on old kernels */
 struct bpf_user_pt_regs_t {};
@@ -101,4 +120,53 @@ __success
 int perf_event_ctx(void *ctx)
 {
 	return perf_event_ctx_subprog(ctx);
+}
+
+/* this global subprog can be now called from many types of entry progs, each
+ * with different context type
+ */
+__weak int subprog_ctx_tag(void *ctx __arg_ctx)
+{
+	return bpf_get_stack(ctx, stack, sizeof(stack), 0);
+}
+
+struct my_struct { int x; };
+
+__weak int subprog_multi_ctx_tags(void *ctx1 __arg_ctx,
+				  struct my_struct *mem,
+				  void *ctx2 __arg_ctx)
+{
+	if (!mem)
+		return 0;
+
+	return bpf_get_stack(ctx1, stack, sizeof(stack), 0) +
+	       mem->x +
+	       bpf_get_stack(ctx2, stack, sizeof(stack), 0);
+}
+
+SEC("?raw_tp")
+__success __log_level(2)
+int arg_tag_ctx_raw_tp(void *ctx)
+{
+	struct my_struct x = { .x = 123 };
+
+	return subprog_ctx_tag(ctx) + subprog_multi_ctx_tags(ctx, &x, ctx);
+}
+
+SEC("?perf_event")
+__success __log_level(2)
+int arg_tag_ctx_perf(void *ctx)
+{
+	struct my_struct x = { .x = 123 };
+
+	return subprog_ctx_tag(ctx) + subprog_multi_ctx_tags(ctx, &x, ctx);
+}
+
+SEC("?kprobe")
+__success __log_level(2)
+int arg_tag_ctx_kprobe(void *ctx)
+{
+	struct my_struct x = { .x = 123 };
+
+	return subprog_ctx_tag(ctx) + subprog_multi_ctx_tags(ctx, &x, ctx);
 }

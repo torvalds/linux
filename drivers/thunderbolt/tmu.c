@@ -19,7 +19,7 @@ static const unsigned int tmu_rates[] = {
 	[TB_SWITCH_TMU_MODE_MEDRES_ENHANCED_UNI] = 16,
 };
 
-const struct {
+static const struct {
 	unsigned int freq_meas_window;
 	unsigned int avg_const;
 	unsigned int delta_avg_const;
@@ -382,7 +382,7 @@ static int tmu_mode_init(struct tb_switch *sw)
 		} else if (ucap && tb_port_tmu_is_unidirectional(up)) {
 			if (tmu_rates[TB_SWITCH_TMU_MODE_LOWRES] == rate)
 				sw->tmu.mode = TB_SWITCH_TMU_MODE_LOWRES;
-			else if (tmu_rates[TB_SWITCH_TMU_MODE_LOWRES] == rate)
+			else if (tmu_rates[TB_SWITCH_TMU_MODE_HIFI_UNI] == rate)
 				sw->tmu.mode = TB_SWITCH_TMU_MODE_HIFI_UNI;
 		} else if (rate) {
 			sw->tmu.mode = TB_SWITCH_TMU_MODE_HIFI_BI;
@@ -894,7 +894,7 @@ static int tb_switch_tmu_change_mode(struct tb_switch *sw)
 
 	ret = tb_switch_set_tmu_mode_params(sw, sw->tmu.mode_request);
 	if (ret)
-		return ret;
+		goto out;
 
 	/* Program the new mode and the downstream router lane adapter */
 	switch (sw->tmu.mode_request) {

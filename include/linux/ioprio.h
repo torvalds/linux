@@ -47,7 +47,30 @@ static inline int task_nice_ioclass(struct task_struct *task)
 }
 
 #ifdef CONFIG_BLOCK
-int __get_task_ioprio(struct task_struct *p);
+/*
+ * If the task has set an I/O priority, use that. Otherwise, return
+ * the default I/O priority.
+ *
+ * Expected to be called for current task or with task_lock() held to keep
+ * io_context stable.
+ */
+static inline int __get_task_ioprio(struct task_struct *p)
+{
+	struct io_context *ioc = p->io_context;
+	int prio;
+
+	if (!ioc)
+		return IOPRIO_DEFAULT;
+
+	if (p != current)
+		lockdep_assert_held(&p->alloc_lock);
+
+	prio = ioc->ioprio;
+	if (IOPRIO_PRIO_CLASS(prio) == IOPRIO_CLASS_NONE)
+		prio = IOPRIO_PRIO_VALUE(task_nice_ioclass(p),
+					 task_nice_ioprio(p));
+	return prio;
+}
 #else
 static inline int __get_task_ioprio(struct task_struct *p)
 {

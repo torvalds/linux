@@ -2408,7 +2408,7 @@ nv162_chipset = {
 	.fb       = { 0x00000001, tu102_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp      = { 0x00000001, gv100_gsp_new },
+	.gsp      = { 0x00000001, tu102_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.ltc      = { 0x00000001, gp102_ltc_new },
@@ -2426,8 +2426,8 @@ nv162_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000001, gm107_nvdec_new },
-	.nvenc    = { 0x00000001, gm107_nvenc_new },
+	.nvdec    = { 0x00000001, tu102_nvdec_new },
+	.nvenc    = { 0x00000001, tu102_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
@@ -2443,7 +2443,7 @@ nv164_chipset = {
 	.fb       = { 0x00000001, tu102_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp      = { 0x00000001, gv100_gsp_new },
+	.gsp      = { 0x00000001, tu102_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.ltc      = { 0x00000001, gp102_ltc_new },
@@ -2461,8 +2461,8 @@ nv164_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000003, gm107_nvdec_new },
-	.nvenc    = { 0x00000001, gm107_nvenc_new },
+	.nvdec    = { 0x00000003, tu102_nvdec_new },
+	.nvenc    = { 0x00000001, tu102_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
@@ -2478,7 +2478,7 @@ nv166_chipset = {
 	.fb       = { 0x00000001, tu102_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp      = { 0x00000001, gv100_gsp_new },
+	.gsp      = { 0x00000001, tu102_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.ltc      = { 0x00000001, gp102_ltc_new },
@@ -2496,8 +2496,8 @@ nv166_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000007, gm107_nvdec_new },
-	.nvenc    = { 0x00000001, gm107_nvenc_new },
+	.nvdec    = { 0x00000007, tu102_nvdec_new },
+	.nvenc    = { 0x00000001, tu102_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
@@ -2513,7 +2513,7 @@ nv167_chipset = {
 	.fb       = { 0x00000001, tu102_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp      = { 0x00000001, gv100_gsp_new },
+	.gsp      = { 0x00000001, tu116_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.ltc      = { 0x00000001, gp102_ltc_new },
@@ -2531,8 +2531,8 @@ nv167_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000001, gm107_nvdec_new },
-	.nvenc    = { 0x00000001, gm107_nvenc_new },
+	.nvdec    = { 0x00000001, tu102_nvdec_new },
+	.nvenc    = { 0x00000001, tu102_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
@@ -2548,7 +2548,7 @@ nv168_chipset = {
 	.fb       = { 0x00000001, tu102_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp      = { 0x00000001, gv100_gsp_new },
+	.gsp      = { 0x00000001, tu116_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.ltc      = { 0x00000001, gp102_ltc_new },
@@ -2566,8 +2566,8 @@ nv168_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000001, gm107_nvdec_new },
-	.nvenc    = { 0x00000001, gm107_nvenc_new },
+	.nvdec    = { 0x00000001, tu102_nvdec_new },
+	.nvenc    = { 0x00000001, tu102_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
@@ -2580,6 +2580,7 @@ nv170_chipset = {
 	.fault    = { 0x00000001, tu102_fault_new },
 	.fb       = { 0x00000001, ga100_fb_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
+	.gsp      = { 0x00000001, ga100_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.mc       = { 0x00000001, ga100_mc_new },
@@ -2591,6 +2592,9 @@ nv170_chipset = {
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.ce       = { 0x000003ff, ga100_ce_new },
 	.fifo     = { 0x00000001, ga100_fifo_new },
+	.nvdec    = { 0x0000001f, ga100_nvdec_new },
+	.nvjpg    = { 0x00000001, ga100_nvjpg_new },
+	.ofa      = { 0x00000001, ga100_ofa_new },
 };
 
 static const struct nvkm_device_chip
@@ -2619,7 +2623,9 @@ nv172_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
+	.nvenc    = { 0x00000001, ga102_nvenc_new },
+	.ofa      = { 0x00000001, ga102_ofa_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2649,7 +2655,9 @@ nv173_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
+	.nvenc    = { 0x00000001, ga102_nvenc_new },
+	.ofa      = { 0x00000001, ga102_ofa_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2679,7 +2687,9 @@ nv174_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
+	.nvenc    = { 0x00000001, ga102_nvenc_new },
+	.ofa      = { 0x00000001, ga102_ofa_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2709,7 +2719,9 @@ nv176_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
+	.nvenc    = { 0x00000001, ga102_nvenc_new },
+	.ofa      = { 0x00000001, ga102_ofa_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2739,7 +2751,139 @@ nv177_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
+	.nvenc    = { 0x00000001, ga102_nvenc_new },
+	.ofa      = { 0x00000001, ga102_ofa_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv192_chipset = {
+	.name = "AD102",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fault    = { 0x00000001, tu102_fault_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.imem     = { 0x00000001, nv50_instmem_new },
+	.mmu      = { 0x00000001, tu102_mmu_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
+	.ce       = { 0x0000001f, ga102_ce_new },
+	.disp     = { 0x00000001, ad102_disp_new },
+	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
+	.nvenc    = { 0x00000007, ad102_nvenc_new },
+	.nvjpg    = { 0x0000000f, ad102_nvjpg_new },
+	.ofa      = { 0x00000001, ad102_ofa_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv193_chipset = {
+	.name = "AD103",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fault    = { 0x00000001, tu102_fault_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.imem     = { 0x00000001, nv50_instmem_new },
+	.mmu      = { 0x00000001, tu102_mmu_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
+	.ce       = { 0x0000001f, ga102_ce_new },
+	.disp     = { 0x00000001, ad102_disp_new },
+	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
+	.nvenc    = { 0x00000007, ad102_nvenc_new },
+	.nvjpg    = { 0x0000000f, ad102_nvjpg_new },
+	.ofa      = { 0x00000001, ad102_ofa_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv194_chipset = {
+	.name = "AD104",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fault    = { 0x00000001, tu102_fault_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.imem     = { 0x00000001, nv50_instmem_new },
+	.mmu      = { 0x00000001, tu102_mmu_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
+	.ce       = { 0x0000001f, ga102_ce_new },
+	.disp     = { 0x00000001, ad102_disp_new },
+	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
+	.nvenc    = { 0x00000007, ad102_nvenc_new },
+	.nvjpg    = { 0x0000000f, ad102_nvjpg_new },
+	.ofa      = { 0x00000001, ad102_ofa_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv196_chipset = {
+	.name = "AD106",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fault    = { 0x00000001, tu102_fault_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.imem     = { 0x00000001, nv50_instmem_new },
+	.mmu      = { 0x00000001, tu102_mmu_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
+	.ce       = { 0x0000001f, ga102_ce_new },
+	.disp     = { 0x00000001, ad102_disp_new },
+	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
+	.nvenc    = { 0x00000007, ad102_nvenc_new },
+	.nvjpg    = { 0x0000000f, ad102_nvjpg_new },
+	.ofa      = { 0x00000001, ad102_ofa_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv197_chipset = {
+	.name = "AD107",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fault    = { 0x00000001, tu102_fault_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.imem     = { 0x00000001, nv50_instmem_new },
+	.mmu      = { 0x00000001, tu102_mmu_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
+	.ce       = { 0x0000001f, ga102_ce_new },
+	.disp     = { 0x00000001, ad102_disp_new },
+	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
+	.nvenc    = { 0x00000007, ad102_nvenc_new },
+	.nvjpg    = { 0x0000000f, ad102_nvjpg_new },
+	.ofa      = { 0x00000001, ad102_ofa_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -3061,6 +3205,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			case 0x140: device->card_type = GV100; break;
 			case 0x160: device->card_type = TU100; break;
 			case 0x170: device->card_type = GA100; break;
+			case 0x190: device->card_type = AD100; break;
 			default:
 				break;
 			}
@@ -3163,6 +3308,11 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x174: device->chip = &nv174_chipset; break;
 		case 0x176: device->chip = &nv176_chipset; break;
 		case 0x177: device->chip = &nv177_chipset; break;
+		case 0x192: device->chip = &nv192_chipset; break;
+		case 0x193: device->chip = &nv193_chipset; break;
+		case 0x194: device->chip = &nv194_chipset; break;
+		case 0x196: device->chip = &nv196_chipset; break;
+		case 0x197: device->chip = &nv197_chipset; break;
 		default:
 			if (nvkm_boolopt(device->cfgopt, "NvEnableUnsupportedChipsets", false)) {
 				switch (device->chipset) {

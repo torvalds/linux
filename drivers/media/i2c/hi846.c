@@ -1607,17 +1607,12 @@ static int hi846_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (hi846->streaming == enable)
-		return 0;
-
 	mutex_lock(&hi846->mutex);
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret)
 			goto out;
-		}
 
 		ret = hi846_start_streaming(hi846);
 	}
@@ -1680,9 +1675,6 @@ static int __maybe_unused hi846_suspend(struct device *dev)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct hi846 *hi846 = to_hi846(sd);
 
-	if (hi846->streaming)
-		hi846_stop_streaming(hi846);
-
 	return hi846_power_off(hi846);
 }
 
@@ -1691,26 +1683,8 @@ static int __maybe_unused hi846_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct hi846 *hi846 = to_hi846(sd);
-	int ret;
 
-	ret = hi846_power_on(hi846);
-	if (ret)
-		return ret;
-
-	if (hi846->streaming) {
-		ret = hi846_start_streaming(hi846);
-		if (ret) {
-			dev_err(dev, "%s: start streaming failed: %d\n",
-				__func__, ret);
-			goto error;
-		}
-	}
-
-	return 0;
-
-error:
-	hi846_power_off(hi846);
-	return ret;
+	return hi846_power_on(hi846);
 }
 
 static int hi846_set_format(struct v4l2_subdev *sd,
@@ -1731,7 +1705,7 @@ static int hi846_set_format(struct v4l2_subdev *sd,
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = *mf;
+		*v4l2_subdev_state_get_format(sd_state, format->pad) = *mf;
 		return 0;
 	}
 
@@ -1809,9 +1783,8 @@ static int hi846_get_format(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		format->format = *v4l2_subdev_get_try_format(&hi846->sd,
-							sd_state,
-							format->pad);
+		format->format = *v4l2_subdev_state_get_format(sd_state,
+							       format->pad);
 		return 0;
 	}
 
@@ -1878,7 +1851,7 @@ static int hi846_get_selection(struct v4l2_subdev *sd,
 		mutex_lock(&hi846->mutex);
 		switch (sel->which) {
 		case V4L2_SUBDEV_FORMAT_TRY:
-			v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
+			v4l2_subdev_state_get_crop(sd_state, sel->pad);
 			break;
 		case V4L2_SUBDEV_FORMAT_ACTIVE:
 			sel->r = hi846->cur_mode->crop;
@@ -1898,13 +1871,13 @@ static int hi846_get_selection(struct v4l2_subdev *sd,
 	}
 }
 
-static int hi846_init_cfg(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *sd_state)
+static int hi846_init_state(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_state *sd_state)
 {
 	struct hi846 *hi846 = to_hi846(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
+	mf = v4l2_subdev_state_get_format(sd_state, 0);
 
 	mutex_lock(&hi846->mutex);
 	mf->code        = HI846_MEDIA_BUS_FORMAT;
@@ -1922,7 +1895,6 @@ static const struct v4l2_subdev_video_ops hi846_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops hi846_pad_ops = {
-	.init_cfg = hi846_init_cfg,
 	.enum_frame_size = hi846_enum_frame_size,
 	.enum_mbus_code = hi846_enum_mbus_code,
 	.set_fmt = hi846_set_format,
@@ -1933,6 +1905,10 @@ static const struct v4l2_subdev_pad_ops hi846_pad_ops = {
 static const struct v4l2_subdev_ops hi846_subdev_ops = {
 	.video = &hi846_video_ops,
 	.pad = &hi846_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops hi846_internal_ops = {
+	.init_state = hi846_init_state,
 };
 
 static const struct media_entity_operations hi846_subdev_entity_ops = {
@@ -2098,6 +2074,7 @@ static int hi846_probe(struct i2c_client *client)
 		return ret;
 
 	v4l2_i2c_subdev_init(&hi846->sd, client, &hi846_subdev_ops);
+	hi846->sd.internal_ops = &hi846_internal_ops;
 
 	mutex_init(&hi846->mutex);
 
@@ -2173,8 +2150,6 @@ static void hi846_remove(struct i2c_client *client)
 }
 
 static const struct dev_pm_ops hi846_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(hi846_suspend, hi846_resume, NULL)
 };
 

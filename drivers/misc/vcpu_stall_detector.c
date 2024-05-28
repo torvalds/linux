@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/nmi.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/param.h>
 #include <linux/percpu.h>
 #include <linux/platform_device.h>
@@ -188,7 +187,7 @@ err:
 	return ret;
 }
 
-static int vcpu_stall_detect_remove(struct platform_device *pdev)
+static void vcpu_stall_detect_remove(struct platform_device *pdev)
 {
 	int cpu;
 
@@ -196,8 +195,6 @@ static int vcpu_stall_detect_remove(struct platform_device *pdev)
 
 	for_each_possible_cpu(cpu)
 		stop_stall_detector_cpu(cpu);
-
-	return 0;
 }
 
 static const struct of_device_id vcpu_stall_detect_of_match[] = {
@@ -209,7 +206,7 @@ MODULE_DEVICE_TABLE(of, vcpu_stall_detect_of_match);
 
 static struct platform_driver vcpu_stall_detect_driver = {
 	.probe  = vcpu_stall_detect_probe,
-	.remove = vcpu_stall_detect_remove,
+	.remove_new = vcpu_stall_detect_remove,
 	.driver = {
 		.name           = KBUILD_MODNAME,
 		.of_match_table = vcpu_stall_detect_of_match,

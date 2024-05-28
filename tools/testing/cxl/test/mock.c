@@ -285,6 +285,20 @@ resource_size_t __wrap_cxl_rcd_component_reg_phys(struct device *dev,
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_cxl_rcd_component_reg_phys, CXL);
 
+void __wrap_cxl_endpoint_parse_cdat(struct cxl_port *port)
+{
+	int index;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
+
+	if (ops && ops->is_mock_dev(cxlmd->dev.parent))
+		ops->cxl_endpoint_parse_cdat(port);
+	else
+		cxl_endpoint_parse_cdat(port);
+	put_cxl_mock_ops(index);
+}
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_endpoint_parse_cdat, CXL);
+
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(ACPI);
 MODULE_IMPORT_NS(CXL);

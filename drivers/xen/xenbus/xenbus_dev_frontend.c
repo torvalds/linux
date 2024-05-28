@@ -82,7 +82,7 @@ struct read_buffer {
 	struct list_head list;
 	unsigned int cons;
 	unsigned int len;
-	char msg[];
+	char msg[] __counted_by(len);
 };
 
 struct xenbus_file_priv {
@@ -195,7 +195,7 @@ static int queue_reply(struct list_head *queue, const void *data, size_t len)
 	if (len > XENSTORE_PAYLOAD_MAX)
 		return -EINVAL;
 
-	rb = kmalloc(sizeof(*rb) + len, GFP_KERNEL);
+	rb = kmalloc(struct_size(rb, msg, len), GFP_KERNEL);
 	if (rb == NULL)
 		return -ENOMEM;
 

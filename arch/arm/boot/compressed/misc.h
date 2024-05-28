@@ -10,7 +10,7 @@ void __div0(void);
 void
 decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 		  unsigned long free_mem_ptr_end_p, int arch_id);
-void fortify_panic(const char *name);
+void __fortify_panic(const u8 reason, size_t avail, size_t size);
 int atags_to_fdt(void *atag_list, void *fdt, int total_space);
 uint32_t fdt_check_mem_start(uint32_t mem_start, const void *fdt);
 int do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x));

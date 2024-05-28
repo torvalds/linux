@@ -127,6 +127,7 @@ static inline void inc_mm_active_cpus(struct mm_struct *mm)
 
 static inline void dec_mm_active_cpus(struct mm_struct *mm)
 {
+	VM_WARN_ON_ONCE(atomic_read(&mm->context.active_cpus) <= 0);
 	atomic_dec(&mm->context.active_cpus);
 }
 

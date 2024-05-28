@@ -10,7 +10,7 @@ maintainers:
   - Eugene Zaikonnikov <ez@norophonic.com>
 
 description: |
-  Relative humidity and tempereature sensors on I2C bus
+  Relative humidity and temperature sensors on I2C bus
 
   Datasheets are available at:
     http://www.ti.com/product/HDC2010/datasheet
@@ -25,6 +25,9 @@ properties:
   vdd-supply: true
 
   reg:
+    maxItems: 1
+
+  interrupts:
     maxItems: 1
 
 required:

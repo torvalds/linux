@@ -14,6 +14,34 @@
 #include "txgbe_hw.h"
 
 /**
+ *  txgbe_disable_sec_tx_path - Stops the transmit data path
+ *  @wx: pointer to hardware structure
+ *
+ *  Stops the transmit data path and waits for the HW to internally empty
+ *  the tx security block
+ **/
+int txgbe_disable_sec_tx_path(struct wx *wx)
+{
+	int val;
+
+	wr32m(wx, WX_TSC_CTL, WX_TSC_CTL_TX_DIS, WX_TSC_CTL_TX_DIS);
+	return read_poll_timeout(rd32, val, val & WX_TSC_ST_SECTX_RDY,
+				 1000, 20000, false, wx, WX_TSC_ST);
+}
+
+/**
+ *  txgbe_enable_sec_tx_path - Enables the transmit data path
+ *  @wx: pointer to hardware structure
+ *
+ *  Enables the transmit data path.
+ **/
+void txgbe_enable_sec_tx_path(struct wx *wx)
+{
+	wr32m(wx, WX_TSC_CTL, WX_TSC_CTL_TX_DIS, 0);
+	WX_WRITE_FLUSH(wx);
+}
+
+/**
  *  txgbe_init_thermal_sensor_thresh - Inits thermal sensor thresholds
  *  @wx: pointer to hardware structure
  *
@@ -40,114 +68,6 @@ static void txgbe_init_thermal_sensor_thresh(struct wx *wx)
 	wr32(wx, WX_TS_ALARM_THRE, 677);
 	data->dalarm_thresh = 90;
 	wr32(wx, WX_TS_DALARM_THRE, 614);
-}
-
-/**
- *  txgbe_read_pba_string - Reads part number string from EEPROM
- *  @wx: pointer to hardware structure
- *  @pba_num: stores the part number string from the EEPROM
- *  @pba_num_size: part number string buffer length
- *
- *  Reads the part number string from the EEPROM.
- **/
-int txgbe_read_pba_string(struct wx *wx, u8 *pba_num, u32 pba_num_size)
-{
-	u16 pba_ptr, offset, length, data;
-	int ret_val;
-
-	if (!pba_num) {
-		wx_err(wx, "PBA string buffer was null\n");
-		return -EINVAL;
-	}
-
-	ret_val = wx_read_ee_hostif(wx,
-				    wx->eeprom.sw_region_offset + TXGBE_PBANUM0_PTR,
-				    &data);
-	if (ret_val != 0) {
-		wx_err(wx, "NVM Read Error\n");
-		return ret_val;
-	}
-
-	ret_val = wx_read_ee_hostif(wx,
-				    wx->eeprom.sw_region_offset + TXGBE_PBANUM1_PTR,
-				    &pba_ptr);
-	if (ret_val != 0) {
-		wx_err(wx, "NVM Read Error\n");
-		return ret_val;
-	}
-
-	/* if data is not ptr guard the PBA must be in legacy format which
-	 * means pba_ptr is actually our second data word for the PBA number
-	 * and we can decode it into an ascii string
-	 */
-	if (data != TXGBE_PBANUM_PTR_GUARD) {
-		wx_err(wx, "NVM PBA number is not stored as string\n");
-
-		/* we will need 11 characters to store the PBA */
-		if (pba_num_size < 11) {
-			wx_err(wx, "PBA string buffer too small\n");
-			return -ENOMEM;
-		}
-
-		/* extract hex string from data and pba_ptr */
-		pba_num[0] = (data >> 12) & 0xF;
-		pba_num[1] = (data >> 8) & 0xF;
-		pba_num[2] = (data >> 4) & 0xF;
-		pba_num[3] = data & 0xF;
-		pba_num[4] = (pba_ptr >> 12) & 0xF;
-		pba_num[5] = (pba_ptr >> 8) & 0xF;
-		pba_num[6] = '-';
-		pba_num[7] = 0;
-		pba_num[8] = (pba_ptr >> 4) & 0xF;
-		pba_num[9] = pba_ptr & 0xF;
-
-		/* put a null character on the end of our string */
-		pba_num[10] = '\0';
-
-		/* switch all the data but the '-' to hex char */
-		for (offset = 0; offset < 10; offset++) {
-			if (pba_num[offset] < 0xA)
-				pba_num[offset] += '0';
-			else if (pba_num[offset] < 0x10)
-				pba_num[offset] += 'A' - 0xA;
-		}
-
-		return 0;
-	}
-
-	ret_val = wx_read_ee_hostif(wx, pba_ptr, &length);
-	if (ret_val != 0) {
-		wx_err(wx, "NVM Read Error\n");
-		return ret_val;
-	}
-
-	if (length == 0xFFFF || length == 0) {
-		wx_err(wx, "NVM PBA number section invalid length\n");
-		return -EINVAL;
-	}
-
-	/* check if pba_num buffer is big enough */
-	if (pba_num_size  < (((u32)length * 2) - 1)) {
-		wx_err(wx, "PBA string buffer too small\n");
-		return -ENOMEM;
-	}
-
-	/* trim pba length from start of string */
-	pba_ptr++;
-	length--;
-
-	for (offset = 0; offset < length; offset++) {
-		ret_val = wx_read_ee_hostif(wx, pba_ptr + offset, &data);
-		if (ret_val != 0) {
-			wx_err(wx, "NVM Read Error\n");
-			return ret_val;
-		}
-		pba_num[offset * 2] = (u8)(data >> 8);
-		pba_num[(offset * 2) + 1] = (u8)(data & 0xFF);
-	}
-	pba_num[offset * 2] = '\0';
-
-	return 0;
 }
 
 /**
@@ -263,17 +183,22 @@ int txgbe_reset_hw(struct wx *wx)
 	if (status != 0)
 		return status;
 
-	if (!(((wx->subsystem_device_id & WX_NCSI_MASK) == WX_NCSI_SUP) ||
-	      ((wx->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP)))
-		wx_reset_hostif(wx);
+	if (wx->media_type != sp_media_copper) {
+		u32 val;
 
-	usleep_range(10, 100);
+		val = WX_MIS_RST_LAN_RST(wx->bus.func);
+		wr32(wx, WX_MIS_RST, val | rd32(wx, WX_MIS_RST));
+		WX_WRITE_FLUSH(wx);
+		usleep_range(10, 100);
+	}
 
 	status = wx_check_flash_load(wx, TXGBE_SPI_ILDR_STATUS_LAN_SW_RST(wx->bus.func));
 	if (status != 0)
 		return status;
 
 	txgbe_reset_misc(wx);
+
+	wx_clear_hw_cntrs(wx);
 
 	/* Store the permanent mac address */
 	wx_get_mac_addr(wx, wx->mac.perm_addr);

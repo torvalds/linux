@@ -27,6 +27,7 @@
 #include <core/memory.h>
 #include <subdev/bar.h>
 #include <subdev/fb.h>
+#include <subdev/gsp.h>
 #include <subdev/mmu.h>
 
 struct nv50_instmem {
@@ -221,8 +222,11 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 	void __iomem *map = NULL;
 
 	/* Already mapped? */
-	if (refcount_inc_not_zero(&iobj->maps))
+	if (refcount_inc_not_zero(&iobj->maps)) {
+		/* read barrier match the wmb on refcount set */
+		smp_rmb();
 		return iobj->map;
+	}
 
 	/* Take the lock, and re-check that another thread hasn't
 	 * already mapped the object in the meantime.
@@ -249,6 +253,8 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 			iobj->base.memory.ptrs = &nv50_instobj_fast;
 		else
 			iobj->base.memory.ptrs = &nv50_instobj_slow;
+		/* barrier to ensure the ptrs are written before refcount is set */
+		smp_wmb();
 		refcount_set(&iobj->maps, 1);
 	}
 
@@ -394,24 +400,44 @@ nv50_instmem_fini(struct nvkm_instmem *base)
 	nv50_instmem(base)->addr = ~0ULL;
 }
 
+static void *
+nv50_instmem_dtor(struct nvkm_instmem *base)
+{
+	return nv50_instmem(base);
+}
+
 static const struct nvkm_instmem_func
 nv50_instmem = {
+	.dtor = nv50_instmem_dtor,
 	.fini = nv50_instmem_fini,
+	.suspend = nv04_instmem_suspend,
+	.resume = nv04_instmem_resume,
 	.memory_new = nv50_instobj_new,
 	.memory_wrap = nv50_instobj_wrap,
 	.zero = false,
 };
 
 int
-nv50_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-		 struct nvkm_instmem **pimem)
+nv50_instmem_new_(const struct nvkm_instmem_func *func,
+		  struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		  struct nvkm_instmem **pimem)
 {
 	struct nv50_instmem *imem;
 
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_instmem_ctor(&nv50_instmem, device, type, inst, &imem->base);
+	nvkm_instmem_ctor(func, device, type, inst, &imem->base);
 	INIT_LIST_HEAD(&imem->lru);
 	*pimem = &imem->base;
 	return 0;
+}
+
+int
+nv50_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		 struct nvkm_instmem **pimem)
+{
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_instmem_new(&nv50_instmem, device, type, inst, pimem);
+
+	return nv50_instmem_new_(&nv50_instmem, device, type, inst, pimem);
 }

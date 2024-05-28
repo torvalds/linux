@@ -162,7 +162,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct domain_device *dev = ap->private_data;
 	struct sas_ha_struct *sas_ha = dev->port->ha;
-	struct Scsi_Host *host = sas_ha->core.shost;
+	struct Scsi_Host *host = sas_ha->shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 
 	/* TODO: we should try to remove that unlock */
@@ -201,11 +201,13 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task->data_dir = qc->dma_dir;
 	}
 	task->scatter = qc->sg;
-	task->ata_task.retry_count = 1;
 	qc->lldd_task = task;
 
 	task->ata_task.use_ncq = ata_is_ncq(qc->tf.protocol);
 	task->ata_task.dma_xfer = ata_is_dma(qc->tf.protocol);
+
+	if (qc->flags & ATA_QCFLAG_RESULT_TF)
+		task->ata_task.return_fis_on_success = 1;
 
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
@@ -235,7 +237,7 @@ static void sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 
 static struct sas_internal *dev_to_sas_internal(struct domain_device *dev)
 {
-	return to_sas_internal(dev->port->ha->core.shost->transportt);
+	return to_sas_internal(dev->port->ha->shost->transportt);
 }
 
 static int sas_get_ata_command_set(struct domain_device *dev)
@@ -565,8 +567,6 @@ static struct ata_port_operations sas_sata_ops = {
 	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= sas_ata_qc_issue,
 	.qc_fill_rtf		= sas_ata_qc_fill_rtf,
-	.port_start		= ata_sas_port_start,
-	.port_stop		= ata_sas_port_stop,
 	.set_dmamode		= sas_ata_set_dmamode,
 	.sched_eh		= sas_ata_sched_eh,
 	.end_eh			= sas_ata_end_eh,
@@ -584,7 +584,7 @@ static struct ata_port_info sata_port_info = {
 int sas_ata_init(struct domain_device *found_dev)
 {
 	struct sas_ha_struct *ha = found_dev->port->ha;
-	struct Scsi_Host *shost = ha->core.shost;
+	struct Scsi_Host *shost = ha->shost;
 	struct ata_host *ata_host;
 	struct ata_port *ap;
 	int rc;
@@ -607,9 +607,6 @@ int sas_ata_init(struct domain_device *found_dev)
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
-	rc = ata_sas_port_init(ap);
-	if (rc)
-		goto destroy_port;
 
 	rc = ata_sas_tport_add(ata_host->dev, ap);
 	if (rc)
@@ -621,7 +618,7 @@ int sas_ata_init(struct domain_device *found_dev)
 	return 0;
 
 destroy_port:
-	ata_sas_port_destroy(ap);
+	kfree(ap);
 free_host:
 	ata_host_put(ata_host);
 	return rc;
@@ -655,7 +652,7 @@ void sas_probe_sata(struct asd_sas_port *port)
 		if (!dev_is_sata(dev))
 			continue;
 
-		ata_sas_async_probe(dev->sata_dev.ap);
+		ata_port_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
 
@@ -822,7 +819,7 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct sas_ha_struct *ha = dev->port->ha;
 
 	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
-	ata_scsi_port_error_handler(ha->core.shost, ap);
+	ata_scsi_port_error_handler(ha->shost, ap);
 	sas_put_device(dev);
 }
 

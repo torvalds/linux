@@ -159,7 +159,7 @@ void multiorder_tagged_iteration(struct xarray *xa)
 	item_kill_tree(xa);
 }
 
-bool stop_iteration = false;
+bool stop_iteration;
 
 static void *creator_func(void *ptr)
 {
@@ -201,9 +201,65 @@ static void multiorder_iteration_race(struct xarray *xa)
 	pthread_t worker_thread[num_threads];
 	int i;
 
+	stop_iteration = false;
 	pthread_create(&worker_thread[0], NULL, &creator_func, xa);
 	for (i = 1; i < num_threads; i++)
 		pthread_create(&worker_thread[i], NULL, &iterator_func, xa);
+
+	for (i = 0; i < num_threads; i++)
+		pthread_join(worker_thread[i], NULL);
+
+	item_kill_tree(xa);
+}
+
+static void *load_creator(void *ptr)
+{
+	/* 'order' is set up to ensure we have sibling entries */
+	unsigned int order;
+	struct radix_tree_root *tree = ptr;
+	int i;
+
+	rcu_register_thread();
+	item_insert_order(tree, 3 << RADIX_TREE_MAP_SHIFT, 0);
+	item_insert_order(tree, 2 << RADIX_TREE_MAP_SHIFT, 0);
+	for (i = 0; i < 10000; i++) {
+		for (order = 1; order < RADIX_TREE_MAP_SHIFT; order++) {
+			unsigned long index = (3 << RADIX_TREE_MAP_SHIFT) -
+						(1 << order);
+			item_insert_order(tree, index, order);
+			item_delete_rcu(tree, index);
+		}
+	}
+	rcu_unregister_thread();
+
+	stop_iteration = true;
+	return NULL;
+}
+
+static void *load_worker(void *ptr)
+{
+	unsigned long index = (3 << RADIX_TREE_MAP_SHIFT) - 1;
+
+	rcu_register_thread();
+	while (!stop_iteration) {
+		struct item *item = xa_load(ptr, index);
+		assert(!xa_is_internal(item));
+	}
+	rcu_unregister_thread();
+
+	return NULL;
+}
+
+static void load_race(struct xarray *xa)
+{
+	const int num_threads = sysconf(_SC_NPROCESSORS_ONLN) * 4;
+	pthread_t worker_thread[num_threads];
+	int i;
+
+	stop_iteration = false;
+	pthread_create(&worker_thread[0], NULL, &load_creator, xa);
+	for (i = 1; i < num_threads; i++)
+		pthread_create(&worker_thread[i], NULL, &load_worker, xa);
 
 	for (i = 0; i < num_threads; i++)
 		pthread_join(worker_thread[i], NULL);
@@ -218,12 +274,20 @@ void multiorder_checks(void)
 	multiorder_iteration(&array);
 	multiorder_tagged_iteration(&array);
 	multiorder_iteration_race(&array);
+	load_race(&array);
 
 	radix_tree_cpu_dead(0);
 }
 
-int __weak main(void)
+int __weak main(int argc, char **argv)
 {
+	int opt;
+
+	while ((opt = getopt(argc, argv, "ls:v")) != -1) {
+		if (opt == 'v')
+			test_verbose++;
+	}
+
 	rcu_register_thread();
 	radix_tree_init();
 	multiorder_checks();

@@ -1037,7 +1037,7 @@ retry:
 			in_fif_p_count = dbg_data.s.data & 0xff;
 		} while (in_fif_p_count != ((old_in_fif_p_count+1) & 0xff));
 
-		/* Update in_fif_p_count for it's offset with respect to out_p_count */
+		/* Update in_fif_p_count for its offset with respect to out_p_count */
 		in_fif_p_count = (in_fif_p_count + in_p_offset) & 0xff;
 
 		/* Read the OUT_P_COUNT from the debug select */

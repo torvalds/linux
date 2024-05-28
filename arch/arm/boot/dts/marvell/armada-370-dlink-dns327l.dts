@@ -105,54 +105,45 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	usb_power: regulator-1 {
+		compatible = "regulator-fixed";
+		pinctrl-0 = <&xhci_pwr_pin>;
+		pinctrl-names = "default";
+		regulator-name = "USB3.0 Port Power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+		gpio = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+	};
 
-		usb_power: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			pinctrl-0 = <&xhci_pwr_pin>;
-			pinctrl-names = "default";
-			regulator-name = "USB3.0 Port Power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			regulator-boot-on;
-			regulator-always-on;
-			gpio = <&gpio0 13 GPIO_ACTIVE_HIGH>;
-		};
+	sata_r_power: regulator-2 {
+		compatible = "regulator-fixed";
+		pinctrl-0 = <&sata_r_pwr_pin>;
+		pinctrl-names = "default";
+		regulator-name = "SATA-R Power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		startup-delay-us = <2000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+	};
 
-		sata_r_power: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			pinctrl-0 = <&sata_r_pwr_pin>;
-			pinctrl-names = "default";
-			regulator-name = "SATA-R Power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			startup-delay-us = <2000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
-		};
-
-		sata_l_power: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			pinctrl-0 = <&sata_l_pwr_pin>;
-			pinctrl-names = "default";
-			regulator-name = "SATA-L Power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			startup-delay-us = <4000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 24 GPIO_ACTIVE_HIGH>;
-		};
+	sata_l_power: regulator-3 {
+		compatible = "regulator-fixed";
+		pinctrl-0 = <&sata_l_pwr_pin>;
+		pinctrl-names = "default";
+		regulator-name = "SATA-L Power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		startup-delay-us = <4000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 24 GPIO_ACTIVE_HIGH>;
 	};
 };
 

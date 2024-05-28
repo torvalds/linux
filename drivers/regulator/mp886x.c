@@ -9,7 +9,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -315,7 +315,7 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(di->en_gpio))
 		return PTR_ERR(di->en_gpio);
 
-	di->ci = of_device_get_match_data(dev);
+	di->ci = i2c_get_match_data(client);
 	di->dev = dev;
 
 	regmap = devm_regmap_init_i2c(client, &mp886x_regmap_config);
@@ -341,20 +341,14 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 }
 
 static const struct of_device_id mp886x_dt_ids[] = {
-	{
-		.compatible = "mps,mp8867",
-		.data = &mp8867_ci
-	},
-	{
-		.compatible = "mps,mp8869",
-		.data = &mp8869_ci
-	},
+	{ .compatible = "mps,mp8867", .data = &mp8867_ci },
+	{ .compatible = "mps,mp8869", .data = &mp8869_ci },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mp886x_dt_ids);
 
 static const struct i2c_device_id mp886x_id[] = {
-	{ "mp886x", },
+	{ "mp886x", (kernel_ulong_t)&mp8869_ci },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, mp886x_id);

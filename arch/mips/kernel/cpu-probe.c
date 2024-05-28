@@ -179,7 +179,6 @@ void __init check_bugs32(void)
 static inline int cpu_has_confreg(void)
 {
 #ifdef CONFIG_CPU_R3000
-	extern unsigned long r3k_cache_size(unsigned long);
 	unsigned long size1, size2;
 	unsigned long cfg = read_c0_conf();
 
@@ -1139,7 +1138,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		 * This processor doesn't have an MMU, so it's not
 		 * "real easy" to run Linux on it. It is left purely
 		 * for documentation.  Commented out because it shares
-		 * it's c0_prid id number with the TX3900.
+		 * its c0_prid id number with the TX3900.
 		 */
 		c->cputype = CPU_R4650;
 		__cpu_name[cpu] = "R4650";

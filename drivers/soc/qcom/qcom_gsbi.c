@@ -129,7 +129,7 @@ static int gsbi_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	void __iomem *base;
 	struct gsbi_info *gsbi;
-	int i, ret;
+	int i;
 	u32 mask, gsbi_num;
 	const struct crci_config *config = NULL;
 
@@ -178,11 +178,9 @@ static int gsbi_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "GSBI port protocol: %d crci: %d\n",
 		 gsbi->mode, gsbi->crci);
-	gsbi->hclk = devm_clk_get(&pdev->dev, "iface");
+	gsbi->hclk = devm_clk_get_enabled(&pdev->dev, "iface");
 	if (IS_ERR(gsbi->hclk))
 		return PTR_ERR(gsbi->hclk);
-
-	clk_prepare_enable(gsbi->hclk);
 
 	writel_relaxed((gsbi->mode << GSBI_PROTOCOL_SHIFT) | gsbi->crci,
 				base + GSBI_CTRL_REG);
@@ -211,19 +209,14 @@ static int gsbi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gsbi);
 
-	ret = of_platform_populate(node, NULL, NULL, &pdev->dev);
-	if (ret)
-		clk_disable_unprepare(gsbi->hclk);
-	return ret;
+	return of_platform_populate(node, NULL, NULL, &pdev->dev);
 }
 
-static int gsbi_remove(struct platform_device *pdev)
+static void gsbi_remove(struct platform_device *pdev)
 {
 	struct gsbi_info *gsbi = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(gsbi->hclk);
-
-	return 0;
 }
 
 static const struct of_device_id gsbi_dt_match[] = {
@@ -239,7 +232,7 @@ static struct platform_driver gsbi_driver = {
 		.of_match_table	= gsbi_dt_match,
 	},
 	.probe = gsbi_probe,
-	.remove	= gsbi_remove,
+	.remove_new = gsbi_remove,
 };
 
 module_platform_driver(gsbi_driver);

@@ -297,7 +297,7 @@ struct efx_ptp_data {
 	u32 rxfilter_event;
 	u32 rxfilter_general;
 	bool rxfilter_installed;
-	struct hwtstamp_config config;
+	struct kernel_hwtstamp_config config;
 	bool enabled;
 	unsigned int mode;
 	void (*ns_to_nic_time)(s64 ns, u32 *nic_major, u32 *nic_minor);
@@ -1762,7 +1762,8 @@ int efx_siena_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
 	return 0;
 }
 
-static int efx_ptp_ts_init(struct efx_nic *efx, struct hwtstamp_config *init)
+static int efx_ptp_ts_init(struct efx_nic *efx,
+			   struct kernel_hwtstamp_config *init)
 {
 	int rc;
 
@@ -1799,33 +1800,26 @@ void efx_siena_ptp_get_ts_info(struct efx_nic *efx,
 	ts_info->rx_filters = ptp->efx->type->hwtstamp_filters;
 }
 
-int efx_siena_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr)
+int efx_siena_ptp_set_ts_config(struct efx_nic *efx,
+				struct kernel_hwtstamp_config *config,
+				struct netlink_ext_ack __always_unused *extack)
 {
-	struct hwtstamp_config config;
-	int rc;
-
 	/* Not a PTP enabled port */
 	if (!efx->ptp_data)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	rc = efx_ptp_ts_init(efx, &config);
-	if (rc != 0)
-		return rc;
-
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config))
-		? -EFAULT : 0;
+	return efx_ptp_ts_init(efx, config);
 }
 
-int efx_siena_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr)
+int efx_siena_ptp_get_ts_config(struct efx_nic *efx,
+				struct kernel_hwtstamp_config *config)
 {
+	/* Not a PTP enabled port */
 	if (!efx->ptp_data)
 		return -EOPNOTSUPP;
 
-	return copy_to_user(ifr->ifr_data, &efx->ptp_data->config,
-			    sizeof(efx->ptp_data->config)) ? -EFAULT : 0;
+	*config = efx->ptp_data->config;
+	return 0;
 }
 
 static void ptp_event_failure(struct efx_nic *efx, int expected_frag_len)

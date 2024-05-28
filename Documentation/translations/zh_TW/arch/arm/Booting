@@ -1,0 +1,176 @@
+Chinese translated version of Documentation/arch/arm/booting.rst
+
+If you have any comment or update to the content, please contact the
+original document maintainer directly.  However, if you have a problem
+communicating in English you can also ask the Chinese maintainer for
+help.  Contact the Chinese maintainer if this translation is outdated
+or if there is a problem with the translation.
+
+Maintainer: Russell King <linux@arm.linux.org.uk>
+Chinese maintainer: Fu Wei <tekkamanninja@gmail.com>
+---------------------------------------------------------------------
+Documentation/arch/arm/booting.rst 的中文翻譯
+
+如果想評論或更新本文的內容，請直接聯繫原文檔的維護者。如果你使用英文
+交流有困難的話，也可以向中文版維護者求助。如果本翻譯更新不及時或者翻
+譯存在問題，請聯繫中文版維護者。
+
+英文版維護者： Russell King <linux@arm.linux.org.uk>
+中文版維護者： 傅煒  Fu Wei <tekkamanninja@gmail.com>
+中文版翻譯者： 傅煒  Fu Wei <tekkamanninja@gmail.com>
+中文版校譯者： 傅煒  Fu Wei <tekkamanninja@gmail.com>
+
+以下爲正文
+---------------------------------------------------------------------
+
+			啓動 ARM Linux
+			==============
+
+作者：Russell King
+日期：2002年5月18日
+
+以下文檔適用於 2.4.18-rmk6 及以上版本。
+
+爲了啓動 ARM Linux，你需要一個引導裝載程序（boot loader），
+它是一個在主內核啓動前運行的一個小程序。引導裝載程序需要初始化各種
+設備，並最終調用 Linux 內核，將信息傳遞給內核。
+
+從本質上講，引導裝載程序應提供（至少）以下功能：
+
+1、設置和初始化 RAM。
+2、初始化一個串口。
+3、檢測機器的類型（machine type）。
+4、設置內核標籤列表（tagged list）。
+5、調用內核映像。
+
+
+1、設置和初始化 RAM
+-------------------
+
+現有的引導加載程序:		強制
+新開發的引導加載程序:		強制
+
+引導裝載程序應該找到並初始化系統中所有內核用於保持系統變量數據的 RAM。
+這個操作的執行是設備依賴的。（它可能使用內部算法來自動定位和計算所有
+RAM，或可能使用對這個設備已知的 RAM 信息，還可能使用任何引導裝載程序
+設計者想到的匹配方法。）
+
+
+2、初始化一個串口
+-----------------------------
+
+現有的引導加載程序:		可選、建議
+新開發的引導加載程序:		可選、建議
+
+引導加載程序應該初始化並使能一個目標板上的串口。這允許內核串口驅動
+自動檢測哪個串口用於內核控制檯。(一般用於調試或與目標板通信。)
+
+作爲替代方案，引導加載程序也可以通過標籤列表傳遞相關的'console='
+選項給內核以指定某個串口，而串口數據格式的選項在以下文檔中描述：
+
+       Documentation/admin-guide/kernel-parameters.rst。
+
+
+3、檢測機器類型
+--------------------------
+
+現有的引導加載程序:		可選
+新開發的引導加載程序:		強制
+
+引導加載程序應該通過某些方式檢測自身所處的機器類型。這是一個硬件
+代碼或通過查看所連接的硬件用某些算法得到，這些超出了本文檔的範圍。
+引導加載程序最終必須能提供一個 MACH_TYPE_xxx 值給內核。
+(詳見 linux/arch/arm/tools/mach-types )。
+
+4、設置啓動數據
+------------------
+
+現有的引導加載程序:		可選、強烈建議
+新開發的引導加載程序:		強制
+
+引導加載程序必須提供標籤列表或者 dtb 映像以傳遞配置數據給內核。啓動
+數據的物理地址通過寄存器 r2 傳遞給內核。
+
+4a、設置內核標籤列表
+--------------------------------
+
+bootloader 必須創建和初始化內核標籤列表。一個有效的標籤列表以
+ATAG_CORE 標籤開始，並以 ATAG_NONE 標籤結束。ATAG_CORE 標籤可以是
+空的，也可以是非空。一個空 ATAG_CORE 標籤其 size 域設置爲
+‘2’(0x00000002)。ATAG_NONE 標籤的 size 域必須設置爲零。
+
+在列表中可以保存任意數量的標籤。對於一個重複的標籤是追加到之前標籤
+所攜帶的信息之後，還是會覆蓋原來的信息，是未定義的。某些標籤的行爲
+是前者，其他是後者。
+
+bootloader 必須傳遞一個系統內存的位置和最小值，以及根文件系統位置。
+因此，最小的標籤列表如下所示：
+
+		+-----------+
+基地址 ->	| ATAG_CORE |  |
+		+-----------+  |
+		| ATAG_MEM  |  | 地址增長方向
+		+-----------+  |
+		| ATAG_NONE |  |
+		+-----------+  v
+
+標籤列表應該保存在系統的 RAM 中。
+
+標籤列表必須置於內核自解壓和 initrd'bootp' 程序都不會覆蓋的內存區。
+建議放在 RAM 的頭 16KiB 中。
+
+4b、設置設備樹
+-------------------------
+
+bootloader 必須以 64bit 地址對齊的形式加載一個設備樹映像(dtb)到系統
+RAM 中，並用啓動數據初始化它。dtb 格式在文檔
+https://www.devicetree.org/specifications/ 中。內核將會在
+dtb 物理地址處查找 dtb 魔數值（0xd00dfeed），以確定 dtb 是否已經代替
+標籤列表被傳遞進來。
+
+bootloader 必須傳遞一個系統內存的位置和最小值，以及根文件系統位置。
+dtb 必須置於內核自解壓不會覆蓋的內存區。建議將其放置於 RAM 的頭 16KiB
+中。但是不可將其放置於“0”物理地址處，因爲內核認爲：r2 中爲 0，意味着
+沒有標籤列表和 dtb 傳遞過來。
+
+5、調用內核映像
+---------------------------
+
+現有的引導加載程序:		強制
+新開發的引導加載程序:		強制
+
+調用內核映像 zImage 有兩個選擇。如果 zImge 保存在 flash 中，且是爲了
+在 flash 中直接運行而被正確鏈接的。這樣引導加載程序就可以在 flash 中
+直接調用 zImage。
+
+zImage 也可以被放在系統 RAM（任意位置）中被調用。注意：內核使用映像
+基地址的前 16KB RAM 空間來保存頁表。建議將映像置於 RAM 的 32KB 處。
+
+對於以上任意一種情況，都必須符合以下啓動狀態：
+
+- 停止所有 DMA 設備，這樣內存數據就不會因爲虛假網絡包或磁盤數據而被破壞。
+  這可能可以節省你許多的調試時間。
+
+- CPU 寄存器配置
+  r0 = 0，
+  r1 = （在上面 3 中獲取的）機器類型碼。
+  r2 = 標籤列表在系統 RAM 中的物理地址，或
+       設備樹塊(dtb)在系統 RAM 中的物理地址
+
+- CPU 模式
+  所有形式的中斷必須被禁止 (IRQs 和 FIQs)
+  CPU 必須處於 SVC 模式。(對於 Angel 調試有特例存在)
+
+- 緩存，MMUs
+  MMU 必須關閉。
+  指令緩存開啓或關閉都可以。
+  數據緩存必須關閉。
+
+- 引導加載程序應該通過直接跳轉到內核映像的第一條指令來調用內核映像。
+
+  對於支持 ARM 指令集的 CPU，跳入內核入口時必須處在 ARM 狀態，即使
+  對於 Thumb-2 內核也是如此。
+
+  對於僅支持 Thumb 指令集的 CPU，比如 Cortex-M 系列的 CPU，跳入
+  內核入口時必須處於 Thumb 狀態。
+

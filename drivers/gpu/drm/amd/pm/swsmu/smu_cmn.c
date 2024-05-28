@@ -39,6 +39,8 @@
 
 #define MP1_C2PMSG_90__CONTENT_MASK                                                                    0xFFFFFFFFL
 
+const int link_speed[] = {25, 50, 80, 160, 320, 640};
+
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	#type
 static const char * const __smu_message_names[] = {
@@ -376,8 +378,15 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (res != 0)
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
-	if (read_arg)
+	if (read_arg) {
 		smu_cmn_read_arg(smu, read_arg);
+		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x,\
+			readval: 0x%08x\n",
+			smu_get_message_name(smu, msg), index, param, reg, *read_arg);
+	} else {
+		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x\n",
+			smu_get_message_name(smu, msg), index, param, reg);
+	}
 Out:
 	if (unlikely(adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) && res) {
 		amdgpu_device_halt(adev);
@@ -691,7 +700,7 @@ int smu_cmn_feature_set_enabled(struct smu_context *smu,
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(fea)	#fea
-static const char* __smu_feature_names[] = {
+static const char *__smu_feature_names[] = {
 	SMU_FEATURE_MASKS
 };
 
@@ -927,7 +936,7 @@ int smu_cmn_get_metrics_table(struct smu_context *smu,
 			      void *metrics_table,
 			      bool bypass_cache)
 {
-	struct smu_table_context *smu_table= &smu->smu_table;
+	struct smu_table_context *smu_table = &smu->smu_table;
 	uint32_t table_size =
 		smu_table->tables[SMU_TABLE_SMU_METRICS].size;
 	int ret = 0;
@@ -969,7 +978,7 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 	struct metrics_table_header *header = (struct metrics_table_header *)table;
 	uint16_t structure_size;
 
-#define METRICS_VERSION(a, b)	((a << 16) | b )
+#define METRICS_VERSION(a, b)	((a << 16) | b)
 
 	switch (METRICS_VERSION(frev, crev)) {
 	case METRICS_VERSION(1, 0):
@@ -984,6 +993,12 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 	case METRICS_VERSION(1, 3):
 		structure_size = sizeof(struct gpu_metrics_v1_3);
 		break;
+	case METRICS_VERSION(1, 4):
+		structure_size = sizeof(struct gpu_metrics_v1_4);
+		break;
+	case METRICS_VERSION(1, 5):
+		structure_size = sizeof(struct gpu_metrics_v1_5);
+		break;
 	case METRICS_VERSION(2, 0):
 		structure_size = sizeof(struct gpu_metrics_v2_0);
 		break;
@@ -995,6 +1010,12 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 		break;
 	case METRICS_VERSION(2, 3):
 		structure_size = sizeof(struct gpu_metrics_v2_3);
+		break;
+	case METRICS_VERSION(2, 4):
+		structure_size = sizeof(struct gpu_metrics_v2_4);
+		break;
+	case METRICS_VERSION(3, 0):
+		structure_size = sizeof(struct gpu_metrics_v3_0);
 		break;
 	default:
 		return;

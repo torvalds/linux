@@ -176,8 +176,7 @@ __csi2tx_get_pad_format(struct v4l2_subdev *subdev,
 	struct csi2tx_priv *csi2tx = v4l2_subdev_to_csi2tx(subdev);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(subdev, sd_state,
-						  fmt->pad);
+		return v4l2_subdev_state_get_format(sd_state, fmt->pad);
 
 	return &csi2tx->pad_fmts[fmt->pad];
 }
@@ -480,7 +479,7 @@ static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 	csi2tx->has_internal_dphy = !!(dev_cfg & CSI2TX_DEVICE_CONFIG_HAS_DPHY);
 
 	for (i = 0; i < csi2tx->max_streams; i++) {
-		char clk_name[16];
+		char clk_name[23];
 
 		snprintf(clk_name, sizeof(clk_name), "pixel_if%u_clk", i);
 		csi2tx->pixel_clk[i] = devm_clk_get(&pdev->dev, clk_name);
@@ -592,8 +591,8 @@ static int csi2tx_probe(struct platform_device *pdev)
 	csi2tx->subdev.owner = THIS_MODULE;
 	csi2tx->subdev.dev = &pdev->dev;
 	csi2tx->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	snprintf(csi2tx->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s.%s",
-		 KBUILD_MODNAME, dev_name(&pdev->dev));
+	snprintf(csi2tx->subdev.name, sizeof(csi2tx->subdev.name),
+		 "%s.%s", KBUILD_MODNAME, dev_name(&pdev->dev));
 
 	ret = csi2tx_check_lanes(csi2tx);
 	if (ret)

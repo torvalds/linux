@@ -4,19 +4,22 @@
 $id: http://devicetree.org/schemas/iio/light/ams,as73211.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: AMS AS73211 JENCOLOR(R) Digital XYZ Sensor
+title: AMS AS73211 JENCOLOR(R) Digital XYZ Sensor and AMS AS7331 UV Sensor
 
 maintainers:
   - Christian Eggers <ceggers@arri.de>
 
 description: |
-  XYZ True Color Sensor with I2C Interface
+  AMS AS73211 XYZ True Color Sensor with I2C Interface
   https://ams.com/documents/20143/36005/AS73211_DS000556_3-01.pdf/a65474c0-b302-c2fd-e30a-c98df87616df
+  AMS AS7331 UVA, UVB and UVC Sensor with I2C Interface
+  https://ams.com/documents/20143/9106314/AS7331_DS001047_4-00.pdf
 
 properties:
   compatible:
     enum:
       - ams,as73211
+      - ams,as7331
 
   reg:
     description:

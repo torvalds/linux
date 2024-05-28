@@ -132,6 +132,7 @@ static int mlxsw_linecard_bdev_probe(struct auxiliary_device *adev,
 	struct mlxsw_linecard *linecard = linecard_bdev->linecard;
 	struct mlxsw_linecard_dev *linecard_dev;
 	struct devlink *devlink;
+	int err;
 
 	devlink = devlink_alloc(&mlxsw_linecard_dev_devlink_ops,
 				sizeof(*linecard_dev), &adev->dev);
@@ -141,8 +142,12 @@ static int mlxsw_linecard_bdev_probe(struct auxiliary_device *adev,
 	linecard_dev->linecard = linecard_bdev->linecard;
 	linecard_bdev->linecard_dev = linecard_dev;
 
+	err = devlink_linecard_nested_dl_set(linecard->devlink_linecard, devlink);
+	if (err) {
+		devlink_free(devlink);
+		return err;
+	}
 	devlink_register(devlink);
-	devlink_linecard_nested_dl_set(linecard->devlink_linecard, devlink);
 	return 0;
 }
 
@@ -151,9 +156,7 @@ static void mlxsw_linecard_bdev_remove(struct auxiliary_device *adev)
 	struct mlxsw_linecard_bdev *linecard_bdev =
 			container_of(adev, struct mlxsw_linecard_bdev, adev);
 	struct devlink *devlink = priv_to_devlink(linecard_bdev->linecard_dev);
-	struct mlxsw_linecard *linecard = linecard_bdev->linecard;
 
-	devlink_linecard_nested_dl_set(linecard->devlink_linecard, NULL);
 	devlink_unregister(devlink);
 	devlink_free(devlink);
 }

@@ -17,3 +17,7 @@ endif
 ifneq ($(CONFIG_PSAMPLE),)
 netdevsim-objs += psample.o
 endif
+
+ifneq ($(CONFIG_MACSEC),)
+netdevsim-objs += macsec.o
+endif

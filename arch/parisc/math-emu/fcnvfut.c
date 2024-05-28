@@ -15,10 +15,10 @@
  *	Floating-point to Unsigned Fixed-point Converts with Truncation
  *
  *  External Interfaces:
- *	dbl_to_dbl_fcnvfut(srcptr,nullptr,dstptr,status)
- *	dbl_to_sgl_fcnvfut(srcptr,nullptr,dstptr,status)
- *	sgl_to_dbl_fcnvfut(srcptr,nullptr,dstptr,status)
- *	sgl_to_sgl_fcnvfut(srcptr,nullptr,dstptr,status)
+ *	dbl_to_dbl_fcnvfut(srcptr,_nullptr,dstptr,status)
+ *	dbl_to_sgl_fcnvfut(srcptr,_nullptr,dstptr,status)
+ *	sgl_to_dbl_fcnvfut(srcptr,_nullptr,dstptr,status)
+ *	sgl_to_sgl_fcnvfut(srcptr,_nullptr,dstptr,status)
  *
  *  Internal Interfaces:
  *
@@ -44,7 +44,7 @@
  */
 /*ARGSUSED*/
 int
-sgl_to_sgl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
+sgl_to_sgl_fcnvfut (sgl_floating_point * srcptr, unsigned int *_nullptr,
 		    unsigned int *dstptr, unsigned int *status)
 {
 	register unsigned int src, result;
@@ -113,7 +113,7 @@ sgl_to_sgl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
  */
 /*ARGSUSED*/
 int
-sgl_to_dbl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
+sgl_to_dbl_fcnvfut (sgl_floating_point * srcptr, unsigned int *_nullptr,
 		    dbl_unsigned * dstptr, unsigned int *status)
 {
 	register int src_exponent;
@@ -183,7 +183,7 @@ sgl_to_dbl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
  */
 /*ARGSUSED*/
 int
-dbl_to_sgl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
+dbl_to_sgl_fcnvfut (dbl_floating_point * srcptr, unsigned int *_nullptr,
 		    unsigned int *dstptr, unsigned int *status)
 {
 	register unsigned int srcp1, srcp2, result;
@@ -252,7 +252,7 @@ dbl_to_sgl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
  */
 /*ARGSUSED*/
 int
-dbl_to_dbl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
+dbl_to_dbl_fcnvfut (dbl_floating_point * srcptr, unsigned int *_nullptr,
 		    dbl_unsigned * dstptr, unsigned int *status)
 {
 	register int src_exponent;

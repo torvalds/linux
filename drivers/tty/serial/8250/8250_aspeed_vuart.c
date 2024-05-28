@@ -34,7 +34,6 @@
 
 struct aspeed_vuart {
 	struct device		*dev;
-	struct clk		*clk;
 	int			line;
 	struct timer_list	unthrottle_timer;
 	struct uart_8250_port	*port;
@@ -288,9 +287,9 @@ static void aspeed_vuart_set_throttle(struct uart_port *port, bool throttle)
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	__aspeed_vuart_set_throttle(up, throttle);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void aspeed_vuart_throttle(struct uart_port *port)
@@ -340,7 +339,7 @@ static int aspeed_vuart_handle_irq(struct uart_port *port)
 	if (iir & UART_IIR_NO_INT)
 		return 0;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	lsr = serial_port_in(port, UART_LSR);
 
@@ -415,12 +414,14 @@ static int aspeed_vuart_map_irq_polarity(u32 dt)
 static int aspeed_vuart_probe(struct platform_device *pdev)
 {
 	struct of_phandle_args sirq_polarity_sense_args;
+	struct device *dev = &pdev->dev;
 	struct uart_8250_port port;
 	struct aspeed_vuart *vuart;
 	struct device_node *np;
 	struct resource *res;
-	u32 clk, prop, sirq[2];
 	int rc, sirq_polarity;
+	u32 prop, sirq[2];
+	struct clk *vclk;
 
 	np = pdev->dev.of_node;
 
@@ -446,59 +447,35 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	port.port.status = UPSTAT_SYNC_FIFO;
 	port.port.dev = &pdev->dev;
 	port.port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
+	port.port.flags = UPF_BOOT_AUTOCONF | UPF_IOREMAP | UPF_FIXED_PORT | UPF_FIXED_TYPE |
+			  UPF_NO_THRE_TEST;
 	port.bugs |= UART_BUG_TXRACE;
 
 	rc = sysfs_create_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);
 	if (rc < 0)
 		return rc;
 
-	if (of_property_read_u32(np, "clock-frequency", &clk)) {
-		vuart->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(vuart->clk)) {
-			dev_warn(&pdev->dev,
-				"clk or clock-frequency not defined\n");
-			rc = PTR_ERR(vuart->clk);
+	rc = uart_read_port_properties(&port.port);
+	if (rc)
+		goto err_sysfs_remove;
+
+	/* Get clk rate through clk driver if present */
+	if (!port.port.uartclk) {
+		vclk = devm_clk_get_enabled(dev, NULL);
+		if (IS_ERR(vclk)) {
+			rc = dev_err_probe(dev, PTR_ERR(vclk), "clk or clock-frequency not defined\n");
 			goto err_sysfs_remove;
 		}
 
-		rc = clk_prepare_enable(vuart->clk);
-		if (rc < 0)
-			goto err_sysfs_remove;
-
-		clk = clk_get_rate(vuart->clk);
+		port.port.uartclk = clk_get_rate(vclk);
 	}
 
 	/* If current-speed was set, then try not to change it. */
 	if (of_property_read_u32(np, "current-speed", &prop) == 0)
-		port.port.custom_divisor = clk / (16 * prop);
+		port.port.custom_divisor = port.port.uartclk / (16 * prop);
 
-	/* Check for shifted address mapping */
-	if (of_property_read_u32(np, "reg-offset", &prop) == 0)
-		port.port.mapbase += prop;
-
-	/* Check for registers offset within the devices address range */
-	if (of_property_read_u32(np, "reg-shift", &prop) == 0)
-		port.port.regshift = prop;
-
-	/* Check for fifo size */
-	if (of_property_read_u32(np, "fifo-size", &prop) == 0)
-		port.port.fifosize = prop;
-
-	/* Check for a fixed line number */
-	rc = of_alias_get_id(np, "serial");
-	if (rc >= 0)
-		port.port.line = rc;
-
-	port.port.irq = irq_of_parse_and_map(np, 0);
 	port.port.handle_irq = aspeed_vuart_handle_irq;
-	port.port.iotype = UPIO_MEM;
 	port.port.type = PORT_ASPEED_VUART;
-	port.port.uartclk = clk;
-	port.port.flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
-		| UPF_FIXED_PORT | UPF_FIXED_TYPE | UPF_NO_THRE_TEST;
-
-	if (of_property_read_bool(np, "no-loopback-test"))
-		port.port.flags |= UPF_SKIP_TEST;
 
 	if (port.port.fifosize)
 		port.capabilities = UART_CAP_FIFO;
@@ -508,7 +485,7 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 
 	rc = serial8250_register_8250_port(&port);
 	if (rc < 0)
-		goto err_clk_disable;
+		goto err_sysfs_remove;
 
 	vuart->line = rc;
 	vuart->port = serial8250_get_port(vuart->line);
@@ -533,8 +510,8 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 
 	rc = aspeed_vuart_set_lpc_address(vuart, prop);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "invalid value in aspeed,lpc-io-reg property\n");
-		goto err_clk_disable;
+		dev_err_probe(dev, rc, "invalid value in aspeed,lpc-io-reg property\n");
+		goto err_sysfs_remove;
 	}
 
 	rc = of_property_read_u32_array(np, "aspeed,lpc-interrupts", sirq, 2);
@@ -545,15 +522,15 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 
 	rc = aspeed_vuart_set_sirq(vuart, sirq[0]);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "invalid sirq number in aspeed,lpc-interrupts property\n");
-		goto err_clk_disable;
+		dev_err_probe(dev, rc, "invalid sirq number in aspeed,lpc-interrupts property\n");
+		goto err_sysfs_remove;
 	}
 
 	sirq_polarity = aspeed_vuart_map_irq_polarity(sirq[1]);
 	if (sirq_polarity < 0) {
-		dev_err(&pdev->dev, "invalid sirq polarity in aspeed,lpc-interrupts property\n");
-		rc = sirq_polarity;
-		goto err_clk_disable;
+		rc = dev_err_probe(dev, sirq_polarity,
+				   "invalid sirq polarity in aspeed,lpc-interrupts property\n");
+		goto err_sysfs_remove;
 	}
 
 	aspeed_vuart_set_sirq_polarity(vuart, sirq_polarity);
@@ -564,15 +541,12 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_clk_disable:
-	clk_disable_unprepare(vuart->clk);
-	irq_dispose_mapping(port.port.irq);
 err_sysfs_remove:
 	sysfs_remove_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);
 	return rc;
 }
 
-static int aspeed_vuart_remove(struct platform_device *pdev)
+static void aspeed_vuart_remove(struct platform_device *pdev)
 {
 	struct aspeed_vuart *vuart = platform_get_drvdata(pdev);
 
@@ -580,9 +554,6 @@ static int aspeed_vuart_remove(struct platform_device *pdev)
 	aspeed_vuart_set_enabled(vuart, false);
 	serial8250_unregister_port(vuart->line);
 	sysfs_remove_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);
-	clk_disable_unprepare(vuart->clk);
-
-	return 0;
 }
 
 static const struct of_device_id aspeed_vuart_table[] = {
@@ -597,7 +568,7 @@ static struct platform_driver aspeed_vuart_driver = {
 		.of_match_table = aspeed_vuart_table,
 	},
 	.probe = aspeed_vuart_probe,
-	.remove = aspeed_vuart_remove,
+	.remove_new = aspeed_vuart_remove,
 };
 
 module_platform_driver(aspeed_vuart_driver);

@@ -14,10 +14,12 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/soc/ti/knav_qmss.h>
 
@@ -1754,7 +1756,6 @@ static int knav_queue_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *qmgrs, *queue_pools, *regions, *pdsps;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	u32 temp[2];
 	int ret;
@@ -1770,8 +1771,7 @@ static int knav_queue_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	match = of_match_device(of_match_ptr(keystone_qmss_of_match), dev);
-	if (match && match->data)
+	if (device_get_match_data(dev))
 		kdev->version = QMSS_66AK2G;
 
 	platform_set_drvdata(pdev, kdev);
@@ -1884,17 +1884,16 @@ err:
 	return ret;
 }
 
-static int knav_queue_remove(struct platform_device *pdev)
+static void knav_queue_remove(struct platform_device *pdev)
 {
 	/* TODO: Free resources */
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static struct platform_driver keystone_qmss_driver = {
 	.probe		= knav_queue_probe,
-	.remove		= knav_queue_remove,
+	.remove_new	= knav_queue_remove,
 	.driver		= {
 		.name	= "keystone-navigator-qmss",
 		.of_match_table = keystone_qmss_of_match,

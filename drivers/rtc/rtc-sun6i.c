@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -846,8 +845,6 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	ret = devm_rtc_nvmem_register(chip->rtc, &sun6i_rtc_nvmem_cfg);
 	if (ret)
 		return ret;
-
-	dev_info(&pdev->dev, "RTC enabled\n");
 
 	return 0;
 }

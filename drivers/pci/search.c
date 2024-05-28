@@ -364,6 +364,37 @@ struct pci_dev *pci_get_class(unsigned int class, struct pci_dev *from)
 EXPORT_SYMBOL(pci_get_class);
 
 /**
+ * pci_get_base_class - searching for a PCI device by matching against the base class code only
+ * @class: search for a PCI device with this base class code
+ * @from: Previous PCI device found in search, or %NULL for new search.
+ *
+ * Iterates through the list of known PCI devices. If a PCI device is found
+ * with a matching base class code, the reference count to the device is
+ * incremented. See pci_match_one_device() to figure out how does this works.
+ * A new search is initiated by passing %NULL as the @from argument.
+ * Otherwise if @from is not %NULL, searches continue from next device on the
+ * global list. The reference count for @from is always decremented if it is
+ * not %NULL.
+ *
+ * Returns:
+ * A pointer to a matched PCI device, %NULL Otherwise.
+ */
+struct pci_dev *pci_get_base_class(unsigned int class, struct pci_dev *from)
+{
+	struct pci_device_id id = {
+		.vendor = PCI_ANY_ID,
+		.device = PCI_ANY_ID,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.class_mask = 0xFF0000,
+		.class = class << 16,
+	};
+
+	return pci_get_dev_by_id(&id, from);
+}
+EXPORT_SYMBOL(pci_get_base_class);
+
+/**
  * pci_dev_present - Returns 1 if device matching the device list is present, 0 if not.
  * @ids: A pointer to a null terminated list of struct pci_device_id structures
  * that describe the type of PCI device the caller is trying to find.

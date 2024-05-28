@@ -1099,7 +1099,7 @@ static void get_container_serial_callback(void *context, struct fib * fibptr)
 			sp[0] = INQD_PDT_DA;
 			sp[1] = scsicmd->cmnd[2];
 			sp[2] = 0;
-			sp[3] = snprintf(sp+4, sizeof(sp)-4, "%08X",
+			sp[3] = scnprintf(sp+4, sizeof(sp)-4, "%08X",
 				le32_to_cpu(get_serial_reply->uid));
 			scsi_sg_copy_from_buffer(scsicmd, sp,
 						 sizeof(sp));
@@ -1169,8 +1169,8 @@ static int setinqserial(struct aac_dev *dev, void *data, int cid)
 	/*
 	 *	This breaks array migration.
 	 */
-	return snprintf((char *)(data), sizeof(struct scsi_inq) - 4, "%08X%02X",
-			le32_to_cpu(dev->adapter_info.serial[0]), cid);
+	return scnprintf((char *)(data), sizeof(struct scsi_inq) - 4, "%08X%02X",
+			 le32_to_cpu(dev->adapter_info.serial[0]), cid);
 }
 
 static inline void set_sense(struct sense_data *sense_data, u8 sense_key,

@@ -40,7 +40,7 @@ properties:
 
     properties:
       compatible:
-        const: "venus-decoder"
+        const: venus-decoder
 
     required:
       - compatible
@@ -52,7 +52,7 @@ properties:
 
     properties:
       compatible:
-        const: "venus-encoder"
+        const: venus-encoder
 
     required:
       - compatible

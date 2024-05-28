@@ -5,7 +5,9 @@ top_srcdir = $(realpath ../../../../../)
 
 CFLAGS += $(KHDR_INCLUDES)
 
-TEST_GEN_PROGS := fp-stress \
+TEST_GEN_PROGS := \
+	fp-ptrace \
+	fp-stress \
 	sve-ptrace sve-probe-vls \
 	vec-syscfg \
 	za-fork za-ptrace
@@ -24,6 +26,7 @@ EXTRA_CLEAN += $(OUTPUT)/asm-utils.o $(OUTPUT)/rdvl.o $(OUTPUT)/za-fork-asm.o
 # Build with nolibc to avoid effects due to libc's clone() support
 $(OUTPUT)/fp-pidbench: fp-pidbench.S $(OUTPUT)/asm-utils.o
 	$(CC) -nostdlib $^ -o $@
+$(OUTPUT)/fp-ptrace: fp-ptrace.c fp-ptrace-asm.S
 $(OUTPUT)/fpsimd-test: fpsimd-test.S $(OUTPUT)/asm-utils.o
 	$(CC) -nostdlib $^ -o $@
 $(OUTPUT)/rdvl-sve: rdvl-sve.c $(OUTPUT)/rdvl.o

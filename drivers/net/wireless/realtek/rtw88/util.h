@@ -18,8 +18,7 @@ struct rtw_dev;
 	ieee80211_iter_keys_rcu((rtwdev)->hw, vif, iterator, data)
 
 void rtw_iterate_vifs(struct rtw_dev *rtwdev,
-		      void (*iterator)(void *data, u8 *mac,
-				       struct ieee80211_vif *vif),
+		      void (*iterator)(void *data, struct ieee80211_vif *vif),
 		      void *data);
 void rtw_iterate_stas(struct rtw_dev *rtwdev,
 		      void (*iterator)(void *data,

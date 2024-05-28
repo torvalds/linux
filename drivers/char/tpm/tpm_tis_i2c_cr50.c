@@ -235,7 +235,7 @@ out:
  * @len:	Number of bytes to write.
  *
  * The provided address is prepended to the data in 'buffer', the
- * cobined address+data is sent to the TPM, then wait for TPM to
+ * combined address+data is sent to the TPM, then wait for TPM to
  * indicate it is done writing.
  *
  * Return:
@@ -671,7 +671,6 @@ MODULE_DEVICE_TABLE(of, of_cr50_i2c_match);
 /**
  * tpm_cr50_i2c_probe() - Driver probe function.
  * @client:	I2C client information.
- * @id:		I2C device id.
  *
  * Return:
  * - 0:		Success.

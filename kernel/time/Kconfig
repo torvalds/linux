@@ -39,6 +39,11 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	depends on GENERIC_CLOCKEVENTS
 
+# Handle broadcast in default_idle_call()
+config GENERIC_CLOCKEVENTS_BROADCAST_IDLE
+	bool
+	depends on GENERIC_CLOCKEVENTS_BROADCAST
+
 # Automatically adjust the min. reprogramming time for
 # clock event device
 config GENERIC_CLOCKEVENTS_MIN_ADJUST

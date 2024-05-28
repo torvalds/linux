@@ -231,7 +231,7 @@ file structures (nilfs_finfo), and per block structures (nilfs_binfo)::
 
 
 The logs include regular files, directory files, symbolic link files
-and several meta data files.  The mata data files are the files used
+and several meta data files.  The meta data files are the files used
 to maintain file system meta data.  The current version of NILFS2 uses
 the following meta data files::
 

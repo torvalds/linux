@@ -483,7 +483,7 @@ int xen_snd_front_cfg_card(struct xen_snd_front_info *front_info,
 	*stream_cnt = 0;
 	num_devices = 0;
 	do {
-		snprintf(node, sizeof(node), "%d", num_devices);
+		scnprintf(node, sizeof(node), "%d", num_devices);
 		if (!xenbus_exists(XBT_NIL, xb_dev->nodename, node))
 			break;
 

@@ -131,7 +131,6 @@ static int lut_set_format(struct v4l2_subdev *subdev,
  */
 
 static const struct v4l2_subdev_pad_ops lut_pad_ops = {
-	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = lut_enum_mbus_code,
 	.enum_frame_size = lut_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,

@@ -14,19 +14,14 @@
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/blkdev.h>
-
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include "efs.h"
 #include <linux/efs_vh.h>
 #include <linux/efs_fs_sb.h>
 
 static int efs_statfs(struct dentry *dentry, struct kstatfs *buf);
-static int efs_fill_super(struct super_block *s, void *d, int silent);
-
-static struct dentry *efs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
-{
-	return mount_bdev(fs_type, flags, dev_name, data, efs_fill_super);
-}
+static int efs_init_fs_context(struct fs_context *fc);
 
 static void efs_kill_sb(struct super_block *s)
 {
@@ -34,15 +29,6 @@ static void efs_kill_sb(struct super_block *s)
 	kill_block_super(s);
 	kfree(sbi);
 }
-
-static struct file_system_type efs_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "efs",
-	.mount		= efs_mount,
-	.kill_sb	= efs_kill_sb,
-	.fs_flags	= FS_REQUIRES_DEV,
-};
-MODULE_ALIAS_FS("efs");
 
 static struct pt_types sgi_pt_types[] = {
 	{0x00,		"SGI vh"},
@@ -63,6 +49,27 @@ static struct pt_types sgi_pt_types[] = {
 	{0,		NULL}
 };
 
+enum {
+	Opt_explicit_open,
+};
+
+static const struct fs_parameter_spec efs_param_spec[] = {
+	fsparam_flag    ("explicit-open",       Opt_explicit_open),
+	{}
+};
+
+/*
+ * File system definition and registration.
+ */
+static struct file_system_type efs_fs_type = {
+	.owner			= THIS_MODULE,
+	.name			= "efs",
+	.kill_sb		= efs_kill_sb,
+	.fs_flags		= FS_REQUIRES_DEV,
+	.init_fs_context	= efs_init_fs_context,
+	.parameters		= efs_param_spec,
+};
+MODULE_ALIAS_FS("efs");
 
 static struct kmem_cache * efs_inode_cachep;
 
@@ -91,8 +98,8 @@ static int __init init_inodecache(void)
 {
 	efs_inode_cachep = kmem_cache_create("efs_inode_cache",
 				sizeof(struct efs_inode_info), 0,
-				SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-				SLAB_ACCOUNT, init_once);
+				SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT,
+				init_once);
 	if (efs_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;
@@ -108,21 +115,14 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(efs_inode_cachep);
 }
 
-static int efs_remount(struct super_block *sb, int *flags, char *data)
-{
-	sync_filesystem(sb);
-	*flags |= SB_RDONLY;
-	return 0;
-}
-
 static const struct super_operations efs_superblock_operations = {
 	.alloc_inode	= efs_alloc_inode,
 	.free_inode	= efs_free_inode,
 	.statfs		= efs_statfs,
-	.remount_fs	= efs_remount,
 };
 
 static const struct export_operations efs_export_ops = {
+	.encode_fh	= generic_encode_ino32_fh,
 	.fh_to_dentry	= efs_fh_to_dentry,
 	.fh_to_parent	= efs_fh_to_parent,
 	.get_parent	= efs_get_parent,
@@ -248,26 +248,26 @@ static int efs_validate_super(struct efs_sb_info *sb, struct efs_super *super) {
 	return 0;    
 }
 
-static int efs_fill_super(struct super_block *s, void *d, int silent)
+static int efs_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct efs_sb_info *sb;
 	struct buffer_head *bh;
 	struct inode *root;
 
- 	sb = kzalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
+	sb = kzalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
 	if (!sb)
 		return -ENOMEM;
 	s->s_fs_info = sb;
 	s->s_time_min = 0;
 	s->s_time_max = U32_MAX;
- 
+
 	s->s_magic		= EFS_SUPER_MAGIC;
 	if (!sb_set_blocksize(s, EFS_BLOCKSIZE)) {
 		pr_err("device does not support %d byte blocks\n",
 			EFS_BLOCKSIZE);
 		return -EINVAL;
 	}
-  
+
 	/* read the vh (volume header) block */
 	bh = sb_bread(s, 0);
 
@@ -293,7 +293,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 		pr_err("cannot read superblock\n");
 		return -EIO;
 	}
-		
+
 	if (efs_validate_super(sb, (struct efs_super *) bh->b_data)) {
 #ifdef DEBUG
 		pr_warn("invalid superblock at block %u\n",
@@ -323,6 +323,61 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 		pr_err("get root dentry failed\n");
 		return -ENOMEM;
 	}
+
+	return 0;
+}
+
+static void efs_free_fc(struct fs_context *fc)
+{
+	kfree(fc->fs_private);
+}
+
+static int efs_get_tree(struct fs_context *fc)
+{
+	return get_tree_bdev(fc, efs_fill_super);
+}
+
+static int efs_parse_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	int token;
+	struct fs_parse_result result;
+
+	token = fs_parse(fc, efs_param_spec, param, &result);
+	if (token < 0)
+		return token;
+	return 0;
+}
+
+static int efs_reconfigure(struct fs_context *fc)
+{
+	sync_filesystem(fc->root->d_sb);
+
+	return 0;
+}
+
+struct efs_context {
+	unsigned long s_mount_opts;
+};
+
+static const struct fs_context_operations efs_context_opts = {
+	.parse_param	= efs_parse_param,
+	.get_tree	= efs_get_tree,
+	.reconfigure	= efs_reconfigure,
+	.free		= efs_free_fc,
+};
+
+/*
+ * Set up the filesystem mount context.
+ */
+static int efs_init_fs_context(struct fs_context *fc)
+{
+	struct efs_context *ctx;
+
+	ctx = kzalloc(sizeof(struct efs_context), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	fc->fs_private = ctx;
+	fc->ops = &efs_context_opts;
 
 	return 0;
 }

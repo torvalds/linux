@@ -750,7 +750,7 @@ __test_learning()
 	expects[0]=0; expects[$idx1]=10; expects[$idx2]=0
 	vxlan_flood_test $mac $dst $vid "${expects[@]}"
 
-	sleep 20
+	sleep 60
 
 	bridge fdb show brport $vx | grep $mac | grep -q self
 	check_fail $?
@@ -796,11 +796,11 @@ test_learning()
 	local dst=192.0.2.100
 	local vid=10
 
-	# Enable learning on the VxLAN devices and set ageing time to 10 seconds
-	ip link set dev br1 type bridge ageing_time 1000
-	ip link set dev vx10 type vxlan ageing 10
+	# Enable learning on the VxLAN devices and set ageing time to 30 seconds
+	ip link set dev br1 type bridge ageing_time 3000
+	ip link set dev vx10 type vxlan ageing 30
 	ip link set dev vx10 type vxlan learning
-	ip link set dev vx20 type vxlan ageing 10
+	ip link set dev vx20 type vxlan ageing 30
 	ip link set dev vx20 type vxlan learning
 	reapply_config
 

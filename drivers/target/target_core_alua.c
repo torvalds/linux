@@ -850,7 +850,6 @@ int core_alua_check_nonop_delay(
 	msleep_interruptible(cmd->alua_nonop_delay);
 	return 0;
 }
-EXPORT_SYMBOL(core_alua_check_nonop_delay);
 
 static int core_alua_write_tpg_metadata(
 	const char *path,

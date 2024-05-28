@@ -3,9 +3,7 @@
 #
 # Various combinations of VRF with xfrms and qdisc.
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
-
+source lib.sh
 PAUSE_ON_FAIL=no
 VERBOSE=0
 ret=0
@@ -67,7 +65,7 @@ run_cmd_host1()
 		printf "    COMMAND: $cmd\n"
 	fi
 
-	out=$(eval ip netns exec host1 $cmd 2>&1)
+	out=$(eval ip netns exec $host1 $cmd 2>&1)
 	rc=$?
 	if [ "$VERBOSE" = "1" ]; then
 		if [ -n "$out" ]; then
@@ -116,9 +114,6 @@ create_ns()
 	[ -z "${addr}" ] && addr="-"
 	[ -z "${addr6}" ] && addr6="-"
 
-	ip netns add ${ns}
-
-	ip -netns ${ns} link set lo up
 	if [ "${addr}" != "-" ]; then
 		ip -netns ${ns} addr add dev lo ${addr}
 	fi
@@ -177,25 +172,25 @@ connect_ns()
 
 cleanup()
 {
-	ip netns del host1
-	ip netns del host2
+	cleanup_ns $host1 $host2
 }
 
 setup()
 {
-	create_ns "host1"
-	create_ns "host2"
+	setup_ns host1 host2
+	create_ns "$host1"
+	create_ns "$host2"
 
-	connect_ns "host1" eth0 ${HOST1_4}/24 ${HOST1_6}/64 \
-	           "host2" eth0 ${HOST2_4}/24 ${HOST2_6}/64
+	connect_ns "$host1" eth0 ${HOST1_4}/24 ${HOST1_6}/64 \
+	           "$host2" eth0 ${HOST2_4}/24 ${HOST2_6}/64
 
-	create_vrf "host1" ${VRF} ${TABLE}
-	ip -netns host1 link set dev eth0 master ${VRF}
+	create_vrf "$host1" ${VRF} ${TABLE}
+	ip -netns $host1 link set dev eth0 master ${VRF}
 }
 
 cleanup_xfrm()
 {
-	for ns in host1 host2
+	for ns in $host1 $host2
 	do
 		for x in state policy
 		do
@@ -218,57 +213,57 @@ setup_xfrm()
 	#
 
 	# host1 - IPv4 out
-	ip -netns host1 xfrm policy add \
+	ip -netns $host1 xfrm policy add \
 	  src ${h1_4} dst ${h2_4} ${devarg} dir out \
 	  tmpl src ${HOST1_4} dst ${HOST2_4} proto esp mode tunnel
 
 	# host2 - IPv4 in
-	ip -netns host2 xfrm policy add \
+	ip -netns $host2 xfrm policy add \
 	  src ${h1_4} dst ${h2_4} dir in \
 	  tmpl src ${HOST1_4} dst ${HOST2_4} proto esp mode tunnel
 
 	# host1 - IPv4 in
-	ip -netns host1 xfrm policy add \
+	ip -netns $host1 xfrm policy add \
 	  src ${h2_4} dst ${h1_4} ${devarg} dir in \
 	  tmpl src ${HOST2_4} dst ${HOST1_4} proto esp mode tunnel
 
 	# host2 - IPv4 out
-	ip -netns host2 xfrm policy add \
+	ip -netns $host2 xfrm policy add \
 	  src ${h2_4} dst ${h1_4} dir out \
 	  tmpl src ${HOST2_4} dst ${HOST1_4} proto esp mode tunnel
 
 
 	# host1 - IPv6 out
-	ip -6 -netns host1 xfrm policy add \
+	ip -6 -netns $host1 xfrm policy add \
 	  src ${h1_6} dst ${h2_6} ${devarg} dir out \
 	  tmpl src ${HOST1_6} dst ${HOST2_6} proto esp mode tunnel
 
 	# host2 - IPv6 in
-	ip -6 -netns host2 xfrm policy add \
+	ip -6 -netns $host2 xfrm policy add \
 	  src ${h1_6} dst ${h2_6} dir in \
 	  tmpl src ${HOST1_6} dst ${HOST2_6} proto esp mode tunnel
 
 	# host1 - IPv6 in
-	ip -6 -netns host1 xfrm policy add \
+	ip -6 -netns $host1 xfrm policy add \
 	  src ${h2_6} dst ${h1_6} ${devarg} dir in \
 	  tmpl src ${HOST2_6} dst ${HOST1_6} proto esp mode tunnel
 
 	# host2 - IPv6 out
-	ip -6 -netns host2 xfrm policy add \
+	ip -6 -netns $host2 xfrm policy add \
 	  src ${h2_6} dst ${h1_6} dir out \
 	  tmpl src ${HOST2_6} dst ${HOST1_6} proto esp mode tunnel
 
 	#
 	# state
 	#
-	ip -netns host1 xfrm state add src ${HOST1_4} dst ${HOST2_4} \
+	ip -netns $host1 xfrm state add src ${HOST1_4} dst ${HOST2_4} \
 	    proto esp spi ${SPI_1} reqid 0 mode tunnel \
 	    replay-window 4 replay-oseq 0x4 \
 	    auth-trunc 'hmac(sha1)' ${AUTH_1} 96 \
 	    enc 'cbc(aes)' ${ENC_1} \
 	    sel src ${h1_4} dst ${h2_4} ${devarg}
 
-	ip -netns host2 xfrm state add src ${HOST1_4} dst ${HOST2_4} \
+	ip -netns $host2 xfrm state add src ${HOST1_4} dst ${HOST2_4} \
 	    proto esp spi ${SPI_1} reqid 0 mode tunnel \
 	    replay-window 4 replay-oseq 0x4 \
 	    auth-trunc 'hmac(sha1)' ${AUTH_1} 96 \
@@ -276,14 +271,14 @@ setup_xfrm()
 	    sel src ${h1_4} dst ${h2_4}
 
 
-	ip -netns host1 xfrm state add src ${HOST2_4} dst ${HOST1_4} \
+	ip -netns $host1 xfrm state add src ${HOST2_4} dst ${HOST1_4} \
 	    proto esp spi ${SPI_2} reqid 0 mode tunnel \
 	    replay-window 4 replay-oseq 0x4 \
 	    auth-trunc 'hmac(sha1)' ${AUTH_2} 96 \
 	    enc 'cbc(aes)' ${ENC_2} \
 	    sel src ${h2_4} dst ${h1_4} ${devarg}
 
-	ip -netns host2 xfrm state add src ${HOST2_4} dst ${HOST1_4} \
+	ip -netns $host2 xfrm state add src ${HOST2_4} dst ${HOST1_4} \
 	    proto esp spi ${SPI_2} reqid 0 mode tunnel \
 	    replay-window 4 replay-oseq 0x4 \
 	    auth-trunc 'hmac(sha1)' ${AUTH_2} 96 \
@@ -291,14 +286,14 @@ setup_xfrm()
 	    sel src ${h2_4} dst ${h1_4}
 
 
-	ip -6 -netns host1 xfrm state add src ${HOST1_6} dst ${HOST2_6} \
+	ip -6 -netns $host1 xfrm state add src ${HOST1_6} dst ${HOST2_6} \
 	    proto esp spi ${SPI_1} reqid 0 mode tunnel \
 	    replay-window 4 replay-oseq 0x4 \
 	    auth-trunc 'hmac(sha1)' ${AUTH_1} 96 \
 	    enc 'cbc(aes)' ${ENC_1} \
 	    sel src ${h1_6} dst ${h2_6} ${devarg}
 
-	ip -6 -netns host2 xfrm state add src ${HOST1_6} dst ${HOST2_6} \
+	ip -6 -netns $host2 xfrm state add src ${HOST1_6} dst ${HOST2_6} \
 	    proto esp spi ${SPI_1} reqid 0 mode tunnel \
 	    replay-window 4 replay-oseq 0x4 \
 	    auth-trunc 'hmac(sha1)' ${AUTH_1} 96 \
@@ -306,14 +301,14 @@ setup_xfrm()
 	    sel src ${h1_6} dst ${h2_6}
 
 
-	ip -6 -netns host1 xfrm state add src ${HOST2_6} dst ${HOST1_6} \
+	ip -6 -netns $host1 xfrm state add src ${HOST2_6} dst ${HOST1_6} \
 	    proto esp spi ${SPI_2} reqid 0 mode tunnel \
 	    replay-window 4 replay-oseq 0x4 \
 	    auth-trunc 'hmac(sha1)' ${AUTH_2} 96 \
 	    enc 'cbc(aes)' ${ENC_2} \
 	    sel src ${h2_6} dst ${h1_6} ${devarg}
 
-	ip -6 -netns host2 xfrm state add src ${HOST2_6} dst ${HOST1_6} \
+	ip -6 -netns $host2 xfrm state add src ${HOST2_6} dst ${HOST1_6} \
 	    proto esp spi ${SPI_2} reqid 0 mode tunnel \
 	    replay-window 4 replay-oseq 0x4 \
 	    auth-trunc 'hmac(sha1)' ${AUTH_2} 96 \
@@ -323,22 +318,22 @@ setup_xfrm()
 
 cleanup_xfrm_dev()
 {
-	ip -netns host1 li del xfrm0
-	ip -netns host2 addr del ${XFRM2_4}/24 dev eth0
-	ip -netns host2 addr del ${XFRM2_6}/64 dev eth0
+	ip -netns $host1 li del xfrm0
+	ip -netns $host2 addr del ${XFRM2_4}/24 dev eth0
+	ip -netns $host2 addr del ${XFRM2_6}/64 dev eth0
 }
 
 setup_xfrm_dev()
 {
 	local vrfarg="vrf ${VRF}"
 
-	ip -netns host1 li add type xfrm dev eth0 if_id ${IF_ID}
-	ip -netns host1 li set xfrm0 ${vrfarg} up
-	ip -netns host1 addr add ${XFRM1_4}/24 dev xfrm0
-	ip -netns host1 addr add ${XFRM1_6}/64 dev xfrm0
+	ip -netns $host1 li add type xfrm dev eth0 if_id ${IF_ID}
+	ip -netns $host1 li set xfrm0 ${vrfarg} up
+	ip -netns $host1 addr add ${XFRM1_4}/24 dev xfrm0
+	ip -netns $host1 addr add ${XFRM1_6}/64 dev xfrm0
 
-	ip -netns host2 addr add ${XFRM2_4}/24 dev eth0
-	ip -netns host2 addr add ${XFRM2_6}/64 dev eth0
+	ip -netns $host2 addr add ${XFRM2_4}/24 dev eth0
+	ip -netns $host2 addr add ${XFRM2_6}/64 dev eth0
 
 	setup_xfrm ${XFRM1_4} ${XFRM2_4} ${XFRM1_6} ${XFRM2_6} "if_id ${IF_ID}"
 }

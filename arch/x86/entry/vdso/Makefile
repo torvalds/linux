@@ -3,13 +3,15 @@
 # Building vDSO images for x86.
 #
 
-# Include the generic Makefile to check the built vdso.
+# Include the generic Makefile to check the built vDSO:
 include $(srctree)/lib/vdso/Makefile
 
 # Sanitizer runtimes are unavailable and cannot be linked here.
 KASAN_SANITIZE			:= n
 KMSAN_SANITIZE_vclock_gettime.o := n
+KMSAN_SANITIZE_vdso32/vclock_gettime.o	:= n
 KMSAN_SANITIZE_vgetcpu.o	:= n
+KMSAN_SANITIZE_vdso32/vgetcpu.o	:= n
 
 UBSAN_SANITIZE			:= n
 KCSAN_SANITIZE			:= n
@@ -18,47 +20,40 @@ OBJECT_FILES_NON_STANDARD	:= y
 # Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
 KCOV_INSTRUMENT		:= n
 
-VDSO64-$(CONFIG_X86_64)		:= y
-VDSOX32-$(CONFIG_X86_X32_ABI)	:= y
-VDSO32-$(CONFIG_X86_32)		:= y
-VDSO32-$(CONFIG_IA32_EMULATION)	:= y
-
-# files to link into the vdso
+# Files to link into the vDSO:
 vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o
 vobjs32-y := vdso32/note.o vdso32/system_call.o vdso32/sigreturn.o
 vobjs32-y += vdso32/vclock_gettime.o vdso32/vgetcpu.o
 vobjs-$(CONFIG_X86_SGX)	+= vsgx.o
 
-# files to link into kernel
-obj-y					+= vma.o extable.o
-KASAN_SANITIZE_vma.o			:= y
-UBSAN_SANITIZE_vma.o			:= y
-KCSAN_SANITIZE_vma.o			:= y
-OBJECT_FILES_NON_STANDARD_vma.o		:= n
-OBJECT_FILES_NON_STANDARD_extable.o	:= n
+# Files to link into the kernel:
+obj-y						+= vma.o extable.o
+KASAN_SANITIZE_vma.o				:= y
+UBSAN_SANITIZE_vma.o				:= y
+KCSAN_SANITIZE_vma.o				:= y
 
-# vDSO images to build
-vdso_img-$(VDSO64-y)		+= 64
-vdso_img-$(VDSOX32-y)		+= x32
-vdso_img-$(VDSO32-y)		+= 32
+OBJECT_FILES_NON_STANDARD_vma.o			:= n
+OBJECT_FILES_NON_STANDARD_extable.o		:= n
 
-obj-$(VDSO32-y)			+= vdso32-setup.o
+# vDSO images to build:
+obj-$(CONFIG_X86_64)				+= vdso-image-64.o
+obj-$(CONFIG_X86_X32_ABI)			+= vdso-image-x32.o
+obj-$(CONFIG_COMPAT_32)				+= vdso-image-32.o vdso32-setup.o
 
-vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
-vobjs32 := $(foreach F,$(vobjs32-y),$(obj)/$F)
+OBJECT_FILES_NON_STANDARD_vdso-image-32.o	:= n
+OBJECT_FILES_NON_STANDARD_vdso-image-x32.o	:= n
+OBJECT_FILES_NON_STANDARD_vdso-image-64.o	:= n
+OBJECT_FILES_NON_STANDARD_vdso32-setup.o	:= n
+
+vobjs := $(addprefix $(obj)/, $(vobjs-y))
+vobjs32 := $(addprefix $(obj)/, $(vobjs32-y))
 
 $(obj)/vdso.o: $(obj)/vdso.so
 
 targets += vdso.lds $(vobjs-y)
 targets += vdso32/vdso32.lds $(vobjs32-y)
 
-# Build the vDSO image C files and link them in.
-vdso_img_objs := $(vdso_img-y:%=vdso-image-%.o)
-vdso_img_cfiles := $(vdso_img-y:%=vdso-image-%.c)
-vdso_img_sodbg := $(vdso_img-y:%=vdso%.so.dbg)
-obj-y += $(vdso_img_objs)
-targets += $(vdso_img_cfiles)
-targets += $(vdso_img_sodbg) $(vdso_img-y:%=vdso%.so)
+targets += $(foreach x, 64 x32 32, vdso-image-$(x).c vdso$(x).so vdso$(x).so.dbg)
 
 CPPFLAGS_vdso.lds += -P -C
 
@@ -86,7 +81,7 @@ CFL := $(PROFILING) -mcmodel=small -fPIC -O2 -fasynchronous-unwind-tables -m64 \
        -fno-omit-frame-pointer -foptimize-sibling-calls \
        -DDISABLE_BRANCH_PROFILING -DBUILD_VDSO
 
-ifdef CONFIG_RETPOLINE
+ifdef CONFIG_MITIGATION_RETPOLINE
 ifneq ($(RETPOLINE_VDSO_CFLAGS),)
   CFL += $(RETPOLINE_VDSO_CFLAGS)
 endif
@@ -122,7 +117,7 @@ VDSO_LDFLAGS_vdsox32.lds = -m elf32_x86_64 -soname linux-vdso.so.1 \
 vobjx32s-y := $(vobjs-y:.o=-x32.o)
 
 # same thing, but in the output directory
-vobjx32s := $(foreach F,$(vobjx32s-y),$(obj)/$F)
+vobjx32s := $(addprefix $(obj)/, $(vobjx32s-y))
 
 # Convert 64bit object file to x32 for x32 vDSO.
 quiet_cmd_x32 = X32     $@
@@ -163,7 +158,7 @@ KBUILD_CFLAGS_32 += $(call cc-option, -foptimize-sibling-calls)
 KBUILD_CFLAGS_32 += -fno-omit-frame-pointer
 KBUILD_CFLAGS_32 += -DDISABLE_BRANCH_PROFILING
 
-ifdef CONFIG_RETPOLINE
+ifdef CONFIG_MITIGATION_RETPOLINE
 ifneq ($(RETPOLINE_VDSO_CFLAGS),)
   KBUILD_CFLAGS_32 += $(RETPOLINE_VDSO_CFLAGS)
 endif
@@ -189,32 +184,3 @@ GCOV_PROFILE := n
 
 quiet_cmd_vdso_and_check = VDSO    $@
       cmd_vdso_and_check = $(cmd_vdso); $(cmd_vdso_check)
-
-#
-# Install the unstripped copies of vdso*.so.  If our toolchain supports
-# build-id, install .build-id links as well.
-#
-quiet_cmd_vdso_install = INSTALL $(@:install_%=%)
-define cmd_vdso_install
-	cp $< "$(MODLIB)/vdso/$(@:install_%=%)"; \
-	if readelf -n $< |grep -q 'Build ID'; then \
-	  buildid=`readelf -n $< |grep 'Build ID' |sed -e 's/^.*Build ID: \(.*\)$$/\1/'`; \
-	  first=`echo $$buildid | cut -b-2`; \
-	  last=`echo $$buildid | cut -b3-`; \
-	  mkdir -p "$(MODLIB)/vdso/.build-id/$$first"; \
-	  ln -sf "../../$(@:install_%=%)" "$(MODLIB)/vdso/.build-id/$$first/$$last.debug"; \
-	fi
-endef
-
-vdso_img_insttargets := $(vdso_img_sodbg:%.dbg=install_%)
-
-$(MODLIB)/vdso: FORCE
-	@mkdir -p $(MODLIB)/vdso
-
-$(vdso_img_insttargets): install_%: $(obj)/%.dbg $(MODLIB)/vdso
-	$(call cmd,vdso_install)
-
-PHONY += vdso_install $(vdso_img_insttargets)
-vdso_install: $(vdso_img_insttargets)
-
-clean-files := vdso32.so vdso32.so.dbg vdso64* vdso-image-*.c vdsox32.so*

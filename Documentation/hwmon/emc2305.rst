@@ -6,7 +6,6 @@ Kernel driver emc2305
 Supported chips:
    Microchip EMC2305, EMC2303, EMC2302, EMC2301
 
-   Addresses scanned: I2C 0x27, 0x2c, 0x2d, 0x2e, 0x2f, 0x4c, 0x4d
    Prefixes: 'emc2305'
 
    Datasheet: Publicly available at the Microchip website :

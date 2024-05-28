@@ -49,11 +49,6 @@
  */
 extern cpm8xx_t __iomem *cpmp; /* Pointer to comm processor */
 
-#define cpm_dpalloc cpm_muram_alloc
-#define cpm_dpfree cpm_muram_free
-#define cpm_dpram_addr cpm_muram_addr
-#define cpm_dpram_phys cpm_muram_dma
-
 extern void cpm_setbrg(uint brg, uint rate);
 
 extern void __init cpm_load_patch(cpm8xx_t *cp);

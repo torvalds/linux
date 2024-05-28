@@ -12,8 +12,6 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/acpi.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mutex.h>
@@ -134,7 +132,7 @@ static int rt5682_sdw_hw_params(struct snd_pcm_substream *substream,
 	retval = sdw_stream_add_slave(rt5682->slave, &stream_config,
 				      &port_config, 1, sdw_stream);
 	if (retval) {
-		dev_err(dai->dev, "Unable to configure port\n");
+		dev_err(dai->dev, "%s: Unable to configure port\n", __func__);
 		return retval;
 	}
 
@@ -317,10 +315,18 @@ static int rt5682_sdw_init(struct device *dev, struct regmap *regmap,
 					  &rt5682_sdw_indirect_regmap);
 	if (IS_ERR(rt5682->regmap)) {
 		ret = PTR_ERR(rt5682->regmap);
-		dev_err(dev, "Failed to allocate register map: %d\n",
-			ret);
+		dev_err(dev, "%s: Failed to allocate register map: %d\n",
+			__func__, ret);
 		return ret;
 	}
+
+
+	ret = rt5682_get_ldo1(rt5682, dev);
+	if (ret)
+		return ret;
+
+	regcache_cache_only(rt5682->sdw_regmap, true);
+	regcache_cache_only(rt5682->regmap, true);
 
 	/*
 	 * Mark hw_init to false
@@ -336,7 +342,25 @@ static int rt5682_sdw_init(struct device *dev, struct regmap *regmap,
 	ret = devm_snd_soc_register_component(dev,
 					      &rt5682_soc_component_dev,
 					      rt5682_dai, ARRAY_SIZE(rt5682_dai));
-	dev_dbg(&slave->dev, "%s\n", __func__);
+	if (ret < 0)
+		return ret;
+
+	/* set autosuspend parameters */
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+
+	/* make sure the device does not suspend immediately */
+	pm_runtime_mark_last_busy(dev);
+
+	pm_runtime_enable(dev);
+
+	/* important note: the device is NOT tagged as 'active' and will remain
+	 * 'suspended' until the hardware is enumerated/initialized. This is required
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * fail with -EACCESS because of race conditions between card creation and enumeration
+	 */
+
+	dev_dbg(dev, "%s\n", __func__);
 
 	return ret;
 }
@@ -352,29 +376,19 @@ static int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt5682->hw_init)
 		return 0;
 
-	/*
-	 * PM runtime is only enabled when a Slave reports as Attached
-	 */
-	if (!rt5682->first_hw_init) {
-		/* set autosuspend parameters */
-		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
-		pm_runtime_use_autosuspend(&slave->dev);
+	regcache_cache_only(rt5682->sdw_regmap, false);
+	regcache_cache_only(rt5682->regmap, false);
+	if (rt5682->first_hw_init)
+		regcache_cache_bypass(rt5682->regmap, true);
 
+	/*
+	 * PM runtime status is marked as 'active' only when a Slave reports as Attached
+	 */
+	if (!rt5682->first_hw_init)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-		/* make sure the device does not suspend immediately */
-		pm_runtime_mark_last_busy(&slave->dev);
-
-		pm_runtime_enable(&slave->dev);
-	}
-
 	pm_runtime_get_noresume(&slave->dev);
-
-	if (rt5682->first_hw_init) {
-		regcache_cache_only(rt5682->regmap, false);
-		regcache_cache_bypass(rt5682->regmap, true);
-	}
 
 	while (loop > 0) {
 		regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
@@ -386,7 +400,7 @@ static int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 	}
 
 	if (val != DEVICE_ID) {
-		dev_err(dev, "Device with ID register %x is not rt5682\n", val);
+		dev_err(dev, "%s: Device with ID register %x is not rt5682\n", __func__, val);
 		ret = -ENODEV;
 		goto err_nodev;
 	}
@@ -634,7 +648,7 @@ static int rt5682_bus_config(struct sdw_slave *slave,
 
 	ret = rt5682_clock_config(&slave->dev);
 	if (ret < 0)
-		dev_err(&slave->dev, "Invalid clk config");
+		dev_err(&slave->dev, "%s: Invalid clk config", __func__);
 
 	return ret;
 }
@@ -674,9 +688,7 @@ static int rt5682_sdw_probe(struct sdw_slave *slave,
 	if (IS_ERR(regmap))
 		return -EINVAL;
 
-	rt5682_sdw_init(&slave->dev, regmap, slave);
-
-	return 0;
+	return rt5682_sdw_init(&slave->dev, regmap, slave);
 }
 
 static int rt5682_sdw_remove(struct sdw_slave *slave)
@@ -686,8 +698,7 @@ static int rt5682_sdw_remove(struct sdw_slave *slave)
 	if (rt5682->hw_init)
 		cancel_delayed_work_sync(&rt5682->jack_detect_work);
 
-	if (rt5682->first_hw_init)
-		pm_runtime_disable(&slave->dev);
+	pm_runtime_disable(&slave->dev);
 
 	return 0;
 }
@@ -707,6 +718,7 @@ static int __maybe_unused rt5682_dev_suspend(struct device *dev)
 
 	cancel_delayed_work_sync(&rt5682->jack_detect_work);
 
+	regcache_cache_only(rt5682->sdw_regmap, true);
 	regcache_cache_only(rt5682->regmap, true);
 	regcache_mark_dirty(rt5682->regmap);
 
@@ -751,19 +763,19 @@ static int __maybe_unused rt5682_dev_resume(struct device *dev)
 		return 0;
 
 	if (!slave->unattach_request) {
+		mutex_lock(&rt5682->disable_irq_lock);
 		if (rt5682->disable_irq == true) {
-			mutex_lock(&rt5682->disable_irq_lock);
 			sdw_write_no_pm(slave, SDW_SCP_INTMASK1, SDW_SCP_INT1_IMPL_DEF);
 			rt5682->disable_irq = false;
-			mutex_unlock(&rt5682->disable_irq_lock);
 		}
+		mutex_unlock(&rt5682->disable_irq_lock);
 		goto regmap_sync;
 	}
 
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT5682_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n", __func__);
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;
@@ -771,6 +783,7 @@ static int __maybe_unused rt5682_dev_resume(struct device *dev)
 
 regmap_sync:
 	slave->unattach_request = 0;
+	regcache_cache_only(rt5682->sdw_regmap, false);
 	regcache_cache_only(rt5682->regmap, false);
 	regcache_sync(rt5682->regmap);
 

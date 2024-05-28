@@ -18,6 +18,7 @@ struct arch_hw_breakpoint {
 	u16		len; /* length of the target data symbol */
 	u16		hw_len; /* length programmed in hw */
 	u8		flags;
+	bool		perf_single_step; /* temporarily uninstalled for a perf single step */
 };
 
 /* Note: Don't change the first 6 bits below as they are in the same order

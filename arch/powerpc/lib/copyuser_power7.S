@@ -298,17 +298,7 @@ err1;	stb	r0,0(r3)
 	or	r7,r7,r0
 	ori	r10,r7,1	/* stream=1 */
 
-	lis	r8,0x8000	/* GO=1 */
-	clrldi	r8,r8,32
-
-	/* setup read stream 0 */
-	dcbt	0,r6,0b01000   /* addr from */
-	dcbt	0,r7,0b01010   /* length and depth from */
-	/* setup write stream 1 */
-	dcbtst	0,r9,0b01000   /* addr to */
-	dcbtst	0,r10,0b01010  /* length and depth to */
-	eieio
-	dcbt	0,r8,0b01010	/* all streams GO */
+	DCBT_SETUP_STREAMS(r6, r7, r9, r10, r8)
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
 

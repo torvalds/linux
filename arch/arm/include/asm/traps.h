@@ -2,6 +2,7 @@
 #ifndef _ASMARM_TRAP_H
 #define _ASMARM_TRAP_H
 
+#include <linux/linkage.h>
 #include <linux/list.h>
 
 struct pt_regs;
@@ -28,7 +29,7 @@ static inline int __in_irqentry_text(unsigned long ptr)
 	       ptr < (unsigned long)&__irqentry_text_end;
 }
 
-extern void __init early_trap_init(void *);
+extern void early_trap_init(void *);
 extern void dump_backtrace_entry(unsigned long where, unsigned long from,
 				 unsigned long frame, const char *loglvl);
 extern void ptrace_break(struct pt_regs *regs);

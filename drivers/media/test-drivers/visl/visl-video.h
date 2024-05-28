@@ -17,6 +17,7 @@ extern const struct visl_ctrls visl_vp8_ctrls;
 extern const struct visl_ctrls visl_vp9_ctrls;
 extern const struct visl_ctrls visl_h264_ctrls;
 extern const struct visl_ctrls visl_hevc_ctrls;
+extern const struct visl_ctrls visl_av1_ctrls;
 
 int visl_queue_init(void *priv, struct vb2_queue *src_vq,
 		    struct vb2_queue *dst_vq);

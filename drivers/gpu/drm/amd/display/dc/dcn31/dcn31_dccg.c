@@ -285,19 +285,11 @@ void dccg31_enable_symclk32_le(
 	/* select one of the PHYD32CLKs as the source for symclk32_le */
 	switch (hpo_le_inst) {
 	case 0:
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
-			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
-					SYMCLK32_LE0_GATE_DISABLE, 1,
-					SYMCLK32_ROOT_LE0_GATE_DISABLE, 1);
 		REG_UPDATE_2(SYMCLK32_LE_CNTL,
 				SYMCLK32_LE0_SRC_SEL, phyd32clk,
 				SYMCLK32_LE0_EN, 1);
 		break;
 	case 1:
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
-			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
-					SYMCLK32_LE1_GATE_DISABLE, 1,
-					SYMCLK32_ROOT_LE1_GATE_DISABLE, 1);
 		REG_UPDATE_2(SYMCLK32_LE_CNTL,
 				SYMCLK32_LE1_SRC_SEL, phyd32clk,
 				SYMCLK32_LE1_EN, 1);
@@ -320,19 +312,38 @@ void dccg31_disable_symclk32_le(
 		REG_UPDATE_2(SYMCLK32_LE_CNTL,
 				SYMCLK32_LE0_SRC_SEL, 0,
 				SYMCLK32_LE0_EN, 0);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
-			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
-					SYMCLK32_LE0_GATE_DISABLE, 0,
-					SYMCLK32_ROOT_LE0_GATE_DISABLE, 0);
 		break;
 	case 1:
 		REG_UPDATE_2(SYMCLK32_LE_CNTL,
 				SYMCLK32_LE1_SRC_SEL, 0,
 				SYMCLK32_LE1_EN, 0);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
-			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
-					SYMCLK32_LE1_GATE_DISABLE, 0,
-					SYMCLK32_ROOT_LE1_GATE_DISABLE, 0);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_set_symclk32_le_root_clock_gating(
+		struct dccg *dccg,
+		int hpo_le_inst,
+		bool enable)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
+		return;
+
+	switch (hpo_le_inst) {
+	case 0:
+		REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+				SYMCLK32_LE0_GATE_DISABLE, enable ? 1 : 0,
+				SYMCLK32_ROOT_LE0_GATE_DISABLE, enable ? 1 : 0);
+		break;
+	case 1:
+		REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+				SYMCLK32_LE1_GATE_DISABLE, enable ? 1 : 0,
+				SYMCLK32_ROOT_LE1_GATE_DISABLE, enable ? 1 : 0);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -661,10 +672,8 @@ void dccg31_init(struct dccg *dccg)
 	dccg31_disable_symclk32_se(dccg, 2);
 	dccg31_disable_symclk32_se(dccg, 3);
 
-	if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le) {
-		dccg31_disable_symclk32_le(dccg, 0);
-		dccg31_disable_symclk32_le(dccg, 1);
-	}
+	dccg31_set_symclk32_le_root_clock_gating(dccg, 0, false);
+	dccg31_set_symclk32_le_root_clock_gating(dccg, 1, false);
 
 	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream) {
 		dccg31_disable_dpstreamclk(dccg, 0);

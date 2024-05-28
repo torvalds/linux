@@ -269,43 +269,32 @@ static int dw_spi_bt1_probe(struct platform_device *pdev)
 
 	dws->paddr = mem->start;
 
-	dwsbt1->clk = devm_clk_get(&pdev->dev, NULL);
+	dwsbt1->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(dwsbt1->clk))
 		return PTR_ERR(dwsbt1->clk);
-
-	ret = clk_prepare_enable(dwsbt1->clk);
-	if (ret)
-		return ret;
 
 	dws->bus_num = pdev->id;
 	dws->reg_io_width = 4;
 	dws->max_freq = clk_get_rate(dwsbt1->clk);
-	if (!dws->max_freq) {
-		ret = -EINVAL;
-		goto err_disable_clk;
-	}
+	if (!dws->max_freq)
+		return -EINVAL;
 
 	init_func = device_get_match_data(&pdev->dev);
 	ret = init_func(pdev, dwsbt1);
 	if (ret)
-		goto err_disable_clk;
+		return ret;
 
 	pm_runtime_enable(&pdev->dev);
 
 	ret = dw_spi_add_host(&pdev->dev, dws);
 	if (ret) {
 		pm_runtime_disable(&pdev->dev);
-		goto err_disable_clk;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, dwsbt1);
 
 	return 0;
-
-err_disable_clk:
-	clk_disable_unprepare(dwsbt1->clk);
-
-	return ret;
 }
 
 static void dw_spi_bt1_remove(struct platform_device *pdev)
@@ -315,8 +304,6 @@ static void dw_spi_bt1_remove(struct platform_device *pdev)
 	dw_spi_remove_host(&dwsbt1->dws);
 
 	pm_runtime_disable(&pdev->dev);
-
-	clk_disable_unprepare(dwsbt1->clk);
 }
 
 static const struct of_device_id dw_spi_bt1_of_match[] = {

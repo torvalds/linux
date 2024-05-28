@@ -46,6 +46,7 @@ struct rtw8723du_efuse {
 	u8 vender_id[2];                /* 0x100 */
 	u8 product_id[2];               /* 0x102 */
 	u8 usb_option;                  /* 0x104 */
+	u8 res5[2];			/* 0x105 */
 	u8 mac_addr[ETH_ALEN];          /* 0x107 */
 };
 

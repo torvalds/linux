@@ -48,10 +48,12 @@ properties:
       "^LDO[1-4]$":
         type: object
         $ref: regulator.yaml#
+        unevaluatedProperties: false
 
       "^BUCK|BOOST$":
         type: object
         $ref: regulator.yaml#
+        unevaluatedProperties: false
 
     additionalProperties: false
 

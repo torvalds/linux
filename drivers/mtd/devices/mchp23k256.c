@@ -15,7 +15,7 @@
 #include <linux/sizes.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #define MAX_CMD_SIZE		4
 

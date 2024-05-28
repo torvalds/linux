@@ -132,8 +132,8 @@ struct atomisp_input_subdev {
 	/* Sensor rects for sensors which support crop */
 	struct v4l2_rect native_rect;
 	struct v4l2_rect active_rect;
-	/* Sensor pad_cfg for which == V4L2_SUBDEV_FORMAT_TRY calls */
-	struct v4l2_subdev_pad_config pad_cfg;
+	/* Sensor state for which == V4L2_SUBDEV_FORMAT_TRY calls */
+	struct v4l2_subdev_state *try_sd_state;
 
 	struct v4l2_subdev *motor;
 
@@ -192,6 +192,7 @@ struct atomisp_device {
 	struct dev_pm_domain pm_domain;
 	struct pm_qos_request pm_qos;
 	s32 max_isr_latency;
+	bool pm_only;
 
 	struct atomisp_mipi_csi2_device csi2_port[ATOMISP_CAMERA_NR_PORTS];
 	struct atomisp_tpg_device tpg;

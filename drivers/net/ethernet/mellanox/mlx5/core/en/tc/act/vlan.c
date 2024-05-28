@@ -166,6 +166,7 @@ tc_act_parse_vlan(struct mlx5e_tc_act_parse_state *parse_state,
 		return err;
 
 	esw_attr->split_count = esw_attr->out_count;
+	parse_state->if_count = 0;
 
 	return 0;
 }

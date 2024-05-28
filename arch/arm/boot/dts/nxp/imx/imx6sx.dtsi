@@ -221,7 +221,7 @@
 			clocks = <&clks IMX6SX_CLK_APBH_DMA>;
 		};
 
-		gpmi: nand-controller@1806000{
+		gpmi: nand-controller@1806000 {
 			compatible = "fsl,imx6sx-gpmi-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -418,7 +418,7 @@
 					       <&sdma 21 23 1>, <&sdma 22 23 1>;
 					dma-names = "rxa", "rxb", "rxc",
 						    "txa", "txb", "txc";
-					fsl,asrc-rate  = <48000>;
+					fsl,asrc-rate = <48000>;
 					fsl,asrc-width = <16>;
 					status = "okay";
 				};
@@ -1010,7 +1010,7 @@
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
 				fsl,tuning-start-tap = <20>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
 
@@ -1024,7 +1024,7 @@
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
 				fsl,tuning-start-tap = <20>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
 
@@ -1038,7 +1038,7 @@
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
 				fsl,tuning-start-tap = <20>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
 
@@ -1107,7 +1107,7 @@
 				status = "disabled";
 			};
 
-			weim: weim@21b8000 {
+			weim: memory-controller@21b8000 {
 				#address-cells = <2>;
 				#size-cells = <1>;
 				compatible = "fsl,imx6sx-weim", "fsl,imx6q-weim";
@@ -1311,6 +1311,10 @@
 						 <&clks IMX6SX_CLK_LCDIF_APB>,
 						 <&clks IMX6SX_CLK_DISPLAY_AXI>;
 					clock-names = "pix", "axi", "disp_axi";
+					assigned-clocks = <&clks IMX6SX_CLK_LCDIF1_PRE_SEL>,
+							  <&clks IMX6SX_CLK_LCDIF1_SEL>;
+					assigned-clock-parents = <&clks IMX6SX_CLK_PLL5_VIDEO_DIV>,
+								 <&clks IMX6SX_CLK_LCDIF1_PODF>;
 					power-domains = <&pd_disp>;
 					status = "disabled";
 

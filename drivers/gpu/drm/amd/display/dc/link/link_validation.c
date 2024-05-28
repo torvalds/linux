@@ -125,12 +125,11 @@ static bool dp_active_dongle_validate_timing(
 		if (dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps > 0) { // DP to HDMI FRL converter
 			struct dc_crtc_timing outputTiming = *timing;
 
-#if defined(CONFIG_DRM_AMD_DC_FP)
 			if (timing->flags.DSC && !timing->dsc_cfg.is_frl)
 				/* DP input has DSC, HDMI FRL output doesn't have DSC, remove DSC from output timing */
 				outputTiming.flags.DSC = 0;
-#endif
-			if (dc_bandwidth_in_kbps_from_timing(&outputTiming) > dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps)
+			if (dc_bandwidth_in_kbps_from_timing(&outputTiming, DC_LINK_ENCODING_HDMI_FRL) >
+					dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps)
 				return false;
 		} else { // DP to HDMI TMDS converter
 			if (get_tmds_output_pixel_clock_100hz(timing) > (dongle_caps->dp_hdmi_max_pixel_clk_in_khz * 10))
@@ -285,7 +284,7 @@ static bool dp_validate_mode_timing(
 		link_setting = &link->verified_link_cap;
 	*/
 
-	req_bw = dc_bandwidth_in_kbps_from_timing(timing);
+	req_bw = dc_bandwidth_in_kbps_from_timing(timing, dc_link_get_highest_encoding_format(link));
 	max_bw = dp_link_bandwidth_kbps(link, link_setting);
 
 	if (req_bw <= max_bw) {
@@ -345,22 +344,61 @@ enum dc_status link_validate_mode_timing(
 	return DC_OK;
 }
 
+/*
+ * This function calculates the bandwidth required for the stream timing
+ * and aggregates the stream bandwidth for the respective dpia link
+ *
+ * @stream: pointer to the dc_stream_state struct instance
+ * @num_streams: number of streams to be validated
+ *
+ * return: true if validation is succeeded
+ */
 bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const unsigned int num_streams)
 {
-	bool ret = true;
-	int bw_needed[MAX_DPIA_NUM];
-	struct dc_link *link[MAX_DPIA_NUM];
+	int bw_needed[MAX_DPIA_NUM] = {0};
+	struct dc_link *dpia_link[MAX_DPIA_NUM] = {0};
+	int num_dpias = 0;
 
-	if (!num_streams || num_streams > MAX_DPIA_NUM)
-		return ret;
+	for (unsigned int i = 0; i < num_streams; ++i) {
+		if (stream[i].signal == SIGNAL_TYPE_DISPLAY_PORT) {
+			/* new dpia sst stream, check whether it exceeds max dpia */
+			if (num_dpias >= MAX_DPIA_NUM)
+				return false;
 
-	for (uint8_t i = 0; i < num_streams; ++i) {
+			dpia_link[num_dpias] = stream[i].link;
+			bw_needed[num_dpias] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing,
+					dc_link_get_highest_encoding_format(dpia_link[num_dpias]));
+			num_dpias++;
+		} else if (stream[i].signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+			uint8_t j = 0;
+			/* check whether its a known dpia link */
+			for (; j < num_dpias; ++j) {
+				if (dpia_link[j] == stream[i].link)
+					break;
+			}
 
-		link[i] = stream[i].link;
-		bw_needed[i] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing);
+			if (j == num_dpias) {
+				/* new dpia mst stream, check whether it exceeds max dpia */
+				if (num_dpias >= MAX_DPIA_NUM)
+					return false;
+				else {
+					dpia_link[j] = stream[i].link;
+					num_dpias++;
+				}
+			}
+
+			bw_needed[j] += dc_bandwidth_in_kbps_from_timing(&stream[i].timing,
+				dc_link_get_highest_encoding_format(dpia_link[j]));
+		}
 	}
 
-	ret = dpia_validate_usb4_bw(link, bw_needed, num_streams);
+	/* Include dp overheads */
+	for (uint8_t i = 0; i < num_dpias; ++i) {
+		int dp_overhead = 0;
 
-	return ret;
+		dp_overhead = link_dp_dpia_get_dp_overhead_in_dp_tunneling(dpia_link[i]);
+		bw_needed[i] += dp_overhead;
+	}
+
+	return dpia_validate_usb4_bw(dpia_link, bw_needed, num_dpias);
 }

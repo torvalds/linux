@@ -2753,7 +2753,7 @@ static void __exit esp_exit(void)
 }
 
 MODULE_DESCRIPTION("ESP SCSI driver core");
-MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 

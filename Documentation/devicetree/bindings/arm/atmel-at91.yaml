@@ -79,6 +79,13 @@ properties:
           - const: atmel,sama5d2
           - const: atmel,sama5
 
+      - description: Microchip SAMA5D29 Curiosity
+        items:
+          - const: microchip,sama5d29-curiosity
+          - const: atmel,sama5d29
+          - const: atmel,sama5d2
+          - const: atmel,sama5
+
       - items:
           - const: atmel,sama5d27
           - const: atmel,sama5d2
@@ -169,6 +176,12 @@ properties:
 
       - items:
           - const: microchip,sama7g5ek # SAMA7G5 Evaluation Kit
+          - const: microchip,sama7g5
+          - const: microchip,sama7
+
+      - description: Microchip SAMA7G54 Curiosity Board
+        items:
+          - const: microchip,sama7g54-curiosity
           - const: microchip,sama7g5
           - const: microchip,sama7
 

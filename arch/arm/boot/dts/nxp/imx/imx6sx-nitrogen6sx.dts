@@ -72,7 +72,6 @@
 		pinctrl-0 = <&pinctrl_reg_wlan>;
 		compatible = "regulator-fixed";
 		clocks = <&clks IMX6SX_CLK_CKO>;
-		clock-names = "slow";
 		regulator-name = "wlan-en";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -196,6 +195,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sgtl5000>;
 		reg = <0x0a>;
+		#sound-dai-cells = <0>;
 		clocks = <&clks IMX6SX_CLK_CKO2>;
 		VDDA-supply = <&reg_1p8v>;
 		VDDIO-supply = <&reg_1p8v>;

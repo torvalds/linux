@@ -146,7 +146,7 @@
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			bmc@0{
+			bmc@0 {
 				label = "bmc";
 				reg = <0x000000 0x2000000>;
 			};
@@ -155,7 +155,7 @@
 				reg = <0x0000000 0x80000>;
 				read-only;
 			};
-			u-boot-env@100000{
+			u-boot-env@100000 {
 				label = "u-boot-env";
 				reg = <0x00100000 0x40000>;
 			};
@@ -303,7 +303,7 @@
 &i2c15 {
 	status = "okay";
 
-	i2c-switch@75 {
+	i2c-mux@75 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;

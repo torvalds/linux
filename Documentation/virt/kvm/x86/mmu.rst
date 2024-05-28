@@ -202,10 +202,22 @@ Shadow pages contain the following information:
     Is 1 if the MMU instance cannot use A/D bits.  EPT did not have A/D
     bits before Haswell; shadow EPT page tables also cannot use A/D bits
     if the L1 hypervisor does not enable them.
+  role.guest_mode:
+    Indicates the shadow page is created for a nested guest.
   role.passthrough:
     The page is not backed by a guest page table, but its first entry
     points to one.  This is set if NPT uses 5-level page tables (host
     CR4.LA57=1) and is shadowing L1's 4-level NPT (L1 CR4.LA57=0).
+  mmu_valid_gen:
+    The MMU generation of this page, used to fast zap of all MMU pages within a
+    VM without blocking vCPUs too long. Specifically, KVM updates the per-VM
+    valid MMU generation which causes the mismatch of mmu_valid_gen for each mmu
+    page. This makes all existing MMU pages obsolete. Obsolete pages can't be
+    used. Therefore, vCPUs must load a new, valid root before re-entering the
+    guest. The MMU generation is only ever '0' or '1'. Note, the TDP MMU doesn't
+    use this field as non-root TDP MMU pages are reachable only from their
+    owning root. Thus it suffices for TDP MMU to use role.invalid in root pages
+    to invalidate all MMU pages.
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
@@ -219,21 +231,30 @@ Shadow pages contain the following information:
     at __pa(sp2->spt).  sp2 will point back at sp1 through parent_pte.
     The spt array forms a DAG structure with the shadow page as a node, and
     guest pages as leaves.
-  gfns:
-    An array of 512 guest frame numbers, one for each present pte.  Used to
-    perform a reverse map from a pte to a gfn. When role.direct is set, any
-    element of this array can be calculated from the gfn field when used, in
-    this case, the array of gfns is not allocated. See role.direct and gfn.
-  root_count:
-    A counter keeping track of how many hardware registers (guest cr3 or
-    pdptrs) are now pointing at the page.  While this counter is nonzero, the
-    page cannot be destroyed.  See role.invalid.
+  shadowed_translation:
+    An array of 512 shadow translation entries, one for each present pte. Used
+    to perform a reverse map from a pte to a gfn as well as its access
+    permission. When role.direct is set, the shadow_translation array is not
+    allocated. This is because the gfn contained in any element of this array
+    can be calculated from the gfn field when used.  In addition, when
+    role.direct is set, KVM does not track access permission for each of the
+    gfn. See role.direct and gfn.
+  root_count / tdp_mmu_root_count:
+     root_count is a reference counter for root shadow pages in Shadow MMU.
+     vCPUs elevate the refcount when getting a shadow page that will be used as
+     a root page, i.e. page that will be loaded into hardware directly (CR3,
+     PDPTRs, nCR3 EPTP). Root pages cannot be destroyed while their refcount is
+     non-zero. See role.invalid. tdp_mmu_root_count is similar but exclusively
+     used in TDP MMU as an atomic refcount.
   parent_ptes:
     The reverse mapping for the pte/ptes pointing at this page's spt. If
     parent_ptes bit 0 is zero, only one spte points at this page and
     parent_ptes points at this single spte, otherwise, there exists multiple
     sptes pointing at this page and (parent_ptes & ~0x1) points at a data
     structure with a list of parent sptes.
+  ptep:
+    The kernel virtual address of the SPTE that points at this shadow page.
+    Used exclusively by the TDP MMU, this field is a union with parent_ptes.
   unsync:
     If true, then the translations in this page may not match the guest's
     translation.  This is equivalent to the state of the tlb when a pte is
@@ -245,7 +266,7 @@ Shadow pages contain the following information:
     unsynchronized children).
   unsync_child_bitmap:
     A bitmap indicating which sptes in spt point (directly or indirectly) at
-    pages that may be unsynchronized.  Used to quickly locate all unsychronized
+    pages that may be unsynchronized.  Used to quickly locate all unsynchronized
     pages reachable from a given page.
   clear_spte_count:
     Only present on 32-bit hosts, where a 64-bit spte cannot be written
@@ -261,6 +282,10 @@ Shadow pages contain the following information:
     since the last time the page table was actually used; if emulation
     is triggered too frequently on this page, KVM will unmap the page
     to avoid emulation in the future.
+  tdp_mmu_page:
+    Is 1 if the shadow page is a TDP MMU page. This variable is used to
+    bifurcate the control flows for KVM when walking any data structure that
+    may contain pages from both TDP MMU and shadow MMU.
 
 Reverse map
 ===========

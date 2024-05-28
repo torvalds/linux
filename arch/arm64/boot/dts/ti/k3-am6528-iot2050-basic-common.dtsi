@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) Siemens AG, 2018-2021
  *
@@ -9,7 +9,9 @@
  * Common bits of the IOT2050 Basic variant, PG1 and PG2
  */
 
+#include "k3-am652.dtsi"
 #include "k3-am65-iot2050-common.dtsi"
+#include "k3-am65-iot2050-arduino-connector.dtsi"
 
 / {
 	memory@80000000 {
@@ -17,21 +19,6 @@
 		/* 1G RAM */
 		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
 	};
-
-	cpus {
-		cpu-map {
-			/delete-node/ cluster1;
-		};
-		/delete-node/ cpu@100;
-		/delete-node/ cpu@101;
-	};
-
-	/delete-node/ l2-cache1;
-};
-
-/* eMMC */
-&sdhci0 {
-	status = "disabled";
 };
 
 &main_pmx0 {
@@ -53,9 +40,4 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
-};
-
-&mcu_r5fss0 {
-	/* lock-step mode not supported on Basic boards */
-	ti,cluster-mode = <0>;
 };

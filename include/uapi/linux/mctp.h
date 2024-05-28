@@ -50,7 +50,14 @@ struct sockaddr_mctp_ext {
 
 #define SIOCMCTPALLOCTAG	(SIOCPROTOPRIVATE + 0)
 #define SIOCMCTPDROPTAG		(SIOCPROTOPRIVATE + 1)
+#define SIOCMCTPALLOCTAG2	(SIOCPROTOPRIVATE + 2)
+#define SIOCMCTPDROPTAG2	(SIOCPROTOPRIVATE + 3)
 
+/* Deprecated: use mctp_ioc_tag_ctl2 / TAG2 ioctls instead, which defines the
+ * MCTP network ID as part of the allocated tag. Using this assumes the default
+ * net ID for allocated tags, which may not give correct behaviour on system
+ * with multiple networks configured.
+ */
 struct mctp_ioc_tag_ctl {
 	mctp_eid_t	peer_addr;
 
@@ -63,6 +70,31 @@ struct mctp_ioc_tag_ctl {
 	 */
 	__u8		tag;
 	__u16		flags;
+};
+
+struct mctp_ioc_tag_ctl2 {
+	/* Peer details: network ID, peer EID, local EID. All set by the
+	 * caller.
+	 *
+	 * Local EID must be MCTP_ADDR_NULL or MCTP_ADDR_ANY in current
+	 * kernels.
+	 */
+	unsigned int	net;
+	mctp_eid_t	peer_addr;
+	mctp_eid_t	local_addr;
+
+	/* Set by caller, but no flags defined currently. Must be 0 */
+	__u16		flags;
+
+	/* For SIOCMCTPALLOCTAG2: must be passed as zero, kernel will
+	 * populate with the allocated tag value. Returned tag value will
+	 * always have TO and PREALLOC set.
+	 *
+	 * For SIOCMCTPDROPTAG2: userspace provides tag value to drop, from
+	 * a prior SIOCMCTPALLOCTAG2 call (and so must have TO and PREALLOC set).
+	 */
+	__u8		tag;
+
 };
 
 #endif /* __UAPI_MCTP_H */

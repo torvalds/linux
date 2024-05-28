@@ -19,8 +19,6 @@ struct nvkm_conn {
 int nvkm_conn_new(struct nvkm_disp *, int index, struct nvbios_connE *,
 		  struct nvkm_conn **);
 void nvkm_conn_del(struct nvkm_conn **);
-void nvkm_conn_init(struct nvkm_conn *);
-void nvkm_conn_fini(struct nvkm_conn *);
 
 #define CONN_MSG(c,l,f,a...) do {                                              \
 	struct nvkm_conn *_conn = (c);                                    \

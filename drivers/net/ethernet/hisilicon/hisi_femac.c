@@ -862,8 +862,8 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 		goto out_disconnect_phy;
 
 	ndev->irq = platform_get_irq(pdev, 0);
-	if (ndev->irq <= 0) {
-		ret = -ENODEV;
+	if (ndev->irq < 0) {
+		ret = ndev->irq;
 		goto out_disconnect_phy;
 	}
 
@@ -893,7 +893,7 @@ out_free_netdev:
 	return ret;
 }
 
-static int hisi_femac_drv_remove(struct platform_device *pdev)
+static void hisi_femac_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct hisi_femac_priv *priv = netdev_priv(ndev);
@@ -904,8 +904,6 @@ static int hisi_femac_drv_remove(struct platform_device *pdev)
 	phy_disconnect(ndev->phydev);
 	clk_disable_unprepare(priv->clk);
 	free_netdev(ndev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -961,7 +959,7 @@ static struct platform_driver hisi_femac_driver = {
 		.of_match_table = hisi_femac_match,
 	},
 	.probe = hisi_femac_drv_probe,
-	.remove = hisi_femac_drv_remove,
+	.remove_new = hisi_femac_drv_remove,
 #ifdef CONFIG_PM
 	.suspend = hisi_femac_drv_suspend,
 	.resume = hisi_femac_drv_resume,

@@ -6,11 +6,17 @@
         "SampleAfterValue": "200003"
     },
     {
-        "BriefDescription": "Counts the number of core cycles the fetch stalls because of an icache miss. This is a cumulative count of core cycles the fetch stalled for all icache misses.",
+        "BriefDescription": "This event counts the number of core cycles the fetch stalls because of an icache miss. This is a cumulative count of cycles the NIP stalled for all icache misses.",
         "EventCode": "0x86",
         "EventName": "FETCH_STALL.ICACHE_FILL_PENDING_CYCLES",
-        "PublicDescription": "This event counts the number of core cycles the fetch stalls because of an icache miss. This is a cumulative count of cycles the NIP stalled for all icache misses.",
         "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of L2HWP allocated into XQ GP",
+        "EventCode": "0x3E",
+        "EventName": "L2_PREFETCHER.ALLOC_XQ",
+        "SampleAfterValue": "100007",
         "UMask": "0x4"
     },
     {
@@ -28,7 +34,7 @@
         "UMask": "0x4f"
     },
     {
-        "BriefDescription": "Counts the number of MEC requests from the L2Q that reference a cache line (cacheable requests) excluding SW prefetches filling only to L2 cache and L1 evictions (automatically exlcudes L2HWP, UC, WC) that were rejected - Multiple repeated rejects should be counted multiple times",
+        "BriefDescription": "Counts the number of MEC requests from the L2Q that reference a cache line (cacheable requests) excluding SW prefetches filling only to L2 cache and L1 evictions (automatically excludes L2HWP, UC, WC) that were rejected - Multiple repeated rejects should be counted multiple times",
         "EventCode": "0x30",
         "EventName": "L2_REQUESTS_REJECT.ALL",
         "SampleAfterValue": "200003"
@@ -50,11 +56,12 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Counts the loads retired that get the data from the other core in the same tile in M state",
+        "BriefDescription": "Counts the loads retired that get the data from the other core in the same tile in M state (Precise Event)",
         "Data_LA": "1",
         "EventCode": "0x04",
         "EventName": "MEM_UOPS_RETIRED.HITM",
         "PEBS": "1",
+        "PublicDescription": "This event counts the number of load micro-ops retired that got data from another core's cache. (Precise Event).",
         "SampleAfterValue": "200003",
         "UMask": "0x20"
     },
@@ -67,20 +74,22 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the number of load micro-ops retired that hit in the L2",
+        "BriefDescription": "Counts the number of load micro-ops retired that hit in the L2 (Precise Event)",
         "Data_LA": "1",
         "EventCode": "0x04",
         "EventName": "MEM_UOPS_RETIRED.L2_HIT_LOADS",
         "PEBS": "1",
+        "PublicDescription": "This event counts the number of load micro-uops retired that hit in the L2 (Precise Event)",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Counts the number of load micro-ops retired that miss in the L2",
+        "BriefDescription": "Counts the number of load micro-ops retired that miss in the L2 (Precise Event)",
         "Data_LA": "1",
         "EventCode": "0x04",
         "EventName": "MEM_UOPS_RETIRED.L2_MISS_LOADS",
         "PEBS": "1",
+        "PublicDescription": "This event counts the number of load micro-ops retired that miss in the L2 (Precise Event)",
         "SampleAfterValue": "100007",
         "UMask": "0x4"
     },
@@ -617,6 +626,15 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_HIT_THIS_TILE_S",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0008008000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Accounts for responses which miss its own tile's L2.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_MISS",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x18001981F8",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
@@ -1661,15 +1679,6 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_HIT_THIS_TILE_S",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0008000020",
-        "SampleAfterValue": "100007",
-        "UMask": "0x1"
-    },
-    {
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that provides no supplier details",
-        "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE",
-        "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000020020",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },

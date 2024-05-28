@@ -7,7 +7,8 @@
 #include <linux/interrupt.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
+#include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include <linux/reset.h>
@@ -1094,7 +1095,6 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	const struct of_device_id *of_id = NULL;
 	struct net_device *ndev;
 	struct hix5hd2_priv *priv;
 	struct mii_bus *bus;
@@ -1110,12 +1110,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->netdev = ndev;
 
-	of_id = of_match_device(hix5hd2_of_match, dev);
-	if (!of_id) {
-		ret = -EINVAL;
-		goto out_free_netdev;
-	}
-	priv->hw_cap = (unsigned long)of_id->data;
+	priv->hw_cap = (unsigned long)device_get_match_data(dev);
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
@@ -1206,9 +1201,8 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	}
 
 	ndev->irq = platform_get_irq(pdev, 0);
-	if (ndev->irq <= 0) {
-		netdev_err(ndev, "No irq resource\n");
-		ret = -EINVAL;
+	if (ndev->irq < 0) {
+		ret = ndev->irq;
 		goto out_phy_node;
 	}
 
@@ -1283,7 +1277,7 @@ out_free_netdev:
 	return ret;
 }
 
-static int hix5hd2_dev_remove(struct platform_device *pdev)
+static void hix5hd2_dev_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct hix5hd2_priv *priv = netdev_priv(ndev);
@@ -1299,8 +1293,6 @@ static int hix5hd2_dev_remove(struct platform_device *pdev)
 	of_node_put(priv->phy_node);
 	cancel_work_sync(&priv->tx_timeout_task);
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static const struct of_device_id hix5hd2_of_match[] = {
@@ -1320,7 +1312,7 @@ static struct platform_driver hix5hd2_dev_driver = {
 		.of_match_table = hix5hd2_of_match,
 	},
 	.probe = hix5hd2_dev_probe,
-	.remove = hix5hd2_dev_remove,
+	.remove_new = hix5hd2_dev_remove,
 };
 
 module_platform_driver(hix5hd2_dev_driver);

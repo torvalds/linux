@@ -26,7 +26,7 @@ struct prison_region {
 struct dm_bio_prison {
 	mempool_t cell_pool;
 	unsigned int num_locks;
-	struct prison_region regions[];
+	struct prison_region regions[] __counted_by(num_locks);
 };
 
 static struct kmem_cache *_cell_cache;
@@ -489,5 +489,5 @@ module_init(dm_bio_prison_init);
 module_exit(dm_bio_prison_exit);
 
 MODULE_DESCRIPTION(DM_NAME " bio prison");
-MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

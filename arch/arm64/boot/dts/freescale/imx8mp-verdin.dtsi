@@ -45,6 +45,23 @@
 		status = "disabled";
 	};
 
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		id-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		label = "Type-C";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb_1_id>;
+		self-powered;
+		type = "micro";
+		vbus-supply = <&reg_usb1_vbus>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -184,7 +201,6 @@
 &eqos {
 	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii-id";
-	phy-supply = <&reg_module_eth1phy>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eqos>;
 	snps,force_thresh_dma_mode;
@@ -536,7 +552,7 @@
 				regulator-name = "On-module +V3.3_ADC (LDO4)";
 			};
 
-			LDO5 {
+			reg_vdd_sdio: LDO5 {
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <1800000>;
 				regulator-name = "On-module +V3.3_1.8_SD (LDO5)";
@@ -836,15 +852,10 @@
 	srp-disable;
 	usb-role-switch;
 
-	connector {
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		id-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
-		label = "Type-C";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usb_1_id>;
-		self-powered;
-		type = "micro";
-		vbus-supply = <&reg_usb1_vbus>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 
@@ -874,6 +885,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_cd>;
 	pinctrl-3 = <&pinctrl_usdhc2_sleep>, <&pinctrl_usdhc2_cd_sleep>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
+	vqmmc-supply = <&reg_vdd_sdio>;
 };
 
 /* On-module eMMC */

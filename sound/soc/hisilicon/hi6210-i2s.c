@@ -15,7 +15,6 @@
 #include <linux/clk.h>
 #include <linux/jiffies.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -511,6 +510,7 @@ static int hi6210_i2s_dai_probe(struct snd_soc_dai *dai)
 
 
 static const struct snd_soc_dai_ops hi6210_i2s_dai_ops = {
+	.probe		= hi6210_i2s_dai_probe,
 	.trigger	= hi6210_i2s_trigger,
 	.hw_params	= hi6210_i2s_hw_params,
 	.set_fmt	= hi6210_i2s_set_fmt,
@@ -519,7 +519,6 @@ static const struct snd_soc_dai_ops hi6210_i2s_dai_ops = {
 };
 
 static const struct snd_soc_dai_driver hi6210_i2s_dai_init = {
-	.probe		= hi6210_i2s_dai_probe,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,

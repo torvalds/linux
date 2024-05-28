@@ -88,7 +88,7 @@ static inline bool ap_instructions_available(void)
 }
 
 /* TAPQ register GR2 response struct */
-struct ap_tapq_gr2 {
+struct ap_tapq_hwinfo {
 	union {
 		unsigned long value;
 		struct {
@@ -96,11 +96,13 @@ struct ap_tapq_gr2 {
 			unsigned int apinfo : 32; /* ap type, ... */
 		};
 		struct {
-			unsigned int s	   :  1; /* APSC */
-			unsigned int m	   :  1; /* AP4KM */
-			unsigned int c	   :  1; /* AP4KC */
-			unsigned int mode  :  3;
-			unsigned int n	   :  1; /* APXA */
+			unsigned int apsc  :  1; /* APSC */
+			unsigned int mex4k :  1; /* AP4KM */
+			unsigned int crt4k :  1; /* AP4KC */
+			unsigned int cca   :  1; /* D */
+			unsigned int accel :  1; /* A */
+			unsigned int ep11  :  1; /* X */
+			unsigned int apxa  :  1; /* APXA */
 			unsigned int	   :  1;
 			unsigned int class :  8;
 			unsigned int bs	   :  2; /* SE bind/assoc */
@@ -126,11 +128,12 @@ struct ap_tapq_gr2 {
 /**
  * ap_tapq(): Test adjunct processor queue.
  * @qid: The AP queue number
- * @info: Pointer to queue descriptor
+ * @info: Pointer to tapq hwinfo struct
  *
  * Returns AP queue status structure.
  */
-static inline struct ap_queue_status ap_tapq(ap_qid_t qid, struct ap_tapq_gr2 *info)
+static inline struct ap_queue_status ap_tapq(ap_qid_t qid,
+					     struct ap_tapq_hwinfo *info)
 {
 	union ap_queue_status_reg reg1;
 	unsigned long reg2;
@@ -158,7 +161,7 @@ static inline struct ap_queue_status ap_tapq(ap_qid_t qid, struct ap_tapq_gr2 *i
  * Returns AP queue status structure.
  */
 static inline struct ap_queue_status ap_test_queue(ap_qid_t qid, int tbit,
-						   struct ap_tapq_gr2 *info)
+						   struct ap_tapq_hwinfo *info)
 {
 	if (tbit)
 		qid |= 1UL << 23; /* set T bit*/

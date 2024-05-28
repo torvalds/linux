@@ -2280,6 +2280,7 @@ static void __exit exit_rpcsec_gss(void)
 }
 
 MODULE_ALIAS("rpc-auth-6");
+MODULE_DESCRIPTION("Sun RPC Kerberos RPCSEC_GSS client authentication");
 MODULE_LICENSE("GPL");
 module_param_named(expired_cred_retry_delay,
 		   gss_expired_cred_retry_delay,

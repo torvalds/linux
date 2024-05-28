@@ -114,12 +114,6 @@ endef
 build := -f $(srctree)/scripts/Makefile.build obj
 
 ###
-# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.dtbinst obj=
-# Usage:
-# $(Q)$(MAKE) $(dtbinst)=dir
-dtbinst := -f $(srctree)/scripts/Makefile.dtbinst obj
-
-###
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.clean obj=
 # Usage:
 # $(Q)$(MAKE) $(clean)=dir

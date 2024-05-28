@@ -26,7 +26,7 @@ definition::
              |   running   | -+
              +-------------+
 
-This model is borken, the reason is that a task can be running
+This model is broken, the reason is that a task can be running
 in the processor without being set as RUNNABLE. Think about a
 task about to sleep::
 

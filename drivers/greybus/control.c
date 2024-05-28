@@ -436,7 +436,7 @@ static void gb_control_release(struct device *dev)
 	kfree(control);
 }
 
-struct device_type greybus_control_type = {
+const struct device_type greybus_control_type = {
 	.name =		"greybus_control",
 	.release =	gb_control_release,
 };

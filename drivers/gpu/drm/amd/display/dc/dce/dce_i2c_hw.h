@@ -188,6 +188,7 @@ struct dce_i2c_shift {
 	uint8_t DC_I2C_REG_RW_CNTL_STATUS;
 	uint8_t I2C_LIGHT_SLEEP_FORCE;
 	uint8_t I2C_MEM_PWR_STATE;
+	uint8_t DC_I2C_DDC1_CLK_EN;
 };
 
 struct dce_i2c_mask {
@@ -232,6 +233,7 @@ struct dce_i2c_mask {
 	uint32_t DC_I2C_REG_RW_CNTL_STATUS;
 	uint32_t I2C_LIGHT_SLEEP_FORCE;
 	uint32_t I2C_MEM_PWR_STATE;
+	uint32_t DC_I2C_DDC1_CLK_EN;
 };
 
 #define I2C_COMMON_MASK_SH_LIST_DCN2(mask_sh)\
@@ -242,6 +244,10 @@ struct dce_i2c_mask {
 	I2C_COMMON_MASK_SH_LIST_DCN2(mask_sh),\
 	I2C_SF(DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh),\
 	I2C_SF(DIO_MEM_PWR_STATUS, I2C_MEM_PWR_STATE, mask_sh)
+
+#define I2C_COMMON_MASK_SH_LIST_DCN35(mask_sh)\
+	I2C_COMMON_MASK_SH_LIST_DCN30(mask_sh),\
+	I2C_SF(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_EN, mask_sh)
 
 struct dce_i2c_registers {
 	uint32_t SETUP;

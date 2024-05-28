@@ -34,7 +34,7 @@ static void armada_fbdev_fb_destroy(struct fb_info *info)
 
 static const struct fb_ops armada_fb_ops = {
 	.owner		= THIS_MODULE,
-	FB_DEFAULT_IO_OPS,
+	FB_DEFAULT_IOMEM_OPS,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_destroy	= armada_fbdev_fb_destroy,
 };

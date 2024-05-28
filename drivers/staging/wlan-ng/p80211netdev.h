@@ -114,9 +114,6 @@ struct p80211_frmrx {
 	u32 decrypt_err;
 };
 
-/* called by /proc/net/wireless */
-struct iw_statistics *p80211wext_get_wireless_stats(struct net_device *dev);
-
 /* WEP stuff */
 #define NUM_WEPKEYS 4
 #define MAX_KEYLEN 32

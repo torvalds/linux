@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
@@ -143,18 +142,8 @@ static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
 	return pd;
 }
 
-static inline unsigned long max8997_i2c_get_driver_data(struct i2c_client *i2c,
-						const struct i2c_device_id *id)
-{
-	if (i2c->dev.of_node)
-		return (unsigned long)of_device_get_match_data(&i2c->dev);
-
-	return id->driver_data;
-}
-
 static int max8997_i2c_probe(struct i2c_client *i2c)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct max8997_dev *max8997;
 	struct max8997_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret = 0;
@@ -167,7 +156,7 @@ static int max8997_i2c_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, max8997);
 	max8997->dev = &i2c->dev;
 	max8997->i2c = i2c;
-	max8997->type = max8997_i2c_get_driver_data(i2c, id);
+	max8997->type = (uintptr_t)i2c_get_match_data(i2c);
 	max8997->irq = i2c->irq;
 
 	if (IS_ENABLED(CONFIG_OF) && max8997->dev->of_node) {

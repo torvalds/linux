@@ -174,12 +174,6 @@ static int jh71x0_clk_set_parent(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
-static int jh71x0_clk_mux_determine_rate(struct clk_hw *hw,
-					 struct clk_rate_request *req)
-{
-	return clk_mux_determine_rate_flags(hw, req, 0);
-}
-
 static int jh71x0_clk_get_phase(struct clk_hw *hw)
 {
 	struct jh71x0_clk *clk = jh71x0_clk_from(hw);
@@ -261,7 +255,7 @@ static const struct clk_ops jh71x0_clk_gdiv_ops = {
 };
 
 static const struct clk_ops jh71x0_clk_mux_ops = {
-	.determine_rate = jh71x0_clk_mux_determine_rate,
+	.determine_rate = __clk_mux_determine_rate,
 	.set_parent = jh71x0_clk_set_parent,
 	.get_parent = jh71x0_clk_get_parent,
 	.debug_init = jh71x0_clk_debug_init,
@@ -271,7 +265,7 @@ static const struct clk_ops jh71x0_clk_gmux_ops = {
 	.enable = jh71x0_clk_enable,
 	.disable = jh71x0_clk_disable,
 	.is_enabled = jh71x0_clk_is_enabled,
-	.determine_rate = jh71x0_clk_mux_determine_rate,
+	.determine_rate = __clk_mux_determine_rate,
 	.set_parent = jh71x0_clk_set_parent,
 	.get_parent = jh71x0_clk_get_parent,
 	.debug_init = jh71x0_clk_debug_init,

@@ -34,7 +34,7 @@ enum {
 	DSA_NOTIFIER_TAG_PROTO_DISCONNECT,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_ADD,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_DEL,
-	DSA_NOTIFIER_MASTER_STATE_CHANGE,
+	DSA_NOTIFIER_CONDUIT_STATE_CHANGE,
 };
 
 /* DSA_NOTIFIER_AGEING_TIME */
@@ -105,9 +105,9 @@ struct dsa_notifier_tag_8021q_vlan_info {
 	u16 vid;
 };
 
-/* DSA_NOTIFIER_MASTER_STATE_CHANGE */
-struct dsa_notifier_master_state_info {
-	const struct net_device *master;
+/* DSA_NOTIFIER_CONDUIT_STATE_CHANGE */
+struct dsa_notifier_conduit_state_info {
+	const struct net_device *conduit;
 	bool operational;
 };
 

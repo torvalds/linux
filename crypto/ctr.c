@@ -258,8 +258,8 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 				 struct rtattr **tb)
 {
 	struct skcipher_instance *inst;
-	struct skcipher_alg *alg;
 	struct crypto_skcipher_spawn *spawn;
+	struct skcipher_alg_common *alg;
 	u32 mask;
 	int err;
 
@@ -278,11 +278,11 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	if (err)
 		goto err_free_inst;
 
-	alg = crypto_spawn_skcipher_alg(spawn);
+	alg = crypto_spawn_skcipher_alg_common(spawn);
 
 	/* We only support 16-byte blocks. */
 	err = -EINVAL;
-	if (crypto_skcipher_alg_ivsize(alg) != CTR_RFC3686_BLOCK_SIZE)
+	if (alg->ivsize != CTR_RFC3686_BLOCK_SIZE)
 		goto err_free_inst;
 
 	/* Not a stream cipher? */
@@ -303,11 +303,9 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask;
 
 	inst->alg.ivsize = CTR_RFC3686_IV_SIZE;
-	inst->alg.chunksize = crypto_skcipher_alg_chunksize(alg);
-	inst->alg.min_keysize = crypto_skcipher_alg_min_keysize(alg) +
-				CTR_RFC3686_NONCE_SIZE;
-	inst->alg.max_keysize = crypto_skcipher_alg_max_keysize(alg) +
-				CTR_RFC3686_NONCE_SIZE;
+	inst->alg.chunksize = alg->chunksize;
+	inst->alg.min_keysize = alg->min_keysize + CTR_RFC3686_NONCE_SIZE;
+	inst->alg.max_keysize = alg->max_keysize + CTR_RFC3686_NONCE_SIZE;
 
 	inst->alg.setkey = crypto_rfc3686_setkey;
 	inst->alg.encrypt = crypto_rfc3686_crypt;

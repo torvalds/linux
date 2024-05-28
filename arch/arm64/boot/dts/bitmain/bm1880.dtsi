@@ -184,7 +184,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@5801A000 {
+		uart1: serial@5801a000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x5801a000 0x0 0x2000>;
 			clocks = <&clk BM1880_CLK_UART_500M>,
@@ -197,7 +197,7 @@
 			status = "disabled";
 		};
 
-		uart2: serial@5801C000 {
+		uart2: serial@5801c000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x5801c000 0x0 0x2000>;
 			clocks = <&clk BM1880_CLK_UART_500M>,
@@ -210,7 +210,7 @@
 			status = "disabled";
 		};
 
-		uart3: serial@5801E000 {
+		uart3: serial@5801e000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x5801e000 0x0 0x2000>;
 			clocks = <&clk BM1880_CLK_UART_500M>,

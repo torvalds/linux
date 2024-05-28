@@ -21,6 +21,7 @@ config ADIN1110
 	tristate "Analog Devices ADIN1110 MAC-PHY"
 	depends on SPI && NET_SWITCHDEV
 	select CRC8
+	select PHYLIB
 	help
 	  Say yes here to build support for Analog Devices ADIN1110
 	  Low Power 10BASE-T1L Ethernet MAC-PHY.

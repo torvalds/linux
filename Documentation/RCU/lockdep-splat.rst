@@ -10,7 +10,7 @@ misuses of the RCU API, most notably using one of the rcu_dereference()
 family to access an RCU-protected pointer without the proper protection.
 When such misuse is detected, an lockdep-RCU splat is emitted.
 
-The usual cause of a lockdep-RCU slat is someone accessing an
+The usual cause of a lockdep-RCU splat is someone accessing an
 RCU-protected data structure without either (1) being in the right kind of
 RCU read-side critical section or (2) holding the right update-side lock.
 This problem can therefore be serious: it might result in random memory

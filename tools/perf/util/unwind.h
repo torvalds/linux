@@ -42,14 +42,6 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 #define LIBUNWIND__ARCH_REG_ID(regnum) libunwind__arch_reg_id(regnum)
 #endif
 
-#ifndef LIBUNWIND__ARCH_REG_SP
-#define LIBUNWIND__ARCH_REG_SP PERF_REG_SP
-#endif
-
-#ifndef LIBUNWIND__ARCH_REG_IP
-#define LIBUNWIND__ARCH_REG_IP PERF_REG_IP
-#endif
-
 int LIBUNWIND__ARCH_REG_ID(int regnum);
 int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized);
 void unwind__flush_access(struct maps *maps);

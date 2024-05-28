@@ -67,7 +67,7 @@ static void __flush_context(void)
 	lockdep_assert_held(&context_lock);
 
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
-	bitmap_clear(context_asid_map, 0, num_asids);
+	bitmap_zero(context_asid_map, num_asids);
 
 	/* Mark already active ASIDs as used */
 	for_each_possible_cpu(i) {
@@ -322,6 +322,8 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 	if (unlikely(prev == next))
 		return;
+
+	membarrier_arch_switch_mm(prev, next, task);
 
 	/*
 	 * Mark the current MM context as inactive, and the next as

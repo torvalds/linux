@@ -10,7 +10,7 @@
  * past count, whereas libc may write to count+1.  This follows the generic
  * implementation in lib/string.c and is, IMHO, more sensible.
  */
-#include <asm/export.h>
+#include <linux/export.h>
 	.text
 
 	.align 3

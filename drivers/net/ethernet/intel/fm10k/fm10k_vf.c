@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2019 Intel Corporation. */
 
+#include <linux/bitfield.h>
 #include "fm10k_vf.h"
 
 /**
@@ -126,15 +127,14 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	hw->mac.max_queues = i;
 
 	/* fetch default VLAN and ITR scale */
-	hw->mac.default_vid = (fm10k_read_reg(hw, FM10K_TXQCTL(0)) &
-			       FM10K_TXQCTL_VID_MASK) >> FM10K_TXQCTL_VID_SHIFT;
+	hw->mac.default_vid = FIELD_GET(FM10K_TXQCTL_VID_MASK,
+					fm10k_read_reg(hw, FM10K_TXQCTL(0)));
 	/* Read the ITR scale from TDLEN. See the definition of
 	 * FM10K_TDLEN_ITR_SCALE_SHIFT for more information about how TDLEN is
 	 * used here.
 	 */
-	hw->mac.itr_scale = (fm10k_read_reg(hw, FM10K_TDLEN(0)) &
-			     FM10K_TDLEN_ITR_SCALE_MASK) >>
-			    FM10K_TDLEN_ITR_SCALE_SHIFT;
+	hw->mac.itr_scale = FIELD_GET(FM10K_TDLEN_ITR_SCALE_MASK,
+				      fm10k_read_reg(hw, FM10K_TDLEN(0)));
 
 	return 0;
 

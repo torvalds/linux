@@ -3,24 +3,16 @@
 #define _LINUX_SEM_H
 
 #include <uapi/linux/sem.h>
+#include <linux/sem_types.h>
 
 struct task_struct;
-struct sem_undo_list;
 
 #ifdef CONFIG_SYSVIPC
-
-struct sysv_sem {
-	struct sem_undo_list *undo_list;
-};
 
 extern int copy_semundo(unsigned long clone_flags, struct task_struct *tsk);
 extern void exit_sem(struct task_struct *tsk);
 
 #else
-
-struct sysv_sem {
-	/* empty */
-};
 
 static inline int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
 {

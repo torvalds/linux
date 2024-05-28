@@ -47,6 +47,7 @@ properties:
         1: HIGH
       Default is LOW if nothing else is specified.
     $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
     maxItems: 8
     items:
       enum: [0, 1]
@@ -57,7 +58,8 @@ properties:
       regulator and matching GPIO configurations to achieve them. If there are
       no states in the "states" array, use a fixed regulator instead.
     $ref: /schemas/types.yaml#/definitions/uint32-matrix
-    maxItems: 8
+    minItems: 2
+    maxItems: 256
     items:
       items:
         - description: Voltage in microvolts

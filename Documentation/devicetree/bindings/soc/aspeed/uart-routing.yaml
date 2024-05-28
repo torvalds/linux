@@ -3,8 +3,8 @@
 # # Copyright (c) 2021 Aspeed Technology Inc.
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/soc/aspeed/uart-routing.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/soc/aspeed/uart-routing.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Aspeed UART Routing Controller
 

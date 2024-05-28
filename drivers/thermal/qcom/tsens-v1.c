@@ -21,7 +21,7 @@
 #define TM_HIGH_LOW_INT_STATUS_OFF		0x0088
 #define TM_HIGH_LOW_Sn_INT_THRESHOLD_OFF	0x0090
 
-struct tsens_legacy_calibration_format tsens_qcs404_nvmem = {
+static struct tsens_legacy_calibration_format tsens_qcs404_nvmem = {
 	.base_len = 8,
 	.base_shift = 2,
 	.sp_len = 6,

@@ -101,7 +101,7 @@ endif
 endif
 
 ifdef CONFIG_NFT_CT
-ifdef CONFIG_RETPOLINE
+ifdef CONFIG_MITIGATION_RETPOLINE
 nf_tables-objs += nft_ct_fast.o
 endif
 endif

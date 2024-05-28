@@ -323,7 +323,6 @@ static const struct i2c_device_id powr1220_ids[] = {
 MODULE_DEVICE_TABLE(i2c, powr1220_ids);
 
 static struct i2c_driver powr1220_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "powr1220",
 	},

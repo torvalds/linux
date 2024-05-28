@@ -267,6 +267,8 @@ function barf
 //	mov	w8, #__NR_exit
 //	svc	#0
 // end hack
+
+	mrs	x13, S3_3_C4_C2_2
 	smstop
 	mov	x10, x0	// expected data
 	mov	x11, x1	// actual data
@@ -287,6 +289,9 @@ function barf
 	mov	x1, x12
 	bl	dumphex
 	puts	"]\n"
+	puts	"\tSVCR: "
+	mov	x0, x13
+	bl	putdecn
 
 	mov	x8, #__NR_getpid
 	svc	#0

@@ -26,14 +26,14 @@
  * @instance_id:	Unique instance id to append to directory name
  * @name:		Sysfs entry name for this instance
  * @uncore_attr_group:	Attribute group storage
- * @max_freq_khz_dev_attr: Storage for device attribute max_freq_khz
- * @mix_freq_khz_dev_attr: Storage for device attribute min_freq_khz
- * @initial_max_freq_khz_dev_attr: Storage for device attribute initial_max_freq_khz
- * @initial_min_freq_khz_dev_attr: Storage for device attribute initial_min_freq_khz
- * @current_freq_khz_dev_attr: Storage for device attribute current_freq_khz
- * @domain_id_dev_attr: Storage for device attribute domain_id
- * @fabric_cluster_id_dev_attr: Storage for device attribute fabric_cluster_id
- * @package_id_dev_attr: Storage for device attribute package_id
+ * @max_freq_khz_kobj_attr: Storage for kobject attribute max_freq_khz
+ * @mix_freq_khz_kobj_attr: Storage for kobject attribute min_freq_khz
+ * @initial_max_freq_khz_kobj_attr: Storage for kobject attribute initial_max_freq_khz
+ * @initial_min_freq_khz_kobj_attr: Storage for kobject attribute initial_min_freq_khz
+ * @current_freq_khz_kobj_attr: Storage for kobject attribute current_freq_khz
+ * @domain_id_kobj_attr: Storage for kobject attribute domain_id
+ * @fabric_cluster_id_kobj_attr: Storage for kobject attribute fabric_cluster_id
+ * @package_id_kobj_attr: Storage for kobject attribute package_id
  * @uncore_attrs:	Attribute storage for group creation
  *
  * This structure is used to encapsulate all data related to uncore sysfs
@@ -53,14 +53,14 @@ struct uncore_data {
 	char name[32];
 
 	struct attribute_group uncore_attr_group;
-	struct device_attribute max_freq_khz_dev_attr;
-	struct device_attribute min_freq_khz_dev_attr;
-	struct device_attribute initial_max_freq_khz_dev_attr;
-	struct device_attribute initial_min_freq_khz_dev_attr;
-	struct device_attribute current_freq_khz_dev_attr;
-	struct device_attribute domain_id_dev_attr;
-	struct device_attribute fabric_cluster_id_dev_attr;
-	struct device_attribute package_id_dev_attr;
+	struct kobj_attribute max_freq_khz_kobj_attr;
+	struct kobj_attribute min_freq_khz_kobj_attr;
+	struct kobj_attribute initial_max_freq_khz_kobj_attr;
+	struct kobj_attribute initial_min_freq_khz_kobj_attr;
+	struct kobj_attribute current_freq_khz_kobj_attr;
+	struct kobj_attribute domain_id_kobj_attr;
+	struct kobj_attribute fabric_cluster_id_kobj_attr;
+	struct kobj_attribute package_id_kobj_attr;
 	struct attribute *uncore_attrs[9];
 };
 

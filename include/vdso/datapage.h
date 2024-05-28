@@ -121,6 +121,14 @@ struct vdso_data {
 extern struct vdso_data _vdso_data[CS_BASES] __attribute__((visibility("hidden")));
 extern struct vdso_data _timens_data[CS_BASES] __attribute__((visibility("hidden")));
 
+/**
+ * union vdso_data_store - Generic vDSO data page
+ */
+union vdso_data_store {
+	struct vdso_data	data[CS_BASES];
+	u8			page[1U << CONFIG_PAGE_SHIFT];
+};
+
 /*
  * The generic vDSO implementation requires that gettimeofday.h
  * provides:

@@ -496,7 +496,7 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return dev_err_probe(dev, irq, "Failed getting irq\n");
+		return irq;
 
 	info->clk = devm_clk_get(dev, "adc");
 	if (IS_ERR(info->clk))

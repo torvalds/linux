@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/dma-mapping.h>
 #include "hal_tx.h"
@@ -571,7 +571,7 @@ u32 ath11k_hal_ce_get_desc_size(enum hal_ce_desc type)
 void ath11k_hal_ce_src_set_desc(void *buf, dma_addr_t paddr, u32 len, u32 id,
 				u8 byte_swap_data)
 {
-	struct hal_ce_srng_src_desc *desc = (struct hal_ce_srng_src_desc *)buf;
+	struct hal_ce_srng_src_desc *desc = buf;
 
 	desc->buffer_addr_low = paddr & HAL_ADDR_LSB_REG_MASK;
 	desc->buffer_addr_info =
@@ -586,8 +586,7 @@ void ath11k_hal_ce_src_set_desc(void *buf, dma_addr_t paddr, u32 len, u32 id,
 
 void ath11k_hal_ce_dst_set_desc(void *buf, dma_addr_t paddr)
 {
-	struct hal_ce_srng_dest_desc *desc =
-		(struct hal_ce_srng_dest_desc *)buf;
+	struct hal_ce_srng_dest_desc *desc = buf;
 
 	desc->buffer_addr_low = paddr & HAL_ADDR_LSB_REG_MASK;
 	desc->buffer_addr_info =
@@ -597,8 +596,7 @@ void ath11k_hal_ce_dst_set_desc(void *buf, dma_addr_t paddr)
 
 u32 ath11k_hal_ce_dst_status_get_length(void *buf)
 {
-	struct hal_ce_srng_dst_status_desc *desc =
-		(struct hal_ce_srng_dst_status_desc *)buf;
+	struct hal_ce_srng_dst_status_desc *desc = buf;
 	u32 len;
 
 	len = FIELD_GET(HAL_CE_DST_STATUS_DESC_FLAGS_LEN, desc->flags);
@@ -628,15 +626,30 @@ u32 *ath11k_hal_srng_dst_peek(struct ath11k_base *ab, struct hal_srng *srng)
 	return NULL;
 }
 
+static u32 *ath11k_hal_srng_dst_peek_with_dma(struct ath11k_base *ab,
+					      struct hal_srng *srng, dma_addr_t *paddr)
+{
+	lockdep_assert_held(&srng->lock);
+
+	if (srng->u.dst_ring.tp != srng->u.dst_ring.cached_hp) {
+		*paddr = srng->ring_base_paddr +
+			  sizeof(*srng->ring_base_vaddr) * srng->u.dst_ring.tp;
+		return srng->ring_base_vaddr + srng->u.dst_ring.tp;
+	}
+
+	return NULL;
+}
+
 static void ath11k_hal_srng_prefetch_desc(struct ath11k_base *ab,
 					  struct hal_srng *srng)
 {
+	dma_addr_t desc_paddr;
 	u32 *desc;
 
 	/* prefetch only if desc is available */
-	desc = ath11k_hal_srng_dst_peek(ab, srng);
+	desc = ath11k_hal_srng_dst_peek_with_dma(ab, srng, &desc_paddr);
 	if (likely(desc)) {
-		dma_sync_single_for_cpu(ab->dev, virt_to_phys(desc),
+		dma_sync_single_for_cpu(ab->dev, desc_paddr,
 					(srng->entry_size * sizeof(u32)),
 					DMA_FROM_DEVICE);
 		prefetch(desc);

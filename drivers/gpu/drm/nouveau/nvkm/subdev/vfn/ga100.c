@@ -21,6 +21,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 #include <nvif/class.h>
 
 static const struct nvkm_intr_data
@@ -43,5 +45,8 @@ int
 ga100_vfn_new(struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, struct nvkm_vfn **pvfn)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_vfn_new(&ga100_vfn, device, type, inst, 0xb80000, pvfn);
+
 	return nvkm_vfn_new_(&ga100_vfn, device, type, inst, 0xb80000, pvfn);
 }

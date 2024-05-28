@@ -227,7 +227,7 @@ static int efi_procfs(struct device *dev, struct seq_file *seq)
 			   enabled == 1 ? "yes" : "no",
 			   pending == 1 ? "yes" : "no");
 
-		if (eft.timezone == EFI_UNSPECIFIED_TIMEZONE)
+		if (alm.timezone == EFI_UNSPECIFIED_TIMEZONE)
 			seq_puts(seq, "Timezone\t: unspecified\n");
 		else
 			/* XXX fixme: convert to string? */

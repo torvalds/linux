@@ -2,6 +2,7 @@
 // Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
 // Copyright (c) 2018, Linaro Limited
 
+#include <dt-bindings/sound/qcom,q6afe.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -619,44 +620,6 @@ static const struct snd_soc_dapm_route q6afe_dapm_routes[] = {
 	{"RX_CODEC_DMA_RX_7 Playback", NULL, "RX_CODEC_DMA_RX_7"},
 };
 
-static const struct snd_soc_dai_ops q6hdmi_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.hw_params	= q6hdmi_hw_params,
-	.shutdown	= q6afe_dai_shutdown,
-};
-
-static const struct snd_soc_dai_ops q6i2s_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.hw_params	= q6i2s_hw_params,
-	.set_fmt	= q6i2s_set_fmt,
-	.shutdown	= q6afe_dai_shutdown,
-	.set_sysclk	= q6afe_mi2s_set_sysclk,
-};
-
-static const struct snd_soc_dai_ops q6slim_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.hw_params	= q6slim_hw_params,
-	.shutdown	= q6afe_dai_shutdown,
-	.set_channel_map = q6slim_set_channel_map,
-};
-
-static const struct snd_soc_dai_ops q6tdm_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.shutdown	= q6afe_dai_shutdown,
-	.set_sysclk	= q6afe_mi2s_set_sysclk,
-	.set_tdm_slot     = q6tdm_set_tdm_slot,
-	.set_channel_map  = q6tdm_set_channel_map,
-	.hw_params        = q6tdm_hw_params,
-};
-
-static const struct snd_soc_dai_ops q6dma_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.shutdown	= q6afe_dai_shutdown,
-	.set_sysclk	= q6afe_mi2s_set_sysclk,
-	.set_channel_map  = q6dma_set_channel_map,
-	.hw_params        = q6dma_hw_params,
-};
-
 static int msm_dai_q6_dai_probe(struct snd_soc_dai *dai)
 {
 	struct q6afe_dai_data *dai_data = dev_get_drvdata(dai->dev);
@@ -681,6 +644,54 @@ static int msm_dai_q6_dai_remove(struct snd_soc_dai *dai)
 
 	return 0;
 }
+
+static const struct snd_soc_dai_ops q6hdmi_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.hw_params		= q6hdmi_hw_params,
+	.shutdown		= q6afe_dai_shutdown,
+};
+
+static const struct snd_soc_dai_ops q6i2s_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.hw_params		= q6i2s_hw_params,
+	.set_fmt		= q6i2s_set_fmt,
+	.shutdown		= q6afe_dai_shutdown,
+	.set_sysclk		= q6afe_mi2s_set_sysclk,
+};
+
+static const struct snd_soc_dai_ops q6slim_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.hw_params		= q6slim_hw_params,
+	.shutdown		= q6afe_dai_shutdown,
+	.set_channel_map	= q6slim_set_channel_map,
+};
+
+static const struct snd_soc_dai_ops q6tdm_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.shutdown		= q6afe_dai_shutdown,
+	.set_sysclk		= q6afe_mi2s_set_sysclk,
+	.set_tdm_slot		= q6tdm_set_tdm_slot,
+	.set_channel_map	= q6tdm_set_channel_map,
+	.hw_params		= q6tdm_hw_params,
+};
+
+static const struct snd_soc_dai_ops q6dma_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.shutdown		= q6afe_dai_shutdown,
+	.set_sysclk		= q6afe_mi2s_set_sysclk,
+	.set_channel_map	= q6dma_set_channel_map,
+	.hw_params		= q6dma_hw_params,
+};
 
 static const struct snd_soc_dapm_widget q6afe_dai_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("HDMI_RX", NULL, 0, SND_SOC_NOPM, 0, 0),
@@ -1041,8 +1052,6 @@ static int q6afe_dai_dev_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, dai_data);
 	of_q6afe_parse_dai_data(dev, dai_data);
 
-	cfg.probe = msm_dai_q6_dai_probe;
-	cfg.remove = msm_dai_q6_dai_remove;
 	cfg.q6hdmi_ops = &q6hdmi_ops;
 	cfg.q6slim_ops = &q6slim_ops;
 	cfg.q6i2s_ops = &q6i2s_ops;

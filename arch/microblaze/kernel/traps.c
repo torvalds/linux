@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/cpu.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>

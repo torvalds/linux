@@ -21,8 +21,8 @@ explained further below, some of which can be reconfigured dynamically on the
 fly using a remount ('mount -o remount ...') of the filesystem. A tmpfs
 filesystem can be resized but it cannot be resized to a size below its current
 usage. tmpfs also supports POSIX ACLs, and extended attributes for the
-trusted.* and security.* namespaces. ramfs does not use swap and you cannot
-modify any parameter for a ramfs filesystem. The size limit of a ramfs
+trusted.*, security.* and user.* namespaces. ramfs does not use swap and you
+cannot modify any parameter for a ramfs filesystem. The size limit of a ramfs
 filesystem is how much memory you have available, and so care must be taken if
 used so to not run out of memory.
 
@@ -97,6 +97,9 @@ mount with such options, since it allows any user with write access to
 use up all the memory on the machine; but enhances the scalability of
 that instance in a system with many CPUs making intensive use of it.
 
+If nr_inodes is not 0, that limited space for inodes is also used up by
+extended attributes: "df -i"'s IUsed and IUse% increase, IFree decreases.
+
 tmpfs blocks may be swapped out, when there is a shortage of memory.
 tmpfs has a mount option to disable its use of swap:
 
@@ -122,6 +125,37 @@ See also Documentation/admin-guide/mm/transhuge.rst, which describes the
 sysfs file /sys/kernel/mm/transparent_hugepage/shmem_enabled: which can
 be used to deny huge pages on all tmpfs mounts in an emergency, or to
 force huge pages on all tmpfs mounts for testing.
+
+tmpfs also supports quota with the following mount options
+
+======================== =================================================
+quota                    User and group quota accounting and enforcement
+                         is enabled on the mount. Tmpfs is using hidden
+                         system quota files that are initialized on mount.
+usrquota                 User quota accounting and enforcement is enabled
+                         on the mount.
+grpquota                 Group quota accounting and enforcement is enabled
+                         on the mount.
+usrquota_block_hardlimit Set global user quota block hard limit.
+usrquota_inode_hardlimit Set global user quota inode hard limit.
+grpquota_block_hardlimit Set global group quota block hard limit.
+grpquota_inode_hardlimit Set global group quota inode hard limit.
+======================== =================================================
+
+None of the quota related mount options can be set or changed on remount.
+
+Quota limit parameters accept a suffix k, m or g for kilo, mega and giga
+and can't be changed on remount. Default global quota limits are taking
+effect for any and all user/group/project except root the first time the
+quota entry for user/group/project id is being accessed - typically the
+first time an inode with a particular id ownership is being created after
+the mount. In other words, instead of the limits being initialized to zero,
+they are initialized with the particular value provided with these mount
+options. The limits can be changed for any user/group id at any time as they
+normally can be.
+
+Note that tmpfs quotas do not support user namespaces so no uid/gid
+translation is done if quotas are enabled inside user namespaces.
 
 tmpfs has a mount option to set the NUMA memory allocation policy for
 all files in that instance (if CONFIG_NUMA is enabled) - which can be

@@ -14,6 +14,7 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/limits.h>
 #include <linux/bitops.h>
@@ -994,75 +995,18 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
 }
 EXPORT_SYMBOL_GPL(fsl_mc_get_endpoint);
 
-static int parse_mc_ranges(struct device *dev,
-			   int *paddr_cells,
-			   int *mc_addr_cells,
-			   int *mc_size_cells,
-			   const __be32 **ranges_start)
-{
-	const __be32 *prop;
-	int range_tuple_cell_count;
-	int ranges_len;
-	int tuple_len;
-	struct device_node *mc_node = dev->of_node;
-
-	*ranges_start = of_get_property(mc_node, "ranges", &ranges_len);
-	if (!(*ranges_start) || !ranges_len) {
-		dev_warn(dev,
-			 "missing or empty ranges property for device tree node '%pOFn'\n",
-			 mc_node);
-		return 0;
-	}
-
-	*paddr_cells = of_n_addr_cells(mc_node);
-
-	prop = of_get_property(mc_node, "#address-cells", NULL);
-	if (prop)
-		*mc_addr_cells = be32_to_cpup(prop);
-	else
-		*mc_addr_cells = *paddr_cells;
-
-	prop = of_get_property(mc_node, "#size-cells", NULL);
-	if (prop)
-		*mc_size_cells = be32_to_cpup(prop);
-	else
-		*mc_size_cells = of_n_size_cells(mc_node);
-
-	range_tuple_cell_count = *paddr_cells + *mc_addr_cells +
-				 *mc_size_cells;
-
-	tuple_len = range_tuple_cell_count * sizeof(__be32);
-	if (ranges_len % tuple_len != 0) {
-		dev_err(dev, "malformed ranges property '%pOFn'\n", mc_node);
-		return -EINVAL;
-	}
-
-	return ranges_len / tuple_len;
-}
-
 static int get_mc_addr_translation_ranges(struct device *dev,
 					  struct fsl_mc_addr_translation_range
 						**ranges,
 					  u8 *num_ranges)
 {
-	int ret;
-	int paddr_cells;
-	int mc_addr_cells;
-	int mc_size_cells;
-	int i;
-	const __be32 *ranges_start;
-	const __be32 *cell;
+	struct fsl_mc_addr_translation_range *r;
+	struct of_range_parser parser;
+	struct of_range range;
 
-	ret = parse_mc_ranges(dev,
-			      &paddr_cells,
-			      &mc_addr_cells,
-			      &mc_size_cells,
-			      &ranges_start);
-	if (ret < 0)
-		return ret;
-
-	*num_ranges = ret;
-	if (!ret) {
+	of_range_parser_init(&parser, dev->of_node);
+	*num_ranges = of_range_count(&parser);
+	if (!*num_ranges) {
 		/*
 		 * Missing or empty ranges property ("ranges;") for the
 		 * 'fsl,qoriq-mc' node. In this case, identity mapping
@@ -1078,20 +1022,13 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 	if (!(*ranges))
 		return -ENOMEM;
 
-	cell = ranges_start;
-	for (i = 0; i < *num_ranges; ++i) {
-		struct fsl_mc_addr_translation_range *range = &(*ranges)[i];
-
-		range->mc_region_type = of_read_number(cell, 1);
-		range->start_mc_offset = of_read_number(cell + 1,
-							mc_addr_cells - 1);
-		cell += mc_addr_cells;
-		range->start_phys_addr = of_read_number(cell, paddr_cells);
-		cell += paddr_cells;
-		range->end_mc_offset = range->start_mc_offset +
-				     of_read_number(cell, mc_size_cells);
-
-		cell += mc_size_cells;
+	r = *ranges;
+	for_each_of_range(&parser, &range) {
+		r->mc_region_type = range.flags;
+		r->start_mc_offset = range.bus_addr;
+		r->end_mc_offset = range.bus_addr + range.size;
+		r->start_phys_addr = range.cpu_addr;
+		r++;
 	}
 
 	return 0;
@@ -1230,13 +1167,10 @@ error_cleanup_mc_io:
  * fsl_mc_bus_remove - callback invoked when the root MC bus is being
  * removed
  */
-static int fsl_mc_bus_remove(struct platform_device *pdev)
+static void fsl_mc_bus_remove(struct platform_device *pdev)
 {
 	struct fsl_mc *mc = platform_get_drvdata(pdev);
 	struct fsl_mc_io *mc_io;
-
-	if (!fsl_mc_is_root_dprc(&mc->root_mc_bus_dev->dev))
-		return -EINVAL;
 
 	mc_io = mc->root_mc_bus_dev->mc_io;
 	fsl_mc_device_remove(mc->root_mc_bus_dev);
@@ -1253,13 +1187,6 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 		       (GCR1_P1_STOP | GCR1_P2_STOP),
 		       mc->fsl_mc_regs + FSL_MC_GCR1);
 	}
-
-	return 0;
-}
-
-static void fsl_mc_bus_shutdown(struct platform_device *pdev)
-{
-	fsl_mc_bus_remove(pdev);
 }
 
 static const struct of_device_id fsl_mc_bus_match_table[] = {
@@ -1283,8 +1210,8 @@ static struct platform_driver fsl_mc_bus_driver = {
 		   .acpi_match_table = fsl_mc_bus_acpi_match_table,
 		   },
 	.probe = fsl_mc_bus_probe,
-	.remove = fsl_mc_bus_remove,
-	.shutdown = fsl_mc_bus_shutdown,
+	.remove_new = fsl_mc_bus_remove,
+	.shutdown = fsl_mc_bus_remove,
 };
 
 static int fsl_mc_bus_notifier(struct notifier_block *nb,

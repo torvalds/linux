@@ -79,7 +79,7 @@
 			pmsg-size = <0x80000>;
 		};
 
-		fb_region: fb_region@40000000 {
+		fb_region: fb@40000000 {
 			reg = <0 0x40000000 0 0x1000000>;
 			no-map;
 		};

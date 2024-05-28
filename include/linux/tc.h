@@ -120,7 +120,7 @@ static inline unsigned long tc_get_speed(struct tc_bus *tbus)
 
 #ifdef CONFIG_TC
 
-extern struct bus_type tc_bus_type;
+extern const struct bus_type tc_bus_type;
 
 extern int tc_register_driver(struct tc_driver *tdrv);
 extern void tc_unregister_driver(struct tc_driver *tdrv);

@@ -857,7 +857,9 @@ struct fcp_cmnd {
 	uint8_t task_attribute;
 	uint8_t task_management;
 	uint8_t additional_cdb_len;
-	uint8_t cdb[260]; /* 256 for CDB len and 4 for FCP_DL */
+#define QLA_CDB_BUF_SIZE  256
+#define QLA_FCP_DL_SIZE   4
+	uint8_t cdb[QLA_CDB_BUF_SIZE + QLA_FCP_DL_SIZE]; /* 256 for CDB len and 4 for FCP_DL */
 };
 
 struct dsd_dma {

@@ -7,7 +7,8 @@
 
 #include <linux/rpmsg.h>
 #include <linux/remoteproc.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/cdx/cdx_bus.h>
 #include <linux/module.h>
 

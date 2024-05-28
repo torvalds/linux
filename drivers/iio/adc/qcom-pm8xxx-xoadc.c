@@ -372,7 +372,6 @@ static const struct xoadc_channel pm8921_xoadc_channels[] = {
  * @name: name of this channel
  * @hwchan: pointer to hardware channel information (muxing & scaling settings)
  * @calibration: whether to use absolute or ratiometric calibration
- * @scale_fn_type: scaling function type
  * @decimation: 0,1,2,3
  * @amux_ip_rsv: ratiometric scale value if using ratiometric
  * calibration: 0, 1, 2, 4, 5.
@@ -957,7 +956,7 @@ out_disable_vref:
 	return ret;
 }
 
-static int pm8xxx_xoadc_remove(struct platform_device *pdev)
+static void pm8xxx_xoadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct pm8xxx_xoadc *adc = iio_priv(indio_dev);
@@ -965,8 +964,6 @@ static int pm8xxx_xoadc_remove(struct platform_device *pdev)
 	iio_device_unregister(indio_dev);
 
 	regulator_disable(adc->vref);
-
-	return 0;
 }
 
 static const struct xoadc_variant pm8018_variant = {
@@ -1019,7 +1016,7 @@ static struct platform_driver pm8xxx_xoadc_driver = {
 		.of_match_table = pm8xxx_xoadc_id_table,
 	},
 	.probe		= pm8xxx_xoadc_probe,
-	.remove		= pm8xxx_xoadc_remove,
+	.remove_new	= pm8xxx_xoadc_remove,
 };
 module_platform_driver(pm8xxx_xoadc_driver);
 

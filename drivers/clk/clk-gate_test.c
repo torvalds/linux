@@ -131,7 +131,7 @@ struct clk_gate_test_context {
 	void __iomem *fake_mem;
 	struct clk_hw *hw;
 	struct clk_hw *parent;
-	u32 fake_reg; /* Keep at end, KASAN can detect out of bounds */
+	__le32 fake_reg; /* Keep at end, KASAN can detect out of bounds */
 };
 
 static struct clk_gate_test_context *clk_gate_test_alloc_ctx(struct kunit *test)
@@ -166,7 +166,7 @@ static void clk_gate_test_enable(struct kunit *test)
 
 	KUNIT_ASSERT_EQ(test, clk_prepare_enable(clk), 0);
 
-	KUNIT_EXPECT_EQ(test, enable_val, ctx->fake_reg);
+	KUNIT_EXPECT_EQ(test, enable_val, le32_to_cpu(ctx->fake_reg));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_enabled(hw));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_prepared(hw));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_enabled(parent));
@@ -183,10 +183,10 @@ static void clk_gate_test_disable(struct kunit *test)
 	u32 disable_val = 0;
 
 	KUNIT_ASSERT_EQ(test, clk_prepare_enable(clk), 0);
-	KUNIT_ASSERT_EQ(test, enable_val, ctx->fake_reg);
+	KUNIT_ASSERT_EQ(test, enable_val, le32_to_cpu(ctx->fake_reg));
 
 	clk_disable_unprepare(clk);
-	KUNIT_EXPECT_EQ(test, disable_val, ctx->fake_reg);
+	KUNIT_EXPECT_EQ(test, disable_val, le32_to_cpu(ctx->fake_reg));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_enabled(hw));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_prepared(hw));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_enabled(parent));
@@ -246,7 +246,7 @@ static void clk_gate_test_invert_enable(struct kunit *test)
 
 	KUNIT_ASSERT_EQ(test, clk_prepare_enable(clk), 0);
 
-	KUNIT_EXPECT_EQ(test, enable_val, ctx->fake_reg);
+	KUNIT_EXPECT_EQ(test, enable_val, le32_to_cpu(ctx->fake_reg));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_enabled(hw));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_prepared(hw));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_enabled(parent));
@@ -263,10 +263,10 @@ static void clk_gate_test_invert_disable(struct kunit *test)
 	u32 disable_val = BIT(15);
 
 	KUNIT_ASSERT_EQ(test, clk_prepare_enable(clk), 0);
-	KUNIT_ASSERT_EQ(test, enable_val, ctx->fake_reg);
+	KUNIT_ASSERT_EQ(test, enable_val, le32_to_cpu(ctx->fake_reg));
 
 	clk_disable_unprepare(clk);
-	KUNIT_EXPECT_EQ(test, disable_val, ctx->fake_reg);
+	KUNIT_EXPECT_EQ(test, disable_val, le32_to_cpu(ctx->fake_reg));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_enabled(hw));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_prepared(hw));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_enabled(parent));
@@ -290,7 +290,7 @@ static int clk_gate_test_invert_init(struct kunit *test)
 					    2000000);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
 
-	ctx->fake_reg = BIT(15); /* Default to off */
+	ctx->fake_reg = cpu_to_le32(BIT(15)); /* Default to off */
 	hw = clk_hw_register_gate_parent_hw(NULL, "test_gate", parent, 0,
 					    ctx->fake_mem, 15,
 					    CLK_GATE_SET_TO_DISABLE, NULL);
@@ -319,7 +319,7 @@ static void clk_gate_test_hiword_enable(struct kunit *test)
 
 	KUNIT_ASSERT_EQ(test, clk_prepare_enable(clk), 0);
 
-	KUNIT_EXPECT_EQ(test, enable_val, ctx->fake_reg);
+	KUNIT_EXPECT_EQ(test, enable_val, le32_to_cpu(ctx->fake_reg));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_enabled(hw));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_prepared(hw));
 	KUNIT_EXPECT_TRUE(test, clk_hw_is_enabled(parent));
@@ -336,10 +336,10 @@ static void clk_gate_test_hiword_disable(struct kunit *test)
 	u32 disable_val = BIT(9 + 16);
 
 	KUNIT_ASSERT_EQ(test, clk_prepare_enable(clk), 0);
-	KUNIT_ASSERT_EQ(test, enable_val, ctx->fake_reg);
+	KUNIT_ASSERT_EQ(test, enable_val, le32_to_cpu(ctx->fake_reg));
 
 	clk_disable_unprepare(clk);
-	KUNIT_EXPECT_EQ(test, disable_val, ctx->fake_reg);
+	KUNIT_EXPECT_EQ(test, disable_val, le32_to_cpu(ctx->fake_reg));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_enabled(hw));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_prepared(hw));
 	KUNIT_EXPECT_FALSE(test, clk_hw_is_enabled(parent));
@@ -387,7 +387,7 @@ static void clk_gate_test_is_enabled(struct kunit *test)
 	struct clk_gate_test_context *ctx;
 
 	ctx = clk_gate_test_alloc_ctx(test);
-	ctx->fake_reg = BIT(7);
+	ctx->fake_reg = cpu_to_le32(BIT(7));
 	hw = clk_hw_register_gate(NULL, "test_gate", NULL, 0, ctx->fake_mem, 7,
 				  0, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);
@@ -402,7 +402,7 @@ static void clk_gate_test_is_disabled(struct kunit *test)
 	struct clk_gate_test_context *ctx;
 
 	ctx = clk_gate_test_alloc_ctx(test);
-	ctx->fake_reg = BIT(4);
+	ctx->fake_reg = cpu_to_le32(BIT(4));
 	hw = clk_hw_register_gate(NULL, "test_gate", NULL, 0, ctx->fake_mem, 7,
 				  0, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);
@@ -417,7 +417,7 @@ static void clk_gate_test_is_enabled_inverted(struct kunit *test)
 	struct clk_gate_test_context *ctx;
 
 	ctx = clk_gate_test_alloc_ctx(test);
-	ctx->fake_reg = BIT(31);
+	ctx->fake_reg = cpu_to_le32(BIT(31));
 	hw = clk_hw_register_gate(NULL, "test_gate", NULL, 0, ctx->fake_mem, 2,
 				  CLK_GATE_SET_TO_DISABLE, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);
@@ -432,7 +432,7 @@ static void clk_gate_test_is_disabled_inverted(struct kunit *test)
 	struct clk_gate_test_context *ctx;
 
 	ctx = clk_gate_test_alloc_ctx(test);
-	ctx->fake_reg = BIT(29);
+	ctx->fake_reg = cpu_to_le32(BIT(29));
 	hw = clk_hw_register_gate(NULL, "test_gate", NULL, 0, ctx->fake_mem, 29,
 				  CLK_GATE_SET_TO_DISABLE, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);

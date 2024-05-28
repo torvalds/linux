@@ -608,6 +608,7 @@ static struct Qdisc_ops tbf_qdisc_ops __read_mostly = {
 	.dump		=	tbf_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("tbf");
 
 static int __init tbf_module_init(void)
 {
@@ -621,3 +622,4 @@ static void __exit tbf_module_exit(void)
 module_init(tbf_module_init)
 module_exit(tbf_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Token Bucket Filter qdisc");

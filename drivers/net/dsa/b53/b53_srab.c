@@ -657,17 +657,15 @@ static int b53_srab_probe(struct platform_device *pdev)
 	return b53_switch_register(dev);
 }
 
-static int b53_srab_remove(struct platform_device *pdev)
+static void b53_srab_remove(struct platform_device *pdev)
 {
 	struct b53_device *dev = platform_get_drvdata(pdev);
 
 	if (!dev)
-		return 0;
+		return;
 
 	b53_srab_intr_set(dev->priv, false);
 	b53_switch_remove(dev);
-
-	return 0;
 }
 
 static void b53_srab_shutdown(struct platform_device *pdev)
@@ -684,7 +682,7 @@ static void b53_srab_shutdown(struct platform_device *pdev)
 
 static struct platform_driver b53_srab_driver = {
 	.probe = b53_srab_probe,
-	.remove = b53_srab_remove,
+	.remove_new = b53_srab_remove,
 	.shutdown = b53_srab_shutdown,
 	.driver = {
 		.name = "b53-srab-switch",

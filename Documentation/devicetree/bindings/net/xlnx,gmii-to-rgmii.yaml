@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/xlnx,gmii-to-rgmii.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx GMII to RGMII Converter
+
+maintainers:
+  - Harini Katakam <harini.katakam@amd.com>
+
+description:
+  The Gigabit Media Independent Interface (GMII) to Reduced Gigabit Media
+  Independent Interface (RGMII) core provides the RGMII between RGMII-compliant
+  ethernet physical media devices (PHY) and the Gigabit Ethernet controller.
+  This core can be used in all three modes of operation(10/100/1000 Mb/s).
+  The Management Data Input/Output (MDIO) interface is used to configure the
+  speed of operation. This core can switch dynamically between the three
+  different speed modes by configuring the converter register through mdio write.
+  The core cannot function without an external phy connected to it.
+
+properties:
+  compatible:
+    const: xlnx,gmii-to-rgmii-1.0
+
+  reg:
+    minimum: 0
+    maximum: 31
+    description: The ID number for the phy.
+
+  phy-handle:
+    $ref: ethernet-controller.yaml#/properties/phy-handle
+
+required:
+  - compatible
+  - reg
+  - phy-handle
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        phy: ethernet-phy@0 {
+            reg = <0>;
+        };
+        gmiitorgmii@8 {
+            compatible = "xlnx,gmii-to-rgmii-1.0";
+            reg = <8>;
+            phy-handle = <&phy>;
+        };
+    };

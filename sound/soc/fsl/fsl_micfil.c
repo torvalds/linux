@@ -56,6 +56,8 @@ struct fsl_micfil {
 	int vad_init_mode;
 	int vad_enabled;
 	int vad_detected;
+	struct fsl_micfil_verid verid;
+	struct fsl_micfil_param param;
 };
 
 struct fsl_micfil_soc_data {
@@ -64,6 +66,7 @@ struct fsl_micfil_soc_data {
 	unsigned int dataline;
 	bool imx;
 	bool use_edma;
+	bool use_verid;
 	u64  formats;
 };
 
@@ -90,6 +93,7 @@ static struct fsl_micfil_soc_data fsl_micfil_imx93 = {
 	.dataline =  0xf,
 	.formats = SNDRV_PCM_FMTBIT_S32_LE,
 	.use_edma = true,
+	.use_verid = true,
 };
 
 static const struct of_device_id fsl_micfil_dt_ids[] = {
@@ -355,6 +359,49 @@ static const struct snd_kcontrol_new fsl_micfil_snd_controls[] = {
 		   REG_MICFIL_VAD0_ZCD, 4, 1, 0),
 	SOC_SINGLE_BOOL_EXT("VAD Detected", 0, hwvad_detected, NULL),
 };
+
+static int fsl_micfil_use_verid(struct device *dev)
+{
+	struct fsl_micfil *micfil = dev_get_drvdata(dev);
+	unsigned int val;
+	int ret;
+
+	if (!micfil->soc->use_verid)
+		return 0;
+
+	ret = regmap_read(micfil->regmap, REG_MICFIL_VERID, &val);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(dev, "VERID: 0x%016X\n", val);
+
+	micfil->verid.version = val &
+		(MICFIL_VERID_MAJOR_MASK | MICFIL_VERID_MINOR_MASK);
+	micfil->verid.version >>= MICFIL_VERID_MINOR_SHIFT;
+	micfil->verid.feature = val & MICFIL_VERID_FEATURE_MASK;
+
+	ret = regmap_read(micfil->regmap, REG_MICFIL_PARAM, &val);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(dev, "PARAM: 0x%016X\n", val);
+
+	micfil->param.hwvad_num = (val & MICFIL_PARAM_NUM_HWVAD_MASK) >>
+		MICFIL_PARAM_NUM_HWVAD_SHIFT;
+	micfil->param.hwvad_zcd = val & MICFIL_PARAM_HWVAD_ZCD;
+	micfil->param.hwvad_energy_mode = val & MICFIL_PARAM_HWVAD_ENERGY_MODE;
+	micfil->param.hwvad = val & MICFIL_PARAM_HWVAD;
+	micfil->param.dc_out_bypass = val & MICFIL_PARAM_DC_OUT_BYPASS;
+	micfil->param.dc_in_bypass = val & MICFIL_PARAM_DC_IN_BYPASS;
+	micfil->param.low_power = val & MICFIL_PARAM_LOW_POWER;
+	micfil->param.fil_out_width = val & MICFIL_PARAM_FIL_OUT_WIDTH;
+	micfil->param.fifo_ptrwid = (val & MICFIL_PARAM_FIFO_PTRWID_MASK) >>
+		MICFIL_PARAM_FIFO_PTRWID_SHIFT;
+	micfil->param.npair = (val & MICFIL_PARAM_NPAIR_MASK) >>
+		MICFIL_PARAM_NPAIR_SHIFT;
+
+	return 0;
+}
 
 /* The SRES is a self-negated bit which provides the CPU with the
  * capability to initialize the PDM Interface module through the
@@ -717,12 +764,6 @@ static int fsl_micfil_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops fsl_micfil_dai_ops = {
-	.startup = fsl_micfil_startup,
-	.trigger = fsl_micfil_trigger,
-	.hw_params = fsl_micfil_hw_params,
-};
-
 static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_micfil *micfil = dev_get_drvdata(cpu_dai->dev);
@@ -760,8 +801,14 @@ static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops fsl_micfil_dai_ops = {
+	.probe		= fsl_micfil_dai_probe,
+	.startup	= fsl_micfil_startup,
+	.trigger	= fsl_micfil_trigger,
+	.hw_params	= fsl_micfil_hw_params,
+};
+
 static struct snd_soc_dai_driver fsl_micfil_dai = {
-	.probe = fsl_micfil_dai_probe,
 	.capture = {
 		.stream_name = "CPU-Capture",
 		.channels_min = 1,
@@ -825,6 +872,9 @@ static bool fsl_micfil_readable_reg(struct device *dev, unsigned int reg)
 	case REG_MICFIL_DC_CTRL:
 	case REG_MICFIL_OUT_CTRL:
 	case REG_MICFIL_OUT_STAT:
+	case REG_MICFIL_FSYNC_CTRL:
+	case REG_MICFIL_VERID:
+	case REG_MICFIL_PARAM:
 	case REG_MICFIL_VAD0_CTRL1:
 	case REG_MICFIL_VAD0_CTRL2:
 	case REG_MICFIL_VAD0_STAT:
@@ -849,6 +899,7 @@ static bool fsl_micfil_writeable_reg(struct device *dev, unsigned int reg)
 	case REG_MICFIL_DC_CTRL:
 	case REG_MICFIL_OUT_CTRL:
 	case REG_MICFIL_OUT_STAT:	/* Write 1 to Clear */
+	case REG_MICFIL_FSYNC_CTRL:
 	case REG_MICFIL_VAD0_CTRL1:
 	case REG_MICFIL_VAD0_CTRL2:
 	case REG_MICFIL_VAD0_STAT:	/* Write 1 to Clear */
@@ -873,6 +924,8 @@ static bool fsl_micfil_volatile_reg(struct device *dev, unsigned int reg)
 	case REG_MICFIL_DATACH5:
 	case REG_MICFIL_DATACH6:
 	case REG_MICFIL_DATACH7:
+	case REG_MICFIL_VERID:
+	case REG_MICFIL_PARAM:
 	case REG_MICFIL_VAD0_STAT:
 	case REG_MICFIL_VAD0_NDATA:
 		return true;
@@ -1031,6 +1084,9 @@ static irqreturn_t hwvad_err_isr(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static int fsl_micfil_runtime_suspend(struct device *dev);
+static int fsl_micfil_runtime_resume(struct device *dev);
+
 static int fsl_micfil_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1044,7 +1100,7 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	micfil->pdev = pdev;
-	strncpy(micfil->name, np->name, sizeof(micfil->name) - 1);
+	strscpy(micfil->name, np->name, sizeof(micfil->name));
 
 	micfil->soc = of_device_get_match_data(&pdev->dev);
 
@@ -1150,6 +1206,25 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, micfil);
 
 	pm_runtime_enable(&pdev->dev);
+	if (!pm_runtime_enabled(&pdev->dev)) {
+		ret = fsl_micfil_runtime_resume(&pdev->dev);
+		if (ret)
+			goto err_pm_disable;
+	}
+
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret < 0)
+		goto err_pm_get_sync;
+
+	/* Get micfil version */
+	ret = fsl_micfil_use_verid(&pdev->dev);
+	if (ret < 0)
+		dev_warn(&pdev->dev, "Error reading MICFIL version: %d\n", ret);
+
+	ret = pm_runtime_put_sync(&pdev->dev);
+	if (ret < 0 && ret != -ENOSYS)
+		goto err_pm_get_sync;
+
 	regcache_cache_only(micfil->regmap, true);
 
 	/*
@@ -1174,6 +1249,9 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 
 	return ret;
 
+err_pm_get_sync:
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		fsl_micfil_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 
@@ -1185,7 +1263,7 @@ static void fsl_micfil_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int __maybe_unused fsl_micfil_runtime_suspend(struct device *dev)
+static int fsl_micfil_runtime_suspend(struct device *dev)
 {
 	struct fsl_micfil *micfil = dev_get_drvdata(dev);
 
@@ -1197,7 +1275,7 @@ static int __maybe_unused fsl_micfil_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused fsl_micfil_runtime_resume(struct device *dev)
+static int fsl_micfil_runtime_resume(struct device *dev)
 {
 	struct fsl_micfil *micfil = dev_get_drvdata(dev);
 	int ret;
@@ -1219,26 +1297,12 @@ static int __maybe_unused fsl_micfil_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused fsl_micfil_suspend(struct device *dev)
-{
-	pm_runtime_force_suspend(dev);
-
-	return 0;
-}
-
-static int __maybe_unused fsl_micfil_resume(struct device *dev)
-{
-	pm_runtime_force_resume(dev);
-
-	return 0;
-}
-
 static const struct dev_pm_ops fsl_micfil_pm_ops = {
 	SET_RUNTIME_PM_OPS(fsl_micfil_runtime_suspend,
 			   fsl_micfil_runtime_resume,
 			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(fsl_micfil_suspend,
-				fsl_micfil_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver fsl_micfil_driver = {

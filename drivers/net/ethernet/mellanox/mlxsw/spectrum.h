@@ -69,6 +69,7 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
 	MLXSW_SP_RESOURCE_RIF_MAC_PROFILES,
 	MLXSW_SP_RESOURCE_RIFS,
+	MLXSW_SP_RESOURCE_PORT_RANGE_REGISTERS,
 };
 
 struct mlxsw_sp_port;
@@ -76,11 +77,6 @@ struct mlxsw_sp_rif;
 struct mlxsw_sp_span_entry;
 enum mlxsw_sp_l3proto;
 union mlxsw_sp_l3addr;
-
-struct mlxsw_sp_upper {
-	struct net_device *dev;
-	unsigned int ref_count;
-};
 
 enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_SUBPORT,
@@ -135,6 +131,7 @@ struct mlxsw_sp_span_ops;
 struct mlxsw_sp_qdisc_state;
 struct mlxsw_sp_mall_entry;
 struct mlxsw_sp_pgt;
+struct mlxsw_sp_lag;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
@@ -163,7 +160,8 @@ struct mlxsw_sp {
 	const struct mlxsw_bus_info *bus_info;
 	unsigned char base_mac[ETH_ALEN];
 	const unsigned char *mac_mask;
-	struct mlxsw_sp_upper *lags;
+	struct mlxsw_sp_lag *lags;
+	u16 max_lag;
 	struct mlxsw_sp_port_mapping *port_mapping;
 	struct mlxsw_sp_port_mapping_events port_mapping_events;
 	struct rhashtable sample_trigger_ht;
@@ -175,6 +173,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
 	struct mlxsw_sp_policer_core *policer_core;
+	struct mlxsw_sp_port_range_core *pr_core;
 	struct mlxsw_sp_kvdl *kvdl;
 	struct mlxsw_sp_nve *nve;
 	struct notifier_block netdevice_nb;
@@ -203,13 +202,14 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_mall_ops *mall_ops;
 	const struct mlxsw_sp_router_ops *router_ops;
 	const struct mlxsw_listener *listeners;
-	const struct mlxsw_sp_fid_family **fid_family_arr;
+	const struct mlxsw_sp_fid_core_ops *fid_core_ops;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
 	struct rhashtable ipv6_addr_ht;
 	struct mutex ipv6_addr_ht_lock; /* Protects ipv6_addr_ht */
 	struct mlxsw_sp_pgt *pgt;
 	bool pgt_smpe_index_valid;
+	u16 lag_pgt_base;
 };
 
 struct mlxsw_sp_ptp_ops {
@@ -249,11 +249,10 @@ struct mlxsw_sp_ptp_ops {
 			       const struct mlxsw_tx_info *tx_info);
 };
 
-static inline struct mlxsw_sp_upper *
-mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
-{
-	return &mlxsw_sp->lags[lag_id];
-}
+struct mlxsw_sp_fid_core_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp);
+	void (*fini)(struct mlxsw_sp *mlxsw_sp);
+};
 
 struct mlxsw_sp_port_pcpu_stats {
 	u64			rx_packets;
@@ -505,6 +504,10 @@ enum mlxsw_sp_flood_type {
 	MLXSW_SP_FLOOD_TYPE_UC,
 	MLXSW_SP_FLOOD_TYPE_BC,
 	MLXSW_SP_FLOOD_TYPE_MC,
+	/* For RSP FIDs in CFF mode. */
+	MLXSW_SP_FLOOD_TYPE_NOT_UC,
+	/* For NVE traffic. */
+	MLXSW_SP_FLOOD_TYPE_ANY,
 };
 
 int mlxsw_sp_port_get_stats_raw(struct net_device *dev, int grp,
@@ -698,11 +701,13 @@ int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 struct mlxsw_sp_port_vlan *
 mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
 void mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
+int mlxsw_sp_port_kill_vid(struct net_device *dev,
+			   __be16 __always_unused proto, u16 vid);
 int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 			   u16 vid_end, bool is_member, bool untagged);
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
-			      unsigned int counter_index, u64 *packets,
-			      u64 *bytes);
+			      unsigned int counter_index, bool clear,
+			      u64 *packets, u64 *bytes);
 int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				unsigned int *p_counter_index);
 void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
@@ -716,8 +721,6 @@ int mlxsw_sp_txhdr_ptp_data_construct(struct mlxsw_core *mlxsw_core,
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
 struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);
-struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
-void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev);
 int mlxsw_sp_parsing_depth_inc(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_parsing_depth_dec(struct mlxsw_sp *mlxsw_sp);
@@ -750,6 +753,8 @@ union mlxsw_sp_l3addr {
 };
 
 u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
+int mlxsw_sp_rif_subport_port(const struct mlxsw_sp_rif *rif,
+			      u16 *port, bool *is_lag);
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
@@ -865,9 +870,13 @@ struct mlxsw_sp_acl_rule_info {
 	   egress_bind_blocker:1,
 	   counter_valid:1,
 	   policer_index_valid:1,
-	   ipv6_valid:1;
+	   ipv6_valid:1,
+	   src_port_range_reg_valid:1,
+	   dst_port_range_reg_valid:1;
 	unsigned int counter_index;
 	u16 policer_index;
+	u8 src_port_range_reg_index;
+	u8 dst_port_range_reg_index;
 	struct {
 		u32 prev_val;
 		enum mlxsw_sp_acl_mangle_field prev_field;
@@ -992,7 +1001,8 @@ void mlxsw_sp_acl_ruleset_prio_get(struct mlxsw_sp_acl_ruleset *ruleset,
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl,
 			  struct mlxsw_afa_block *afa_block);
-void mlxsw_sp_acl_rulei_destroy(struct mlxsw_sp_acl_rule_info *rulei);
+void mlxsw_sp_acl_rulei_destroy(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_commit(struct mlxsw_sp_acl_rule_info *rulei);
 void mlxsw_sp_acl_rulei_priority(struct mlxsw_sp_acl_rule_info *rulei,
 				 unsigned int priority);
@@ -1043,6 +1053,9 @@ int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_rule_info *rulei,
 				   u16 fid, struct netlink_ext_ack *extack);
+int mlxsw_sp_acl_rulei_act_ignore(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  bool disable_learning, bool disable_security);
 int mlxsw_sp_acl_rulei_act_sample(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
 				  struct mlxsw_sp_flow_block *block,
@@ -1261,7 +1274,6 @@ int mlxsw_sp_setup_tc_block_qevent_mark(struct mlxsw_sp_port *mlxsw_sp_port,
 					struct flow_block_offload *f);
 
 /* spectrum_fid.c */
-bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index);
 struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_index(struct mlxsw_sp *mlxsw_sp,
 						  u16 fid_index);
 int mlxsw_sp_fid_nve_ifindex(const struct mlxsw_sp_fid *fid, int *nve_ifindex);
@@ -1309,11 +1321,11 @@ struct mlxsw_sp_fid *mlxsw_sp_fid_dummy_get(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid);
 int mlxsw_sp_port_fids_init(struct mlxsw_sp_port *mlxsw_sp_port);
 void mlxsw_sp_port_fids_fini(struct mlxsw_sp_port *mlxsw_sp_port);
-int mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp);
-void mlxsw_sp_fids_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_fid_port_join_lag(const struct mlxsw_sp_port *mlxsw_sp_port);
+void mlxsw_sp_fid_port_leave_lag(const struct mlxsw_sp_port *mlxsw_sp_port);
 
-extern const struct mlxsw_sp_fid_family *mlxsw_sp1_fid_family_arr[];
-extern const struct mlxsw_sp_fid_family *mlxsw_sp2_fid_family_arr[];
+extern const struct mlxsw_sp_fid_core_ops mlxsw_sp1_fid_core_ops;
+extern const struct mlxsw_sp_fid_core_ops mlxsw_sp2_fid_core_ops;
 
 /* spectrum_mr.c */
 enum mlxsw_sp_mr_route_prio {
@@ -1394,10 +1406,6 @@ void mlxsw_sp_port_nve_fini(struct mlxsw_sp_port *mlxsw_sp_port);
 int mlxsw_sp_nve_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_nve_fini(struct mlxsw_sp *mlxsw_sp);
 
-/* spectrum_nve_vxlan.c */
-int mlxsw_sp_nve_inc_parsing_depth_get(struct mlxsw_sp *mlxsw_sp);
-void mlxsw_sp_nve_inc_parsing_depth_put(struct mlxsw_sp *mlxsw_sp);
-
 /* spectrum_trap.c */
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_devlink_traps_fini(struct mlxsw_sp *mlxsw_sp);
@@ -1475,7 +1483,7 @@ int mlxsw_sp_policer_resources_register(struct mlxsw_core *mlxsw_core);
 /* spectrum_pgt.c */
 int mlxsw_sp_pgt_mid_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_mid);
 void mlxsw_sp_pgt_mid_free(struct mlxsw_sp *mlxsw_sp, u16 mid_base);
-int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
+int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 *mid_base,
 				 u16 count);
 void mlxsw_sp_pgt_mid_free_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
 				 u16 count);
@@ -1484,4 +1492,18 @@ int mlxsw_sp_pgt_entry_port_set(struct mlxsw_sp *mlxsw_sp, u16 mid,
 int mlxsw_sp_pgt_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_pgt_fini(struct mlxsw_sp *mlxsw_sp);
 
+/* spectrum_port_range.c */
+struct mlxsw_sp_port_range {
+	u16 min;
+	u16 max;
+	u8 source:1;	/* Source or destination */
+};
+
+int mlxsw_sp_port_range_reg_get(struct mlxsw_sp *mlxsw_sp,
+				const struct mlxsw_sp_port_range *range,
+				struct netlink_ext_ack *extack,
+				u8 *p_prr_index);
+void mlxsw_sp_port_range_reg_put(struct mlxsw_sp *mlxsw_sp, u8 prr_index);
+int mlxsw_sp_port_range_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_port_range_fini(struct mlxsw_sp *mlxsw_sp);
 #endif

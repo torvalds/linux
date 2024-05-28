@@ -8,7 +8,7 @@ title: Qualcomm Global Clock & Reset Controller on IPQ4019
 
 maintainers:
   - Stephen Boyd <sboyd@kernel.org>
-  - Taniya Das <tdas@codeaurora.org>
+  - Taniya Das <quic_tdas@quicinc.com>
   - Robert Marko <robert.markoo@sartura.hr>
 
 description: |

@@ -136,11 +136,6 @@ static const struct watchdog_ops sp_wdt_ops = {
 	.restart	= sp_wdt_restart,
 };
 
-static void sp_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static void sp_reset_control_assert(void *data)
 {
 	reset_control_assert(data);
@@ -156,17 +151,9 @@ static int sp_wdt_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk = devm_clk_get(dev, NULL);
+	priv->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(priv->clk))
-		return dev_err_probe(dev, PTR_ERR(priv->clk), "Failed to get clock\n");
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable clock\n");
-
-	ret = devm_add_action_or_reset(dev, sp_clk_disable_unprepare, priv->clk);
-	if (ret)
-		return ret;
+		return dev_err_probe(dev, PTR_ERR(priv->clk), "Failed to enable clock\n");
 
 	/* The timer and watchdog shared the STC reset */
 	priv->rstc = devm_reset_control_get_shared(dev, NULL);

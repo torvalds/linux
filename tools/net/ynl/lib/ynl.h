@@ -3,25 +3,16 @@
 #define __YNL_C_H 1
 
 #include <stddef.h>
-#include <libmnl/libmnl.h>
 #include <linux/genetlink.h>
 #include <linux/types.h>
 
-struct mnl_socket;
-struct nlmsghdr;
-
-/*
- * User facing code
- */
-
-struct ynl_ntf_base_type;
-struct ynl_ntf_info;
-struct ynl_sock;
+#include "ynl-priv.h"
 
 enum ynl_error_code {
 	YNL_ERROR_NONE = 0,
 	__YNL_ERRNO_END = 4096,
 	YNL_ERROR_INTERNAL,
+	YNL_ERROR_DUMP_INTER,
 	YNL_ERROR_EXPECT_ACK,
 	YNL_ERROR_EXPECT_MSG,
 	YNL_ERROR_UNEXPECT_MSG,
@@ -29,6 +20,8 @@ enum ynl_error_code {
 	YNL_ERROR_ATTR_INVALID,
 	YNL_ERROR_UNKNOWN_NTF,
 	YNL_ERROR_INV_RESP,
+	YNL_ERROR_INPUT_INVALID,
+	YNL_ERROR_INPUT_TOO_BIG,
 };
 
 /**
@@ -54,6 +47,7 @@ struct ynl_error {
 struct ynl_family {
 /* private: */
 	const char *name;
+	size_t hdr_len;
 	const struct ynl_ntf_info *ntf_info;
 	unsigned int ntf_info_size;
 };
@@ -67,7 +61,7 @@ struct ynl_sock {
 
 /* private: */
 	const struct ynl_family *family;
-	struct mnl_socket *sock;
+	int socket;
 	__u32 seq;
 	__u32 portid;
 	__u16 family_id;
@@ -116,122 +110,4 @@ static inline bool ynl_has_ntf(struct ynl_sock *ys)
 struct ynl_ntf_base_type *ynl_ntf_dequeue(struct ynl_sock *ys);
 
 void ynl_ntf_free(struct ynl_ntf_base_type *ntf);
-
-/*
- * YNL internals / low level stuff
- */
-
-/* Generic mnl helper code */
-
-enum ynl_policy_type {
-	YNL_PT_REJECT = 1,
-	YNL_PT_IGNORE,
-	YNL_PT_NEST,
-	YNL_PT_FLAG,
-	YNL_PT_BINARY,
-	YNL_PT_U8,
-	YNL_PT_U16,
-	YNL_PT_U32,
-	YNL_PT_U64,
-	YNL_PT_NUL_STR,
-};
-
-struct ynl_policy_attr {
-	enum ynl_policy_type type;
-	unsigned int len;
-	const char *name;
-	struct ynl_policy_nest *nest;
-};
-
-struct ynl_policy_nest {
-	unsigned int max_attr;
-	struct ynl_policy_attr *table;
-};
-
-struct ynl_parse_arg {
-	struct ynl_sock *ys;
-	struct ynl_policy_nest *rsp_policy;
-	void *data;
-};
-
-struct ynl_dump_list_type {
-	struct ynl_dump_list_type *next;
-	unsigned char data[] __attribute__ ((aligned (8)));
-};
-extern struct ynl_dump_list_type *YNL_LIST_END;
-
-static inline bool ynl_dump_obj_is_last(void *obj)
-{
-	unsigned long uptr = (unsigned long)obj;
-
-	uptr -= offsetof(struct ynl_dump_list_type, data);
-	return uptr == (unsigned long)YNL_LIST_END;
-}
-
-static inline void *ynl_dump_obj_next(void *obj)
-{
-	unsigned long uptr = (unsigned long)obj;
-	struct ynl_dump_list_type *list;
-
-	uptr -= offsetof(struct ynl_dump_list_type, data);
-	list = (void *)uptr;
-	uptr = (unsigned long)list->next;
-	uptr += offsetof(struct ynl_dump_list_type, data);
-
-	return (void *)uptr;
-}
-
-struct ynl_ntf_base_type {
-	__u16 family;
-	__u8 cmd;
-	struct ynl_ntf_base_type *next;
-	void (*free)(struct ynl_ntf_base_type *ntf);
-	unsigned char data[] __attribute__ ((aligned (8)));
-};
-
-extern mnl_cb_t ynl_cb_array[NLMSG_MIN_TYPE];
-
-struct nlmsghdr *
-ynl_gemsg_start_req(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version);
-struct nlmsghdr *
-ynl_gemsg_start_dump(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version);
-
-int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr);
-
-int ynl_recv_ack(struct ynl_sock *ys, int ret);
-int ynl_cb_null(const struct nlmsghdr *nlh, void *data);
-
-/* YNL specific helpers used by the auto-generated code */
-
-struct ynl_req_state {
-	struct ynl_parse_arg yarg;
-	mnl_cb_t cb;
-	__u32 rsp_cmd;
-};
-
-struct ynl_dump_state {
-	struct ynl_sock *ys;
-	struct ynl_policy_nest *rsp_policy;
-	void *first;
-	struct ynl_dump_list_type *last;
-	size_t alloc_sz;
-	mnl_cb_t cb;
-	__u32 rsp_cmd;
-};
-
-struct ynl_ntf_info {
-	struct ynl_policy_nest *policy;
-	mnl_cb_t cb;
-	size_t alloc_sz;
-	void (*free)(struct ynl_ntf_base_type *ntf);
-};
-
-int ynl_exec(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
-	     struct ynl_req_state *yrs);
-int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
-		  struct ynl_dump_state *yds);
-
-void ynl_error_unknown_notification(struct ynl_sock *ys, __u8 cmd);
-int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
-
 #endif

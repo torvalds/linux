@@ -15,8 +15,8 @@ struct drm_printer;
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20201103"
-#define DRIVER_TIMESTAMP	1604406085
+#define DRIVER_DATE		"20230929"
+#define DRIVER_TIMESTAMP	1695980603
 
 extern const struct dev_pm_ops i915_pm_ops;
 

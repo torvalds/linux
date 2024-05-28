@@ -24,7 +24,6 @@
 #include <linux/uio.h>
 #include <linux/smp.h>
 #include <linux/mutex.h>
-#include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/inetdevice.h>
 
@@ -45,7 +44,6 @@
 
 #define NLMDBG_FACILITY		NLMDBG_SVC
 #define LOCKD_BUFSIZE		(1024 + NLMSVC_XDRSIZE)
-#define ALLOWED_SIGS		(sigmask(SIGKILL))
 
 static struct svc_program	nlmsvc_program;
 
@@ -56,6 +54,12 @@ static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static struct svc_serv		*nlmsvc_serv;
 unsigned long			nlmsvc_timeout;
+
+static void nlmsvc_request_retry(struct timer_list *tl)
+{
+	svc_wake_up(nlmsvc_serv);
+}
+DEFINE_TIMER(nlmsvc_retry, nlmsvc_request_retry);
 
 unsigned int lockd_net_id;
 
@@ -111,26 +115,12 @@ static void set_grace_period(struct net *net)
 	schedule_delayed_work(&ln->grace_period_end, grace_period);
 }
 
-static void restart_grace(void)
-{
-	if (nlmsvc_ops) {
-		struct net *net = &init_net;
-		struct lockd_net *ln = net_generic(net, lockd_net_id);
-
-		cancel_delayed_work_sync(&ln->grace_period_end);
-		locks_end_grace(&ln->lockd_manager);
-		nlmsvc_invalidate_all();
-		set_grace_period(net);
-	}
-}
-
 /*
  * This is the lockd kernel thread
  */
 static int
 lockd(void *vrqstp)
 {
-	int		err = 0;
 	struct svc_rqst *rqstp = vrqstp;
 	struct net *net = &init_net;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
@@ -138,43 +128,19 @@ lockd(void *vrqstp)
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
 
-	/* Allow SIGKILL to tell lockd to drop all of its locks */
-	allow_signal(SIGKILL);
-
 	dprintk("NFS locking service started (ver " LOCKD_VERSION ").\n");
 
 	/*
 	 * The main request loop. We don't terminate until the last
 	 * NFS mount or NFS daemon has gone away.
 	 */
-	while (!kthread_should_stop()) {
-		long timeout = MAX_SCHEDULE_TIMEOUT;
-		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
-
+	while (!svc_thread_should_stop(rqstp)) {
 		/* update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nlm_max_connections;
 
-		if (signalled()) {
-			flush_signals(current);
-			restart_grace();
-			continue;
-		}
-
-		timeout = nlmsvc_retry_blocked();
-
-		/*
-		 * Find a socket with data available and call its
-		 * recvfrom routine.
-		 */
-		err = svc_recv(rqstp, timeout);
-		if (err == -EAGAIN || err == -EINTR)
-			continue;
-		dprintk("lockd: request from %s\n",
-				svc_print_addr(rqstp, buf, sizeof(buf)));
-
-		svc_process(rqstp);
+		nlmsvc_retry_blocked(rqstp);
+		svc_recv(rqstp);
 	}
-	flush_signals(current);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
@@ -379,10 +345,10 @@ static int lockd_get(void)
 
 	serv->sv_maxconn = nlm_max_connections;
 	error = svc_set_num_threads(serv, NULL, 1);
-	/* The thread now holds the only reference */
-	svc_put(serv);
-	if (error < 0)
+	if (error < 0) {
+		svc_destroy(&serv);
 		return error;
+	}
 
 	nlmsvc_serv = serv;
 	register_inetaddr_notifier(&lockd_inetaddr_notifier);
@@ -407,7 +373,8 @@ static void lockd_put(void)
 #endif
 
 	svc_set_num_threads(nlmsvc_serv, NULL, 0);
-	nlmsvc_serv = NULL;
+	timer_delete_sync(&nlmsvc_retry);
+	svc_destroy(&nlmsvc_serv);
 	dprintk("lockd_down: service destroyed\n");
 }
 
@@ -506,7 +473,6 @@ static struct ctl_table nlm_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ }
 };
 
 #endif	/* CONFIG_SYSCTL */
@@ -538,7 +504,7 @@ static inline int is_callback(u32 proc)
 }
 
 
-static int lockd_authenticate(struct svc_rqst *rqstp)
+static enum svc_auth_status lockd_authenticate(struct svc_rqst *rqstp)
 {
 	rqstp->rq_client = NULL;
 	switch (rqstp->rq_authop->flavour) {
@@ -744,8 +710,6 @@ static const struct svc_version *nlmsvc_version[] = {
 #endif
 };
 
-static struct svc_stat		nlmsvc_stats;
-
 #define NLM_NRVERS	ARRAY_SIZE(nlmsvc_version)
 static struct svc_program	nlmsvc_program = {
 	.pg_prog		= NLM_PROGRAM,		/* program number */
@@ -753,7 +717,6 @@ static struct svc_program	nlmsvc_program = {
 	.pg_vers		= nlmsvc_version,	/* version table */
 	.pg_name		= "lockd",		/* service name */
 	.pg_class		= "nfsd",		/* share authentication with nfsd */
-	.pg_stats		= &nlmsvc_stats,	/* stats table */
 	.pg_authenticate	= &lockd_authenticate,	/* export authentication */
 	.pg_init_request	= svc_generic_init_request,
 	.pg_rpcbind_set		= svc_generic_rpcbind_set,

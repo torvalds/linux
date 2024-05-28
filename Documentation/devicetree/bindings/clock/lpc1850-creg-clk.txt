@@ -5,8 +5,8 @@ control registers for two low speed clocks. One of the clocks is a
 32 kHz oscillator driver with power up/down and clock gating. Next
 is a fixed divider that creates a 1 kHz clock from the 32 kHz osc.
 
-These clocks are used by the RTC and the Event Router peripherials.
-The 32 kHz can also be routed to other peripherials to enable low
+These clocks are used by the RTC and the Event Router peripherals.
+The 32 kHz can also be routed to other peripherals to enable low
 power modes.
 
 This binding uses the common clock binding:

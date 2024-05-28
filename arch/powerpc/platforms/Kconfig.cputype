@@ -94,6 +94,7 @@ config PPC_BOOK3S_64
 	select PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
@@ -274,6 +275,13 @@ config TARGET_CPU
 	default "8540" if E500_CPU
 	default "e500mc" if E500MC_CPU
 	default "powerpc" if POWERPC_CPU
+
+config TUNE_CPU
+	string
+	depends on POWERPC64_CPU
+	default "-mtune=power10" if $(cc-option,-mtune=power10)
+	default "-mtune=power9"  if $(cc-option,-mtune=power9)
+	default "-mtune=power8"  if $(cc-option,-mtune=power8)
 
 config PPC_BOOK3S
 	def_bool y

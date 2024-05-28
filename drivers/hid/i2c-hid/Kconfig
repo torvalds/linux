@@ -9,6 +9,7 @@ if I2C_HID
 config I2C_HID_ACPI
 	tristate "HID over I2C transport layer ACPI driver"
 	depends on ACPI
+	depends on DRM || !DRM
 	select I2C_HID_CORE
 	help
 	  Say Y here if you use a keyboard, a touchpad, a touchscreen, or any
@@ -25,6 +26,7 @@ config I2C_HID_OF
 	tristate "HID over I2C transport layer Open Firmware driver"
 	# No "depends on OF" because this can also be used for manually
 	# (board-file) instantiated "hid-over-i2c" type i2c-clients.
+	depends on DRM || !DRM
 	select I2C_HID_CORE
 	help
 	  Say Y here if you use a keyboard, a touchpad, a touchscreen, or any
@@ -41,6 +43,7 @@ config I2C_HID_OF
 config I2C_HID_OF_ELAN
 	tristate "Driver for Elan hid-i2c based devices on OF systems"
 	depends on OF
+	depends on DRM || !DRM
 	select I2C_HID_CORE
 	help
 	  Say Y here if you want support for Elan i2c devices that use
@@ -56,6 +59,7 @@ config I2C_HID_OF_ELAN
 config I2C_HID_OF_GOODIX
 	tristate "Driver for Goodix hid-i2c based devices on OF systems"
 	depends on OF
+	depends on DRM || !DRM
 	select I2C_HID_CORE
 	help
 	  Say Y here if you want support for Goodix i2c devices that use
@@ -70,5 +74,7 @@ config I2C_HID_OF_GOODIX
 
 config I2C_HID_CORE
 	tristate
+	# We need to call into panel code so if DRM=m, this can't be 'y'
+	depends on DRM || !DRM
 endif
 

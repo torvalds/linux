@@ -25,7 +25,7 @@
 #define AX88796C_PHY_REGDUMP_LEN	14
 #define AX88796C_PHY_ID			0x10
 
-#define TX_OVERHEAD			8
+#define TX_OVERHEAD     sizeof_field(struct tx_pkt_info, tx_overhead)
 #define TX_EOP_SIZE			4
 
 #define AX_MCAST_FILTER_SIZE		8
@@ -549,8 +549,10 @@ struct tx_eop_header {
 };
 
 struct tx_pkt_info {
-	struct tx_sop_header sop;
-	struct tx_segment_header seg;
+	struct_group(tx_overhead,
+		struct tx_sop_header sop;
+		struct tx_segment_header seg;
+	);
 	struct tx_eop_header eop;
 	u16 pkt_len;
 	u16 seq_num;

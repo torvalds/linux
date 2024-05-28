@@ -44,6 +44,7 @@
 do {								\
 	instrumentation_begin();				\
 	__BUG_FLAGS(BUGFLAG_WARNING|(flags));			\
+	annotate_reachable();					\
 	instrumentation_end();					\
 } while (0)
 

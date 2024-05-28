@@ -22,6 +22,16 @@ config SND_SOC_INTEL_AVS_MACH_DMIC
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_AVS_MACH_ES8336
+	tristate "es8336 I2S board"
+	depends on X86 && I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_ES8316
+	help
+	  This adds support for AVS with ES8336 I2S codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_AVS_MACH_HDAUDIO
 	tristate "HD-Audio generic board"
 	select SND_SOC_HDA
@@ -112,6 +122,26 @@ config SND_SOC_INTEL_AVS_MACH_RT298
 	select SND_SOC_RT298
 	help
 	   This adds support for ASoC machine driver with RT298 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_RT5514
+	tristate "rt5514 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT5514
+	help
+	   This adds support for ASoC machine driver with RT5514 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_RT5663
+	tristate "rt5663 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT5663
+	help
+	   This adds support for ASoC machine driver with RT5663 I2S audio codec.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 

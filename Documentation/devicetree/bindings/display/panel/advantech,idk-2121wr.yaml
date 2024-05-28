@@ -19,6 +19,9 @@ description: |
   second port, therefore the ports must be marked accordingly (with either
   dual-lvds-odd-pixels or dual-lvds-even-pixels).
 
+allOf:
+  - $ref: panel-common.yaml#
+
 properties:
   compatible:
     items:

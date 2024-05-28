@@ -132,6 +132,8 @@ static int efx_bind_neigh(struct efx_nic *efx,
 		/* don't need our new entry */
 		put_net_track(neigh->net, &neigh->ns_tracker);
 		kfree(neigh);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return PTR_ERR(old);
 		if (!refcount_inc_not_zero(&old->ref))
 			return -EAGAIN;
 		/* existing entry found, ref taken */
@@ -640,6 +642,8 @@ struct efx_tc_encap_action *efx_tc_flower_create_encap_md(
 	if (old) {
 		/* don't need our new entry */
 		kfree(encap);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return ERR_CAST(old);
 		if (!refcount_inc_not_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found, ref taken */

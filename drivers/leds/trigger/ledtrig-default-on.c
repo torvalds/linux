@@ -28,3 +28,4 @@ module_led_trigger(defon_led_trigger);
 MODULE_AUTHOR("Nick Forbes <nick.forbes@incepta.com>");
 MODULE_DESCRIPTION("Default-ON LED trigger");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("ledtrig:default-on");

@@ -12,7 +12,7 @@ static int hvsi_send_packet(struct hvsi_priv *pv, struct hvsi_header *packet)
 	packet->seqno = cpu_to_be16(atomic_inc_return(&pv->seqno));
 
 	/* Assumes that always succeeds, works in practice */
-	return pv->put_chars(pv->termno, (char *)packet, packet->len);
+	return pv->put_chars(pv->termno, (u8 *)packet, packet->len);
 }
 
 static void hvsi_start_handshake(struct hvsi_priv *pv)
@@ -178,9 +178,10 @@ static int hvsi_get_packet(struct hvsi_priv *pv)
 	return 0;
 }
 
-int hvsilib_get_chars(struct hvsi_priv *pv, char *buf, int count)
+ssize_t hvsilib_get_chars(struct hvsi_priv *pv, u8 *buf, size_t count)
 {
-	unsigned int tries, read = 0;
+	unsigned int tries;
+	size_t read = 0;
 
 	if (WARN_ON(!pv))
 		return -ENXIO;
@@ -199,7 +200,7 @@ int hvsilib_get_chars(struct hvsi_priv *pv, char *buf, int count)
 	for (tries = 1; count && tries < 2; tries++) {
 		/* Consume existing data packet */
 		if (pv->inbuf_pktlen) {
-			unsigned int l = min(count, (int)pv->inbuf_pktlen);
+			size_t l = min(count, pv->inbuf_pktlen);
 			memcpy(&buf[read], &pv->inbuf[pv->inbuf_cur], l);
 			pv->inbuf_cur += l;
 			pv->inbuf_pktlen -= l;
@@ -228,10 +229,11 @@ int hvsilib_get_chars(struct hvsi_priv *pv, char *buf, int count)
 	return read;
 }
 
-int hvsilib_put_chars(struct hvsi_priv *pv, const char *buf, int count)
+ssize_t hvsilib_put_chars(struct hvsi_priv *pv, const u8 *buf, size_t count)
 {
 	struct hvsi_data dp;
-	int rc, adjcount = min(count, HVSI_MAX_OUTGOING_DATA);
+	size_t adjcount = min_t(size_t, count, HVSI_MAX_OUTGOING_DATA);
+	int rc;
 
 	if (WARN_ON(!pv))
 		return -ENODEV;
@@ -411,9 +413,9 @@ void hvsilib_close(struct hvsi_priv *pv, struct hvc_struct *hp)
 }
 
 void hvsilib_init(struct hvsi_priv *pv,
-		  int (*get_chars)(uint32_t termno, char *buf, int count),
-		  int (*put_chars)(uint32_t termno, const char *buf,
-				   int count),
+		  ssize_t (*get_chars)(uint32_t termno, u8 *buf, size_t count),
+		  ssize_t (*put_chars)(uint32_t termno, const u8 *buf,
+				       size_t count),
 		  int termno, int is_console)
 {
 	memset(pv, 0, sizeof(*pv));

@@ -40,7 +40,6 @@
 #include <asm/hw_irq.h>
 #include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/exception-64s.h>

@@ -1,0 +1,9 @@
+[
+    {
+        "BriefDescription": "This 48-bit fixed counter counts the UCLK cycles.",
+        "EventCode": "0xff",
+        "EventName": "UNC_CLOCK.SOCKET",
+        "PerPkg": "1",
+        "Unit": "CLOCK"
+    }
+]

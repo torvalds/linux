@@ -340,11 +340,12 @@ struct nix_aq_res_s {
 /* NIX Completion queue context structure */
 struct nix_cq_ctx_s {
 	u64 base;
-	u64 rsvd_64_67		: 4;
+	u64 lbp_ena             : 1;
+	u64 lbpid_low           : 3;
 	u64 bp_ena		: 1;
-	u64 rsvd_69_71		: 3;
+	u64 lbpid_med           : 3;
 	u64 bpid		: 9;
-	u64 rsvd_81_83		: 3;
+	u64 lbpid_high          : 3;
 	u64 qint_idx		: 7;
 	u64 cq_err		: 1;
 	u64 cint_idx		: 7;
@@ -358,10 +359,14 @@ struct nix_cq_ctx_s {
 	u64 drop		: 8;
 	u64 drop_ena		: 1;
 	u64 ena			: 1;
-	u64 rsvd_210_211	: 2;
-	u64 substream		: 20;
+	u64 cpt_drop_err_en     : 1;
+	u64 rsvd_211	        : 1;
+	u64 substream           : 12;
+	u64 stash_thresh        : 4;
+	u64 lbp_frac            : 4;
 	u64 caching		: 1;
-	u64 rsvd_233_235	: 3;
+	u64 stashing            : 1;
+	u64 rsvd_234_235	: 2;
 	u64 qsize		: 4;
 	u64 cq_err_int		: 8;
 	u64 cq_err_int_ena	: 8;

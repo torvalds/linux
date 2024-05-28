@@ -6,6 +6,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include "soundbus.h"
 
 MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
@@ -125,7 +127,7 @@ static void soundbus_device_shutdown(struct device *dev)
 
 /* soundbus_dev_attrs is declared in sysfs.c */
 ATTRIBUTE_GROUPS(soundbus_dev);
-static struct bus_type soundbus_bus_type = {
+static const struct bus_type soundbus_bus_type = {
 	.name		= "aoa-soundbus",
 	.probe		= soundbus_probe,
 	.uevent		= soundbus_uevent,

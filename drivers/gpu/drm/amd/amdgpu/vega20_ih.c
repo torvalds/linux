@@ -291,27 +291,29 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 
 	adev->nbio.funcs->ih_control(adev);
 
-	if ((adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 2, 1)) &&
-	    adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
-		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
-		if (adev->irq.ih.use_bus_addr) {
-			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
-						   MC_SPACE_GPA_ENABLE, 1);
+	if (!amdgpu_sriov_vf(adev)) {
+		if ((amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 2, 1)) &&
+		    adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
+			if (adev->irq.ih.use_bus_addr) {
+				ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
+							   MC_SPACE_GPA_ENABLE, 1);
+			}
+			WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
 		}
-		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
-	}
 
-	/* psp firmware won't program IH_CHICKEN for aldebaran
-	 * driver needs to program it properly according to
-	 * MC_SPACE type in IH_RB_CNTL */
-	if ((adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 0)) ||
-	    (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2))) {
-		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN);
-		if (adev->irq.ih.use_bus_addr) {
-			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
-						   MC_SPACE_GPA_ENABLE, 1);
+		/* psp firmware won't program IH_CHICKEN for aldebaran
+		 * driver needs to program it properly according to
+		 * MC_SPACE type in IH_RB_CNTL */
+		if ((amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 0)) ||
+		    (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2))) {
+			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN);
+			if (adev->irq.ih.use_bus_addr) {
+				ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
+							   MC_SPACE_GPA_ENABLE, 1);
+			}
+			WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN, ih_chicken);
 		}
-		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN, ih_chicken);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ih); i++) {
@@ -334,8 +336,8 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 		vega20_setup_retry_doorbell(adev->irq.retry_cam_doorbell_index));
 
 	/* Enable IH Retry CAM */
-	if (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 0) ||
-	    adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2))
+	if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 0) ||
+	    amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2))
 		WREG32_FIELD15(OSSSYS, 0, IH_RETRY_INT_CAM_CNTL_ALDEBARAN,
 			       ENABLE, 1);
 	else
@@ -421,6 +423,12 @@ static u32 vega20_ih_get_wptr(struct amdgpu_device *adev,
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
 	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
 
+	/* Unset the CLEAR_OVERFLOW bit immediately so new overflows
+	 * can be detected.
+	 */
+	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 0);
+	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
+
 out:
 	return (wptr & ih->ptr_mask);
 }
@@ -500,7 +508,8 @@ static int vega20_ih_self_irq(struct amdgpu_device *adev,
 	case 2:
 		schedule_work(&adev->irq.ih2_work);
 		break;
-	default: break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -536,10 +545,10 @@ static int vega20_ih_sw_init(void *handle)
 		return r;
 
 	if ((adev->flags & AMD_IS_APU) &&
-	    (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2)))
+	    (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2)))
 		use_bus_addr = false;
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 256 * 1024, use_bus_addr);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, IH_RING_SIZE, use_bus_addr);
 	if (r)
 		return r;
 
@@ -553,7 +562,7 @@ static int vega20_ih_sw_init(void *handle)
 	adev->irq.ih1.use_doorbell = true;
 	adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
 
-	if (adev->ip_versions[OSSSYS_HWIP][0] != IP_VERSION(4, 4, 2)) {
+	if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) != IP_VERSION(4, 4, 2)) {
 		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
 		if (r)
 			return r;
@@ -565,7 +574,7 @@ static int vega20_ih_sw_init(void *handle)
 	/* initialize ih control registers offset */
 	vega20_ih_init_register_offset(adev);
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, use_bus_addr);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, IH_SW_RING_SIZE, use_bus_addr);
 	if (r)
 		return r;
 
@@ -710,8 +719,7 @@ static void vega20_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 	adev->irq.ih_funcs = &vega20_ih_funcs;
 }
 
-const struct amdgpu_ip_block_version vega20_ih_ip_block =
-{
+const struct amdgpu_ip_block_version vega20_ih_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 4,
 	.minor = 2,

@@ -42,7 +42,6 @@ Linux内存管理文档
    damon/index
    free_page_reporting
    ksm
-   frontswap
    hmm
    hwpoison
    hugetlbfs_reserv

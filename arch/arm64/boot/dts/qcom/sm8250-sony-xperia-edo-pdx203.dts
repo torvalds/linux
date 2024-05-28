@@ -14,3 +14,369 @@
 };
 
 /delete-node/ &vreg_l7f_1p8;
+
+&i2c5 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	pmic@75 {
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+		dlg,cs-gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+		vin5-supply = <&vreg_s1f_1p2>;
+		vin6-supply = <&vreg_s1f_1p2>;
+
+		pinctrl-0 = <&cam_pwr_b_cs>;
+		pinctrl-names = "default";
+
+		regulators {
+			slg51000_1_ldo1: ldo1 {
+				regulator-name = "slg51000_b_ldo1";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_1_ldo2: ldo2 {
+				regulator-name = "slg51000_b_ldo2";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_1_ldo3: ldo3 {
+				regulator-name = "slg51000_b_ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_1_ldo4: ldo4 {
+				regulator-name = "slg51000_b_ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_1_ldo5: ldo5 {
+				regulator-name = "slg51000_b_ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_1_ldo6: ldo6 {
+				regulator-name = "slg51000_b_ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_1_ldo7: ldo7 {
+				regulator-name = "slg51000_b_ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+	};
+};
+
+&i2c15 {
+	pmic@75 {
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+		dlg,cs-gpios = <&tlmm 71 GPIO_ACTIVE_HIGH>;
+		vin5-supply = <&vreg_l2f_1p3>;
+		vin6-supply = <&vreg_l2f_1p3>;
+
+		pinctrl-0 = <&cam_pwr_a_cs>;
+		pinctrl-names = "default";
+
+		regulators {
+			slg51000_0_ldo1: ldo1 {
+				regulator-name = "slg51000_a_ldo1";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_0_ldo2: ldo2 {
+				regulator-name = "slg51000_a_ldo2";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_0_ldo3: ldo3 {
+				regulator-name = "slg51000_a_ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_0_ldo4: ldo4 {
+				regulator-name = "slg51000_a_ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_0_ldo5: ldo5 {
+				regulator-name = "slg51000_a_ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_0_ldo6: ldo6 {
+				regulator-name = "slg51000_a_ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_0_ldo7: ldo7 {
+				regulator-name = "slg51000_a_ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+	};
+};
+
+&pm8009_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "CAM_PWR_LD_EN",
+			  "WIDEC_PWR_EN",
+			  "NC";
+};
+
+&pm8150_gpios {
+	gpio-line-names = "VOL_DOWN_N", /* GPIO_1 */
+			  "OPTION_2",
+			  "NC",
+			  "PM_SLP_CLK_IN",
+			  "OPTION_1",
+			  "NC",
+			  "NC",
+			  "SP_ARI_PWR_ALARM",
+			  "NC",
+			  "NC"; /* GPIO_10 */
+};
+
+&pm8150b_gpios {
+	gpio-line-names = "SNAPSHOT_N", /* GPIO_1 */
+			  "FOCUS_N",
+			  "NC",
+			  "NC",
+			  "RF_LCD_ID_EN",
+			  "NC",
+			  "NC",
+			  "LCD_ID",
+			  "NC",
+			  "WLC_EN_N", /* GPIO_10 */
+			  "NC",
+			  "RF_ID";
+};
+
+&pm8150l_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "PM3003A_EN",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "AUX2_THERM",
+			  "BB_HP_EN",
+			  "FP_LDO_EN",
+			  "PMX_RESET_N",
+			  "AUX3_THERM", /* GPIO_10 */
+			  "DTV_PWR_EN",
+			  "PM3003A_MODE";
+};
+
+&tlmm {
+	gpio-line-names = "AP_CTI_IN", /* GPIO_0 */
+			  "MDM2AP_ERR_FATAL",
+			  "AP_CTI_OUT",
+			  "MDM2AP_STATUS",
+			  "NFC_I2C_SDA",
+			  "NFC_I2C_SCL",
+			  "NFC_EN",
+			  "NFC_CLK_REQ",
+			  "NFC_ESE_PWR_REQ",
+			  "DVDT_WRT_DET_AND",
+			  "SPK_AMP_RESET_N", /* GPIO_10 */
+			  "SPK_AMP_INT_N",
+			  "APPS_I2C_1_SDA",
+			  "APPS_I2C_1_SCL",
+			  "NC",
+			  "TX_GTR_THRES_IN",
+			  "HST_BT_UART_CTS",
+			  "HST_BT_UART_RFR",
+			  "HST_BT_UART_TX",
+			  "HST_BT_UART_RX",
+			  "HST_WLAN_EN", /* GPIO_20 */
+			  "HST_BT_EN",
+			  "RGBC_IR_PWR_EN",
+			  "FP_INT_N",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NFC_ESE_SPI_MISO",
+			  "NFC_ESE_SPI_MOSI",
+			  "NFC_ESE_SPI_SCLK", /* GPIO_30 */
+			  "NFC_ESE_SPI_CS_N",
+			  "WCD_RST_N",
+			  "NC",
+			  "SDM_DEBUG_UART_TX",
+			  "SDM_DEBUG_UART_RX",
+			  "TS_I2C_SDA",
+			  "TS_I2C_SCL",
+			  "TS_INT_N",
+			  "FP_SPI_MISO", /* GPIO_40 */
+			  "FP_SPI_MOSI",
+			  "FP_SPI_SCLK",
+			  "FP_SPI_CS_N",
+			  "APPS_I2C_0_SDA",
+			  "APPS_I2C_0_SCL",
+			  "DISP_ERR_FG",
+			  "UIM2_DETECT_EN",
+			  "NC",
+			  "NC",
+			  "NC", /* GPIO_50 */
+			  "NC",
+			  "MDM_UART_CTS",
+			  "MDM_UART_RFR",
+			  "MDM_UART_TX",
+			  "MDM_UART_RX",
+			  "AP2MDM_STATUS",
+			  "AP2MDM_ERR_FATAL",
+			  "MDM_IPC_HS_UART_TX",
+			  "MDM_IPC_HS_UART_RX",
+			  "NC", /* GPIO_60 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "USB_CC_DIR",
+			  "DISP_VSYNC",
+			  "NC",
+			  "NC",
+			  "CAM_PWR_B_CS",
+			  "NC", /* GPIO_70 */
+			  "CAM_PWR_A_CS",
+			  "SBU_SW_SEL",
+			  "SBU_SW_OE",
+			  "FP_RESET_N",
+			  "FP_RESET_N",
+			  "DISP_RESET_N",
+			  "DEBUG_GPIO0",
+			  "TRAY_DET",
+			  "CAM2_RST_N",
+			  "PCIE0_RST_N",
+			  "PCIE0_CLK_REQ_N", /* GPIO_80 */
+			  "PCIE0_WAKE_N",
+			  "DVDT_ENABLE",
+			  "DVDT_WRT_DET_OR",
+			  "NC",
+			  "PCIE2_RST_N",
+			  "PCIE2_CLK_REQ_N",
+			  "PCIE2_WAKE_N",
+			  "MDM_VFR_IRQ0",
+			  "MDM_VFR_IRQ1",
+			  "SW_SERVICE", /* GPIO_90 */
+			  "CAM_SOF",
+			  "CAM1_RST_N",
+			  "CAM0_RST_N",
+			  "CAM0_MCLK",
+			  "CAM1_MCLK",
+			  "CAM2_MCLK",
+			  "CAM3_MCLK",
+			  "CAM4_MCLK",
+			  "TOF_RST_N",
+			  "NC", /* GPIO_100 */
+			  "CCI0_I2C_SDA",
+			  "CCI0_I2C_SCL",
+			  "CCI1_I2C_SDA",
+			  "CCI1_I2C_SCL_",
+			  "CCI2_I2C_SDA",
+			  "CCI2_I2C_SCL",
+			  "CCI3_I2C_SDA",
+			  "CCI3_I2C_SCL",
+			  "CAM3_RST_N",
+			  "NFC_DWL_REQ", /* GPIO_110 */
+			  "NFC_IRQ",
+			  "XVS",
+			  "NC",
+			  "RF_ID_EXTENSION",
+			  "SPK_AMP_I2C_SDA",
+			  "SPK_AMP_I2C_SCL",
+			  "NC",
+			  "NC",
+			  "WLC_I2C_SDA",
+			  "WLC_I2C_SCL", /* GPIO_120 */
+			  "ACC_COVER_OPEN",
+			  "ALS_PROX_INT_N",
+			  "ACCEL_INT",
+			  "WLAN_SW_CTRL",
+			  "CAMSENSOR_I2C_SDA",
+			  "CAMSENSOR_I2C_SCL",
+			  "UDON_SWITCH_SEL",
+			  "WDOG_DISABLE",
+			  "BAROMETER_INT",
+			  "NC", /* GPIO_130 */
+			  "NC",
+			  "FORCED_USB_BOOT",
+			  "NC",
+			  "NC",
+			  "WLC_INT_N",
+			  "NC",
+			  "NC",
+			  "RGBC_IR_INT",
+			  "NC",
+			  "NC", /* GPIO_140 */
+			  "NC",
+			  "BT_SLIMBUS_CLK",
+			  "BT_SLIMBUS_DATA",
+			  "HW_ID_0",
+			  "HW_ID_1",
+			  "WCD_SWR_TX_CLK",
+			  "WCD_SWR_TX_DATA0",
+			  "WCD_SWR_TX_DATA1",
+			  "WCD_SWR_RX_CLK",
+			  "WCD_SWR_RX_DATA0", /* GPIO_150 */
+			  "WCD_SWR_RX_DATA1",
+			  "SDM_DMIC_CLK1",
+			  "SDM_DMIC_DATA1",
+			  "SDM_DMIC_CLK2",
+			  "SDM_DMIC_DATA2",
+			  "SPK_AMP_I2S_CLK",
+			  "SPK_AMP_I2S_WS",
+			  "SPK_AMP_I2S_ASP_DIN",
+			  "SPK_AMP_I2S_ASP_DOUT",
+			  "COMPASS_I2C_SDA", /* GPIO_160 */
+			  "COMPASS_I2C_SCL",
+			  "NC",
+			  "NC",
+			  "SSC_SPI_1_MISO",
+			  "SSC_SPI_1_MOSI",
+			  "SSC_SPI_1_CLK",
+			  "SSC_SPI_1_CS_N",
+			  "NC",
+			  "NC",
+			  "SSC_SENSOR_I2C_SDA", /* GPIO_170 */
+			  "SSC_SENSOR_I2C_SCL",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "HST_BLE_SNS_UART6_TX",
+			  "HST_BLE_SNS_UART6_RX",
+			  "HST_WLAN_UART_TX",
+			  "HST_WLAN_UART_RX";
+
+	cam_pwr_b_cs: cam-pwr-b-state {
+		pins = "gpio69";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+
+	cam_pwr_a_cs: cam-pwr-a-state {
+		pins = "gpio71";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+};

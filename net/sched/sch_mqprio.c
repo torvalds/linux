@@ -774,6 +774,7 @@ static struct Qdisc_ops mqprio_qdisc_ops __read_mostly = {
 	.dump		= mqprio_dump,
 	.owner		= THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("mqprio");
 
 static int __init mqprio_module_init(void)
 {
@@ -789,3 +790,4 @@ module_init(mqprio_module_init);
 module_exit(mqprio_module_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Classful multiqueue prio qdisc");

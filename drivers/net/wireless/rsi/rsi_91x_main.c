@@ -270,14 +270,14 @@ static void rsi_tx_scheduler_thread(struct rsi_common *common)
 #ifdef CONFIG_RSI_COEX
 enum rsi_host_intf rsi_get_host_intf(void *priv)
 {
-	struct rsi_common *common = (struct rsi_common *)priv;
+	struct rsi_common *common = priv;
 
 	return common->priv->rsi_host_intf;
 }
 
 void rsi_set_bt_context(void *priv, void *bt_context)
 {
-	struct rsi_common *common = (struct rsi_common *)priv;
+	struct rsi_common *common = priv;
 
 	common->bt_adapter = bt_context;
 }

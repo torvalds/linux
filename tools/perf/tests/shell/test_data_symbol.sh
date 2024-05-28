@@ -4,6 +4,13 @@
 # SPDX-License-Identifier: GPL-2.0
 # Leo Yan <leo.yan@linaro.org>, 2022
 
+shelldir=$(dirname "$0")
+# shellcheck source=lib/waiting.sh
+. "${shelldir}"/lib/waiting.sh
+
+# shellcheck source=lib/perf_has_symbol.sh
+. "${shelldir}"/lib/perf_has_symbol.sh
+
 skip_if_no_mem_event() {
 	perf mem record -e list 2>&1 | grep -E -q 'available' && return 0
 	return 2
@@ -11,8 +18,11 @@ skip_if_no_mem_event() {
 
 skip_if_no_mem_event || exit 2
 
+skip_test_missing_symbol buf1
+
 TEST_PROGRAM="perf test -w datasym"
 PERF_DATA=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
+ERR_FILE=$(mktemp /tmp/__perf_test.stderr.XXXXX)
 
 check_result() {
 	# The memory report format is as below:
@@ -50,12 +60,14 @@ echo "Recording workload..."
 # specific CPU and test in per-CPU mode.
 is_amd=$(grep -E -c 'vendor_id.*AuthenticAMD' /proc/cpuinfo)
 if (($is_amd >= 1)); then
-	perf mem record -o ${PERF_DATA} -C 0 -- taskset -c 0 $TEST_PROGRAM &
+	perf mem record -vvv -o ${PERF_DATA} -C 0 -- taskset -c 0 $TEST_PROGRAM 2>"${ERR_FILE}" &
 else
-	perf mem record --all-user -o ${PERF_DATA} -- $TEST_PROGRAM &
+	perf mem record -vvv --all-user -o ${PERF_DATA} -- $TEST_PROGRAM 2>"${ERR_FILE}" &
 fi
 
 PERFPID=$!
+
+wait_for_perf_to_start ${PERFPID} "${ERR_FILE}"
 
 sleep 1
 

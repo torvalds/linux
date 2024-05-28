@@ -32,7 +32,7 @@ mechanisms to detect split locks and bus locks.
 --------------------------------------
 
 Beginning with the Tremont Atom CPU split lock operations may raise an
-Alignment Check (#AC) exception when a split lock operation is attemped.
+Alignment Check (#AC) exception when a split lock operation is attempted.
 
 #DB exception for bus lock detection
 ------------------------------------

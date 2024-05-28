@@ -71,6 +71,12 @@ static inline u64 mul_u32_u32(u32 a, u32 b)
 }
 #define mul_u32_u32 mul_u32_u32
 
+/*
+ * __div64_32() is never called on x86, so prevent the
+ * generic definition from getting built.
+ */
+#define __div64_32
+
 #else
 # include <asm-generic/div64.h>
 

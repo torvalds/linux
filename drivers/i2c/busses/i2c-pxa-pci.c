@@ -12,7 +12,6 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_address.h>
 
 #define CE4100_PCI_I2C_DEVS	3

@@ -1521,4 +1521,7 @@ void dpp1_construct(struct dcn10_dpp *dpp1,
 	const struct dcn_dpp_registers *tf_regs,
 	const struct dcn_dpp_shift *tf_shift,
 	const struct dcn_dpp_mask *tf_mask);
+
+void dpp1_cm_get_gamut_remap(struct dpp *dpp_base,
+			     struct dpp_grph_csc_adjustment *adjust);
 #endif

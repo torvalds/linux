@@ -2543,6 +2543,56 @@ out:
 	return 0;
 }
 
+/**
+ * _ctl_enable_diag_sbr_reload - enable sbr reload bit
+ * @ioc: per adapter object
+ * @arg: user space buffer containing ioctl content
+ *
+ * Enable the SBR reload bit
+ */
+static int
+_ctl_enable_diag_sbr_reload(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
+{
+	u32 ioc_state, host_diagnostic;
+
+	if (ioc->shost_recovery ||
+	    ioc->pci_error_recovery || ioc->is_driver_loading ||
+	    ioc->remove_host)
+		return -EAGAIN;
+
+	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
+
+	if (ioc_state != MPI2_IOC_STATE_OPERATIONAL)
+		return -EFAULT;
+
+	host_diagnostic = ioc->base_readl(&ioc->chip->HostDiagnostic);
+
+	if (host_diagnostic & MPI2_DIAG_SBR_RELOAD)
+		return 0;
+
+	if (mutex_trylock(&ioc->hostdiag_unlock_mutex)) {
+		if (mpt3sas_base_unlock_and_get_host_diagnostic(ioc, &host_diagnostic)) {
+			mutex_unlock(&ioc->hostdiag_unlock_mutex);
+				return -EFAULT;
+		}
+	} else
+		return -EAGAIN;
+
+	host_diagnostic |= MPI2_DIAG_SBR_RELOAD;
+	writel(host_diagnostic, &ioc->chip->HostDiagnostic);
+	host_diagnostic = ioc->base_readl(&ioc->chip->HostDiagnostic);
+	mpt3sas_base_lock_host_diagnostic(ioc);
+	mutex_unlock(&ioc->hostdiag_unlock_mutex);
+
+	if (!(host_diagnostic & MPI2_DIAG_SBR_RELOAD)) {
+		ioc_err(ioc, "%s: Failed to set Diag SBR Reload Bit\n", __func__);
+		return -EFAULT;
+	}
+
+	ioc_info(ioc, "%s: Successfully set the Diag SBR Reload Bit\n", __func__);
+	return 0;
+}
+
 #ifdef CONFIG_COMPAT
 /**
  * _ctl_compat_mpt_command - convert 32bit pointers to 64bit.
@@ -2718,6 +2768,10 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 	case MPT3ADDNLDIAGQUERY:
 		if (_IOC_SIZE(cmd) == sizeof(struct mpt3_addnl_diag_query))
 			ret = _ctl_addnl_diag_query(ioc, arg);
+		break;
+	case MPT3ENABLEDIAGSBRRELOAD:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt3_enable_diag_sbr_reload))
+			ret = _ctl_enable_diag_sbr_reload(ioc, arg);
 		break;
 	default:
 		dctlprintk(ioc,
@@ -4157,31 +4211,37 @@ mpt3sas_ctl_init(ushort hbas_to_enumerate)
 }
 
 /**
+ * mpt3sas_ctl_release - release dma for ctl
+ * @ioc: per adapter object
+ */
+void
+mpt3sas_ctl_release(struct MPT3SAS_ADAPTER *ioc)
+{
+	int i;
+
+	/* free memory associated to diag buffers */
+	for (i = 0; i < MPI2_DIAG_BUF_TYPE_COUNT; i++) {
+		if (!ioc->diag_buffer[i])
+			continue;
+		dma_free_coherent(&ioc->pdev->dev,
+				  ioc->diag_buffer_sz[i],
+				  ioc->diag_buffer[i],
+				  ioc->diag_buffer_dma[i]);
+		ioc->diag_buffer[i] = NULL;
+		ioc->diag_buffer_status[i] = 0;
+	}
+
+	kfree(ioc->event_log);
+}
+
+/**
  * mpt3sas_ctl_exit - exit point for ctl
  * @hbas_to_enumerate: ?
  */
 void
 mpt3sas_ctl_exit(ushort hbas_to_enumerate)
 {
-	struct MPT3SAS_ADAPTER *ioc;
-	int i;
 
-	list_for_each_entry(ioc, &mpt3sas_ioc_list, list) {
-
-		/* free memory associated to diag buffers */
-		for (i = 0; i < MPI2_DIAG_BUF_TYPE_COUNT; i++) {
-			if (!ioc->diag_buffer[i])
-				continue;
-			dma_free_coherent(&ioc->pdev->dev,
-					  ioc->diag_buffer_sz[i],
-					  ioc->diag_buffer[i],
-					  ioc->diag_buffer_dma[i]);
-			ioc->diag_buffer[i] = NULL;
-			ioc->diag_buffer_status[i] = 0;
-		}
-
-		kfree(ioc->event_log);
-	}
 	if (hbas_to_enumerate != 1)
 		misc_deregister(&ctl_dev);
 	if (hbas_to_enumerate != 2)

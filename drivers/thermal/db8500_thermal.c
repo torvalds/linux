@@ -229,7 +229,7 @@ MODULE_DEVICE_TABLE(of, db8500_thermal_match);
 static struct platform_driver db8500_thermal_driver = {
 	.driver = {
 		.name = "db8500-thermal",
-		.of_match_table = of_match_ptr(db8500_thermal_match),
+		.of_match_table = db8500_thermal_match,
 	},
 	.probe = db8500_thermal_probe,
 	.suspend = db8500_thermal_suspend,

@@ -50,7 +50,7 @@ int vcap_tc_flower_handler_ethaddr_usage(struct vcap_tc_flower_parse_usage *st)
 			goto out;
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS);
 
 	return err;
 
@@ -86,7 +86,7 @@ int vcap_tc_flower_handler_ipv4_usage(struct vcap_tc_flower_parse_usage *st)
 		}
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS);
 
 	return err;
 
@@ -124,7 +124,7 @@ int vcap_tc_flower_handler_ipv6_usage(struct vcap_tc_flower_parse_usage *st)
 				goto out;
 		}
 	}
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS);
 	return err;
 out:
 	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ipv6_addr parse error");
@@ -158,7 +158,7 @@ int vcap_tc_flower_handler_portnum_usage(struct vcap_tc_flower_parse_usage *st)
 			goto out;
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_PORTS);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_PORTS);
 
 	return err;
 
@@ -201,7 +201,7 @@ int vcap_tc_flower_handler_cvlan_usage(struct vcap_tc_flower_parse_usage *st)
 			goto out;
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_CVLAN);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_CVLAN);
 
 	return 0;
 out:
@@ -238,7 +238,7 @@ int vcap_tc_flower_handler_vlan_usage(struct vcap_tc_flower_parse_usage *st,
 	if (mt.mask->vlan_tpid)
 		st->tpid = be16_to_cpu(mt.key->vlan_tpid);
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_VLAN);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_VLAN);
 
 	return 0;
 out:
@@ -313,7 +313,7 @@ int vcap_tc_flower_handler_tcp_usage(struct vcap_tc_flower_parse_usage *st)
 			goto out;
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_TCP);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_TCP);
 
 	return err;
 
@@ -376,7 +376,7 @@ int vcap_tc_flower_handler_arp_usage(struct vcap_tc_flower_parse_usage *st)
 			goto out;
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_ARP);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_ARP);
 
 	return 0;
 
@@ -401,7 +401,7 @@ int vcap_tc_flower_handler_ip_usage(struct vcap_tc_flower_parse_usage *st)
 			goto out;
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_IP);
+	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_IP);
 
 	return err;
 

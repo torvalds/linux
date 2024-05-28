@@ -27,7 +27,7 @@ struct nv50_gr_chan {
 	struct nv50_gr *gr;
 };
 
-int nv50_gr_chan_new(struct nvkm_gr *, struct nvkm_fifo_chan *,
+int nv50_gr_chan_new(struct nvkm_gr *, struct nvkm_chan *,
 		     const struct nvkm_oclass *, struct nvkm_object **);
 
 extern const struct nvkm_object_func nv50_gr_object;

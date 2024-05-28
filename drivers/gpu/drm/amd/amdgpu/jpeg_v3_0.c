@@ -52,7 +52,7 @@ static int jpeg_v3_0_early_init(void *handle)
 
 	u32 harvest;
 
-	switch (adev->ip_versions[UVD_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, UVD_HWIP, 0)) {
 	case IP_VERSION(3, 1, 1):
 	case IP_VERSION(3, 1, 2):
 		break;
@@ -479,7 +479,7 @@ static int jpeg_v3_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = state == AMD_CG_STATE_GATE;
 
 	if (enable) {
 		if (!jpeg_v3_0_is_idle(handle))

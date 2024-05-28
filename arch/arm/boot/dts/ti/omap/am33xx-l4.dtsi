@@ -455,8 +455,8 @@
 			rtc: rtc@0 {
 				compatible = "ti,am3352-rtc", "ti,da830-rtc";
 				reg = <0x0 0x1000>;
-				interrupts = <75
-					      76>;
+				interrupts = <75>,
+					     <76>;
 			};
 		};
 
@@ -739,7 +739,7 @@
 				 * c0_tx_pend
 				 * c0_misc_pend
 				 */
-				interrupts = <40 41 42 43>;
+				interrupts = <40>, <41>, <42>, <43>;
 				ranges = <0 0 0x8000>;
 				syscon = <&scm_conf>;
 				status = "disabled";
@@ -779,7 +779,7 @@
 				syscon = <&scm_conf>;
 				status = "disabled";
 
-				interrupts = <40 41 42 43>;
+				interrupts = <40>, <41>, <42>, <43>;
 				interrupt-names = "rx_thresh", "rx", "tx", "misc";
 
 				ethernet-ports {
@@ -899,7 +899,7 @@
 				pruss_intc: interrupt-controller@20000 {
 					compatible = "ti,pruss-intc";
 					reg = <0x20000 0x2000>;
-					interrupts = <20 21 22 23 24 25 26 27>;
+					interrupts = <20>, <21>, <22>, <23>, <24>, <25>, <26>, <27>;
 					interrupt-names = "host_intr0", "host_intr1",
 							  "host_intr2", "host_intr3",
 							  "host_intr4", "host_intr5",

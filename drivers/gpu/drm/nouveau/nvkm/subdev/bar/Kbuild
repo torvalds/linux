@@ -7,3 +7,5 @@ nvkm-y += nvkm/subdev/bar/gk20a.o
 nvkm-y += nvkm/subdev/bar/gm107.o
 nvkm-y += nvkm/subdev/bar/gm20b.o
 nvkm-y += nvkm/subdev/bar/tu102.o
+
+nvkm-y += nvkm/subdev/bar/r535.o

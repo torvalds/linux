@@ -18,7 +18,9 @@ allOf:
 properties:
   compatible:
     items:
-      - const: fsl,imx8qxp-sc-wdt
+      - enum:
+          - fsl,imx8dxl-sc-wdt
+          - fsl,imx8qxp-sc-wdt
       - const: fsl,imx-sc-wdt
 
 required:

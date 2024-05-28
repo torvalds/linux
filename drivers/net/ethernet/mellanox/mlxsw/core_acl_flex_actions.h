@@ -89,6 +89,8 @@ int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
 				   struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
 				   struct netlink_ext_ack *extack);
+int mlxsw_afa_block_append_ignore(struct mlxsw_afa_block *block,
+				  bool disable_learning, bool disable_security);
 int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 				    u16 expected_irif, u16 min_mtu,
 				    bool rmid_valid, u32 kvdl_index);

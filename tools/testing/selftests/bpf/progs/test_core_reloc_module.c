@@ -43,8 +43,8 @@ int BPF_PROG(test_core_module_probed,
 #if __has_builtin(__builtin_preserve_enum_value)
 	struct core_reloc_module_output *out = (void *)&data.out;
 	__u64 pid_tgid = bpf_get_current_pid_tgid();
-	__u32 real_tgid = (__u32)(pid_tgid >> 32);
-	__u32 real_pid = (__u32)pid_tgid;
+	__s32 real_tgid = (__s32)(pid_tgid >> 32);
+	__s32 real_pid = (__s32)pid_tgid;
 
 	if (data.my_pid_tgid != pid_tgid)
 		return 0;
@@ -77,8 +77,8 @@ int BPF_PROG(test_core_module_direct,
 #if __has_builtin(__builtin_preserve_enum_value)
 	struct core_reloc_module_output *out = (void *)&data.out;
 	__u64 pid_tgid = bpf_get_current_pid_tgid();
-	__u32 real_tgid = (__u32)(pid_tgid >> 32);
-	__u32 real_pid = (__u32)pid_tgid;
+	__s32 real_tgid = (__s32)(pid_tgid >> 32);
+	__s32 real_pid = (__s32)pid_tgid;
 
 	if (data.my_pid_tgid != pid_tgid)
 		return 0;

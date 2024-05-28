@@ -560,5 +560,7 @@ typedef struct immap {
 	cpm8xx_t	im_cpm;		/* Communication processor */
 } immap_t;
 
+extern immap_t __iomem *mpc8xx_immr;
+
 #endif /* __IMMAP_8XX__ */
 #endif /* __KERNEL__ */

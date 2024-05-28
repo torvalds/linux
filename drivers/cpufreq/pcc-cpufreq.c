@@ -232,8 +232,8 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 	status = ioread16(&pcch_hdr->status);
 	iowrite16(0, &pcch_hdr->status);
 
-	cpufreq_freq_transition_end(policy, &freqs, status != CMD_COMPLETE);
 	spin_unlock(&pcc_lock);
+	cpufreq_freq_transition_end(policy, &freqs, status != CMD_COMPLETE);
 
 	if (status != CMD_COMPLETE) {
 		pr_debug("target: FAILED for cpu %d, with status: 0x%x\n",
@@ -608,22 +608,20 @@ static int __init pcc_cpufreq_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int pcc_cpufreq_remove(struct platform_device *pdev)
+static void pcc_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&pcc_cpufreq_driver);
 
 	pcc_clear_mapping();
 
 	free_percpu(pcc_cpu_info);
-
-	return 0;
 }
 
 static struct platform_driver pcc_cpufreq_platdrv = {
 	.driver = {
 		.name	= "pcc-cpufreq",
 	},
-	.remove		= pcc_cpufreq_remove,
+	.remove_new	= pcc_cpufreq_remove,
 };
 
 static int __init pcc_cpufreq_init(void)

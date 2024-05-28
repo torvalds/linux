@@ -13,18 +13,20 @@
  *
  *	(A) aplay   -D plughw:0,0 xxx.wav
  *	(B) aplay   -D plughw:0,1 xxx.wav
- *	(C) aplay   -D plughw:0,2 xxx.wav
+ *	(C) aplay   -D plughw:1,0 xxx.wav
  *
  *	(A) arecord -D plughw:0,0 xxx.wav
- *	(D) arecord -D plughw:0,3 xxx.wav
+ *	(D) arecord -D plughw:1,1 xxx.wav
  */
+/ {
+	sound_card_kf: expand-sound {
+		compatible = "audio-graph-card";
+		label = "snd-kf";
 
-&sound_card {
-	dais = <&rsnd_port0 /* (A) CPU0 <-> ak4613 */
-		&rsnd_port1 /* (B) CPU1  -> HDMI   */
-		&rsnd_port2 /* (C) CPU2  -> PCM3168A-p */
-		&rsnd_port3 /* (D) CPU3 <-  PCM3168A-c */
+		dais = <&snd_kf1 /* (C) CPU2  -> PCM3168A-p */
+			&snd_kf2 /* (D) CPU3 <-  PCM3168A-c */
 		>;
+	};
 };
 
 &pcm3168a {
@@ -56,12 +58,15 @@
 };
 
 &rcar_sound {
-	ports {
-		/* rsnd_port0/1 are defined in ulcb.dtsi */
+	ports@1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <1>;
+
 		/*
 		 * (C) CPU2 -> PCM3168A-p
 		 */
-		rsnd_port2: port@2 {
+		snd_kf1: port@2 {
 			reg = <2>;
 			rsnd_for_pcm3168a_play: endpoint {
 				remote-endpoint = <&pcm3168a_endpoint_p>;
@@ -74,7 +79,7 @@
 		/*
 		 * (D) CPU3 <- PCM3168A-c
 		 */
-		rsnd_port3: port@3 {
+		snd_kf2: port@3 {
 			reg = <3>;
 			rsnd_for_pcm3168a_capture: endpoint {
 				remote-endpoint = <&pcm3168a_endpoint_c>;

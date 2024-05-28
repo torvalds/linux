@@ -83,8 +83,8 @@ static const struct fs_parameter_spec *fs_lookup_key(
 }
 
 /*
- * fs_parse - Parse a filesystem configuration parameter
- * @fc: The filesystem context to log errors through.
+ * __fs_parse - Parse a filesystem configuration parameter
+ * @log: The filesystem context to log errors through.
  * @desc: The parameter description to use.
  * @param: The parameter.
  * @result: Where to place the result of the parse

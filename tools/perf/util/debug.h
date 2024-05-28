@@ -9,6 +9,7 @@
 #include <linux/compiler.h>
 
 extern int verbose;
+extern int debug_kmaps;
 extern int debug_peo_args;
 extern bool quiet, dump_trace;
 extern int debug_ordered_events;
@@ -77,6 +78,7 @@ int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __printf(4, 5)
 int veprintf(int level, int var, const char *fmt, va_list args);
 
 int perf_debug_option(const char *str);
+FILE *debug_file(void);
 void debug_set_file(FILE *file);
 void debug_set_display_time(bool set);
 void perf_debug_setup(void);

@@ -6,7 +6,9 @@
  */
 
 #include <linux/delay.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <asm/opal.h>
 #include <asm/machdep.h>
 

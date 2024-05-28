@@ -184,6 +184,7 @@ machine_arch_initcall(pseries, rtas_work_area_allocator_init);
 
 /**
  * rtas_work_area_reserve_arena() - Reserve memory suitable for RTAS work areas.
+ * @limit: Upper limit for memblock allocation.
  */
 void __init rtas_work_area_reserve_arena(const phys_addr_t limit)
 {

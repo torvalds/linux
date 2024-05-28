@@ -534,7 +534,6 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	struct device			*dev =  &pdev->dev;
 	struct usbhs_omap_platform_data	*pdata = dev_get_platdata(dev);
 	struct usbhs_hcd_omap		*omap;
-	struct resource			*res;
 	int				ret = 0;
 	int				i;
 	bool				need_logic_fck;
@@ -569,8 +568,7 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	omap->uhh_base = devm_ioremap_resource(dev, res);
+	omap->uhh_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(omap->uhh_base))
 		return PTR_ERR(omap->uhh_base);
 
@@ -701,7 +699,7 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < omap->nports; i++) {
-		char clkname[30];
+		char clkname[40];
 
 		/* clock names are indexed from 1*/
 		snprintf(clkname, sizeof(clkname),
@@ -818,13 +816,12 @@ static int usbhs_omap_remove_child(struct device *dev, void *data)
  *
  * Reverses the effect of usbhs_omap_probe().
  */
-static int usbhs_omap_remove(struct platform_device *pdev)
+static void usbhs_omap_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
 	/* remove children */
 	device_for_each_child(&pdev->dev, NULL, usbhs_omap_remove_child);
-	return 0;
 }
 
 static const struct dev_pm_ops usbhsomap_dev_pm_ops = {
@@ -847,7 +844,7 @@ static struct platform_driver usbhs_omap_driver = {
 		.of_match_table = usbhs_omap_dt_ids,
 	},
 	.probe		= usbhs_omap_probe,
-	.remove		= usbhs_omap_remove,
+	.remove_new	= usbhs_omap_remove,
 };
 
 MODULE_AUTHOR("Keshava Munegowda <keshava_mgowda@ti.com>");

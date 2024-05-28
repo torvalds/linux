@@ -295,7 +295,7 @@ Description:
 		capable of executing requests targeting different sector ranges
 		in parallel. For instance, single LUN multi-actuator hard-disks
 		will have an independent_access_ranges directory if the device
-		correctly advertizes the sector ranges of its actuators.
+		correctly advertises the sector ranges of its actuators.
 
 		The independent_access_ranges directory contains one directory
 		per access range, with each range described using the sector

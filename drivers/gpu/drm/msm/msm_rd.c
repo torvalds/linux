@@ -270,6 +270,9 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 	struct msm_rd_state *rd;
 	int ret;
 
+	if (!priv->gpu_pdev)
+		return 0;
+
 	/* only create on first minor: */
 	if (priv->rd)
 		return 0;
@@ -310,7 +313,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 		struct msm_gem_submit *submit, int idx,
 		uint64_t iova, uint32_t size, bool full)
 {
-	struct msm_gem_object *obj = submit->bos[idx].obj;
+	struct drm_gem_object *obj = submit->bos[idx].obj;
 	unsigned offset = 0;
 	const char *buf;
 
@@ -318,7 +321,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 		offset = iova - submit->bos[idx].iova;
 	} else {
 		iova = submit->bos[idx].iova;
-		size = obj->base.size;
+		size = obj->size;
 	}
 
 	/*
@@ -335,7 +338,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	if (!(submit->bos[idx].flags & MSM_SUBMIT_BO_READ))
 		return;
 
-	buf = msm_gem_get_vaddr_active(&obj->base);
+	buf = msm_gem_get_vaddr_active(obj);
 	if (IS_ERR(buf))
 		return;
 
@@ -343,7 +346,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 
-	msm_gem_put_vaddr_locked(&obj->base);
+	msm_gem_put_vaddr_locked(obj);
 }
 
 /* called under gpu->lock */

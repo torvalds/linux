@@ -41,6 +41,8 @@
  * USA.
  */
 
+#include <linux/bitfield.h>
+
 #include "esas2r.h"
 
 /*
@@ -792,16 +794,10 @@ static int hba_ioctl_callback(struct esas2r_adapter *a,
 			pcie_capability_read_dword(a->pcid, PCI_EXP_LNKCAP,
 						   &caps);
 
-			gai->pci.link_speed_curr =
-				(u8)(stat & PCI_EXP_LNKSTA_CLS);
-			gai->pci.link_speed_max =
-				(u8)(caps & PCI_EXP_LNKCAP_SLS);
-			gai->pci.link_width_curr =
-				(u8)((stat & PCI_EXP_LNKSTA_NLW)
-				     >> PCI_EXP_LNKSTA_NLW_SHIFT);
-			gai->pci.link_width_max =
-				(u8)((caps & PCI_EXP_LNKCAP_MLW)
-				     >> 4);
+			gai->pci.link_speed_curr = FIELD_GET(PCI_EXP_LNKSTA_CLS, stat);
+			gai->pci.link_speed_max = FIELD_GET(PCI_EXP_LNKCAP_SLS, caps);
+			gai->pci.link_width_curr = FIELD_GET(PCI_EXP_LNKSTA_NLW, stat);
+			gai->pci.link_width_max = FIELD_GET(PCI_EXP_LNKCAP_MLW, caps);
 		}
 
 		gai->pci.msi_vector_cnt = 1;

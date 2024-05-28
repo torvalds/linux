@@ -31,6 +31,8 @@
 #include <linux/regulator/machine.h>
 
 #include <linux/i2c.h>
+
+#include <linux/mfd/core.h>
 #include <linux/mfd/twl.h>
 
 /* Register descriptions for audio */
@@ -121,6 +123,11 @@
 #define TWL6030_BASEADD_AUDIO		0x0000
 #define TWL6030_BASEADD_RSV		0x0000
 #define TWL6030_BASEADD_ZERO		0x0000
+
+/* Some fields in TWL6030_PHOENIX_DEV_ON */
+#define TWL6030_APP_DEVOFF		BIT(0)
+#define TWL6030_CON_DEVOFF		BIT(1)
+#define TWL6030_MOD_DEVOFF		BIT(2)
 
 /* Few power values */
 #define R_CFG_BOOT			0x05
@@ -312,7 +319,7 @@ static const struct regmap_config twl4030_regmap_config[4] = {
 
 		.reg_defaults = twl4030_49_defaults,
 		.num_reg_defaults = ARRAY_SIZE(twl4030_49_defaults),
-		.cache_type = REGCACHE_RBTREE,
+		.cache_type = REGCACHE_MAPLE,
 	},
 	{
 		/* Address 0x4a */
@@ -685,9 +692,27 @@ static void twl_remove(struct i2c_client *client)
 	twl_priv->ready = false;
 }
 
+static void twl6030_power_off(void)
+{
+	int err;
+	u8 val;
+
+	err = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val, TWL6030_PHOENIX_DEV_ON);
+	if (err)
+		return;
+
+	val |= TWL6030_APP_DEVOFF | TWL6030_CON_DEVOFF | TWL6030_MOD_DEVOFF;
+	twl_i2c_write_u8(TWL_MODULE_PM_MASTER, val, TWL6030_PHOENIX_DEV_ON);
+}
+
+
 static struct of_dev_auxdata twl_auxdata_lookup[] = {
 	OF_DEV_AUXDATA("ti,twl4030-gpio", 0, "twl4030-gpio", NULL),
 	{ /* sentinel */ },
+};
+
+static const struct mfd_cell twl6032_cells[] = {
+	{ .name = "twl6032-clk" },
 };
 
 /* NOTE: This driver only handles a single twl4030/tps659x0 chip */
@@ -834,6 +859,25 @@ twl_probe(struct i2c_client *client)
 		temp |= SMARTREFLEX_ENABLE;
 		twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, temp,
 				 TWL4030_DCDC_GLOBAL_CFG);
+	}
+
+	if (id->driver_data == (TWL6030_CLASS | TWL6032_SUBCLASS)) {
+		status = devm_mfd_add_devices(&client->dev,
+					      PLATFORM_DEVID_NONE,
+					      twl6032_cells,
+					      ARRAY_SIZE(twl6032_cells),
+					      NULL, 0, NULL);
+		if (status < 0)
+			goto free;
+	}
+
+	if (twl_class_is_6030()) {
+		if (of_device_is_system_power_controller(node)) {
+			if (!pm_power_off)
+				pm_power_off = twl6030_power_off;
+			else
+				dev_warn(&client->dev, "Poweroff callback already assigned\n");
+		}
 	}
 
 	status = of_platform_populate(node, NULL, twl_auxdata_lookup,

@@ -58,7 +58,6 @@ static inline unsigned int arch_slab_minalign(void)
 #define CTR_L1IP(ctr)		SYS_FIELD_GET(CTR_EL0, L1Ip, ctr)
 
 #define ICACHEF_ALIASING	0
-#define ICACHEF_VPIPT		1
 extern unsigned long __icache_flags;
 
 /*
@@ -68,11 +67,6 @@ extern unsigned long __icache_flags;
 static inline int icache_is_aliasing(void)
 {
 	return test_bit(ICACHEF_ALIASING, &__icache_flags);
-}
-
-static __always_inline int icache_is_vpipt(void)
-{
-	return test_bit(ICACHEF_VPIPT, &__icache_flags);
 }
 
 static inline u32 cache_type_cwg(void)

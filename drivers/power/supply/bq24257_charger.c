@@ -35,20 +35,15 @@
 
 #define BQ24257_ILIM_SET_DELAY		1000	/* msec */
 
-/*
- * When adding support for new devices make sure that enum bq2425x_chip and
- * bq2425x_chip_name[] always stay in sync!
- */
 enum bq2425x_chip {
 	BQ24250,
 	BQ24251,
 	BQ24257,
 };
 
-static const char *const bq2425x_chip_name[] = {
-	"bq24250",
-	"bq24251",
-	"bq24257",
+struct bq2425x_chip_info {
+	const char *const name;
+	enum bq2425x_chip chip;
 };
 
 enum bq24257_fields {
@@ -84,7 +79,7 @@ struct bq24257_device {
 	struct device *dev;
 	struct power_supply *charger;
 
-	enum bq2425x_chip chip;
+	const struct bq2425x_chip_info *info;
 
 	struct regmap *rmap;
 	struct regmap_field *rmap_fields[F_MAX_FIELDS];
@@ -329,7 +324,7 @@ static int bq24257_power_supply_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
-		val->strval = bq2425x_chip_name[bq->chip];
+		val->strval = bq->info->name;
 		break;
 
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -947,10 +942,8 @@ static int bq24257_fw_probe(struct bq24257_device *bq)
 
 static int bq24257_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
-	const struct acpi_device_id *acpi_id;
 	struct bq24257_device *bq;
 	int ret;
 	int i;
@@ -967,17 +960,9 @@ static int bq24257_probe(struct i2c_client *client)
 	bq->client = client;
 	bq->dev = dev;
 
-	if (ACPI_HANDLE(dev)) {
-		acpi_id = acpi_match_device(dev->driver->acpi_match_table,
-					    &client->dev);
-		if (!acpi_id) {
-			dev_err(dev, "Failed to match ACPI device\n");
-			return -ENODEV;
-		}
-		bq->chip = (enum bq2425x_chip)acpi_id->driver_data;
-	} else {
-		bq->chip = (enum bq2425x_chip)id->driver_data;
-	}
+	bq->info = i2c_get_match_data(client);
+	if (!bq->info)
+		return dev_err_probe(dev, -ENODEV, "Failed to match device\n");
 
 	mutex_init(&bq->lock);
 
@@ -1015,7 +1000,7 @@ static int bq24257_probe(struct i2c_client *client)
 	 * used for the automatic setting of the input current limit setting so
 	 * explicitly disable that feature.
 	 */
-	if (bq->chip == BQ24250)
+	if (bq->info->chip == BQ24250)
 		bq->iilimit_autoset_enable = false;
 
 	if (bq->iilimit_autoset_enable)
@@ -1028,7 +1013,7 @@ static int bq24257_probe(struct i2c_client *client)
 	 * the PG state. We also use a SW-based approach for all other devices
 	 * if the PG pin is either not defined or can't be probed.
 	 */
-	if (bq->chip != BQ24250)
+	if (bq->info->chip != BQ24250)
 		bq24257_pg_gpio_probe(bq);
 
 	if (PTR_ERR(bq->pg) == -EPROBE_DEFER)
@@ -1066,7 +1051,7 @@ static int bq24257_probe(struct i2c_client *client)
 					bq24257_irq_handler_thread,
 					IRQF_TRIGGER_FALLING |
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					bq2425x_chip_name[bq->chip], bq);
+					bq->info->name, bq);
 	if (ret) {
 		dev_err(dev, "Failed to request IRQ #%d\n", client->irq);
 		return ret;
@@ -1132,28 +1117,43 @@ static const struct dev_pm_ops bq24257_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(bq24257_suspend, bq24257_resume)
 };
 
+static const struct bq2425x_chip_info bq24250_info = {
+	.name = "bq24250",
+	.chip = BQ24250,
+};
+
+static const struct bq2425x_chip_info bq24251_info = {
+	.name = "bq24251",
+	.chip = BQ24251,
+};
+
+static const struct bq2425x_chip_info bq24257_info = {
+	.name = "bq24257",
+	.chip = BQ24257,
+};
+
 static const struct i2c_device_id bq24257_i2c_ids[] = {
-	{ "bq24250", BQ24250 },
-	{ "bq24251", BQ24251 },
-	{ "bq24257", BQ24257 },
-	{},
+	{ "bq24250", (kernel_ulong_t)&bq24250_info },
+	{ "bq24251", (kernel_ulong_t)&bq24251_info },
+	{ "bq24257", (kernel_ulong_t)&bq24257_info },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, bq24257_i2c_ids);
 
 static const struct of_device_id bq24257_of_match[] __maybe_unused = {
-	{ .compatible = "ti,bq24250", },
-	{ .compatible = "ti,bq24251", },
-	{ .compatible = "ti,bq24257", },
-	{ },
+	{ .compatible = "ti,bq24250", &bq24250_info },
+	{ .compatible = "ti,bq24251", &bq24251_info },
+	{ .compatible = "ti,bq24257", &bq24257_info },
+	{}
 };
 MODULE_DEVICE_TABLE(of, bq24257_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id bq24257_acpi_match[] = {
-	{ "BQ242500", BQ24250 },
-	{ "BQ242510", BQ24251 },
-	{ "BQ242570", BQ24257 },
-	{},
+	{ "BQ242500", (kernel_ulong_t)&bq24250_info },
+	{ "BQ242510", (kernel_ulong_t)&bq24251_info },
+	{ "BQ242570", (kernel_ulong_t)&bq24257_info },
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, bq24257_acpi_match);
 #endif

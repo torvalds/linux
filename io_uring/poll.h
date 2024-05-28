@@ -24,6 +24,15 @@ struct async_poll {
 	struct io_poll		*double_poll;
 };
 
+/*
+ * Must only be called inside issue_flags & IO_URING_F_MULTISHOT, or
+ * potentially other cases where we already "own" this poll request.
+ */
+static inline void io_poll_multishot_retry(struct io_kiocb *req)
+{
+	atomic_inc(&req->poll_refs);
+}
+
 int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_poll_add(struct io_kiocb *req, unsigned int issue_flags);
 

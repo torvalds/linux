@@ -597,7 +597,8 @@ int avc_tuner_dsd(struct firedtv *fdtv,
 	case FIREDTV_DVB_C: pos = avc_tuner_dsd_dvb_c(fdtv, p); break;
 	case FIREDTV_DVB_T: pos = avc_tuner_dsd_dvb_t(fdtv, p); break;
 	default:
-		BUG();
+		ret = -EIO;
+		goto unlock;
 	}
 	pad_operands(c, pos);
 
@@ -612,6 +613,7 @@ int avc_tuner_dsd(struct firedtv *fdtv,
 	if (status)
 		*status = r->operand[2];
 #endif
+unlock:
 	mutex_unlock(&fdtv->avc_mutex);
 
 	if (ret == 0)

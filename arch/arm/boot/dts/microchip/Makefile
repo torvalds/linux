@@ -1,14 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0
+# Enables support for device-tree overlays
 DTC_FLAGS_at91-sam9x60_curiosity := -@
 DTC_FLAGS_at91-sam9x60ek := -@
 DTC_FLAGS_at91-sama5d27_som1_ek := -@
 DTC_FLAGS_at91-sama5d27_wlsom1_ek := -@
+DTC_FLAGS_at91-sama5d29_curiosity := -@
 DTC_FLAGS_at91-sama5d2_icp := -@
 DTC_FLAGS_at91-sama5d2_ptc_ek := -@
 DTC_FLAGS_at91-sama5d2_xplained := -@
 DTC_FLAGS_at91-sama5d3_eds := -@
 DTC_FLAGS_at91-sama5d3_xplained := -@
 DTC_FLAGS_at91-sama5d4_xplained := -@
+DTC_FLAGS_at91-sama7g54_curiosity := -@
 DTC_FLAGS_at91-sama7g5ek := -@
 dtb-$(CONFIG_SOC_AT91RM9200) += \
 	at91rm9200ek.dtb \
@@ -54,27 +57,16 @@ dtb-$(CONFIG_SOC_AT91SAM9) += \
 	at91sam9g35ek.dtb \
 	at91sam9x25ek.dtb \
 	at91sam9x35ek.dtb
-# Enables support for device-tree overlays
-DTC_FLAGS_at91-sam9x60_curiosity := -@
-DTC_FLAGS_at91-sam9x60ek := -@
 dtb-$(CONFIG_SOC_SAM9X60) += \
 	at91-sam9x60_curiosity.dtb \
 	at91-sam9x60ek.dtb
-# Enables support for device-tree overlays
-DTC_FLAGS_at91-sama5d27_som1_ek := -@
-DTC_FLAGS_at91-sama5d27_wlsom1_ek := -@
-DTC_FLAGS_at91-sama5d2_icp := -@
-DTC_FLAGS_at91-sama5d2_ptc_ek := -@
-DTC_FLAGS_at91-sama5d2_xplained := -@
-DTC_FLAGS_at91-sama5d3_eds := -@
-DTC_FLAGS_at91-sama5d3_xplained := -@
-DTC_FLAGS_at91-sama5d4_xplained := -@
 dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-kizbox2-2.dtb \
 	at91-kizbox3-hs.dtb \
 	at91-nattis-2-natte-2.dtb \
 	at91-sama5d27_som1_ek.dtb \
 	at91-sama5d27_wlsom1_ek.dtb \
+	at91-sama5d29_curiosity.dtb \
 	at91-sama5d2_icp.dtb \
 	at91-sama5d2_ptc_ek.dtb \
 	at91-sama5d2_xplained.dtb \
@@ -95,9 +87,8 @@ dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-sama5d4_xplained.dtb \
 	at91-sama5d4ek.dtb \
 	at91-vinco.dtb
-# Enables support for device-tree overlays
-DTC_FLAGS_at91-sama7g5ek := -@
 dtb-$(CONFIG_SOC_SAMA7G5) += \
+	at91-sama7g54_curiosity.dtb \
 	at91-sama7g5ek.dtb
 
 dtb-$(CONFIG_SOC_LAN966) += \

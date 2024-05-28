@@ -447,14 +447,17 @@ int ocfs2_global_write_info(struct super_block *sb, int type)
 	int err;
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct ocfs2_mem_dqinfo *info = dqopt->info[type].dqi_priv;
+	unsigned int memalloc;
 
 	down_write(&dqopt->dqio_sem);
+	memalloc = memalloc_nofs_save();
 	err = ocfs2_qinfo_lock(info, 1);
 	if (err < 0)
 		goto out_sem;
 	err = __ocfs2_global_write_info(sb, type);
 	ocfs2_qinfo_unlock(info, 1);
 out_sem:
+	memalloc_nofs_restore(memalloc);
 	up_write(&dqopt->dqio_sem);
 	return err;
 }
@@ -601,6 +604,7 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 	struct ocfs2_mem_dqinfo *oinfo = sb_dqinfo(sb, type)->dqi_priv;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	int status = 0;
+	unsigned int memalloc;
 
 	trace_ocfs2_sync_dquot_helper(from_kqid(&init_user_ns, dquot->dq_id),
 				      dquot->dq_id.type,
@@ -618,6 +622,7 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 		goto out_ilock;
 	}
 	down_write(&sb_dqopt(sb)->dqio_sem);
+	memalloc = memalloc_nofs_save();
 	status = ocfs2_sync_dquot(dquot);
 	if (status < 0)
 		mlog_errno(status);
@@ -625,6 +630,7 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 	status = ocfs2_local_write_dquot(dquot);
 	if (status < 0)
 		mlog_errno(status);
+	memalloc_nofs_restore(memalloc);
 	up_write(&sb_dqopt(sb)->dqio_sem);
 	ocfs2_commit_trans(osb, handle);
 out_ilock:
@@ -662,6 +668,7 @@ static int ocfs2_write_dquot(struct dquot *dquot)
 	handle_t *handle;
 	struct ocfs2_super *osb = OCFS2_SB(dquot->dq_sb);
 	int status = 0;
+	unsigned int memalloc;
 
 	trace_ocfs2_write_dquot(from_kqid(&init_user_ns, dquot->dq_id),
 				dquot->dq_id.type);
@@ -673,7 +680,9 @@ static int ocfs2_write_dquot(struct dquot *dquot)
 		goto out;
 	}
 	down_write(&sb_dqopt(dquot->dq_sb)->dqio_sem);
+	memalloc = memalloc_nofs_save();
 	status = ocfs2_local_write_dquot(dquot);
+	memalloc_nofs_restore(memalloc);
 	up_write(&sb_dqopt(dquot->dq_sb)->dqio_sem);
 	ocfs2_commit_trans(osb, handle);
 out:
@@ -920,6 +929,7 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 	struct ocfs2_mem_dqinfo *oinfo = sb_dqinfo(sb, type)->dqi_priv;
 	handle_t *handle;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
+	unsigned int memalloc;
 
 	trace_ocfs2_mark_dquot_dirty(from_kqid(&init_user_ns, dquot->dq_id),
 				     type);
@@ -946,6 +956,7 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 		goto out_ilock;
 	}
 	down_write(&sb_dqopt(sb)->dqio_sem);
+	memalloc = memalloc_nofs_save();
 	status = ocfs2_sync_dquot(dquot);
 	if (status < 0) {
 		mlog_errno(status);
@@ -954,6 +965,7 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 	/* Now write updated local dquot structure */
 	status = ocfs2_local_write_dquot(dquot);
 out_dlock:
+	memalloc_nofs_restore(memalloc);
 	up_write(&sb_dqopt(sb)->dqio_sem);
 	ocfs2_commit_trans(osb, handle);
 out_ilock:

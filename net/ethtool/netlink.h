@@ -355,7 +355,7 @@ struct ethnl_request_ops {
 			     struct netlink_ext_ack *extack);
 	int (*prepare_data)(const struct ethnl_req_info *req_info,
 			    struct ethnl_reply_data *reply_data,
-			    struct genl_info *info);
+			    const struct genl_info *info);
 	int (*reply_size)(const struct ethnl_req_info *req_info,
 			  const struct ethnl_reply_data *reply_data);
 	int (*fill_reply)(struct sk_buff *skb,

@@ -583,7 +583,7 @@ err_wkup_m3_ipc_put:
 	return ret;
 }
 
-static int am33xx_pm_remove(struct platform_device *pdev)
+static void am33xx_pm_remove(struct platform_device *pdev)
 {
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -594,7 +594,6 @@ static int am33xx_pm_remove(struct platform_device *pdev)
 	am33xx_pm_free_sram();
 	iounmap(rtc_base_virt);
 	clk_put(rtc_fck);
-	return 0;
 }
 
 static struct platform_driver am33xx_pm_driver = {
@@ -602,7 +601,7 @@ static struct platform_driver am33xx_pm_driver = {
 		.name   = "pm33xx",
 	},
 	.probe = am33xx_pm_probe,
-	.remove = am33xx_pm_remove,
+	.remove_new = am33xx_pm_remove,
 };
 module_platform_driver(am33xx_pm_driver);
 

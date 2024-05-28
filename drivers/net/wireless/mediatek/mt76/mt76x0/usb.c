@@ -118,6 +118,10 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 }
 
 static const struct ieee80211_ops mt76x0u_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = mt76x02_tx,
 	.start = mt76x0u_start,
 	.stop = mt76x0u_stop,
@@ -336,6 +340,7 @@ err:
 MODULE_DEVICE_TABLE(usb, mt76x0_device_table);
 MODULE_FIRMWARE(MT7610E_FIRMWARE);
 MODULE_FIRMWARE(MT7610U_FIRMWARE);
+MODULE_DESCRIPTION("MediaTek MT76x0U (USB) wireless driver");
 MODULE_LICENSE("GPL");
 
 static struct usb_driver mt76x0_driver = {

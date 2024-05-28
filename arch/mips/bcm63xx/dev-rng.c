@@ -26,7 +26,7 @@ static struct platform_device bcm63xx_rng_device = {
 	.resource	= rng_resources,
 };
 
-int __init bcm63xx_rng_register(void)
+static int __init bcm63xx_rng_register(void)
 {
 	if (!BCMCPU_IS_6368())
 		return -ENODEV;

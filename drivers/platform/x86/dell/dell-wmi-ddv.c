@@ -882,6 +882,7 @@ static struct wmi_driver dell_wmi_ddv_driver = {
 	},
 	.id_table = dell_wmi_ddv_id_table,
 	.probe = dell_wmi_ddv_probe,
+	.no_singleton = true,
 };
 module_wmi_driver(dell_wmi_ddv_driver);
 

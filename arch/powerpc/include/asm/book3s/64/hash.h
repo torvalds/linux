@@ -138,7 +138,16 @@ static inline int hash__pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 }
 
 #define	hash__pmd_bad(pmd)		(pmd_val(pmd) & H_PMD_BAD_BITS)
+
+/*
+ * pud comparison that will work with both pte and page table pointer.
+ */
+static inline int hash__pud_same(pud_t pud_a, pud_t pud_b)
+{
+	return (((pud_raw(pud_a) ^ pud_raw(pud_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
+}
 #define	hash__pud_bad(pud)		(pud_val(pud) & H_PUD_BAD_BITS)
+
 static inline int hash__p4d_bad(p4d_t p4d)
 {
 	return (p4d_val(p4d) == 0);
@@ -259,8 +268,6 @@ extern void hash__vmemmap_remove_mapping(unsigned long start,
 int hash__create_section_mapping(unsigned long start, unsigned long end,
 				 int nid, pgprot_t prot);
 int hash__remove_section_mapping(unsigned long start, unsigned long end);
-
-void hash__kernel_map_pages(struct page *page, int numpages, int enable);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */

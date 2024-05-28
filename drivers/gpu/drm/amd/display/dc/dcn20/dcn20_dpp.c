@@ -55,21 +55,23 @@ void dpp20_read_state(struct dpp *dpp_base,
 
 	REG_GET(DPP_CONTROL,
 			DPP_CLOCK_ENABLE, &s->is_enabled);
+
+	// Degamma LUT (RAM)
 	REG_GET(CM_DGAM_CONTROL,
-			CM_DGAM_LUT_MODE, &s->dgam_lut_mode);
-	// BGAM has no ROM, and definition is different, can't reuse same dump
-	//REG_GET(CM_BLNDGAM_CONTROL,
-	//		CM_BLNDGAM_LUT_MODE, &s->rgam_lut_mode);
-	REG_GET(CM_GAMUT_REMAP_CONTROL,
-			CM_GAMUT_REMAP_MODE, &s->gamut_remap_mode);
-	if (s->gamut_remap_mode) {
-		s->gamut_remap_c11_c12 = REG_READ(CM_GAMUT_REMAP_C11_C12);
-		s->gamut_remap_c13_c14 = REG_READ(CM_GAMUT_REMAP_C13_C14);
-		s->gamut_remap_c21_c22 = REG_READ(CM_GAMUT_REMAP_C21_C22);
-		s->gamut_remap_c23_c24 = REG_READ(CM_GAMUT_REMAP_C23_C24);
-		s->gamut_remap_c31_c32 = REG_READ(CM_GAMUT_REMAP_C31_C32);
-		s->gamut_remap_c33_c34 = REG_READ(CM_GAMUT_REMAP_C33_C34);
-	}
+		CM_DGAM_LUT_MODE, &s->dgam_lut_mode);
+
+	// Shaper LUT (RAM), 3D LUT (mode, bit-depth, size)
+	REG_GET(CM_SHAPER_CONTROL,
+		CM_SHAPER_LUT_MODE, &s->shaper_lut_mode);
+	REG_GET_2(CM_3DLUT_READ_WRITE_CONTROL,
+		  CM_3DLUT_CONFIG_STATUS, &s->lut3d_mode,
+		  CM_3DLUT_30BIT_EN, &s->lut3d_bit_depth);
+	REG_GET(CM_3DLUT_MODE,
+		CM_3DLUT_SIZE, &s->lut3d_size);
+
+	// Blend/Out Gamma (RAM)
+	REG_GET(CM_BLNDGAM_LUT_WRITE_EN_MASK,
+		CM_BLNDGAM_CONFIG_STATUS, &s->rgam_lut_mode);
 }
 
 void dpp2_power_on_obuf(
@@ -393,6 +395,7 @@ static struct dpp_funcs dcn20_dpp_funcs = {
 	.set_optional_cursor_attributes = dpp1_cnv_set_optional_cursor_attributes,
 	.dpp_dppclk_control = dpp1_dppclk_control,
 	.dpp_set_hdr_multiplier = dpp2_set_hdr_multiplier,
+	.dpp_get_gamut_remap = dpp2_cm_get_gamut_remap,
 };
 
 static struct dpp_caps dcn20_dpp_cap = {

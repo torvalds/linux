@@ -24,6 +24,11 @@ fragmentation statistics can be obtained through gfp flag information of
 each page. It is already implemented and activated if page owner is
 enabled. Other usages are more than welcome.
 
+It can also be used to show all the stacks and their current number of
+allocated base pages, which gives us a quick overview of where the memory
+is going without the need to screen through all the pages and match the
+allocation and free operation.
+
 page owner is disabled by default. So, if you'd like to use it, you need
 to add "page_owner=on" to your boot cmdline. If the kernel is built
 with page owner and page owner is disabled in runtime due to not enabling
@@ -67,6 +72,49 @@ Usage
 3) Do the job that you want to debug.
 
 4) Analyze information from page owner::
+
+	cat /sys/kernel/debug/page_owner_stacks/show_stacks > stacks.txt
+	cat stacks.txt
+	 post_alloc_hook+0x177/0x1a0
+	 get_page_from_freelist+0xd01/0xd80
+	 __alloc_pages+0x39e/0x7e0
+	 allocate_slab+0xbc/0x3f0
+	 ___slab_alloc+0x528/0x8a0
+	 kmem_cache_alloc+0x224/0x3b0
+	 sk_prot_alloc+0x58/0x1a0
+	 sk_alloc+0x32/0x4f0
+	 inet_create+0x427/0xb50
+	 __sock_create+0x2e4/0x650
+	 inet_ctl_sock_create+0x30/0x180
+	 igmp_net_init+0xc1/0x130
+	 ops_init+0x167/0x410
+	 setup_net+0x304/0xa60
+	 copy_net_ns+0x29b/0x4a0
+	 create_new_namespaces+0x4a1/0x820
+	nr_base_pages: 16
+	...
+	...
+	echo 7000 > /sys/kernel/debug/page_owner_stacks/count_threshold
+	cat /sys/kernel/debug/page_owner_stacks/show_stacks> stacks_7000.txt
+	cat stacks_7000.txt
+	 post_alloc_hook+0x177/0x1a0
+	 get_page_from_freelist+0xd01/0xd80
+	 __alloc_pages+0x39e/0x7e0
+	 alloc_pages_mpol+0x22e/0x490
+	 folio_alloc+0xd5/0x110
+	 filemap_alloc_folio+0x78/0x230
+	 page_cache_ra_order+0x287/0x6f0
+	 filemap_get_pages+0x517/0x1160
+	 filemap_read+0x304/0x9f0
+	 xfs_file_buffered_read+0xe6/0x1d0 [xfs]
+	 xfs_file_read_iter+0x1f0/0x380 [xfs]
+	 __kernel_read+0x3b9/0x730
+	 kernel_read_file+0x309/0x4d0
+	 __do_sys_finit_module+0x381/0x730
+	 do_syscall_64+0x8d/0x150
+	 entry_SYSCALL_64_after_hwframe+0x62/0x6a
+	nr_base_pages: 20824
+	...
 
 	cat /sys/kernel/debug/page_owner > page_owner_full.txt
 	./page_owner_sort page_owner_full.txt sorted_page_owner.txt

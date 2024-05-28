@@ -805,8 +805,8 @@ xfs_buf_item_get_format(
 		return;
 	}
 
-	bip->bli_formats = kmem_zalloc(count * sizeof(struct xfs_buf_log_format),
-				0);
+	bip->bli_formats = kzalloc(count * sizeof(struct xfs_buf_log_format),
+				GFP_KERNEL | __GFP_NOFAIL);
 }
 
 STATIC void
@@ -814,7 +814,7 @@ xfs_buf_item_free_format(
 	struct xfs_buf_log_item	*bip)
 {
 	if (bip->bli_formats != &bip->__bli_format) {
-		kmem_free(bip->bli_formats);
+		kfree(bip->bli_formats);
 		bip->bli_formats = NULL;
 	}
 }
@@ -1044,7 +1044,7 @@ xfs_buf_item_free(
 	struct xfs_buf_log_item	*bip)
 {
 	xfs_buf_item_free_format(bip);
-	kmem_free(bip->bli_item.li_lv_shadow);
+	kvfree(bip->bli_item.li_lv_shadow);
 	kmem_cache_free(xfs_buf_item_cache, bip);
 }
 

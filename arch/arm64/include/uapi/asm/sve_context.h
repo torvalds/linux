@@ -13,6 +13,17 @@
 
 #define __SVE_VQ_BYTES		16	/* number of bytes per quadword */
 
+/*
+ * Yes, __SVE_VQ_MAX is 512 QUADWORDS.
+ *
+ * To help ensure forward portability, this is much larger than the
+ * current maximum value defined by the SVE architecture.  While arrays
+ * or static allocations can be sized based on this value, watch out!
+ * It will waste a surprisingly large amount of memory.
+ *
+ * Dynamic sizing based on the actual runtime vector length is likely to
+ * be preferable for most purposes.
+ */
 #define __SVE_VQ_MIN		1
 #define __SVE_VQ_MAX		512
 

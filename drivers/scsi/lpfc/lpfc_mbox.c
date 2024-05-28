@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -102,7 +102,7 @@ lpfc_mbox_rsrc_cleanup(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 {
 	struct lpfc_dmabuf *mp;
 
-	mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
+	mp = mbox->ctx_buf;
 	mbox->ctx_buf = NULL;
 
 	/* Release the generic BPL buffer memory.  */
@@ -204,10 +204,8 @@ lpfc_dump_mem(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, uint16_t offset,
 		uint16_t region_id)
 {
 	MAILBOX_t *mb;
-	void *ctx;
 
 	mb = &pmb->u.mb;
-	ctx = pmb->ctx_buf;
 
 	/* Setup to dump VPD region */
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
@@ -219,7 +217,6 @@ lpfc_dump_mem(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, uint16_t offset,
 	mb->un.varDmp.word_cnt = (DMP_RSP_SIZE / sizeof (uint32_t));
 	mb->un.varDmp.co = 0;
 	mb->un.varDmp.resp_offset = 0;
-	pmb->ctx_buf = ctx;
 	mb->mbxOwner = OWN_HOST;
 	return;
 }
@@ -236,11 +233,8 @@ void
 lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb;
-	void *ctx;
 
 	mb = &pmb->u.mb;
-	/* Save context so that we can restore after memset */
-	ctx = pmb->ctx_buf;
 
 	/* Setup to dump VPD region */
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
@@ -254,7 +248,6 @@ lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb->un.varDmp.word_cnt = WAKE_UP_PARMS_WORD_SIZE;
 	mb->un.varDmp.co = 0;
 	mb->un.varDmp.resp_offset = 0;
-	pmb->ctx_buf = ctx;
 	return;
 }
 
@@ -372,7 +365,7 @@ lpfc_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 	/* Save address for later completion and set the owner to host so that
 	 * the FW knows this mailbox is available for processing.
 	 */
-	pmb->ctx_buf = (uint8_t *)mp;
+	pmb->ctx_buf = mp;
 	mb->mbxOwner = OWN_HOST;
 	return (0);
 }
@@ -949,7 +942,7 @@ lpfc_reg_vpi(struct lpfc_vport *vport, LPFC_MBOXQ_t *pmb)
 	 * Set the re-reg VPI bit for f/w to update the MAC address.
 	 */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
-		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI))
+		!test_bit(FC_VPORT_NEEDS_REG_VPI, &vport->fc_flag))
 		mb->un.varRegVpi.upd = 1;
 
 	mb->un.varRegVpi.vpi = phba->vpi_ids[vport->vpi];
@@ -1814,7 +1807,9 @@ lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 		dma_free_coherent(&phba->pcidev->dev, SLI4_PAGE_SIZE,
 				  mbox->sge_array->addr[sgentry], phyaddr);
 	}
-	/* Free the sge address array memory */
+	/* Reinitialize the context pointers to avoid stale usage. */
+	mbox->ctx_buf = NULL;
+	memset(&mbox->ctx_u, 0, sizeof(mbox->ctx_u));
 	kfree(mbox->sge_array);
 	/* Finally, free the mailbox command itself */
 	mempool_free(mbox, phba->mbox_mem_pool);
@@ -2242,7 +2237,7 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 
 	/* Only FC supports upd bit */
 	if ((phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC) &&
-	    (vport->fc_flag & FC_VFI_REGISTERED) &&
+	    test_bit(FC_VFI_REGISTERED, &vport->fc_flag) &&
 	    (!phba->fc_topology_changed))
 		bf_set(lpfc_reg_vfi_upd, reg_vfi, 1);
 
@@ -2269,8 +2264,8 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_MBOX,
 			"3134 Register VFI, mydid:x%x, fcfi:%d, "
-			" vfi:%d, vpi:%d, fc_pname:%x%x fc_flag:x%x"
-			" port_state:x%x topology chg:%d bbscn_fabric :%d\n",
+			"vfi:%d, vpi:%d, fc_pname:%x%x fc_flag:x%lx "
+			"port_state:x%x topology chg:%d bbscn_fabric :%d\n",
 			vport->fc_myDID,
 			phba->fcf.fcfi,
 			phba->sli4_hba.vfi_ids[vport->vfi],
@@ -2364,8 +2359,7 @@ lpfc_mbx_cmpl_rdp_link_stat(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	MAILBOX_t *mb;
 	int rc = FAILURE;
-	struct lpfc_rdp_context *rdp_context =
-			(struct lpfc_rdp_context *)(mboxq->ctx_ndlp);
+	struct lpfc_rdp_context *rdp_context = mboxq->ctx_u.rdp;
 
 	mb = &mboxq->u.mb;
 	if (mb->mbxStatus)
@@ -2383,9 +2377,8 @@ mbx_failed:
 static void
 lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
-	struct lpfc_rdp_context *rdp_context =
-			(struct lpfc_rdp_context *)(mbox->ctx_ndlp);
+	struct lpfc_dmabuf *mp = mbox->ctx_buf;
+	struct lpfc_rdp_context *rdp_context = mbox->ctx_u.rdp;
 
 	if (bf_get(lpfc_mqe_status, &mbox->u.mqe))
 		goto error_mbox_free;
@@ -2399,7 +2392,7 @@ lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	/* Save the dma buffer for cleanup in the final completion. */
 	mbox->ctx_buf = mp;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_link_stat;
-	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
+	mbox->ctx_u.rdp = rdp_context;
 	if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) == MBX_NOT_FINISHED)
 		goto error_mbox_free;
 
@@ -2414,9 +2407,8 @@ void
 lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
 	int rc;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
-	struct lpfc_rdp_context *rdp_context =
-			(struct lpfc_rdp_context *)(mbox->ctx_ndlp);
+	struct lpfc_dmabuf *mp = mbox->ctx_buf;
+	struct lpfc_rdp_context *rdp_context = mbox->ctx_u.rdp;
 
 	if (bf_get(lpfc_mqe_status, &mbox->u.mqe))
 		goto error;
@@ -2446,7 +2438,7 @@ lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
 
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a2;
-	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
+	mbox->ctx_u.rdp = rdp_context;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
 		goto error;

@@ -4,7 +4,6 @@
  */
 /dts-v1/;
 #include "mt8192-asurada.dtsi"
-#include "mt8192-asurada-audio-rt1015p-rt5682.dtsi"
 #include <dt-bindings/leds/common.h>
 
 / {
@@ -56,6 +55,24 @@
 
 		CROS_STD_MAIN_KEYMAP
 	>;
+};
+
+&rt5682 {
+	compatible = "realtek,rt5682i";
+	realtek,btndet-delay = <16>;
+	VBAT-supply = <&pp3300_ldo_z>;
+};
+
+&sound {
+	compatible = "mediatek,mt8192_mt6359_rt1015p_rt5682";
+
+	speaker-codecs {
+		sound-dai = <&rt1015p>;
+	};
+
+	headset-codec {
+		sound-dai = <&rt5682 0>;
+	};
 };
 
 &touchscreen {

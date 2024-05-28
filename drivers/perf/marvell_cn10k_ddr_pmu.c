@@ -8,11 +8,10 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/perf_event.h>
 #include <linux/hrtimer.h>
 #include <linux/acpi.h>
+#include <linux/platform_device.h>
 
 /* Performance Counters Operating Mode Control Registers */
 #define DDRC_PERF_CNT_OP_MODE_CTRL	0x8020
@@ -698,7 +697,7 @@ error:
 	return ret;
 }
 
-static int cn10k_ddr_perf_remove(struct platform_device *pdev)
+static void cn10k_ddr_perf_remove(struct platform_device *pdev)
 {
 	struct cn10k_ddr_pmu *ddr_pmu = platform_get_drvdata(pdev);
 
@@ -707,7 +706,6 @@ static int cn10k_ddr_perf_remove(struct platform_device *pdev)
 				&ddr_pmu->node);
 
 	perf_pmu_unregister(&ddr_pmu->pmu);
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -734,7 +732,7 @@ static struct platform_driver cn10k_ddr_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe		= cn10k_ddr_perf_probe,
-	.remove		= cn10k_ddr_perf_remove,
+	.remove_new	= cn10k_ddr_perf_remove,
 };
 
 static int __init cn10k_ddr_pmu_init(void)

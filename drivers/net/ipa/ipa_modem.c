@@ -39,10 +39,14 @@ enum ipa_modem_state {
 /**
  * struct ipa_priv - IPA network device private data
  * @ipa:	IPA pointer
+ * @tx:		Transmit endpoint pointer
+ * @rx:		Receive endpoint pointer
  * @work:	Work structure used to wake the modem netdev TX queue
  */
 struct ipa_priv {
 	struct ipa *ipa;
+	struct ipa_endpoint *tx;
+	struct ipa_endpoint *rx;
 	struct work_struct work;
 };
 
@@ -54,16 +58,16 @@ static int ipa_open(struct net_device *netdev)
 	struct device *dev;
 	int ret;
 
-	dev = &ipa->pdev->dev;
+	dev = ipa->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		goto err_power_put;
 
-	ret = ipa_endpoint_enable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+	ret = ipa_endpoint_enable_one(priv->tx);
 	if (ret)
 		goto err_power_put;
 
-	ret = ipa_endpoint_enable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
+	ret = ipa_endpoint_enable_one(priv->rx);
 	if (ret)
 		goto err_disable_tx;
 
@@ -75,7 +79,7 @@ static int ipa_open(struct net_device *netdev)
 	return 0;
 
 err_disable_tx:
-	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+	ipa_endpoint_disable_one(priv->tx);
 err_power_put:
 	pm_runtime_put_noidle(dev);
 
@@ -90,15 +94,15 @@ static int ipa_stop(struct net_device *netdev)
 	struct device *dev;
 	int ret;
 
-	dev = &ipa->pdev->dev;
+	dev = ipa->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		goto out_power_put;
 
 	netif_stop_queue(netdev);
 
-	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
-	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+	ipa_endpoint_disable_one(priv->rx);
+	ipa_endpoint_disable_one(priv->tx);
 out_power_put:
 	pm_runtime_mark_last_busy(dev);
 	(void)pm_runtime_put_autosuspend(dev);
@@ -106,13 +110,16 @@ out_power_put:
 	return 0;
 }
 
-/** ipa_start_xmit() - Transmits an skb.
- * @skb: skb to be transmitted
- * @dev: network device
+/** ipa_start_xmit() - Transmit an skb
+ * @skb:	Socket buffer to be transmitted
+ * @netdev:	Network device
  *
- * Return codes:
- * NETDEV_TX_OK: Success
- * NETDEV_TX_BUSY: Error while transmitting the skb. Try again later
+ * Return: NETDEV_TX_OK if successful (or dropped), NETDEV_TX_BUSY otherwise
+
+ * Normally NETDEV_TX_OK indicates the buffer was successfully transmitted.
+ * If the buffer has an unexpected protocol or its size is out of range it
+ * is quietly dropped, returning NETDEV_TX_OK.  NETDEV_TX_BUSY indicates
+ * the buffer cannot be sent at this time and should retried later.
  */
 static netdev_tx_t
 ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
@@ -132,29 +139,41 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (endpoint->config.qmap && skb->protocol != htons(ETH_P_MAP))
 		goto err_drop_skb;
 
-	/* The hardware must be powered for us to transmit */
-	dev = &ipa->pdev->dev;
+	/* The hardware must be powered for us to transmit, so if we're not
+	 * ready we want the network stack to stop queueing until power is
+	 * ACTIVE.  Once runtime resume has completed, we inform the network
+	 * stack it's OK to try transmitting again.
+	 *
+	 * We learn from pm_runtime_get() whether the hardware is powered.
+	 * If it was not, powering up is either started or already underway.
+	 * And in that case we want to disable queueing, expecting it to be
+	 * re-enabled once power is ACTIVE.  But runtime PM and network
+	 * transmit run concurrently, and if we're not careful the requests
+	 * to stop and start queueing could occur in the wrong order.
+	 *
+	 * For that reason we *always* stop queueing here, *before* the call
+	 * to pm_runtime_get().  If we determine here that power is ACTIVE,
+	 * we restart queueing before transmitting the SKB.  Otherwise
+	 * queueing will eventually be enabled after resume completes.
+	 */
+	netif_stop_queue(netdev);
+
+	dev = ipa->dev;
 	ret = pm_runtime_get(dev);
 	if (ret < 1) {
 		/* If a resume won't happen, just drop the packet */
 		if (ret < 0 && ret != -EINPROGRESS) {
-			ipa_power_modem_queue_active(ipa);
+			netif_wake_queue(netdev);
 			pm_runtime_put_noidle(dev);
 			goto err_drop_skb;
 		}
-
-		/* No power (yet).  Stop the network stack from transmitting
-		 * until we're resumed; ipa_modem_resume() arranges for the
-		 * TX queue to be started again.
-		 */
-		ipa_power_modem_queue_stop(ipa);
 
 		pm_runtime_put_noidle(dev);
 
 		return NETDEV_TX_BUSY;
 	}
 
-	ipa_power_modem_queue_active(ipa);
+	netif_wake_queue(netdev);
 
 	ret = ipa_endpoint_skb_tx(endpoint, skb);
 
@@ -233,14 +252,14 @@ static void ipa_modem_netdev_setup(struct net_device *netdev)
  */
 void ipa_modem_suspend(struct net_device *netdev)
 {
-	struct ipa_priv *priv = netdev_priv(netdev);
-	struct ipa *ipa = priv->ipa;
+	struct ipa_priv *priv;
 
 	if (!(netdev->flags & IFF_UP))
 		return;
 
-	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
-	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+	priv = netdev_priv(netdev);
+	ipa_endpoint_suspend_one(priv->rx);
+	ipa_endpoint_suspend_one(priv->tx);
 }
 
 /**
@@ -258,7 +277,7 @@ static void ipa_modem_wake_queue_work(struct work_struct *work)
 {
 	struct ipa_priv *priv = container_of(work, struct ipa_priv, work);
 
-	ipa_power_modem_queue_wake(priv->ipa);
+	netif_wake_queue(priv->tx->netdev);
 }
 
 /** ipa_modem_resume() - resume callback for runtime_pm
@@ -268,14 +287,14 @@ static void ipa_modem_wake_queue_work(struct work_struct *work)
  */
 void ipa_modem_resume(struct net_device *netdev)
 {
-	struct ipa_priv *priv = netdev_priv(netdev);
-	struct ipa *ipa = priv->ipa;
+	struct ipa_priv *priv;
 
 	if (!(netdev->flags & IFF_UP))
 		return;
 
-	ipa_endpoint_resume_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
-	ipa_endpoint_resume_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
+	priv = netdev_priv(netdev);
+	ipa_endpoint_resume_one(priv->tx);
+	ipa_endpoint_resume_one(priv->rx);
 
 	/* Arrange for the TX queue to be restarted */
 	(void)queue_pm_work(&priv->work);
@@ -303,19 +322,24 @@ int ipa_modem_start(struct ipa *ipa)
 		goto out_set_state;
 	}
 
-	SET_NETDEV_DEV(netdev, &ipa->pdev->dev);
+	SET_NETDEV_DEV(netdev, ipa->dev);
 	priv = netdev_priv(netdev);
 	priv->ipa = ipa;
+	priv->tx = ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX];
+	priv->rx = ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX];
 	INIT_WORK(&priv->work, ipa_modem_wake_queue_work);
-	ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = netdev;
-	ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = netdev;
+
+	priv->tx->netdev = netdev;
+	priv->rx->netdev = netdev;
+
 	ipa->modem_netdev = netdev;
 
 	ret = register_netdev(netdev);
 	if (ret) {
 		ipa->modem_netdev = NULL;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
+		priv->rx->netdev = NULL;
+		priv->tx->netdev = NULL;
+
 		free_netdev(netdev);
 	}
 
@@ -355,9 +379,11 @@ int ipa_modem_stop(struct ipa *ipa)
 		if (netdev->flags & IFF_UP)
 			(void)ipa_stop(netdev);
 		unregister_netdev(netdev);
+
 		ipa->modem_netdev = NULL;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
+		priv->rx->netdev = NULL;
+		priv->tx->netdev = NULL;
+
 		free_netdev(netdev);
 	}
 
@@ -370,7 +396,7 @@ int ipa_modem_stop(struct ipa *ipa)
 /* Treat a "clean" modem stop the same as a crash */
 static void ipa_modem_crashed(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	int ret;
 
 	/* Prevent the modem from triggering a call to ipa_setup() */
@@ -417,7 +443,7 @@ static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
 {
 	struct ipa *ipa = container_of(nb, struct ipa, nb);
 	struct qcom_ssr_notify_data *notify_data = data;
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 
 	switch (action) {
 	case QCOM_SSR_BEFORE_POWERUP:
@@ -466,7 +492,7 @@ int ipa_modem_config(struct ipa *ipa)
 
 void ipa_modem_deconfig(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	int ret;
 
 	ret = qcom_unregister_ssr_notifier(ipa->notifier, &ipa->nb);

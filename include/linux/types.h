@@ -120,6 +120,9 @@ typedef s64			int64_t;
 #define aligned_be64		__aligned_be64
 #define aligned_le64		__aligned_le64
 
+/* Nanosecond scalar representation for kernel time values */
+typedef s64	ktime_t;
+
 /**
  * The type used for indexing onto a disc or disc partition.
  *

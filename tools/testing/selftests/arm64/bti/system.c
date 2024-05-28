@@ -8,12 +8,10 @@
 
 #include <asm/unistd.h>
 
-#include "compiler.h"
-
 void __noreturn exit(int n)
 {
 	syscall(__NR_exit, n);
-	__unreachable();
+	unreachable();
 }
 
 ssize_t write(int fd, const void *buf, size_t size)

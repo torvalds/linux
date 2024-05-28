@@ -33,7 +33,7 @@ Optional properties:
   one amplifier in the system. If more than one it is best to Hi-Z the ASP
   port to prevent bus contention on the output signal
 
-  - cirrus,boost-ctl-select : Boost conerter control source selection.
+  - cirrus,boost-ctl-select : Boost converter control source selection.
   Selects the source of the BST_CTL target VBST voltage for the boost
   converter to generate.
   0x00 - Control Port Value

@@ -66,7 +66,7 @@
 			rgb {
 				status = "okay";
 
-				port@0 {
+				port {
 					lcd_output: endpoint {
 						remote-endpoint = <&lvds_encoder_input>;
 						bus-width = <18>;
@@ -450,12 +450,14 @@
 
 	serial@70006040 {
 		compatible = "nvidia,tegra20-hsuart";
+		reset-names = "serial";
 		/delete-property/ reg-shift;
 		/* GPS BCM4751 */
 	};
 
 	serial@70006200 {
 		compatible = "nvidia,tegra20-hsuart";
+		reset-names = "serial";
 		/delete-property/ reg-shift;
 		status = "okay";
 
@@ -482,6 +484,8 @@
 	};
 
 	serial@70006300 {
+		/delete-property/ dmas;
+		/delete-property/ dma-names;
 		status = "okay";
 	};
 

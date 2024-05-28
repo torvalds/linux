@@ -60,7 +60,7 @@
 	};
 
 	reserved-memory {
-		framebuffer_region@9d400000 {
+		framebuffer@9d400000 {
 			reg = <0x0 0x9d400000 0x0 (1080 * 2160 * 4)>;
 			no-map;
 		};
@@ -440,7 +440,7 @@
 		reg = <0x38>;
 		wakeup-source;
 		interrupt-parent = <&tlmm>;
-		interrupts = <125 0x2>;
+		interrupts = <125 IRQ_TYPE_EDGE_FALLING>;
 		vdd-supply = <&vreg_l28a_3p0>;
 		vcc-i2c-supply = <&vreg_l14a_1p88>;
 

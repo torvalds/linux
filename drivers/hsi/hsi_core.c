@@ -48,7 +48,7 @@ static int hsi_bus_match(struct device *dev, struct device_driver *driver)
 	return false;
 }
 
-static struct bus_type hsi_bus_type = {
+static const struct bus_type hsi_bus_type = {
 	.name		= "hsi",
 	.dev_groups	= hsi_bus_dev_groups,
 	.match		= hsi_bus_match,

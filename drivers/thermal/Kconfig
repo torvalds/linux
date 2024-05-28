@@ -33,6 +33,13 @@ config THERMAL_STATISTICS
 
 	  If in doubt, say N.
 
+config THERMAL_DEBUGFS
+	bool "Thermal subsystem debug support"
+	depends on DEBUG_FS
+	help
+	  Say Y to allow the thermal subsystem to collect diagnostic
+	  information that can be accessed via debugfs.
+
 config THERMAL_EMERGENCY_POWEROFF_DELAY_MS
 	int "Emergency poweroff delay in milli-seconds"
 	default 0
@@ -75,21 +82,6 @@ config THERMAL_OF
 
 	  Say 'Y' here if you need to build thermal infrastructure
 	  based on device tree.
-
-config THERMAL_ACPI
-       depends on ACPI
-       bool
-
-config THERMAL_WRITABLE_TRIPS
-	bool "Enable writable trip points"
-	help
-	  This option allows the system integrator to choose whether
-	  trip temperatures can be changed from userspace. The
-	  writable trips need to be specified when setting up the
-	  thermal zone but the choice here takes precedence.
-
-	  Say 'Y' here if you would like to allow userspace tools to
-	  change trip temperatures.
 
 choice
 	prompt "Default Thermal governor"
@@ -509,5 +501,17 @@ config KHADAS_MCU_FAN_THERMAL
 	help
 	  If you say yes here you get support for the FAN controlled
 	  by the Microcontroller found on the Khadas VIM boards.
+
+config LOONGSON2_THERMAL
+	tristate "Loongson-2 SoC series thermal driver"
+	depends on LOONGARCH || COMPILE_TEST
+	depends on OF
+	help
+	  Support for Thermal driver found on Loongson-2 SoC series platforms.
+	  The thermal driver realizes get_temp and set_trips function, which
+	  are used to obtain the temperature of the current node and set the
+	  temperature range to trigger the interrupt. When the input temperature
+	  is higher than the high temperature threshold or lower than the low
+	  temperature threshold, the interrupt will occur.
 
 endif

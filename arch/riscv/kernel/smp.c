@@ -81,7 +81,7 @@ static inline void ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	if (cpu_has_hotplug(cpu))
-		cpu_ops[cpu]->cpu_stop();
+		cpu_ops->cpu_stop();
 #endif
 
 	for(;;)

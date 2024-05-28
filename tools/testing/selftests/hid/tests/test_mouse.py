@@ -52,13 +52,13 @@ class BaseMouse(base.UHIDTestDevice):
         :param reportID: the numeric report ID for this report, if needed
         """
         if buttons is not None:
-            l, r, m = buttons
-            if l is not None:
-                self.left = l
-            if r is not None:
-                self.right = r
-            if m is not None:
-                self.middle = m
+            left, right, middle = buttons
+            if left is not None:
+                self.left = left
+            if right is not None:
+                self.right = right
+            if middle is not None:
+                self.middle = middle
         left = self.left
         right = self.right
         middle = self.middle

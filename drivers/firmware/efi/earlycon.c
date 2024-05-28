@@ -252,7 +252,7 @@ static int __init efi_earlycon_setup(struct earlycon_device *device,
 	if (si->lfb_depth != 32)
 		return -ENODEV;
 
-	font = get_default_font(xres, yres, -1, -1);
+	font = get_default_font(xres, yres, NULL, NULL);
 	if (!font)
 		return -ENODEV;
 

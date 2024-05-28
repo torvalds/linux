@@ -7,11 +7,11 @@
  * STK8BA50 7-bit I2C address: 0x18.
  */
 
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -541,7 +541,7 @@ static struct i2c_driver stk8ba50_driver = {
 	.driver = {
 		.name = "stk8ba50",
 		.pm = pm_sleep_ptr(&stk8ba50_pm_ops),
-		.acpi_match_table = ACPI_PTR(stk8ba50_acpi_id),
+		.acpi_match_table = stk8ba50_acpi_id,
 	},
 	.probe =        stk8ba50_probe,
 	.remove =           stk8ba50_remove,

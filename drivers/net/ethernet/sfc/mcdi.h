@@ -218,13 +218,27 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 	BUILD_BUG_ON(_field ## _LEN != 1);				\
 	*(u8 *)MCDI_STRUCT_PTR(_buf, _field) = _value;			\
 	} while (0)
+#define MCDI_STRUCT_POPULATE_BYTE_1(_buf, _field, _name, _value) do {	\
+	efx_dword_t _temp;						\
+	EFX_POPULATE_DWORD_1(_temp, _name, _value);			\
+	MCDI_STRUCT_SET_BYTE(_buf, _field,				\
+			     EFX_DWORD_FIELD(_temp, EFX_BYTE_0));	\
+	} while (0)
 #define MCDI_BYTE(_buf, _field)						\
 	((void)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 1),	\
 	 *MCDI_PTR(_buf, _field))
+#define MCDI_STRUCT_BYTE(_buf, _field)					\
+	((void)BUILD_BUG_ON_ZERO(_field ## _LEN != 1),			\
+	 *MCDI_STRUCT_PTR(_buf, _field))
 #define MCDI_SET_WORD(_buf, _field, _value) do {			\
 	BUILD_BUG_ON(MC_CMD_ ## _field ## _LEN != 2);			\
 	BUILD_BUG_ON(MC_CMD_ ## _field ## _OFST & 1);			\
 	*(__force __le16 *)MCDI_PTR(_buf, _field) = cpu_to_le16(_value);\
+	} while (0)
+#define MCDI_STRUCT_SET_WORD(_buf, _field, _value) do {			\
+	BUILD_BUG_ON(_field ## _LEN != 2);				\
+	BUILD_BUG_ON(_field ## _OFST & 1);				\
+	*(__force __le16 *)MCDI_STRUCT_PTR(_buf, _field) = cpu_to_le16(_value);\
 	} while (0)
 #define MCDI_WORD(_buf, _field)						\
 	((u16)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +	\

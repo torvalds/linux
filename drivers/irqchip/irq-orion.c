@@ -57,8 +57,7 @@ static int __init orion_irq_init(struct device_node *np,
 	struct resource r;
 
 	/* count number of irq chips by valid reg addresses */
-	while (of_address_to_resource(np, num_chips, &r) == 0)
-		num_chips++;
+	num_chips = of_address_count(np);
 
 	orion_irq_domain = irq_domain_add_linear(np,
 				num_chips * ORION_IRQS_PER_CHIP,

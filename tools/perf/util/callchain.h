@@ -116,22 +116,22 @@ extern struct callchain_param callchain_param;
 extern struct callchain_param callchain_param_default;
 
 struct callchain_list {
+	struct list_head	list;
 	u64			ip;
 	struct map_symbol	ms;
+	const char		*srcline;
+	u64			branch_count;
+	u64			from_count;
+	u64			cycles_count;
+	u64			iter_count;
+	u64			iter_cycles;
+	struct branch_type_stat *brtype_stat;
+	u64			predicted_count;
+	u64			abort_count;
 	struct /* for TUI */ {
 		bool		unfolded;
 		bool		has_children;
 	};
-	u64			branch_count;
-	u64			from_count;
-	u64			predicted_count;
-	u64			abort_count;
-	u64			cycles_count;
-	u64			iter_count;
-	u64			iter_cycles;
-	struct branch_type_stat brtype_stat;
-	const char		*srcline;
-	struct list_head	list;
 };
 
 /*

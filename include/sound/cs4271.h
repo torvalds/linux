@@ -9,7 +9,6 @@
 #define __CS4271_H
 
 struct cs4271_platform_data {
-	int gpio_nreset;	/* GPIO driving Reset pin, if any */
 	bool amutec_eq_bmutec;	/* flag to enable AMUTEC=BMUTEC */
 
 	/*

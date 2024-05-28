@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   This document defines device tree properties for the Synopsys DesignWare MIPI
-  DSI host controller. It doesn't constitue a device tree binding specification
+  DSI host controller. It doesn't constitute a device tree binding specification
   by itself but is meant to be referenced by platform-specific device tree
   bindings.
 

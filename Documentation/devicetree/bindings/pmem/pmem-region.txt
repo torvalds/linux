@@ -19,7 +19,7 @@ Required properties:
 	- compatible = "pmem-region"
 
 	- reg = <base, size>;
-		The reg property should specificy an address range that is
+		The reg property should specify an address range that is
 		translatable to a system physical address range. This address
 		range should be mappable as normal system memory would be
 		(i.e cacheable).
@@ -30,7 +30,7 @@ Required properties:
 		node implies no special relationship between the two ranges.
 
 Optional properties:
-	- Any relevant NUMA assocativity properties for the target platform.
+	- Any relevant NUMA associativity properties for the target platform.
 
 	- volatile; This property indicates that this region is actually
 	  backed by non-persistent memory. This lets the OS know that it

@@ -41,13 +41,13 @@ struct amdgpu_cgs_device {
 		((struct amdgpu_cgs_device *)cgs_device)->adev
 
 
-static uint32_t amdgpu_cgs_read_register(struct cgs_device *cgs_device, unsigned offset)
+static uint32_t amdgpu_cgs_read_register(struct cgs_device *cgs_device, unsigned int offset)
 {
 	CGS_FUNC_ADEV;
 	return RREG32(offset);
 }
 
-static void amdgpu_cgs_write_register(struct cgs_device *cgs_device, unsigned offset,
+static void amdgpu_cgs_write_register(struct cgs_device *cgs_device, unsigned int offset,
 				      uint32_t value)
 {
 	CGS_FUNC_ADEV;
@@ -56,7 +56,7 @@ static void amdgpu_cgs_write_register(struct cgs_device *cgs_device, unsigned of
 
 static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 					     enum cgs_ind_reg space,
-					     unsigned index)
+					     unsigned int index)
 {
 	CGS_FUNC_ADEV;
 	switch (space) {
@@ -84,7 +84,7 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 
 static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 					  enum cgs_ind_reg space,
-					  unsigned index, uint32_t value)
+					  unsigned int index, uint32_t value)
 {
 	CGS_FUNC_ADEV;
 	switch (space) {
@@ -163,38 +163,38 @@ static uint16_t amdgpu_get_firmware_version(struct cgs_device *cgs_device,
 	uint16_t fw_version = 0;
 
 	switch (type) {
-		case CGS_UCODE_ID_SDMA0:
-			fw_version = adev->sdma.instance[0].fw_version;
-			break;
-		case CGS_UCODE_ID_SDMA1:
-			fw_version = adev->sdma.instance[1].fw_version;
-			break;
-		case CGS_UCODE_ID_CP_CE:
-			fw_version = adev->gfx.ce_fw_version;
-			break;
-		case CGS_UCODE_ID_CP_PFP:
-			fw_version = adev->gfx.pfp_fw_version;
-			break;
-		case CGS_UCODE_ID_CP_ME:
-			fw_version = adev->gfx.me_fw_version;
-			break;
-		case CGS_UCODE_ID_CP_MEC:
-			fw_version = adev->gfx.mec_fw_version;
-			break;
-		case CGS_UCODE_ID_CP_MEC_JT1:
-			fw_version = adev->gfx.mec_fw_version;
-			break;
-		case CGS_UCODE_ID_CP_MEC_JT2:
-			fw_version = adev->gfx.mec_fw_version;
-			break;
-		case CGS_UCODE_ID_RLC_G:
-			fw_version = adev->gfx.rlc_fw_version;
-			break;
-		case CGS_UCODE_ID_STORAGE:
-			break;
-		default:
-			DRM_ERROR("firmware type %d do not have version\n", type);
-			break;
+	case CGS_UCODE_ID_SDMA0:
+		fw_version = adev->sdma.instance[0].fw_version;
+		break;
+	case CGS_UCODE_ID_SDMA1:
+		fw_version = adev->sdma.instance[1].fw_version;
+		break;
+	case CGS_UCODE_ID_CP_CE:
+		fw_version = adev->gfx.ce_fw_version;
+		break;
+	case CGS_UCODE_ID_CP_PFP:
+		fw_version = adev->gfx.pfp_fw_version;
+		break;
+	case CGS_UCODE_ID_CP_ME:
+		fw_version = adev->gfx.me_fw_version;
+		break;
+	case CGS_UCODE_ID_CP_MEC:
+		fw_version = adev->gfx.mec_fw_version;
+		break;
+	case CGS_UCODE_ID_CP_MEC_JT1:
+		fw_version = adev->gfx.mec_fw_version;
+		break;
+	case CGS_UCODE_ID_CP_MEC_JT2:
+		fw_version = adev->gfx.mec_fw_version;
+		break;
+	case CGS_UCODE_ID_RLC_G:
+		fw_version = adev->gfx.rlc_fw_version;
+		break;
+	case CGS_UCODE_ID_STORAGE:
+		break;
+	default:
+		DRM_ERROR("firmware type %d do not have version\n", type);
+		break;
 	}
 	return fw_version;
 }
@@ -205,7 +205,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 {
 	CGS_FUNC_ADEV;
 
-	if ((CGS_UCODE_ID_SMU != type) && (CGS_UCODE_ID_SMU_SK != type)) {
+	if (type != CGS_UCODE_ID_SMU && type != CGS_UCODE_ID_SMU_SK) {
 		uint64_t gpu_addr;
 		uint32_t data_size;
 		const struct gfx_firmware_header_v1_0 *header;
@@ -232,7 +232,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		info->mc_addr = gpu_addr;
 		info->version = (uint16_t)le32_to_cpu(header->header.ucode_version);
 
-		if (CGS_UCODE_ID_CP_MEC == type)
+		if (type == CGS_UCODE_ID_CP_MEC)
 			info->image_size = le32_to_cpu(header->jt_offset) << 2;
 
 		info->fw_version = amdgpu_get_firmware_version(cgs_device, type);

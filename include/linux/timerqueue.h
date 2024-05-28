@@ -3,18 +3,7 @@
 #define _LINUX_TIMERQUEUE_H
 
 #include <linux/rbtree.h>
-#include <linux/ktime.h>
-
-
-struct timerqueue_node {
-	struct rb_node node;
-	ktime_t expires;
-};
-
-struct timerqueue_head {
-	struct rb_root_cached rb_root;
-};
-
+#include <linux/timerqueue_types.h>
 
 extern bool timerqueue_add(struct timerqueue_head *head,
 			   struct timerqueue_node *node);

@@ -59,7 +59,7 @@ A filesystem would typically have a volume cookie for each superblock.
 
 The filesystem then acquires a cookie for each file within that volume using an
 object key.  Object keys are binary blobs and only need to be unique within
-their parent volume.  The cache backend is reponsible for rendering the binary
+their parent volume.  The cache backend is responsible for rendering the binary
 blob into something it can use and may employ hash tables, trees or whatever to
 improve its ability to find an object.  This is transparent to the network
 filesystem.
@@ -91,7 +91,7 @@ actually required and it can use the fscache I/O API directly.
 Volume Registration
 ===================
 
-The first step for a network filsystem is to acquire a volume cookie for the
+The first step for a network filesystem is to acquire a volume cookie for the
 volume it wants to access::
 
 	struct fscache_volume *
@@ -119,7 +119,7 @@ is provided.  If the coherency data doesn't match, the entire cache volume will
 be invalidated.
 
 This function can return errors such as EBUSY if the volume key is already in
-use by an acquired volume or ENOMEM if an allocation failure occured.  It may
+use by an acquired volume or ENOMEM if an allocation failure occurred.  It may
 also return a NULL volume cookie if fscache is not enabled.  It is safe to
 pass a NULL cookie to any function that takes a volume cookie.  This will
 cause that function to do nothing.

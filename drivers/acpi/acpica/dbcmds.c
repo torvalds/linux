@@ -1010,6 +1010,64 @@ void acpi_db_display_resources(char *object_arg)
 	acpi_db_set_output_destination(ACPI_DB_CONSOLE_OUTPUT);
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_generate_ged
+ *
+ * PARAMETERS:  ged_arg             - Raw GED number, ascii string
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Simulate firing of a GED
+ *
+ ******************************************************************************/
+
+void acpi_db_generate_interrupt(char *gsiv_arg)
+{
+	u32 gsiv_number;
+	struct acpi_ged_handler_info *ged_info = acpi_gbl_ged_handler_list;
+
+	if (!ged_info) {
+		acpi_os_printf("No GED handling present\n");
+	}
+
+	gsiv_number = strtoul(gsiv_arg, NULL, 0);
+
+	while (ged_info) {
+
+		if (ged_info->int_id == gsiv_number) {
+			struct acpi_object_list arg_list;
+			union acpi_object arg0;
+			acpi_handle evt_handle = ged_info->evt_method;
+			acpi_status status;
+
+			acpi_os_printf("Evaluate GED _EVT (GSIV=%d)\n",
+				       gsiv_number);
+
+			if (!evt_handle) {
+				acpi_os_printf("Undefined _EVT method\n");
+				return;
+			}
+
+			arg0.integer.type = ACPI_TYPE_INTEGER;
+			arg0.integer.value = gsiv_number;
+
+			arg_list.count = 1;
+			arg_list.pointer = &arg0;
+
+			status =
+			    acpi_evaluate_object(evt_handle, NULL, &arg_list,
+						 NULL);
+			if (ACPI_FAILURE(status)) {
+				acpi_os_printf("Could not evaluate _EVT\n");
+				return;
+			}
+
+		}
+		ged_info = ged_info->next;
+	}
+}
+
 #if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *

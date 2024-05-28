@@ -149,13 +149,9 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 		break;
 	}
 
-	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec
-		       = (be32_to_cpu(tail->change.days) * 86400LL +
-		         be32_to_cpu(tail->change.mins) * 60 +
-			 be32_to_cpu(tail->change.ticks) / 50 +
-			 AFFS_EPOCH_DELTA) +
-			 sys_tz.tz_minuteswest * 60;
-	inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec = inode->i_atime.tv_nsec = 0;
+	inode_set_mtime(inode,
+			inode_set_atime(inode, inode_set_ctime(inode, (be32_to_cpu(tail->change.days) * 86400LL + be32_to_cpu(tail->change.mins) * 60 + be32_to_cpu(tail->change.ticks) / 50 + AFFS_EPOCH_DELTA) + sys_tz.tz_minuteswest * 60, 0).tv_sec, 0).tv_sec,
+			0);
 	affs_brelse(bh);
 	unlock_new_inode(inode);
 	return inode;
@@ -187,12 +183,13 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	}
 	tail = AFFS_TAIL(sb, bh);
 	if (tail->stype == cpu_to_be32(ST_ROOT)) {
-		affs_secs_to_datestamp(inode->i_mtime.tv_sec,
+		affs_secs_to_datestamp(inode_get_mtime_sec(inode),
 				       &AFFS_ROOT_TAIL(sb, bh)->root_change);
 	} else {
 		tail->protect = cpu_to_be32(AFFS_I(inode)->i_protect);
 		tail->size = cpu_to_be32(inode->i_size);
-		affs_secs_to_datestamp(inode->i_mtime.tv_sec, &tail->change);
+		affs_secs_to_datestamp(inode_get_mtime_sec(inode),
+				       &tail->change);
 		if (!(inode->i_ino == AFFS_SB(sb)->s_root_block)) {
 			uid = i_uid_read(inode);
 			gid = i_gid_read(inode);
@@ -314,7 +311,7 @@ affs_new_inode(struct inode *dir)
 	inode->i_gid     = current_fsgid();
 	inode->i_ino     = block;
 	set_nlink(inode, 1);
-	inode->i_mtime   = inode->i_atime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	atomic_set(&AFFS_I(inode)->i_opencnt, 0);
 	AFFS_I(inode)->i_blkcnt = 0;
 	AFFS_I(inode)->i_lc = NULL;

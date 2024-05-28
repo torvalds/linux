@@ -1246,17 +1246,10 @@ static int adis16480_config_irq_pin(struct adis16480 *st)
 {
 	struct device *dev = &st->adis.spi->dev;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct irq_data *desc;
 	enum adis16480_int_pin pin;
 	unsigned int irq_type;
 	uint16_t val;
 	int i, irq = 0;
-
-	desc = irq_get_irq_data(st->adis.spi->irq);
-	if (!desc) {
-		dev_err(dev, "Could not find IRQ %d\n", irq);
-		return -EINVAL;
-	}
 
 	/* Disable data ready since the default after reset is on */
 	val = ADIS16480_DRDY_EN(0);
@@ -1285,7 +1278,7 @@ static int adis16480_config_irq_pin(struct adis16480 *st)
 	 * configured as positive or negative, corresponding to
 	 * IRQ_TYPE_EDGE_RISING or IRQ_TYPE_EDGE_FALLING respectively.
 	 */
-	irq_type = irqd_get_trigger_type(desc);
+	irq_type = irq_get_trigger_type(st->adis.spi->irq);
 	if (irq_type == IRQ_TYPE_EDGE_RISING) { /* Default */
 		val |= ADIS16480_DRDY_POL(1);
 	} else if (irq_type == IRQ_TYPE_EDGE_FALLING) {

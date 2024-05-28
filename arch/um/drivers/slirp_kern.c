@@ -15,7 +15,7 @@ struct slirp_init {
 	struct arg_list_dummy_wrapper argw;  /* XXX should be simpler... */
 };
 
-void slirp_init(struct net_device *dev, void *data)
+static void slirp_init(struct net_device *dev, void *data)
 {
 	struct uml_net_private *private;
 	struct slirp_data *spri;

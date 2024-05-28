@@ -49,7 +49,6 @@
  */
 #define DEFAULT_DURATION_JIFFIES (6)
 
-static unsigned int target_mwait;
 static struct dentry *debug_dir;
 static bool poll_pkg_cstate_enable;
 
@@ -256,7 +255,7 @@ skip_limit_set:
 
 static const struct kernel_param_ops max_idle_ops = {
 	.set = max_idle_set,
-	.get = param_get_int,
+	.get = param_get_byte,
 };
 
 module_param_cb(max_idle, &max_idle_ops, &max_idle, 0644);
@@ -311,34 +310,6 @@ MODULE_PARM_DESC(window_size, "sliding window in number of clamping cycles\n"
 	"\tpowerclamp controls idle ratio within this window. larger\n"
 	"\twindow size results in slower response time but more smooth\n"
 	"\tclamping results. default to 2.");
-
-static void find_target_mwait(void)
-{
-	unsigned int eax, ebx, ecx, edx;
-	unsigned int highest_cstate = 0;
-	unsigned int highest_subcstate = 0;
-	int i;
-
-	if (boot_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
-		return;
-
-	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &edx);
-
-	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED) ||
-	    !(ecx & CPUID5_ECX_INTERRUPT_BREAK))
-		return;
-
-	edx >>= MWAIT_SUBSTATE_SIZE;
-	for (i = 0; i < 7 && edx; i++, edx >>= MWAIT_SUBSTATE_SIZE) {
-		if (edx & MWAIT_SUBSTATE_MASK) {
-			highest_cstate = i;
-			highest_subcstate = edx & MWAIT_SUBSTATE_MASK;
-		}
-	}
-	target_mwait = (highest_cstate << MWAIT_SUBSTATE_SIZE) |
-		(highest_subcstate - 1);
-
-}
 
 struct pkg_cstate_info {
 	bool skip;
@@ -616,7 +587,7 @@ static int powerclamp_idle_injection_register(void)
 	poll_pkg_cstate_enable = false;
 	if (cpumask_equal(cpu_present_mask, idle_injection_cpu_mask)) {
 		ii_dev = idle_inject_register_full(idle_injection_cpu_mask, idle_inject_update);
-		if (topology_max_packages() == 1 && topology_max_die_per_package() == 1)
+		if (topology_max_packages() == 1 && topology_max_dies_per_package() == 1)
 			poll_pkg_cstate_enable = true;
 	} else {
 		ii_dev = idle_inject_register(idle_injection_cpu_mask);
@@ -758,9 +729,6 @@ static int __init powerclamp_probe(void)
 		pr_info("No package C-state available\n");
 		return -ENODEV;
 	}
-
-	/* find the deepest mwait value */
-	find_target_mwait();
 
 	return 0;
 }

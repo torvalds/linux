@@ -4,6 +4,8 @@
 #ifndef _I40E_LAN_HMC_H_
 #define _I40E_LAN_HMC_H_
 
+#include "i40e_hmc.h"
+
 /* forward-declare the HW struct for the compiler */
 struct i40e_hw;
 

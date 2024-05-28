@@ -68,7 +68,7 @@ int BPF_PROG(handler2, struct pt_regs *regs, long id)
 {
 	static volatile int whatever;
 
-	if (my_tid != (u32)bpf_get_current_pid_tgid() || id != syscall_id)
+	if (my_tid != (s32)bpf_get_current_pid_tgid() || id != syscall_id)
 		return 0;
 
 	/* make sure we have CO-RE relocations in main program */

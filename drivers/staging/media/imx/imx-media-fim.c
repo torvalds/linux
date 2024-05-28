@@ -401,7 +401,7 @@ int imx_media_fim_add_controls(struct imx_media_fim *fim)
 {
 	/* add the FIM controls to the calling subdev ctrl handler */
 	return v4l2_ctrl_add_handler(fim->sd->ctrl_handler,
-				     &fim->ctrl_handler, NULL, false);
+				     &fim->ctrl_handler, NULL, true);
 }
 
 /* Called by the subdev in its subdev registered callback */

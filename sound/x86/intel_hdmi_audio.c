@@ -30,6 +30,7 @@
 #include <sound/control.h>
 #include <sound/jack.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_eld.h>
 #include <drm/intel_lpe_audio.h>
 #include "intel_hdmi_audio.h"
 

@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# This is the device definition for the Google Spherion Chromebook.
+# The filename "google,spherion" comes from the Devicetree compatible, so this
+# file will be automatically used when the test is run on that machine.
+#
+# The top-level is a list of controllers, either for USB or PCI(e).
+# Every controller needs to have a 'type' key set to either 'usb-controller' or
+# 'pci-controller'.
+# Every controller needs to be uniquely identified on the platform. To achieve
+# this, several optional keys can be used:
+# - dt-mmio: identify the MMIO address of the controller as defined in the
+#   Devicetree.
+# - usb-version: for USB controllers to differentiate between USB3 and USB2
+#   buses sharing the same controller.
+# - acpi-uid: _UID property of the controller as supplied by the ACPI. Useful to
+#   distinguish between multiple PCI host controllers.
+#
+# The 'devices' key defines a list of devices that are accessible under that
+# controller. A device might be a leaf device or another controller (see
+# 'Dell Inc.,XPS 13 9300.yaml').
+#
+# The 'path' key is needed for every child device (that is, not top-level) to
+# define how to reach this device from the parent controller. For USB devices it
+# follows the format \d(.\d)* and denotes the port in the hub at each level in
+# the USB topology. For PCI devices it follows the format \d.\d(/\d.\d)*
+# denoting the device (identified by device-function pair) at each level in the
+# PCI topology.
+#
+# The 'name' key is used in the leaf devices to name the device for clarity in
+# the test output.
+#
+# For USB leaf devices, the 'interfaces' key should contain a list of the
+# interfaces in that device that should be bound to a driver.
+#
+- type: usb-controller
+  dt-mmio: 11200000
+  usb-version: 2
+  devices:
+    - path: 1.4.1
+      interfaces: [0, 1]
+      name: camera
+    - path: 1.4.2
+      interfaces: [0, 1]
+      name: bluetooth
+- type: pci-controller
+  dt-mmio: 11230000
+  devices:
+    - path: 0.0/0.0
+      name: wifi

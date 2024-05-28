@@ -134,10 +134,16 @@ void *alloc_insn_page(void)
 	if (!page)
 		return NULL;
 
-	if (strict_module_rwx_enabled())
-		set_memory_rox((unsigned long)page, 1);
+	if (strict_module_rwx_enabled()) {
+		int err = set_memory_rox((unsigned long)page, 1);
 
+		if (err)
+			goto error;
+	}
 	return page;
+error:
+	module_memfree(page);
+	return NULL;
 }
 
 int arch_prepare_kprobe(struct kprobe *p)

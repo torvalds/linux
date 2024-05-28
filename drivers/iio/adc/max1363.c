@@ -357,62 +357,55 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 				    int *val,
 				    long m)
 {
-	int ret = 0;
-	s32 data;
-	u8 rxbuf[2];
-	struct max1363_state *st = iio_priv(indio_dev);
-	struct i2c_client *client = st->client;
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		s32 data;
+		u8 rxbuf[2];
+		struct max1363_state *st = iio_priv(indio_dev);
+		struct i2c_client *client = st->client;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-	mutex_lock(&st->lock);
+		guard(mutex)(&st->lock);
 
-	/*
-	 * If monitor mode is enabled, the method for reading a single
-	 * channel will have to be rather different and has not yet
-	 * been implemented.
-	 *
-	 * Also, cannot read directly if buffered capture enabled.
-	 */
-	if (st->monitor_on) {
-		ret = -EBUSY;
-		goto error_ret;
-	}
+		/*
+		 * If monitor mode is enabled, the method for reading a single
+		 * channel will have to be rather different and has not yet
+		 * been implemented.
+		 *
+		 * Also, cannot read directly if buffered capture enabled.
+		 */
+		if (st->monitor_on)
+			return -EBUSY;
 
-	/* Check to see if current scan mode is correct */
-	if (st->current_mode != &max1363_mode_table[chan->address]) {
-		/* Update scan mode if needed */
-		st->current_mode = &max1363_mode_table[chan->address];
-		ret = max1363_set_scan_mode(st);
-		if (ret < 0)
-			goto error_ret;
-	}
-	if (st->chip_info->bits != 8) {
-		/* Get reading */
-		data = st->recv(client, rxbuf, 2);
-		if (data < 0) {
-			ret = data;
-			goto error_ret;
+		/* Check to see if current scan mode is correct */
+		if (st->current_mode != &max1363_mode_table[chan->address]) {
+			int ret;
+
+			/* Update scan mode if needed */
+			st->current_mode = &max1363_mode_table[chan->address];
+			ret = max1363_set_scan_mode(st);
+			if (ret < 0)
+				return ret;
 		}
-		data = (rxbuf[1] | rxbuf[0] << 8) &
-		  ((1 << st->chip_info->bits) - 1);
-	} else {
-		/* Get reading */
-		data = st->recv(client, rxbuf, 1);
-		if (data < 0) {
-			ret = data;
-			goto error_ret;
+		if (st->chip_info->bits != 8) {
+			/* Get reading */
+			data = st->recv(client, rxbuf, 2);
+			if (data < 0)
+				return data;
+
+			data = (rxbuf[1] | rxbuf[0] << 8) &
+				((1 << st->chip_info->bits) - 1);
+		} else {
+			/* Get reading */
+			data = st->recv(client, rxbuf, 1);
+			if (data < 0)
+				return data;
+
+			data = rxbuf[0];
 		}
-		data = rxbuf[0];
+		*val = data;
+
+		return 0;
 	}
-	*val = data;
-
-error_ret:
-	mutex_unlock(&st->lock);
-	iio_device_release_direct_mode(indio_dev);
-	return ret;
-
+	unreachable();
 }
 
 static int max1363_read_raw(struct iio_dev *indio_dev,
@@ -710,9 +703,8 @@ static ssize_t max1363_monitor_store_freq(struct device *dev,
 	if (!found)
 		return -EINVAL;
 
-	mutex_lock(&st->lock);
-	st->monitor_speed = i;
-	mutex_unlock(&st->lock);
+	scoped_guard(mutex, &st->lock)
+		st->monitor_speed = i;
 
 	return 0;
 }
@@ -815,12 +807,11 @@ static int max1363_read_event_config(struct iio_dev *indio_dev,
 	int val;
 	int number = chan->channel;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 	if (dir == IIO_EV_DIR_FALLING)
 		val = (1 << number) & st->mask_low;
 	else
 		val = (1 << number) & st->mask_high;
-	mutex_unlock(&st->lock);
 
 	return val;
 }
@@ -962,46 +953,42 @@ static int max1363_write_event_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
 	enum iio_event_direction dir, int state)
 {
-	int ret = 0;
 	struct max1363_state *st = iio_priv(indio_dev);
-	u16 unifiedmask;
-	int number = chan->channel;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-	mutex_lock(&st->lock);
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		int number = chan->channel;
+		u16 unifiedmask;
+		int ret;
 
-	unifiedmask = st->mask_low | st->mask_high;
-	if (dir == IIO_EV_DIR_FALLING) {
+		guard(mutex)(&st->lock);
 
-		if (state == 0)
-			st->mask_low &= ~(1 << number);
-		else {
-			ret = __max1363_check_event_mask((1 << number),
-							 unifiedmask);
-			if (ret)
-				goto error_ret;
-			st->mask_low |= (1 << number);
-		}
-	} else {
-		if (state == 0)
-			st->mask_high &= ~(1 << number);
-		else {
-			ret = __max1363_check_event_mask((1 << number),
-							 unifiedmask);
-			if (ret)
-				goto error_ret;
-			st->mask_high |= (1 << number);
+		unifiedmask = st->mask_low | st->mask_high;
+		if (dir == IIO_EV_DIR_FALLING) {
+
+			if (state == 0)
+				st->mask_low &= ~(1 << number);
+			else {
+				ret = __max1363_check_event_mask((1 << number),
+								 unifiedmask);
+				if (ret)
+					return ret;
+				st->mask_low |= (1 << number);
+			}
+		} else {
+			if (state == 0)
+				st->mask_high &= ~(1 << number);
+			else {
+				ret = __max1363_check_event_mask((1 << number),
+								 unifiedmask);
+				if (ret)
+					return ret;
+				st->mask_high |= (1 << number);
+			}
 		}
 	}
-
 	max1363_monitor_mode_update(st, !!(st->mask_high | st->mask_low));
-error_ret:
-	mutex_unlock(&st->lock);
-	iio_device_release_direct_mode(indio_dev);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -1599,9 +1586,7 @@ static int max1363_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	st->chip_info = device_get_match_data(&client->dev);
-	if (!st->chip_info)
-		st->chip_info = &max1363_chip_info_tbl[id->driver_data];
+	st->chip_info = i2c_get_match_data(client);
 	st->client = client;
 
 	st->vref_uv = st->chip_info->int_vref_mv * 1000;
@@ -1669,46 +1654,51 @@ static int max1363_probe(struct i2c_client *client)
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
+#define MAX1363_ID_TABLE(_name, cfg) {				\
+	.name = _name,						\
+	.driver_data = (kernel_ulong_t)&max1363_chip_info_tbl[cfg],	\
+}
+
 static const struct i2c_device_id max1363_id[] = {
-	{ "max1361", max1361 },
-	{ "max1362", max1362 },
-	{ "max1363", max1363 },
-	{ "max1364", max1364 },
-	{ "max1036", max1036 },
-	{ "max1037", max1037 },
-	{ "max1038", max1038 },
-	{ "max1039", max1039 },
-	{ "max1136", max1136 },
-	{ "max1137", max1137 },
-	{ "max1138", max1138 },
-	{ "max1139", max1139 },
-	{ "max1236", max1236 },
-	{ "max1237", max1237 },
-	{ "max1238", max1238 },
-	{ "max1239", max1239 },
-	{ "max11600", max11600 },
-	{ "max11601", max11601 },
-	{ "max11602", max11602 },
-	{ "max11603", max11603 },
-	{ "max11604", max11604 },
-	{ "max11605", max11605 },
-	{ "max11606", max11606 },
-	{ "max11607", max11607 },
-	{ "max11608", max11608 },
-	{ "max11609", max11609 },
-	{ "max11610", max11610 },
-	{ "max11611", max11611 },
-	{ "max11612", max11612 },
-	{ "max11613", max11613 },
-	{ "max11614", max11614 },
-	{ "max11615", max11615 },
-	{ "max11616", max11616 },
-	{ "max11617", max11617 },
-	{ "max11644", max11644 },
-	{ "max11645", max11645 },
-	{ "max11646", max11646 },
-	{ "max11647", max11647 },
-	{}
+	MAX1363_ID_TABLE("max1361", max1361),
+	MAX1363_ID_TABLE("max1362", max1362),
+	MAX1363_ID_TABLE("max1363", max1363),
+	MAX1363_ID_TABLE("max1364", max1364),
+	MAX1363_ID_TABLE("max1036", max1036),
+	MAX1363_ID_TABLE("max1037", max1037),
+	MAX1363_ID_TABLE("max1038", max1038),
+	MAX1363_ID_TABLE("max1039", max1039),
+	MAX1363_ID_TABLE("max1136", max1136),
+	MAX1363_ID_TABLE("max1137", max1137),
+	MAX1363_ID_TABLE("max1138", max1138),
+	MAX1363_ID_TABLE("max1139", max1139),
+	MAX1363_ID_TABLE("max1236", max1236),
+	MAX1363_ID_TABLE("max1237", max1237),
+	MAX1363_ID_TABLE("max1238", max1238),
+	MAX1363_ID_TABLE("max1239", max1239),
+	MAX1363_ID_TABLE("max11600", max11600),
+	MAX1363_ID_TABLE("max11601", max11601),
+	MAX1363_ID_TABLE("max11602", max11602),
+	MAX1363_ID_TABLE("max11603", max11603),
+	MAX1363_ID_TABLE("max11604", max11604),
+	MAX1363_ID_TABLE("max11605", max11605),
+	MAX1363_ID_TABLE("max11606", max11606),
+	MAX1363_ID_TABLE("max11607", max11607),
+	MAX1363_ID_TABLE("max11608", max11608),
+	MAX1363_ID_TABLE("max11609", max11609),
+	MAX1363_ID_TABLE("max11610", max11610),
+	MAX1363_ID_TABLE("max11611", max11611),
+	MAX1363_ID_TABLE("max11612", max11612),
+	MAX1363_ID_TABLE("max11613", max11613),
+	MAX1363_ID_TABLE("max11614", max11614),
+	MAX1363_ID_TABLE("max11615", max11615),
+	MAX1363_ID_TABLE("max11616", max11616),
+	MAX1363_ID_TABLE("max11617", max11617),
+	MAX1363_ID_TABLE("max11644", max11644),
+	MAX1363_ID_TABLE("max11645", max11645),
+	MAX1363_ID_TABLE("max11646", max11646),
+	MAX1363_ID_TABLE("max11647", max11647),
+	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(i2c, max1363_id);

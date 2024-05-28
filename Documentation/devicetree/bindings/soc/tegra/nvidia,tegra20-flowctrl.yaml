@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/tegra/nvidia,tegra20-flowctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Flow Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - nvidia,tegra20-flowctrl
+          - nvidia,tegra30-flowctrl
+          - nvidia,tegra114-flowctrl
+          - nvidia,tegra124-flowctrl
+          - nvidia,tegra210-flowctrl
+
+      - items:
+          - const: nvidia,tegra132-flowctrl
+          - const: nvidia,tegra124-flowctrl
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    flow-controller@60007000 {
+        compatible = "nvidia,tegra20-flowctrl";
+        reg = <0x60007000 0x1000>;
+    };

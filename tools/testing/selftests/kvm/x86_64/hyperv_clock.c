@@ -211,6 +211,9 @@ int main(void)
 	vm_vaddr_t tsc_page_gva;
 	int stage;
 
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_TIME));
+	TEST_REQUIRE(sys_clocksource_is_based_on_tsc());
+
 	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
 
 	vcpu_set_hv_cpuid(vcpu);
@@ -218,7 +221,7 @@ int main(void)
 	tsc_page_gva = vm_vaddr_alloc_page(vm);
 	memset(addr_gva2hva(vm, tsc_page_gva), 0x0, getpagesize());
 	TEST_ASSERT((addr_gva2gpa(vm, tsc_page_gva) & (getpagesize() - 1)) == 0,
-		"TSC page has to be page aligned\n");
+		"TSC page has to be page aligned");
 	vcpu_args_set(vcpu, 2, tsc_page_gva, addr_gva2gpa(vm, tsc_page_gva));
 
 	host_check_tsc_msr_rdtsc(vcpu);
@@ -235,7 +238,7 @@ int main(void)
 			break;
 		case UCALL_DONE:
 			/* Keep in sync with guest_main() */
-			TEST_ASSERT(stage == 11, "Testing ended prematurely, stage %d\n",
+			TEST_ASSERT(stage == 11, "Testing ended prematurely, stage %d",
 				    stage);
 			goto out;
 		default:

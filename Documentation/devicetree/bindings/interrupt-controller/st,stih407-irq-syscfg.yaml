@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/st,stih407-irq-syscfg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STi System Configuration Controlled IRQs
+
+maintainers:
+  - Patrice Chotard <patrice.chotard@foss.st.com>
+
+description:
+  On STi based systems; External, CTI (Core Sight), PMU (Performance
+  Management), and PL310 L2 Cache IRQs are controlled using System
+  Configuration registers.  This device is used to unmask them prior to use.
+
+properties:
+  compatible:
+    const: st,stih407-irq-syscfg
+
+  st,syscfg:
+    description: Phandle to Cortex-A9 IRQ system config registers
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  st,irq-device:
+    description: Array of IRQs to enable.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: Enable the IRQ of the channel one.
+      - description: Enable the IRQ of the channel two.
+
+  st,fiq-device:
+    description: Array of FIQs to enable.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: Enable the IRQ of the channel one.
+      - description: Enable the IRQ of the channel two.
+
+  st,invert-ext:
+    description: External IRQs can be inverted at will. This property inverts
+      these three IRQs using bitwise logic, each one being encoded respectively
+      on the first, second and fourth bit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 1, 2, 3, 4, 5, 6 ]
+
+required:
+  - compatible
+  - st,syscfg
+  - st,irq-device
+  - st,fiq-device
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq-st.h>
+    irq-syscfg {
+        compatible = "st,stih407-irq-syscfg";
+        st,syscfg = <&syscfg_cpu>;
+        st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
+                        <ST_IRQ_SYSCFG_PMU_1>;
+        st,fiq-device = <ST_IRQ_SYSCFG_DISABLED>,
+                        <ST_IRQ_SYSCFG_DISABLED>;
+    };
+...

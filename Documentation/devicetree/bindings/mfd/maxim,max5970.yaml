@@ -45,7 +45,12 @@ properties:
     patternProperties:
       "^led@[0-3]$":
         $ref: /schemas/leds/common.yaml#
+        unevaluatedProperties: false
         type: object
+
+        properties:
+          reg:
+            maximum: 3
 
     additionalProperties: false
 

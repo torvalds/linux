@@ -22,10 +22,6 @@
 #define IF_RS_SENT	0x10
 #define IF_READY	0x80000000
 
-/* prefix flags */
-#define IF_PREFIX_ONLINK	0x01
-#define IF_PREFIX_AUTOCONF	0x02
-
 enum {
 	INET6_IFADDR_STATE_PREDAD,
 	INET6_IFADDR_STATE_DAD,
@@ -89,7 +85,7 @@ struct ip6_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
 	struct rcu_head		rcu;
-	struct in6_addr		sl_addr[];
+	struct in6_addr		sl_addr[] __counted_by(sl_max);
 };
 
 #define IP6_SFBLOCK	10	/* allocate this many at once */
@@ -148,7 +144,7 @@ struct ipv6_ac_socklist {
 struct ifacaddr6 {
 	struct in6_addr		aca_addr;
 	struct fib6_info	*aca_rt;
-	struct ifacaddr6	*aca_next;
+	struct ifacaddr6 __rcu	*aca_next;
 	struct hlist_node	aca_addr_lst;
 	int			aca_users;
 	refcount_t		aca_refcnt;
@@ -200,7 +196,7 @@ struct inet6_dev {
 	spinlock_t		mc_report_lock;	/* mld query report lock */
 	struct mutex		mc_lock;	/* mld global lock */
 
-	struct ifacaddr6	*ac_list;
+	struct ifacaddr6 __rcu	*ac_list;
 	rwlock_t		lock;
 	refcount_t		refcnt;
 	__u32			if_flags;

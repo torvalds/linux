@@ -485,6 +485,8 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 
 	if (msg_len > BNXT_HWRM_MAX_REQ_LEN &&
 	    msg_len > bp->hwrm_max_ext_req_len) {
+		netdev_warn(bp->dev, "oversized hwrm request, req_type 0x%x",
+			    req_type);
 		rc = -E2BIG;
 		goto exit;
 	}

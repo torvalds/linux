@@ -60,7 +60,7 @@ extern const char boot_aggregate_name[];
 
 /* IMA event related data */
 struct ima_event_data {
-	struct integrity_iint_cache *iint;
+	struct ima_iint_cache *iint;
 	struct file *file;
 	const unsigned char *filename;
 	struct evm_ima_xattr_data *xattr_value;
@@ -119,6 +119,107 @@ struct ima_kexec_hdr {
 	u64 count;
 };
 
+/* IMA iint action cache flags */
+#define IMA_MEASURE		0x00000001
+#define IMA_MEASURED		0x00000002
+#define IMA_APPRAISE		0x00000004
+#define IMA_APPRAISED		0x00000008
+/*#define IMA_COLLECT		0x00000010  do not use this flag */
+#define IMA_COLLECTED		0x00000020
+#define IMA_AUDIT		0x00000040
+#define IMA_AUDITED		0x00000080
+#define IMA_HASH		0x00000100
+#define IMA_HASHED		0x00000200
+
+/* IMA iint policy rule cache flags */
+#define IMA_NONACTION_FLAGS	0xff000000
+#define IMA_DIGSIG_REQUIRED	0x01000000
+#define IMA_PERMIT_DIRECTIO	0x02000000
+#define IMA_NEW_FILE		0x04000000
+#define IMA_FAIL_UNVERIFIABLE_SIGS	0x10000000
+#define IMA_MODSIG_ALLOWED	0x20000000
+#define IMA_CHECK_BLACKLIST	0x40000000
+#define IMA_VERITY_REQUIRED	0x80000000
+
+#define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT | \
+				 IMA_HASH | IMA_APPRAISE_SUBMASK)
+#define IMA_DONE_MASK		(IMA_MEASURED | IMA_APPRAISED | IMA_AUDITED | \
+				 IMA_HASHED | IMA_COLLECTED | \
+				 IMA_APPRAISED_SUBMASK)
+
+/* IMA iint subaction appraise cache flags */
+#define IMA_FILE_APPRAISE	0x00001000
+#define IMA_FILE_APPRAISED	0x00002000
+#define IMA_MMAP_APPRAISE	0x00004000
+#define IMA_MMAP_APPRAISED	0x00008000
+#define IMA_BPRM_APPRAISE	0x00010000
+#define IMA_BPRM_APPRAISED	0x00020000
+#define IMA_READ_APPRAISE	0x00040000
+#define IMA_READ_APPRAISED	0x00080000
+#define IMA_CREDS_APPRAISE	0x00100000
+#define IMA_CREDS_APPRAISED	0x00200000
+#define IMA_APPRAISE_SUBMASK	(IMA_FILE_APPRAISE | IMA_MMAP_APPRAISE | \
+				 IMA_BPRM_APPRAISE | IMA_READ_APPRAISE | \
+				 IMA_CREDS_APPRAISE)
+#define IMA_APPRAISED_SUBMASK	(IMA_FILE_APPRAISED | IMA_MMAP_APPRAISED | \
+				 IMA_BPRM_APPRAISED | IMA_READ_APPRAISED | \
+				 IMA_CREDS_APPRAISED)
+
+/* IMA iint cache atomic_flags */
+#define IMA_CHANGE_XATTR	0
+#define IMA_UPDATE_XATTR	1
+#define IMA_CHANGE_ATTR		2
+#define IMA_DIGSIG		3
+#define IMA_MUST_MEASURE	4
+
+/* IMA integrity metadata associated with an inode */
+struct ima_iint_cache {
+	struct mutex mutex;	/* protects: version, flags, digest */
+	u64 version;		/* track inode changes */
+	unsigned long flags;
+	unsigned long measured_pcrs;
+	unsigned long atomic_flags;
+	unsigned long real_ino;
+	dev_t real_dev;
+	enum integrity_status ima_file_status:4;
+	enum integrity_status ima_mmap_status:4;
+	enum integrity_status ima_bprm_status:4;
+	enum integrity_status ima_read_status:4;
+	enum integrity_status ima_creds_status:4;
+	struct ima_digest_data *ima_hash;
+};
+
+extern struct lsm_blob_sizes ima_blob_sizes;
+
+static inline struct ima_iint_cache *
+ima_inode_get_iint(const struct inode *inode)
+{
+	struct ima_iint_cache **iint_sec;
+
+	if (unlikely(!inode->i_security))
+		return NULL;
+
+	iint_sec = inode->i_security + ima_blob_sizes.lbs_inode;
+	return *iint_sec;
+}
+
+static inline void ima_inode_set_iint(const struct inode *inode,
+				      struct ima_iint_cache *iint)
+{
+	struct ima_iint_cache **iint_sec;
+
+	if (unlikely(!inode->i_security))
+		return;
+
+	iint_sec = inode->i_security + ima_blob_sizes.lbs_inode;
+	*iint_sec = iint;
+}
+
+struct ima_iint_cache *ima_iint_find(struct inode *inode);
+struct ima_iint_cache *ima_inode_get(struct inode *inode);
+void ima_inode_free(struct inode *inode);
+void __init ima_iintcache_init(void);
+
 extern const int read_idmap[];
 
 #ifdef CONFIG_HAVE_IMA_KEXEC
@@ -126,6 +227,12 @@ void ima_load_kexec_buffer(void);
 #else
 static inline void ima_load_kexec_buffer(void) {}
 #endif /* CONFIG_HAVE_IMA_KEXEC */
+
+#ifdef CONFIG_IMA_MEASURE_ASYMMETRIC_KEYS
+void ima_post_key_create_or_update(struct key *keyring, struct key *key,
+				   const void *payload, size_t plen,
+				   unsigned long flags, bool create);
+#endif
 
 /*
  * The default binary_runtime_measurements list format is defined as the
@@ -146,8 +253,8 @@ int ima_calc_field_array_hash(struct ima_field_data *field_data,
 			      struct ima_template_entry *entry);
 int ima_calc_boot_aggregate(struct ima_digest_data *hash);
 void ima_add_violation(struct file *file, const unsigned char *filename,
-		       struct integrity_iint_cache *iint,
-		       const char *op, const char *cause);
+		       struct ima_iint_cache *iint, const char *op,
+		       const char *cause);
 int ima_init_crypto(void);
 void ima_putc(struct seq_file *m, void *data, int datalen);
 void ima_print_digest(struct seq_file *m, u8 *digest, u32 size);
@@ -261,10 +368,10 @@ int ima_get_action(struct mnt_idmap *idmap, struct inode *inode,
 		   struct ima_template_desc **template_desc,
 		   const char *func_data, unsigned int *allowed_algos);
 int ima_must_measure(struct inode *inode, int mask, enum ima_hooks func);
-int ima_collect_measurement(struct integrity_iint_cache *iint,
-			    struct file *file, void *buf, loff_t size,
-			    enum hash_algo algo, struct modsig *modsig);
-void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
+int ima_collect_measurement(struct ima_iint_cache *iint, struct file *file,
+			    void *buf, loff_t size, enum hash_algo algo,
+			    struct modsig *modsig);
+void ima_store_measurement(struct ima_iint_cache *iint, struct file *file,
 			   const unsigned char *filename,
 			   struct evm_ima_xattr_data *xattr_value,
 			   int xattr_len, const struct modsig *modsig, int pcr,
@@ -274,7 +381,7 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 			       const char *eventname, enum ima_hooks func,
 			       int pcr, const char *func_data,
 			       bool buf_hash, u8 *digest, size_t digest_len);
-void ima_audit_measurement(struct integrity_iint_cache *iint,
+void ima_audit_measurement(struct ima_iint_cache *iint,
 			   const unsigned char *filename);
 int ima_alloc_init_template(struct ima_event_data *event_data,
 			    struct ima_template_entry **entry,
@@ -312,32 +419,32 @@ int ima_policy_show(struct seq_file *m, void *v);
 #define IMA_APPRAISE_KEXEC	0x40
 
 #ifdef CONFIG_IMA_APPRAISE
-int ima_check_blacklist(struct integrity_iint_cache *iint,
+int ima_check_blacklist(struct ima_iint_cache *iint,
 			const struct modsig *modsig, int pcr);
-int ima_appraise_measurement(enum ima_hooks func,
-			     struct integrity_iint_cache *iint,
+int ima_appraise_measurement(enum ima_hooks func, struct ima_iint_cache *iint,
 			     struct file *file, const unsigned char *filename,
 			     struct evm_ima_xattr_data *xattr_value,
 			     int xattr_len, const struct modsig *modsig);
 int ima_must_appraise(struct mnt_idmap *idmap, struct inode *inode,
 		      int mask, enum ima_hooks func);
-void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file);
-enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
+void ima_update_xattr(struct ima_iint_cache *iint, struct file *file);
+enum integrity_status ima_get_cache_status(struct ima_iint_cache *iint,
 					   enum ima_hooks func);
 enum hash_algo ima_get_hash_algo(const struct evm_ima_xattr_data *xattr_value,
 				 int xattr_len);
 int ima_read_xattr(struct dentry *dentry,
 		   struct evm_ima_xattr_data **xattr_value, int xattr_len);
+void __init init_ima_appraise_lsm(const struct lsm_id *lsmid);
 
 #else
-static inline int ima_check_blacklist(struct integrity_iint_cache *iint,
+static inline int ima_check_blacklist(struct ima_iint_cache *iint,
 				      const struct modsig *modsig, int pcr)
 {
 	return 0;
 }
 
 static inline int ima_appraise_measurement(enum ima_hooks func,
-					   struct integrity_iint_cache *iint,
+					   struct ima_iint_cache *iint,
 					   struct file *file,
 					   const unsigned char *filename,
 					   struct evm_ima_xattr_data *xattr_value,
@@ -354,14 +461,13 @@ static inline int ima_must_appraise(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static inline void ima_update_xattr(struct integrity_iint_cache *iint,
+static inline void ima_update_xattr(struct ima_iint_cache *iint,
 				    struct file *file)
 {
 }
 
-static inline enum integrity_status ima_get_cache_status(struct integrity_iint_cache
-							 *iint,
-							 enum ima_hooks func)
+static inline enum integrity_status
+ima_get_cache_status(struct ima_iint_cache *iint, enum ima_hooks func)
 {
 	return INTEGRITY_UNKNOWN;
 }
@@ -377,6 +483,10 @@ static inline int ima_read_xattr(struct dentry *dentry,
 				 int xattr_len)
 {
 	return 0;
+}
+
+static inline void __init init_ima_appraise_lsm(const struct lsm_id *lsmid)
+{
 }
 
 #endif /* CONFIG_IMA_APPRAISE */

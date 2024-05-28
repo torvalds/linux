@@ -4,6 +4,6 @@
  */
 
 &ddr_pmu0 {
-	compatible = "fsl,imx8-ddr-pmu";
+	compatible = "fsl,imx8dxl-ddr-pmu", "fsl,imx8-ddr-pmu";
 	interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 };

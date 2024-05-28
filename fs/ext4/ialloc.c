@@ -950,7 +950,7 @@ struct inode *__ext4_new_inode(struct mnt_idmap *idmap,
 	sb = dir->i_sb;
 	sbi = EXT4_SB(sb);
 
-	if (unlikely(ext4_forced_shutdown(sbi)))
+	if (unlikely(ext4_forced_shutdown(sb)))
 		return ERR_PTR(-EIO);
 
 	ngroups = ext4_get_groups_count(sb);
@@ -1250,8 +1250,8 @@ got:
 	inode->i_ino = ino + group * EXT4_INODES_PER_GROUP(sb);
 	/* This is the optimal IO size (for stat), not the fs block size */
 	inode->i_blocks = 0;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
-	ei->i_crtime = inode->i_mtime;
+	simple_inode_init_ts(inode);
+	ei->i_crtime = inode_get_mtime(inode);
 
 	memset(ei->i_data, 0, sizeof(ei->i_data));
 	ei->i_dir_start_lookup = 0;
@@ -1522,12 +1522,6 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	ext4_fsblk_t blk;
 	int num, ret = 0, used_blks = 0;
 	unsigned long used_inos = 0;
-
-	/* This should not happen, but just to be sure check this */
-	if (sb_rdonly(sb)) {
-		ret = 1;
-		goto out;
-	}
 
 	gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
 	if (!gdp || !grp)

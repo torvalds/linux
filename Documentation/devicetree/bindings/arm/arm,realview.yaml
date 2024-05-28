@@ -10,9 +10,9 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 description: |+
-  The ARM RealView series of reference designs were built to explore the ARM
-  11, Cortex A-8 and Cortex A-9 CPUs. This included new features compared to
-  the earlier CPUs such as TrustZone and multicore (MPCore).
+  The ARM RealView series of reference designs were built to explore the Arm11,
+  Cortex-A8, and Cortex-A9 CPUs. This included new features compared to the
+  earlier CPUs such as TrustZone and multicore (MPCore).
 
 properties:
   $nodename:
@@ -75,43 +75,6 @@ properties:
         type: object
         description: All RealView boards must provide a syscon system controller
           node inside the soc node.
-        properties:
-          compatible:
-            oneOf:
-              - items:
-                  - const: arm,realview-eb11mp-revb-syscon
-                  - const: arm,realview-eb-syscon
-                  - const: syscon
-                  - const: simple-mfd
-              - items:
-                  - const: arm,realview-eb11mp-revc-syscon
-                  - const: arm,realview-eb-syscon
-                  - const: syscon
-                  - const: simple-mfd
-              - items:
-                  - const: arm,realview-eb-syscon
-                  - const: syscon
-                  - const: simple-mfd
-              - items:
-                  - const: arm,realview-pb1176-syscon
-                  - const: syscon
-                  - const: simple-mfd
-              - items:
-                  - const: arm,realview-pb11mp-syscon
-                  - const: syscon
-                  - const: simple-mfd
-              - items:
-                  - const: arm,realview-pba8-syscon
-                  - const: syscon
-                  - const: simple-mfd
-              - items:
-                  - const: arm,realview-pbx-syscon
-                  - const: syscon
-                  - const: simple-mfd
-
-        required:
-          - compatible
-          - reg
 
     required:
       - compatible

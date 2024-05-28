@@ -618,6 +618,7 @@ static void __init m10v_cc_init(struct device_node *np)
 
 	if (!m10v_clk_data)
 		return;
+	m10v_clk_data->num = M10V_NUM_CLKS;
 
 	base = of_iomap(np, 0);
 	if (!base) {
@@ -654,8 +655,6 @@ static void __init m10v_cc_init(struct device_node *np)
 					base + CLKSEL(1), 0, 3, 0, rclk_table,
 					&m10v_crglock, NULL);
 	m10v_clk_data->hws[M10V_RCLK_ID] = hw;
-
-	m10v_clk_data->num = M10V_NUM_CLKS;
 	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, m10v_clk_data);
 }
 CLK_OF_DECLARE_DRIVER(m10v_cc, "socionext,milbeaut-m10v-ccu", m10v_cc_init);

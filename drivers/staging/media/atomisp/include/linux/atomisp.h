@@ -713,13 +713,6 @@ enum atomisp_burst_capture_options {
 #define EXT_ISP_SHOT_MODE_ANIMATED_PHOTO	10
 #define EXT_ISP_SHOT_MODE_SPORTS	11
 
-/*
- * Set Senor run mode
- */
-struct atomisp_s_runmode {
-	__u32 mode;
-};
-
 /*Private IOCTLs for ISP */
 #define ATOMISP_IOC_G_XNR \
 	_IOR('v', BASE_VIDIOC_PRIVATE + 0, int)
@@ -874,9 +867,6 @@ struct atomisp_s_runmode {
 
 #define ATOMISP_IOC_S_SENSOR_EE_CONFIG \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 47, unsigned int)
-
-#define ATOMISP_IOC_S_SENSOR_RUNMODE \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 48, struct atomisp_s_runmode)
 
 /*
  * Reserved ioctls. We have customer implementing it internally.

@@ -14,9 +14,6 @@ description: The Nomadik I2C host controller began its life in the ST
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
-allOf:
-  - $ref: /schemas/i2c/i2c-controller.yaml#
-
 # Need a custom select here or 'arm,primecell' will match on lots of nodes
 select:
   properties:
@@ -24,20 +21,22 @@ select:
       contains:
         enum:
           - st,nomadik-i2c
+          - mobileye,eyeq5-i2c
   required:
     - compatible
 
 properties:
   compatible:
     oneOf:
-      # The variant found in STn8815
       - items:
           - const: st,nomadik-i2c
           - const: arm,primecell
-      # The variant found in DB8500
       - items:
           - const: stericsson,db8500-i2c
           - const: st,nomadik-i2c
+          - const: arm,primecell
+      - items:
+          - const: mobileye,eyeq5-i2c
           - const: arm,primecell
 
   reg:
@@ -55,7 +54,7 @@ properties:
       - items:
           - const: mclk
           - const: apb_pclk
-      # Clock name in DB8500
+      # Clock name in DB8500 or EyeQ5
       - items:
           - const: i2cclk
           - const: apb_pclk
@@ -70,6 +69,16 @@ properties:
     minimum: 1
     maximum: 400000
 
+  mobileye,olb:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to OLB system controller node.
+          - description: Platform-wide controller ID (integer starting from zero).
+    description:
+      The phandle pointing to OLB system controller node, with the I2C
+      controller index.
+
 required:
   - compatible
   - reg
@@ -78,6 +87,20 @@ required:
   - clock-names
 
 unevaluatedProperties: false
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mobileye,eyeq5-i2c
+    then:
+      required:
+        - mobileye,olb
+    else:
+      properties:
+        mobileye,olb: false
 
 examples:
   - |
@@ -110,6 +133,20 @@ examples:
       #size-cells = <0>;
       clocks = <&i2c0clk>, <&pclki2c0>;
       clock-names = "mclk", "apb_pclk";
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/mips-gic.h>
+    i2c@300000 {
+      compatible = "mobileye,eyeq5-i2c", "arm,primecell";
+      reg = <0x300000 0x1000>;
+      interrupt-parent = <&gic>;
+      interrupts = <GIC_SHARED 1 IRQ_TYPE_LEVEL_HIGH>;
+      clock-frequency = <400000>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+      clocks = <&i2c_ser_clk>, <&i2c_clk>;
+      clock-names = "i2cclk", "apb_pclk";
+      mobileye,olb = <&olb 0>;
     };
 
 ...

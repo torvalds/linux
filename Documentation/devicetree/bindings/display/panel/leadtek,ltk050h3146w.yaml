@@ -17,6 +17,7 @@ properties:
     enum:
       - leadtek,ltk050h3146w
       - leadtek,ltk050h3146w-a2
+      - leadtek,ltk050h3148w
   reg: true
   backlight: true
   reset-gpios: true

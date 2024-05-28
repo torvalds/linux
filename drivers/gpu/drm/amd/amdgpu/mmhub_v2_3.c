@@ -90,7 +90,7 @@ mmhub_v2_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 	dev_err(adev->dev,
 		"MMVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 		status);
-	switch (adev->ip_versions[MMHUB_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
 	case IP_VERSION(2, 3, 0):
 	case IP_VERSION(2, 4, 0):
 	case IP_VERSION(2, 4, 1):
@@ -285,7 +285,7 @@ static void mmhub_v2_3_setup_vmid_config(struct amdgpu_device *adev)
 	uint32_t tmp;
 
 	for (i = 0; i <= 14; i++) {
-		tmp = RREG32_SOC15_OFFSET(MMHUB, 0, mmMMVM_CONTEXT1_CNTL, i);
+		tmp = RREG32_SOC15_OFFSET(MMHUB, 0, mmMMVM_CONTEXT1_CNTL, i * hub->ctx_distance);
 		tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 		tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH,
 				    adev->vm_manager.num_level);
@@ -331,7 +331,7 @@ static void mmhub_v2_3_setup_vmid_config(struct amdgpu_device *adev)
 static void mmhub_v2_3_program_invalidation(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB0(0)];
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < 18; ++i) {
 		WREG32_SOC15_OFFSET(MMHUB, 0,
@@ -406,6 +406,7 @@ static void mmhub_v2_3_set_fault_enable_default(struct amdgpu_device *adev,
 						bool value)
 {
 	u32 tmp;
+
 	tmp = RREG32_SOC15(MMHUB, 0, mmMMVM_L2_PROTECTION_FAULT_CNTL);
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL,
 			    RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
@@ -499,11 +500,11 @@ mmhub_v2_3_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG)) {
 		data &= ~MM_ATC_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK;
 		data1 &= ~(DAGB0_CNTL_MISC2__DISABLE_WRREQ_CG_MASK |
-		           DAGB0_CNTL_MISC2__DISABLE_WRRET_CG_MASK |
-		           DAGB0_CNTL_MISC2__DISABLE_RDREQ_CG_MASK |
-		           DAGB0_CNTL_MISC2__DISABLE_RDRET_CG_MASK |
-		           DAGB0_CNTL_MISC2__DISABLE_TLBWR_CG_MASK |
-		           DAGB0_CNTL_MISC2__DISABLE_TLBRD_CG_MASK);
+			   DAGB0_CNTL_MISC2__DISABLE_WRRET_CG_MASK |
+			   DAGB0_CNTL_MISC2__DISABLE_RDREQ_CG_MASK |
+			   DAGB0_CNTL_MISC2__DISABLE_RDRET_CG_MASK |
+			   DAGB0_CNTL_MISC2__DISABLE_TLBWR_CG_MASK |
+			   DAGB0_CNTL_MISC2__DISABLE_TLBRD_CG_MASK);
 
 	} else {
 		data |= MM_ATC_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK;
@@ -593,13 +594,13 @@ static void mmhub_v2_3_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 
 	/* AMD_CG_SUPPORT_MC_MGCG */
 	if (!(data & (DAGB0_CNTL_MISC2__DISABLE_WRREQ_CG_MASK |
-		       DAGB0_CNTL_MISC2__DISABLE_WRRET_CG_MASK |
-		       DAGB0_CNTL_MISC2__DISABLE_RDREQ_CG_MASK |
-		       DAGB0_CNTL_MISC2__DISABLE_RDRET_CG_MASK |
-		       DAGB0_CNTL_MISC2__DISABLE_TLBWR_CG_MASK |
-		       DAGB0_CNTL_MISC2__DISABLE_TLBRD_CG_MASK))
+			DAGB0_CNTL_MISC2__DISABLE_WRRET_CG_MASK |
+			DAGB0_CNTL_MISC2__DISABLE_RDREQ_CG_MASK |
+			DAGB0_CNTL_MISC2__DISABLE_RDRET_CG_MASK |
+			DAGB0_CNTL_MISC2__DISABLE_TLBWR_CG_MASK |
+			DAGB0_CNTL_MISC2__DISABLE_TLBRD_CG_MASK))
 		&& !(data1 & MM_ATC_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK)) {
-			*flags |= AMD_CG_SUPPORT_MC_MGCG;
+		*flags |= AMD_CG_SUPPORT_MC_MGCG;
 	}
 
 	/* AMD_CG_SUPPORT_MC_LS */

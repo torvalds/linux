@@ -52,3 +52,14 @@ config FUSE_DAX
 
 	  If you want to allow mounting a Virtio Filesystem with the "dax"
 	  option, answer Y.
+
+config FUSE_PASSTHROUGH
+	bool "FUSE passthrough operations support"
+	default y
+	depends on FUSE_FS
+	select FS_STACK
+	help
+	  This allows bypassing FUSE server by mapping specific FUSE operations
+	  to be performed directly on a backing file.
+
+	  If you want to allow passthrough operations, answer Y.

@@ -3,7 +3,13 @@
 #ifndef BTRFS_TREE_MOD_LOG_H
 #define BTRFS_TREE_MOD_LOG_H
 
-#include "ctree.h"
+#include <linux/list.h>
+
+struct extent_buffer;
+struct btrfs_fs_info;
+struct btrfs_path;
+struct btrfs_root;
+struct btrfs_seq_list;
 
 /* Represents a tree mod log user. */
 struct btrfs_seq_list {

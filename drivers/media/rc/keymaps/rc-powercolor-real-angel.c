@@ -75,3 +75,4 @@ module_exit(exit_rc_map_powercolor_real_angel)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Powercolor Real Angel 330 remote controller keytable");

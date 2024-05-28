@@ -13,6 +13,10 @@ IPv6 support by Cong Wang <xiyou.wangcong@gmail.com>, Jan 1 2013
 
 Extended console support by Tejun Heo <tj@kernel.org>, May 1 2015
 
+Release prepend support by Breno Leitao <leitao@debian.org>, Jul 7 2023
+
+Userdata append support by Matthew Wood <thepacketgeek@gmail.com>, Jan 22 2024
+
 Please send bug reports to Matt Mackall <mpm@selenic.com>
 Satyam Sharma <satyam.sharma@gmail.com>, and Cong Wang <xiyou.wangcong@gmail.com>
 
@@ -34,10 +38,11 @@ Sender and receiver configuration:
 It takes a string configuration parameter "netconsole" in the
 following format::
 
- netconsole=[+][src-port]@[src-ip]/[<dev>],[tgt-port]@<tgt-ip>/[tgt-macaddr]
+ netconsole=[+][r][src-port]@[src-ip]/[<dev>],[tgt-port]@<tgt-ip>/[tgt-macaddr]
 
    where
 	+             if present, enable extended console support
+	r             if present, prepend kernel version (release) to the message
 	src-port      source for UDP packets (defaults to 6665)
 	src-ip        source IP to use (interface address)
 	dev           network interface (eth0)
@@ -96,9 +101,6 @@ Dynamic reconfiguration:
 Dynamic reconfigurability is a useful addition to netconsole that enables
 remote logging targets to be dynamically added, removed, or have their
 parameters reconfigured at runtime from a configfs-based userspace interface.
-[ Note that the parameters of netconsole targets that were specified/created
-from the boot/module option are not exposed via this interface, and hence
-cannot be modified dynamically. ]
 
 To include this feature, select CONFIG_NETCONSOLE_DYNAMIC when building the
 netconsole module (or kernel, if netconsole is built-in).
@@ -125,6 +127,7 @@ The interface exposes these parameters of a netconsole target to userspace:
 	==============  =================================       ============
 	enabled		Is this target currently enabled?	(read-write)
 	extended	Extended mode enabled			(read-write)
+	release		Prepend kernel release to message	(read-write)
 	dev_name	Local network interface name		(read-write)
 	local_port	Source UDP port to use			(read-write)
 	remote_port	Remote agent's UDP port			(read-write)
@@ -151,6 +154,89 @@ You can also update the local interface dynamically. This is especially
 useful if you want to use interfaces that have newly come up (and may not
 have existed when netconsole was loaded / initialized).
 
+Netconsole targets defined at boot time (or module load time) with the
+`netconsole=` param are assigned the name `cmdline<index>`.  For example, the
+first target in the parameter is named `cmdline0`.  You can control and modify
+these targets by creating configfs directories with the matching name.
+
+Let's suppose you have two netconsole targets defined at boot time::
+
+ netconsole=4444@10.0.0.1/eth1,9353@10.0.0.2/12:34:56:78:9a:bc;4444@10.0.0.1/eth1,9353@10.0.0.3/12:34:56:78:9a:bc
+
+You can modify these targets in runtime by creating the following targets::
+
+ mkdir cmdline0
+ cat cmdline0/remote_ip
+ 10.0.0.2
+
+ mkdir cmdline1
+ cat cmdline1/remote_ip
+ 10.0.0.3
+
+Append User Data
+----------------
+
+Custom user data can be appended to the end of messages with netconsole
+dynamic configuration enabled. User data entries can be modified without
+changing the "enabled" attribute of a target.
+
+Directories (keys) under `userdata` are limited to 53 character length, and
+data in `userdata/<key>/value` are limited to 200 bytes::
+
+ cd /sys/kernel/config/netconsole && mkdir cmdline0
+ cd cmdline0
+ mkdir userdata/foo
+ echo bar > userdata/foo/value
+ mkdir userdata/qux
+ echo baz > userdata/qux/value
+
+Messages will now include this additional user data::
+
+ echo "This is a message" > /dev/kmsg
+
+Sends::
+
+ 12,607,22085407756,-;This is a message
+  foo=bar
+  qux=baz
+
+Preview the userdata that will be appended with::
+
+ cd /sys/kernel/config/netconsole/cmdline0/userdata
+ for f in `ls userdata`; do echo $f=$(cat userdata/$f/value); done
+
+If a `userdata` entry is created but no data is written to the `value` file,
+the entry will be omitted from netconsole messages::
+
+ cd /sys/kernel/config/netconsole && mkdir cmdline0
+ cd cmdline0
+ mkdir userdata/foo
+ echo bar > userdata/foo/value
+ mkdir userdata/qux
+
+The `qux` key is omitted since it has no value::
+
+ echo "This is a message" > /dev/kmsg
+ 12,607,22085407756,-;This is a message
+  foo=bar
+
+Delete `userdata` entries with `rmdir`::
+
+ rmdir /sys/kernel/config/netconsole/cmdline0/userdata/qux
+
+.. warning::
+   When writing strings to user data values, input is broken up per line in
+   configfs store calls and this can cause confusing behavior::
+
+     mkdir userdata/testing
+     printf "val1\nval2" > userdata/testing/value
+     # userdata store value is called twice, first with "val1\n" then "val2"
+     # so "val2" is stored, being the last value stored
+     cat userdata/testing/value
+     val2
+
+   It is recommended to not write user data values with newlines.
+
 Extended console:
 =================
 
@@ -164,6 +250,11 @@ Log messages are transmitted with extended metadata header in the
 following format which is the same as /dev/kmsg::
 
  <level>,<sequnum>,<timestamp>,<contflag>;<message text>
+
+If 'r' (release) feature is enabled, the kernel release version is
+prepended to the start of the message. Example::
+
+ 6.4.0,6,444,501151268,-;netconsole: network logging started
 
 Non printable characters in <message text> are escaped using "\xff"
 notation. If the message contains optional dictionary, verbatim

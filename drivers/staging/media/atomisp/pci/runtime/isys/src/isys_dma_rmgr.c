@@ -15,7 +15,6 @@
 
 #include "system_global.h"
 
-#ifdef ISP2401
 
 #include "assert_support.h"
 #include "platform_support.h"
@@ -85,4 +84,3 @@ void ia_css_isys_dma_channel_rmgr_release(
 		}
 	}
 }
-#endif

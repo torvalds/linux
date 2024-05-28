@@ -158,12 +158,6 @@
 #define IO_REPARSE_TAG_LX_CHR	     0x80000025
 #define IO_REPARSE_TAG_LX_BLK	     0x80000026
 
-#define IO_REPARSE_TAG_LX_SYMLINK_LE	cpu_to_le32(0xA000001D)
-#define IO_REPARSE_TAG_AF_UNIX_LE	cpu_to_le32(0x80000023)
-#define IO_REPARSE_TAG_LX_FIFO_LE	cpu_to_le32(0x80000024)
-#define IO_REPARSE_TAG_LX_CHR_LE	cpu_to_le32(0x80000025)
-#define IO_REPARSE_TAG_LX_BLK_LE	cpu_to_le32(0x80000026)
-
 /* fsctl flags */
 /* If Flags is set to this value, the request is an FSCTL not ioctl request */
 #define SMB2_0_IOCTL_IS_FSCTL		0x00000001

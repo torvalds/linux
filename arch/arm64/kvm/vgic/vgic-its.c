@@ -52,7 +52,12 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	if (!irq)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&irq->lpi_list);
+	ret = xa_reserve_irq(&dist->lpi_xa, intid, GFP_KERNEL_ACCOUNT);
+	if (ret) {
+		kfree(irq);
+		return ERR_PTR(ret);
+	}
+
 	INIT_LIST_HEAD(&irq->ap_list);
 	raw_spin_lock_init(&irq->irq_lock);
 
@@ -68,29 +73,29 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	 * There could be a race with another vgic_add_lpi(), so we need to
 	 * check that we don't add a second list entry with the same LPI.
 	 */
-	list_for_each_entry(oldirq, &dist->lpi_list_head, lpi_list) {
-		if (oldirq->intid != intid)
-			continue;
-
+	oldirq = xa_load(&dist->lpi_xa, intid);
+	if (vgic_try_get_irq_kref(oldirq)) {
 		/* Someone was faster with adding this LPI, lets use that. */
 		kfree(irq);
 		irq = oldirq;
 
-		/*
-		 * This increases the refcount, the caller is expected to
-		 * call vgic_put_irq() on the returned pointer once it's
-		 * finished with the IRQ.
-		 */
-		vgic_get_irq_kref(irq);
-
 		goto out_unlock;
 	}
 
-	list_add_tail(&irq->lpi_list, &dist->lpi_list_head);
-	dist->lpi_list_count++;
+	ret = xa_err(xa_store(&dist->lpi_xa, intid, irq, 0));
+	if (ret) {
+		xa_release(&dist->lpi_xa, intid);
+		kfree(irq);
+		goto out_unlock;
+	}
+
+	atomic_inc(&dist->lpi_count);
 
 out_unlock:
 	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
+
+	if (ret)
+		return ERR_PTR(ret);
 
 	/*
 	 * We "cache" the configuration table entries in our struct vgic_irq's.
@@ -158,7 +163,7 @@ struct vgic_translation_cache_entry {
  * @cte_esz: collection table entry size
  * @dte_esz: device table entry size
  * @ite_esz: interrupt translation table entry size
- * @save tables: save the ITS tables into guest RAM
+ * @save_tables: save the ITS tables into guest RAM
  * @restore_tables: restore the ITS internal structs from tables
  *  stored in guest RAM
  * @commit: initialize the registers which expose the ABI settings,
@@ -311,6 +316,8 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 	return 0;
 }
 
+#define GIC_LPI_MAX_INTID	((1 << INTERRUPT_ID_BITS_ITS) - 1)
+
 /*
  * Create a snapshot of the current LPIs targeting @vcpu, so that we can
  * enumerate those LPIs without holding any lock.
@@ -319,6 +326,7 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 int vgic_copy_lpi_list(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 **intid_ptr)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	XA_STATE(xas, &dist->lpi_xa, GIC_LPI_OFFSET);
 	struct vgic_irq *irq;
 	unsigned long flags;
 	u32 *intids;
@@ -331,13 +339,15 @@ int vgic_copy_lpi_list(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 **intid_ptr)
 	 * command). If coming from another path (such as enabling LPIs),
 	 * we must be careful not to overrun the array.
 	 */
-	irq_count = READ_ONCE(dist->lpi_list_count);
+	irq_count = atomic_read(&dist->lpi_count);
 	intids = kmalloc_array(irq_count, sizeof(intids[0]), GFP_KERNEL_ACCOUNT);
 	if (!intids)
 		return -ENOMEM;
 
 	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
-	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
+	rcu_read_lock();
+
+	xas_for_each(&xas, irq, GIC_LPI_MAX_INTID) {
 		if (i == irq_count)
 			break;
 		/* We don't need to "get" the IRQ, as we hold the list lock. */
@@ -345,6 +355,8 @@ int vgic_copy_lpi_list(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 **intid_ptr)
 			continue;
 		intids[i++] = irq->intid;
 	}
+
+	rcu_read_unlock();
 	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
 
 	*intid_ptr = intids;
@@ -378,6 +390,12 @@ static int update_affinity(struct vgic_irq *irq, struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static struct kvm_vcpu *collection_to_vcpu(struct kvm *kvm,
+					   struct its_collection *col)
+{
+	return kvm_get_vcpu_by_id(kvm, col->target_addr);
+}
+
 /*
  * Promotes the ITS view of affinity of an ITTE (which redistributor this LPI
  * is targeting) to the VGIC's view, which deals with target VCPUs.
@@ -391,7 +409,7 @@ static void update_affinity_ite(struct kvm *kvm, struct its_ite *ite)
 	if (!its_is_collection_mapped(ite->collection))
 		return;
 
-	vcpu = kvm_get_vcpu(kvm, ite->collection->target_addr);
+	vcpu = collection_to_vcpu(kvm, ite->collection);
 	update_affinity(ite->irq, vcpu);
 }
 
@@ -462,6 +480,9 @@ static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 		}
 
 		irq = vgic_get_irq(vcpu->kvm, NULL, intids[i]);
+		if (!irq)
+			continue;
+
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		irq->pending_latch = pendmask & (1U << bit_nr);
 		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
@@ -584,7 +605,11 @@ static struct vgic_irq *vgic_its_check_cache(struct kvm *kvm, phys_addr_t db,
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
+
 	irq = __vgic_its_check_cache(dist, db, devid, eventid);
+	if (!vgic_try_get_irq_kref(irq))
+		irq = NULL;
+
 	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
 
 	return irq;
@@ -627,8 +652,13 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 	 * was in the cache, and increment it on the new interrupt.
 	 */
 	if (cte->irq)
-		__vgic_put_lpi_locked(kvm, cte->irq);
+		vgic_put_irq(kvm, cte->irq);
 
+	/*
+	 * The irq refcount is guaranteed to be nonzero while holding the
+	 * its_lock, as the ITE (and the reference it holds) cannot be freed.
+	 */
+	lockdep_assert_held(&its->its_lock);
 	vgic_get_irq_kref(irq);
 
 	cte->db		= db;
@@ -659,7 +689,7 @@ void vgic_its_invalidate_cache(struct kvm *kvm)
 		if (!cte->irq)
 			break;
 
-		__vgic_put_lpi_locked(kvm, cte->irq);
+		vgic_put_irq(kvm, cte->irq);
 		cte->irq = NULL;
 	}
 
@@ -679,7 +709,7 @@ int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
 	if (!ite || !its_is_collection_mapped(ite->collection))
 		return E_ITS_INT_UNMAPPED_INTERRUPT;
 
-	vcpu = kvm_get_vcpu(kvm, ite->collection->target_addr);
+	vcpu = collection_to_vcpu(kvm, ite->collection);
 	if (!vcpu)
 		return E_ITS_INT_UNMAPPED_INTERRUPT;
 
@@ -763,6 +793,7 @@ int vgic_its_inject_cached_translation(struct kvm *kvm, struct kvm_msi *msi)
 	raw_spin_lock_irqsave(&irq->irq_lock, flags);
 	irq->pending_latch = true;
 	vgic_queue_irq_unlock(kvm, irq, flags);
+	vgic_put_irq(kvm, irq);
 
 	return 0;
 }
@@ -887,7 +918,7 @@ static int vgic_its_cmd_handle_movi(struct kvm *kvm, struct vgic_its *its,
 		return E_ITS_MOVI_UNMAPPED_COLLECTION;
 
 	ite->collection = collection;
-	vcpu = kvm_get_vcpu(kvm, collection->target_addr);
+	vcpu = collection_to_vcpu(kvm, collection);
 
 	vgic_its_invalidate_cache(kvm);
 
@@ -1121,7 +1152,7 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	}
 
 	if (its_is_collection_mapped(collection))
-		vcpu = kvm_get_vcpu(kvm, collection->target_addr);
+		vcpu = collection_to_vcpu(kvm, collection);
 
 	irq = vgic_add_lpi(kvm, lpi_nr, vcpu);
 	if (IS_ERR(irq)) {
@@ -1242,21 +1273,22 @@ static int vgic_its_cmd_handle_mapc(struct kvm *kvm, struct vgic_its *its,
 				    u64 *its_cmd)
 {
 	u16 coll_id;
-	u32 target_addr;
 	struct its_collection *collection;
 	bool valid;
 
 	valid = its_cmd_get_validbit(its_cmd);
 	coll_id = its_cmd_get_collection(its_cmd);
-	target_addr = its_cmd_get_target_addr(its_cmd);
-
-	if (target_addr >= atomic_read(&kvm->online_vcpus))
-		return E_ITS_MAPC_PROCNUM_OOR;
 
 	if (!valid) {
 		vgic_its_free_collection(its, coll_id);
 		vgic_its_invalidate_cache(kvm);
 	} else {
+		struct kvm_vcpu *vcpu;
+
+		vcpu = kvm_get_vcpu_by_id(kvm, its_cmd_get_target_addr(its_cmd));
+		if (!vcpu)
+			return E_ITS_MAPC_PROCNUM_OOR;
+
 		collection = find_collection(its, coll_id);
 
 		if (!collection) {
@@ -1270,9 +1302,9 @@ static int vgic_its_cmd_handle_mapc(struct kvm *kvm, struct vgic_its *its,
 							coll_id);
 			if (ret)
 				return ret;
-			collection->target_addr = target_addr;
+			collection->target_addr = vcpu->vcpu_id;
 		} else {
-			collection->target_addr = target_addr;
+			collection->target_addr = vcpu->vcpu_id;
 			update_affinity_collection(kvm, its, collection);
 		}
 	}
@@ -1330,8 +1362,8 @@ static int vgic_its_cmd_handle_inv(struct kvm *kvm, struct vgic_its *its,
 }
 
 /**
- * vgic_its_invall - invalidate all LPIs targetting a given vcpu
- * @vcpu: the vcpu for which the RD is targetted by an invalidation
+ * vgic_its_invall - invalidate all LPIs targeting a given vcpu
+ * @vcpu: the vcpu for which the RD is targeted by an invalidation
  *
  * Contrary to the INVALL command, this targets a RD instead of a
  * collection, and we don't need to hold the its_lock, since no ITS is
@@ -1382,7 +1414,7 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 	if (!its_is_collection_mapped(collection))
 		return E_ITS_INVALL_UNMAPPED_COLLECTION;
 
-	vcpu = kvm_get_vcpu(kvm, collection->target_addr);
+	vcpu = collection_to_vcpu(kvm, collection);
 	vgic_its_invall(vcpu);
 
 	return 0;
@@ -1399,22 +1431,20 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 static int vgic_its_cmd_handle_movall(struct kvm *kvm, struct vgic_its *its,
 				      u64 *its_cmd)
 {
-	u32 target1_addr = its_cmd_get_target_addr(its_cmd);
-	u32 target2_addr = its_cmd_mask_field(its_cmd, 3, 16, 32);
 	struct kvm_vcpu *vcpu1, *vcpu2;
 	struct vgic_irq *irq;
 	u32 *intids;
 	int irq_count, i;
 
-	if (target1_addr >= atomic_read(&kvm->online_vcpus) ||
-	    target2_addr >= atomic_read(&kvm->online_vcpus))
+	/* We advertise GITS_TYPER.PTA==0, making the address the vcpu ID */
+	vcpu1 = kvm_get_vcpu_by_id(kvm, its_cmd_get_target_addr(its_cmd));
+	vcpu2 = kvm_get_vcpu_by_id(kvm, its_cmd_mask_field(its_cmd, 3, 16, 32));
+
+	if (!vcpu1 || !vcpu2)
 		return E_ITS_MOVALL_PROCNUM_OOR;
 
-	if (target1_addr == target2_addr)
+	if (vcpu1 == vcpu2)
 		return 0;
-
-	vcpu1 = kvm_get_vcpu(kvm, target1_addr);
-	vcpu2 = kvm_get_vcpu(kvm, target2_addr);
 
 	irq_count = vgic_copy_lpi_list(kvm, vcpu1, &intids);
 	if (irq_count < 0)
@@ -1422,6 +1452,8 @@ static int vgic_its_cmd_handle_movall(struct kvm *kvm, struct vgic_its *its,
 
 	for (i = 0; i < irq_count; i++) {
 		irq = vgic_get_irq(kvm, NULL, intids[i]);
+		if (!irq)
+			continue;
 
 		update_affinity(irq, vcpu2);
 
@@ -2129,7 +2161,7 @@ static u32 compute_next_eventid_offset(struct list_head *h, struct its_ite *ite)
 }
 
 /**
- * entry_fn_t - Callback called on a table entry restore path
+ * typedef entry_fn_t - Callback called on a table entry restore path
  * @its: its handle
  * @id: id of the entry
  * @entry: pointer to the entry
@@ -2258,7 +2290,7 @@ static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 		return PTR_ERR(ite);
 
 	if (its_is_collection_mapped(collection))
-		vcpu = kvm_get_vcpu(kvm, collection->target_addr);
+		vcpu = kvm_get_vcpu_by_id(kvm, collection->target_addr);
 
 	irq = vgic_add_lpi(kvm, lpi_id, vcpu);
 	if (IS_ERR(irq)) {
@@ -2573,7 +2605,7 @@ static int vgic_its_restore_cte(struct vgic_its *its, gpa_t gpa, int esz)
 	coll_id = val & KVM_ITS_CTE_ICID_MASK;
 
 	if (target_addr != COLLECTION_NOT_MAPPED &&
-	    target_addr >= atomic_read(&kvm->online_vcpus))
+	    !kvm_get_vcpu_by_id(kvm, target_addr))
 		return -EINVAL;
 
 	collection = find_collection(its, coll_id);

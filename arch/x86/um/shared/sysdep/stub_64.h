@@ -16,7 +16,7 @@
 #define __syscall_clobber "r11","rcx","memory"
 #define __syscall "syscall"
 
-static inline long stub_syscall0(long syscall)
+static __always_inline long stub_syscall0(long syscall)
 {
 	long ret;
 
@@ -27,7 +27,7 @@ static inline long stub_syscall0(long syscall)
 	return ret;
 }
 
-static inline long stub_syscall2(long syscall, long arg1, long arg2)
+static __always_inline long stub_syscall2(long syscall, long arg1, long arg2)
 {
 	long ret;
 
@@ -38,7 +38,8 @@ static inline long stub_syscall2(long syscall, long arg1, long arg2)
 	return ret;
 }
 
-static inline long stub_syscall3(long syscall, long arg1, long arg2, long arg3)
+static __always_inline long stub_syscall3(long syscall, long arg1, long arg2,
+					  long arg3)
 {
 	long ret;
 
@@ -50,7 +51,7 @@ static inline long stub_syscall3(long syscall, long arg1, long arg2, long arg3)
 	return ret;
 }
 
-static inline long stub_syscall4(long syscall, long arg1, long arg2, long arg3,
+static __always_inline long stub_syscall4(long syscall, long arg1, long arg2, long arg3,
 				 long arg4)
 {
 	long ret;
@@ -64,8 +65,8 @@ static inline long stub_syscall4(long syscall, long arg1, long arg2, long arg3,
 	return ret;
 }
 
-static inline long stub_syscall5(long syscall, long arg1, long arg2, long arg3,
-				 long arg4, long arg5)
+static __always_inline long stub_syscall5(long syscall, long arg1, long arg2,
+					  long arg3, long arg4, long arg5)
 {
 	long ret;
 
@@ -78,12 +79,12 @@ static inline long stub_syscall5(long syscall, long arg1, long arg2, long arg3,
 	return ret;
 }
 
-static inline void trap_myself(void)
+static __always_inline void trap_myself(void)
 {
 	__asm("int3");
 }
 
-static inline void remap_stack_and_trap(void)
+static __always_inline void remap_stack_and_trap(void)
 {
 	__asm__ volatile (
 		"movq %0,%%rax ;"

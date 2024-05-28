@@ -1,0 +1,206 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: nlctrl
+protocol: genetlink-legacy
+uapi-header: linux/genetlink.h
+
+doc: |
+  genetlink meta-family that exposes information about all genetlink
+  families registered in the kernel (including itself).
+
+definitions:
+  -
+    name: op-flags
+    type: flags
+    enum-name:
+    entries:
+      - admin-perm
+      - cmd-cap-do
+      - cmd-cap-dump
+      - cmd-cap-haspol
+      - uns-admin-perm
+  -
+    name: attr-type
+    enum-name: netlink-attribute-type
+    type: enum
+    entries:
+      - invalid
+      - flag
+      - u8
+      - u16
+      - u32
+      - u64
+      - s8
+      - s16
+      - s32
+      - s64
+      - binary
+      - string
+      - nul-string
+      - nested
+      - nested-array
+      - bitfield32
+      - sint
+      - uint
+
+attribute-sets:
+  -
+    name: ctrl-attrs
+    name-prefix: ctrl-attr-
+    attributes:
+      -
+        name: family-id
+        type: u16
+      -
+        name: family-name
+        type: string
+      -
+        name: version
+        type: u32
+      -
+        name: hdrsize
+        type: u32
+      -
+        name: maxattr
+        type: u32
+      -
+        name: ops
+        type: array-nest
+        nested-attributes: op-attrs
+      -
+        name: mcast-groups
+        type: array-nest
+        nested-attributes: mcast-group-attrs
+      -
+        name: policy
+        type: nest-type-value
+        type-value: [ policy-id, attr-id ]
+        nested-attributes: policy-attrs
+      -
+        name: op-policy
+        type: nest-type-value
+        type-value: [ op-id ]
+        nested-attributes: op-policy-attrs
+      -
+        name: op
+        type: u32
+  -
+    name: mcast-group-attrs
+    name-prefix: ctrl-attr-mcast-grp-
+    enum-name:
+    attributes:
+      -
+        name: name
+        type: string
+      -
+        name: id
+        type: u32
+  -
+    name: op-attrs
+    name-prefix: ctrl-attr-op-
+    enum-name:
+    attributes:
+      -
+        name: id
+        type: u32
+      -
+        name: flags
+        type: u32
+        enum: op-flags
+        enum-as-flags: true
+  -
+    name: policy-attrs
+    name-prefix: nl-policy-type-attr-
+    enum-name:
+    attributes:
+      -
+        name: type
+        type: u32
+        enum: attr-type
+      -
+        name: min-value-s
+        type: s64
+      -
+        name: max-value-s
+        type: s64
+      -
+        name: min-value-u
+        type: u64
+      -
+        name: max-value-u
+        type: u64
+      -
+        name: min-length
+        type: u32
+      -
+        name: max-length
+        type: u32
+      -
+        name: policy-idx
+        type: u32
+      -
+        name: policy-maxtype
+        type: u32
+      -
+        name: bitfield32-mask
+        type: u32
+      -
+        name: mask
+        type: u64
+      -
+        name: pad
+        type: pad
+  -
+    name: op-policy-attrs
+    name-prefix: ctrl-attr-policy-
+    enum-name:
+    attributes:
+      -
+        name: do
+        type: u32
+      -
+        name: dump
+        type: u32
+
+operations:
+  enum-model: directional
+  name-prefix: ctrl-cmd-
+  list:
+    -
+      name: getfamily
+      doc: Get / dump genetlink families
+      attribute-set: ctrl-attrs
+      do:
+        request:
+          value: 3
+          attributes:
+            - family-name
+        reply: &all-attrs
+          value: 1
+          attributes:
+            - family-id
+            - family-name
+            - hdrsize
+            - maxattr
+            - mcast-groups
+            - ops
+            - version
+      dump:
+        reply: *all-attrs
+    -
+      name: getpolicy
+      doc: Get / dump genetlink policies
+      attribute-set: ctrl-attrs
+      dump:
+        request:
+          value: 10
+          attributes:
+            - family-name
+            - family-id
+            - op
+        reply:
+          value: 10
+          attributes:
+            - family-id
+            - op-policy
+            - policy

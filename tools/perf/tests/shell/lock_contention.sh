@@ -21,7 +21,7 @@ trap_cleanup() {
 trap trap_cleanup EXIT TERM INT
 
 check() {
-	if [ `id -u` != 0 ]; then
+	if [ "$(id -u)" != 0 ]; then
 		echo "[Skip] No root permission"
 		err=2
 		exit
@@ -29,6 +29,13 @@ check() {
 
 	if ! perf list | grep -q lock:contention_begin; then
 		echo "[Skip] No lock contention tracepoints"
+		err=2
+		exit
+	fi
+
+	# shellcheck disable=SC2046
+	if [ `nproc` -lt 4 ]; then
+		echo "[Skip] Low number of CPUs (`nproc`), lock event cannot be triggered certainly"
 		err=2
 		exit
 	fi
@@ -123,6 +130,24 @@ test_aggr_addr()
 	fi
 }
 
+test_aggr_cgroup()
+{
+	echo "Testing perf lock contention --lock-cgroup"
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		echo "[Skip] No BPF support"
+		return
+	fi
+
+	# the perf lock contention output goes to the stderr
+	perf lock con -a -b -g -E 1 -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
+		echo "[Fail] BPF result count is not 1:" "$(cat "${result}" | wc -l)"
+		err=1
+		exit
+	fi
+}
+
 test_type_filter()
 {
 	echo "Testing perf lock contention --type-filter (w/ spinlock)"
@@ -157,10 +182,10 @@ test_lock_filter()
 	perf lock contention -i ${perfdata} -L tasklist_lock -q 2> ${result}
 
 	# find out the type of tasklist_lock
-	local type=$(head -1 "${result}" | awk '{ print $8 }' | sed -e 's/:.*//')
+	test_lock_filter_type=$(head -1 "${result}" | awk '{ print $8 }' | sed -e 's/:.*//')
 
-	if [ "$(grep -c -v "${type}" "${result}")" != "0" ]; then
-		echo "[Fail] Recorded result should not have non-${type} locks:" "$(cat "${result}")"
+	if [ "$(grep -c -v "${test_lock_filter_type}" "${result}")" != "0" ]; then
+		echo "[Fail] Recorded result should not have non-${test_lock_filter_type} locks:" "$(cat "${result}")"
 		err=1
 		exit
 	fi
@@ -170,8 +195,8 @@ test_lock_filter()
 	fi
 
 	perf lock con -a -b -L tasklist_lock -q -- perf bench sched messaging > /dev/null 2> ${result}
-	if [ "$(grep -c -v "${type}" "${result}")" != "0" ]; then
-		echo "[Fail] BPF result should not have non-${type} locks:" "$(cat "${result}")"
+	if [ "$(grep -c -v "${test_lock_filter_type}" "${result}")" != "0" ]; then
+		echo "[Fail] BPF result should not have non-${test_lock_filter_type} locks:" "$(cat "${result}")"
 		err=1
 		exit
 	fi
@@ -232,6 +257,31 @@ test_aggr_task_stack_filter()
 		exit
 	fi
 }
+test_cgroup_filter()
+{
+	echo "Testing perf lock contention --cgroup-filter"
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		echo "[Skip] No BPF support"
+		return
+	fi
+
+	perf lock con -a -b -g -E 1 -F wait_total -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
+		echo "[Fail] BPF result should have a cgroup result:" "$(cat "${result}")"
+		err=1
+		exit
+	fi
+
+	cgroup=$(cat "${result}" | awk '{ print $3 }')
+	perf lock con -a -b -g -E 1 -G "${cgroup}" -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
+		echo "[Fail] BPF result should have a result with cgroup filter:" "$(cat "${cgroup}")"
+		err=1
+		exit
+	fi
+}
+
 
 test_csv_output()
 {
@@ -275,10 +325,12 @@ test_bpf
 test_record_concurrent
 test_aggr_task
 test_aggr_addr
+test_aggr_cgroup
 test_type_filter
 test_lock_filter
 test_stack_filter
 test_aggr_task_stack_filter
+test_cgroup_filter
 test_csv_output
 
 exit ${err}

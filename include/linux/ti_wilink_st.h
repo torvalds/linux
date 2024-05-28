@@ -271,7 +271,7 @@ long st_kim_stop(void *);
 
 void st_kim_complete(void *);
 void kim_st_list_protocols(struct st_data_s *, void *);
-void st_kim_recv(void *, const unsigned char *, long);
+void st_kim_recv(void *disc_data, const u8 *data, size_t count);
 
 
 /*

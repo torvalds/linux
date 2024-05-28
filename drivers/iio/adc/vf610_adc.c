@@ -916,7 +916,7 @@ error_adc_clk_enable:
 	return ret;
 }
 
-static int vf610_adc_remove(struct platform_device *pdev)
+static void vf610_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct vf610_adc *info = iio_priv(indio_dev);
@@ -925,8 +925,6 @@ static int vf610_adc_remove(struct platform_device *pdev)
 	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(info->vref);
 	clk_disable_unprepare(info->clk);
-
-	return 0;
 }
 
 static int vf610_adc_suspend(struct device *dev)
@@ -974,7 +972,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(vf610_adc_pm_ops, vf610_adc_suspend,
 
 static struct platform_driver vf610_adc_driver = {
 	.probe          = vf610_adc_probe,
-	.remove         = vf610_adc_remove,
+	.remove_new     = vf610_adc_remove,
 	.driver         = {
 		.name   = DRIVER_NAME,
 		.of_match_table = vf610_adc_match,

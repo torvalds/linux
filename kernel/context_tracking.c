@@ -458,6 +458,8 @@ static __always_inline void context_tracking_recursion_exit(void)
  * __ct_user_enter - Inform the context tracking that the CPU is going
  *		     to enter user or guest space mode.
  *
+ * @state: userspace context-tracking state to enter.
+ *
  * This function must be called right before we switch from the kernel
  * to user or guest space, when it's guaranteed the remaining kernel
  * instructions to execute won't use any RCU read side critical section
@@ -594,6 +596,8 @@ NOKPROBE_SYMBOL(user_enter_callable);
 /**
  * __ct_user_exit - Inform the context tracking that the CPU is
  *		    exiting user or guest mode and entering the kernel.
+ *
+ * @state: userspace context-tracking state being exited from.
  *
  * This function must be called after we entered the kernel from user or
  * guest space before any use of RCU read side critical section. This

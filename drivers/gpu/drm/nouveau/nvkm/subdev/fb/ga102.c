@@ -22,7 +22,14 @@
 #include "gf100.h"
 #include "ram.h"
 
+#include <subdev/gsp.h>
 #include <engine/nvdec.h>
+
+static u64
+ga102_fb_vidmem_size(struct nvkm_fb *fb)
+{
+	return (u64)nvkm_rd32(fb->subdev.device, 0x1183a4) << 20;
+}
 
 static int
 ga102_fb_oneinit(struct nvkm_fb *fb)
@@ -43,7 +50,8 @@ ga102_fb = {
 	.init_page = gv100_fb_init_page,
 	.init_unkn = gp100_fb_init_unkn,
 	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
-	.ram_new = ga102_ram_new,
+	.vidmem.size = ga102_fb_vidmem_size,
+	.ram_new = gp102_ram_new,
 	.default_bigpage = 16,
 	.vpr.scrub_required = tu102_fb_vpr_scrub_required,
 	.vpr.scrub = gp102_fb_vpr_scrub,
@@ -52,6 +60,9 @@ ga102_fb = {
 int
 ga102_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_fb_new(&ga102_fb, device, type, inst, pfb);
+
 	return gf100_fb_new_(&ga102_fb, device, type, inst, pfb);
 }
 

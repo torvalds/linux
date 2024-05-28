@@ -39,6 +39,23 @@ config SND_UMP_LEGACY_RAWMIDI
 	  legacy MIDI 1.0 byte streams is created for each UMP Endpoint.
 	  The device contains 16 substreams corresponding to UMP groups.
 
+config SND_CORE_TEST
+	tristate "Sound core KUnit test"
+	depends on KUNIT
+	select SND_PCM
+	default KUNIT_ALL_TESTS
+	help
+	  This options enables the sound core functions KUnit test.
+
+	  KUnit tests run during boot and output the results to the debug
+	  log in TAP format (https://testanything.org/). Only useful for
+	  kernel devs running KUnit test harness and are not for inclusion
+	  into a production build.
+
+	  For more information on KUnit and unit tests in general, refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+
 config SND_COMPRESS_OFFLOAD
 	tristate
 

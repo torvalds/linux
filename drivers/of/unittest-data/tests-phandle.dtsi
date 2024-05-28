@@ -8,7 +8,9 @@
 	testcase: testcase-data {
 		security-password = "password";
 		duplicate-name = "duplicate";
+
 		duplicate-name { };
+
 		phandle-tests {
 			provider0: provider0 {
 				#phandle-cells = <0>;
@@ -34,6 +36,13 @@
 					      <200 8 &provider2 23 6>,
 					      <19 0 &provider2 15 0>,
 					      <2 3 &provider3 2 5 3>;
+				phandle-map-mask = <0xff 0xf>;
+				phandle-map-pass-thru = <0x0 0xf0>;
+			};
+
+			provider5: provider5 {
+				#phandle-cells = <2>;
+				phandle-map = <2 7 &provider4 2 3>;
 				phandle-map-mask = <0xff 0xf>;
 				phandle-map-pass-thru = <0x0 0xf0>;
 			};
@@ -64,7 +73,8 @@
 						<&provider4 4 0x100>,
 						<&provider4 0 0x61>,
 						<&provider0>,
-						<&provider4 19 0x20>;
+						<&provider4 19 0x20>,
+						<&provider5 2 7>;
 				phandle-list-bad-phandle = <12345678 0 0>;
 				phandle-list-bad-args = <&provider2 1 0>,
 							<&provider4 0>;

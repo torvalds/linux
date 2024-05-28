@@ -451,7 +451,7 @@ bool tcp_fastopen_defer_connect(struct sock *sk, int *err)
 
 	if (tp->fastopen_connect && !tp->fastopen_req) {
 		if (tcp_fastopen_cookie_check(sk, &mss, &cookie)) {
-			inet_sk(sk)->defer_connect = 1;
+			inet_set_bit(DEFER_CONNECT, sk);
 			return true;
 		}
 

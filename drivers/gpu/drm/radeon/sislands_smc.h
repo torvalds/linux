@@ -89,8 +89,7 @@ struct PP_SIslands_PAPMStatus
 };
 typedef struct PP_SIslands_PAPMStatus PP_SIslands_PAPMStatus;
 
-struct PP_SIslands_PAPMParameters
-{
+struct PP_SIslands_PAPMParameters {
     uint32_t    NearTDPLimitTherm;
     uint32_t    NearTDPLimitPAPM;
     uint32_t    PlatformPowerLimit;
@@ -100,8 +99,7 @@ struct PP_SIslands_PAPMParameters
 };
 typedef struct PP_SIslands_PAPMParameters PP_SIslands_PAPMParameters;
 
-struct SISLANDS_SMC_SCLK_VALUE
-{
+struct SISLANDS_SMC_SCLK_VALUE {
     uint32_t    vCG_SPLL_FUNC_CNTL;
     uint32_t    vCG_SPLL_FUNC_CNTL_2;
     uint32_t    vCG_SPLL_FUNC_CNTL_3;
@@ -113,8 +111,7 @@ struct SISLANDS_SMC_SCLK_VALUE
 
 typedef struct SISLANDS_SMC_SCLK_VALUE SISLANDS_SMC_SCLK_VALUE;
 
-struct SISLANDS_SMC_MCLK_VALUE
-{
+struct SISLANDS_SMC_MCLK_VALUE {
     uint32_t    vMPLL_FUNC_CNTL;
     uint32_t    vMPLL_FUNC_CNTL_1;
     uint32_t    vMPLL_FUNC_CNTL_2;
@@ -129,8 +126,7 @@ struct SISLANDS_SMC_MCLK_VALUE
 
 typedef struct SISLANDS_SMC_MCLK_VALUE SISLANDS_SMC_MCLK_VALUE;
 
-struct SISLANDS_SMC_VOLTAGE_VALUE
-{
+struct SISLANDS_SMC_VOLTAGE_VALUE {
     uint16_t    value;
     uint8_t     index;
     uint8_t     phase_settings;
@@ -138,8 +134,7 @@ struct SISLANDS_SMC_VOLTAGE_VALUE
 
 typedef struct SISLANDS_SMC_VOLTAGE_VALUE SISLANDS_SMC_VOLTAGE_VALUE;
 
-struct SISLANDS_SMC_HW_PERFORMANCE_LEVEL
-{
+struct SISLANDS_SMC_HW_PERFORMANCE_LEVEL {
     uint8_t                     ACIndex;
     uint8_t                     displayWatermark;
     uint8_t                     gen2PCIE;
@@ -180,8 +175,7 @@ struct SISLANDS_SMC_HW_PERFORMANCE_LEVEL
 
 typedef struct SISLANDS_SMC_HW_PERFORMANCE_LEVEL SISLANDS_SMC_HW_PERFORMANCE_LEVEL;
 
-struct SISLANDS_SMC_SWSTATE
-{
+struct SISLANDS_SMC_SWSTATE {
 	uint8_t                             flags;
 	uint8_t                             levelCount;
 	uint8_t                             padding2;
@@ -205,8 +199,7 @@ struct SISLANDS_SMC_SWSTATE_SINGLE {
 #define SISLANDS_SMC_VOLTAGEMASK_VDDC_PHASE_SHEDDING 3
 #define SISLANDS_SMC_VOLTAGEMASK_MAX   4
 
-struct SISLANDS_SMC_VOLTAGEMASKTABLE
-{
+struct SISLANDS_SMC_VOLTAGEMASKTABLE {
     uint32_t lowMask[SISLANDS_SMC_VOLTAGEMASK_MAX];
 };
 
@@ -214,8 +207,7 @@ typedef struct SISLANDS_SMC_VOLTAGEMASKTABLE SISLANDS_SMC_VOLTAGEMASKTABLE;
 
 #define SISLANDS_MAX_NO_VREG_STEPS 32
 
-struct SISLANDS_SMC_STATETABLE
-{
+struct SISLANDS_SMC_STATETABLE {
 	uint8_t					thermalProtectType;
 	uint8_t					systemFlags;
 	uint8_t					maxVDDCIndexInPPTable;
@@ -254,8 +246,7 @@ typedef struct SISLANDS_SMC_STATETABLE SISLANDS_SMC_STATETABLE;
 #define SI_SMC_SOFT_REGISTER_svi_rework_gpio_id_svd   0x11c
 #define SI_SMC_SOFT_REGISTER_svi_rework_gpio_id_svc   0x120
 
-struct PP_SIslands_FanTable
-{
+struct PP_SIslands_FanTable {
 	uint8_t  fdo_mode;
 	uint8_t  padding;
 	int16_t  temp_min;
@@ -285,8 +276,7 @@ typedef struct PP_SIslands_FanTable PP_SIslands_FanTable;
 #define SMC_SISLANDS_SCALE_I  7
 #define SMC_SISLANDS_SCALE_R 12
 
-struct PP_SIslands_CacConfig
-{
+struct PP_SIslands_CacConfig {
     uint16_t   cac_lkge_lut[SMC_SISLANDS_LKGE_LUT_NUM_OF_TEMP_ENTRIES][SMC_SISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES];
     uint32_t   lkge_lut_V0;
     uint32_t   lkge_lut_Vstep;
@@ -308,23 +298,20 @@ typedef struct PP_SIslands_CacConfig PP_SIslands_CacConfig;
 #define SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE 16
 #define SMC_SISLANDS_MC_REGISTER_ARRAY_SET_COUNT 20
 
-struct SMC_SIslands_MCRegisterAddress
-{
+struct SMC_SIslands_MCRegisterAddress {
     uint16_t s0;
     uint16_t s1;
 };
 
 typedef struct SMC_SIslands_MCRegisterAddress SMC_SIslands_MCRegisterAddress;
 
-struct SMC_SIslands_MCRegisterSet
-{
+struct SMC_SIslands_MCRegisterSet {
     uint32_t value[SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE];
 };
 
 typedef struct SMC_SIslands_MCRegisterSet SMC_SIslands_MCRegisterSet;
 
-struct SMC_SIslands_MCRegisters
-{
+struct SMC_SIslands_MCRegisters {
     uint8_t                             last;
     uint8_t                             reserved[3];
     SMC_SIslands_MCRegisterAddress      address[SMC_SISLANDS_MC_REGISTER_ARRAY_SIZE];
@@ -333,8 +320,7 @@ struct SMC_SIslands_MCRegisters
 
 typedef struct SMC_SIslands_MCRegisters SMC_SIslands_MCRegisters;
 
-struct SMC_SIslands_MCArbDramTimingRegisterSet
-{
+struct SMC_SIslands_MCArbDramTimingRegisterSet {
     uint32_t mc_arb_dram_timing;
     uint32_t mc_arb_dram_timing2;
     uint8_t  mc_arb_rfsh_rate;
@@ -344,8 +330,7 @@ struct SMC_SIslands_MCArbDramTimingRegisterSet
 
 typedef struct SMC_SIslands_MCArbDramTimingRegisterSet SMC_SIslands_MCArbDramTimingRegisterSet;
 
-struct SMC_SIslands_MCArbDramTimingRegisters
-{
+struct SMC_SIslands_MCArbDramTimingRegisters {
     uint8_t                                     arb_current;
     uint8_t                                     reserved[3];
     SMC_SIslands_MCArbDramTimingRegisterSet     data[16];
@@ -353,8 +338,7 @@ struct SMC_SIslands_MCArbDramTimingRegisters
 
 typedef struct SMC_SIslands_MCArbDramTimingRegisters SMC_SIslands_MCArbDramTimingRegisters;
 
-struct SMC_SISLANDS_SPLL_DIV_TABLE
-{
+struct SMC_SISLANDS_SPLL_DIV_TABLE {
     uint32_t    freq[256];
     uint32_t    ss[256];
 };
@@ -374,8 +358,7 @@ typedef struct SMC_SISLANDS_SPLL_DIV_TABLE SMC_SISLANDS_SPLL_DIV_TABLE;
 
 #define SMC_SISLANDS_DTE_MAX_TEMPERATURE_DEPENDENT_ARRAY_SIZE 16
 
-struct Smc_SIslands_DTE_Configuration
-{
+struct Smc_SIslands_DTE_Configuration {
     uint32_t tau[SMC_SISLANDS_DTE_MAX_FILTER_STAGES];
     uint32_t R[SMC_SISLANDS_DTE_MAX_FILTER_STAGES];
     uint32_t K;

@@ -44,6 +44,7 @@ mcp89_sor = {
 	.state = g94_sor_state,
 	.power = nv50_sor_power,
 	.clock = nv50_sor_clock,
+	.bl = &gt215_sor_bl,
 	.hdmi = &gt215_sor_hdmi,
 	.dp = &mcp89_sor_dp,
 	.hda = &gt215_sor_hda,

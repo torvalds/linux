@@ -4591,7 +4591,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -4825,7 +4825,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -4870,7 +4870,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -4924,7 +4924,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -4942,7 +4942,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_PREF_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_PREF_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -4977,7 +4977,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_PREF_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_PREF_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -5128,7 +5128,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFDATA_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFDATA_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -5154,7 +5154,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -5260,7 +5260,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",
@@ -5295,7 +5295,7 @@
     },
     {
         "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_PREF_CXL_ACC_LOCAL",
-        "EventCode": "0x35",
+        "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_PREF_CXL_ACC_LOCAL",
         "PerPkg": "1",
         "PortMask": "0x000",

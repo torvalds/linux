@@ -1399,6 +1399,18 @@ static const struct msm_pingroup sdm660_groups[] = {
 	SDC_QDSD_PINGROUP(sdc1_rclk, 0x9a000, 15, 0),
 };
 
+static const struct msm_gpio_wakeirq_map sdm660_mpm_map[] = {
+	{ 1, 3 }, { 5, 4 }, { 9, 5 }, { 10, 6 }, { 66, 7 }, { 22, 8 }, { 25, 9 }, { 28, 10 },
+	{ 58, 11 }, { 41, 13 }, { 43, 14 }, { 40, 15 }, { 42, 16 }, { 46, 17 }, { 50, 18 },
+	{ 44, 19 }, { 56, 21 }, { 45, 22 }, { 68, 23 }, { 69, 24 }, { 70, 25 }, { 71, 26 },
+	{ 72, 27 }, { 73, 28 }, { 64, 29 }, { 2, 30 }, { 13, 31 }, { 111, 32 }, { 74, 33 },
+	{ 75, 34 }, { 76, 35 }, { 82, 36 }, { 17, 37 }, { 77, 38 }, { 47, 39 }, { 54, 40 },
+	{ 48, 41 }, { 101, 42 }, { 49, 43 }, { 51, 44 }, { 86, 45 }, { 90, 46 }, { 91, 47 },
+	{ 52, 48 }, { 55, 50 }, { 6, 51 }, { 65, 53 }, { 67, 55 }, { 83, 56 }, { 84, 57 },
+	{ 85, 58 }, { 87, 59 }, { 21, 63 }, { 78, 64 }, { 113, 65 }, { 60, 66 }, { 98, 67 },
+	{ 30, 68 }, { 31, 70 }, { 29, 71 }, { 107, 76 }, { 109, 83 }, { 103, 84 }, { 105, 85 },
+};
+
 static const struct msm_pinctrl_soc_data sdm660_pinctrl = {
 	.pins = sdm660_pins,
 	.npins = ARRAY_SIZE(sdm660_pins),
@@ -1409,6 +1421,8 @@ static const struct msm_pinctrl_soc_data sdm660_pinctrl = {
 	.ngpios = 114,
 	.tiles = sdm660_tiles,
 	.ntiles = ARRAY_SIZE(sdm660_tiles),
+	.wakeirq_map = sdm660_mpm_map,
+	.nwakeirq_map = ARRAY_SIZE(sdm660_mpm_map),
 };
 
 static int sdm660_pinctrl_probe(struct platform_device *pdev)
@@ -1428,7 +1442,7 @@ static struct platform_driver sdm660_pinctrl_driver = {
 		.of_match_table = sdm660_pinctrl_of_match,
 	},
 	.probe = sdm660_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init sdm660_pinctrl_init(void)

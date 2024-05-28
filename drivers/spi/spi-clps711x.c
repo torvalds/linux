@@ -33,10 +33,10 @@ struct spi_clps711x_data {
 	int			len;
 };
 
-static int spi_clps711x_prepare_message(struct spi_master *master,
+static int spi_clps711x_prepare_message(struct spi_controller *host,
 					struct spi_message *msg)
 {
-	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
+	struct spi_clps711x_data *hw = spi_controller_get_devdata(host);
 	struct spi_device *spi = msg->spi;
 
 	/* Setup mode for transfer */
@@ -45,11 +45,11 @@ static int spi_clps711x_prepare_message(struct spi_master *master,
 				  SYSCON3_ADCCKNSEN : 0);
 }
 
-static int spi_clps711x_transfer_one(struct spi_master *master,
+static int spi_clps711x_transfer_one(struct spi_controller *host,
 				     struct spi_device *spi,
 				     struct spi_transfer *xfer)
 {
-	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
+	struct spi_clps711x_data *hw = spi_controller_get_devdata(host);
 	u8 data;
 
 	clk_set_rate(hw->spi_clk, xfer->speed_hz ? : spi->max_speed_hz);
@@ -68,8 +68,8 @@ static int spi_clps711x_transfer_one(struct spi_master *master,
 
 static irqreturn_t spi_clps711x_isr(int irq, void *dev_id)
 {
-	struct spi_master *master = dev_id;
-	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_id;
+	struct spi_clps711x_data *hw = spi_controller_get_devdata(host);
 	u8 data;
 
 	/* Handle RX */
@@ -83,7 +83,7 @@ static irqreturn_t spi_clps711x_isr(int irq, void *dev_id)
 		writel(data | SYNCIO_FRMLEN(hw->bpw) | SYNCIO_TXFRMEN,
 		       hw->syncio);
 	} else
-		spi_finalize_current_transfer(master);
+		spi_finalize_current_transfer(host);
 
 	return IRQ_HANDLED;
 }
@@ -92,26 +92,26 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct spi_clps711x_data *hw;
-	struct spi_master *master;
+	struct spi_controller *host;
 	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*hw));
-	if (!master)
+	host = spi_alloc_host(&pdev->dev, sizeof(*hw));
+	if (!host)
 		return -ENOMEM;
 
-	master->use_gpio_descriptors = true;
-	master->bus_num = -1;
-	master->mode_bits = SPI_CPHA | SPI_CS_HIGH;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 8);
-	master->dev.of_node = pdev->dev.of_node;
-	master->prepare_message = spi_clps711x_prepare_message;
-	master->transfer_one = spi_clps711x_transfer_one;
+	host->use_gpio_descriptors = true;
+	host->bus_num = -1;
+	host->mode_bits = SPI_CPHA | SPI_CS_HIGH;
+	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 8);
+	host->dev.of_node = pdev->dev.of_node;
+	host->prepare_message = spi_clps711x_prepare_message;
+	host->transfer_one = spi_clps711x_transfer_one;
 
-	hw = spi_master_get_devdata(master);
+	hw = spi_controller_get_devdata(host);
 
 	hw->spi_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(hw->spi_clk)) {
@@ -138,16 +138,16 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	readl(hw->syncio);
 
 	ret = devm_request_irq(&pdev->dev, irq, spi_clps711x_isr, 0,
-			       dev_name(&pdev->dev), master);
+			       dev_name(&pdev->dev), host);
 	if (ret)
 		goto err_out;
 
-	ret = devm_spi_register_master(&pdev->dev, master);
+	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (!ret)
 		return 0;
 
 err_out:
-	spi_master_put(master);
+	spi_controller_put(host);
 
 	return ret;
 }

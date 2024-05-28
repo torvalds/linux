@@ -10,28 +10,20 @@
 	model = "Armadeus Systems APF28Dev docking/development board";
 	compatible = "armadeus,imx28-apf28dev", "armadeus,imx28-apf28", "fsl,imx28";
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_usb0_vbus: regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb0_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio1 23 1>;
+		enable-active-high;
+	};
 
-		reg_usb0_vbus: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "usb0_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio1 23 1>;
-			enable-active-high;
-		};
-
-		reg_can0_vcc: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "can0_vcc";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-		};
+	reg_can0_vcc: regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "can0_vcc";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 	};
 
 	leds {
@@ -47,7 +39,7 @@
 	backlight {
 		compatible = "pwm-backlight";
 
-		pwms = <&pwm 3 191000>;
+		pwms = <&pwm 3 191000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 	};

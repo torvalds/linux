@@ -95,6 +95,8 @@ config HDLC_X25
 comment "X.25/LAPB support is disabled"
 	depends on HDLC && (LAPB!=m || HDLC!=m) && LAPB!=y
 
+source "drivers/net/wan/framer/Kconfig"
+
 config PCI200SYN
 	tristate "Goramo PCI200SYN support"
 	depends on HDLC && PCI
@@ -194,6 +196,18 @@ config FARSYNC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called farsync.
+
+config FSL_QMC_HDLC
+	tristate "Freescale QMC HDLC support"
+	depends on HDLC
+	depends on CPM_QMC
+	help
+	  HDLC support using the Freescale QUICC Multichannel Controller (QMC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fsl_qmc_hdlc.
+
+	  If unsure, say N.
 
 config FSL_UCC_HDLC
 	tristate "Freescale QUICC Engine HDLC support"

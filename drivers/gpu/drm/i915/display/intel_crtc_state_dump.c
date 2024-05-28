@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_edid.h>
+#include <drm/drm_eld.h>
 
 #include "i915_drv.h"
 #include "intel_crtc_state_dump.h"
@@ -54,10 +55,9 @@ static void
 intel_dump_dp_vsc_sdp(struct drm_i915_private *i915,
 		      const struct drm_dp_vsc_sdp *vsc)
 {
-	if (!drm_debug_enabled(DRM_UT_KMS))
-		return;
+	struct drm_printer p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 
-	drm_dp_vsc_sdp_log(KERN_DEBUG, i915->drm.dev, vsc);
+	drm_dp_vsc_sdp_log(&p, vsc);
 }
 
 static void
@@ -258,6 +258,18 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		intel_dump_m_n_config(pipe_config, "dp m2_n2",
 				      pipe_config->lane_count,
 				      &pipe_config->dp_m2_n2);
+		drm_dbg_kms(&i915->drm, "fec: %s, enhanced framing: %s\n",
+			    str_enabled_disabled(pipe_config->fec_enable),
+			    str_enabled_disabled(pipe_config->enhanced_framing));
+
+		drm_dbg_kms(&i915->drm, "sdp split: %s\n",
+			    str_enabled_disabled(pipe_config->sdp_split_enable));
+
+		drm_dbg_kms(&i915->drm, "psr: %s, psr2: %s, panel replay: %s, selective fetch: %s\n",
+			    str_enabled_disabled(pipe_config->has_psr),
+			    str_enabled_disabled(pipe_config->has_psr2),
+			    str_enabled_disabled(pipe_config->has_panel_replay),
+			    str_enabled_disabled(pipe_config->enable_psr2_sel_fetch));
 	}
 
 	drm_dbg_kms(&i915->drm, "framestart delay: %d, MSA timing delay: %d\n",

@@ -7,8 +7,9 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI SoC Ethernet Switch Controller (CPSW)
 
 maintainers:
-  - Grygorii Strashko <grygorii.strashko@ti.com>
-  - Sekhar Nori <nsekhar@ti.com>
+  - Siddharth Vadapalli <s-vadapalli@ti.com>
+  - Ravi Gunasekaran <r-gunasekaran@ti.com>
+  - Roger Quadros <rogerq@kernel.org>
 
 description:
   The 3-port switch gigabit ethernet subsystem provides ethernet packet
@@ -86,7 +87,7 @@ properties:
         const: 0
 
     patternProperties:
-      "^port@[0-9]+$":
+      "^port@[12]$":
         type: object
         description: CPSW external ports
 

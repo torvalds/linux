@@ -14,7 +14,9 @@
  *
  * Copyright (c) 2005 Eugene Surovegin <ebs@ebshome.net>
  */
+#include <linux/mod_devicetable.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 
 #include "emac.h"
@@ -128,7 +130,7 @@ static int tah_probe(struct platform_device *ofdev)
 	return rc;
 }
 
-static int tah_remove(struct platform_device *ofdev)
+static void tah_remove(struct platform_device *ofdev)
 {
 	struct tah_instance *dev = platform_get_drvdata(ofdev);
 
@@ -136,8 +138,6 @@ static int tah_remove(struct platform_device *ofdev)
 
 	iounmap(dev->base);
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct of_device_id tah_match[] =
@@ -158,7 +158,7 @@ static struct platform_driver tah_driver = {
 		.of_match_table = tah_match,
 	},
 	.probe = tah_probe,
-	.remove = tah_remove,
+	.remove_new = tah_remove,
 };
 
 int __init tah_init(void)

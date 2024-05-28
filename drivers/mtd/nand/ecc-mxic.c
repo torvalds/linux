@@ -18,7 +18,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand-ecc-mxic.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>

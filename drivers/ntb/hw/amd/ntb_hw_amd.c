@@ -941,13 +941,10 @@ static void ndev_init_debugfs(struct amd_ntb_dev *ndev)
 		ndev->debugfs_dir =
 			debugfs_create_dir(pci_name(ndev->ntb.pdev),
 					   debugfs_dir);
-		if (IS_ERR(ndev->debugfs_dir))
-			ndev->debugfs_info = NULL;
-		else
-			ndev->debugfs_info =
-				debugfs_create_file("info", S_IRUSR,
-						    ndev->debugfs_dir, ndev,
-						    &amd_ntb_debugfs_info);
+		ndev->debugfs_info =
+			debugfs_create_file("info", S_IRUSR,
+					    ndev->debugfs_dir, ndev,
+					    &amd_ntb_debugfs_info);
 	}
 }
 

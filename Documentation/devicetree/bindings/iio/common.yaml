@@ -12,7 +12,7 @@ maintainers:
 
 description: |
   This document defines device tree properties common to several iio
-  sensors. It doesn't constitue a device tree binding specification by itself but
+  sensors. It doesn't constitute a device tree binding specification by itself but
   is meant to be referenced by device tree bindings.
 
   When referenced from sensor tree bindings the properties defined in this

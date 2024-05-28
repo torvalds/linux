@@ -4,6 +4,9 @@
 #define nvkm_devinit(p) container_of((p), struct nvkm_devinit, subdev)
 #include <subdev/devinit.h>
 
+int r535_devinit_new(const struct nvkm_devinit_func *,
+		     struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_devinit **);
+
 struct nvkm_devinit_func {
 	void *(*dtor)(struct nvkm_devinit *);
 	void (*preinit)(struct nvkm_devinit *);

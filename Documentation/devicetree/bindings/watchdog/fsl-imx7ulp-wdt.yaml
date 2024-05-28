@@ -30,6 +30,11 @@ properties:
   clocks:
     maxItems: 1
 
+  fsl,ext-reset-output:
+    description:
+      When set, wdog can generate external reset from the wdog_any pin.
+    type: boolean
+
 required:
   - compatible
   - interrupts

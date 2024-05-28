@@ -719,7 +719,7 @@ static int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
 
 	aggr.sta_index = ista->index;
 	aggr.tidno = tid & 0xf;
-	aggr.aggr_enable = (action == IEEE80211_AMPDU_TX_START) ? true : false;
+	aggr.aggr_enable = action == IEEE80211_AMPDU_TX_START;
 
 	WMI_CMD_BUF(WMI_TX_AGGR_ENABLE_CMDID, &aggr);
 	if (ret)
@@ -1264,7 +1264,6 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	u32 rfilt;
 
 	mutex_lock(&priv->mutex);
-	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
@@ -1869,6 +1868,10 @@ static void ath9k_htc_channel_switch_beacon(struct ieee80211_hw *hw,
 }
 
 struct ieee80211_ops ath9k_htc_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx                 = ath9k_htc_tx,
 	.wake_tx_queue      = ieee80211_handle_wake_tx_queue,
 	.start              = ath9k_htc_start,

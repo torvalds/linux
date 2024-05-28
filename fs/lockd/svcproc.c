@@ -77,12 +77,12 @@ nlmsvc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 
 		/* Set up the missing parts of the file_lock structure */
 		mode = lock_to_openmode(&lock->fl);
-		lock->fl.fl_flags = FL_POSIX;
-		lock->fl.fl_file  = file->f_file[mode];
-		lock->fl.fl_pid = current->tgid;
+		lock->fl.c.flc_flags = FL_POSIX;
+		lock->fl.c.flc_file  = file->f_file[mode];
+		lock->fl.c.flc_pid = current->tgid;
 		lock->fl.fl_lmops = &nlmsvc_lock_operations;
 		nlmsvc_locks_init_private(&lock->fl, host, (pid_t)lock->svid);
-		if (!lock->fl.fl_owner) {
+		if (!lock->fl.c.flc_owner) {
 			/* lockowner allocation has failed */
 			nlmsvc_release_host(host);
 			return nlm_lck_denied_nolocks;
@@ -127,7 +127,7 @@ __nlmsvc_proc_test(struct svc_rqst *rqstp, struct nlm_res *resp)
 	if ((resp->status = nlmsvc_retrieve_args(rqstp, argp, &host, &file)))
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
 
-	test_owner = argp->lock.fl.fl_owner;
+	test_owner = argp->lock.fl.c.flc_owner;
 
 	/* Now check for conflicting locks */
 	resp->status = cast_status(nlmsvc_testlock(rqstp, file, host, &argp->lock, &resp->lock, &resp->cookie));

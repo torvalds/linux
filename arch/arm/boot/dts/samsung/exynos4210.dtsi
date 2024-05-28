@@ -391,8 +391,16 @@
 };
 
 &cpu_thermal {
-	polling-delay-passive = <0>;
-	polling-delay = <0>;
+	/*
+	 * Exynos 4210 supports thermal interrupts, but only for the rising
+	 * threshold.  This means that polling is not needed for preventing
+	 * overheating, but only for decreasing cooling when possible. Hence we
+	 * poll with a high delay.  Ideally, we would disable polling for the
+	 * first trip point, but this isn't really possible without outrageous
+	 * hacks.
+	 */
+	polling-delay-passive = <5000>;
+	polling-delay = <5000>;
 };
 
 &gic {

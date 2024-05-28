@@ -40,12 +40,11 @@ bool evsel__sys_has_perf_metrics(const struct evsel *evsel)
 
 bool arch_evsel__must_be_in_group(const struct evsel *evsel)
 {
-	if (!evsel__sys_has_perf_metrics(evsel))
+	if (!evsel__sys_has_perf_metrics(evsel) || !evsel->name ||
+	    strcasestr(evsel->name, "uops_retired.slots"))
 		return false;
 
-	return evsel->name &&
-		(strcasestr(evsel->name, "slots") ||
-		 strcasestr(evsel->name, "topdown"));
+	return strcasestr(evsel->name, "topdown") || strcasestr(evsel->name, "slots");
 }
 
 int arch_evsel__hw_name(struct evsel *evsel, char *bf, size_t size)

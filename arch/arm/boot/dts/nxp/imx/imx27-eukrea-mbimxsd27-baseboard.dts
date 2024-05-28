@@ -16,7 +16,7 @@
 
 		display-timings {
 			native-mode = <&timing0>;
-			timing0: 320x240 {
+			timing0: timing0 {
 				clock-frequency = <6500000>;
 				hactive = <320>;
 				vactive = <240>;
@@ -54,22 +54,15 @@
 		};
 	};
 
-	regulators {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "simple-bus";
-
-		reg_lcd: regulator@0 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_lcdreg>;
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "LCD";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio1 25 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	reg_lcd: regulator-0 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lcdreg>;
+		regulator-name = "LCD";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio1 25 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 

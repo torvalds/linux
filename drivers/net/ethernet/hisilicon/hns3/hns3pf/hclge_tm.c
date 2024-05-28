@@ -2143,3 +2143,19 @@ int hclge_tm_flush_cfg(struct hclge_dev *hdev, bool enable)
 
 	return ret;
 }
+
+void hclge_reset_tc_config(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = &hdev->vport[0];
+	struct hnae3_knic_private_info *kinfo;
+
+	kinfo = &vport->nic.kinfo;
+
+	if (!kinfo->tc_info.mqprio_destroy)
+		return;
+
+	/* clear tc info, including mqprio_destroy and mqprio_active */
+	memset(&kinfo->tc_info, 0, sizeof(kinfo->tc_info));
+	hclge_tm_schd_info_update(hdev, 0);
+	hclge_comm_rss_indir_init_cfg(hdev->ae_dev, &hdev->rss_cfg);
+}

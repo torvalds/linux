@@ -12,7 +12,7 @@ requests.
 
 Required properties:
 - compatible:	"maxim,max9485"
-- clocks:	Input clock, must provice 27.000 MHz
+- clocks:	Input clock, must provide 27.000 MHz
 - clock-names:	Must be set to "xclk"
 - #clock-cells: From common clock binding; shall be set to 1
 

@@ -5,8 +5,8 @@
  * Copyright (C) 2016 Cristina-Gabriela Moraru <cristina.moraru09@gmail.com>
  */
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
-#include <linux/acpi.h>
 
 #include <linux/iio/sysfs.h>
 #include <linux/iio/iio.h>
@@ -144,7 +144,7 @@ MODULE_DEVICE_TABLE(acpi, max5487_acpi_match);
 static struct spi_driver max5487_driver = {
 	.driver = {
 		.name = "max5487",
-		.acpi_match_table = ACPI_PTR(max5487_acpi_match),
+		.acpi_match_table = max5487_acpi_match,
 	},
 	.id_table = max5487_id,
 	.probe = max5487_spi_probe,

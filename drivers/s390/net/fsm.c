@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 
-MODULE_AUTHOR("(C) 2000 IBM Corp. by Fritz Elfert (felfert@millenux.com)");
+MODULE_AUTHOR("(C) 2000 IBM Corp. by Fritz Elfert <felfert@millenux.com>");
 MODULE_DESCRIPTION("Finite state machine helper functions");
 MODULE_LICENSE("GPL");
 

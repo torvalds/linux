@@ -56,10 +56,6 @@ enum {
 	HEM_TYPE_TRRL,
 };
 
-#define HNS_ROCE_HEM_CHUNK_LEN	\
-	 ((256 - sizeof(struct list_head) - 2 * sizeof(int)) /	 \
-	 (sizeof(struct scatterlist) + sizeof(void *)))
-
 #define check_whether_bt_num_3(type, hop_num) \
 	(type < HEM_TYPE_MTT && hop_num == 2)
 
@@ -72,23 +68,11 @@ enum {
 	(type >= HEM_TYPE_MTT && hop_num == 1) || \
 	(type >= HEM_TYPE_MTT && hop_num == HNS_ROCE_HOP_NUM_0))
 
-struct hns_roce_hem_chunk {
-	struct list_head	 list;
-	int			 npages;
-	int			 nsg;
-	struct scatterlist	 mem[HNS_ROCE_HEM_CHUNK_LEN];
-	void			 *buf[HNS_ROCE_HEM_CHUNK_LEN];
-};
-
 struct hns_roce_hem {
-	struct list_head chunk_list;
+	void *buf;
+	dma_addr_t dma;
+	unsigned long size;
 	refcount_t refcount;
-};
-
-struct hns_roce_hem_iter {
-	struct hns_roce_hem		 *hem;
-	struct hns_roce_hem_chunk	 *chunk;
-	int				 page_idx;
 };
 
 struct hns_roce_hem_mhop {
@@ -132,39 +116,5 @@ void hns_roce_hem_list_release(struct hns_roce_dev *hr_dev,
 void *hns_roce_hem_list_find_mtt(struct hns_roce_dev *hr_dev,
 				 struct hns_roce_hem_list *hem_list,
 				 int offset, int *mtt_cnt);
-
-static inline void hns_roce_hem_first(struct hns_roce_hem *hem,
-				      struct hns_roce_hem_iter *iter)
-{
-	iter->hem = hem;
-	iter->chunk = list_empty(&hem->chunk_list) ? NULL :
-				 list_entry(hem->chunk_list.next,
-					    struct hns_roce_hem_chunk, list);
-	iter->page_idx = 0;
-}
-
-static inline int hns_roce_hem_last(struct hns_roce_hem_iter *iter)
-{
-	return !iter->chunk;
-}
-
-static inline void hns_roce_hem_next(struct hns_roce_hem_iter *iter)
-{
-	if (++iter->page_idx >= iter->chunk->nsg) {
-		if (iter->chunk->list.next == &iter->hem->chunk_list) {
-			iter->chunk = NULL;
-			return;
-		}
-
-		iter->chunk = list_entry(iter->chunk->list.next,
-					 struct hns_roce_hem_chunk, list);
-		iter->page_idx = 0;
-	}
-}
-
-static inline dma_addr_t hns_roce_hem_addr(struct hns_roce_hem_iter *iter)
-{
-	return sg_dma_address(&iter->chunk->mem[iter->page_idx]);
-}
 
 #endif /* _HNS_ROCE_HEM_H */

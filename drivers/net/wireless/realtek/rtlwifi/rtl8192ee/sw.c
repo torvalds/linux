@@ -24,9 +24,6 @@ static void rtl92ee_init_aspm_vars(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
-	/*close ASPM for AMD defaultly */
-	rtlpci->const_amdpci_aspm = 0;
-
 	/**
 	 * ASPM PS mode.
 	 * 0 - Disable ASPM,
@@ -199,7 +196,6 @@ static struct rtl_hal_ops rtl8192ee_hal_ops = {
 	.get_hw_reg = rtl92ee_get_hw_reg,
 	.set_hw_reg = rtl92ee_set_hw_reg,
 	.update_rate_tbl = rtl92ee_update_hal_rate_tbl,
-	.pre_fill_tx_bd_desc = rtl92ee_pre_fill_tx_bd_desc,
 	.rx_desc_buff_remained_cnt = rtl92ee_rx_desc_buff_remained_cnt,
 	.rx_check_dma_ok = rtl92ee_rx_check_dma_ok,
 	.fill_tx_desc = rtl92ee_tx_fill_desc,

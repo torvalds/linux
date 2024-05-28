@@ -9,7 +9,8 @@ config DRM_INGENIC
 	select DRM_PANEL_BRIDGE
 	select DRM_KMS_HELPER
 	select DRM_GEM_DMA_HELPER
-	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
+	select REGMAP
+	select REGMAP_MMIO
 	help
 	  Choose this option for DRM support for the Ingenic SoCs.
 

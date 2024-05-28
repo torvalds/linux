@@ -9,7 +9,7 @@
  *
  * @cache:      The cache.
  * @max_size:   Maximum size (number of entries) for the cache.
- *              Use 0 for unlimited size, it's the user's responsability to
+ *              Use 0 for unlimited size, it's the user's responsibility to
  *              trim the cache in that case.
  */
 void btrfs_lru_cache_init(struct btrfs_lru_cache *cache, unsigned int max_size)

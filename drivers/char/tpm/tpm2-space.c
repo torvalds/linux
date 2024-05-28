@@ -606,7 +606,7 @@ int tpm_devs_add(struct tpm_chip *chip)
 
 	device_initialize(&chip->devs);
 	chip->devs.parent = chip->dev.parent;
-	chip->devs.class = tpmrm_class;
+	chip->devs.class = &tpmrm_class;
 
 	/*
 	 * Get extra reference on main device to hold on behalf of devs.

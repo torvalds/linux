@@ -38,6 +38,8 @@ properties:
       - 3000
       - 4400
 
+  wakeup-source: true
+
 required:
   - compatible
   - reg

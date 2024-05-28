@@ -35,7 +35,7 @@
 /*
  * The least significant 2 bits of the owner value has the following
  * meanings when set.
- *  - Bit 0: RWSEM_READER_OWNED - The rwsem is owned by readers
+ *  - Bit 0: RWSEM_READER_OWNED - rwsem may be owned by readers (just a hint)
  *  - Bit 1: RWSEM_NONSPINNABLE - Cannot spin on a reader-owned lock
  *
  * When the rwsem is reader-owned and a spinning writer has timed out,
@@ -1002,8 +1002,8 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, long count, unsigned int stat
 
 	/*
 	 * To prevent a constant stream of readers from starving a sleeping
-	 * waiter, don't attempt optimistic lock stealing if the lock is
-	 * currently owned by readers.
+	 * writer, don't attempt optimistic lock stealing if the lock is
+	 * very likely owned by readers.
 	 */
 	if ((atomic_long_read(&sem->owner) & RWSEM_READER_OWNED) &&
 	    (rcnt > 1) && !(count & RWSEM_WRITER_LOCKED))
@@ -1427,8 +1427,14 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 #define rwbase_signal_pending_state(state, current)	\
 	signal_pending_state(state, current)
 
+#define rwbase_pre_schedule()				\
+	rt_mutex_pre_schedule()
+
 #define rwbase_schedule()				\
-	schedule()
+	rt_mutex_schedule()
+
+#define rwbase_post_schedule()				\
+	rt_mutex_post_schedule()
 
 #include "rwbase_rt.c"
 

@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-samsung-fortuna-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy Grand Prime (SM-G530W)";
+	compatible = "samsung,gprimeltecan", "qcom,msm8916";
+	chassis-type = "handset";
+
+	reserved-memory {
+		/* Firmware for gprimeltecan needs more space */
+		/delete-node/ tz-apps@85a00000;
+
+		/* Additional memory used by Samsung firmware modifications */
+		tz-apps@85500000 {
+			reg = <0x0 0x85500000 0x0 0xb00000>;
+			no-map;
+		};
+	};
+};
+
+&mpss_mem {
+	/* Firmware for gprimeltecan needs more space */
+	reg = <0x0 0x86800000 0x0 0x5400000>;
+};

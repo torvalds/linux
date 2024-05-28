@@ -64,6 +64,43 @@
 	nvmem-cell-names = "mac-address";
 };
 
+
+&pcie0 {
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	bridge@0,0 {
+		reg = <0x0000 0 0 0 0>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		wifi@0,0 {
+			compatible = "brcm,bcm4366-fmac", "brcm,bcm4329-fmac";
+			reg = <0x0000 0 0 0 0>;
+			brcm,ccode-map = "AU-AU-920", "CA-CA-892", "GB-DE-964", "NZ-AU-920", "US-US-825";
+		};
+	};
+};
+
+&pcie1 {
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	bridge@0,0 {
+		reg = <0x0000 0 0 0 0>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		wifi@0,0 {
+			compatible = "brcm,bcm4366-fmac", "brcm,bcm4329-fmac";
+			reg = <0x0000 0 0 0 0>;
+			brcm,ccode-map = "AU-AU-920", "CA-CA-892", "GB-DE-964", "NZ-AU-920", "US-US-825";
+		};
+	};
+};
+
 &spi_nor {
 	status = "okay";
 };
@@ -82,6 +119,14 @@
 
 		port@5 {
 			label = "cpu";
+		};
+
+		port@7 {
+			status = "disabled";
+		};
+
+		port@8 {
+			status = "disabled";
 		};
 	};
 };

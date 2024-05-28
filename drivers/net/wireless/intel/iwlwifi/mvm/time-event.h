@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2019-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2019-2020, 2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  */
 #ifndef __time_event_h__
@@ -101,6 +101,14 @@ void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
 
 /**
+ * iwl_mvm_rx_roc_notif - handles %DISCOVERY_ROC_NTF.
+ * @mvm: the mvm component
+ * @rxb: RX buffer
+ */
+void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
+			  struct iwl_rx_cmd_buffer *rxb);
+
+/**
  * iwl_mvm_start_p2p_roc - start remain on channel for p2p device functionality
  * @mvm: the mvm component
  * @vif: the virtual interface for which the roc is requested. It is assumed
@@ -134,7 +142,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 /**
  * iwl_mvm_remove_time_event - general function to clean up of time event
  * @mvm: the mvm component
- * @vif: the vif to which the time event belongs
+ * @mvmvif: the vif to which the time event belongs
  * @te_data: the time event data that corresponds to that time event
  *
  * This function can be used to cancel a time event regardless its type.
@@ -195,16 +203,21 @@ iwl_mvm_te_scheduled(struct iwl_mvm_time_event_data *te_data)
  * iwl_mvm_schedule_session_protection - schedule a session protection
  * @mvm: the mvm component
  * @vif: the virtual interface for which the protection issued
- * @duration: the duration of the protection
+ * @duration: the requested duration of the protection
+ * @min_duration: the minimum duration of the protection
  * @wait_for_notif: if true, will block until the start of the protection
+ * @link_id: The link to schedule a session protection for
  */
 void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
 					 u32 duration, u32 min_duration,
-					 bool wait_for_notif);
+					 bool wait_for_notif,
+					 unsigned int link_id);
 
 /**
  * iwl_mvm_rx_session_protect_notif - handles %SESSION_PROTECTION_NOTIF
+ * @mvm: the mvm component
+ * @rxb: the RX buffer containing the notification
  */
 void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb);

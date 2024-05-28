@@ -7,6 +7,13 @@
 #include <dt-bindings/clock/imx8-lpcg.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 
+lsio_bus_clk: clock-lsio-bus {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <100000000>;
+	clock-output-names = "lsio_bus_clk";
+};
+
 lsio_subsys: bus@5d000000 {
 	compatible = "simple-bus";
 	#address-cells = <1>;
@@ -14,29 +21,16 @@ lsio_subsys: bus@5d000000 {
 	ranges = <0x5d000000 0x0 0x5d000000 0x1000000>,
 		 <0x08000000 0x0 0x08000000 0x10000000>;
 
-	lsio_mem_clk: clock-lsio-mem {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <200000000>;
-		clock-output-names = "lsio_mem_clk";
-	};
-
-	lsio_bus_clk: clock-lsio-bus {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <100000000>;
-		clock-output-names = "lsio_bus_clk";
-	};
-
 	lsio_pwm0: pwm@5d000000 {
 		compatible = "fsl,imx27-pwm";
 		reg = <0x5d000000 0x10000>;
 		clock-names = "ipg", "per";
-		clocks = <&pwm0_lpcg 4>,
-			 <&pwm0_lpcg 1>;
+		clocks = <&pwm0_lpcg IMX_LPCG_CLK_6>,
+			 <&pwm0_lpcg IMX_LPCG_CLK_1>;
 		assigned-clocks = <&clk IMX_SC_R_PWM_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
-		#pwm-cells = <2>;
+		#pwm-cells = <3>;
+		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -44,11 +38,12 @@ lsio_subsys: bus@5d000000 {
 		compatible = "fsl,imx27-pwm";
 		reg = <0x5d010000 0x10000>;
 		clock-names = "ipg", "per";
-		clocks = <&pwm1_lpcg 4>,
-			 <&pwm1_lpcg 1>;
+		clocks = <&pwm1_lpcg IMX_LPCG_CLK_6>,
+			 <&pwm1_lpcg IMX_LPCG_CLK_1>;
 		assigned-clocks = <&clk IMX_SC_R_PWM_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
-		#pwm-cells = <2>;
+		#pwm-cells = <3>;
+		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -56,11 +51,12 @@ lsio_subsys: bus@5d000000 {
 		compatible = "fsl,imx27-pwm";
 		reg = <0x5d020000 0x10000>;
 		clock-names = "ipg", "per";
-		clocks = <&pwm2_lpcg 4>,
-			 <&pwm2_lpcg 1>;
+		clocks = <&pwm2_lpcg IMX_LPCG_CLK_6>,
+			 <&pwm2_lpcg IMX_LPCG_CLK_1>;
 		assigned-clocks = <&clk IMX_SC_R_PWM_2 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
-		#pwm-cells = <2>;
+		#pwm-cells = <3>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -68,11 +64,12 @@ lsio_subsys: bus@5d000000 {
 		compatible = "fsl,imx27-pwm";
 		reg = <0x5d030000 0x10000>;
 		clock-names = "ipg", "per";
-		clocks = <&pwm3_lpcg 4>,
-			 <&pwm3_lpcg 1>;
+		clocks = <&pwm3_lpcg IMX_LPCG_CLK_6>,
+			 <&pwm3_lpcg IMX_LPCG_CLK_1>;
 		assigned-clocks = <&clk IMX_SC_R_PWM_3 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
-		#pwm-cells = <2>;
+		#pwm-cells = <3>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 

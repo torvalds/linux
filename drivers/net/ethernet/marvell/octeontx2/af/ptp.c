@@ -12,8 +12,8 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 
-#include "ptp.h"
 #include "mbox.h"
+#include "ptp.h"
 #include "rvu.h"
 
 #define DRV_NAME				"Marvell PTP Driver"
@@ -40,11 +40,13 @@
 #define PTP_CLOCK_CFG_TSTMP_EDGE		BIT_ULL(9)
 #define PTP_CLOCK_CFG_TSTMP_EN			BIT_ULL(8)
 #define PTP_CLOCK_CFG_TSTMP_IN_MASK		GENMASK_ULL(15, 10)
+#define PTP_CLOCK_CFG_ATOMIC_OP_MASK		GENMASK_ULL(28, 26)
 #define PTP_CLOCK_CFG_PPS_EN			BIT_ULL(30)
 #define PTP_CLOCK_CFG_PPS_INV			BIT_ULL(31)
 
 #define PTP_PPS_HI_INCR				0xF60ULL
 #define PTP_PPS_LO_INCR				0xF68ULL
+#define PTP_PPS_THRESH_LO			0xF50ULL
 #define PTP_PPS_THRESH_HI			0xF58ULL
 
 #define PTP_CLOCK_LO				0xF08ULL
@@ -53,36 +55,62 @@
 #define PTP_TIMESTAMP				0xF20ULL
 #define PTP_CLOCK_SEC				0xFD0ULL
 #define PTP_SEC_ROLLOVER			0xFD8ULL
+/* Atomic update related CSRs */
+#define PTP_FRNS_TIMESTAMP			0xFE0ULL
+#define PTP_NXT_ROLLOVER_SET			0xFE8ULL
+#define PTP_CURR_ROLLOVER_SET			0xFF0ULL
+#define PTP_NANO_TIMESTAMP			0xFF8ULL
+#define PTP_SEC_TIMESTAMP			0x1000ULL
 
 #define CYCLE_MULT				1000
+
+#define is_rev_A0(ptp) (((ptp)->pdev->revision & 0x0F) == 0x0)
+#define is_rev_A1(ptp) (((ptp)->pdev->revision & 0x0F) == 0x1)
+
+/* PTP atomic update operation type */
+enum atomic_opcode {
+	ATOMIC_SET = 1,
+	ATOMIC_INC = 3,
+	ATOMIC_DEC = 4
+};
 
 static struct ptp *first_ptp_block;
 static const struct pci_device_id ptp_id_table[];
 
-static bool is_ptp_dev_cnf10kb(struct ptp *ptp)
+static bool is_ptp_dev_cnf10ka(struct ptp *ptp)
 {
-	return (ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_B_PTP) ? true : false;
+	return ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_A_PTP;
 }
 
-static bool is_ptp_dev_cn10k(struct ptp *ptp)
+static bool is_ptp_dev_cn10ka(struct ptp *ptp)
 {
-	return (ptp->pdev->device == PCI_DEVID_CN10K_PTP) ? true : false;
+	return ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CN10K_A_PTP;
 }
 
 static bool cn10k_ptp_errata(struct ptp *ptp)
 {
-	if (ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CN10K_A_PTP ||
-	    ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_A_PTP)
+	if ((is_ptp_dev_cn10ka(ptp) || is_ptp_dev_cnf10ka(ptp)) &&
+	    (is_rev_A0(ptp) || is_rev_A1(ptp)))
 		return true;
+
 	return false;
 }
 
-static bool is_ptp_tsfmt_sec_nsec(struct ptp *ptp)
+static bool is_tstmp_atomic_update_supported(struct rvu *rvu)
 {
-	if (ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CN10K_A_PTP ||
-	    ptp->pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_A_PTP)
-		return true;
-	return false;
+	struct ptp *ptp = rvu->ptp;
+
+	if (is_rvu_otx2(rvu))
+		return false;
+
+	/* On older silicon variants of CN10K, atomic update feature
+	 * is not available.
+	 */
+	if ((is_ptp_dev_cn10ka(ptp) || is_ptp_dev_cnf10ka(ptp)) &&
+	    (is_rev_A0(ptp) || is_rev_A1(ptp)))
+		return false;
+
+	return true;
 }
 
 static enum hrtimer_restart ptp_reset_thresh(struct hrtimer *hrtimer)
@@ -222,6 +250,65 @@ void ptp_put(struct ptp *ptp)
 	pci_dev_put(ptp->pdev);
 }
 
+static void ptp_atomic_update(struct ptp *ptp, u64 timestamp)
+{
+	u64 regval, curr_rollover_set, nxt_rollover_set;
+
+	/* First setup NSECs and SECs */
+	writeq(timestamp, ptp->reg_base + PTP_NANO_TIMESTAMP);
+	writeq(0, ptp->reg_base + PTP_FRNS_TIMESTAMP);
+	writeq(timestamp / NSEC_PER_SEC,
+	       ptp->reg_base + PTP_SEC_TIMESTAMP);
+
+	nxt_rollover_set = roundup(timestamp, NSEC_PER_SEC);
+	curr_rollover_set = nxt_rollover_set - NSEC_PER_SEC;
+	writeq(nxt_rollover_set, ptp->reg_base + PTP_NXT_ROLLOVER_SET);
+	writeq(curr_rollover_set, ptp->reg_base + PTP_CURR_ROLLOVER_SET);
+
+	/* Now, initiate atomic update */
+	regval = readq(ptp->reg_base + PTP_CLOCK_CFG);
+	regval &= ~PTP_CLOCK_CFG_ATOMIC_OP_MASK;
+	regval |= (ATOMIC_SET << 26);
+	writeq(regval, ptp->reg_base + PTP_CLOCK_CFG);
+}
+
+static void ptp_atomic_adjtime(struct ptp *ptp, s64 delta)
+{
+	bool neg_adj = false, atomic_inc_dec = false;
+	u64 regval, ptp_clock_hi;
+
+	if (delta < 0) {
+		delta = -delta;
+		neg_adj = true;
+	}
+
+	/* use atomic inc/dec when delta < 1 second */
+	if (delta < NSEC_PER_SEC)
+		atomic_inc_dec = true;
+
+	if (!atomic_inc_dec) {
+		ptp_clock_hi = readq(ptp->reg_base + PTP_CLOCK_HI);
+		if (neg_adj) {
+			if (ptp_clock_hi > delta)
+				ptp_clock_hi -= delta;
+			else
+				ptp_clock_hi = delta - ptp_clock_hi;
+		} else {
+			ptp_clock_hi += delta;
+		}
+		ptp_atomic_update(ptp, ptp_clock_hi);
+	} else {
+		writeq(delta, ptp->reg_base + PTP_NANO_TIMESTAMP);
+		writeq(0, ptp->reg_base + PTP_FRNS_TIMESTAMP);
+
+		/* initiate atomic inc/dec */
+		regval = readq(ptp->reg_base + PTP_CLOCK_CFG);
+		regval &= ~PTP_CLOCK_CFG_ATOMIC_OP_MASK;
+		regval |= neg_adj ? (ATOMIC_DEC << 26) : (ATOMIC_INC << 26);
+		writeq(regval, ptp->reg_base + PTP_CLOCK_CFG);
+	}
+}
+
 static int ptp_adjfine(struct ptp *ptp, long scaled_ppm)
 {
 	bool neg_adj = false;
@@ -277,8 +364,9 @@ static int ptp_get_clock(struct ptp *ptp, u64 *clk)
 	return 0;
 }
 
-void ptp_start(struct ptp *ptp, u64 sclk, u32 ext_clk_freq, u32 extts)
+void ptp_start(struct rvu *rvu, u64 sclk, u32 ext_clk_freq, u32 extts)
 {
+	struct ptp *ptp = rvu->ptp;
 	struct pci_dev *pdev;
 	u64 clock_comp;
 	u64 clock_cfg;
@@ -297,8 +385,14 @@ void ptp_start(struct ptp *ptp, u64 sclk, u32 ext_clk_freq, u32 extts)
 	ptp->clock_rate = sclk * 1000000;
 
 	/* Program the seconds rollover value to 1 second */
-	if (is_ptp_dev_cnf10kb(ptp))
+	if (is_tstmp_atomic_update_supported(rvu)) {
+		writeq(0, ptp->reg_base + PTP_NANO_TIMESTAMP);
+		writeq(0, ptp->reg_base + PTP_FRNS_TIMESTAMP);
+		writeq(0, ptp->reg_base + PTP_SEC_TIMESTAMP);
+		writeq(0, ptp->reg_base + PTP_CURR_ROLLOVER_SET);
+		writeq(0x3b9aca00, ptp->reg_base + PTP_NXT_ROLLOVER_SET);
 		writeq(0x3b9aca00, ptp->reg_base + PTP_SEC_ROLLOVER);
+	}
 
 	/* Enable PTP clock */
 	clock_cfg = readq(ptp->reg_base + PTP_CLOCK_CFG);
@@ -318,24 +412,11 @@ void ptp_start(struct ptp *ptp, u64 sclk, u32 ext_clk_freq, u32 extts)
 	}
 
 	clock_cfg |= PTP_CLOCK_CFG_PTP_EN;
-	clock_cfg |= PTP_CLOCK_CFG_PPS_EN | PTP_CLOCK_CFG_PPS_INV;
 	writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
-
-	/* Set 50% duty cycle for 1Hz output */
-	writeq(0x1dcd650000000000, ptp->reg_base + PTP_PPS_HI_INCR);
-	writeq(0x1dcd650000000000, ptp->reg_base + PTP_PPS_LO_INCR);
-	if (cn10k_ptp_errata(ptp)) {
-		/* The ptp_clock_hi rollsover to zero once clock cycle before it
-		 * reaches one second boundary. so, program the pps_lo_incr in
-		 * such a way that the pps threshold value comparison at one
-		 * second boundary will succeed and pps edge changes. After each
-		 * one second boundary, the hrtimer handler will be invoked and
-		 * reprograms the pps threshold value.
-		 */
-		ptp->clock_period = NSEC_PER_SEC / ptp->clock_rate;
-		writeq((0x1dcd6500ULL - ptp->clock_period) << 32,
-		       ptp->reg_base + PTP_PPS_LO_INCR);
-	}
+	clock_cfg = readq(ptp->reg_base + PTP_CLOCK_CFG);
+	clock_cfg &= ~PTP_CLOCK_CFG_ATOMIC_OP_MASK;
+	clock_cfg |= (ATOMIC_SET << 26);
+	writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
 
 	if (cn10k_ptp_errata(ptp))
 		clock_comp = ptp_calc_adjusted_comp(ptp->clock_rate);
@@ -350,7 +431,7 @@ static int ptp_get_tstmp(struct ptp *ptp, u64 *clk)
 {
 	u64 timestamp;
 
-	if (is_ptp_dev_cn10k(ptp)) {
+	if (is_ptp_dev_cn10ka(ptp) || is_ptp_dev_cnf10ka(ptp)) {
 		timestamp = readq(ptp->reg_base + PTP_TIMESTAMP);
 		*clk = (timestamp >> 32) * NSEC_PER_SEC + (timestamp & 0xFFFFFFFF);
 	} else {
@@ -368,19 +449,67 @@ static int ptp_set_thresh(struct ptp *ptp, u64 thresh)
 	return 0;
 }
 
-static int ptp_extts_on(struct ptp *ptp, int on)
+static int ptp_config_hrtimer(struct ptp *ptp, int on)
 {
 	u64 ptp_clock_hi;
 
-	if (cn10k_ptp_errata(ptp)) {
-		if (on) {
-			ptp_clock_hi = readq(ptp->reg_base + PTP_CLOCK_HI);
-			ptp_hrtimer_start(ptp, (ktime_t)ptp_clock_hi);
-		} else {
-			if (hrtimer_active(&ptp->hrtimer))
-				hrtimer_cancel(&ptp->hrtimer);
-		}
+	if (on) {
+		ptp_clock_hi = readq(ptp->reg_base + PTP_CLOCK_HI);
+		ptp_hrtimer_start(ptp, (ktime_t)ptp_clock_hi);
+	} else {
+		if (hrtimer_active(&ptp->hrtimer))
+			hrtimer_cancel(&ptp->hrtimer);
 	}
+
+	return 0;
+}
+
+static int ptp_pps_on(struct ptp *ptp, int on, u64 period)
+{
+	u64 clock_cfg;
+
+	clock_cfg = readq(ptp->reg_base + PTP_CLOCK_CFG);
+	if (on) {
+		if (cn10k_ptp_errata(ptp) && period != NSEC_PER_SEC) {
+			dev_err(&ptp->pdev->dev, "Supports max period value as 1 second\n");
+			return -EINVAL;
+		}
+
+		if (period > (8 * NSEC_PER_SEC)) {
+			dev_err(&ptp->pdev->dev, "Supports max period as 8 seconds\n");
+			return -EINVAL;
+		}
+
+		clock_cfg |= PTP_CLOCK_CFG_PPS_EN | PTP_CLOCK_CFG_PPS_INV;
+		writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
+
+		writeq(0, ptp->reg_base + PTP_PPS_THRESH_HI);
+		writeq(0, ptp->reg_base + PTP_PPS_THRESH_LO);
+
+		/* Configure high/low phase time */
+		period = period / 2;
+		writeq(((u64)period << 32), ptp->reg_base + PTP_PPS_HI_INCR);
+		writeq(((u64)period << 32), ptp->reg_base + PTP_PPS_LO_INCR);
+	} else {
+		clock_cfg &= ~(PTP_CLOCK_CFG_PPS_EN | PTP_CLOCK_CFG_PPS_INV);
+		writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
+	}
+
+	if (on && cn10k_ptp_errata(ptp)) {
+		/* The ptp_clock_hi rollsover to zero once clock cycle before it
+		 * reaches one second boundary. so, program the pps_lo_incr in
+		 * such a way that the pps threshold value comparison at one
+		 * second boundary will succeed and pps edge changes. After each
+		 * one second boundary, the hrtimer handler will be invoked and
+		 * reprograms the pps threshold value.
+		 */
+		ptp->clock_period = NSEC_PER_SEC / ptp->clock_rate;
+		writeq((0x1dcd6500ULL - ptp->clock_period) << 32,
+		       ptp->reg_base + PTP_PPS_LO_INCR);
+	}
+
+	if (cn10k_ptp_errata(ptp))
+		ptp_config_hrtimer(ptp, on);
 
 	return 0;
 }
@@ -414,14 +543,12 @@ static int ptp_probe(struct pci_dev *pdev,
 		first_ptp_block = ptp;
 
 	spin_lock_init(&ptp->ptp_lock);
-	if (is_ptp_tsfmt_sec_nsec(ptp))
-		ptp->read_ptp_tstmp = &read_ptp_tstmp_sec_nsec;
-	else
-		ptp->read_ptp_tstmp = &read_ptp_tstmp_nsec;
-
 	if (cn10k_ptp_errata(ptp)) {
+		ptp->read_ptp_tstmp = &read_ptp_tstmp_sec_nsec;
 		hrtimer_init(&ptp->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		ptp->hrtimer.function = ptp_reset_thresh;
+	} else {
+		ptp->read_ptp_tstmp = &read_ptp_tstmp_nsec;
 	}
 
 	return 0;
@@ -518,8 +645,14 @@ int rvu_mbox_handler_ptp_op(struct rvu *rvu, struct ptp_req *req,
 	case PTP_OP_SET_THRESH:
 		err = ptp_set_thresh(rvu->ptp, req->thresh);
 		break;
-	case PTP_OP_EXTTS_ON:
-		err = ptp_extts_on(rvu->ptp, req->extts_on);
+	case PTP_OP_PPS_ON:
+		err = ptp_pps_on(rvu->ptp, req->pps_on, req->period);
+		break;
+	case PTP_OP_ADJTIME:
+		ptp_atomic_adjtime(rvu->ptp, req->delta);
+		break;
+	case PTP_OP_SET_CLOCK:
+		ptp_atomic_update(rvu->ptp, (u64)req->clk);
 		break;
 	default:
 		err = -EINVAL;
@@ -527,4 +660,18 @@ int rvu_mbox_handler_ptp_op(struct rvu *rvu, struct ptp_req *req,
 	}
 
 	return err;
+}
+
+int rvu_mbox_handler_ptp_get_cap(struct rvu *rvu, struct msg_req *req,
+				 struct ptp_get_cap_rsp *rsp)
+{
+	if (!rvu->ptp)
+		return -ENODEV;
+
+	if (is_tstmp_atomic_update_supported(rvu))
+		rsp->cap |= PTP_CAP_HW_ATOMIC_UPDATE;
+	else
+		rsp->cap &= ~BIT_ULL_MASK(0);
+
+	return 0;
 }

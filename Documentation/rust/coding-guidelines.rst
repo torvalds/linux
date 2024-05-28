@@ -177,6 +177,19 @@ please take a look at the ``rustdoc`` book at:
 
 	https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
 
+In addition, the kernel supports creating links relative to the source tree by
+prefixing the link destination with ``srctree/``. For instance:
+
+.. code-block:: rust
+
+	//! C header: [`include/linux/printk.h`](srctree/include/linux/printk.h)
+
+or:
+
+.. code-block:: rust
+
+	/// [`struct mutex`]: srctree/include/linux/mutex.h
+
 
 Naming
 ------

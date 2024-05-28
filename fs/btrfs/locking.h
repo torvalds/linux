@@ -8,8 +8,14 @@
 
 #include <linux/atomic.h>
 #include <linux/wait.h>
+#include <linux/lockdep.h>
 #include <linux/percpu_counter.h>
 #include "extent_io.h"
+#include "locking.h"
+
+struct extent_buffer;
+struct btrfs_path;
+struct btrfs_root;
 
 #define BTRFS_WRITE_LOCK 1
 #define BTRFS_READ_LOCK 2
@@ -79,7 +85,7 @@ enum btrfs_lock_nesting {
 };
 
 enum btrfs_lockdep_trans_states {
-	BTRFS_LOCKDEP_TRANS_COMMIT_START,
+	BTRFS_LOCKDEP_TRANS_COMMIT_PREP,
 	BTRFS_LOCKDEP_TRANS_UNBLOCKED,
 	BTRFS_LOCKDEP_TRANS_SUPER_COMMITTED,
 	BTRFS_LOCKDEP_TRANS_COMPLETED,
@@ -156,8 +162,6 @@ enum btrfs_lockdep_trans_states {
 
 static_assert(BTRFS_NESTING_MAX <= MAX_LOCKDEP_SUBCLASSES,
 	      "too many lock subclasses defined");
-
-struct btrfs_path;
 
 void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest);
 void btrfs_tree_lock(struct extent_buffer *eb);

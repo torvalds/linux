@@ -206,7 +206,7 @@ static void parse_ppp_data(struct seq_file *m)
 	           ppp_data.active_system_procs);
 
 	/* pool related entries are appropriate for shared configs */
-	if (lppaca_shared_proc(get_lppaca())) {
+	if (lppaca_shared_proc()) {
 		unsigned long pool_idle_time, pool_procs;
 
 		seq_printf(m, "pool=%d\n", ppp_data.pool_num);
@@ -346,9 +346,13 @@ static int read_rtas_lpar_name(struct seq_file *m)
  */
 static int read_dt_lpar_name(struct seq_file *m)
 {
+	struct device_node *root = of_find_node_by_path("/");
 	const char *name;
+	int ret;
 
-	if (of_property_read_string(of_root, "ibm,partition-name", &name))
+	ret = of_property_read_string(root, "ibm,partition-name", &name);
+	of_node_put(root);
+	if (ret)
 		return -ENOENT;
 
 	seq_printf(m, "partition_name=%s\n", name);
@@ -560,7 +564,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 		   partition_potential_processors);
 
 	seq_printf(m, "shared_processor_mode=%d\n",
-		   lppaca_shared_proc(get_lppaca()));
+		   lppaca_shared_proc());
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
 	if (!radix_enabled())

@@ -9,7 +9,7 @@
 #include <net/dsa.h>
 
 #include "port.h"
-#include "slave.h"
+#include "user.h"
 
 struct dsa_tag_driver {
 	const struct dsa_device_ops *ops;
@@ -29,7 +29,7 @@ static inline int dsa_tag_protocol_overhead(const struct dsa_device_ops *ops)
 	return ops->needed_headroom + ops->needed_tailroom;
 }
 
-static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
+static inline struct net_device *dsa_conduit_find_user(struct net_device *dev,
 						       int device, int port)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
@@ -39,7 +39,7 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 	list_for_each_entry(dp, &dst->ports, list)
 		if (dp->ds->index == device && dp->index == port &&
 		    dp->type == DSA_PORT_TYPE_USER)
-			return dp->slave;
+			return dp->user;
 
 	return NULL;
 }
@@ -49,7 +49,7 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
  */
 static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 {
-	struct dsa_port *dp = dsa_slave_to_port(skb->dev);
+	struct dsa_port *dp = dsa_user_to_port(skb->dev);
 	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct net_device *dev = skb->dev;
 	struct net_device *upper_dev;
@@ -107,12 +107,12 @@ static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
  * to support termination through the bridge.
  */
 static inline struct net_device *
-dsa_find_designated_bridge_port_by_vid(struct net_device *master, u16 vid)
+dsa_find_designated_bridge_port_by_vid(struct net_device *conduit, u16 vid)
 {
-	struct dsa_port *cpu_dp = master->dsa_ptr;
+	struct dsa_port *cpu_dp = conduit->dsa_ptr;
 	struct dsa_switch_tree *dst = cpu_dp->dst;
 	struct bridge_vlan_info vinfo;
-	struct net_device *slave;
+	struct net_device *user;
 	struct dsa_port *dp;
 	int err;
 
@@ -134,13 +134,13 @@ dsa_find_designated_bridge_port_by_vid(struct net_device *master, u16 vid)
 		if (dp->cpu_dp != cpu_dp)
 			continue;
 
-		slave = dp->slave;
+		user = dp->user;
 
-		err = br_vlan_get_info_rcu(slave, vid, &vinfo);
+		err = br_vlan_get_info_rcu(user, vid, &vinfo);
 		if (err)
 			continue;
 
-		return slave;
+		return user;
 	}
 
 	return NULL;
@@ -155,7 +155,7 @@ dsa_find_designated_bridge_port_by_vid(struct net_device *master, u16 vid)
  */
 static inline void dsa_default_offload_fwd_mark(struct sk_buff *skb)
 {
-	struct dsa_port *dp = dsa_slave_to_port(skb->dev);
+	struct dsa_port *dp = dsa_user_to_port(skb->dev);
 
 	skb->offload_fwd_mark = !!(dp->bridge);
 }
@@ -215,9 +215,9 @@ static inline void dsa_alloc_etype_header(struct sk_buff *skb, int len)
 	memmove(skb->data, skb->data + len, 2 * ETH_ALEN);
 }
 
-/* On RX, eth_type_trans() on the DSA master pulls ETH_HLEN bytes starting from
+/* On RX, eth_type_trans() on the DSA conduit pulls ETH_HLEN bytes starting from
  * skb_mac_header(skb), which leaves skb->data pointing at the first byte after
- * what the DSA master perceives as the EtherType (the beginning of the L3
+ * what the DSA conduit perceives as the EtherType (the beginning of the L3
  * protocol). Since DSA EtherType header taggers treat the EtherType as part of
  * the DSA tag itself, and the EtherType is 2 bytes in length, the DSA header
  * is located 2 bytes behind skb->data. Note that EtherType in this context

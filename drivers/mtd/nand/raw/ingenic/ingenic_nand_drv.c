@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -47,7 +46,7 @@ struct ingenic_nfc {
 	struct nand_controller controller;
 	unsigned int num_banks;
 	struct list_head chips;
-	struct ingenic_nand_cs cs[];
+	struct ingenic_nand_cs cs[] __counted_by(num_banks);
 };
 
 struct ingenic_nand {
@@ -380,18 +379,6 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 		dev_err(dev, "failed to request busy GPIO: %d\n", ret);
 		return ret;
 	}
-
-	/*
-	 * The rb-gpios semantics was undocumented and qi,lb60 (along with
-	 * the ingenic driver) got it wrong. The active state encodes the
-	 * NAND ready state, which is high level. Since there's no signal
-	 * inverter on this board, it should be active-high. Let's fix that
-	 * here for older DTs so we can re-use the generic nand_gpio_waitrdy()
-	 * helper, and be consistent with what other drivers do.
-	 */
-	if (of_machine_is_compatible("qi,lb60") &&
-	    gpiod_is_active_low(nand->busy_gpio))
-		gpiod_toggle_active_low(nand->busy_gpio);
 
 	nand->wp_gpio = devm_gpiod_get_optional(dev, "wp", GPIOD_OUT_LOW);
 

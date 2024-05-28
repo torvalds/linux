@@ -5,7 +5,6 @@
 /* overlay_4 - test insertion of a full node */
 
 &unittest_test_bus {
-
 	/* suppress DTC warning */
 	#address-cells = <1>;
 	#size-cells = <0>;

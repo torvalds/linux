@@ -20,7 +20,7 @@
 	compatible = "audio-graph-card2";
 
 	/delete-property/ dais;
-	links = <&rsnd_port0	/* (A) CPU0 <-> ak4613 */
-		 &rsnd_port1	/* (B) CPU1  -> HDMI   */
+	links = <&snd_ulcb1	/* (A) CPU0 <-> ak4613 */
+		 &snd_ulcb2	/* (B) CPU1  -> HDMI   */
 		>;
 };

@@ -5,6 +5,17 @@
 
 menu "1-wire Bus Masters"
 
+config W1_MASTER_AMD_AXI
+	tristate "AMD AXI 1-wire bus host"
+	help
+	  Say Y here is you want to support the AMD AXI 1-wire IP core.
+	  This driver makes use of the programmable logic IP to perform
+	  correctly timed 1 wire transactions without relying on GPIO timing
+	  through the kernel.
+
+	  This driver can also be built as a module.  If so, the module will be
+	  called amd_w1_axi.
+
 config W1_MASTER_MATROX
 	tristate "Matrox G400 transport layer for 1-wire"
 	depends on PCI
@@ -66,6 +77,16 @@ config W1_MASTER_SGI
 
 	  This support is also available as a module.  If so, the module
 	  will be called sgi_w1.
+
+config W1_MASTER_UART
+	tristate "UART 1-wire driver"
+	depends on SERIAL_DEV_BUS
+	help
+	  Say Y here if you want to communicate with your 1-wire devices using
+	  UART interface.
+
+	  This support is also available as a module.  If so, the module
+	  will be called w1-uart.
 
 endmenu
 

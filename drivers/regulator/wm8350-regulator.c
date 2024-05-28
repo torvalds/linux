@@ -1158,14 +1158,12 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int wm8350_regulator_remove(struct platform_device *pdev)
+static void wm8350_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
 	wm8350_free_irq(wm8350, wm8350_reg[pdev->id].irq, rdev);
-
-	return 0;
 }
 
 int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
@@ -1306,7 +1304,7 @@ EXPORT_SYMBOL_GPL(wm8350_register_led);
 
 static struct platform_driver wm8350_regulator_driver = {
 	.probe = wm8350_regulator_probe,
-	.remove = wm8350_regulator_remove,
+	.remove_new = wm8350_regulator_remove,
 	.driver		= {
 		.name	= "wm8350-regulator",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

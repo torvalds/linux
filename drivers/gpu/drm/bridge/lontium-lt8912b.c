@@ -43,9 +43,10 @@ struct lt8912 {
 
 	struct videomode mode;
 
+	struct regulator_bulk_data supplies[7];
+
 	u8 data_lanes;
 	bool is_power_on;
-	bool is_attached;
 };
 
 static int lt8912_write_init_config(struct lt8912 *lt)
@@ -258,6 +259,12 @@ static int lt8912_free_i2c(struct lt8912 *lt)
 
 static int lt8912_hard_power_on(struct lt8912 *lt)
 {
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(lt->supplies), lt->supplies);
+	if (ret)
+		return ret;
+
 	gpiod_set_value_cansleep(lt->gp_reset, 0);
 	msleep(20);
 
@@ -268,6 +275,9 @@ static void lt8912_hard_power_off(struct lt8912 *lt)
 {
 	gpiod_set_value_cansleep(lt->gp_reset, 1);
 	msleep(20);
+
+	regulator_bulk_disable(ARRAY_SIZE(lt->supplies), lt->supplies);
+
 	lt->is_power_on = false;
 }
 
@@ -430,26 +440,24 @@ lt8912_connector_mode_valid(struct drm_connector *connector,
 
 static int lt8912_connector_get_modes(struct drm_connector *connector)
 {
-	struct edid *edid;
-	int ret = -1;
-	int num = 0;
+	const struct drm_edid *drm_edid;
 	struct lt8912 *lt = connector_to_lt8912(connector);
 	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	int ret, num;
 
-	edid = drm_bridge_get_edid(lt->hdmi_port, connector);
-	if (edid) {
-		drm_connector_update_edid_property(connector, edid);
-		num = drm_add_edid_modes(connector, edid);
-	} else {
-		return ret;
-	}
+	drm_edid = drm_bridge_edid_read(lt->hdmi_port, connector);
+	drm_edid_connector_update(connector, drm_edid);
+	if (!drm_edid)
+		return 0;
+
+	num = drm_edid_connector_add_modes(connector);
 
 	ret = drm_display_info_set_bus_formats(&connector->display_info,
 					       &bus_format, 1);
-	if (ret)
-		num = ret;
+	if (ret < 0)
+		num = 0;
 
-	kfree(edid);
+	drm_edid_free(drm_edid);
 	return num;
 }
 
@@ -559,6 +567,13 @@ static int lt8912_bridge_attach(struct drm_bridge *bridge,
 	struct lt8912 *lt = bridge_to_lt8912(bridge);
 	int ret;
 
+	ret = drm_bridge_attach(bridge->encoder, lt->hdmi_port, bridge,
+				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	if (ret < 0) {
+		dev_err(lt->dev, "Failed to attach next bridge (%d)\n", ret);
+		return ret;
+	}
+
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
 		ret = lt8912_bridge_connector_init(bridge);
 		if (ret) {
@@ -575,8 +590,6 @@ static int lt8912_bridge_attach(struct drm_bridge *bridge,
 	if (ret)
 		goto error;
 
-	lt->is_attached = true;
-
 	return 0;
 
 error:
@@ -588,15 +601,10 @@ static void lt8912_bridge_detach(struct drm_bridge *bridge)
 {
 	struct lt8912 *lt = bridge_to_lt8912(bridge);
 
-	if (lt->is_attached) {
-		lt8912_hard_power_off(lt);
+	lt8912_hard_power_off(lt);
 
-		if (lt->hdmi_port->ops & DRM_BRIDGE_OP_HPD)
-			drm_bridge_hpd_disable(lt->hdmi_port);
-
-		drm_connector_unregister(&lt->connector);
-		drm_connector_cleanup(&lt->connector);
-	}
+	if (lt->connector.dev && lt->hdmi_port->ops & DRM_BRIDGE_OP_HPD)
+		drm_bridge_hpd_disable(lt->hdmi_port);
 }
 
 static enum drm_connector_status
@@ -610,8 +618,8 @@ lt8912_bridge_detect(struct drm_bridge *bridge)
 	return lt8912_check_cable_status(lt);
 }
 
-static struct edid *lt8912_bridge_get_edid(struct drm_bridge *bridge,
-					   struct drm_connector *connector)
+static const struct drm_edid *lt8912_bridge_edid_read(struct drm_bridge *bridge,
+						      struct drm_connector *connector)
 {
 	struct lt8912 *lt = bridge_to_lt8912(bridge);
 
@@ -620,7 +628,7 @@ static struct edid *lt8912_bridge_get_edid(struct drm_bridge *bridge,
 	 * given to the hdmi connector node.
 	 */
 	if (lt->hdmi_port->ops & DRM_BRIDGE_OP_EDID)
-		return drm_bridge_get_edid(lt->hdmi_port, connector);
+		return drm_bridge_edid_read(lt->hdmi_port, connector);
 
 	dev_warn(lt->dev, "The connected bridge does not supports DRM_BRIDGE_OP_EDID\n");
 	return NULL;
@@ -632,8 +640,50 @@ static const struct drm_bridge_funcs lt8912_bridge_funcs = {
 	.mode_set = lt8912_bridge_mode_set,
 	.enable = lt8912_bridge_enable,
 	.detect = lt8912_bridge_detect,
-	.get_edid = lt8912_bridge_get_edid,
+	.edid_read = lt8912_bridge_edid_read,
 };
+
+static int lt8912_bridge_resume(struct device *dev)
+{
+	struct lt8912 *lt = dev_get_drvdata(dev);
+	int ret;
+
+	ret = lt8912_hard_power_on(lt);
+	if (ret)
+		return ret;
+
+	ret = lt8912_soft_power_on(lt);
+	if (ret)
+		return ret;
+
+	return lt8912_video_on(lt);
+}
+
+static int lt8912_bridge_suspend(struct device *dev)
+{
+	struct lt8912 *lt = dev_get_drvdata(dev);
+
+	lt8912_hard_power_off(lt);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(lt8912_bridge_pm_ops, lt8912_bridge_suspend, lt8912_bridge_resume);
+
+static int lt8912_get_regulators(struct lt8912 *lt)
+{
+	unsigned int i;
+	const char * const supply_names[] = {
+		"vdd", "vccmipirx", "vccsysclk", "vcclvdstx",
+		"vcchdmitx", "vcclvdspll", "vcchdmipll"
+	};
+
+	for (i = 0; i < ARRAY_SIZE(lt->supplies); i++)
+		lt->supplies[i].supply = supply_names[i];
+
+	return devm_regulator_bulk_get(lt->dev, ARRAY_SIZE(lt->supplies),
+				       lt->supplies);
+}
 
 static int lt8912_parse_dt(struct lt8912 *lt)
 {
@@ -685,6 +735,10 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 		ret = -EINVAL;
 		goto err_free_host_node;
 	}
+
+	ret = lt8912_get_regulators(lt);
+	if (ret)
+		goto err_free_host_node;
 
 	of_node_put(port_node);
 	return 0;
@@ -750,7 +804,6 @@ static void lt8912_remove(struct i2c_client *client)
 {
 	struct lt8912 *lt = i2c_get_clientdata(client);
 
-	lt8912_bridge_detach(&lt->bridge);
 	drm_bridge_remove(&lt->bridge);
 	lt8912_free_i2c(lt);
 	lt8912_put_dt(lt);
@@ -772,6 +825,7 @@ static struct i2c_driver lt8912_i2c_driver = {
 	.driver = {
 		.name = "lt8912",
 		.of_match_table = lt8912_dt_match,
+		.pm = pm_sleep_ptr(&lt8912_bridge_pm_ops),
 	},
 	.probe = lt8912_probe,
 	.remove = lt8912_remove,

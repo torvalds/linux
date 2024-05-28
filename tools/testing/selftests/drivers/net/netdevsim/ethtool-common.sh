@@ -51,6 +51,7 @@ function make_netdev {
     fi
 
     echo $NSIM_ID $@ > /sys/bus/netdevsim/new_device
+    udevadm settle
     # get new device name
     ls /sys/bus/netdevsim/devices/netdevsim${NSIM_ID}/net/
 }

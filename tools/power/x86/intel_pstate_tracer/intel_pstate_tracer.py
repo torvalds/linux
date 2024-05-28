@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
 # -*- coding: utf-8 -*-
 #
@@ -11,11 +11,11 @@ then this utility enables and collects trace data for a user specified interval
 and generates performance plots.
 
 Prerequisites:
-    Python version 2.7.x or higher
+    Python version 3.6.x or higher
     gnuplot 5.0 or higher
-    gnuplot-py 1.8 or higher
+    python3-gnuplot 1.8 or higher
     (Most of the distributions have these required packages. They may be called
-     gnuplot-py, phython-gnuplot or phython3-gnuplot, gnuplot-nox, ... )
+     gnuplot-py, python-gnuplot or python3-gnuplot, gnuplot-nox, ... )
 
     HWP (Hardware P-States are disabled)
     Kernel config for Linux trace is enabled
@@ -23,7 +23,7 @@ Prerequisites:
     see print_help(): for Usage and Output details
 
 """
-from __future__ import print_function
+
 from datetime import datetime
 import subprocess
 import os
@@ -562,7 +562,7 @@ if __name__ == "__main__":
 
     # Temporary (or perhaps not)
     cur_version = sys.version_info
-    print('python version (should be >= 2.7):')
+    print('python version (should be >= 3.6):')
     print(cur_version)
 
     # Left as "cleanup" for potential future re-run ability.

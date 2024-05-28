@@ -15,6 +15,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+#include "bpf_compiler.h"
 #include "xdping.h"
 
 struct {
@@ -116,7 +117,7 @@ int xdping_client(struct xdp_md *ctx)
 		return XDP_PASS;
 
 	if (pinginfo->start) {
-#pragma clang loop unroll(full)
+		__pragma_loop_unroll_full
 		for (i = 0; i < XDPING_MAX_COUNT; i++) {
 			if (pinginfo->times[i] == 0)
 				break;

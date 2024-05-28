@@ -22,8 +22,6 @@
 #define PAGE_SIZE		(4 * 1024)
 #define MB			(1024 * 1024)
 
-static unsigned char *startptr;
-
 static void sb(void)
 {
 #if defined(__i386) || defined(__x86_64)
@@ -40,32 +38,105 @@ static void cl_flush(void *p)
 #endif
 }
 
-static void mem_flush(void *p, size_t s)
+void mem_flush(unsigned char *buf, size_t buf_size)
 {
-	char *cp = (char *)p;
+	unsigned char *cp = buf;
 	size_t i = 0;
 
-	s = s / CL_SIZE; /* mem size in cache llines */
+	buf_size = buf_size / CL_SIZE; /* mem size in cache lines */
 
-	for (i = 0; i < s; i++)
+	for (i = 0; i < buf_size; i++)
 		cl_flush(&cp[i * CL_SIZE]);
 
 	sb();
 }
 
-static void *malloc_and_init_memory(size_t s)
+/*
+ * Buffer index step advance to workaround HW prefetching interfering with
+ * the measurements.
+ *
+ * Must be a prime to step through all indexes of the buffer.
+ *
+ * Some primes work better than others on some architectures (from MBA/MBM
+ * result stability point of view).
+ */
+#define FILL_IDX_MULT	23
+
+static int fill_one_span_read(unsigned char *buf, size_t buf_size)
 {
-	void *p = NULL;
+	unsigned int size = buf_size / (CL_SIZE / 2);
+	unsigned int i, idx = 0;
+	unsigned char sum = 0;
+
+	/*
+	 * Read the buffer in an order that is unexpected by HW prefetching
+	 * optimizations to prevent them interfering with the caching pattern.
+	 *
+	 * The read order is (in terms of halves of cachelines):
+	 *	i * FILL_IDX_MULT % size
+	 * The formula is open-coded below to avoiding modulo inside the loop
+	 * as it improves MBA/MBM result stability on some architectures.
+	 */
+	for (i = 0; i < size; i++) {
+		sum += buf[idx * (CL_SIZE / 2)];
+
+		idx += FILL_IDX_MULT;
+		while (idx >= size)
+			idx -= size;
+	}
+
+	return sum;
+}
+
+static void fill_one_span_write(unsigned char *buf, size_t buf_size)
+{
+	unsigned char *end_ptr = buf + buf_size;
+	unsigned char *p;
+
+	p = buf;
+	while (p < end_ptr) {
+		*p = '1';
+		p += (CL_SIZE / 2);
+	}
+}
+
+void fill_cache_read(unsigned char *buf, size_t buf_size, bool once)
+{
+	int ret = 0;
+
+	while (1) {
+		ret = fill_one_span_read(buf, buf_size);
+		if (once)
+			break;
+	}
+
+	/* Consume read result so that reading memory is not optimized out. */
+	*value_sink = ret;
+}
+
+static void fill_cache_write(unsigned char *buf, size_t buf_size, bool once)
+{
+	while (1) {
+		fill_one_span_write(buf, buf_size);
+		if (once)
+			break;
+	}
+}
+
+unsigned char *alloc_buffer(size_t buf_size, int memflush)
+{
+	void *buf = NULL;
 	uint64_t *p64;
 	size_t s64;
 	int ret;
 
-	ret = posix_memalign(&p, PAGE_SIZE, s);
+	ret = posix_memalign(&buf, PAGE_SIZE, buf_size);
 	if (ret < 0)
 		return NULL;
 
-	p64 = (uint64_t *)p;
-	s64 = s / sizeof(uint64_t);
+	/* Initialize the buffer */
+	p64 = buf;
+	s64 = buf_size / sizeof(uint64_t);
 
 	while (s64 > 0) {
 		*p64 = (uint64_t)rand();
@@ -73,132 +144,26 @@ static void *malloc_and_init_memory(size_t s)
 		s64 -= (CL_SIZE / sizeof(uint64_t));
 	}
 
-	return p;
-}
-
-static int fill_one_span_read(unsigned char *start_ptr, unsigned char *end_ptr)
-{
-	unsigned char sum, *p;
-
-	sum = 0;
-	p = start_ptr;
-	while (p < end_ptr) {
-		sum += *p;
-		p += (CL_SIZE / 2);
-	}
-
-	return sum;
-}
-
-static
-void fill_one_span_write(unsigned char *start_ptr, unsigned char *end_ptr)
-{
-	unsigned char *p;
-
-	p = start_ptr;
-	while (p < end_ptr) {
-		*p = '1';
-		p += (CL_SIZE / 2);
-	}
-}
-
-static int fill_cache_read(unsigned char *start_ptr, unsigned char *end_ptr,
-			   char *resctrl_val)
-{
-	int ret = 0;
-	FILE *fp;
-
-	while (1) {
-		ret = fill_one_span_read(start_ptr, end_ptr);
-		if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)))
-			break;
-	}
-
-	/* Consume read result so that reading memory is not optimized out. */
-	fp = fopen("/dev/null", "w");
-	if (!fp) {
-		perror("Unable to write to /dev/null");
-		return -1;
-	}
-	fprintf(fp, "Sum: %d ", ret);
-	fclose(fp);
-
-	return 0;
-}
-
-static int fill_cache_write(unsigned char *start_ptr, unsigned char *end_ptr,
-			    char *resctrl_val)
-{
-	while (1) {
-		fill_one_span_write(start_ptr, end_ptr);
-		if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)))
-			break;
-	}
-
-	return 0;
-}
-
-static int
-fill_cache(unsigned long long buf_size, int malloc_and_init, int memflush,
-	   int op, char *resctrl_val)
-{
-	unsigned char *start_ptr, *end_ptr;
-	unsigned long long i;
-	int ret;
-
-	if (malloc_and_init)
-		start_ptr = malloc_and_init_memory(buf_size);
-	else
-		start_ptr = malloc(buf_size);
-
-	if (!start_ptr)
-		return -1;
-
-	startptr = start_ptr;
-	end_ptr = start_ptr + buf_size;
-
-	/*
-	 * It's better to touch the memory once to avoid any compiler
-	 * optimizations
-	 */
-	if (!malloc_and_init) {
-		for (i = 0; i < buf_size; i++)
-			*start_ptr++ = (unsigned char)rand();
-	}
-
-	start_ptr = startptr;
-
 	/* Flush the memory before using to avoid "cache hot pages" effect */
 	if (memflush)
-		mem_flush(start_ptr, buf_size);
+		mem_flush(buf, buf_size);
 
-	if (op == 0)
-		ret = fill_cache_read(start_ptr, end_ptr, resctrl_val);
-	else
-		ret = fill_cache_write(start_ptr, end_ptr, resctrl_val);
-
-	if (ret) {
-		printf("\n Error in fill cache read/write...\n");
-		return -1;
-	}
-
-	free(startptr);
-
-	return 0;
+	return buf;
 }
 
-int run_fill_buf(unsigned long span, int malloc_and_init_memory,
-		 int memflush, int op, char *resctrl_val)
+int run_fill_buf(size_t buf_size, int memflush, int op, bool once)
 {
-	unsigned long long cache_size = span;
-	int ret;
+	unsigned char *buf;
 
-	ret = fill_cache(cache_size, malloc_and_init_memory, memflush, op,
-			 resctrl_val);
-	if (ret) {
-		printf("\n Error in fill cache\n");
+	buf = alloc_buffer(buf_size, memflush);
+	if (!buf)
 		return -1;
-	}
+
+	if (op == 0)
+		fill_cache_read(buf, buf_size, once);
+	else
+		fill_cache_write(buf, buf_size, once);
+	free(buf);
 
 	return 0;
 }

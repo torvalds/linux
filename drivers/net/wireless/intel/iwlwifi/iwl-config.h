@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #ifndef __IWL_CONFIG_H__
 #define __IWL_CONFIG_H__
@@ -12,6 +12,7 @@
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
 #include "iwl-csr.h"
+#include "iwl-drv.h"
 
 enum iwl_device_family {
 	IWL_DEVICE_FAMILY_UNDEFINED,
@@ -86,10 +87,7 @@ enum iwl_nvm_type {
 #define IWL_DEFAULT_MAX_TX_POWER 22
 #define IWL_TX_CSUM_NETIF_FLAGS (NETIF_F_IPV6_CSUM | NETIF_F_IP_CSUM |\
 				 NETIF_F_TSO | NETIF_F_TSO6)
-#define IWL_TX_CSUM_NETIF_FLAGS_BZ (NETIF_F_HW_CSUM | NETIF_F_TSO | NETIF_F_TSO6)
-#define IWL_CSUM_NETIF_FLAGS_MASK (IWL_TX_CSUM_NETIF_FLAGS | \
-				   IWL_TX_CSUM_NETIF_FLAGS_BZ | \
-				   NETIF_F_RXCSUM)
+#define IWL_CSUM_NETIF_FLAGS_MASK (IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM)
 
 /* Antenna presence definitions */
 #define	ANT_NONE	0x0
@@ -250,7 +248,6 @@ enum iwl_cfg_trans_ltr_delay {
  * RFID can be read before deciding the remaining parameters to use.
  *
  * @base_params: pointer to basic parameters
- * @csr: csr flags and addresses that are different across devices
  * @device_family: the device family
  * @umac_prph_offset: offset to add to UMAC periphery address
  * @xtal_latency: power up latency to get the xtal stabilized
@@ -319,7 +316,6 @@ struct iwl_fw_mon_regs {
  * @non_shared_ant: the antenna that is for WiFi only
  * @nvm_ver: NVM version
  * @nvm_calib_ver: NVM calibration version
- * @lib: pointer to the lib ops
  * @ht_params: point to ht parameters
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
@@ -344,15 +340,12 @@ struct iwl_fw_mon_regs {
  * @nvm_type: see &enum iwl_nvm_type
  * @d3_debug_data_base_addr: base address where D3 debug data is stored
  * @d3_debug_data_length: length of the D3 debug data
- * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @min_txq_size: minimum number of slots required in a TX queue
  * @uhb_supported: ultra high band channels supported
  * @min_ba_txq_size: minimum number of slots required in a TX queue which
  *	based on hardware support (HE - 256, EHT - 1K).
  * @num_rbds: number of receive buffer descriptors to use
  *	(only used for multi-queue capable devices)
- * @mac_addr_csr_base: CSR base register for MAC address access, if not set
- *	assume 0x380
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -385,7 +378,6 @@ struct iwl_cfg {
 	u16 nvm_calib_ver;
 	u32 rx_with_siso_diversity:1,
 	    tx_with_siso_diversity:1,
-	    bt_shared_single_ant:1,
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
 	    high_temp:1,
@@ -427,6 +419,8 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_BZ		0x46
 #define IWL_CFG_MAC_TYPE_GL		0x47
 #define IWL_CFG_MAC_TYPE_SC		0x48
+#define IWL_CFG_MAC_TYPE_SC2		0x49
+#define IWL_CFG_MAC_TYPE_SC2F		0x4A
 
 #define IWL_CFG_RF_TYPE_TH		0x105
 #define IWL_CFG_RF_TYPE_TH1		0x108
@@ -450,6 +444,9 @@ struct iwl_cfg {
 
 #define IWL_CFG_NO_160			0x1
 #define IWL_CFG_160			0x0
+
+#define IWL_CFG_NO_320			0x1
+#define IWL_CFG_320			0x0
 
 #define IWL_CFG_CORES_BT		0x0
 #define IWL_CFG_CORES_BT_GNSS		0x5
@@ -479,6 +476,15 @@ struct iwl_dev_info {
 	const struct iwl_cfg *cfg;
 	const char *name;
 };
+
+#if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
+extern const struct iwl_dev_info iwl_dev_info_table[];
+extern const unsigned int iwl_dev_info_table_size;
+const struct iwl_dev_info *
+iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
+		      u16 mac_type, u8 mac_step, u16 rf_type, u8 cdb,
+		      u8 jacket, u8 rf_id, u8 no_160, u8 cores, u8 rf_step);
+#endif
 
 /*
  * This list declares the config structures for all devices.
@@ -535,7 +541,10 @@ extern const char iwl_ax221_name[];
 extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];
 extern const char iwl_bz_name[];
+extern const char iwl_mtp_name[];
 extern const char iwl_sc_name[];
+extern const char iwl_sc2_name[];
+extern const char iwl_sc2f_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
 extern const struct iwl_cfg iwl5100_agn_cfg;
@@ -641,6 +650,8 @@ extern const struct iwl_cfg iwl_cfg_bz;
 extern const struct iwl_cfg iwl_cfg_gl;
 
 extern const struct iwl_cfg iwl_cfg_sc;
+extern const struct iwl_cfg iwl_cfg_sc2;
+extern const struct iwl_cfg iwl_cfg_sc2f;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

@@ -361,7 +361,7 @@ static int mlxsw_sp_mr_tcam_route_stats(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_mr_tcam_route *route = route_priv;
 
 	return mlxsw_sp_flow_counter_get(mlxsw_sp, route->counter_index,
-					 packets, bytes);
+					 false, packets, bytes);
 }
 
 static int

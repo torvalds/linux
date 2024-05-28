@@ -306,7 +306,7 @@ static inline struct isci_pci_info *to_pci_info(struct pci_dev *pdev)
 
 static inline struct Scsi_Host *to_shost(struct isci_host *ihost)
 {
-	return ihost->sas_ha.core.shost;
+	return ihost->sas_ha.shost;
 }
 
 #define for_each_isci_host(id, ihost, pdev) \

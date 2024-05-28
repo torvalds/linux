@@ -15,7 +15,7 @@
 
 /**
  * vxfs_immed_read_folio - read part of an immed inode into pagecache
- * @file:	file context (unused)
+ * @fp:		file context (unused)
  * @folio:	folio to fill in.
  *
  * Description:

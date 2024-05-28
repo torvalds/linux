@@ -21,6 +21,7 @@
 #include <linux/types.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
+#include <acpi/acpi_numa.h>
 #include <linux/cpumask.h>
 #include <linux/nmi.h>
 #include <asm/ptrace.h>
@@ -36,15 +37,22 @@ struct ms_hyperv_info {
 	u32 nested_features;
 	u32 max_vp_index;
 	u32 max_lp_index;
-	u32 isolation_config_a;
+	u8 vtl;
+	union {
+		u32 isolation_config_a;
+		struct {
+			u32 paravisor_present : 1;
+			u32 reserved_a1 : 31;
+		};
+	};
 	union {
 		u32 isolation_config_b;
 		struct {
 			u32 cvm_type : 4;
-			u32 reserved1 : 1;
+			u32 reserved_b1 : 1;
 			u32 shared_gpa_boundary_active : 1;
 			u32 shared_gpa_boundary_bits : 6;
-			u32 reserved2 : 20;
+			u32 reserved_b2 : 20;
 		};
 	};
 	u64 shared_gpa_boundary;
@@ -57,7 +65,21 @@ extern void * __percpu *hyperv_pcpu_output_arg;
 
 extern u64 hv_do_hypercall(u64 control, void *inputaddr, void *outputaddr);
 extern u64 hv_do_fast_hypercall8(u16 control, u64 input8);
-extern bool hv_isolation_type_snp(void);
+bool hv_isolation_type_snp(void);
+bool hv_isolation_type_tdx(void);
+
+static inline struct hv_proximity_domain_info hv_numa_node_to_pxm_info(int node)
+{
+	struct hv_proximity_domain_info pxm_info = {};
+
+	if (node != NUMA_NO_NODE) {
+		pxm_info.domain_id = node_to_pxm(node);
+		pxm_info.flags.proximity_info_valid = 1;
+		pxm_info.flags.proximity_preferred = 1;
+	}
+
+	return pxm_info;
+}
 
 /* Helper functions that provide a consistent pattern for checking Hyper-V hypercall status. */
 static inline int hv_result(u64 status)
@@ -149,9 +171,11 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 		 * possibly deliver another msg from the
 		 * hypervisor
 		 */
-		hv_set_register(HV_REGISTER_EOM, 0);
+		hv_set_msr(HV_MSR_EOM, 0);
 	}
 }
+
+int hv_get_hypervisor_version(union hv_hypervisor_version_info *info);
 
 void hv_setup_vmbus_handler(void (*handler)(void));
 void hv_remove_vmbus_handler(void);
@@ -185,6 +209,7 @@ extern u64 (*hv_read_reference_counter)(void);
 
 int __init hv_common_init(void);
 void __init hv_common_free(void);
+void __init ms_hyperv_late_init(void);
 int hv_common_cpu_init(unsigned int cpu);
 int hv_common_cpu_die(unsigned int cpu);
 
@@ -274,6 +299,7 @@ enum hv_isolation_type hv_get_isolation_type(void);
 bool hv_is_isolation_supported(void);
 bool hv_isolation_type_snp(void);
 u64 hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_size);
+u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2);
 void hyperv_cleanup(void);
 bool hv_query_ext_cap(u64 cap_query);
 void hv_setup_dma_ops(struct device *dev, bool coherent);
@@ -281,6 +307,7 @@ void hv_setup_dma_ops(struct device *dev, bool coherent);
 static inline bool hv_is_hyperv_initialized(void) { return false; }
 static inline bool hv_is_hibernation_supported(void) { return false; }
 static inline void hyperv_cleanup(void) {}
+static inline void ms_hyperv_late_init(void) {}
 static inline bool hv_is_isolation_supported(void) { return false; }
 static inline enum hv_isolation_type hv_get_isolation_type(void)
 {

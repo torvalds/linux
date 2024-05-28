@@ -30,7 +30,6 @@
 #include <linux/mfd/max77620.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -173,7 +172,7 @@ static const struct regmap_config max77620_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = MAX77620_REG_DVSSD4 + 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.rd_table = &max77620_readable_table,
 	.wr_table = &max77620_writable_table,
 	.volatile_table = &max77620_volatile_table,
@@ -185,7 +184,7 @@ static const struct regmap_config max20024_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = MAX20024_REG_MAX_ADD + 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.rd_table = &max20024_readable_table,
 	.wr_table = &max77620_writable_table,
 	.volatile_table = &max77620_volatile_table,
@@ -214,7 +213,7 @@ static const struct regmap_config max77663_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = MAX77620_REG_CID5 + 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.rd_table = &max77663_readable_table,
 	.wr_table = &max77663_writable_table,
 	.volatile_table = &max77620_volatile_table,

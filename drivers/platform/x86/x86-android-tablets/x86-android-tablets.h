@@ -10,9 +10,11 @@
 #ifndef __PDX86_X86_ANDROID_TABLETS_H
 #define __PDX86_X86_ANDROID_TABLETS_H
 
+#include <linux/gpio/consumer.h>
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
 #include <linux/irqdomain_defs.h>
+#include <linux/spi/spi.h>
 
 struct gpio_desc;
 struct gpiod_lookup_table;
@@ -37,12 +39,20 @@ struct x86_acpi_irq_data {
 	int index;
 	int trigger;  /* ACPI_EDGE_SENSITIVE / ACPI_LEVEL_SENSITIVE */
 	int polarity; /* ACPI_ACTIVE_HIGH / ACPI_ACTIVE_LOW / ACPI_ACTIVE_BOTH */
+	bool free_gpio; /* Release GPIO after getting IRQ (for TYPE_GPIOINT) */
+	const char *con_id;
 };
 
 /* Structs to describe devices to instantiate */
 struct x86_i2c_client_info {
 	struct i2c_board_info board_info;
 	char *adapter_path;
+	struct x86_acpi_irq_data irq_data;
+};
+
+struct x86_spi_dev_info {
+	struct spi_board_info board_info;
+	char *ctrl_path;
 	struct x86_acpi_irq_data irq_data;
 };
 
@@ -66,15 +76,16 @@ struct x86_gpio_button {
 };
 
 struct x86_dev_info {
-	char *invalid_aei_gpiochip;
 	const char * const *modules;
 	const struct software_node *bat_swnode;
 	struct gpiod_lookup_table * const *gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
+	const struct x86_spi_dev_info *spi_dev_info;
 	const struct platform_device_info *pdev_info;
 	const struct x86_serdev_info *serdev_info;
 	const struct x86_gpio_button *gpio_button;
 	int i2c_client_count;
+	int spi_dev_count;
 	int pdev_count;
 	int serdev_count;
 	int gpio_button_count;
@@ -82,7 +93,9 @@ struct x86_dev_info {
 	void (*exit)(void);
 };
 
-int x86_android_tablet_get_gpiod(const char *label, int pin, struct gpio_desc **desc);
+int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
+				 bool active_low, enum gpiod_flags dflags,
+				 struct gpio_desc **desc);
 int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data);
 
 /*

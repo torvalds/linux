@@ -476,11 +476,9 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 
 void
 brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
-	u8 ba_wsize,		/* negotiated ba window size (in pdu) */
 	uint max_rx_ampdu_bytes) /* from ht_cap in beacon */
 {
 	struct scb_ampdu *scb_ampdu;
-	struct scb_ampdu_tid_ini *ini;
 	struct ampdu_info *ampdu = wlc->ampdu;
 	struct scb *scb = &wlc->pri_scb;
 	scb_ampdu = &scb->scb_ampdu;
@@ -491,10 +489,6 @@ brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
 		return;
 	}
 
-	ini = &scb_ampdu->ini[tid];
-	ini->tid = tid;
-	ini->scb = scb_ampdu->scb;
-	ini->ba_wsize = ba_wsize;
 	scb_ampdu->max_rx_ampdu_bytes = max_rx_ampdu_bytes;
 }
 

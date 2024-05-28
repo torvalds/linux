@@ -93,6 +93,7 @@ struct regmap {
 #endif
 
 	unsigned int max_register;
+	bool max_register_is_set;
 	bool (*writeable_reg)(struct device *dev, unsigned int reg);
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
@@ -318,6 +319,7 @@ struct regmap_ram_data {
 	bool *read;
 	bool *written;
 	enum regmap_endian reg_endian;
+	bool (*noinc_reg)(struct regmap_ram_data *data, unsigned int reg);
 };
 
 /*

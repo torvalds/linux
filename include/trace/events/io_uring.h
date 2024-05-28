@@ -148,7 +148,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__field(  void *,			req		)
 		__field(  u64,				user_data	)
 		__field(  u8,				opcode		)
-		__field(  unsigned int,			flags		)
+		__field(  unsigned long long,		flags		)
 		__field(  struct io_wq_work *,		work		)
 		__field(  int,				rw		)
 
@@ -159,7 +159,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__entry->ctx		= req->ctx;
 		__entry->req		= req;
 		__entry->user_data	= req->cqe.user_data;
-		__entry->flags		= req->flags;
+		__entry->flags		= (__force unsigned long long) req->flags;
 		__entry->opcode		= req->opcode;
 		__entry->work		= &req->work;
 		__entry->rw		= rw;
@@ -167,10 +167,10 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__assign_str(op_str, io_uring_get_opcode(req->opcode));
 	),
 
-	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, flags 0x%x, %s queue, work %p",
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, flags 0x%llx, %s queue, work %p",
 		__entry->ctx, __entry->req, __entry->user_data,
-		__get_str(op_str),
-		__entry->flags, __entry->rw ? "hashed" : "normal", __entry->work)
+		__get_str(op_str), __entry->flags,
+		__entry->rw ? "hashed" : "normal", __entry->work)
 );
 
 /**
@@ -378,7 +378,7 @@ TRACE_EVENT(io_uring_submit_req,
 		__field(  void *,		req		)
 		__field(  unsigned long long,	user_data	)
 		__field(  u8,			opcode		)
-		__field(  u32,			flags		)
+		__field(  unsigned long long,	flags		)
 		__field(  bool,			sq_thread	)
 
 		__string( op_str, io_uring_get_opcode(req->opcode) )
@@ -389,16 +389,16 @@ TRACE_EVENT(io_uring_submit_req,
 		__entry->req		= req;
 		__entry->user_data	= req->cqe.user_data;
 		__entry->opcode		= req->opcode;
-		__entry->flags		= req->flags;
+		__entry->flags		= (__force unsigned long long) req->flags;
 		__entry->sq_thread	= req->ctx->flags & IORING_SETUP_SQPOLL;
 
 		__assign_str(op_str, io_uring_get_opcode(req->opcode));
 	),
 
-	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, flags 0x%x, "
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, flags 0x%llx, "
 		  "sq_thread %d", __entry->ctx, __entry->req,
-		  __entry->user_data, __get_str(op_str),
-		  __entry->flags, __entry->sq_thread)
+		  __entry->user_data, __get_str(op_str), __entry->flags,
+		  __entry->sq_thread)
 );
 
 /*
@@ -602,29 +602,25 @@ TRACE_EVENT(io_uring_cqe_overflow,
  *
  * @tctx:		pointer to a io_uring_task
  * @count:		how many functions it ran
- * @loops:		how many loops it ran
  *
  */
 TRACE_EVENT(io_uring_task_work_run,
 
-	TP_PROTO(void *tctx, unsigned int count, unsigned int loops),
+	TP_PROTO(void *tctx, unsigned int count),
 
-	TP_ARGS(tctx, count, loops),
+	TP_ARGS(tctx, count),
 
 	TP_STRUCT__entry (
 		__field(  void *,		tctx		)
 		__field(  unsigned int,		count		)
-		__field(  unsigned int,		loops		)
 	),
 
 	TP_fast_assign(
 		__entry->tctx		= tctx;
 		__entry->count		= count;
-		__entry->loops		= loops;
 	),
 
-	TP_printk("tctx %p, count %u, loops %u",
-		 __entry->tctx, __entry->count, __entry->loops)
+	TP_printk("tctx %p, count %u", __entry->tctx, __entry->count)
 );
 
 TRACE_EVENT(io_uring_short_write,

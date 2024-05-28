@@ -198,8 +198,7 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 				DRM_DEBUG("%s: HDMI deep color 10 bpc exceeds max tmds clock. Using %d bpc.\n",
 						  connector->name, bpc);
 			}
-		}
-		else if (bpc > 8) {
+		} else if (bpc > 8) {
 			/* max_tmds_clock missing, but hdmi spec mandates it for deep color. */
 			DRM_DEBUG("%s: Required max tmds clock for HDMI deep color missing. Using 8 bpc.\n",
 					  connector->name);
@@ -334,10 +333,8 @@ static void radeon_connector_free_edid(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
-	if (radeon_connector->edid) {
-		kfree(radeon_connector->edid);
-		radeon_connector->edid = NULL;
-	}
+	kfree(radeon_connector->edid);
+	radeon_connector->edid = NULL;
 }
 
 static int radeon_ddc_get_modes(struct drm_connector *connector)
@@ -1122,6 +1119,8 @@ static int radeon_tv_get_modes(struct drm_connector *connector)
 	else {
 		/* only 800x600 is supported right now on pre-avivo chips */
 		tv_mode = drm_cvt_mode(dev, 800, 600, 60, false, false, false);
+		if (!tv_mode)
+			return 0;
 		tv_mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_probed_add(connector, tv_mode);
 	}
@@ -1372,7 +1371,7 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 					/* assume digital unless load detected otherwise */
 					radeon_connector->use_digital = true;
 					lret = encoder_funcs->detect(encoder, connector);
-					DRM_DEBUG_KMS("load_detect %x returned: %x\n",encoder->encoder_type,lret);
+					DRM_DEBUG_KMS("load_detect %x returned: %x\n", encoder->encoder_type, lret);
 					if (lret == connector_status_connected)
 						radeon_connector->use_digital = false;
 				}

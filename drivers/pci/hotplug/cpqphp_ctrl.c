@@ -2059,7 +2059,7 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 				return rc;
 
 			/* If it's a bridge, check the VGA Enable bit */
-			if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+			if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 				rc = pci_bus_read_config_byte(pci_bus, devfn, PCI_BRIDGE_CONTROL, &BCR);
 				if (rc)
 					return rc;
@@ -2342,7 +2342,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 	if (rc)
 		return rc;
 
-	if ((temp_byte & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+	if ((temp_byte & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 		/* set Primary bus */
 		dbg("set Primary bus = %d\n", func->bus);
 		rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_PRIMARY_BUS, func->bus);
@@ -2739,7 +2739,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 					 *   PCI_BRIDGE_CTL_SERR |
 					 *   PCI_BRIDGE_CTL_NO_ISA */
 		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_BRIDGE_CONTROL, command);
-	} else if ((temp_byte & 0x7F) == PCI_HEADER_TYPE_NORMAL) {
+	} else if ((temp_byte & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_NORMAL) {
 		/* Standard device */
 		rc = pci_bus_read_config_byte(pci_bus, devfn, 0x0B, &class_code);
 

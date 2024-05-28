@@ -72,6 +72,7 @@ static void process_pfvf_mbox_mbox_msg(struct otx2_cptvf_dev *cptvf,
 	struct otx2_cptlfs_info *lfs = &cptvf->lfs;
 	struct otx2_cpt_kvf_limits_rsp *rsp_limits;
 	struct otx2_cpt_egrp_num_rsp *rsp_grp;
+	struct otx2_cpt_caps_rsp *eng_caps;
 	struct cpt_rd_wr_reg_msg *rsp_reg;
 	struct msix_offset_rsp *rsp_msix;
 	int i;
@@ -126,6 +127,13 @@ static void process_pfvf_mbox_mbox_msg(struct otx2_cptvf_dev *cptvf,
 	case MBOX_MSG_GET_KVF_LIMITS:
 		rsp_limits = (struct otx2_cpt_kvf_limits_rsp *) msg;
 		cptvf->lfs.kvf_limits = rsp_limits->kvf_limits;
+		break;
+	case MBOX_MSG_GET_CAPS:
+		eng_caps = (struct otx2_cpt_caps_rsp *)msg;
+		memcpy(cptvf->eng_caps, eng_caps->eng_caps,
+		       sizeof(cptvf->eng_caps));
+		break;
+	case MBOX_MSG_CPT_LF_RESET:
 		break;
 	default:
 		dev_err(&cptvf->pdev->dev, "Unsupported msg %d received.\n",
@@ -200,6 +208,26 @@ int otx2_cptvf_send_kvf_limits_msg(struct otx2_cptvf_dev *cptvf)
 		return -EFAULT;
 	}
 	req->id = MBOX_MSG_GET_KVF_LIMITS;
+	req->sig = OTX2_MBOX_REQ_SIG;
+	req->pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->vf_id, 0);
+
+	return otx2_cpt_send_mbox_msg(mbox, pdev);
+}
+
+int otx2_cptvf_send_caps_msg(struct otx2_cptvf_dev *cptvf)
+{
+	struct otx2_mbox *mbox = &cptvf->pfvf_mbox;
+	struct pci_dev *pdev = cptvf->pdev;
+	struct mbox_msghdr *req;
+
+	req = (struct mbox_msghdr *)
+	      otx2_mbox_alloc_msg_rsp(mbox, 0, sizeof(*req),
+				      sizeof(struct otx2_cpt_caps_rsp));
+	if (!req) {
+		dev_err(&pdev->dev, "RVU MBOX failed to get message.\n");
+		return -EFAULT;
+	}
+	req->id = MBOX_MSG_GET_CAPS;
 	req->sig = OTX2_MBOX_REQ_SIG;
 	req->pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->vf_id, 0);
 

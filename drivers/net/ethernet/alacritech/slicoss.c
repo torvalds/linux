@@ -1520,10 +1520,8 @@ static void slic_get_ethtool_stats(struct net_device *dev,
 
 static void slic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
-	if (stringset == ETH_SS_STATS) {
+	if (stringset == ETH_SS_STATS)
 		memcpy(data, slic_stats_strings, sizeof(slic_stats_strings));
-		data += sizeof(slic_stats_strings);
-	}
 }
 
 static void slic_get_drvinfo(struct net_device *dev,

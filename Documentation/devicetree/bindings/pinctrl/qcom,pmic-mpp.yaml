@@ -158,34 +158,40 @@ examples:
   - |
     #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
-    pm8841_mpp: mpps@a000 {
-      compatible = "qcom,pm8841-mpp", "qcom,spmi-mpp";
-      reg = <0xa000 0>;
-      gpio-controller;
-      #gpio-cells = <2>;
-      gpio-ranges = <&pm8841_mpp 0 0 4>;
-      gpio-line-names = "VDD_PX_BIAS", "WLAN_LED_CTRL",
-              "BT_LED_CTRL", "GPIO-F";
-      interrupt-controller;
-      #interrupt-cells = <2>;
+    pmic {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      pinctrl-names = "default";
-      pinctrl-0 = <&pm8841_default>;
+        pm8841_mpp: mpps@a000 {
+            compatible = "qcom,pm8841-mpp", "qcom,spmi-mpp";
+            reg = <0xa000>;
 
-      mpp1-state {
-        pins = "mpp1";
-        function = "digital";
-        input-enable;
-        power-source = <PM8841_MPP_S3>;
-      };
+            gpio-controller;
+            #gpio-cells = <2>;
+            gpio-ranges = <&pm8841_mpp 0 0 4>;
+            gpio-line-names = "VDD_PX_BIAS", "WLAN_LED_CTRL",
+                              "BT_LED_CTRL", "GPIO-F";
+            interrupt-controller;
+            #interrupt-cells = <2>;
 
-      default-state {
-        gpio-pins {
-          pins = "mpp1", "mpp2", "mpp3", "mpp4";
-          function = "digital";
-          input-enable;
-          power-source = <PM8841_MPP_S3>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pm8841_default>;
+
+            mpp1-state {
+                pins = "mpp1";
+                function = "digital";
+                input-enable;
+                power-source = <PM8841_MPP_S3>;
+            };
+
+            default-state {
+                gpio-pins {
+                    pins = "mpp1", "mpp2", "mpp3", "mpp4";
+                    function = "digital";
+                    input-enable;
+                    power-source = <PM8841_MPP_S3>;
+                };
+            };
         };
-      };
     };
 ...

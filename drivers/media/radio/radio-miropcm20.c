@@ -199,11 +199,9 @@ static int pcm20_setfreq(struct pcm20 *dev, unsigned long freq)
 static int vidioc_querycap(struct file *file, void *priv,
 				struct v4l2_capability *v)
 {
-	struct pcm20 *dev = video_drvdata(file);
-
 	strscpy(v->driver, "Miro PCM20", sizeof(v->driver));
 	strscpy(v->card, "Miro PCM20", sizeof(v->card));
-	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", dev->v4l2_dev.name);
+	strscpy(v->bus_info, "ISA:radio-miropcm20", sizeof(v->bus_info));
 	return 0;
 }
 

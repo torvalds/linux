@@ -12,8 +12,7 @@
 #include "common.h"
 #include "descs_com.h"
 
-static int enh_desc_get_tx_status(struct net_device_stats *stats,
-				  struct stmmac_extra_stats *x,
+static int enh_desc_get_tx_status(struct stmmac_extra_stats *x,
 				  struct dma_desc *p, void __iomem *ioaddr)
 {
 	unsigned int tdes0 = le32_to_cpu(p->des0);
@@ -38,15 +37,13 @@ static int enh_desc_get_tx_status(struct net_device_stats *stats,
 
 		if (unlikely(tdes0 & ETDES0_LOSS_CARRIER)) {
 			x->tx_losscarrier++;
-			stats->tx_carrier_errors++;
 		}
 		if (unlikely(tdes0 & ETDES0_NO_CARRIER)) {
 			x->tx_carrier++;
-			stats->tx_carrier_errors++;
 		}
 		if (unlikely((tdes0 & ETDES0_LATE_COLLISION) ||
 			     (tdes0 & ETDES0_EXCESSIVE_COLLISIONS)))
-			stats->collisions +=
+			x->tx_collision +=
 				(tdes0 & ETDES0_COLLISION_COUNT_MASK) >> 3;
 
 		if (unlikely(tdes0 & ETDES0_EXCESSIVE_DEFERRAL))
@@ -117,8 +114,7 @@ static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 	return ret;
 }
 
-static void enh_desc_get_ext_status(struct net_device_stats *stats,
-				    struct stmmac_extra_stats *x,
+static void enh_desc_get_ext_status(struct stmmac_extra_stats *x,
 				    struct dma_extended_desc *p)
 {
 	unsigned int rdes0 = le32_to_cpu(p->basic.des0);
@@ -182,8 +178,7 @@ static void enh_desc_get_ext_status(struct net_device_stats *stats,
 	}
 }
 
-static int enh_desc_get_rx_status(struct net_device_stats *stats,
-				  struct stmmac_extra_stats *x,
+static int enh_desc_get_rx_status(struct stmmac_extra_stats *x,
 				  struct dma_desc *p)
 {
 	unsigned int rdes0 = le32_to_cpu(p->des0);
@@ -193,14 +188,14 @@ static int enh_desc_get_rx_status(struct net_device_stats *stats,
 		return dma_own;
 
 	if (unlikely(!(rdes0 & RDES0_LAST_DESCRIPTOR))) {
-		stats->rx_length_errors++;
+		x->rx_length++;
 		return discard_frame;
 	}
 
 	if (unlikely(rdes0 & RDES0_ERROR_SUMMARY)) {
 		if (unlikely(rdes0 & RDES0_DESCRIPTOR_ERROR)) {
 			x->rx_desc++;
-			stats->rx_length_errors++;
+			x->rx_length++;
 		}
 		if (unlikely(rdes0 & RDES0_OVERFLOW_ERROR))
 			x->rx_gmac_overflow++;
@@ -209,7 +204,7 @@ static int enh_desc_get_rx_status(struct net_device_stats *stats,
 			pr_err("\tIPC Csum Error/Giant frame\n");
 
 		if (unlikely(rdes0 & RDES0_COLLISION))
-			stats->collisions++;
+			x->rx_collision++;
 		if (unlikely(rdes0 & RDES0_RECEIVE_WATCHDOG))
 			x->rx_watchdog++;
 
@@ -218,7 +213,6 @@ static int enh_desc_get_rx_status(struct net_device_stats *stats,
 
 		if (unlikely(rdes0 & RDES0_CRC_ERROR)) {
 			x->rx_crc_errors++;
-			stats->rx_crc_errors++;
 		}
 		ret = discard_frame;
 	}

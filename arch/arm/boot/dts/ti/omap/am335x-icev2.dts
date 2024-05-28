@@ -5,7 +5,7 @@
 
 /*
  * AM335x ICE V2 board
- * http://www.ti.com/tool/tmdsice3359
+ * https://www.ti.com/tool/tmdsice3359
  */
 
 /dts-v1/;

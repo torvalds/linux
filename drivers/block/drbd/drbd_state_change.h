@@ -46,19 +46,19 @@ extern void forget_state_change(struct drbd_state_change *);
 
 extern int notify_resource_state_change(struct sk_buff *,
 					 unsigned int,
-					 struct drbd_resource_state_change *,
+					 void *,
 					 enum drbd_notification_type type);
 extern int notify_connection_state_change(struct sk_buff *,
 					   unsigned int,
-					   struct drbd_connection_state_change *,
+					   void *,
 					   enum drbd_notification_type type);
 extern int notify_device_state_change(struct sk_buff *,
 				       unsigned int,
-				       struct drbd_device_state_change *,
+				       void *,
 				       enum drbd_notification_type type);
 extern int notify_peer_device_state_change(struct sk_buff *,
 					    unsigned int,
-					    struct drbd_peer_device_state_change *,
+					    void *,
 					    enum drbd_notification_type type);
 
 #endif  /* DRBD_STATE_CHANGE_H */

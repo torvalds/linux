@@ -9,6 +9,7 @@
 
 #include <linux/kref.h>
 #include <linux/dma-resv.h>
+#include "drm/drm_exec.h"
 #include "drm/gpu_scheduler.h"
 #include "msm_drv.h"
 
@@ -59,24 +60,16 @@ struct msm_fence_context;
 
 struct msm_gem_vma {
 	struct drm_mm_node node;
-	spinlock_t lock;
 	uint64_t iova;
 	struct msm_gem_address_space *aspace;
 	struct list_head list;    /* node in msm_gem_object::vmas */
 	bool mapped;
-	int inuse;
-	uint32_t fence_mask;
-	uint32_t fence[MSM_GPU_MAX_RINGS];
-	struct msm_fence_context *fctx[MSM_GPU_MAX_RINGS];
 };
 
 struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace);
 int msm_gem_vma_init(struct msm_gem_vma *vma, int size,
 		u64 range_start, u64 range_end);
-bool msm_gem_vma_inuse(struct msm_gem_vma *vma);
 void msm_gem_vma_purge(struct msm_gem_vma *vma);
-void msm_gem_vma_unpin(struct msm_gem_vma *vma);
-void msm_gem_vma_unpin_fenced(struct msm_gem_vma *vma, struct msm_fence_context *fctx);
 int msm_gem_vma_map(struct msm_gem_vma *vma, int prot, struct sg_table *sgt, int size);
 void msm_gem_vma_close(struct msm_gem_vma *vma);
 
@@ -116,6 +109,10 @@ struct msm_gem_object {
 
 	char name[32]; /* Identifier to print for the debugfs files */
 
+	/* userspace metadata backchannel */
+	void *metadata;
+	u32 metadata_size;
+
 	/**
 	 * pin_count: Number of times the pages are pinned
 	 *
@@ -142,6 +139,7 @@ int msm_gem_get_and_pin_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace, uint64_t *iova);
 void msm_gem_unpin_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace);
+void msm_gem_pin_obj_locked(struct drm_gem_object *obj);
 struct page **msm_gem_pin_pages(struct drm_gem_object *obj);
 void msm_gem_unpin_pages(struct drm_gem_object *obj);
 int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
@@ -261,7 +259,7 @@ struct msm_gem_submit {
 	struct msm_gpu *gpu;
 	struct msm_gem_address_space *aspace;
 	struct list_head node;   /* node in ring submit list */
-	struct ww_acquire_ctx ticket;
+	struct drm_exec exec;
 	uint32_t seqno;		/* Sequence number of the submit on the ring */
 
 	/* Hw fence, which is created when the scheduler executes the job, and
@@ -277,9 +275,9 @@ struct msm_gem_submit {
 	int fence_id;       /* key into queue->fence_idr */
 	struct msm_gpu_submitqueue *queue;
 	struct pid *pid;    /* submitting process */
-	bool fault_dumped;  /* Limit devcoredump dumping to one per submit */
-	bool valid;         /* true if no cmdstream patching needed */
-	bool in_rb;         /* "sudo" mode, copy cmds into RB */
+	bool bos_pinned : 1;
+	bool fault_dumped:1;/* Limit devcoredump dumping to one per submit */
+	bool in_rb : 1;     /* "sudo" mode, copy cmds into RB */
 	struct msm_ringbuffer *ring;
 	unsigned int nr_cmds;
 	unsigned int nr_bos;
@@ -294,18 +292,12 @@ struct msm_gem_submit {
 		struct drm_msm_gem_submit_reloc *relocs;
 	} *cmd;  /* array of size nr_cmds */
 	struct {
-/* make sure these don't conflict w/ MSM_SUBMIT_BO_x */
-#define BO_VALID	0x8000	/* is current addr in cmdstream correct/valid? */
-#define BO_LOCKED	0x4000	/* obj lock is held */
-#define BO_OBJ_PINNED	0x2000	/* obj (pages) is pinned and on active list */
-#define BO_VMA_PINNED	0x1000	/* vma (virtual address) is pinned */
 		uint32_t flags;
 		union {
-			struct msm_gem_object *obj;
+			struct drm_gem_object *obj;
 			uint32_t handle;
 		};
 		uint64_t iova;
-		struct msm_gem_vma *vma;
 	} bos[];
 };
 

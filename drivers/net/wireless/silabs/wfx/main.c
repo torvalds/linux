@@ -151,6 +151,8 @@ static const struct ieee80211_ops wfx_ops = {
 	.change_chanctx          = wfx_change_chanctx,
 	.assign_vif_chanctx      = wfx_assign_vif_chanctx,
 	.unassign_vif_chanctx    = wfx_unassign_vif_chanctx,
+	.remain_on_channel       = wfx_remain_on_channel,
+	.cancel_remain_on_channel = wfx_cancel_remain_on_channel,
 };
 
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
@@ -246,6 +248,7 @@ static void wfx_free_common(void *data)
 
 	mutex_destroy(&wdev->tx_power_loop_info_lock);
 	mutex_destroy(&wdev->rx_stats_lock);
+	mutex_destroy(&wdev->scan_lock);
 	mutex_destroy(&wdev->conf_mutex);
 	ieee80211_free_hw(wdev->hw);
 }
@@ -288,17 +291,17 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 	hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
+	hw->wiphy->max_remain_on_channel_duration = 5000;
 	hw->wiphy->max_ap_assoc_sta = HIF_LINK_ID_MAX;
 	hw->wiphy->max_scan_ssids = 2;
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 	hw->wiphy->n_iface_combinations = ARRAY_SIZE(wfx_iface_combinations);
 	hw->wiphy->iface_combinations = wfx_iface_combinations;
-	hw->wiphy->bands[NL80211_BAND_2GHZ] = devm_kmalloc(dev, sizeof(wfx_band_2ghz), GFP_KERNEL);
+	/* FIXME: also copy wfx_rates and wfx_2ghz_chantable */
+	hw->wiphy->bands[NL80211_BAND_2GHZ] = devm_kmemdup(dev, &wfx_band_2ghz,
+							   sizeof(wfx_band_2ghz), GFP_KERNEL);
 	if (!hw->wiphy->bands[NL80211_BAND_2GHZ])
 		goto err;
-
-	/* FIXME: also copy wfx_rates and wfx_2ghz_chantable */
-	memcpy(hw->wiphy->bands[NL80211_BAND_2GHZ], &wfx_band_2ghz, sizeof(wfx_band_2ghz));
 
 	wdev = hw->priv;
 	wdev->hw = hw;
@@ -315,6 +318,7 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 		gpiod_set_consumer_name(wdev->pdata.gpio_wakeup, "wfx wakeup");
 
 	mutex_init(&wdev->conf_mutex);
+	mutex_init(&wdev->scan_lock);
 	mutex_init(&wdev->rx_stats_lock);
 	mutex_init(&wdev->tx_power_loop_info_lock);
 	init_completion(&wdev->firmware_ready);

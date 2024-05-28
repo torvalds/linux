@@ -152,7 +152,7 @@ static irqreturn_t wm831x_auxadc_irq(int irq, void *irq_data)
 static int wm831x_auxadc_read_polled(struct wm831x *wm831x,
 				     enum wm831x_auxadc input)
 {
-	int ret, src, timeout;
+	int ret, src;
 
 	mutex_lock(&wm831x->auxadc_lock);
 
@@ -179,32 +179,25 @@ static int wm831x_auxadc_read_polled(struct wm831x *wm831x,
 		goto disable;
 	}
 
-	/* If we're not using interrupts then poll the
-	 * interrupt status register */
-	timeout = 5;
-	while (timeout) {
-		msleep(1);
+	/* If we're not using interrupts then read the interrupt status register */
+	msleep(20);
 
-		ret = wm831x_reg_read(wm831x,
-				      WM831X_INTERRUPT_STATUS_1);
-		if (ret < 0) {
-			dev_err(wm831x->dev,
-				"ISR 1 read failed: %d\n", ret);
-			goto disable;
-		}
+	ret = wm831x_reg_read(wm831x, WM831X_INTERRUPT_STATUS_1);
+	if (ret < 0) {
+		dev_err(wm831x->dev,
+			"ISR 1 read failed: %d\n", ret);
+		goto disable;
+	}
 
-		/* Did it complete? */
-		if (ret & WM831X_AUXADC_DATA_EINT) {
-			wm831x_reg_write(wm831x,
-					 WM831X_INTERRUPT_STATUS_1,
-					 WM831X_AUXADC_DATA_EINT);
-			break;
-		} else {
-			dev_err(wm831x->dev,
-				"AUXADC conversion timeout\n");
-			ret = -EBUSY;
-			goto disable;
-		}
+	/* Did it complete? */
+	if (ret & WM831X_AUXADC_DATA_EINT) {
+		wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1,
+				WM831X_AUXADC_DATA_EINT);
+	} else {
+		dev_err(wm831x->dev,
+			"AUXADC conversion timeout\n");
+		ret = -EBUSY;
+		goto disable;
 	}
 
 	ret = wm831x_reg_read(wm831x, WM831X_AUXADC_DATA);

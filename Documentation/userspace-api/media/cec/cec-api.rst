@@ -10,13 +10,8 @@ Part V - Consumer Electronics Control API
 This part describes the CEC: Consumer Electronics Control
 
 
-.. only:: html
-
-   .. class:: toc-title
-
-        Table of Contents
-
 .. toctree::
+    :caption: Table of Contents
     :maxdepth: 5
     :numbered:
 

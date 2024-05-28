@@ -865,7 +865,7 @@ err_free:
 	return r;
 }
 
-static int venc_remove(struct platform_device *pdev)
+static void venc_remove(struct platform_device *pdev)
 {
 	struct venc_device *venc = platform_get_drvdata(pdev);
 
@@ -876,7 +876,6 @@ static int venc_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	kfree(venc);
-	return 0;
 }
 
 static __maybe_unused int venc_runtime_suspend(struct device *dev)
@@ -913,7 +912,7 @@ static const struct of_device_id venc_of_match[] = {
 
 struct platform_driver omap_venchw_driver = {
 	.probe		= venc_probe,
-	.remove		= venc_remove,
+	.remove_new	= venc_remove,
 	.driver         = {
 		.name   = "omapdss_venc",
 		.pm	= &venc_pm_ops,

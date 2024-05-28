@@ -194,6 +194,8 @@ struct tb_regs_switch_header {
 #define USB4_VERSION_MAJOR_MASK			GENMASK(7, 5)
 
 #define ROUTER_CS_1				0x01
+#define ROUTER_CS_3				0x03
+#define ROUTER_CS_3_V				BIT(31)
 #define ROUTER_CS_4				0x04
 /* Used with the router cmuv field */
 #define ROUTER_CS_4_CMUV_V1			0x10
@@ -203,7 +205,7 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_5_WOP				BIT(1)
 #define ROUTER_CS_5_WOU				BIT(2)
 #define ROUTER_CS_5_WOD				BIT(3)
-#define ROUTER_CS_5_C3S				BIT(23)
+#define ROUTER_CS_5_CNS				BIT(23)
 #define ROUTER_CS_5_PTO				BIT(24)
 #define ROUTER_CS_5_UTO				BIT(25)
 #define ROUTER_CS_5_HCO				BIT(26)
@@ -346,10 +348,14 @@ struct tb_regs_port_header {
 #define LANE_ADP_CS_1				0x01
 #define LANE_ADP_CS_1_TARGET_SPEED_MASK		GENMASK(3, 0)
 #define LANE_ADP_CS_1_TARGET_SPEED_GEN3		0xc
-#define LANE_ADP_CS_1_TARGET_WIDTH_MASK		GENMASK(9, 4)
+#define LANE_ADP_CS_1_TARGET_WIDTH_MASK		GENMASK(5, 4)
 #define LANE_ADP_CS_1_TARGET_WIDTH_SHIFT	4
 #define LANE_ADP_CS_1_TARGET_WIDTH_SINGLE	0x1
 #define LANE_ADP_CS_1_TARGET_WIDTH_DUAL		0x3
+#define LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK	GENMASK(7, 6)
+#define LANE_ADP_CS_1_TARGET_WIDTH_ASYM_TX	0x1
+#define LANE_ADP_CS_1_TARGET_WIDTH_ASYM_RX	0x2
+#define LANE_ADP_CS_1_TARGET_WIDTH_ASYM_DUAL	0x0
 #define LANE_ADP_CS_1_CL0S_ENABLE		BIT(10)
 #define LANE_ADP_CS_1_CL1_ENABLE		BIT(11)
 #define LANE_ADP_CS_1_CL2_ENABLE		BIT(12)
@@ -382,12 +388,16 @@ struct tb_regs_port_header {
 #define PORT_CS_18_WOCS				BIT(16)
 #define PORT_CS_18_WODS				BIT(17)
 #define PORT_CS_18_WOU4S			BIT(18)
+#define PORT_CS_18_CSA				BIT(22)
+#define PORT_CS_18_TIP				BIT(24)
 #define PORT_CS_19				0x13
+#define PORT_CS_19_DPR				BIT(0)
 #define PORT_CS_19_PC				BIT(3)
 #define PORT_CS_19_PID				BIT(4)
 #define PORT_CS_19_WOC				BIT(16)
 #define PORT_CS_19_WOD				BIT(17)
 #define PORT_CS_19_WOU4				BIT(18)
+#define PORT_CS_19_START_ASYM			BIT(24)
 
 /* Display Port adapter registers */
 #define ADP_DP_CS_0				0x00
@@ -400,7 +410,7 @@ struct tb_regs_port_header {
 #define ADP_DP_CS_1_AUX_RX_HOPID_SHIFT		11
 #define ADP_DP_CS_2				0x02
 #define ADP_DP_CS_2_NRD_MLC_MASK		GENMASK(2, 0)
-#define ADP_DP_CS_2_HDP				BIT(6)
+#define ADP_DP_CS_2_HPD				BIT(6)
 #define ADP_DP_CS_2_NRD_MLR_MASK		GENMASK(9, 7)
 #define ADP_DP_CS_2_NRD_MLR_SHIFT		7
 #define ADP_DP_CS_2_CA				BIT(10)
@@ -417,7 +427,7 @@ struct tb_regs_port_header {
 #define ADP_DP_CS_2_ESTIMATED_BW_MASK		GENMASK(31, 24)
 #define ADP_DP_CS_2_ESTIMATED_BW_SHIFT		24
 #define ADP_DP_CS_3				0x03
-#define ADP_DP_CS_3_HDPC			BIT(9)
+#define ADP_DP_CS_3_HPDC			BIT(9)
 #define DP_LOCAL_CAP				0x04
 #define DP_REMOTE_CAP				0x05
 /* For DP IN adapter */
@@ -484,9 +494,6 @@ struct tb_regs_port_header {
 #define ADP_USB3_CS_3				0x03
 #define ADP_USB3_CS_3_SCALE_MASK		GENMASK(5, 0)
 #define ADP_USB3_CS_4				0x04
-#define ADP_USB3_CS_4_ALR_MASK			GENMASK(6, 0)
-#define ADP_USB3_CS_4_ALR_20G			0x1
-#define ADP_USB3_CS_4_ULV			BIT(7)
 #define ADP_USB3_CS_4_MSLR_MASK			GENMASK(18, 12)
 #define ADP_USB3_CS_4_MSLR_SHIFT		12
 #define ADP_USB3_CS_4_MSLR_20G			0x1
@@ -499,7 +506,8 @@ struct tb_regs_hop {
 			  * out_port (on the incoming port of the next switch)
 			  */
 	u32 out_port:6; /* next port of the path (on the same switch) */
-	u32 initial_credits:8;
+	u32 initial_credits:7;
+	u32 pmps:1;
 	u32 unknown1:6; /* set to zero */
 	bool enable:1;
 
@@ -579,6 +587,9 @@ struct tb_regs_hop {
 #define TB_LC_POWER				0x740
 
 /* Link controller registers */
+#define TB_LC_PORT_MODE				0x26
+#define TB_LC_PORT_MODE_DPR			BIT(0)
+
 #define TB_LC_CS_42				0x2a
 #define TB_LC_CS_42_USB_PLUGGED			BIT(31)
 

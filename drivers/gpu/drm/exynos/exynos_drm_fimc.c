@@ -1367,7 +1367,7 @@ err_pm_dis:
 	return ret;
 }
 
-static int fimc_remove(struct platform_device *pdev)
+static void fimc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimc_context *ctx = get_fimc_context(dev);
@@ -1377,8 +1377,6 @@ static int fimc_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 
 	fimc_put_clocks(ctx);
-
-	return 0;
 }
 
 static int fimc_runtime_suspend(struct device *dev)
@@ -1410,7 +1408,7 @@ MODULE_DEVICE_TABLE(of, fimc_of_match);
 
 struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,
-	.remove		= fimc_remove,
+	.remove_new	= fimc_remove,
 	.driver		= {
 		.of_match_table = fimc_of_match,
 		.name	= "exynos-drm-fimc",

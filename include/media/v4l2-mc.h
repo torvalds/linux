@@ -143,6 +143,9 @@ int v4l2_create_fwnode_links(struct v4l2_subdev *src_sd,
  * v4l2_pipeline_pm_get - Increase the use count of a pipeline
  * @entity: The root entity of a pipeline
  *
+ * THIS FUNCTION IS DEPRECATED. DO NOT USE IN NEW DRIVERS. USE RUNTIME PM
+ * ON SUB-DEVICE DRIVERS INSTEAD.
+ *
  * Update the use count of all entities in the pipeline and power entities on.
  *
  * This function is intended to be called in video node open. It uses
@@ -156,6 +159,9 @@ int v4l2_pipeline_pm_get(struct media_entity *entity);
 /**
  * v4l2_pipeline_pm_put - Decrease the use count of a pipeline
  * @entity: The root entity of a pipeline
+ *
+ * THIS FUNCTION IS DEPRECATED. DO NOT USE IN NEW DRIVERS. USE RUNTIME PM
+ * ON SUB-DEVICE DRIVERS INSTEAD.
  *
  * Update the use count of all entities in the pipeline and power entities off.
  *

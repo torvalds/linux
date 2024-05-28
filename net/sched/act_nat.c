@@ -69,7 +69,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 		ret = ACT_P_CREATED;
 	} else if (err > 0) {
 		if (bind)
-			return 0;
+			return ACT_P_BOUND;
 		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
@@ -324,6 +324,7 @@ static struct tc_action_ops act_nat_ops = {
 	.cleanup	=	tcf_nat_cleanup,
 	.size		=	sizeof(struct tcf_nat),
 };
+MODULE_ALIAS_NET_ACT("nat");
 
 static __net_init int nat_init_net(struct net *net)
 {

@@ -231,7 +231,6 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	codec->beep = beep;
 
 	INIT_WORK(&beep->beep_work, &snd_hda_generate_beep);
-	mutex_init(&beep->mutex);
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {

@@ -31,8 +31,7 @@
 
 #define RV770_SMC_PERFORMANCE_LEVELS_PER_SWSTATE    3
 
-struct RV770_SMC_SCLK_VALUE
-{
+struct RV770_SMC_SCLK_VALUE {
     uint32_t        vCG_SPLL_FUNC_CNTL;
     uint32_t        vCG_SPLL_FUNC_CNTL_2;
     uint32_t        vCG_SPLL_FUNC_CNTL_3;
@@ -43,8 +42,7 @@ struct RV770_SMC_SCLK_VALUE
 
 typedef struct RV770_SMC_SCLK_VALUE RV770_SMC_SCLK_VALUE;
 
-struct RV770_SMC_MCLK_VALUE
-{
+struct RV770_SMC_MCLK_VALUE {
     uint32_t        vMPLL_AD_FUNC_CNTL;
     uint32_t        vMPLL_AD_FUNC_CNTL_2;
     uint32_t        vMPLL_DQ_FUNC_CNTL;
@@ -59,8 +57,7 @@ struct RV770_SMC_MCLK_VALUE
 typedef struct RV770_SMC_MCLK_VALUE RV770_SMC_MCLK_VALUE;
 
 
-struct RV730_SMC_MCLK_VALUE
-{
+struct RV730_SMC_MCLK_VALUE {
     uint32_t        vMCLK_PWRMGT_CNTL;
     uint32_t        vDLL_CNTL;
     uint32_t        vMPLL_FUNC_CNTL;
@@ -73,8 +70,7 @@ struct RV730_SMC_MCLK_VALUE
 
 typedef struct RV730_SMC_MCLK_VALUE RV730_SMC_MCLK_VALUE;
 
-struct RV770_SMC_VOLTAGE_VALUE
-{
+struct RV770_SMC_VOLTAGE_VALUE {
     uint16_t             value;
     uint8_t              index;
     uint8_t              padding;
@@ -82,16 +78,14 @@ struct RV770_SMC_VOLTAGE_VALUE
 
 typedef struct RV770_SMC_VOLTAGE_VALUE RV770_SMC_VOLTAGE_VALUE;
 
-union RV7XX_SMC_MCLK_VALUE
-{
+union RV7XX_SMC_MCLK_VALUE {
     RV770_SMC_MCLK_VALUE    mclk770;
     RV730_SMC_MCLK_VALUE    mclk730;
 };
 
 typedef union RV7XX_SMC_MCLK_VALUE RV7XX_SMC_MCLK_VALUE, *LPRV7XX_SMC_MCLK_VALUE;
 
-struct RV770_SMC_HW_PERFORMANCE_LEVEL
-{
+struct RV770_SMC_HW_PERFORMANCE_LEVEL {
     uint8_t                 arbValue;
     union{
         uint8_t             seqValue;
@@ -126,8 +120,7 @@ struct RV770_SMC_HW_PERFORMANCE_LEVEL
 
 typedef struct RV770_SMC_HW_PERFORMANCE_LEVEL RV770_SMC_HW_PERFORMANCE_LEVEL;
 
-struct RV770_SMC_SWSTATE
-{
+struct RV770_SMC_SWSTATE {
     uint8_t           flags;
     uint8_t           padding1;
     uint8_t           padding2;
@@ -142,8 +135,7 @@ typedef struct RV770_SMC_SWSTATE RV770_SMC_SWSTATE;
 #define RV770_SMC_VOLTAGEMASK_VDDCI 2
 #define RV770_SMC_VOLTAGEMASK_MAX  4
 
-struct RV770_SMC_VOLTAGEMASKTABLE
-{
+struct RV770_SMC_VOLTAGEMASKTABLE {
     uint8_t  highMask[RV770_SMC_VOLTAGEMASK_MAX];
     uint32_t lowMask[RV770_SMC_VOLTAGEMASK_MAX];
 };
@@ -152,8 +144,7 @@ typedef struct RV770_SMC_VOLTAGEMASKTABLE RV770_SMC_VOLTAGEMASKTABLE;
 
 #define MAX_NO_VREG_STEPS 32
 
-struct RV770_SMC_STATETABLE
-{
+struct RV770_SMC_STATETABLE {
     uint8_t             thermalProtectType;
     uint8_t             systemFlags;
     uint8_t             maxVDDCIndexInPPTable;

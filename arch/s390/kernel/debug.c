@@ -978,7 +978,6 @@ static struct ctl_table s390dbf_table[] = {
 		.mode		= S_IRUGO | S_IWUSR,
 		.proc_handler	= s390dbf_procactive,
 	},
-	{ }
 };
 
 static struct ctl_table_header *s390dbf_sysctl_header;

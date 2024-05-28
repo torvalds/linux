@@ -9,6 +9,7 @@
 
 #define _GNU_SOURCE
 #include <fcntl.h>
+#include <libgen.h>
 #include <linux/landlock.h>
 #include <linux/magic.h>
 #include <sched.h>
@@ -113,7 +114,7 @@ static bool supports_filesystem(const char *const filesystem)
 {
 	char str[32];
 	int len;
-	bool res;
+	bool res = true;
 	FILE *const inf = fopen("/proc/filesystems", "r");
 
 	/*
@@ -125,14 +126,16 @@ static bool supports_filesystem(const char *const filesystem)
 
 	/* filesystem can be null for bind mounts. */
 	if (!filesystem)
-		return true;
+		goto out;
 
 	len = snprintf(str, sizeof(str), "nodev\t%s\n", filesystem);
 	if (len >= sizeof(str))
 		/* Ignores too-long filesystem names. */
-		return true;
+		goto out;
 
 	res = fgrep(inf, str);
+
+out:
 	fclose(inf);
 	return res;
 }
@@ -239,9 +242,11 @@ struct mnt_opt {
 	const char *const data;
 };
 
-const struct mnt_opt mnt_tmp = {
+#define MNT_TMP_DATA "size=4m,mode=700"
+
+static const struct mnt_opt mnt_tmp = {
 	.type = "tmpfs",
-	.data = "size=4m,mode=700",
+	.data = MNT_TMP_DATA,
 };
 
 static int mount_opt(const struct mnt_opt *const mnt, const char *const target)
@@ -287,7 +292,15 @@ static void prepare_layout(struct __test_metadata *const _metadata)
 static void cleanup_layout(struct __test_metadata *const _metadata)
 {
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	EXPECT_EQ(0, umount(TMP_DIR));
+	if (umount(TMP_DIR)) {
+		/*
+		 * According to the test environment, the mount point of the
+		 * current directory may be shared or not, which changes the
+		 * visibility of the nested TMP_DIR mount point for the test's
+		 * parent process doing this cleanup.
+		 */
+		ASSERT_EQ(EINVAL, errno);
+	}
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 	EXPECT_EQ(0, remove_path(TMP_DIR));
 }
@@ -301,7 +314,7 @@ FIXTURE_SETUP(layout0)
 	prepare_layout(_metadata);
 }
 
-FIXTURE_TEARDOWN(layout0)
+FIXTURE_TEARDOWN_PARENT(layout0)
 {
 	cleanup_layout(_metadata);
 }
@@ -364,7 +377,7 @@ FIXTURE_SETUP(layout1)
 	create_layout1(_metadata);
 }
 
-FIXTURE_TEARDOWN(layout1)
+FIXTURE_TEARDOWN_PARENT(layout1)
 {
 	remove_layout1(_metadata);
 
@@ -587,7 +600,7 @@ TEST_F_FORK(layout1, file_and_dir_access_rights)
 	ASSERT_EQ(0, close(ruleset_fd));
 }
 
-TEST_F_FORK(layout0, unknown_access_rights)
+TEST_F_FORK(layout0, ruleset_with_unknown_access)
 {
 	__u64 access_mask;
 
@@ -601,6 +614,67 @@ TEST_F_FORK(layout0, unknown_access_rights)
 						      sizeof(ruleset_attr), 0));
 		ASSERT_EQ(EINVAL, errno);
 	}
+}
+
+TEST_F_FORK(layout0, rule_with_unknown_access)
+{
+	__u64 access;
+	struct landlock_path_beneath_attr path_beneath = {};
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = ACCESS_ALL,
+	};
+	const int ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+
+	ASSERT_LE(0, ruleset_fd);
+
+	path_beneath.parent_fd =
+		open(TMP_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath.parent_fd);
+
+	for (access = 1ULL << 63; access != ACCESS_LAST; access >>= 1) {
+		path_beneath.allowed_access = access;
+		EXPECT_EQ(-1, landlock_add_rule(ruleset_fd,
+						LANDLOCK_RULE_PATH_BENEATH,
+						&path_beneath, 0));
+		EXPECT_EQ(EINVAL, errno);
+	}
+	ASSERT_EQ(0, close(path_beneath.parent_fd));
+	ASSERT_EQ(0, close(ruleset_fd));
+}
+
+TEST_F_FORK(layout1, rule_with_unhandled_access)
+{
+	struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	struct landlock_path_beneath_attr path_beneath = {};
+	int ruleset_fd;
+	__u64 access;
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	path_beneath.parent_fd = open(file1_s1d2, O_PATH | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath.parent_fd);
+
+	for (access = 1; access > 0; access <<= 1) {
+		int err;
+
+		path_beneath.allowed_access = access;
+		err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+					&path_beneath, 0);
+		if (access == ruleset_attr.handled_access_fs) {
+			EXPECT_EQ(0, err);
+		} else {
+			EXPECT_EQ(-1, err);
+			EXPECT_EQ(EINVAL, errno);
+		}
+	}
+
+	EXPECT_EQ(0, close(path_beneath.parent_fd));
+	EXPECT_EQ(0, close(ruleset_fd));
 }
 
 static void add_path_beneath(struct __test_metadata *const _metadata,
@@ -673,16 +747,6 @@ static int create_ruleset(struct __test_metadata *const _metadata,
 				 rules[i].path);
 	}
 	return ruleset_fd;
-}
-
-static void enforce_ruleset(struct __test_metadata *const _metadata,
-			    const int ruleset_fd)
-{
-	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
-	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0))
-	{
-		TH_LOG("Failed to enforce ruleset: %s", strerror(errno));
-	}
 }
 
 TEST_F_FORK(layout0, proc_nsfs)
@@ -1633,6 +1697,65 @@ TEST_F_FORK(layout1, move_mount)
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
+TEST_F_FORK(layout1, topology_changes_with_net_only)
+{
+	const struct landlock_ruleset_attr ruleset_net = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
+				      LANDLOCK_ACCESS_NET_CONNECT_TCP,
+	};
+	int ruleset_fd;
+
+	/* Add network restrictions. */
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_net, sizeof(ruleset_net), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Mount, remount, move_mount, umount, and pivot_root checks. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s1d2));
+	ASSERT_EQ(0, mount(NULL, dir_s1d2, NULL, MS_PRIVATE | MS_REC, NULL));
+	ASSERT_EQ(0, syscall(__NR_move_mount, AT_FDCWD, dir_s1d2, AT_FDCWD,
+			     dir_s2d2, 0));
+	ASSERT_EQ(0, umount(dir_s2d2));
+	ASSERT_EQ(0, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3));
+	ASSERT_EQ(0, chdir("/"));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+TEST_F_FORK(layout1, topology_changes_with_net_and_fs)
+{
+	const struct landlock_ruleset_attr ruleset_net_fs = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
+				      LANDLOCK_ACCESS_NET_CONNECT_TCP,
+		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	int ruleset_fd;
+
+	/* Add network and filesystem restrictions. */
+	ruleset_fd = landlock_create_ruleset(&ruleset_net_fs,
+					     sizeof(ruleset_net_fs), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Mount, remount, move_mount, umount, and pivot_root checks. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(-1, mount_opt(&mnt_tmp, dir_s1d2));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, mount(NULL, dir_s3d2, NULL, MS_PRIVATE | MS_REC, NULL));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, syscall(__NR_move_mount, AT_FDCWD, dir_s3d2, AT_FDCWD,
+			      dir_s2d2, 0));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, umount(dir_s3d2));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3));
+	ASSERT_EQ(EPERM, errno);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
 TEST_F_FORK(layout1, release_inodes)
 {
 	const struct rule rules[] = {
@@ -1850,7 +1973,7 @@ static void test_execute(struct __test_metadata *const _metadata, const int err,
 			       strerror(errno));
 		};
 		ASSERT_EQ(err, errno);
-		_exit(_metadata->passed ? 2 : 1);
+		_exit(__test_passed(_metadata) ? 2 : 1);
 		return;
 	}
 	ASSERT_EQ(child, waitpid(child, &status, 0));
@@ -3567,7 +3690,7 @@ FIXTURE_SETUP(ftruncate)
 	create_file(_metadata, file1_s1d1);
 }
 
-FIXTURE_TEARDOWN(ftruncate)
+FIXTURE_TEARDOWN_PARENT(ftruncate)
 {
 	EXPECT_EQ(0, remove_path(file1_s1d1));
 	cleanup_layout(_metadata);
@@ -3576,7 +3699,7 @@ FIXTURE_TEARDOWN(ftruncate)
 FIXTURE_VARIANT(ftruncate)
 {
 	const __u64 handled;
-	const __u64 permitted;
+	const __u64 allowed;
 	const int expected_open_result;
 	const int expected_ftruncate_result;
 };
@@ -3585,7 +3708,7 @@ FIXTURE_VARIANT(ftruncate)
 FIXTURE_VARIANT_ADD(ftruncate, w_w) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_WRITE_FILE,
-	.permitted = LANDLOCK_ACCESS_FS_WRITE_FILE,
+	.allowed = LANDLOCK_ACCESS_FS_WRITE_FILE,
 	.expected_open_result = 0,
 	.expected_ftruncate_result = 0,
 };
@@ -3594,7 +3717,7 @@ FIXTURE_VARIANT_ADD(ftruncate, w_w) {
 FIXTURE_VARIANT_ADD(ftruncate, t_t) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_TRUNCATE,
-	.permitted = LANDLOCK_ACCESS_FS_TRUNCATE,
+	.allowed = LANDLOCK_ACCESS_FS_TRUNCATE,
 	.expected_open_result = 0,
 	.expected_ftruncate_result = 0,
 };
@@ -3603,7 +3726,7 @@ FIXTURE_VARIANT_ADD(ftruncate, t_t) {
 FIXTURE_VARIANT_ADD(ftruncate, wt_w) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE,
-	.permitted = LANDLOCK_ACCESS_FS_WRITE_FILE,
+	.allowed = LANDLOCK_ACCESS_FS_WRITE_FILE,
 	.expected_open_result = 0,
 	.expected_ftruncate_result = EACCES,
 };
@@ -3612,8 +3735,7 @@ FIXTURE_VARIANT_ADD(ftruncate, wt_w) {
 FIXTURE_VARIANT_ADD(ftruncate, wt_wt) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE,
-	.permitted = LANDLOCK_ACCESS_FS_WRITE_FILE |
-		     LANDLOCK_ACCESS_FS_TRUNCATE,
+	.allowed = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE,
 	.expected_open_result = 0,
 	.expected_ftruncate_result = 0,
 };
@@ -3622,7 +3744,7 @@ FIXTURE_VARIANT_ADD(ftruncate, wt_wt) {
 FIXTURE_VARIANT_ADD(ftruncate, wt_t) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE,
-	.permitted = LANDLOCK_ACCESS_FS_TRUNCATE,
+	.allowed = LANDLOCK_ACCESS_FS_TRUNCATE,
 	.expected_open_result = EACCES,
 };
 
@@ -3632,7 +3754,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate)
 	const struct rule rules[] = {
 		{
 			.path = path,
-			.access = variant->permitted,
+			.access = variant->allowed,
 		},
 		{},
 	};
@@ -3673,7 +3795,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
 		const struct rule rules[] = {
 			{
 				.path = path,
-				.access = variant->permitted,
+				.access = variant->allowed,
 			},
 			{},
 		};
@@ -3694,7 +3816,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
 
 		ASSERT_EQ(0, close(socket_fds[0]));
 
-		_exit(_metadata->passed ? EXIT_SUCCESS : EXIT_FAILURE);
+		_exit(_metadata->exit_code);
 		return;
 	}
 
@@ -3746,11 +3868,9 @@ FIXTURE_SETUP(layout1_bind)
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
-FIXTURE_TEARDOWN(layout1_bind)
+FIXTURE_TEARDOWN_PARENT(layout1_bind)
 {
-	set_cap(_metadata, CAP_SYS_ADMIN);
-	EXPECT_EQ(0, umount(dir_s2d2));
-	clear_cap(_metadata, CAP_SYS_ADMIN);
+	/* umount(dir_s2d2)) is handled by namespace lifetime. */
 
 	remove_layout1(_metadata);
 
@@ -4153,7 +4273,7 @@ FIXTURE_SETUP(layout2_overlay)
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
-FIXTURE_TEARDOWN(layout2_overlay)
+FIXTURE_TEARDOWN_PARENT(layout2_overlay)
 {
 	if (self->skip_test)
 		SKIP(return, "overlayfs is not supported (teardown)");
@@ -4163,9 +4283,8 @@ FIXTURE_TEARDOWN(layout2_overlay)
 	EXPECT_EQ(0, remove_path(lower_fl1));
 	EXPECT_EQ(0, remove_path(lower_do1_fo2));
 	EXPECT_EQ(0, remove_path(lower_fo1));
-	set_cap(_metadata, CAP_SYS_ADMIN);
-	EXPECT_EQ(0, umount(LOWER_BASE));
-	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	/* umount(LOWER_BASE)) is handled by namespace lifetime. */
 	EXPECT_EQ(0, remove_path(LOWER_BASE));
 
 	EXPECT_EQ(0, remove_path(upper_do1_fu3));
@@ -4174,14 +4293,11 @@ FIXTURE_TEARDOWN(layout2_overlay)
 	EXPECT_EQ(0, remove_path(upper_do1_fo2));
 	EXPECT_EQ(0, remove_path(upper_fo1));
 	EXPECT_EQ(0, remove_path(UPPER_WORK "/work"));
-	set_cap(_metadata, CAP_SYS_ADMIN);
-	EXPECT_EQ(0, umount(UPPER_BASE));
-	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	/* umount(UPPER_BASE)) is handled by namespace lifetime. */
 	EXPECT_EQ(0, remove_path(UPPER_BASE));
 
-	set_cap(_metadata, CAP_SYS_ADMIN);
-	EXPECT_EQ(0, umount(MERGE_DATA));
-	clear_cap(_metadata, CAP_SYS_ADMIN);
+	/* umount(MERGE_DATA)) is handled by namespace lifetime. */
 	EXPECT_EQ(0, remove_path(MERGE_DATA));
 
 	cleanup_layout(_metadata);
@@ -4507,7 +4623,6 @@ FIXTURE(layout3_fs)
 {
 	bool has_created_dir;
 	bool has_created_file;
-	char *dir_path;
 	bool skip_test;
 };
 
@@ -4521,7 +4636,10 @@ FIXTURE_VARIANT(layout3_fs)
 /* clang-format off */
 FIXTURE_VARIANT_ADD(layout3_fs, tmpfs) {
 	/* clang-format on */
-	.mnt = mnt_tmp,
+	.mnt = {
+		.type = "tmpfs",
+		.data = MNT_TMP_DATA,
+	},
 	.file_path = file1_s1d1,
 };
 
@@ -4563,11 +4681,24 @@ FIXTURE_VARIANT_ADD(layout3_fs, hostfs) {
 	.cwd_fs_magic = HOSTFS_SUPER_MAGIC,
 };
 
+static char *dirname_alloc(const char *path)
+{
+	char *dup;
+
+	if (!path)
+		return NULL;
+
+	dup = strdup(path);
+	if (!dup)
+		return NULL;
+
+	return dirname(dup);
+}
+
 FIXTURE_SETUP(layout3_fs)
 {
 	struct stat statbuf;
-	const char *slash;
-	size_t dir_len;
+	char *dir_path = dirname_alloc(variant->file_path);
 
 	if (!supports_filesystem(variant->mnt.type) ||
 	    !cwd_matches_fs(variant->cwd_fs_magic)) {
@@ -4575,25 +4706,15 @@ FIXTURE_SETUP(layout3_fs)
 		SKIP(return, "this filesystem is not supported (setup)");
 	}
 
-	slash = strrchr(variant->file_path, '/');
-	ASSERT_NE(slash, NULL);
-	dir_len = (size_t)slash - (size_t)variant->file_path;
-	ASSERT_LT(0, dir_len);
-	self->dir_path = malloc(dir_len + 1);
-	self->dir_path[dir_len] = '\0';
-	strncpy(self->dir_path, variant->file_path, dir_len);
-
 	prepare_layout_opt(_metadata, &variant->mnt);
 
 	/* Creates directory when required. */
-	if (stat(self->dir_path, &statbuf)) {
+	if (stat(dir_path, &statbuf)) {
 		set_cap(_metadata, CAP_DAC_OVERRIDE);
-		EXPECT_EQ(0, mkdir(self->dir_path, 0700))
+		EXPECT_EQ(0, mkdir(dir_path, 0700))
 		{
 			TH_LOG("Failed to create directory \"%s\": %s",
-			       self->dir_path, strerror(errno));
-			free(self->dir_path);
-			self->dir_path = NULL;
+			       dir_path, strerror(errno));
 		}
 		self->has_created_dir = true;
 		clear_cap(_metadata, CAP_DAC_OVERRIDE);
@@ -4614,9 +4735,11 @@ FIXTURE_SETUP(layout3_fs)
 		self->has_created_file = true;
 		clear_cap(_metadata, CAP_DAC_OVERRIDE);
 	}
+
+	free(dir_path);
 }
 
-FIXTURE_TEARDOWN(layout3_fs)
+FIXTURE_TEARDOWN_PARENT(layout3_fs)
 {
 	if (self->skip_test)
 		SKIP(return, "this filesystem is not supported (teardown)");
@@ -4632,16 +4755,17 @@ FIXTURE_TEARDOWN(layout3_fs)
 	}
 
 	if (self->has_created_dir) {
+		char *dir_path = dirname_alloc(variant->file_path);
+
 		set_cap(_metadata, CAP_DAC_OVERRIDE);
 		/*
 		 * Don't check for error because the directory might already
 		 * have been removed (cf. release_inode test).
 		 */
-		rmdir(self->dir_path);
+		rmdir(dir_path);
 		clear_cap(_metadata, CAP_DAC_OVERRIDE);
+		free(dir_path);
 	}
-	free(self->dir_path);
-	self->dir_path = NULL;
 
 	cleanup_layout(_metadata);
 }
@@ -4708,7 +4832,10 @@ TEST_F_FORK(layout3_fs, tag_inode_dir_mnt)
 
 TEST_F_FORK(layout3_fs, tag_inode_dir_child)
 {
-	layer3_fs_tag_inode(_metadata, self, variant, self->dir_path);
+	char *dir_path = dirname_alloc(variant->file_path);
+
+	layer3_fs_tag_inode(_metadata, self, variant, dir_path);
+	free(dir_path);
 }
 
 TEST_F_FORK(layout3_fs, tag_inode_file)
@@ -4735,9 +4862,13 @@ TEST_F_FORK(layout3_fs, release_inodes)
 	if (self->has_created_file)
 		EXPECT_EQ(0, remove_path(variant->file_path));
 
-	if (self->has_created_dir)
+	if (self->has_created_dir) {
+		char *dir_path = dirname_alloc(variant->file_path);
+
 		/* Don't check for error because of cgroup specificities. */
-		remove_path(self->dir_path);
+		remove_path(dir_path);
+		free(dir_path);
+	}
 
 	ruleset_fd =
 		create_ruleset(_metadata, LANDLOCK_ACCESS_FS_READ_DIR, layer1);

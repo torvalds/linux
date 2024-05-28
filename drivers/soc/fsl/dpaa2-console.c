@@ -9,9 +9,10 @@
 #define pr_fmt(fmt) "dpaa2-console: " fmt
 
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/miscdevice.h>
+#include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
@@ -299,12 +300,10 @@ err_register_mc:
 	return error;
 }
 
-static int dpaa2_console_remove(struct platform_device *pdev)
+static void dpaa2_console_remove(struct platform_device *pdev)
 {
 	misc_deregister(&dpaa2_mc_console_dev);
 	misc_deregister(&dpaa2_aiop_console_dev);
-
-	return 0;
 }
 
 static const struct of_device_id dpaa2_console_match_table[] = {
@@ -321,7 +320,7 @@ static struct platform_driver dpaa2_console_driver = {
 		   .of_match_table = dpaa2_console_match_table,
 		   },
 	.probe = dpaa2_console_probe,
-	.remove = dpaa2_console_remove,
+	.remove_new = dpaa2_console_remove,
 };
 module_platform_driver(dpaa2_console_driver);
 

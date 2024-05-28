@@ -500,7 +500,7 @@ caveats also apply to bit spinlocks.
 Some bit spinlocks are replaced with regular spinlock_t for PREEMPT_RT
 using conditional (#ifdef'ed) code changes at the usage site.  In contrast,
 usage-site changes are not needed for the spinlock_t substitution.
-Instead, conditionals in header files and the core locking implemementation
+Instead, conditionals in header files and the core locking implementation
 enable the compiler to do the substitution transparently.
 
 

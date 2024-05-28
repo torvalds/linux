@@ -413,8 +413,8 @@ do { \
 
 static int aq_a2_fw_update_stats(struct aq_hw_s *self)
 {
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
 	struct aq_stats_s *cs = &self->curr_stats;
+	struct hw_atl2_priv *priv = self->priv;
 	struct statistics_s stats;
 	struct version_s version;
 	int err;

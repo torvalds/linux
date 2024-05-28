@@ -13,16 +13,16 @@
 	gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
 };
 
-&led_r {
-	gpios = <&tlmm 22 GPIO_ACTIVE_HIGH>;
+&led_b {
+	gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
 };
 
 &led_g {
 	gpios = <&tlmm 21 GPIO_ACTIVE_HIGH>;
 };
 
-&led_b {
-	gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+&led_r {
+	gpios = <&tlmm 22 GPIO_ACTIVE_HIGH>;
 };
 
 &mpss {

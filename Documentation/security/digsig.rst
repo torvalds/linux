@@ -82,7 +82,7 @@ The signing and key management utilities evm-utils provide functionality
 to generate signatures, to load keys into the kernel keyring.
 Keys can be in PEM or converted to the kernel format.
 When the key is added to the kernel keyring, the keyid defines the name
-of the key: 5D2B05FC633EE3E8 in the example bellow.
+of the key: 5D2B05FC633EE3E8 in the example below.
 
 Here is example output of the keyctl utility::
 

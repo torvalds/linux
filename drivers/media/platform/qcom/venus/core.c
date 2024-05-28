@@ -11,10 +11,12 @@
 #include <linux/devcoredump.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mem2mem.h>
@@ -113,7 +115,8 @@ static void venus_sys_error_handler(struct work_struct *work)
 	pm_runtime_put_sync(core->dev);
 
 	for (i = 0; i < max_attempts; i++) {
-		if (!core->pmdomains[0] || !pm_runtime_active(core->pmdomains[0]))
+		if (!core->pmdomains ||
+		    !pm_runtime_active(core->pmdomains->pd_devs[0]))
 			break;
 		usleep_range(1000, 1500);
 	}
@@ -246,7 +249,7 @@ err:
 
 static void venus_assign_register_offsets(struct venus_core *core)
 {
-	if (IS_V6(core)) {
+	if (IS_IRIS2(core) || IS_IRIS2_1(core)) {
 		core->vbif_base = core->base + VBIF_BASE;
 		core->cpu_base = core->base + CPU_BASE_V6;
 		core->cpu_cs_base = core->base + CPU_CS_BASE_V6;
@@ -548,7 +551,7 @@ static const struct venus_resources msm8916_res = {
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xddc00000 - 1,
-	.fwname = "qcom/venus-1.8/venus.mdt",
+	.fwname = "qcom/venus-1.8/venus.mbn",
 };
 
 static const struct freq_tbl msm8996_freq_table[] = {
@@ -581,7 +584,7 @@ static const struct venus_resources msm8996_res = {
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xddc00000 - 1,
-	.fwname = "qcom/venus-4.2/venus.mdt",
+	.fwname = "qcom/venus-4.2/venus.mbn",
 };
 
 static const struct freq_tbl sdm660_freq_table[] = {
@@ -684,11 +687,12 @@ static const struct venus_resources sdm845_res = {
 	.vcodec_clks_num = 2,
 	.max_load = 3110400,	/* 4096x2160@90 */
 	.hfi_version = HFI_VERSION_4XX,
+	.vpu_version = VPU_VERSION_AR50,
 	.vmem_id = VIDC_RESOURCE_NONE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
-	.fwname = "qcom/venus-5.2/venus.mdt",
+	.fwname = "qcom/venus-5.2/venus.mbn",
 };
 
 static const struct venus_resources sdm845_res_v2 = {
@@ -703,12 +707,13 @@ static const struct venus_resources sdm845_res_v2 = {
 	.vcodec0_clks = { "vcodec0_core", "vcodec0_bus" },
 	.vcodec1_clks = { "vcodec1_core", "vcodec1_bus" },
 	.vcodec_clks_num = 2,
-	.vcodec_pmdomains = { "venus", "vcodec0", "vcodec1" },
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0", "vcodec1" },
 	.vcodec_pmdomains_num = 3,
 	.opp_pmdomain = (const char *[]) { "cx", NULL },
 	.vcodec_num = 2,
 	.max_load = 3110400,	/* 4096x2160@90 */
 	.hfi_version = HFI_VERSION_4XX,
+	.vpu_version = VPU_VERSION_AR50,
 	.vmem_id = VIDC_RESOURCE_NONE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
@@ -717,7 +722,7 @@ static const struct venus_resources sdm845_res_v2 = {
 	.cp_size = 0x70800000,
 	.cp_nonpixel_start = 0x1000000,
 	.cp_nonpixel_size = 0x24800000,
-	.fwname = "qcom/venus-5.2/venus.mdt",
+	.fwname = "qcom/venus-5.2/venus.mbn",
 };
 
 static const struct freq_tbl sc7180_freq_table[] = {
@@ -751,16 +756,21 @@ static const struct venus_resources sc7180_res = {
 	.clks_num = 3,
 	.vcodec0_clks = { "vcodec0_core", "vcodec0_bus" },
 	.vcodec_clks_num = 2,
-	.vcodec_pmdomains = { "venus", "vcodec0" },
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0" },
 	.vcodec_pmdomains_num = 2,
 	.opp_pmdomain = (const char *[]) { "cx", NULL },
 	.vcodec_num = 1,
 	.hfi_version = HFI_VERSION_4XX,
+	.vpu_version = VPU_VERSION_AR50,
 	.vmem_id = VIDC_RESOURCE_NONE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
-	.fwname = "qcom/venus-5.4/venus.mdt",
+	.cp_start = 0,
+	.cp_size = 0x70800000,
+	.cp_nonpixel_start = 0x1000000,
+	.cp_nonpixel_size = 0x24800000,
+	.fwname = "qcom/venus-5.4/venus.mbn",
 };
 
 static const struct freq_tbl sm8250_freq_table[] = {
@@ -803,18 +813,19 @@ static const struct venus_resources sm8250_res = {
 	.resets_num = 2,
 	.vcodec0_clks = { "vcodec0_core" },
 	.vcodec_clks_num = 1,
-	.vcodec_pmdomains = { "venus", "vcodec0" },
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0" },
 	.vcodec_pmdomains_num = 2,
 	.opp_pmdomain = (const char *[]) { "mx", NULL },
 	.vcodec_num = 1,
 	.max_load = 7833600,
 	.hfi_version = HFI_VERSION_6XX,
+	.vpu_version = VPU_VERSION_IRIS2,
 	.num_vpp_pipes = 4,
 	.vmem_id = VIDC_RESOURCE_NONE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
-	.fwname = "qcom/vpu-1.0/venus.mdt",
+	.fwname = "qcom/vpu-1.0/venus.mbn",
 };
 
 static const struct freq_tbl sc7280_freq_table[] = {
@@ -861,16 +872,21 @@ static const struct venus_resources sc7280_res = {
 	.clks_num = 3,
 	.vcodec0_clks = {"vcodec_core", "vcodec_bus"},
 	.vcodec_clks_num = 2,
-	.vcodec_pmdomains = { "venus", "vcodec0" },
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0" },
 	.vcodec_pmdomains_num = 2,
 	.opp_pmdomain = (const char *[]) { "cx", NULL },
 	.vcodec_num = 1,
 	.hfi_version = HFI_VERSION_6XX,
+	.vpu_version = VPU_VERSION_IRIS2_1,
 	.num_vpp_pipes = 1,
 	.vmem_id = VIDC_RESOURCE_NONE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
+	.cp_start = 0,
+	.cp_size = 0x25800000,
+	.cp_nonpixel_start = 0x1000000,
+	.cp_nonpixel_size = 0x24800000,
 	.fwname = "qcom/vpu-2.0/venus.mbn",
 };
 

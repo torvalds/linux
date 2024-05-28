@@ -15,6 +15,7 @@
 #include <linux/highmem.h>
 #include <asm/page.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 #include <asm/arcregs.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __aligned(PAGE_SIZE);

@@ -255,7 +255,7 @@ lookup_voices(struct snd_emux *emu, struct snd_emu10k1 *hw,
 		/* check if sample is finished playing (non-looping only) */
 		if (bp != best + V_OFF && bp != best + V_FREE &&
 		    (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_SINGLESHOT)) {
-			val = snd_emu10k1_ptr_read(hw, CCCA_CURRADDR, vp->ch) - 64;
+			val = snd_emu10k1_ptr_read(hw, CCCA_CURRADDR, vp->ch);
 			if (val >= vp->reg.loopstart)
 				bp = best + V_OFF;
 		}
@@ -362,7 +362,7 @@ start_voice(struct snd_emux_voice *vp)
 
 	map = (hw->silent_page.addr << hw->address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 
-	addr = vp->reg.start + 64;
+	addr = vp->reg.start;
 	temp = vp->reg.parm.filterQ;
 	ccca = (temp << 28) | addr;
 	if (vp->apitch < 0xe400)
@@ -429,9 +429,6 @@ start_voice(struct snd_emux_voice *vp)
 
 		/* Q & current address (Q 4bit value, MSB) */
 		CCCA, ccca,
-
-		/* cache */
-		CCR, REG_VAL_PUT(CCR_CACHEINVALIDSIZE, 64),
 
 		/* reset volume */
 		VTFT, vtarget | vp->ftarget,

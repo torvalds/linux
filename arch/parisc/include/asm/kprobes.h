@@ -10,9 +10,10 @@
 #ifndef _PARISC_KPROBES_H
 #define _PARISC_KPROBES_H
 
+#include <asm-generic/kprobes.h>
+
 #ifdef CONFIG_KPROBES
 
-#include <asm-generic/kprobes.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/notifier.h>

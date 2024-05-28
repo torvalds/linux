@@ -38,7 +38,7 @@
 
 #define RXE_ROCE_V2_SPORT		(0xc000)
 
-#define rxe_dbg(fmt, ...) pr_debug("%s: " fmt "\n", __func__, ##__VA_ARGS__)
+#define rxe_dbg(fmt, ...) pr_debug("%s: " fmt, __func__, ##__VA_ARGS__)
 #define rxe_dbg_dev(rxe, fmt, ...) ibdev_dbg(&(rxe)->ib_dev,		\
 		"%s: " fmt, __func__, ##__VA_ARGS__)
 #define rxe_dbg_uc(uc, fmt, ...) ibdev_dbg((uc)->ibuc.device,		\
@@ -58,7 +58,7 @@
 #define rxe_dbg_mw(mw, fmt, ...) ibdev_dbg((mw)->ibmw.device,		\
 		"mw#%d %s:  " fmt, (mw)->elem.index, __func__, ##__VA_ARGS__)
 
-#define rxe_err(fmt, ...) pr_err_ratelimited("%s: " fmt "\n", __func__, \
+#define rxe_err(fmt, ...) pr_err_ratelimited("%s: " fmt, __func__, \
 					##__VA_ARGS__)
 #define rxe_err_dev(rxe, fmt, ...) ibdev_err_ratelimited(&(rxe)->ib_dev, \
 		"%s: " fmt, __func__, ##__VA_ARGS__)
@@ -79,7 +79,7 @@
 #define rxe_err_mw(mw, fmt, ...) ibdev_err_ratelimited((mw)->ibmw.device, \
 		"mw#%d %s:  " fmt, (mw)->elem.index, __func__, ##__VA_ARGS__)
 
-#define rxe_info(fmt, ...) pr_info_ratelimited("%s: " fmt "\n", __func__, \
+#define rxe_info(fmt, ...) pr_info_ratelimited("%s: " fmt, __func__, \
 					##__VA_ARGS__)
 #define rxe_info_dev(rxe, fmt, ...) ibdev_info_ratelimited(&(rxe)->ib_dev, \
 		"%s: " fmt, __func__, ##__VA_ARGS__)

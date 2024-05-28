@@ -11,6 +11,8 @@
 #include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 #include "sc7180-trogdor-lazor.dtsi"
 #include "sc7180-trogdor-lte-sku.dtsi"
+#include "sc7180-trogdor-rt5682i-sku.dtsi"
+
 
 / {
 	model = "Google Lazor Limozeen (rev4 - rev8)";

@@ -1955,12 +1955,12 @@ if offline CPUs block an RCU grace period for too long.
 
 An offline CPU's quiescent state will be reported either:
 
-1.  As the CPU goes offline using RCU's hotplug notifier (rcu_report_dead()).
+1.  As the CPU goes offline using RCU's hotplug notifier (rcutree_report_cpu_dead()).
 2.  When grace period initialization (rcu_gp_init()) detects a
     race either with CPU offlining or with a task unblocking on a leaf
     ``rcu_node`` structure whose CPUs are all offline.
 
-The CPU-online path (rcu_cpu_starting()) should never need to report
+The CPU-online path (rcutree_report_cpu_starting()) should never need to report
 a quiescent state for an offline CPU.  However, as a debugging measure,
 it does emit a warning if a quiescent state was not already reported
 for that CPU.

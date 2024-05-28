@@ -45,23 +45,13 @@
 #define MAX_INSTANCE                                        7
 #define MAX_SEGMENT                                         6
 
-struct IP_BASE_INSTANCE
-{
+struct IP_BASE_INSTANCE {
     unsigned int segment[MAX_SEGMENT];
 };
 
-struct IP_BASE
-{
+struct IP_BASE {
     struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
 };
-
-static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 0 } },
-                                        { { 0x00016E00, 0x02401C00, 0, 0, 0, 0 } },
-                                        { { 0x00017000, 0x02402000, 0, 0, 0, 0 } },
-                                        { { 0x00017200, 0x02402400, 0, 0, 0, 0 } },
-                                        { { 0x0001B000, 0x0242D800, 0, 0, 0, 0 } },
-                                        { { 0x0001B200, 0x0242DC00, 0, 0, 0, 0 } },
-                                        { { 0x0001B400, 0x0242E000, 0, 0, 0, 0 } } } };
 
 #define regCLK1_CLK_PLL_REQ						0x0237
 #define regCLK1_CLK_PLL_REQ_BASE_IDX			0
@@ -72,9 +62,6 @@ static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 
 #define CLK1_CLK_PLL_REQ__FbMult_int_MASK		0x000001FFL
 #define CLK1_CLK_PLL_REQ__PllSpineDiv_MASK		0x0000F000L
 #define CLK1_CLK_PLL_REQ__FbMult_frac_MASK		0xFFFF0000L
-
-#define REG(reg_name) \
-	(CLK_BASE.instance[0].segment[reg ## reg_name ## _BASE_IDX] + reg ## reg_name)
 
 #define TO_CLK_MGR_DCN316(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn316, base)
@@ -112,20 +99,25 @@ static int dcn316_get_active_display_cnt_wa(
 	return display_count;
 }
 
-static void dcn316_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context, bool disable)
+static void dcn316_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context,
+		bool safe_to_lower, bool disable)
 {
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	int i;
 
 	for (i = 0; i < dc->res_pool->pipe_count; ++i) {
-		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *pipe = safe_to_lower
+			? &context->res_ctx.pipe_ctx[i]
+			: &dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
-		if (pipe->stream && (pipe->stream->dpms_off || pipe->plane_state == NULL ||
-				     dc_is_virtual_signal(pipe->stream->signal))) {
+		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal) ||
+				     !pipe->stream->link_enc)) {
 			if (disable) {
-				pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
+				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->immediate_disable_crtc)
+					pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
+
 				reset_sync_context_for_pipe(dc, context, i);
 			} else
 				pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
@@ -220,11 +212,11 @@ static void dcn316_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
-		dcn316_disable_otg_wa(clk_mgr_base, context, true);
+		dcn316_disable_otg_wa(clk_mgr_base, context, safe_to_lower, true);
 
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
 		dcn316_smu_set_dispclk(clk_mgr, clk_mgr_base->clks.dispclk_khz);
-		dcn316_disable_otg_wa(clk_mgr_base, context, false);
+		dcn316_disable_otg_wa(clk_mgr_base, context, safe_to_lower, false);
 
 		update_dispclk = true;
 	}
@@ -252,7 +244,7 @@ static void dcn316_update_clocks(struct clk_mgr *clk_mgr_base,
 	cmd.notify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
 	cmd.notify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
 
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static void dcn316_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
@@ -577,36 +569,6 @@ static struct clk_mgr_funcs dcn316_funcs = {
 };
 extern struct clk_mgr_funcs dcn3_fpga_funcs;
 
-static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
-{
-	/* get FbMult value */
-	struct fixed31_32 pll_req;
-	unsigned int fbmult_frac_val = 0;
-	unsigned int fbmult_int_val = 0;
-
-	/*
-	 * Register value of fbmult is in 8.16 format, we are converting to 31.32
-	 * to leverage the fix point operations available in driver
-	 */
-
-	REG_GET(CLK1_CLK_PLL_REQ, FbMult_frac, &fbmult_frac_val); /* 16 bit fractional part*/
-	REG_GET(CLK1_CLK_PLL_REQ, FbMult_int, &fbmult_int_val); /* 8 bit integer part */
-
-	pll_req = dc_fixpt_from_int(fbmult_int_val);
-
-	/*
-	 * since fractional part is only 16 bit in register definition but is 32 bit
-	 * in our fix point definiton, need to shift left by 16 to obtain correct value
-	 */
-	pll_req.value |= fbmult_frac_val << 16;
-
-	/* multiply by REFCLK period */
-	pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
-
-	/* integer part is now VCO frequency in kHz */
-	return dc_fixpt_floor(pll_req);
-}
-
 void dcn316_clk_mgr_construct(
 		struct dc_context *ctx,
 		struct clk_mgr_dcn316 *clk_mgr,
@@ -660,7 +622,8 @@ void dcn316_clk_mgr_construct(
 		clk_mgr->base.smu_present = true;
 
 	// Skip this for now as it did not work on DCN315, renable during bring up
-	clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
+	//clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
+	clk_mgr->base.base.dentist_vco_freq_khz = 2500000;
 
 	/* in case we don't get a value from the register, use default */
 	if (clk_mgr->base.base.dentist_vco_freq_khz == 0)

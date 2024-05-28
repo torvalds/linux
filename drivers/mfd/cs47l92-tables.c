@@ -1890,7 +1890,7 @@ const struct regmap_config cs47l92_16bit_spi_regmap = {
 	.readable_reg = &cs47l92_16bit_readable_register,
 	.volatile_reg = &cs47l92_16bit_volatile_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = cs47l92_reg_default,
 	.num_reg_defaults = ARRAY_SIZE(cs47l92_reg_default),
 };
@@ -1907,7 +1907,7 @@ const struct regmap_config cs47l92_16bit_i2c_regmap = {
 	.readable_reg = &cs47l92_16bit_readable_register,
 	.volatile_reg = &cs47l92_16bit_volatile_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = cs47l92_reg_default,
 	.num_reg_defaults = ARRAY_SIZE(cs47l92_reg_default),
 };
@@ -1926,7 +1926,7 @@ const struct regmap_config cs47l92_32bit_spi_regmap = {
 	.readable_reg = &cs47l92_32bit_readable_register,
 	.volatile_reg = &cs47l92_32bit_volatile_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(cs47l92_32bit_spi_regmap);
 
@@ -1942,6 +1942,6 @@ const struct regmap_config cs47l92_32bit_i2c_regmap = {
 	.readable_reg = &cs47l92_32bit_readable_register,
 	.volatile_reg = &cs47l92_32bit_volatile_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(cs47l92_32bit_i2c_regmap);

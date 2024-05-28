@@ -6,15 +6,9 @@
 #define _SYSCALL_USER_DISPATCH_H
 
 #include <linux/thread_info.h>
+#include <linux/syscall_user_dispatch_types.h>
 
 #ifdef CONFIG_GENERIC_ENTRY
-
-struct syscall_user_dispatch {
-	char __user	*selector;
-	unsigned long	offset;
-	unsigned long	len;
-	bool		on_dispatch;
-};
 
 int set_syscall_user_dispatch(unsigned long mode, unsigned long offset,
 			      unsigned long len, char __user *selector);
@@ -29,7 +23,6 @@ int syscall_user_dispatch_set_config(struct task_struct *task, unsigned long siz
 				     void __user *data);
 
 #else
-struct syscall_user_dispatch {};
 
 static inline int set_syscall_user_dispatch(unsigned long mode, unsigned long offset,
 					    unsigned long len, char __user *selector)

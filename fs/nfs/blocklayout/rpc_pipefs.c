@@ -75,7 +75,7 @@ bl_resolve_deviceid(struct nfs_server *server, struct pnfs_block_volume *b,
 	msg->len = sizeof(*bl_msg) + b->simple.len;
 	msg->data = kzalloc(msg->len, gfp_mask);
 	if (!msg->data)
-		goto out_free_data;
+		goto out_unlock;
 
 	bl_msg = msg->data;
 	bl_msg->type = BL_DEVICE_MOUNT;

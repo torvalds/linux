@@ -709,9 +709,9 @@ static int max77693_charger_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	chg->charger = power_supply_register(&pdev->dev,
-						&max77693_charger_desc,
-						&psy_cfg);
+	chg->charger = devm_power_supply_register(&pdev->dev,
+						  &max77693_charger_desc,
+						  &psy_cfg);
 	if (IS_ERR(chg->charger)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
 		ret = PTR_ERR(chg->charger);
@@ -728,17 +728,11 @@ err:
 	return ret;
 }
 
-static int max77693_charger_remove(struct platform_device *pdev)
+static void max77693_charger_remove(struct platform_device *pdev)
 {
-	struct max77693_charger *chg = platform_get_drvdata(pdev);
-
 	device_remove_file(&pdev->dev, &dev_attr_top_off_timer);
 	device_remove_file(&pdev->dev, &dev_attr_top_off_threshold_current);
 	device_remove_file(&pdev->dev, &dev_attr_fast_charge_timer);
-
-	power_supply_unregister(chg->charger);
-
-	return 0;
 }
 
 static const struct platform_device_id max77693_charger_id[] = {
@@ -752,7 +746,7 @@ static struct platform_driver max77693_charger_driver = {
 		.name	= "max77693-charger",
 	},
 	.probe		= max77693_charger_probe,
-	.remove		= max77693_charger_remove,
+	.remove_new	= max77693_charger_remove,
 	.id_table	= max77693_charger_id,
 };
 module_platform_driver(max77693_charger_driver);

@@ -6,6 +6,9 @@
 #include <linux/percpu.h>
 #include <uapi/asm/debugreg.h>
 
+#include <asm/cpufeature.h>
+#include <asm/msr.h>
+
 DECLARE_PER_CPU(unsigned long, cpu_dr7);
 
 #ifndef CONFIG_PARAVIRT_XXL
@@ -157,5 +160,27 @@ static inline unsigned long amd_get_dr_addr_mask(unsigned int dr)
 	return 0;
 }
 #endif
+
+static inline unsigned long get_debugctlmsr(void)
+{
+	unsigned long debugctlmsr = 0;
+
+#ifndef CONFIG_X86_DEBUGCTLMSR
+	if (boot_cpu_data.x86 < 6)
+		return 0;
+#endif
+	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+
+	return debugctlmsr;
+}
+
+static inline void update_debugctlmsr(unsigned long debugctlmsr)
+{
+#ifndef CONFIG_X86_DEBUGCTLMSR
+	if (boot_cpu_data.x86 < 6)
+		return;
+#endif
+	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+}
 
 #endif /* _ASM_X86_DEBUGREG_H */

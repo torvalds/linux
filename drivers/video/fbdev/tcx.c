@@ -32,10 +32,10 @@
 static int tcx_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 static int tcx_blank(int, struct fb_info *);
-
-static int tcx_mmap(struct fb_info *, struct vm_area_struct *);
-static int tcx_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int tcx_pan_display(struct fb_var_screeninfo *, struct fb_info *);
+
+static int tcx_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
+static int tcx_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
 
 /*
  *  Frame buffer operations
@@ -43,17 +43,10 @@ static int tcx_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 static const struct fb_ops tcx_ops = {
 	.owner			= THIS_MODULE,
+	FB_DEFAULT_SBUS_OPS(tcx),
 	.fb_setcolreg		= tcx_setcolreg,
 	.fb_blank		= tcx_blank,
 	.fb_pan_display		= tcx_pan_display,
-	.fb_fillrect		= cfb_fillrect,
-	.fb_copyarea		= cfb_copyarea,
-	.fb_imageblit		= cfb_imageblit,
-	.fb_mmap		= tcx_mmap,
-	.fb_ioctl		= tcx_ioctl,
-#ifdef CONFIG_COMPAT
-	.fb_compat_ioctl	= sbusfb_compat_ioctl,
-#endif
 };
 
 /* THC definitions */
@@ -299,7 +292,7 @@ static struct sbus_mmap_map __tcx_mmap_map[TCX_MMAP_ENTRIES] = {
 	{ .size = 0 }
 };
 
-static int tcx_mmap(struct fb_info *info, struct vm_area_struct *vma)
+static int tcx_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct tcx_par *par = (struct tcx_par *)info->par;
 
@@ -308,8 +301,7 @@ static int tcx_mmap(struct fb_info *info, struct vm_area_struct *vma)
 				  par->which_io, vma);
 }
 
-static int tcx_ioctl(struct fb_info *info, unsigned int cmd,
-		     unsigned long arg)
+static int tcx_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct tcx_par *par = (struct tcx_par *) info->par;
 
@@ -439,7 +431,6 @@ static int tcx_probe(struct platform_device *op)
 		par->mmap_map[i].poff = op->resource[j].start;
 	}
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &tcx_ops;
 
 	/* Initialize brooktree DAC. */

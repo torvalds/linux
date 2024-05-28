@@ -221,7 +221,7 @@
 				"Headphone", "Headphones",
 				"Speaker", "Internal Speakers";
 		audio-aux-devs = <&tdmout_b>, <&tdmin_b>, <&speaker_amp>;
-		audio-routing =	"TDMOUT_B IN 0", "FRDDR_A OUT 1",
+		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDM_B Playback", "TDMOUT_B OUT",
 				"TDMIN_B IN 1", "TDM_B Capture",
 				"TDMIN_B IN 4", "TDM_B Loopback",
@@ -380,7 +380,7 @@
 		compatible = "rockchip,rk818";
 		reg = <0x1c>;
 		interrupt-parent = <&gpio_intc>;
-		interrupts = <7 IRQ_TYPE_LEVEL_LOW>; /* GPIOAO_7 */
+		interrupts = <IRQID_GPIOAO_7 IRQ_TYPE_LEVEL_LOW>; /* GPIOAO_7 */
 		#clock-cells = <1>;
 
 		vcc1-supply = <&vdd_sys>;
@@ -519,7 +519,7 @@
 		reg = <0x20>;
 		interrupt-parent = <&gpio_intc>;
 
-		interrupts = <5 IRQ_TYPE_LEVEL_LOW>; /* GPIOAO_5 */
+		interrupts = <IRQID_GPIOAO_5 IRQ_TYPE_LEVEL_LOW>; /* GPIOAO_5 */
 
 		vcc1-supply = <&vdd_sys>;
 		vcc2-supply = <&vdd_sys>;

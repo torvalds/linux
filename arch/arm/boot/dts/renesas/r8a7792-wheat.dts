@@ -29,6 +29,15 @@
 		reg = <0 0x40000000 0 0x40000000>;
 	};
 
+	d1_8v: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "D1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	d3_3v: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "D3.3V";
@@ -36,22 +45,6 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
-	};
-
-	ethernet@18000000 {
-		compatible = "smsc,lan89218", "smsc,lan9115";
-		reg = <0 0x18000000 0 0x100>;
-		phy-mode = "mii";
-		interrupt-parent = <&irqc>;
-		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
-		smsc,irq-push-pull;
-		smsc,save-mac-address;
-		reg-io-width = <4>;
-		vddvario-supply = <&d3_3v>;
-		vdd33a-supply = <&d3_3v>;
-
-		pinctrl-0 = <&lan89218_pins>;
-		pinctrl-names = "default";
 	};
 
 	keyboard {
@@ -115,6 +108,24 @@
 
 &extal_clk {
 	clock-frequency = <20000000>;
+};
+
+&lbsc {
+	ethernet@18000000 {
+		compatible = "smsc,lan89218", "smsc,lan9115";
+		reg = <0x18000000 0x100>;
+		phy-mode = "mii";
+		interrupt-parent = <&irqc>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		smsc,irq-push-pull;
+		smsc,save-mac-address;
+		reg-io-width = <4>;
+		vddvario-supply = <&d3_3v>;
+		vdd33a-supply = <&d3_3v>;
+
+		pinctrl-0 = <&lan89218_pins>;
+		pinctrl-names = "default";
+	};
 };
 
 &pfc {
@@ -252,6 +263,12 @@
 		reg = <0x3d>, <0x4d>, <0x2d>, <0x5d>;
 		reg-names = "main", "edid", "cec", "packet";
 
+		avdd-supply = <&d1_8v>;
+		dvdd-supply = <&d1_8v>;
+		pvdd-supply = <&d1_8v>;
+		dvdd-3v-supply = <&d3_3v>;
+		bgvdd-supply = <&d1_8v>;
+
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
@@ -280,6 +297,12 @@
 		compatible = "adi,adv7513";
 		reg = <0x39>, <0x49>, <0x29>, <0x59>;
 		reg-names = "main", "edid", "cec", "packet";
+
+		avdd-supply = <&d1_8v>;
+		dvdd-supply = <&d1_8v>;
+		pvdd-supply = <&d1_8v>;
+		dvdd-3v-supply = <&d3_3v>;
+		bgvdd-supply = <&d1_8v>;
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";

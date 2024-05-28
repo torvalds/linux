@@ -150,13 +150,8 @@ atomisp-objs += \
 	pci/hive_isp_css_common/host/timed_ctrl.o \
 	pci/hive_isp_css_common/host/vmem.o \
 	pci/hive_isp_css_shared/host/tag.o \
-	pci/system_local.o
-
-# These will be needed when clean merge CHT support nicely into the driver
-# Keep them here handy for when we get to that point
-#
-
-obj-cht = \
+	pci/system_local.o \
+	pci/runtime/isys/src/ibuf_ctrl_rmgr.o \
 	pci/css_2401_system/host/csi_rx.o \
 	pci/css_2401_system/host/ibuf_ctrl.o \
 	pci/css_2401_system/host/isys_dma.o \
@@ -305,12 +300,5 @@ DEFINES := -DHRT_HW -DHRT_ISP_CSS_CUSTOM_HOST -DHRT_USE_VIR_ADDRS -D__HOST__
 #DEFINES += -DUSE_SSSE3
 #DEFINES += -DPUNIT_CAMERA_BUSY
 #DEFINES += -DUSE_KMEM_CACHE
-
-ifeq ($(CONFIG_VIDEO_ATOMISP_ISP2401),y)
-atomisp-objs += \
-	$(obj-cht) \
-	pci/runtime/isys/src/ibuf_ctrl_rmgr.o
-DEFINES += -DISP2401
-endif
 
 ccflags-y += $(INCLUDES) $(DEFINES) -fno-common

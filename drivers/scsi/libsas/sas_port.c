@@ -28,7 +28,7 @@ static void sas_resume_port(struct asd_sas_phy *phy)
 	struct domain_device *dev, *n;
 	struct asd_sas_port *port = phy->port;
 	struct sas_ha_struct *sas_ha = phy->ha;
-	struct sas_internal *si = to_sas_internal(sas_ha->core.shost->transportt);
+	struct sas_internal *si = to_sas_internal(sas_ha->shost->transportt);
 
 	if (si->dft->lldd_port_formed)
 		si->dft->lldd_port_formed(phy);
@@ -83,7 +83,6 @@ static void sas_form_port_add_phy(struct asd_sas_port *port,
 		memcpy(port->sas_addr, phy->sas_addr, SAS_ADDR_SIZE);
 
 	if (*(u64 *)port->attached_sas_addr == 0) {
-		port->class = phy->class;
 		memcpy(port->attached_sas_addr, phy->attached_sas_addr,
 		       SAS_ADDR_SIZE);
 		port->iproto = phy->iproto;
@@ -109,7 +108,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	struct asd_sas_port *port = phy->port;
 	struct domain_device *port_dev = NULL;
 	struct sas_internal *si =
-		to_sas_internal(sas_ha->core.shost->transportt);
+		to_sas_internal(sas_ha->shost->transportt);
 	unsigned long flags;
 
 	if (port) {
@@ -212,7 +211,7 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct asd_sas_port *port = phy->port;
 	struct sas_internal *si =
-		to_sas_internal(sas_ha->core.shost->transportt);
+		to_sas_internal(sas_ha->shost->transportt);
 	struct domain_device *dev;
 	unsigned long flags;
 
@@ -249,7 +248,6 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		INIT_LIST_HEAD(&port->phy_list);
 		memset(port->sas_addr, 0, SAS_ADDR_SIZE);
 		memset(port->attached_sas_addr, 0, SAS_ADDR_SIZE);
-		port->class = 0;
 		port->iproto = 0;
 		port->tproto = 0;
 		port->oob_mode = 0;

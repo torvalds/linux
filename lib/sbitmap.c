@@ -388,11 +388,6 @@ static unsigned int sbq_calc_wake_batch(struct sbitmap_queue *sbq,
 	unsigned int shallow_depth;
 
 	/*
-	 * For each batch, we wake up one queue. We need to make sure that our
-	 * batch size is small enough that the full depth of the bitmap,
-	 * potentially limited by a shallow depth, is enough to wake up all of
-	 * the queues.
-	 *
 	 * Each full word of the bitmap has bits_per_word bits, and there might
 	 * be a partial word. There are depth / bits_per_word full words and
 	 * depth % bits_per_word bits left over. In bitwise arithmetic:

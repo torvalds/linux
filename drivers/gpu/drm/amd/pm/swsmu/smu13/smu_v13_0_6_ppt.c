@@ -44,9 +44,12 @@
 #include "amdgpu_xgmi.h"
 #include <linux/pci.h>
 #include "amdgpu_ras.h"
+#include "amdgpu_mca.h"
+#include "amdgpu_aca.h"
 #include "smu_cmn.h"
 #include "mp/mp_13_0_6_offset.h"
 #include "mp/mp_13_0_6_sh_mask.h"
+#include "umc_v12_0.h"
 
 #undef MP1_Public
 #undef smnMP1_FIRMWARE_FLAGS
@@ -64,6 +67,8 @@
 #undef pr_info
 #undef pr_debug
 
+MODULE_FIRMWARE("amdgpu/smu_13_0_6.bin");
+
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
 #define SMU_13_0_6_FEA_MAP(smu_feature, smu_13_0_6_feature)                    \
@@ -80,20 +85,52 @@
 /* possible frequency drift (1Mhz) */
 #define EPSILON 1
 
-#define smnPCIE_ESM_CTRL 0x193D0
+#define smnPCIE_ESM_CTRL 0x93D0
 #define smnPCIE_LC_LINK_WIDTH_CNTL 0x1a340288
 #define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK 0x00000070L
 #define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT 0x4
 #define MAX_LINK_WIDTH 6
 
+#define smnPCIE_LC_SPEED_CNTL                   0x1a340290
+#define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK 0xE0
+#define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT 0x5
+#define LINK_SPEED_MAX				4
+
+#define SMU_13_0_6_DSCLK_THRESHOLD 140
+
+#define MCA_BANK_IPID(_ip, _hwid, _type) \
+	[AMDGPU_MCA_IP_##_ip] = { .hwid = _hwid, .mcatype = _type, }
+
+struct mca_bank_ipid {
+	enum amdgpu_mca_ip ip;
+	uint16_t hwid;
+	uint16_t mcatype;
+};
+
+struct mca_ras_info {
+	enum amdgpu_ras_block blkid;
+	enum amdgpu_mca_ip ip;
+	int *err_code_array;
+	int err_code_count;
+	int (*get_err_count)(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+			     enum amdgpu_mca_error_type type, struct mca_bank_entry *entry, uint32_t *count);
+	bool (*bank_is_valid)(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+			      enum amdgpu_mca_error_type type, struct mca_bank_entry *entry);
+};
+
+#define P2S_TABLE_ID_A 0x50325341
+#define P2S_TABLE_ID_X 0x50325358
+
+// clang-format off
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
 	MSG_MAP(GetDriverIfVersion,		     PPSMC_MSG_GetDriverIfVersion,		1),
-	MSG_MAP(EnableAllSmuFeatures,		     PPSMC_MSG_EnableAllSmuFeatures,		1),
-	MSG_MAP(DisableAllSmuFeatures,		     PPSMC_MSG_DisableAllSmuFeatures,		1),
+	MSG_MAP(EnableAllSmuFeatures,		     PPSMC_MSG_EnableAllSmuFeatures,		0),
+	MSG_MAP(DisableAllSmuFeatures,		     PPSMC_MSG_DisableAllSmuFeatures,		0),
 	MSG_MAP(RequestI2cTransaction,		     PPSMC_MSG_RequestI2cTransaction,		0),
 	MSG_MAP(GetMetricsTable,		     PPSMC_MSG_GetMetricsTable,			1),
+	MSG_MAP(GetMetricsVersion,		     PPSMC_MSG_GetMetricsVersion,		1),
 	MSG_MAP(GetEnabledSmuFeaturesHigh,	     PPSMC_MSG_GetEnabledSmuFeaturesHigh,	1),
 	MSG_MAP(GetEnabledSmuFeaturesLow,	     PPSMC_MSG_GetEnabledSmuFeaturesLow,	1),
 	MSG_MAP(SetDriverDramAddrHigh,		     PPSMC_MSG_SetDriverDramAddrHigh,		1),
@@ -102,8 +139,8 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(SetToolsDramAddrLow,		     PPSMC_MSG_SetToolsDramAddrLow,		0),
 	MSG_MAP(SetSoftMinByFreq,		     PPSMC_MSG_SetSoftMinByFreq,		0),
 	MSG_MAP(SetSoftMaxByFreq,		     PPSMC_MSG_SetSoftMaxByFreq,		0),
-	MSG_MAP(GetMinDpmFreq,			     PPSMC_MSG_GetMinDpmFreq,			0),
-	MSG_MAP(GetMaxDpmFreq,			     PPSMC_MSG_GetMaxDpmFreq,			0),
+	MSG_MAP(GetMinDpmFreq,			     PPSMC_MSG_GetMinDpmFreq,			1),
+	MSG_MAP(GetMaxDpmFreq,			     PPSMC_MSG_GetMaxDpmFreq,			1),
 	MSG_MAP(GetDpmFreqByIndex,		     PPSMC_MSG_GetDpmFreqByIndex,		1),
 	MSG_MAP(SetPptLimit,			     PPSMC_MSG_SetPptLimit,			0),
 	MSG_MAP(GetPptLimit,			     PPSMC_MSG_GetPptLimit,			1),
@@ -122,13 +159,23 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(EnableDeterminism,		     PPSMC_MSG_EnableDeterminism,		0),
 	MSG_MAP(DisableDeterminism,		     PPSMC_MSG_DisableDeterminism,		0),
 	MSG_MAP(GfxDriverResetRecovery,		     PPSMC_MSG_GfxDriverResetRecovery,		0),
-	MSG_MAP(GetMinGfxclkFrequency,               PPSMC_MSG_GetMinGfxDpmFreq,                0),
-	MSG_MAP(GetMaxGfxclkFrequency,               PPSMC_MSG_GetMaxGfxDpmFreq,                0),
-	MSG_MAP(SetSoftMinGfxclk,                    PPSMC_MSG_SetSoftMinGfxClk,                0),
-	MSG_MAP(SetSoftMaxGfxClk,                    PPSMC_MSG_SetSoftMaxGfxClk,                0),
+	MSG_MAP(GetMinGfxclkFrequency,               PPSMC_MSG_GetMinGfxDpmFreq,                1),
+	MSG_MAP(GetMaxGfxclkFrequency,               PPSMC_MSG_GetMaxGfxDpmFreq,                1),
+	MSG_MAP(SetSoftMinGfxclk,                    PPSMC_MSG_SetSoftMinGfxClk,                1),
+	MSG_MAP(SetSoftMaxGfxClk,                    PPSMC_MSG_SetSoftMaxGfxClk,                1),
 	MSG_MAP(PrepareMp1ForUnload,                 PPSMC_MSG_PrepareForDriverUnload,          0),
+	MSG_MAP(GetCTFLimit,                         PPSMC_MSG_GetCTFLimit,                     0),
+	MSG_MAP(GetThermalLimit,                     PPSMC_MSG_ReadThrottlerLimit,              0),
+	MSG_MAP(ClearMcaOnRead,	                     PPSMC_MSG_ClearMcaOnRead,                  0),
+	MSG_MAP(QueryValidMcaCount,                  PPSMC_MSG_QueryValidMcaCount,              0),
+	MSG_MAP(QueryValidMcaCeCount,                PPSMC_MSG_QueryValidMcaCeCount,            0),
+	MSG_MAP(McaBankDumpDW,                       PPSMC_MSG_McaBankDumpDW,                   0),
+	MSG_MAP(McaBankCeDumpDW,                     PPSMC_MSG_McaBankCeDumpDW,                 0),
+	MSG_MAP(SelectPLPDMode,                      PPSMC_MSG_SelectPLPDMode,                  0),
+	MSG_MAP(RmaDueToBadPageThreshold,            PPSMC_MSG_RmaDueToBadPageThreshold,        0),
 };
 
+// clang-format on
 static const struct cmn2asic_mapping smu_v13_0_6_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(SOCCLK, PPCLK_SOCCLK),
 	CLK_MAP(FCLK, PPCLK_FCLK),
@@ -201,6 +248,10 @@ struct PPTable_t {
 };
 
 #define SMUQ10_TO_UINT(x) ((x) >> 10)
+#define SMUQ10_FRAC(x) ((x) & 0x3ff)
+#define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
+#define GET_METRIC_FIELD(field) ((adev->flags & AMD_IS_APU) ?\
+		(metrics_a->field) : (metrics_x->field))
 
 struct smu_v13_0_6_dpm_map {
 	enum smu_clk_type clk_type;
@@ -208,6 +259,70 @@ struct smu_v13_0_6_dpm_map {
 	struct smu_13_0_dpm_table *dpm_table;
 	uint32_t *freq_table;
 };
+
+static int smu_v13_0_6_init_microcode(struct smu_context *smu)
+{
+	const struct smc_firmware_header_v2_1 *v2_1;
+	const struct common_firmware_header *hdr;
+	struct amdgpu_firmware_info *ucode = NULL;
+	struct smc_soft_pptable_entry *entries;
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t p2s_table_id = P2S_TABLE_ID_A;
+	int ret = 0, i, p2stable_count;
+	char ucode_prefix[15];
+	char fw_name[30];
+
+	/* No need to load P2S tables in IOV mode */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	if (!(adev->flags & AMD_IS_APU))
+		p2s_table_id = P2S_TABLE_ID_X;
+
+	amdgpu_ucode_ip_version_decode(adev, MP1_HWIP, ucode_prefix,
+				       sizeof(ucode_prefix));
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
+
+	ret = amdgpu_ucode_request(adev, &adev->pm.fw, fw_name);
+	if (ret)
+		goto out;
+
+	hdr = (const struct common_firmware_header *)adev->pm.fw->data;
+	amdgpu_ucode_print_smc_hdr(hdr);
+
+	/* SMU v13.0.6 binary file doesn't carry pptables, instead the entries
+	 * are used to carry p2s tables.
+	 */
+	v2_1 = (const struct smc_firmware_header_v2_1 *)adev->pm.fw->data;
+	entries = (struct smc_soft_pptable_entry
+			   *)((uint8_t *)v2_1 +
+			      le32_to_cpu(v2_1->pptable_entry_offset));
+	p2stable_count = le32_to_cpu(v2_1->pptable_count);
+	for (i = 0; i < p2stable_count; i++) {
+		if (le32_to_cpu(entries[i].id) == p2s_table_id) {
+			smu->pptable_firmware.data =
+				((uint8_t *)v2_1 +
+				 le32_to_cpu(entries[i].ppt_offset_bytes));
+			smu->pptable_firmware.size =
+				le32_to_cpu(entries[i].ppt_size_bytes);
+			break;
+		}
+	}
+
+	if (smu->pptable_firmware.data && smu->pptable_firmware.size) {
+		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_P2S_TABLE];
+		ucode->ucode_id = AMDGPU_UCODE_ID_P2S_TABLE;
+		ucode->fw = &smu->pptable_firmware;
+		adev->firmware.fw_size += ALIGN(ucode->fw->size, PAGE_SIZE);
+	}
+
+	return 0;
+out:
+	amdgpu_ucode_release(&adev->pm.fw);
+
+	return ret;
+}
 
 static int smu_v13_0_6_tables_init(struct smu_context *smu)
 {
@@ -219,7 +334,8 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		SMU_TABLE_INIT(tables, SMU_TABLE_PMSTATUSLOG, SMU13_TOOL_SIZE,
 			       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(MetricsTable_t),
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS,
+		       max(sizeof(MetricsTableX_t), sizeof(MetricsTableA_t)),
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
@@ -227,12 +343,13 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
-	smu_table->metrics_table = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc(max(sizeof(MetricsTableX_t),
+		       sizeof(MetricsTableA_t)), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_3);
+	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_5);
 	smu_table->gpu_metrics_table =
 		kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table) {
@@ -320,45 +437,100 @@ static int smu_v13_0_6_get_metrics_table(struct smu_context *smu,
 	return 0;
 }
 
+static ssize_t smu_v13_0_6_get_pm_metrics(struct smu_context *smu,
+					  void *metrics, size_t max_size)
+{
+	struct smu_table_context *smu_tbl_ctxt = &smu->smu_table;
+	uint32_t table_version = smu_tbl_ctxt->tables[SMU_TABLE_SMU_METRICS].version;
+	uint32_t table_size = smu_tbl_ctxt->tables[SMU_TABLE_SMU_METRICS].size;
+	struct amdgpu_pm_metrics *pm_metrics = metrics;
+	uint32_t pmfw_version;
+	int ret;
+
+	if (!pm_metrics || !max_size)
+		return -EINVAL;
+
+	if (max_size < (table_size + sizeof(pm_metrics->common_header)))
+		return -EOVERFLOW;
+
+	/* Don't use cached metrics data */
+	ret = smu_v13_0_6_get_metrics_table(smu, pm_metrics->data, true);
+	if (ret)
+		return ret;
+
+	smu_cmn_get_smc_version(smu, NULL, &pmfw_version);
+
+	memset(&pm_metrics->common_header, 0,
+	       sizeof(pm_metrics->common_header));
+	pm_metrics->common_header.mp1_ip_discovery_version =
+		IP_VERSION(13, 0, 6);
+	pm_metrics->common_header.pmfw_version = pmfw_version;
+	pm_metrics->common_header.pmmetrics_version = table_version;
+	pm_metrics->common_header.structure_size =
+		sizeof(pm_metrics->common_header) + table_size;
+
+	return pm_metrics->common_header.structure_size;
+}
+
 static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
+	MetricsTableX_t *metrics_x = (MetricsTableX_t *)smu_table->metrics_table;
+	MetricsTableA_t *metrics_a = (MetricsTableA_t *)smu_table->metrics_table;
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
-	int ret;
-	int i;
+	struct amdgpu_device *adev = smu->adev;
+	int ret, i, retry = 100;
+	uint32_t table_version;
 
 	/* Store one-time values in driver PPTable */
 	if (!pptable->Init) {
-		ret = smu_v13_0_6_get_metrics_table(smu, NULL, false);
+		while (--retry) {
+			ret = smu_v13_0_6_get_metrics_table(smu, NULL, true);
+			if (ret)
+				return ret;
+
+			/* Ensure that metrics have been updated */
+			if (GET_METRIC_FIELD(AccumulationCounter))
+				break;
+
+			usleep_range(1000, 1100);
+		}
+
+		if (!retry)
+			return -ETIME;
+
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetMetricsVersion,
+					   &table_version);
 		if (ret)
 			return ret;
+		smu_table->tables[SMU_TABLE_SMU_METRICS].version =
+			table_version;
 
 		pptable->MaxSocketPowerLimit =
-			SMUQ10_TO_UINT(metrics->MaxSocketPowerLimit);
+			SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketPowerLimit));
 		pptable->MaxGfxclkFrequency =
-			SMUQ10_TO_UINT(metrics->MaxGfxclkFrequency);
+			SMUQ10_ROUND(GET_METRIC_FIELD(MaxGfxclkFrequency));
 		pptable->MinGfxclkFrequency =
-			SMUQ10_TO_UINT(metrics->MinGfxclkFrequency);
+			SMUQ10_ROUND(GET_METRIC_FIELD(MinGfxclkFrequency));
 
 		for (i = 0; i < 4; ++i) {
 			pptable->FclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->FclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(FclkFrequencyTable)[i]);
 			pptable->UclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->UclkFrequencyTable[i]);
-			pptable->SocclkFrequencyTable[i] = SMUQ10_TO_UINT(
-				metrics->SocclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(UclkFrequencyTable)[i]);
+			pptable->SocclkFrequencyTable[i] = SMUQ10_ROUND(
+				GET_METRIC_FIELD(SocclkFrequencyTable)[i]);
 			pptable->VclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->VclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(VclkFrequencyTable)[i]);
 			pptable->DclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->DclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(DclkFrequencyTable)[i]);
 			pptable->LclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->LclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(LclkFrequencyTable)[i]);
 		}
 
 		/* use AID0 serial number by default */
-		pptable->PublicSerialNumber_AID = metrics->PublicSerialNumber_AID[0];
+		pptable->PublicSerialNumber_AID = GET_METRIC_FIELD(PublicSerialNumber_AID)[0];
 
 		pptable->Init = true;
 	}
@@ -660,9 +832,9 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 					    uint32_t *value)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
+	MetricsTableX_t *metrics_x = (MetricsTableX_t *)smu_table->metrics_table;
+	MetricsTableA_t *metrics_a = (MetricsTableA_t *)smu_table->metrics_table;
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t smu_version;
 	int ret = 0;
 	int xcc_id;
 
@@ -674,53 +846,52 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	switch (member) {
 	case METRICS_CURR_GFXCLK:
 	case METRICS_AVERAGE_GFXCLK:
-		smu_cmn_get_smc_version(smu, NULL, &smu_version);
-		if (smu_version >= 0x552F00) {
+		if (smu->smc_fw_version >= 0x552F00) {
 			xcc_id = GET_INST(GC, 0);
-			*value = SMUQ10_TO_UINT(metrics->GfxclkFrequency[xcc_id]);
+			*value = SMUQ10_ROUND(GET_METRIC_FIELD(GfxclkFrequency)[xcc_id]);
 		} else {
 			*value = 0;
 		}
 		break;
 	case METRICS_CURR_SOCCLK:
 	case METRICS_AVERAGE_SOCCLK:
-		*value = SMUQ10_TO_UINT(metrics->SocclkFrequency[0]);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(SocclkFrequency)[0]);
 		break;
 	case METRICS_CURR_UCLK:
 	case METRICS_AVERAGE_UCLK:
-		*value = SMUQ10_TO_UINT(metrics->UclkFrequency);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(UclkFrequency));
 		break;
 	case METRICS_CURR_VCLK:
-		*value = SMUQ10_TO_UINT(metrics->VclkFrequency[0]);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(VclkFrequency)[0]);
 		break;
 	case METRICS_CURR_DCLK:
-		*value = SMUQ10_TO_UINT(metrics->DclkFrequency[0]);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(DclkFrequency)[0]);
 		break;
 	case METRICS_CURR_FCLK:
-		*value = SMUQ10_TO_UINT(metrics->FclkFrequency);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(FclkFrequency));
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
-		*value = SMUQ10_TO_UINT(metrics->SocketGfxBusy);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(SocketGfxBusy));
 		break;
 	case METRICS_AVERAGE_MEMACTIVITY:
-		*value = SMUQ10_TO_UINT(metrics->DramBandwidthUtilization);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(DramBandwidthUtilization));
 		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = SMUQ10_TO_UINT(metrics->SocketPower) << 8;
+	case METRICS_CURR_SOCKETPOWER:
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(SocketPower)) << 8;
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = SMUQ10_TO_UINT(metrics->MaxSocketTemperature) *
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketTemperature)) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_MEM:
-		*value = SMUQ10_TO_UINT(metrics->MaxHbmTemperature) *
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(MaxHbmTemperature)) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	/* This is the max of all VRs and not just SOC VR.
 	 * No need to define another data type for the same.
 	 */
 	case METRICS_TEMPERATURE_VRSOC:
-		*value = SMUQ10_TO_UINT(metrics->MaxVrTemperature) *
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(MaxVrTemperature)) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	default:
@@ -766,18 +937,66 @@ static int smu_v13_0_6_get_current_clk_freq_by_table(struct smu_context *smu,
 	return smu_v13_0_6_get_smu_metrics_data(smu, member_type, value);
 }
 
+static int smu_v13_0_6_print_clks(struct smu_context *smu, char *buf, int size,
+				  struct smu_13_0_dpm_table *single_dpm_table,
+				  uint32_t curr_clk, const char *clk_name)
+{
+	struct pp_clock_levels_with_latency clocks;
+	int i, ret, level = -1;
+	uint32_t clk1, clk2;
+
+	ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
+	if (ret) {
+		dev_err(smu->adev->dev, "Attempt to get %s clk levels failed!",
+			clk_name);
+		return ret;
+	}
+
+	if (!clocks.num_levels)
+		return -EINVAL;
+
+	if (curr_clk < SMU_13_0_6_DSCLK_THRESHOLD) {
+		size = sysfs_emit_at(buf, size, "S: %uMhz *\n", curr_clk);
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sysfs_emit_at(buf, size, "%d: %uMhz\n", i,
+					      clocks.data[i].clocks_in_khz /
+						      1000);
+
+	} else {
+		if ((clocks.num_levels == 1) ||
+		    (curr_clk < (clocks.data[0].clocks_in_khz / 1000)))
+			level = 0;
+		for (i = 0; i < clocks.num_levels; i++) {
+			clk1 = clocks.data[i].clocks_in_khz / 1000;
+
+			if (i < (clocks.num_levels - 1))
+				clk2 = clocks.data[i + 1].clocks_in_khz / 1000;
+
+			if (curr_clk == clk1) {
+				level = i;
+			} else if (curr_clk >= clk1 && curr_clk < clk2) {
+				level = (curr_clk - clk1) <= (clk2 - curr_clk) ?
+						i :
+						i + 1;
+			}
+
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
+					      clk1, (level == i) ? "*" : "");
+		}
+	}
+
+	return size;
+}
+
 static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 					enum smu_clk_type type, char *buf)
 {
-	int i, now, size = 0;
+	int now, size = 0;
 	int ret = 0;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
-	struct pp_clock_levels_with_latency clocks;
 	struct smu_13_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
-	uint32_t display_levels;
-	uint32_t freq_values[3] = { 0 };
 	uint32_t min_clk, max_clk;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
@@ -802,50 +1021,32 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
-		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get gfx clk levels Failed!");
-			return ret;
-		}
-
-		display_levels = clocks.num_levels;
-
 		min_clk = pstate_table->gfxclk_pstate.curr.min;
 		max_clk = pstate_table->gfxclk_pstate.curr.max;
 
-		freq_values[0] = min_clk;
-		freq_values[1] = max_clk;
+		if (now < SMU_13_0_6_DSCLK_THRESHOLD) {
+			size += sysfs_emit_at(buf, size, "S: %uMhz *\n",
+					      now);
+			size += sysfs_emit_at(buf, size, "0: %uMhz\n",
+					      min_clk);
+			size += sysfs_emit_at(buf, size, "1: %uMhz\n",
+					      max_clk);
 
-		/* fine-grained dpm has only 2 levels */
-		if (now > min_clk && now < max_clk) {
-			display_levels = clocks.num_levels + 1;
-			freq_values[2] = max_clk;
-			freq_values[1] = now;
-		}
-
-		/*
-		 * For DPM disabled case, there will be only one clock level.
-		 * And it's safe to assume that is always the current clock.
-		 */
-		if (display_levels == clocks.num_levels) {
-			for (i = 0; i < clocks.num_levels; i++)
-				size += sysfs_emit_at(
-					buf, size, "%d: %uMhz %s\n", i,
-					freq_values[i],
-					(clocks.num_levels == 1) ?
-						"*" :
-						(smu_v13_0_6_freqs_in_same_level(
-							 freq_values[i], now) ?
-							 "*" :
-							 ""));
+		} else if (!smu_v13_0_6_freqs_in_same_level(now, min_clk) &&
+		    !smu_v13_0_6_freqs_in_same_level(now, max_clk)) {
+			size += sysfs_emit_at(buf, size, "0: %uMhz\n",
+					      min_clk);
+			size += sysfs_emit_at(buf, size, "1: %uMhz *\n",
+					      now);
+			size += sysfs_emit_at(buf, size, "2: %uMhz\n",
+					      max_clk);
 		} else {
-			for (i = 0; i < display_levels; i++)
-				size += sysfs_emit_at(buf, size,
-						      "%d: %uMhz %s\n", i,
-						      freq_values[i],
-						      i == 1 ? "*" : "");
+			size += sysfs_emit_at(buf, size, "0: %uMhz %s\n",
+					      min_clk,
+					      smu_v13_0_6_freqs_in_same_level(now, min_clk) ? "*" : "");
+			size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+					      max_clk,
+					      smu_v13_0_6_freqs_in_same_level(now, max_clk) ? "*" : "");
 		}
 
 		break;
@@ -863,26 +1064,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.uclk_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get memory clk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				clocks.data[i].clocks_in_khz / 1000,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "mclk");
 
 	case SMU_SOCCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_SOCCLK,
@@ -894,26 +1078,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.soc_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get socclk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				clocks.data[i].clocks_in_khz / 1000,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "socclk");
 
 	case SMU_FCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_FCLK,
@@ -925,26 +1092,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.fclk_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get fclk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "fclk");
 
 	case SMU_VCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_VCLK,
@@ -956,26 +1106,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get vclk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "vclk");
 
 	case SMU_DCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_DCLK,
@@ -987,26 +1120,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 		}
 
 		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get dclk levels Failed!");
-			return ret;
-		}
 
-		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(
-				buf, size, "%d: %uMhz %s\n", i,
-				single_dpm_table->dpm_levels[i].value,
-				(clocks.num_levels == 1) ?
-					"*" :
-					(smu_v13_0_6_freqs_in_same_level(
-						 clocks.data[i].clocks_in_khz /
-							 1000,
-						 now) ?
-						 "*" :
-						 ""));
-		break;
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "dclk");
 
 	default:
 		break;
@@ -1158,15 +1274,6 @@ static int smu_v13_0_6_get_current_activity_percent(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_v13_0_6_get_gpu_power(struct smu_context *smu, uint32_t *value)
-{
-	if (!value)
-		return -EINVAL;
-
-	return smu_v13_0_6_get_smu_metrics_data(smu, METRICS_AVERAGE_SOCKETPOWER,
-					       value);
-}
-
 static int smu_v13_0_6_thermal_get_temperature(struct smu_context *smu,
 					       enum amd_pp_sensors sensor,
 					       uint32_t *value)
@@ -1212,8 +1319,10 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 							       (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = smu_v13_0_6_get_gpu_power(smu, (uint32_t *)data);
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
+		ret = smu_v13_0_6_get_smu_metrics_data(smu,
+						       METRICS_CURR_SOCKETPOWER,
+						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
@@ -1239,6 +1348,7 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 		ret = smu_v13_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	default:
 		ret = -EOPNOTSUPP;
 		break;
@@ -1248,13 +1358,14 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 }
 
 static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
-				       uint32_t *current_power_limit,
-				       uint32_t *default_power_limit,
-				       uint32_t *max_power_limit)
+						uint32_t *current_power_limit,
+						uint32_t *default_power_limit,
+						uint32_t *max_power_limit,
+						uint32_t *min_power_limit)
 {
-        struct smu_table_context *smu_table = &smu->smu_table;
-        struct PPTable_t *pptable =
-                (struct PPTable_t *)smu_table->driver_pptable;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct PPTable_t *pptable =
+		(struct PPTable_t *)smu_table->driver_pptable;
 	uint32_t power_limit = 0;
 	int ret;
 
@@ -1274,6 +1385,8 @@ static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
 		*max_power_limit = pptable->MaxSocketPowerLimit;
 	}
 
+	if (min_power_limit)
+		*min_power_limit = 0;
 	return 0;
 }
 
@@ -1327,7 +1440,10 @@ static int smu_v13_0_6_irq_process(struct amdgpu_device *adev,
 							entry->src_data[1]);
 					schedule_work(&smu->throttling_logging_work);
 				}
-
+				break;
+			default:
+				dev_dbg(adev->dev, "Unhandled context id %d from client:%d!\n",
+									ctxid, client_id);
 				break;
 			}
 		}
@@ -1370,8 +1486,7 @@ static int smu_v13_0_6_set_irq_state(struct amdgpu_device *adev,
 	return 0;
 }
 
-static const struct amdgpu_irq_src_funcs smu_v13_0_6_irq_funcs =
-{
+static const struct amdgpu_irq_src_funcs smu_v13_0_6_irq_funcs = {
 	.set = smu_v13_0_6_set_irq_state,
 	.process = smu_v13_0_6_irq_process,
 };
@@ -1399,10 +1514,7 @@ static int smu_v13_0_6_register_irq_handler(struct smu_context *smu)
 
 static int smu_v13_0_6_notify_unload(struct smu_context *smu)
 {
-	uint32_t smu_version;
-
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (smu_version <= 0x553500)
+	if (amdgpu_in_reset(smu->adev))
 		return 0;
 
 	dev_dbg(smu->adev->dev, "Notify PMFW about driver unload");
@@ -1412,11 +1524,25 @@ static int smu_v13_0_6_notify_unload(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v13_0_6_mca_set_debug_mode(struct smu_context *smu, bool enable)
+{
+	/* NOTE: this ClearMcaOnRead message is only supported for smu version 85.72.0 or higher */
+	if (smu->smc_fw_version < 0x554800)
+		return 0;
+
+	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ClearMcaOnRead,
+					       enable ? 0 : ClearMcaOnRead_UE_FLAG_MASK | ClearMcaOnRead_CE_POLL_MASK,
+					       NULL);
+}
+
 static int smu_v13_0_6_system_features_control(struct smu_context *smu,
 					       bool enable)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	if (enable) {
 		if (!(adev->flags & AMD_IS_APU))
@@ -1453,6 +1579,8 @@ static int smu_v13_0_6_set_performance_level(struct smu_context *smu,
 	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
 	struct smu_13_0_dpm_table *gfx_table =
 		&dpm_context->dpm_tables.gfx_table;
+	struct smu_13_0_dpm_table *uclk_table =
+		&dpm_context->dpm_tables.uclk_table;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 	int ret;
 
@@ -1468,17 +1596,27 @@ static int smu_v13_0_6_set_performance_level(struct smu_context *smu,
 		return 0;
 
 	case AMD_DPM_FORCED_LEVEL_AUTO:
-		if ((gfx_table->min == pstate_table->gfxclk_pstate.curr.min) &&
-		    (gfx_table->max == pstate_table->gfxclk_pstate.curr.max))
-			return 0;
+		if ((gfx_table->min != pstate_table->gfxclk_pstate.curr.min) ||
+		    (gfx_table->max != pstate_table->gfxclk_pstate.curr.max)) {
+			ret = smu_v13_0_6_set_gfx_soft_freq_limited_range(
+				smu, gfx_table->min, gfx_table->max);
+			if (ret)
+				return ret;
 
-		ret = smu_v13_0_6_set_gfx_soft_freq_limited_range(
-			smu, gfx_table->min, gfx_table->max);
-		if (ret)
-			return ret;
+			pstate_table->gfxclk_pstate.curr.min = gfx_table->min;
+			pstate_table->gfxclk_pstate.curr.max = gfx_table->max;
+		}
 
-		pstate_table->gfxclk_pstate.curr.min = gfx_table->min;
-		pstate_table->gfxclk_pstate.curr.max = gfx_table->max;
+		if (uclk_table->max != pstate_table->uclk_pstate.curr.max) {
+			/* Min UCLK is not expected to be changed */
+			ret = smu_v13_0_set_soft_freq_limited_range(
+				smu, SMU_UCLK, 0, uclk_table->max);
+			if (ret)
+				return ret;
+			pstate_table->uclk_pstate.curr.max = uclk_table->max;
+		}
+		pstate_table->uclk_pstate.custom.max = 0;
+
 		return 0;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 		return 0;
@@ -1501,7 +1639,8 @@ static int smu_v13_0_6_set_soft_freq_limited_range(struct smu_context *smu,
 	uint32_t max_clk;
 	int ret = 0;
 
-	if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK)
+	if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK &&
+	    clk_type != SMU_UCLK)
 		return -EINVAL;
 
 	if ((smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) &&
@@ -1511,18 +1650,31 @@ static int smu_v13_0_6_set_soft_freq_limited_range(struct smu_context *smu,
 	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
 		if (min >= max) {
 			dev_err(smu->adev->dev,
-				"Minimum GFX clk should be less than the maximum allowed clock\n");
+				"Minimum clk should be less than the maximum allowed clock\n");
 			return -EINVAL;
 		}
 
-		if ((min == pstate_table->gfxclk_pstate.curr.min) &&
-		    (max == pstate_table->gfxclk_pstate.curr.max))
-			return 0;
+		if (clk_type == SMU_GFXCLK) {
+			if ((min == pstate_table->gfxclk_pstate.curr.min) &&
+			    (max == pstate_table->gfxclk_pstate.curr.max))
+				return 0;
 
-		ret = smu_v13_0_6_set_gfx_soft_freq_limited_range(smu, min, max);
-		if (!ret) {
-			pstate_table->gfxclk_pstate.curr.min = min;
-			pstate_table->gfxclk_pstate.curr.max = max;
+			ret = smu_v13_0_6_set_gfx_soft_freq_limited_range(
+				smu, min, max);
+			if (!ret) {
+				pstate_table->gfxclk_pstate.curr.min = min;
+				pstate_table->gfxclk_pstate.curr.max = max;
+			}
+		}
+
+		if (clk_type == SMU_UCLK) {
+			if (max == pstate_table->uclk_pstate.curr.max)
+				return 0;
+			/* Only max clock limiting is allowed for UCLK */
+			ret = smu_v13_0_set_soft_freq_limited_range(
+				smu, SMU_UCLK, 0, max);
+			if (!ret)
+				pstate_table->uclk_pstate.curr.max = max;
 		}
 
 		return ret;
@@ -1615,6 +1767,40 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			return -EINVAL;
 		}
 		break;
+	case PP_OD_EDIT_MCLK_VDDC_TABLE:
+		if (size != 2) {
+			dev_err(smu->adev->dev,
+				"Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		if (!smu_cmn_feature_is_enabled(smu,
+						SMU_FEATURE_DPM_UCLK_BIT)) {
+			dev_warn(smu->adev->dev,
+				 "UCLK_LIMITS setting not supported!\n");
+			return -EOPNOTSUPP;
+		}
+
+		if (input[0] == 0) {
+			dev_info(smu->adev->dev,
+				 "Setting min UCLK level is not supported");
+			return -EINVAL;
+		} else if (input[0] == 1) {
+			if (input[1] > dpm_context->dpm_tables.uclk_table.max) {
+				dev_warn(
+					smu->adev->dev,
+					"Maximum UCLK (%ld) MHz specified is greater than the maximum allowed (%d) MHz\n",
+					input[1],
+					dpm_context->dpm_tables.uclk_table.max);
+				pstate_table->uclk_pstate.custom.max =
+					pstate_table->uclk_pstate.curr.max;
+				return -EINVAL;
+			}
+
+			pstate_table->uclk_pstate.custom.max = input[1];
+		}
+		break;
+
 	case PP_OD_RESTORE_DEFAULT_TABLE:
 		if (size != 0) {
 			dev_err(smu->adev->dev,
@@ -1625,8 +1811,19 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			min_clk = dpm_context->dpm_tables.gfx_table.min;
 			max_clk = dpm_context->dpm_tables.gfx_table.max;
 
-			return smu_v13_0_6_set_soft_freq_limited_range(
+			ret = smu_v13_0_6_set_soft_freq_limited_range(
 				smu, SMU_GFXCLK, min_clk, max_clk);
+
+			if (ret)
+				return ret;
+
+			min_clk = dpm_context->dpm_tables.uclk_table.min;
+			max_clk = dpm_context->dpm_tables.uclk_table.max;
+			ret = smu_v13_0_6_set_soft_freq_limited_range(
+				smu, SMU_UCLK, min_clk, max_clk);
+			if (ret)
+				return ret;
+			pstate_table->uclk_pstate.custom.max = 0;
 		}
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
@@ -1646,8 +1843,19 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			min_clk = pstate_table->gfxclk_pstate.custom.min;
 			max_clk = pstate_table->gfxclk_pstate.custom.max;
 
-			return smu_v13_0_6_set_soft_freq_limited_range(
+			ret = smu_v13_0_6_set_soft_freq_limited_range(
 				smu, SMU_GFXCLK, min_clk, max_clk);
+
+			if (ret)
+				return ret;
+
+			if (!pstate_table->uclk_pstate.custom.max)
+				return 0;
+
+			min_clk = pstate_table->uclk_pstate.curr.min;
+			max_clk = pstate_table->uclk_pstate.custom.max;
+			return smu_v13_0_6_set_soft_freq_limited_range(
+				smu, SMU_UCLK, min_clk, max_clk);
 		}
 		break;
 	default:
@@ -1660,13 +1868,11 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 static int smu_v13_0_6_get_enabled_mask(struct smu_context *smu,
 					uint64_t *feature_mask)
 {
-	uint32_t smu_version;
 	int ret;
 
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	ret = smu_cmn_get_enabled_mask(smu, feature_mask);
 
-	if (ret == -EIO && smu_version < 0x552F00) {
+	if (ret == -EIO && smu->smc_fw_version < 0x552F00) {
 		*feature_mask = 0;
 		ret = 0;
 	}
@@ -1819,7 +2025,6 @@ static int smu_v13_0_6_i2c_control_init(struct smu_context *smu)
 		smu_i2c->port = i;
 		mutex_init(&smu_i2c->mutex);
 		control->owner = THIS_MODULE;
-		control->class = I2C_CLASS_SPD;
 		control->dev.parent = &adev->pdev->dev;
 		control->algo = &smu_v13_0_6_i2c_algo;
 		snprintf(control->name, sizeof(control->name), "AMDGPU SMU %d", i);
@@ -1870,8 +2075,6 @@ static void smu_v13_0_6_get_unique_id(struct smu_context *smu)
 		(struct PPTable_t *)smu_table->driver_pptable;
 
 	adev->unique_id = pptable->PublicSerialNumber_AID;
-	if (adev->serial[0] == '\0')
-		sprintf(adev->serial, "%016llx", adev->unique_id);
 }
 
 static bool smu_v13_0_6_is_baco_supported(struct smu_context *smu)
@@ -1879,19 +2082,6 @@ static bool smu_v13_0_6_is_baco_supported(struct smu_context *smu)
 	/* smu_13_0_6 does not support baco */
 
 	return false;
-}
-
-static int smu_v13_0_6_set_df_cstate(struct smu_context *smu,
-				     enum pp_df_cstate state)
-{
-	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl,
-					       state, NULL);
-}
-
-static int smu_v13_0_6_allow_xgmi_power_down(struct smu_context *smu, bool en)
-{
-	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GmiPwrDnControl,
-					       en ? 0 : 1, NULL);
 }
 
 static const char *const throttling_logging_label[] = {
@@ -1904,7 +2094,7 @@ static const char *const throttling_logging_label[] = {
 
 static void smu_v13_0_6_log_thermal_throttling_event(struct smu_context *smu)
 {
-	int throttler_idx, throtting_events = 0, buf_idx = 0;
+	int throttler_idx, throttling_events = 0, buf_idx = 0;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t throttler_status;
 	char log_buf[256];
@@ -1918,10 +2108,10 @@ static void smu_v13_0_6_log_thermal_throttling_event(struct smu_context *smu)
 	     throttler_idx < ARRAY_SIZE(throttling_logging_label);
 	     throttler_idx++) {
 		if (throttler_status & (1U << throttler_idx)) {
-			throtting_events++;
+			throttling_events++;
 			buf_idx += snprintf(
 				log_buf + buf_idx, sizeof(log_buf) - buf_idx,
-				"%s%s", throtting_events > 1 ? " and " : "",
+				"%s%s", throttling_events > 1 ? " and " : "",
 				throttling_logging_label[throttler_idx]);
 			if (buf_idx >= sizeof(log_buf)) {
 				dev_err(adev->dev, "buffer overflow!\n");
@@ -1952,98 +2142,167 @@ smu_v13_0_6_get_current_pcie_link_width_level(struct smu_context *smu)
 static int smu_v13_0_6_get_current_pcie_link_speed(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	uint32_t speed_level;
 	uint32_t esm_ctrl;
 
 	/* TODO: confirm this on real target */
 	esm_ctrl = RREG32_PCIE(smnPCIE_ESM_CTRL);
-	if ((esm_ctrl >> 15) & 0x1FFFF)
-		return (((esm_ctrl >> 8) & 0x3F) + 128);
+	if ((esm_ctrl >> 15) & 0x1)
+		return (((esm_ctrl >> 8) & 0x7F) + 128);
 
-	return smu_v13_0_get_current_pcie_link_speed(smu);
+	speed_level = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+		PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+		>> PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+	if (speed_level > LINK_SPEED_MAX)
+		speed_level = 0;
+
+	return pcie_gen_to_speed(speed_level + 1);
 }
 
 static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v1_3 *gpu_metrics =
-		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+	struct gpu_metrics_v1_5 *gpu_metrics =
+		(struct gpu_metrics_v1_5 *)smu_table->gpu_metrics_table;
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0, inst0, xcc0;
-	MetricsTable_t *metrics;
+	int ret = 0, xcc_id, inst, i, j;
+	MetricsTableX_t *metrics_x;
+	MetricsTableA_t *metrics_a;
 	u16 link_width_level;
 
-	inst0 = adev->sdma.instance[0].aid_id;
-	xcc0 = GET_INST(GC, 0);
-
-	metrics = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
-	ret = smu_v13_0_6_get_metrics_table(smu, metrics, true);
-	if (ret)
+	metrics_x = kzalloc(max(sizeof(MetricsTableX_t), sizeof(MetricsTableA_t)), GFP_KERNEL);
+	ret = smu_v13_0_6_get_metrics_table(smu, metrics_x, true);
+	if (ret) {
+		kfree(metrics_x);
 		return ret;
+	}
 
-	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
+	metrics_a = (MetricsTableA_t *)metrics_x;
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 5);
 
 	gpu_metrics->temperature_hotspot =
-		SMUQ10_TO_UINT(metrics->MaxSocketTemperature);
+		SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketTemperature));
 	/* Individual HBM stack temperature is not reported */
 	gpu_metrics->temperature_mem =
-		SMUQ10_TO_UINT(metrics->MaxHbmTemperature);
+		SMUQ10_ROUND(GET_METRIC_FIELD(MaxHbmTemperature));
 	/* Reports max temperature of all voltage rails */
 	gpu_metrics->temperature_vrsoc =
-		SMUQ10_TO_UINT(metrics->MaxVrTemperature);
+		SMUQ10_ROUND(GET_METRIC_FIELD(MaxVrTemperature));
 
 	gpu_metrics->average_gfx_activity =
-		SMUQ10_TO_UINT(metrics->SocketGfxBusy);
+		SMUQ10_ROUND(GET_METRIC_FIELD(SocketGfxBusy));
 	gpu_metrics->average_umc_activity =
-		SMUQ10_TO_UINT(metrics->DramBandwidthUtilization);
+		SMUQ10_ROUND(GET_METRIC_FIELD(DramBandwidthUtilization));
 
-	gpu_metrics->average_socket_power =
-		SMUQ10_TO_UINT(metrics->SocketPower);
+	gpu_metrics->curr_socket_power =
+		SMUQ10_ROUND(GET_METRIC_FIELD(SocketPower));
 	/* Energy counter reported in 15.259uJ (2^-16) units */
-	gpu_metrics->energy_accumulator = metrics->SocketEnergyAcc;
+	gpu_metrics->energy_accumulator = GET_METRIC_FIELD(SocketEnergyAcc);
 
-	gpu_metrics->current_gfxclk =
-		SMUQ10_TO_UINT(metrics->GfxclkFrequency[xcc0]);
-	gpu_metrics->current_socclk =
-		SMUQ10_TO_UINT(metrics->SocclkFrequency[inst0]);
-	gpu_metrics->current_uclk = SMUQ10_TO_UINT(metrics->UclkFrequency);
-	gpu_metrics->current_vclk0 =
-		SMUQ10_TO_UINT(metrics->VclkFrequency[inst0]);
-	gpu_metrics->current_dclk0 =
-		SMUQ10_TO_UINT(metrics->DclkFrequency[inst0]);
+	for (i = 0; i < MAX_GFX_CLKS; i++) {
+		xcc_id = GET_INST(GC, i);
+		if (xcc_id >= 0)
+			gpu_metrics->current_gfxclk[i] =
+				SMUQ10_ROUND(GET_METRIC_FIELD(GfxclkFrequency)[xcc_id]);
 
-	gpu_metrics->average_gfxclk_frequency = gpu_metrics->current_gfxclk;
-	gpu_metrics->average_socclk_frequency = gpu_metrics->current_socclk;
-	gpu_metrics->average_uclk_frequency = gpu_metrics->current_uclk;
-	gpu_metrics->average_vclk0_frequency = gpu_metrics->current_vclk0;
-	gpu_metrics->average_dclk0_frequency = gpu_metrics->current_dclk0;
+		if (i < MAX_CLKS) {
+			gpu_metrics->current_socclk[i] =
+				SMUQ10_ROUND(GET_METRIC_FIELD(SocclkFrequency)[i]);
+			inst = GET_INST(VCN, i);
+			if (inst >= 0) {
+				gpu_metrics->current_vclk0[i] =
+					SMUQ10_ROUND(GET_METRIC_FIELD(VclkFrequency)[inst]);
+				gpu_metrics->current_dclk0[i] =
+					SMUQ10_ROUND(GET_METRIC_FIELD(DclkFrequency)[inst]);
+			}
+		}
+	}
+
+	gpu_metrics->current_uclk = SMUQ10_ROUND(GET_METRIC_FIELD(UclkFrequency));
 
 	/* Throttle status is not reported through metrics now */
 	gpu_metrics->throttle_status = 0;
 
-	if (!(adev->flags & AMD_IS_APU)) {
-		link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
-		if (link_width_level > MAX_LINK_WIDTH)
-			link_width_level = 0;
+	/* Clock Lock Status. Each bit corresponds to each GFXCLK instance */
+	gpu_metrics->gfxclk_lock_status = GET_METRIC_FIELD(GfxLockXCDMak) >> GET_INST(GC, 0);
 
-		gpu_metrics->pcie_link_width =
-			DECODE_LANE_WIDTH(link_width_level);
-		gpu_metrics->pcie_link_speed =
-			smu_v13_0_6_get_current_pcie_link_speed(smu);
+	if (!(adev->flags & AMD_IS_APU)) {
+		if (!amdgpu_sriov_vf(adev)) {
+			link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
+			if (link_width_level > MAX_LINK_WIDTH)
+				link_width_level = 0;
+
+			gpu_metrics->pcie_link_width =
+				DECODE_LANE_WIDTH(link_width_level);
+			gpu_metrics->pcie_link_speed =
+				smu_v13_0_6_get_current_pcie_link_speed(smu);
+		}
+		gpu_metrics->pcie_bandwidth_acc =
+				SMUQ10_ROUND(metrics_x->PcieBandwidthAcc[0]);
+		gpu_metrics->pcie_bandwidth_inst =
+				SMUQ10_ROUND(metrics_x->PcieBandwidth[0]);
+		gpu_metrics->pcie_l0_to_recov_count_acc =
+				metrics_x->PCIeL0ToRecoveryCountAcc;
+		gpu_metrics->pcie_replay_count_acc =
+				metrics_x->PCIenReplayAAcc;
+		gpu_metrics->pcie_replay_rover_count_acc =
+				metrics_x->PCIenReplayARolloverCountAcc;
+		gpu_metrics->pcie_nak_sent_count_acc =
+				metrics_x->PCIeNAKSentCountAcc;
+		gpu_metrics->pcie_nak_rcvd_count_acc =
+				metrics_x->PCIeNAKReceivedCountAcc;
 	}
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
 	gpu_metrics->gfx_activity_acc =
-		SMUQ10_TO_UINT(metrics->SocketGfxBusyAcc);
+		SMUQ10_ROUND(GET_METRIC_FIELD(SocketGfxBusyAcc));
 	gpu_metrics->mem_activity_acc =
-		SMUQ10_TO_UINT(metrics->DramBandwidthUtilizationAcc);
+		SMUQ10_ROUND(GET_METRIC_FIELD(DramBandwidthUtilizationAcc));
 
-	gpu_metrics->firmware_timestamp = metrics->Timestamp;
+	for (i = 0; i < NUM_XGMI_LINKS; i++) {
+		gpu_metrics->xgmi_read_data_acc[i] =
+			SMUQ10_ROUND(GET_METRIC_FIELD(XgmiReadDataSizeAcc)[i]);
+		gpu_metrics->xgmi_write_data_acc[i] =
+			SMUQ10_ROUND(GET_METRIC_FIELD(XgmiWriteDataSizeAcc)[i]);
+	}
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
+		inst = GET_INST(JPEG, i);
+		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
+			gpu_metrics->jpeg_activity[(i * adev->jpeg.num_jpeg_rings) + j] =
+				SMUQ10_ROUND(GET_METRIC_FIELD(JpegBusy)
+				[(inst * adev->jpeg.num_jpeg_rings) + j]);
+		}
+	}
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		inst = GET_INST(VCN, i);
+		gpu_metrics->vcn_activity[i] =
+			SMUQ10_ROUND(GET_METRIC_FIELD(VcnBusy)[inst]);
+	}
+
+	gpu_metrics->xgmi_link_width = SMUQ10_ROUND(GET_METRIC_FIELD(XgmiWidth));
+	gpu_metrics->xgmi_link_speed = SMUQ10_ROUND(GET_METRIC_FIELD(XgmiBitrate));
+
+	gpu_metrics->firmware_timestamp = GET_METRIC_FIELD(Timestamp);
 
 	*table = (void *)gpu_metrics;
-	kfree(metrics);
+	kfree(metrics_x);
 
-	return sizeof(struct gpu_metrics_v1_3);
+	return sizeof(*gpu_metrics);
+}
+
+static void smu_v13_0_6_restore_pci_config(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int i;
+
+	for (i = 0; i < 16; i++)
+		pci_write_config_dword(adev->pdev, i * 4,
+				       adev->pdev->saved_config_space[i]);
+	pci_restore_msi_state(adev->pdev);
 }
 
 static int smu_v13_0_6_mode2_reset(struct smu_context *smu)
@@ -2060,12 +2319,26 @@ static int smu_v13_0_6_mode2_reset(struct smu_context *smu)
 	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index,
 					       SMU_RESET_MODE_2);
 
-	/* This is similar to FLR, wait till max FLR timeout */
-	msleep(100);
+	/* Reset takes a bit longer, wait for 200ms. */
+	msleep(200);
 
 	dev_dbg(smu->adev->dev, "restore config space...\n");
 	/* Restore the config space saved during init */
 	amdgpu_device_load_pci_state(adev->pdev);
+
+	/* Certain platforms have switches which assign virtual BAR values to
+	 * devices. OS uses the virtual BAR values and device behind the switch
+	 * is assgined another BAR value. When device's config space registers
+	 * are queried, switch returns the virtual BAR values. When mode-2 reset
+	 * is performed, switch is unaware of it, and will continue to return
+	 * the same virtual values to the OS.This affects
+	 * pci_restore_config_space() API as it doesn't write the value saved if
+	 * the current value read from config space is the same as what is
+	 * saved. As a workaround, make sure the config space is restored
+	 * always.
+	 */
+	if (!(adev->flags & AMD_IS_APU))
+		smu_v13_0_6_restore_pci_config(smu);
 
 	dev_dbg(smu->adev->dev, "wait for reset ack\n");
 	do {
@@ -2077,33 +2350,108 @@ static int smu_v13_0_6_mode2_reset(struct smu_context *smu)
 			continue;
 		}
 
-		if (ret) {
-			dev_err(adev->dev,
-				"failed to send mode2 message \tparam: 0x%08x error code %d\n",
-				SMU_RESET_MODE_2, ret);
+		if (ret)
 			goto out;
-		}
+
 	} while (ret == -ETIME && timeout);
 
 out:
 	mutex_unlock(&smu->message_lock);
 
+	if (ret)
+		dev_err(adev->dev, "failed to send mode2 reset, error code %d",
+			ret);
+
+	return ret;
+}
+
+static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
+						     struct smu_temperature_range *range)
+{
+	struct amdgpu_device *adev = smu->adev;
+	u32 aid_temp, xcd_temp, max_temp;
+	u32 ccd_temp = 0;
+	int ret;
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
+	if (!range)
+		return -EINVAL;
+
+	/*Check smu version, GetCtfLimit message only supported for smu version 85.69 or higher */
+	if (smu->smc_fw_version < 0x554500)
+		return 0;
+
+	/* Get SOC Max operating temperature */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_AID_THM_TYPE, &aid_temp);
+	if (ret)
+		goto failed;
+	if (adev->flags & AMD_IS_APU) {
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+						      PPSMC_CCD_THM_TYPE, &ccd_temp);
+		if (ret)
+			goto failed;
+	}
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_XCD_THM_TYPE, &xcd_temp);
+	if (ret)
+		goto failed;
+	range->hotspot_emergency_max = max3(aid_temp, xcd_temp, ccd_temp) *
+				       SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	/* Get HBM Max operating temperature */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_HBM_THM_TYPE, &max_temp);
+	if (ret)
+		goto failed;
+	range->mem_emergency_max =
+		max_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	/* Get SOC thermal throttle limit */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetThermalLimit,
+					      PPSMC_THROTTLING_LIMIT_TYPE_SOCKET,
+					      &max_temp);
+	if (ret)
+		goto failed;
+	range->hotspot_crit_max =
+		max_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	/* Get HBM thermal throttle limit */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetThermalLimit,
+					      PPSMC_THROTTLING_LIMIT_TYPE_HBM,
+					      &max_temp);
+	if (ret)
+		goto failed;
+
+	range->mem_crit_max = max_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+failed:
 	return ret;
 }
 
 static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_hive_info *hive = NULL;
+	u32 hive_ras_recovery = 0;
 	struct amdgpu_ras *ras;
 	u32 fatal_err, param;
 	int ret = 0;
 
+	hive = amdgpu_get_xgmi_hive(adev);
 	ras = amdgpu_ras_get_context(adev);
 	fatal_err = 0;
 	param = SMU_RESET_MODE_1;
 
+	if (hive) {
+		hive_ras_recovery = atomic_read(&hive->ras_recovery);
+		amdgpu_put_xgmi_hive(hive);
+	}
+
 	/* fatal error triggered by ras, PMFW supports the flag */
-	if (ras && atomic_read(&ras->in_recovery))
+	if (ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery))
 		fatal_err = 1;
 
 	param |= (fatal_err << 16);
@@ -2118,8 +2466,7 @@ static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 
 static bool smu_v13_0_6_is_mode1_reset_supported(struct smu_context *smu)
 {
-	/* TODO: Enable this when FW support is added */
-	return false;
+	return true;
 }
 
 static bool smu_v13_0_6_is_mode2_reset_supported(struct smu_context *smu)
@@ -2143,6 +2490,684 @@ static int smu_v13_0_6_smu_send_hbm_bad_page_num(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v13_0_6_send_rma_reason(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret;
+
+	/* NOTE: the message is only valid on dGPU with pmfw 85.90.0 and above */
+	if ((adev->flags & AMD_IS_APU) || smu->smc_fw_version < 0x00555a00)
+		return 0;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_RmaDueToBadPageThreshold, NULL);
+	if (ret)
+		dev_err(smu->adev->dev,
+			"[%s] failed to send BadPageThreshold event to SMU\n",
+			__func__);
+
+	return ret;
+}
+
+static int mca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
+	return smu_v13_0_6_mca_set_debug_mode(smu, enable);
+}
+
+static int smu_v13_0_6_get_valid_mca_count(struct smu_context *smu, enum amdgpu_mca_error_type type, uint32_t *count)
+{
+	uint32_t msg;
+	int ret;
+
+	if (!count)
+		return -EINVAL;
+
+	switch (type) {
+	case AMDGPU_MCA_ERROR_TYPE_UE:
+		msg = SMU_MSG_QueryValidMcaCount;
+		break;
+	case AMDGPU_MCA_ERROR_TYPE_CE:
+		msg = SMU_MSG_QueryValidMcaCeCount;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = smu_cmn_send_smc_msg(smu, msg, count);
+	if (ret) {
+		*count = 0;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int __smu_v13_0_6_mca_dump_bank(struct smu_context *smu, enum amdgpu_mca_error_type type,
+				       int idx, int offset, uint32_t *val)
+{
+	uint32_t msg, param;
+
+	switch (type) {
+	case AMDGPU_MCA_ERROR_TYPE_UE:
+		msg = SMU_MSG_McaBankDumpDW;
+		break;
+	case AMDGPU_MCA_ERROR_TYPE_CE:
+		msg = SMU_MSG_McaBankCeDumpDW;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	param = ((idx & 0xffff) << 16) | (offset & 0xfffc);
+
+	return smu_cmn_send_smc_msg_with_param(smu, msg, param, val);
+}
+
+static int smu_v13_0_6_mca_dump_bank(struct smu_context *smu, enum amdgpu_mca_error_type type,
+				     int idx, int offset, uint32_t *val, int count)
+{
+	int ret, i;
+
+	if (!val)
+		return -EINVAL;
+
+	for (i = 0; i < count; i++) {
+		ret = __smu_v13_0_6_mca_dump_bank(smu, type, idx, offset + (i << 2), &val[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static const struct mca_bank_ipid smu_v13_0_6_mca_ipid_table[AMDGPU_MCA_IP_COUNT] = {
+	MCA_BANK_IPID(UMC, 0x96, 0x0),
+	MCA_BANK_IPID(SMU, 0x01, 0x1),
+	MCA_BANK_IPID(MP5, 0x01, 0x2),
+	MCA_BANK_IPID(PCS_XGMI, 0x50, 0x0),
+};
+
+static void mca_bank_entry_info_decode(struct mca_bank_entry *entry, struct mca_bank_info *info)
+{
+	u64 ipid = entry->regs[MCA_REG_IDX_IPID];
+	u32 instidhi, instid;
+
+	/* NOTE: All MCA IPID register share the same format,
+	 * so the driver can share the MCMP1 register header file.
+	 * */
+
+	info->hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
+	info->mcatype = REG_GET_FIELD(ipid, MCMP1_IPIDT0, McaType);
+
+	/*
+	 * Unfied DieID Format: SAASS. A:AID, S:Socket.
+	 * Unfied DieID[4] = InstanceId[0]
+	 * Unfied DieID[0:3] = InstanceIdHi[0:3]
+	 */
+	instidhi = REG_GET_FIELD(ipid, MCMP1_IPIDT0, InstanceIdHi);
+	instid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, InstanceIdLo);
+	info->aid = ((instidhi >> 2) & 0x03);
+	info->socket_id = ((instid & 0x1) << 2) | (instidhi & 0x03);
+}
+
+static int mca_bank_read_reg(struct amdgpu_device *adev, enum amdgpu_mca_error_type type,
+			     int idx, int reg_idx, uint64_t *val)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	uint32_t data[2] = {0, 0};
+	int ret;
+
+	if (!val || reg_idx >= MCA_REG_IDX_COUNT)
+		return -EINVAL;
+
+	ret = smu_v13_0_6_mca_dump_bank(smu, type, idx, reg_idx * 8, data, ARRAY_SIZE(data));
+	if (ret)
+		return ret;
+
+	*val = (uint64_t)data[1] << 32 | data[0];
+
+	dev_dbg(adev->dev, "mca read bank reg: type:%s, index: %d, reg_idx: %d, val: 0x%016llx\n",
+		type == AMDGPU_MCA_ERROR_TYPE_UE ? "UE" : "CE", idx, reg_idx, *val);
+
+	return 0;
+}
+
+static int mca_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_error_type type,
+			     int idx, struct mca_bank_entry *entry)
+{
+	int i, ret;
+
+	/* NOTE: populated all mca register by default */
+	for (i = 0; i < ARRAY_SIZE(entry->regs); i++) {
+		ret = mca_bank_read_reg(adev, type, idx, i, &entry->regs[i]);
+		if (ret)
+			return ret;
+	}
+
+	entry->idx = idx;
+	entry->type = type;
+
+	mca_bank_entry_info_decode(entry, &entry->info);
+
+	return 0;
+}
+
+static int mca_decode_ipid_to_hwip(uint64_t val)
+{
+	const struct mca_bank_ipid *ipid;
+	uint16_t hwid, mcatype;
+	int i;
+
+	hwid = REG_GET_FIELD(val, MCMP1_IPIDT0, HardwareID);
+	mcatype = REG_GET_FIELD(val, MCMP1_IPIDT0, McaType);
+
+	for (i = 0; i < ARRAY_SIZE(smu_v13_0_6_mca_ipid_table); i++) {
+		ipid = &smu_v13_0_6_mca_ipid_table[i];
+
+		if (!ipid->hwid)
+			continue;
+
+		if (ipid->hwid == hwid && ipid->mcatype == mcatype)
+			return i;
+	}
+
+	return AMDGPU_MCA_IP_UNKNOW;
+}
+
+static int mca_umc_mca_get_err_count(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+				     enum amdgpu_mca_error_type type, struct mca_bank_entry *entry, uint32_t *count)
+{
+	uint64_t status0;
+	uint32_t ext_error_code;
+	uint32_t odecc_err_cnt;
+
+	status0 = entry->regs[MCA_REG_IDX_STATUS];
+	ext_error_code = MCA_REG__STATUS__ERRORCODEEXT(status0);
+	odecc_err_cnt = MCA_REG__MISC0__ERRCNT(entry->regs[MCA_REG_IDX_MISC0]);
+
+	if (!REG_GET_FIELD(status0, MCMP1_STATUST0, Val)) {
+		*count = 0;
+		return 0;
+	}
+
+	if (umc_v12_0_is_deferred_error(adev, status0) ||
+	    umc_v12_0_is_uncorrectable_error(adev, status0) ||
+	    umc_v12_0_is_correctable_error(adev, status0))
+		*count = (ext_error_code == 0) ? odecc_err_cnt : 1;
+
+	return 0;
+}
+
+static int mca_pcs_xgmi_mca_get_err_count(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+					  enum amdgpu_mca_error_type type, struct mca_bank_entry *entry,
+					  uint32_t *count)
+{
+	u32 ext_error_code;
+	u32 err_cnt;
+
+	ext_error_code = MCA_REG__STATUS__ERRORCODEEXT(entry->regs[MCA_REG_IDX_STATUS]);
+	err_cnt = MCA_REG__MISC0__ERRCNT(entry->regs[MCA_REG_IDX_MISC0]);
+
+	if (type == AMDGPU_MCA_ERROR_TYPE_UE && ext_error_code == 0)
+		*count = err_cnt;
+	else if (type == AMDGPU_MCA_ERROR_TYPE_CE && ext_error_code == 6)
+		*count = err_cnt;
+
+	return 0;
+}
+
+static bool mca_smu_check_error_code(struct amdgpu_device *adev, const struct mca_ras_info *mca_ras,
+				     uint32_t errcode)
+{
+	int i;
+
+	if (!mca_ras->err_code_count || !mca_ras->err_code_array)
+		return true;
+
+	for (i = 0; i < mca_ras->err_code_count; i++) {
+		if (errcode == mca_ras->err_code_array[i])
+			return true;
+	}
+
+	return false;
+}
+
+static int mca_gfx_mca_get_err_count(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+				     enum amdgpu_mca_error_type type, struct mca_bank_entry *entry, uint32_t *count)
+{
+	uint64_t status0, misc0;
+
+	status0 = entry->regs[MCA_REG_IDX_STATUS];
+	if (!REG_GET_FIELD(status0, MCMP1_STATUST0, Val)) {
+		*count = 0;
+		return 0;
+	}
+
+	if (type == AMDGPU_MCA_ERROR_TYPE_UE &&
+	    REG_GET_FIELD(status0, MCMP1_STATUST0, UC) == 1 &&
+	    REG_GET_FIELD(status0, MCMP1_STATUST0, PCC) == 1) {
+		*count = 1;
+		return 0;
+	} else {
+		misc0 = entry->regs[MCA_REG_IDX_MISC0];
+		*count = REG_GET_FIELD(misc0, MCMP1_MISC0T0, ErrCnt);
+	}
+
+	return 0;
+}
+
+static int mca_smu_mca_get_err_count(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+				     enum amdgpu_mca_error_type type, struct mca_bank_entry *entry, uint32_t *count)
+{
+	uint64_t status0, misc0;
+
+	status0 = entry->regs[MCA_REG_IDX_STATUS];
+	if (!REG_GET_FIELD(status0, MCMP1_STATUST0, Val)) {
+		*count = 0;
+		return 0;
+	}
+
+	if (type == AMDGPU_MCA_ERROR_TYPE_UE &&
+	    REG_GET_FIELD(status0, MCMP1_STATUST0, UC) == 1 &&
+	    REG_GET_FIELD(status0, MCMP1_STATUST0, PCC) == 1) {
+		if (count)
+			*count = 1;
+		return 0;
+	}
+
+	misc0 = entry->regs[MCA_REG_IDX_MISC0];
+	*count = REG_GET_FIELD(misc0, MCMP1_MISC0T0, ErrCnt);
+
+	return 0;
+}
+
+static bool mca_gfx_smu_bank_is_valid(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+				      enum amdgpu_mca_error_type type, struct mca_bank_entry *entry)
+{
+	uint32_t instlo;
+
+	instlo = REG_GET_FIELD(entry->regs[MCA_REG_IDX_IPID], MCMP1_IPIDT0, InstanceIdLo);
+	instlo &= GENMASK(31, 1);
+	switch (instlo) {
+	case 0x36430400: /* SMNAID XCD 0 */
+	case 0x38430400: /* SMNAID XCD 1 */
+	case 0x40430400: /* SMNXCD XCD 0, NOTE: FIXME: fix this error later */
+		return true;
+	default:
+		return false;
+	}
+
+	return false;
+};
+
+static bool mca_smu_bank_is_valid(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+				  enum amdgpu_mca_error_type type, struct mca_bank_entry *entry)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	uint32_t errcode, instlo;
+
+	instlo = REG_GET_FIELD(entry->regs[MCA_REG_IDX_IPID], MCMP1_IPIDT0, InstanceIdLo);
+	instlo &= GENMASK(31, 1);
+	if (instlo != 0x03b30400)
+		return false;
+
+	if (!(adev->flags & AMD_IS_APU) && smu->smc_fw_version >= 0x00555600) {
+		errcode = MCA_REG__SYND__ERRORINFORMATION(entry->regs[MCA_REG_IDX_SYND]);
+		errcode &= 0xff;
+	} else {
+		errcode = REG_GET_FIELD(entry->regs[MCA_REG_IDX_STATUS], MCMP1_STATUST0, ErrorCode);
+	}
+
+	return mca_smu_check_error_code(adev, mca_ras, errcode);
+}
+
+static int sdma_err_codes[] = { CODE_SDMA0, CODE_SDMA1, CODE_SDMA2, CODE_SDMA3 };
+static int mmhub_err_codes[] = {
+	CODE_DAGB0, CODE_DAGB0 + 1, CODE_DAGB0 + 2, CODE_DAGB0 + 3, CODE_DAGB0 + 4, /* DAGB0-4 */
+	CODE_EA0, CODE_EA0 + 1, CODE_EA0 + 2, CODE_EA0 + 3, CODE_EA0 + 4,	/* MMEA0-4*/
+	CODE_VML2, CODE_VML2_WALKER, CODE_MMCANE,
+};
+
+static const struct mca_ras_info mca_ras_table[] = {
+	{
+		.blkid = AMDGPU_RAS_BLOCK__UMC,
+		.ip = AMDGPU_MCA_IP_UMC,
+		.get_err_count = mca_umc_mca_get_err_count,
+	}, {
+		.blkid = AMDGPU_RAS_BLOCK__GFX,
+		.ip = AMDGPU_MCA_IP_SMU,
+		.get_err_count = mca_gfx_mca_get_err_count,
+		.bank_is_valid = mca_gfx_smu_bank_is_valid,
+	}, {
+		.blkid = AMDGPU_RAS_BLOCK__SDMA,
+		.ip = AMDGPU_MCA_IP_SMU,
+		.err_code_array = sdma_err_codes,
+		.err_code_count = ARRAY_SIZE(sdma_err_codes),
+		.get_err_count = mca_smu_mca_get_err_count,
+		.bank_is_valid = mca_smu_bank_is_valid,
+	}, {
+		.blkid = AMDGPU_RAS_BLOCK__MMHUB,
+		.ip = AMDGPU_MCA_IP_SMU,
+		.err_code_array = mmhub_err_codes,
+		.err_code_count = ARRAY_SIZE(mmhub_err_codes),
+		.get_err_count = mca_smu_mca_get_err_count,
+		.bank_is_valid = mca_smu_bank_is_valid,
+	}, {
+		.blkid = AMDGPU_RAS_BLOCK__XGMI_WAFL,
+		.ip = AMDGPU_MCA_IP_PCS_XGMI,
+		.get_err_count = mca_pcs_xgmi_mca_get_err_count,
+	},
+};
+
+static const struct mca_ras_info *mca_get_mca_ras_info(struct amdgpu_device *adev, enum amdgpu_ras_block blkid)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mca_ras_table); i++) {
+		if (mca_ras_table[i].blkid == blkid)
+			return &mca_ras_table[i];
+	}
+
+	return NULL;
+}
+
+static int mca_get_valid_mca_count(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, uint32_t *count)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret;
+
+	switch (type) {
+	case AMDGPU_MCA_ERROR_TYPE_UE:
+	case AMDGPU_MCA_ERROR_TYPE_CE:
+		ret = smu_v13_0_6_get_valid_mca_count(smu, type, count);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static bool mca_bank_is_valid(struct amdgpu_device *adev, const struct mca_ras_info *mca_ras,
+			      enum amdgpu_mca_error_type type, struct mca_bank_entry *entry)
+{
+	if (mca_decode_ipid_to_hwip(entry->regs[MCA_REG_IDX_IPID]) != mca_ras->ip)
+		return false;
+
+	if (mca_ras->bank_is_valid)
+		return mca_ras->bank_is_valid(mca_ras, adev, type, entry);
+
+	return true;
+}
+
+static int __mca_smu_get_ras_mca_set(struct amdgpu_device *adev, const struct mca_ras_info *mca_ras,
+				     enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set)
+{
+	struct mca_bank_entry entry;
+	uint32_t mca_cnt;
+	int i, ret;
+
+	ret = mca_get_valid_mca_count(adev, type, &mca_cnt);
+	if (ret)
+		return ret;
+
+	/* if valid mca bank count is 0, the driver can return 0 directly */
+	if (!mca_cnt)
+		return 0;
+
+	for (i = 0; i < mca_cnt; i++) {
+		memset(&entry, 0, sizeof(entry));
+		ret = mca_get_mca_entry(adev, type, i, &entry);
+		if (ret)
+			return ret;
+
+		if (mca_ras && !mca_bank_is_valid(adev, mca_ras, type, &entry))
+			continue;
+
+		ret = amdgpu_mca_bank_set_add_entry(mca_set, &entry);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int mca_smu_get_ras_mca_set(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
+				   enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set)
+{
+	const struct mca_ras_info *mca_ras = NULL;
+
+	if (!mca_set)
+		return -EINVAL;
+
+	if (blk != AMDGPU_RAS_BLOCK_COUNT) {
+		mca_ras = mca_get_mca_ras_info(adev, blk);
+		if (!mca_ras)
+			return -EOPNOTSUPP;
+	}
+
+	return __mca_smu_get_ras_mca_set(adev, mca_ras, type, mca_set);
+}
+
+static int mca_smu_parse_mca_error_count(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type,
+					 struct mca_bank_entry *entry, uint32_t *count)
+{
+	const struct mca_ras_info *mca_ras;
+
+	if (!entry || !count)
+		return -EINVAL;
+
+	mca_ras = mca_get_mca_ras_info(adev, blk);
+	if (!mca_ras)
+		return -EOPNOTSUPP;
+
+	if (!mca_bank_is_valid(adev, mca_ras, type, entry)) {
+		*count = 0;
+		return 0;
+	}
+
+	return mca_ras->get_err_count(mca_ras, adev, type, entry, count);
+}
+
+static int mca_smu_get_mca_entry(struct amdgpu_device *adev,
+				 enum amdgpu_mca_error_type type, int idx, struct mca_bank_entry *entry)
+{
+	return mca_get_mca_entry(adev, type, idx, entry);
+}
+
+static int mca_smu_get_valid_mca_count(struct amdgpu_device *adev,
+				       enum amdgpu_mca_error_type type, uint32_t *count)
+{
+	return mca_get_valid_mca_count(adev, type, count);
+}
+
+static const struct amdgpu_mca_smu_funcs smu_v13_0_6_mca_smu_funcs = {
+	.max_ue_count = 12,
+	.max_ce_count = 12,
+	.mca_set_debug_mode = mca_smu_set_debug_mode,
+	.mca_get_ras_mca_set = mca_smu_get_ras_mca_set,
+	.mca_parse_mca_error_count = mca_smu_parse_mca_error_count,
+	.mca_get_mca_entry = mca_smu_get_mca_entry,
+	.mca_get_valid_mca_count = mca_smu_get_valid_mca_count,
+};
+
+static int aca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
+	return smu_v13_0_6_mca_set_debug_mode(smu, enable);
+}
+
+static int smu_v13_0_6_get_valid_aca_count(struct smu_context *smu, enum aca_error_type type, u32 *count)
+{
+	uint32_t msg;
+	int ret;
+
+	if (!count)
+		return -EINVAL;
+
+	switch (type) {
+	case ACA_ERROR_TYPE_UE:
+		msg = SMU_MSG_QueryValidMcaCount;
+		break;
+	case ACA_ERROR_TYPE_CE:
+		msg = SMU_MSG_QueryValidMcaCeCount;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = smu_cmn_send_smc_msg(smu, msg, count);
+	if (ret) {
+		*count = 0;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int aca_smu_get_valid_aca_count(struct amdgpu_device *adev,
+				       enum aca_error_type type, u32 *count)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret;
+
+	switch (type) {
+	case ACA_ERROR_TYPE_UE:
+	case ACA_ERROR_TYPE_CE:
+		ret = smu_v13_0_6_get_valid_aca_count(smu, type, count);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int __smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_error_type type,
+				       int idx, int offset, u32 *val)
+{
+	uint32_t msg, param;
+
+	switch (type) {
+	case ACA_ERROR_TYPE_UE:
+		msg = SMU_MSG_McaBankDumpDW;
+		break;
+	case ACA_ERROR_TYPE_CE:
+		msg = SMU_MSG_McaBankCeDumpDW;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	param = ((idx & 0xffff) << 16) | (offset & 0xfffc);
+
+	return smu_cmn_send_smc_msg_with_param(smu, msg, param, (uint32_t *)val);
+}
+
+static int smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_error_type type,
+				     int idx, int offset, u32 *val, int count)
+{
+	int ret, i;
+
+	if (!val)
+		return -EINVAL;
+
+	for (i = 0; i < count; i++) {
+		ret = __smu_v13_0_6_aca_bank_dump(smu, type, idx, offset + (i << 2), &val[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int aca_bank_read_reg(struct amdgpu_device *adev, enum aca_error_type type,
+			     int idx, int reg_idx, u64 *val)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	u32 data[2] = {0, 0};
+	int ret;
+
+	if (!val || reg_idx >= ACA_REG_IDX_COUNT)
+		return -EINVAL;
+
+	ret = smu_v13_0_6_aca_bank_dump(smu, type, idx, reg_idx * 8, data, ARRAY_SIZE(data));
+	if (ret)
+		return ret;
+
+	*val = (u64)data[1] << 32 | data[0];
+
+	dev_dbg(adev->dev, "mca read bank reg: type:%s, index: %d, reg_idx: %d, val: 0x%016llx\n",
+		type == ACA_ERROR_TYPE_UE ? "UE" : "CE", idx, reg_idx, *val);
+
+	return 0;
+}
+
+static int aca_smu_get_valid_aca_bank(struct amdgpu_device *adev,
+				      enum aca_error_type type, int idx, struct aca_bank *bank)
+{
+	int i, ret, count;
+
+	count = min_t(int, 16, ARRAY_SIZE(bank->regs));
+	for (i = 0; i < count; i++) {
+		ret = aca_bank_read_reg(adev, type, idx, i, &bank->regs[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static const struct aca_smu_funcs smu_v13_0_6_aca_smu_funcs = {
+	.max_ue_bank_count = 12,
+	.max_ce_bank_count = 12,
+	.set_debug_mode = aca_smu_set_debug_mode,
+	.get_valid_aca_count = aca_smu_get_valid_aca_count,
+	.get_valid_aca_bank = aca_smu_get_valid_aca_bank,
+};
+
+static int smu_v13_0_6_select_xgmi_plpd_policy(struct smu_context *smu,
+					       enum pp_xgmi_plpd_mode mode)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret, param;
+
+	switch (mode) {
+	case XGMI_PLPD_DEFAULT:
+		param = PPSMC_PLPD_MODE_DEFAULT;
+		break;
+	case XGMI_PLPD_OPTIMIZED:
+		param = PPSMC_PLPD_MODE_OPTIMIZED;
+		break;
+	case XGMI_PLPD_DISALLOW:
+		param = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (mode == XGMI_PLPD_DISALLOW)
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_GmiPwrDnControl,
+						      param, NULL);
+	else
+		/* change xgmi per-link power down policy */
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SelectPLPDMode,
+						      param, NULL);
+
+	if (ret)
+		dev_err(adev->dev,
+			"select xgmi per-link power down policy %d failed\n",
+			mode);
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = smu_v13_0_6_get_allowed_feature_mask,
@@ -2156,6 +3181,8 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_power_limit = smu_v13_0_6_get_power_limit,
 	.is_dpm_running = smu_v13_0_6_is_dpm_running,
 	.get_unique_id = smu_v13_0_6_get_unique_id,
+	.init_microcode = smu_v13_0_6_init_microcode,
+	.fini_microcode = smu_v13_0_fini_microcode,
 	.init_smc_tables = smu_v13_0_6_init_smc_tables,
 	.fini_smc_tables = smu_v13_0_fini_smc_tables,
 	.init_power = smu_v13_0_init_power,
@@ -2181,12 +3208,12 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v13_0_6_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v13_0_6_set_soft_freq_limited_range,
 	.od_edit_dpm_table = smu_v13_0_6_usr_edit_dpm_table,
-	.set_df_cstate = smu_v13_0_6_set_df_cstate,
-	.allow_xgmi_power_down = smu_v13_0_6_allow_xgmi_power_down,
+	.select_xgmi_plpd_policy = smu_v13_0_6_select_xgmi_plpd_policy,
 	.log_thermal_throttling_event = smu_v13_0_6_log_thermal_throttling_event,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
-	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.get_gpu_metrics = smu_v13_0_6_get_gpu_metrics,
+	.get_pm_metrics = smu_v13_0_6_get_pm_metrics,
+	.get_thermal_temperature_range = smu_v13_0_6_get_thermal_temperature_range,
 	.mode1_reset_is_support = smu_v13_0_6_is_mode1_reset_supported,
 	.mode2_reset_is_support = smu_v13_0_6_is_mode2_reset_supported,
 	.mode1_reset = smu_v13_0_6_mode1_reset,
@@ -2195,6 +3222,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.i2c_init = smu_v13_0_6_i2c_control_init,
 	.i2c_fini = smu_v13_0_6_i2c_control_fini,
 	.send_hbm_bad_pages_num = smu_v13_0_6_smu_send_hbm_bad_page_num,
+	.send_rma_reason = smu_v13_0_6_send_rma_reason,
 };
 
 void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)
@@ -2206,4 +3234,6 @@ void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = smu_v13_0_6_table_map;
 	smu->smc_driver_if_version = SMU13_0_6_DRIVER_IF_VERSION;
 	smu_v13_0_set_smu_mailbox_registers(smu);
+	amdgpu_mca_smu_init_funcs(smu->adev, &smu_v13_0_6_mca_smu_funcs);
+	amdgpu_aca_set_smu_funcs(smu->adev, &smu_v13_0_6_aca_smu_funcs);
 }

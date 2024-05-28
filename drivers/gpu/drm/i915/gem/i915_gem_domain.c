@@ -5,7 +5,6 @@
  */
 
 #include "display/intel_display.h"
-#include "display/intel_frontbuffer.h"
 #include "gt/intel_gt.h"
 
 #include "i915_drv.h"
@@ -16,6 +15,7 @@
 #include "i915_gem_lmem.h"
 #include "i915_gem_mman.h"
 #include "i915_gem_object.h"
+#include "i915_gem_object_frontbuffer.h"
 #include "i915_vma.h"
 
 #define VTD_GUARD (168u * I915_GTT_PAGE_SIZE) /* 168 or tile-row PTE padding */
@@ -68,10 +68,8 @@ flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
 	switch (obj->write_domain) {
 	case I915_GEM_DOMAIN_GTT:
 		spin_lock(&obj->vma.lock);
-		for_each_ggtt_vma(vma, obj) {
-			if (i915_vma_unset_ggtt_write(vma))
-				intel_gt_flush_ggtt_writes(vma->vm->gt);
-		}
+		for_each_ggtt_vma(vma, obj)
+			i915_vma_flush_writes(vma);
 		spin_unlock(&obj->vma.lock);
 
 		i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);

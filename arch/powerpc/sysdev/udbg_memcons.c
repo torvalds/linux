@@ -41,7 +41,7 @@ struct memcons memcons = {
 	.input_end = &memcons_input[CONFIG_PPC_MEMCONS_INPUT_SIZE],
 };
 
-void memcons_putc(char c)
+static void memcons_putc(char c)
 {
 	char *new_output_pos;
 
@@ -54,7 +54,7 @@ void memcons_putc(char c)
 	memcons.output_pos = new_output_pos;
 }
 
-int memcons_getc_poll(void)
+static int memcons_getc_poll(void)
 {
 	char c;
 	char *new_input_pos;
@@ -77,7 +77,7 @@ int memcons_getc_poll(void)
 	return -1;
 }
 
-int memcons_getc(void)
+static int memcons_getc(void)
 {
 	int c;
 

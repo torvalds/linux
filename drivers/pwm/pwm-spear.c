@@ -48,17 +48,15 @@
  *
  * @mmio_base: base address of pwm chip
  * @clk: pointer to clk structure of pwm chip
- * @chip: linux pwm chip representation
  */
 struct spear_pwm_chip {
 	void __iomem *mmio_base;
 	struct clk *clk;
-	struct pwm_chip chip;
 };
 
 static inline struct spear_pwm_chip *to_spear_pwm_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct spear_pwm_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static inline u32 spear_pwm_readl(struct spear_pwm_chip *chip, unsigned int num,
@@ -189,44 +187,38 @@ static int spear_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops spear_pwm_ops = {
 	.apply = spear_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int spear_pwm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct pwm_chip *chip;
 	struct spear_pwm_chip *pc;
 	int ret;
 	u32 val;
 
-	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc)
-		return -ENOMEM;
+	chip = devm_pwmchip_alloc(&pdev->dev, NUM_PWM, sizeof(*pc));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	pc = to_spear_pwm_chip(chip);
 
 	pc->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->mmio_base))
 		return PTR_ERR(pc->mmio_base);
 
-	pc->clk = devm_clk_get(&pdev->dev, NULL);
+	pc->clk = devm_clk_get_prepared(&pdev->dev, NULL);
 	if (IS_ERR(pc->clk))
-		return PTR_ERR(pc->clk);
+		return dev_err_probe(&pdev->dev, PTR_ERR(pc->clk),
+				     "Failed to get clock\n");
 
-	platform_set_drvdata(pdev, pc);
-
-	pc->chip.dev = &pdev->dev;
-	pc->chip.ops = &spear_pwm_ops;
-	pc->chip.npwm = NUM_PWM;
-
-	ret = clk_prepare(pc->clk);
-	if (ret)
-		return ret;
+	chip->ops = &spear_pwm_ops;
 
 	if (of_device_is_compatible(np, "st,spear1340-pwm")) {
 		ret = clk_enable(pc->clk);
-		if (ret) {
-			clk_unprepare(pc->clk);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret,
+					     "Failed to enable clk\n");
+
 		/*
 		 * Following enables PWM chip, channels would still be
 		 * enabled individually through their control register
@@ -238,23 +230,11 @@ static int spear_pwm_probe(struct platform_device *pdev)
 		clk_disable(pc->clk);
 	}
 
-	ret = pwmchip_add(&pc->chip);
-	if (ret < 0) {
-		clk_unprepare(pc->clk);
-		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
-	}
+	ret = devm_pwmchip_add(&pdev->dev, chip);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "pwmchip_add() failed\n");
 
-	return ret;
-}
-
-static void spear_pwm_remove(struct platform_device *pdev)
-{
-	struct spear_pwm_chip *pc = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&pc->chip);
-
-	/* clk was prepared in probe, hence unprepare it here */
-	clk_unprepare(pc->clk);
+	return 0;
 }
 
 static const struct of_device_id spear_pwm_of_match[] = {
@@ -271,7 +251,6 @@ static struct platform_driver spear_pwm_driver = {
 		.of_match_table = spear_pwm_of_match,
 	},
 	.probe = spear_pwm_probe,
-	.remove_new = spear_pwm_remove,
 };
 
 module_platform_driver(spear_pwm_driver);

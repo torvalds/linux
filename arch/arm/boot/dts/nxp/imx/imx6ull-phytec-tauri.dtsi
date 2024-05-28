@@ -9,11 +9,6 @@
 #include "imx6ull-phytec-phycore-som.dtsi"
 
 / {
-
-	model = "PHYTEC phyGate-Tauri i.MX6 UltraLite";
-	compatible = "phytec,imx6ull-phygate-tauri",
-		     "phytec,imx6ull-pcl063", "fsl,imx6ull";
-
 	aliases {
 		rtc0 = &i2c_rtc;
 		rtc1 = &snvs_rtc;
@@ -121,7 +116,7 @@
 	tpm_tis: tpm@1 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_tpm>;
-		compatible = "tcg,tpm_tis-spi";
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
 		reg = <1>;
 		spi-max-frequency = <20000000>;
 		interrupt-parent = <&gpio5>;

@@ -80,7 +80,7 @@ static int dev_8255_attach(struct comedi_device *dev,
 		if (ret) {
 			s->type = COMEDI_SUBD_UNUSED;
 		} else {
-			ret = subdev_8255_init(dev, s, NULL, iobase);
+			ret = subdev_8255_io_init(dev, s, iobase);
 			if (ret) {
 				/*
 				 * Release the I/O port region here, as the

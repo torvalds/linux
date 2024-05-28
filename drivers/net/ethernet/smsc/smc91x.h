@@ -114,25 +114,6 @@ static inline void _SMC_outw_align4(u16 val, void __iomem *ioaddr, int reg,
 			 (lp)->cfg.pxa_u16_align4)
 
 
-#elif	defined(CONFIG_SH_SH4202_MICRODEV)
-
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-
-#define SMC_inb(a, r)		inb((a) + (r) - 0xa0000000)
-#define SMC_inw(a, r)		inw((a) + (r) - 0xa0000000)
-#define SMC_inl(a, r)		inl((a) + (r) - 0xa0000000)
-#define SMC_outb(v, a, r)	outb(v, (a) + (r) - 0xa0000000)
-#define SMC_outw(lp, v, a, r)	outw(v, (a) + (r) - 0xa0000000)
-#define SMC_outl(v, a, r)	outl(v, (a) + (r) - 0xa0000000)
-#define SMC_insl(a, r, p, l)	insl((a) + (r) - 0xa0000000, p, l)
-#define SMC_outsl(a, r, p, l)	outsl((a) + (r) - 0xa0000000, p, l)
-#define SMC_insw(a, r, p, l)	insw((a) + (r) - 0xa0000000, p, l)
-#define SMC_outsw(a, r, p, l)	outsw((a) + (r) - 0xa0000000, p, l)
-
-#define SMC_IRQ_FLAGS		(0)
-
 #elif defined(CONFIG_ATARI)
 
 #define SMC_CAN_USE_8BIT        1

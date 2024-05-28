@@ -173,3 +173,126 @@ static inline void raid1_prepare_flush_writes(struct bitmap *bitmap)
 	else
 		md_bitmap_unplug(bitmap);
 }
+
+/*
+ * Used by fix_read_error() to decay the per rdev read_errors.
+ * We halve the read error count for every hour that has elapsed
+ * since the last recorded read error.
+ */
+static inline void check_decay_read_errors(struct mddev *mddev, struct md_rdev *rdev)
+{
+	long cur_time_mon;
+	unsigned long hours_since_last;
+	unsigned int read_errors = atomic_read(&rdev->read_errors);
+
+	cur_time_mon = ktime_get_seconds();
+
+	if (rdev->last_read_error == 0) {
+		/* first time we've seen a read error */
+		rdev->last_read_error = cur_time_mon;
+		return;
+	}
+
+	hours_since_last = (long)(cur_time_mon -
+			    rdev->last_read_error) / 3600;
+
+	rdev->last_read_error = cur_time_mon;
+
+	/*
+	 * if hours_since_last is > the number of bits in read_errors
+	 * just set read errors to 0. We do this to avoid
+	 * overflowing the shift of read_errors by hours_since_last.
+	 */
+	if (hours_since_last >= 8 * sizeof(read_errors))
+		atomic_set(&rdev->read_errors, 0);
+	else
+		atomic_set(&rdev->read_errors, read_errors >> hours_since_last);
+}
+
+static inline bool exceed_read_errors(struct mddev *mddev, struct md_rdev *rdev)
+{
+	int max_read_errors = atomic_read(&mddev->max_corr_read_errors);
+	int read_errors;
+
+	check_decay_read_errors(mddev, rdev);
+	read_errors =  atomic_inc_return(&rdev->read_errors);
+	if (read_errors > max_read_errors) {
+		pr_notice("md/"RAID_1_10_NAME":%s: %pg: Raid device exceeded read_error threshold [cur %d:max %d]\n",
+			  mdname(mddev), rdev->bdev, read_errors, max_read_errors);
+		pr_notice("md/"RAID_1_10_NAME":%s: %pg: Failing raid device\n",
+			  mdname(mddev), rdev->bdev);
+		md_error(mddev, rdev);
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * raid1_check_read_range() - check a given read range for bad blocks,
+ * available read length is returned;
+ * @rdev: the rdev to read;
+ * @this_sector: read position;
+ * @len: read length;
+ *
+ * helper function for read_balance()
+ *
+ * 1) If there are no bad blocks in the range, @len is returned;
+ * 2) If the range are all bad blocks, 0 is returned;
+ * 3) If there are partial bad blocks:
+ *  - If the bad block range starts after @this_sector, the length of first
+ *  good region is returned;
+ *  - If the bad block range starts before @this_sector, 0 is returned and
+ *  the @len is updated to the offset into the region before we get to the
+ *  good blocks;
+ */
+static inline int raid1_check_read_range(struct md_rdev *rdev,
+					 sector_t this_sector, int *len)
+{
+	sector_t first_bad;
+	int bad_sectors;
+
+	/* no bad block overlap */
+	if (!is_badblock(rdev, this_sector, *len, &first_bad, &bad_sectors))
+		return *len;
+
+	/*
+	 * bad block range starts offset into our range so we can return the
+	 * number of sectors before the bad blocks start.
+	 */
+	if (first_bad > this_sector)
+		return first_bad - this_sector;
+
+	/* read range is fully consumed by bad blocks. */
+	if (this_sector + *len <= first_bad + bad_sectors)
+		return 0;
+
+	/*
+	 * final case, bad block range starts before or at the start of our
+	 * range but does not cover our entire range so we still return 0 but
+	 * update the length with the number of sectors before we get to the
+	 * good ones.
+	 */
+	*len = first_bad + bad_sectors - this_sector;
+	return 0;
+}
+
+/*
+ * Check if read should choose the first rdev.
+ *
+ * Balance on the whole device if no resync is going on (recovery is ok) or
+ * below the resync window. Otherwise, take the first readable disk.
+ */
+static inline bool raid1_should_read_first(struct mddev *mddev,
+					   sector_t this_sector, int len)
+{
+	if ((mddev->recovery_cp < this_sector + len))
+		return true;
+
+	if (mddev_is_clustered(mddev) &&
+	    md_cluster_ops->area_resyncing(mddev, READ, this_sector,
+					   this_sector + len))
+		return true;
+
+	return false;
+}

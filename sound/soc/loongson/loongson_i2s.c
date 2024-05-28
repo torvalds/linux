@@ -204,13 +204,6 @@ static int loongson_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static const struct snd_soc_dai_ops loongson_i2s_dai_ops = {
-	.trigger	= loongson_i2s_trigger,
-	.hw_params	= loongson_i2s_hw_params,
-	.set_sysclk	= loongson_i2s_set_dai_sysclk,
-	.set_fmt	= loongson_i2s_set_fmt,
-};
-
 static int loongson_i2s_dai_probe(struct snd_soc_dai *cpu_dai)
 {
 	struct loongson_i2s *i2s = dev_get_drvdata(cpu_dai->dev);
@@ -222,9 +215,16 @@ static int loongson_i2s_dai_probe(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops loongson_i2s_dai_ops = {
+	.probe		= loongson_i2s_dai_probe,
+	.trigger	= loongson_i2s_trigger,
+	.hw_params	= loongson_i2s_hw_params,
+	.set_sysclk	= loongson_i2s_set_dai_sysclk,
+	.set_fmt	= loongson_i2s_set_fmt,
+};
+
 struct snd_soc_dai_driver loongson_i2s_dai = {
 	.name = "loongson-i2s",
-	.probe = loongson_i2s_dai_probe,
 	.playback = {
 		.stream_name = "CPU-Playback",
 		.channels_min = 1,

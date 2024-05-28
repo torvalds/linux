@@ -101,6 +101,24 @@ features that make lock debugging easier and faster:
     - Detects multi-task circular deadlocks and prints out all affected
       locks and tasks (and only those tasks).
 
+Mutexes - and most other sleeping locks like rwsems - do not provide an
+implicit reference for the memory they occupy, which reference is released
+with mutex_unlock().
+
+[ This is in contrast with spin_unlock() [or completion_done()], which
+  APIs can be used to guarantee that the memory is not touched by the
+  lock implementation after spin_unlock()/completion_done() releases
+  the lock. ]
+
+mutex_unlock() may access the mutex structure even after it has internally
+released the lock already - so it's not safe for another context to
+acquire the mutex and assume that the mutex_unlock() context is not using
+the structure anymore.
+
+The mutex user must ensure that the mutex is not destroyed while a
+release operation is still in progress - in other words, callers of
+mutex_unlock() must ensure that the mutex stays alive until mutex_unlock()
+has returned.
 
 Interfaces
 ----------

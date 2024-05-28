@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/pm_opp.h>
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -444,7 +445,7 @@ static void msm_complete_tx_dma(void *args)
 	unsigned int count;
 	u32 val;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Already stopped */
 	if (!dma->count)
@@ -476,7 +477,7 @@ static void msm_complete_tx_dma(void *args)
 
 	msm_handle_tx(port);
 done:
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static int msm_handle_tx_dma(struct msm_port *msm_port, unsigned int count)
@@ -549,7 +550,7 @@ static void msm_complete_rx_dma(void *args)
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Already stopped */
 	if (!dma->count)
@@ -587,16 +588,14 @@ static void msm_complete_rx_dma(void *args)
 		if (!(port->read_status_mask & MSM_UART_SR_RX_BREAK))
 			flag = TTY_NORMAL;
 
-		spin_unlock_irqrestore(&port->lock, flags);
-		sysrq = uart_handle_sysrq_char(port, dma->virt[i]);
-		spin_lock_irqsave(&port->lock, flags);
+		sysrq = uart_prepare_sysrq_char(port, dma->virt[i]);
 		if (!sysrq)
 			tty_insert_flip_char(tport, dma->virt[i], flag);
 	}
 
 	msm_start_rx_dma(msm_port);
 done:
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_unlock_and_check_sysrq_irqrestore(port, flags);
 
 	if (count)
 		tty_flip_buffer_push(tport);
@@ -762,9 +761,7 @@ static void msm_handle_rx_dm(struct uart_port *port, unsigned int misr)
 			if (!(port->read_status_mask & MSM_UART_SR_RX_BREAK))
 				flag = TTY_NORMAL;
 
-			spin_unlock(&port->lock);
-			sysrq = uart_handle_sysrq_char(port, buf[i]);
-			spin_lock(&port->lock);
+			sysrq = uart_prepare_sysrq_char(port, buf[i]);
 			if (!sysrq)
 				tty_insert_flip_char(tport, buf[i], flag);
 		}
@@ -824,9 +821,7 @@ static void msm_handle_rx(struct uart_port *port)
 		else if (sr & MSM_UART_SR_PAR_FRAME_ERR)
 			flag = TTY_FRAME;
 
-		spin_unlock(&port->lock);
-		sysrq = uart_handle_sysrq_char(port, c);
-		spin_lock(&port->lock);
+		sysrq = uart_prepare_sysrq_char(port, c);
 		if (!sysrq)
 			tty_insert_flip_char(tport, c, flag);
 	}
@@ -947,11 +942,10 @@ static irqreturn_t msm_uart_irq(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	struct msm_port *msm_port = to_msm_port(port);
 	struct msm_dma *dma = &msm_port->rx_dma;
-	unsigned long flags;
 	unsigned int misr;
 	u32 val;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock(port);
 	misr = msm_read(port, MSM_UART_MISR);
 	msm_write(port, 0, MSM_UART_IMR); /* disable interrupt */
 
@@ -983,7 +977,7 @@ static irqreturn_t msm_uart_irq(int irq, void *dev_id)
 		msm_handle_delta_cts(port);
 
 	msm_write(port, msm_port->imr, MSM_UART_IMR); /* restore interrupt */
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_unlock_and_check_sysrq(port);
 
 	return IRQ_HANDLED;
 }
@@ -1128,13 +1122,13 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud,
 	unsigned long flags, rate;
 
 	flags = *saved_flags;
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	entry = msm_find_best_baud(port, baud, &rate);
-	clk_set_rate(msm_port->clk, rate);
+	dev_pm_opp_set_rate(port->dev, rate);
 	baud = rate / 16 / entry->divisor;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	*saved_flags = flags;
 	port->uartclk = rate;
 
@@ -1186,6 +1180,7 @@ static void msm_init_clock(struct uart_port *port)
 {
 	struct msm_port *msm_port = to_msm_port(port);
 
+	dev_pm_opp_set_rate(port->dev, port->uartclk);
 	clk_prepare_enable(msm_port->clk);
 	clk_prepare_enable(msm_port->pclk);
 	msm_serial_set_mnd_regs(port);
@@ -1239,6 +1234,7 @@ err_irq:
 
 	clk_disable_unprepare(msm_port->pclk);
 	clk_disable_unprepare(msm_port->clk);
+	dev_pm_opp_set_rate(port->dev, 0);
 
 	return ret;
 }
@@ -1254,6 +1250,7 @@ static void msm_shutdown(struct uart_port *port)
 		msm_release_dma(msm_port);
 
 	clk_disable_unprepare(msm_port->clk);
+	dev_pm_opp_set_rate(port->dev, 0);
 
 	free_irq(port->irq, port);
 }
@@ -1266,7 +1263,7 @@ static void msm_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long flags;
 	unsigned int baud, mr;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	if (dma->chan) /* Terminate if any */
 		msm_stop_dma(port, dma);
@@ -1338,7 +1335,7 @@ static void msm_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* Try to use DMA */
 	msm_start_rx_dma(msm_port);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *msm_type(struct uart_port *port)
@@ -1419,11 +1416,13 @@ static void msm_power(struct uart_port *port, unsigned int state,
 
 	switch (state) {
 	case 0:
+		dev_pm_opp_set_rate(port->dev, port->uartclk);
 		clk_prepare_enable(msm_port->clk);
 		clk_prepare_enable(msm_port->pclk);
 		break;
 	case 3:
 		clk_disable_unprepare(msm_port->clk);
+		dev_pm_opp_set_rate(port->dev, 0);
 		clk_disable_unprepare(msm_port->pclk);
 		break;
 	default:
@@ -1615,14 +1614,10 @@ static void __msm_console_write(struct uart_port *port, const char *s,
 			num_newlines++;
 	count += num_newlines;
 
-	local_irq_save(flags);
-
-	if (port->sysrq)
-		locked = 0;
-	else if (oops_in_progress)
-		locked = spin_trylock(&port->lock);
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(port, &flags);
 	else
-		spin_lock(&port->lock);
+		uart_port_lock_irqsave(port, &flags);
 
 	if (is_uartdm)
 		msm_reset_dm_count(port, count);
@@ -1661,9 +1656,7 @@ static void __msm_console_write(struct uart_port *port, const char *s,
 	}
 
 	if (locked)
-		spin_unlock(&port->lock);
-
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static void msm_console_write(struct console *co, const char *s,
@@ -1789,7 +1782,7 @@ static int msm_serial_probe(struct platform_device *pdev)
 	struct resource *resource;
 	struct uart_port *port;
 	const struct of_device_id *id;
-	int irq, line;
+	int irq, line, ret;
 
 	if (pdev->dev.of_node)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
@@ -1824,6 +1817,15 @@ static int msm_serial_probe(struct platform_device *pdev)
 			return PTR_ERR(msm_port->pclk);
 	}
 
+	ret = devm_pm_opp_set_clkname(&pdev->dev, "core");
+	if (ret)
+		return ret;
+
+	/* OPP table is optional */
+	ret = devm_pm_opp_of_add_table(&pdev->dev);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(&pdev->dev, ret, "invalid OPP table\n");
+
 	port->uartclk = clk_get_rate(msm_port->clk);
 	dev_info(&pdev->dev, "uartclk = %d\n", port->uartclk);
 
@@ -1843,13 +1845,11 @@ static int msm_serial_probe(struct platform_device *pdev)
 	return uart_add_one_port(&msm_uart_driver, port);
 }
 
-static int msm_serial_remove(struct platform_device *pdev)
+static void msm_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&msm_uart_driver, port);
-
-	return 0;
 }
 
 static const struct of_device_id msm_match_table[] = {
@@ -1882,7 +1882,7 @@ static const struct dev_pm_ops msm_serial_dev_pm_ops = {
 };
 
 static struct platform_driver msm_platform_driver = {
-	.remove = msm_serial_remove,
+	.remove_new = msm_serial_remove,
 	.probe = msm_serial_probe,
 	.driver = {
 		.name = "msm_serial",

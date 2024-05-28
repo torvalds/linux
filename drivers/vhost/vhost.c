@@ -1458,9 +1458,7 @@ ssize_t vhost_chr_write_iter(struct vhost_dev *dev,
 		goto done;
 	}
 
-	if ((msg.type == VHOST_IOTLB_UPDATE ||
-	     msg.type == VHOST_IOTLB_INVALIDATE) &&
-	     msg.size == 0) {
+	if (msg.type == VHOST_IOTLB_UPDATE && msg.size == 0) {
 		ret = -EINVAL;
 		goto done;
 	}
@@ -2250,7 +2248,7 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		len -= l;
 		if (!len) {
 			if (vq->log_ctx)
-				eventfd_signal(vq->log_ctx, 1);
+				eventfd_signal(vq->log_ctx);
 			return 0;
 		}
 	}
@@ -2273,7 +2271,7 @@ static int vhost_update_used_flags(struct vhost_virtqueue *vq)
 		log_used(vq, (used - (void __user *)vq->used),
 			 sizeof vq->used->flags);
 		if (vq->log_ctx)
-			eventfd_signal(vq->log_ctx, 1);
+			eventfd_signal(vq->log_ctx);
 	}
 	return 0;
 }
@@ -2291,7 +2289,7 @@ static int vhost_update_avail_event(struct vhost_virtqueue *vq)
 		log_used(vq, (used - (void __user *)vq->used),
 			 sizeof *vhost_avail_event(vq));
 		if (vq->log_ctx)
-			eventfd_signal(vq->log_ctx, 1);
+			eventfd_signal(vq->log_ctx);
 	}
 	return 0;
 }
@@ -2517,7 +2515,7 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 		vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
 
 		if (unlikely((u16)(vq->avail_idx - last_avail_idx) > vq->num)) {
-			vq_err(vq, "Guest moved used index from %u to %u",
+			vq_err(vq, "Guest moved avail index from %u to %u",
 				last_avail_idx, vq->avail_idx);
 			return -EFAULT;
 		}
@@ -2717,7 +2715,7 @@ int vhost_add_used_n(struct vhost_virtqueue *vq, struct vring_used_elem *heads,
 		log_used(vq, offsetof(struct vring_used, idx),
 			 sizeof vq->used->idx);
 		if (vq->log_ctx)
-			eventfd_signal(vq->log_ctx, 1);
+			eventfd_signal(vq->log_ctx);
 	}
 	return r;
 }
@@ -2765,7 +2763,7 @@ void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
 	/* Signal the Guest tell them we used something up. */
 	if (vq->call_ctx.ctx && vhost_notify(dev, vq))
-		eventfd_signal(vq->call_ctx.ctx, 1);
+		eventfd_signal(vq->call_ctx.ctx);
 }
 EXPORT_SYMBOL_GPL(vhost_signal);
 
@@ -2801,9 +2799,19 @@ bool vhost_vq_avail_empty(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 	r = vhost_get_avail_idx(vq, &avail_idx);
 	if (unlikely(r))
 		return false;
-	vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
 
-	return vq->avail_idx == vq->last_avail_idx;
+	vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
+	if (vq->avail_idx != vq->last_avail_idx) {
+		/* Since we have updated avail_idx, the following
+		 * call to vhost_get_vq_desc() will read available
+		 * ring entries. Make sure that read happens after
+		 * the avail_idx read.
+		 */
+		smp_rmb();
+		return false;
+	}
+
+	return true;
 }
 EXPORT_SYMBOL_GPL(vhost_vq_avail_empty);
 
@@ -2840,9 +2848,19 @@ bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 		       &vq->avail->idx, r);
 		return false;
 	}
-	vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
 
-	return vq->avail_idx != vq->last_avail_idx;
+	vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
+	if (vq->avail_idx != vq->last_avail_idx) {
+		/* Since we have updated avail_idx, the following
+		 * call to vhost_get_vq_desc() will read available
+		 * ring entries. Make sure that read happens after
+		 * the avail_idx read.
+		 */
+		smp_rmb();
+		return true;
+	}
+
+	return false;
 }
 EXPORT_SYMBOL_GPL(vhost_enable_notify);
 

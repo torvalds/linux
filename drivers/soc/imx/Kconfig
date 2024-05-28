@@ -1,14 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "i.MX SoC drivers"
 
-config IMX_GPCV2_PM_DOMAINS
-	bool "i.MX GPCv2 PM domains"
-	depends on ARCH_MXC || (COMPILE_TEST && OF)
-	depends on PM
-	select PM_GENERIC_DOMAINS
-	select REGMAP_MMIO
-	default y if SOC_IMX7D
-
 config SOC_IMX8M
 	tristate "i.MX8M SoC family support"
 	depends on ARCH_MXC || COMPILE_TEST
@@ -27,16 +19,5 @@ config SOC_IMX9
 	select SOC_BUS
 	help
 	  If you say yes here, you get support for the NXP i.MX9 family
-
-config IMX8M_BLK_CTRL
-	bool
-	default SOC_IMX8M && IMX_GPCV2_PM_DOMAINS
-	depends on PM_GENERIC_DOMAINS
-	depends on COMMON_CLK
-
-config IMX9_BLK_CTRL
-	bool
-	default SOC_IMX9 && IMX_GPCV2_PM_DOMAINS
-	depends on PM_GENERIC_DOMAINS
 
 endmenu

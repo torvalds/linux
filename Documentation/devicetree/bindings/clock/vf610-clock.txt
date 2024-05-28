@@ -9,7 +9,7 @@ Optional properties:
 - clocks: list of clock identifiers which are external input clocks to the
 	given clock controller. Please refer the next section to find
 	the input clocks for a given controller.
-- clock-names: list of names of clocks which are exteral input clocks to the
+- clock-names: list of names of clocks which are external input clocks to the
 	given clock controller.
 
 Input clocks for top clock controller:

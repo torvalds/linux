@@ -10,8 +10,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
@@ -562,12 +561,10 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mtk_disp_ovl_remove(struct platform_device *pdev)
+static void mtk_disp_ovl_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_disp_ovl_component_ops);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct mtk_disp_ovl_data mt2701_ovl_driver_data = {
@@ -659,7 +656,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_ovl_driver_dt_match);
 
 struct platform_driver mtk_disp_ovl_driver = {
 	.probe		= mtk_disp_ovl_probe,
-	.remove		= mtk_disp_ovl_remove,
+	.remove_new	= mtk_disp_ovl_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ovl",
 		.owner	= THIS_MODULE,

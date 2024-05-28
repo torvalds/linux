@@ -1,0 +1,211 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright (c) 2022 TQ-Systems GmbH <linux@ew.tq-group.com>,
+ * D-82229 Seefeld, Germany.
+ * Author: Markus Niebel
+ */
+
+#include "imx93.dtsi"
+
+/{
+	model = "TQ-Systems i.MX93 TQMa93xxLA/TQMa93xxCA SOM";
+	compatible = "tq,imx93-tqma9352", "fsl,imx93";
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			alloc-ranges = <0 0x60000000 0 0x40000000>;
+			size = <0 0x10000000>;
+			linux,cma-default;
+		};
+	};
+
+	reg_v1v8: regulator-v1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	reg_v3v3: regulator-v3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	/* SD2 RST# via PMIC SW_EN */
+	reg_usdhc2_vmmc: regulator-usdhc2 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_reg_usdhc2_vmmc>;
+		regulator-name = "VSD_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_v3v3>;
+		gpio = <&gpio3 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&adc1 {
+	vref-supply = <&reg_v1v8>;
+};
+
+&flexspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexspi1>;
+	status = "okay";
+
+	flash0: flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		/*
+		 * no DQS, RXCLKSRC internal loop back, max 66 MHz
+		 * clk framework uses CLK_DIVIDER_ROUND_CLOSEST
+		 * selected value together with root from
+		 * IMX93_CLK_SYS_PLL_PFD1 @ 800.000.000 Hz helps to
+		 * respect the maximum value.
+		 */
+		spi-max-frequency = <62000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+};
+
+&gpio1 {
+	pmic-irq-hog {
+		gpio-hog;
+		gpios = <3 GPIO_ACTIVE_LOW>;
+		input;
+		line-name = "PMIC_IRQ#";
+	};
+};
+
+&lpi2c1 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_lpi2c1>;
+	pinctrl-1 = <&pinctrl_lpi2c1>;
+	status = "okay";
+
+	se97_som: temperature-sensor@1b {
+		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
+		reg = <0x1b>;
+	};
+
+	pcf85063: rtc@51 {
+		compatible = "nxp,pcf85063a";
+		reg = <0x51>;
+		quartz-load-femtofarads = <7000>;
+	};
+
+	eeprom0: eeprom@53 {
+		compatible = "nxp,se97b", "atmel,24c02";
+		reg = <0x53>;
+		pagesize = <16>;
+		read-only;
+		vcc-supply = <&reg_v3v3>;
+	};
+
+	eeprom1: eeprom@57 {
+		compatible = "atmel,24c64";
+		reg = <0x57>;
+		pagesize = <32>;
+		vcc-supply = <&reg_v3v3>;
+	};
+
+	/* protectable identification memory (part of M24C64-D @57) */
+	eeprom@5f {
+		compatible = "atmel,24c64d-wl";
+		reg = <0x5f>;
+		vcc-supply = <&reg_v3v3>;
+	};
+
+	imu@6a {
+		compatible = "st,ism330dhcx";
+		reg = <0x6a>;
+		vdd-supply = <&reg_v3v3>;
+		vddio-supply = <&reg_v3v3>;
+	};
+};
+
+&usdhc1 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1>;
+	pinctrl-2 = <&pinctrl_usdhc1>;
+	bus-width = <8>;
+	non-removable;
+	no-sdio;
+	no-sd;
+	status = "okay";
+};
+
+&wdog3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_flexspi1: flexspi1grp {
+		fsl,pins = <
+			MX93_PAD_SD3_CMD__FLEXSPI1_A_SS0_B	0x3fe
+			MX93_PAD_SD3_CLK__FLEXSPI1_A_SCLK	0x3fe
+			MX93_PAD_SD3_DATA0__FLEXSPI1_A_DATA00	0x3fe
+			MX93_PAD_SD3_DATA1__FLEXSPI1_A_DATA01	0x3fe
+			MX93_PAD_SD3_DATA2__FLEXSPI1_A_DATA02	0x3fe
+			MX93_PAD_SD3_DATA3__FLEXSPI1_A_DATA03	0x3fe
+		>;
+	};
+
+	pinctrl_lpi2c1: lpi2c1grp {
+		fsl,pins = <
+			MX93_PAD_I2C1_SCL__LPI2C1_SCL		0x40000b9e
+			MX93_PAD_I2C1_SDA__LPI2C1_SDA		0x40000b9e
+		>;
+	};
+
+	pinctrl_pca9451: pca9451grp {
+		fsl,pins = <
+			MX93_PAD_I2C2_SDA__GPIO1_IO03		0x1306
+		>;
+	};
+
+	pinctrl_reg_usdhc2_vmmc: regusdhc2vmmcgrp {
+		fsl,pins = <
+			MX93_PAD_SD2_RESET_B__GPIO3_IO07	0x1306
+		>;
+	};
+
+	pinctrl_usdhc1: usdhc1grp {
+		fsl,pins = <
+			/* HYS | PU | PD | FSEL_3 | X5 */
+			MX93_PAD_SD1_CLK__USDHC1_CLK		0x17be
+			MX93_PAD_SD1_STROBE__USDHC1_STROBE	0x17be
+			/* HYS | PU | FSEL_3 | X5 */
+			MX93_PAD_SD1_CMD__USDHC1_CMD		0x13be
+			/* HYS | PU | FSEL_3 | X4 */
+			MX93_PAD_SD1_DATA0__USDHC1_DATA0	0x139e
+			MX93_PAD_SD1_DATA1__USDHC1_DATA1	0x139e
+			MX93_PAD_SD1_DATA2__USDHC1_DATA2	0x139e
+			MX93_PAD_SD1_DATA3__USDHC1_DATA3	0x139e
+			MX93_PAD_SD1_DATA4__USDHC1_DATA4	0x139e
+			MX93_PAD_SD1_DATA5__USDHC1_DATA5	0x139e
+			MX93_PAD_SD1_DATA6__USDHC1_DATA6	0x139e
+			MX93_PAD_SD1_DATA7__USDHC1_DATA7	0x139e
+		>;
+	};
+
+	pinctrl_wdog: wdoggrp {
+		fsl,pins = <
+			MX93_PAD_WDOG_ANY__WDOG1_WDOG_ANY	0x31e
+		>;
+	};
+};

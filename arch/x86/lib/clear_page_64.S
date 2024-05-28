@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/asm.h>
-#include <asm/export.h>
 
 /*
  * Most CPUs support enhanced REP MOVSB/STOSB instructions. It is

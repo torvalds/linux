@@ -131,7 +131,7 @@ deployments, this construction is usually adequate. Often, however,
 the node name by itself is not adequately unique, and can change
 unexpectedly. Problematic situations include:
 
-  - NFS-root (diskless) clients, where the local DCHP server (or
+  - NFS-root (diskless) clients, where the local DHCP server (or
     equivalent) does not provide a unique host name.
 
   - "Containers" within a single Linux host.  If each container has

@@ -4,7 +4,12 @@
 #
 
 GPROF_OPT += -pg
+
+ifdef CONFIG_CC_IS_CLANG
+GCOV_OPT += -fprofile-instr-generate -fcoverage-mapping
+else
 GCOV_OPT += -fprofile-arcs -ftest-coverage
+endif
 
 CFLAGS-$(CONFIG_GCOV) += $(GCOV_OPT)
 CFLAGS-$(CONFIG_GPROF) += $(GPROF_OPT)

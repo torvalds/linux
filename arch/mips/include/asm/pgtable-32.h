@@ -153,7 +153,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 #if defined(CONFIG_XPA)
 
 #define MAX_POSSIBLE_PHYSMEM_BITS 40
-#define pte_pfn(x)		(((unsigned long)((x).pte_high >> _PFN_SHIFT)) | (unsigned long)((x).pte_low << _PAGE_PRESENT_SHIFT))
+#define pte_pfn(x)		(((unsigned long)((x).pte_high >> PFN_PTE_SHIFT)) | (unsigned long)((x).pte_low << _PAGE_PRESENT_SHIFT))
 static inline pte_t
 pfn_pte(unsigned long pfn, pgprot_t prot)
 {
@@ -161,7 +161,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 
 	pte.pte_low = (pfn >> _PAGE_PRESENT_SHIFT) |
 				(pgprot_val(prot) & ~_PFNX_MASK);
-	pte.pte_high = (pfn << _PFN_SHIFT) |
+	pte.pte_high = (pfn << PFN_PTE_SHIFT) |
 				(pgprot_val(prot) & ~_PFN_MASK);
 	return pte;
 }
@@ -184,9 +184,9 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 #else
 
 #define MAX_POSSIBLE_PHYSMEM_BITS 32
-#define pte_pfn(x)		((unsigned long)((x).pte >> _PFN_SHIFT))
-#define pfn_pte(pfn, prot)	__pte(((unsigned long long)(pfn) << _PFN_SHIFT) | pgprot_val(prot))
-#define pfn_pmd(pfn, prot)	__pmd(((unsigned long long)(pfn) << _PFN_SHIFT) | pgprot_val(prot))
+#define pte_pfn(x)		((unsigned long)((x).pte >> PFN_PTE_SHIFT))
+#define pfn_pte(pfn, prot)	__pte(((unsigned long long)(pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
+#define pfn_pmd(pfn, prot)	__pmd(((unsigned long long)(pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
 #endif /* defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32) */
 
 #define pte_page(x)		pfn_to_page(pte_pfn(x))

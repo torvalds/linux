@@ -125,7 +125,7 @@ int amd_brs_hw_config(struct perf_event *event)
 	 * Where X is the number of taken branches due to interrupt
 	 * skid. Skid is large.
 	 *
-	 * Where Y is the occurences of the event while BRS is
+	 * Where Y is the occurrences of the event while BRS is
 	 * capturing the lbr_nr entries.
 	 *
 	 * By using retired taken branches, we limit the impact on the

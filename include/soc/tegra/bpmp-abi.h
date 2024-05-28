@@ -1194,7 +1194,7 @@ struct cmd_clk_is_enabled_request {
  */
 struct cmd_clk_is_enabled_response {
 	/**
-	 * @brief The state of the clock that has been succesfully
+	 * @brief The state of the clock that has been successfully
 	 * requested with CMD_CLK_ENABLE or CMD_CLK_DISABLE by the
 	 * master invoking the command earlier.
 	 *

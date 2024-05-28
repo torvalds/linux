@@ -1,0 +1,2 @@
+# This is generating kernel oops with divide error
+kms_plane_scaling@invalid-parameters

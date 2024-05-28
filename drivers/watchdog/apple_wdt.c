@@ -173,6 +173,8 @@ static int apple_wdt_probe(struct platform_device *pdev)
 	if (!wdt->clk_rate)
 		return -EINVAL;
 
+	platform_set_drvdata(pdev, wdt);
+
 	wdt->wdd.ops = &apple_wdt_ops;
 	wdt->wdd.info = &apple_wdt_info;
 	wdt->wdd.max_timeout = U32_MAX / wdt->clk_rate;
@@ -190,6 +192,28 @@ static int apple_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, &wdt->wdd);
 }
 
+static int apple_wdt_resume(struct device *dev)
+{
+	struct apple_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdd) || watchdog_hw_running(&wdt->wdd))
+		apple_wdt_start(&wdt->wdd);
+
+	return 0;
+}
+
+static int apple_wdt_suspend(struct device *dev)
+{
+	struct apple_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdd) || watchdog_hw_running(&wdt->wdd))
+		apple_wdt_stop(&wdt->wdd);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(apple_wdt_pm_ops, apple_wdt_suspend, apple_wdt_resume);
+
 static const struct of_device_id apple_wdt_of_match[] = {
 	{ .compatible = "apple,wdt" },
 	{},
@@ -200,6 +224,7 @@ static struct platform_driver apple_wdt_driver = {
 	.driver = {
 		.name = "apple-watchdog",
 		.of_match_table = apple_wdt_of_match,
+		.pm = pm_sleep_ptr(&apple_wdt_pm_ops),
 	},
 	.probe = apple_wdt_probe,
 };

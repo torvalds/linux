@@ -47,6 +47,52 @@ static int skcipher_sendmsg(struct socket *sock, struct msghdr *msg,
 	return af_alg_sendmsg(sock, msg, size, ivsize);
 }
 
+static int algif_skcipher_export(struct sock *sk, struct skcipher_request *req)
+{
+	struct alg_sock *ask = alg_sk(sk);
+	struct crypto_skcipher *tfm;
+	struct af_alg_ctx *ctx;
+	struct alg_sock *pask;
+	unsigned statesize;
+	struct sock *psk;
+	int err;
+
+	if (!(req->base.flags & CRYPTO_SKCIPHER_REQ_NOTFINAL))
+		return 0;
+
+	ctx = ask->private;
+	psk = ask->parent;
+	pask = alg_sk(psk);
+	tfm = pask->private;
+
+	statesize = crypto_skcipher_statesize(tfm);
+	ctx->state = sock_kmalloc(sk, statesize, GFP_ATOMIC);
+	if (!ctx->state)
+		return -ENOMEM;
+
+	err = crypto_skcipher_export(req, ctx->state);
+	if (err) {
+		sock_kzfree_s(sk, ctx->state, statesize);
+		ctx->state = NULL;
+	}
+
+	return err;
+}
+
+static void algif_skcipher_done(void *data, int err)
+{
+	struct af_alg_async_req *areq = data;
+	struct sock *sk = areq->sk;
+
+	if (err)
+		goto out;
+
+	err = algif_skcipher_export(sk, &areq->cra_u.skcipher_req);
+
+out:
+	af_alg_async_cb(data, err);
+}
+
 static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 			     size_t ignored, int flags)
 {
@@ -58,6 +104,7 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 	struct crypto_skcipher *tfm = pask->private;
 	unsigned int bs = crypto_skcipher_chunksize(tfm);
 	struct af_alg_async_req *areq;
+	unsigned cflags = 0;
 	int err = 0;
 	size_t len = 0;
 
@@ -82,8 +129,10 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 	 * If more buffers are to be expected to be processed, process only
 	 * full block size buffers.
 	 */
-	if (ctx->more || len < ctx->used)
+	if (ctx->more || len < ctx->used) {
 		len -= len % bs;
+		cflags |= CRYPTO_SKCIPHER_REQ_NOTFINAL;
+	}
 
 	/*
 	 * Create a per request TX SGL for this request which tracks the
@@ -107,6 +156,16 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 	skcipher_request_set_crypt(&areq->cra_u.skcipher_req, areq->tsgl,
 				   areq->first_rsgl.sgl.sgt.sgl, len, ctx->iv);
 
+	if (ctx->state) {
+		err = crypto_skcipher_import(&areq->cra_u.skcipher_req,
+					     ctx->state);
+		sock_kzfree_s(sk, ctx->state, crypto_skcipher_statesize(tfm));
+		ctx->state = NULL;
+		if (err)
+			goto free;
+		cflags |= CRYPTO_SKCIPHER_REQ_CONT;
+	}
+
 	if (msg->msg_iocb && !is_sync_kiocb(msg->msg_iocb)) {
 		/* AIO operation */
 		sock_hold(sk);
@@ -116,8 +175,9 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 		areq->outlen = len;
 
 		skcipher_request_set_callback(&areq->cra_u.skcipher_req,
+					      cflags |
 					      CRYPTO_TFM_REQ_MAY_SLEEP,
-					      af_alg_async_cb, areq);
+					      algif_skcipher_done, areq);
 		err = ctx->enc ?
 			crypto_skcipher_encrypt(&areq->cra_u.skcipher_req) :
 			crypto_skcipher_decrypt(&areq->cra_u.skcipher_req);
@@ -130,6 +190,7 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 	} else {
 		/* Synchronous operation */
 		skcipher_request_set_callback(&areq->cra_u.skcipher_req,
+					      cflags |
 					      CRYPTO_TFM_REQ_MAY_SLEEP |
 					      CRYPTO_TFM_REQ_MAY_BACKLOG,
 					      crypto_req_done, &ctx->wait);
@@ -137,8 +198,11 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 			crypto_skcipher_encrypt(&areq->cra_u.skcipher_req) :
 			crypto_skcipher_decrypt(&areq->cra_u.skcipher_req),
 						 &ctx->wait);
-	}
 
+		if (!err)
+			err = algif_skcipher_export(
+				sk, &areq->cra_u.skcipher_req);
+	}
 
 free:
 	af_alg_free_resources(areq);
@@ -301,6 +365,8 @@ static void skcipher_sock_destruct(struct sock *sk)
 
 	af_alg_pull_tsgl(sk, ctx->used, NULL, 0);
 	sock_kzfree_s(sk, ctx->iv, crypto_skcipher_ivsize(tfm));
+	if (ctx->state)
+		sock_kzfree_s(sk, ctx->state, crypto_skcipher_statesize(tfm));
 	sock_kfree_s(sk, ctx, ctx->len);
 	af_alg_release_parent(sk);
 }

@@ -180,7 +180,7 @@ The following events (counters) can be used to monitor page migration.
 4. THP_MIGRATION_FAIL: A THP could not be migrated nor it could be split.
 
 5. THP_MIGRATION_SPLIT: A THP was migrated, but not as such: first, the THP had
-   to be split. After splitting, a migration retry was used for it's sub-pages.
+   to be split. After splitting, a migration retry was used for its sub-pages.
 
 THP_MIGRATION_* events also update the appropriate PGMIGRATE_SUCCESS or
 PGMIGRATE_FAIL events. For example, a THP migration failure will cause both

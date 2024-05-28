@@ -11,9 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/phy/phy.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <linux/soc/samsung/exynos-regs-pmu.h>
@@ -275,7 +274,7 @@ static int exynos_mipi_video_phy_power_off(struct phy *phy)
 }
 
 static struct phy *exynos_mipi_video_phy_xlate(struct device *dev,
-					struct of_phandle_args *args)
+					const struct of_phandle_args *args)
 {
 	struct exynos_mipi_video_phy *state = dev_get_drvdata(dev);
 

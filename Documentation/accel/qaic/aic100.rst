@@ -36,8 +36,9 @@ AIC100 DID (0xa100).
 
 AIC100 does not implement FLR (function level reset).
 
-AIC100 implements MSI but does not implement MSI-X. AIC100 requires 17 MSIs to
-operate (1 for MHI, 16 for the DMA Bridge).
+AIC100 implements MSI but does not implement MSI-X. AIC100 prefers 17 MSIs to
+operate (1 for MHI, 16 for the DMA Bridge). Falling back to 1 MSI is possible in
+scenarios where reserving 32 MSIs isn't feasible.
 
 As a PCIe device, AIC100 utilizes BARs to provide host interfaces to the device
 hardware. AIC100 provides 3, 64-bit BARs.
@@ -220,9 +221,13 @@ of the defined channels, and their uses.
 +----------------+---------+----------+----------------------------------------+
 | QAIC_DEBUG     | 18 & 19 | AMSS     | Not used.                              |
 +----------------+---------+----------+----------------------------------------+
-| QAIC_TIMESYNC  | 20 & 21 | SBL/AMSS | Used to synchronize timestamps in the  |
+| QAIC_TIMESYNC  | 20 & 21 | SBL      | Used to synchronize timestamps in the  |
 |                |         |          | device side logs with the host time    |
 |                |         |          | source.                                |
++----------------+---------+----------+----------------------------------------+
+| QAIC_TIMESYNC  | 22 & 23 | AMSS     | Used to periodically synchronize       |
+| _PERIODIC      |         |          | timestamps in the device side logs with|
+|                |         |          | the host time source.                  |
 +----------------+---------+----------+----------------------------------------+
 
 DMA Bridge

@@ -9,6 +9,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string2.h>
 #include <linux/zalloc.h>
 
 static int test_ids_union(void)
@@ -70,14 +71,17 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 {
 	struct expr_id_data *val_ptr;
 	const char *p;
-	double val, num_cpus, num_cores, num_dies, num_packages;
+	double val, num_cpus_online, num_cpus, num_cores, num_dies, num_packages;
 	int ret;
 	struct expr_parse_ctx *ctx;
 	bool is_intel = false;
-	char buf[128];
+	char strcmp_cpuid_buf[256];
+	struct perf_pmu *pmu = perf_pmus__find_core_pmu();
+	char *cpuid = perf_pmu__getcpuid(pmu);
+	char *escaped_cpuid1, *escaped_cpuid2;
 
-	if (!get_cpuid(buf, sizeof(buf)))
-		is_intel = strstr(buf, "Intel") != NULL;
+	TEST_ASSERT_VAL("get_cpuid", cpuid);
+	is_intel = strstr(cpuid, "Intel") != NULL;
 
 	TEST_ASSERT_EQUAL("ids_union", test_ids_union(), 0);
 
@@ -227,7 +231,10 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 
 	/* Test toplogy constants appear well ordered. */
 	expr__ctx_clear(ctx);
+	TEST_ASSERT_VAL("#num_cpus_online",
+			expr__parse(&num_cpus_online, ctx, "#num_cpus_online") == 0);
 	TEST_ASSERT_VAL("#num_cpus", expr__parse(&num_cpus, ctx, "#num_cpus") == 0);
+	TEST_ASSERT_VAL("#num_cpus >= #num_cpus_online", num_cpus >= num_cpus_online);
 	TEST_ASSERT_VAL("#num_cores", expr__parse(&num_cores, ctx, "#num_cores") == 0);
 	TEST_ASSERT_VAL("#num_cpus >= #num_cores", num_cpus >= num_cores);
 	TEST_ASSERT_VAL("#num_dies", expr__parse(&num_dies, ctx, "#num_dies") == 0);
@@ -254,13 +261,32 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	TEST_ASSERT_VAL("source count", hashmap__size(ctx->ids) == 1);
 	TEST_ASSERT_VAL("source count", hashmap__find(ctx->ids, "EVENT1", &val_ptr));
 
+
+	/* Test no cpuid match */
+	ret = test(ctx, "strcmp_cpuid_str(0x0)", 0);
+
+	/*
+	 * Test cpuid match with current cpuid. Special chars have to be
+	 * escaped.
+	 */
+	escaped_cpuid1 = strreplace_chars('-', cpuid, "\\-");
+	free(cpuid);
+	escaped_cpuid2 = strreplace_chars(',', escaped_cpuid1, "\\,");
+	free(escaped_cpuid1);
+	escaped_cpuid1 = strreplace_chars('=', escaped_cpuid2, "\\=");
+	free(escaped_cpuid2);
+	scnprintf(strcmp_cpuid_buf, sizeof(strcmp_cpuid_buf),
+		  "strcmp_cpuid_str(%s)", escaped_cpuid1);
+	free(escaped_cpuid1);
+	ret |= test(ctx, strcmp_cpuid_buf, 1);
+
 	/* has_event returns 1 when an event exists. */
 	expr__add_id_val(ctx, strdup("cycles"), 2);
-	ret = test(ctx, "has_event(cycles)", 1);
+	ret |= test(ctx, "has_event(cycles)", 1);
 
 	expr__ctx_free(ctx);
 
-	return 0;
+	return ret;
 }
 
 DEFINE_SUITE("Simple expression parser", expr);

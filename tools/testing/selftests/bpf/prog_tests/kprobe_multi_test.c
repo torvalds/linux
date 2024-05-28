@@ -3,6 +3,7 @@
 #include "kprobe_multi.skel.h"
 #include "trace_helpers.h"
 #include "kprobe_multi_empty.skel.h"
+#include "kprobe_multi_override.skel.h"
 #include "bpf/libbpf_internal.h"
 #include "bpf/hashmap.h"
 
@@ -221,6 +222,7 @@ static void test_attach_api_fails(void)
 		"bpf_fentry_test2",
 	};
 	__u64 cookies[2];
+	int saved_error;
 
 	addrs[0] = ksym_get_addr("bpf_fentry_test1");
 	addrs[1] = ksym_get_addr("bpf_fentry_test2");
@@ -237,10 +239,11 @@ static void test_attach_api_fails(void)
 	/* fail_1 - pattern and opts NULL */
 	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     NULL, NULL);
+	saved_error = -errno;
 	if (!ASSERT_ERR_PTR(link, "fail_1"))
 		goto cleanup;
 
-	if (!ASSERT_EQ(libbpf_get_error(link), -EINVAL, "fail_1_error"))
+	if (!ASSERT_EQ(saved_error, -EINVAL, "fail_1_error"))
 		goto cleanup;
 
 	/* fail_2 - both addrs and syms set */
@@ -251,10 +254,11 @@ static void test_attach_api_fails(void)
 
 	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     NULL, &opts);
+	saved_error = -errno;
 	if (!ASSERT_ERR_PTR(link, "fail_2"))
 		goto cleanup;
 
-	if (!ASSERT_EQ(libbpf_get_error(link), -EINVAL, "fail_2_error"))
+	if (!ASSERT_EQ(saved_error, -EINVAL, "fail_2_error"))
 		goto cleanup;
 
 	/* fail_3 - pattern and addrs set */
@@ -265,10 +269,11 @@ static void test_attach_api_fails(void)
 
 	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
+	saved_error = -errno;
 	if (!ASSERT_ERR_PTR(link, "fail_3"))
 		goto cleanup;
 
-	if (!ASSERT_EQ(libbpf_get_error(link), -EINVAL, "fail_3_error"))
+	if (!ASSERT_EQ(saved_error, -EINVAL, "fail_3_error"))
 		goto cleanup;
 
 	/* fail_4 - pattern and cnt set */
@@ -279,10 +284,11 @@ static void test_attach_api_fails(void)
 
 	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
+	saved_error = -errno;
 	if (!ASSERT_ERR_PTR(link, "fail_4"))
 		goto cleanup;
 
-	if (!ASSERT_EQ(libbpf_get_error(link), -EINVAL, "fail_4_error"))
+	if (!ASSERT_EQ(saved_error, -EINVAL, "fail_4_error"))
 		goto cleanup;
 
 	/* fail_5 - pattern and cookies */
@@ -293,23 +299,31 @@ static void test_attach_api_fails(void)
 
 	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
+	saved_error = -errno;
 	if (!ASSERT_ERR_PTR(link, "fail_5"))
 		goto cleanup;
 
-	if (!ASSERT_EQ(libbpf_get_error(link), -EINVAL, "fail_5_error"))
+	if (!ASSERT_EQ(saved_error, -EINVAL, "fail_5_error"))
+		goto cleanup;
+
+	/* fail_6 - abnormal cnt */
+	opts.addrs = (const unsigned long *) addrs;
+	opts.syms = NULL;
+	opts.cnt = INT_MAX;
+	opts.cookies = NULL;
+
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
+						     NULL, &opts);
+	saved_error = -errno;
+	if (!ASSERT_ERR_PTR(link, "fail_6"))
+		goto cleanup;
+
+	if (!ASSERT_EQ(saved_error, -E2BIG, "fail_6_error"))
 		goto cleanup;
 
 cleanup:
 	bpf_link__destroy(link);
 	kprobe_multi__destroy(skel);
-}
-
-static inline __u64 get_time_ns(void)
-{
-	struct timespec t;
-
-	clock_gettime(CLOCK_MONOTONIC, &t);
-	return (__u64) t.tv_sec * 1000000000 + t.tv_nsec;
 }
 
 static size_t symbol_hash(long key, void *ctx __maybe_unused)
@@ -461,6 +475,40 @@ cleanup:
 	}
 }
 
+static void test_attach_override(void)
+{
+	struct kprobe_multi_override *skel = NULL;
+	struct bpf_link *link = NULL;
+
+	skel = kprobe_multi_override__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_multi_empty__open_and_load"))
+		goto cleanup;
+
+	/* The test_override calls bpf_override_return so it should fail
+	 * to attach to bpf_fentry_test1 function, which is not on error
+	 * injection list.
+	 */
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_override,
+						     "bpf_fentry_test1", NULL);
+	if (!ASSERT_ERR_PTR(link, "override_attached_bpf_fentry_test1")) {
+		bpf_link__destroy(link);
+		goto cleanup;
+	}
+
+	/* The should_fail_bio function is on error injection list,
+	 * attach should succeed.
+	 */
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_override,
+						     "should_fail_bio", NULL);
+	if (!ASSERT_OK_PTR(link, "override_attached_should_fail_bio"))
+		goto cleanup;
+
+	bpf_link__destroy(link);
+
+cleanup:
+	kprobe_multi_override__destroy(skel);
+}
+
 void serial_test_kprobe_multi_bench_attach(void)
 {
 	if (test__start_subtest("kernel"))
@@ -488,4 +536,6 @@ void test_kprobe_multi_test(void)
 		test_attach_api_syms();
 	if (test__start_subtest("attach_api_fails"))
 		test_attach_api_fails();
+	if (test__start_subtest("attach_override"))
+		test_attach_override();
 }

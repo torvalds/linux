@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * extcon-qcom-spmi-misc.c - Qualcomm USB extcon driver to support USB ID
  *			and VBUS detection based on extcon-usb-gpio.c.
  *

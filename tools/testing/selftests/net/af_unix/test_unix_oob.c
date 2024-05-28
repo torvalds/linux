@@ -180,9 +180,7 @@ main(int argc, char **argv)
 	char buf[1024];
 	int on = 0;
 	char oob;
-	int flags;
 	int atmark;
-	char *tmp_file;
 
 	lfd = socket(AF_UNIX, SOCK_STREAM, 0);
 	memset(&consumer_addr, 0, sizeof(consumer_addr));

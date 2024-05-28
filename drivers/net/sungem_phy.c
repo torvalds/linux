@@ -1194,4 +1194,5 @@ fail:
 }
 
 EXPORT_SYMBOL(sungem_phy_probe);
+MODULE_DESCRIPTION("PHY drivers for the sungem Ethernet MAC driver");
 MODULE_LICENSE("GPL");

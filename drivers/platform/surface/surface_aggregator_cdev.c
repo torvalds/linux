@@ -714,7 +714,7 @@ static int ssam_dbg_device_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ssam_dbg_device_remove(struct platform_device *pdev)
+static void ssam_dbg_device_remove(struct platform_device *pdev)
 {
 	struct ssam_cdev *cdev = platform_get_drvdata(pdev);
 	struct ssam_cdev_client *client;
@@ -757,14 +757,13 @@ static int ssam_dbg_device_remove(struct platform_device *pdev)
 	misc_deregister(&cdev->mdev);
 
 	ssam_cdev_put(cdev);
-	return 0;
 }
 
 static struct platform_device *ssam_cdev_device;
 
 static struct platform_driver ssam_cdev_driver = {
 	.probe = ssam_dbg_device_probe,
-	.remove = ssam_dbg_device_remove,
+	.remove_new = ssam_dbg_device_remove,
 	.driver = {
 		.name = SSAM_CDEV_DEVICE_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

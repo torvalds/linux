@@ -28,7 +28,7 @@
 
 #define CNTR_WIDTH		24
 
-DEFINE_RAW_SPINLOCK(ls1x_timer_lock);
+static DEFINE_RAW_SPINLOCK(ls1x_timer_lock);
 
 struct ls1x_clocksource {
 	void __iomem *reg_base;

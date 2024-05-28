@@ -567,7 +567,7 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	u8 priority;
 	struct kvm_ppc_xive_eq kvm_eq;
 	int rc;
-	__be32 *qaddr = 0;
+	__be32 *qaddr = NULL;
 	struct page *page;
 	struct xive_q *q;
 	gfn_t gfn;

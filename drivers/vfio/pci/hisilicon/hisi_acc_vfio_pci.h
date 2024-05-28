@@ -98,8 +98,8 @@ struct hisi_acc_vf_migration_file {
 
 struct hisi_acc_vf_core_device {
 	struct vfio_pci_core_device core_device;
-	u8 match_done:1;
-	u8 deferred_reset:1;
+	u8 match_done;
+
 	/* For migration state */
 	struct mutex state_mutex;
 	enum vfio_device_mig_state mig_state;
@@ -109,8 +109,6 @@ struct hisi_acc_vf_core_device {
 	struct hisi_qm vf_qm;
 	u32 vf_qm_state;
 	int vf_id;
-	/* For reset handler */
-	spinlock_t reset_lock;
 	struct hisi_acc_vf_migration_file *resuming_migf;
 	struct hisi_acc_vf_migration_file *saving_migf;
 };

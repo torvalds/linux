@@ -6,13 +6,9 @@
  *  Author: Haojian Zhuang <haojian.zhuang@marvell.com>
  */
 
-#include <linux/io.h>
-#include <linux/irqchip.h>
-#include <linux/of_platform.h>
 #include <linux/of_clk.h>
 #include <linux/clocksource.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 #include <asm/hardware/cache-tauros2.h>
 
 #include "common.h"

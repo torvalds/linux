@@ -81,7 +81,7 @@ error_ret:
 	return ret;
 }
 
-static int iio_interrupt_trigger_remove(struct platform_device *pdev)
+static void iio_interrupt_trigger_remove(struct platform_device *pdev)
 {
 	struct iio_trigger *trig;
 	struct iio_interrupt_trigger_info *trig_info;
@@ -92,13 +92,11 @@ static int iio_interrupt_trigger_remove(struct platform_device *pdev)
 	free_irq(trig_info->irq, trig);
 	kfree(trig_info);
 	iio_trigger_free(trig);
-
-	return 0;
 }
 
 static struct platform_driver iio_interrupt_trigger_driver = {
 	.probe = iio_interrupt_trigger_probe,
-	.remove = iio_interrupt_trigger_remove,
+	.remove_new = iio_interrupt_trigger_remove,
 	.driver = {
 		.name = "iio_interrupt_trigger",
 	},

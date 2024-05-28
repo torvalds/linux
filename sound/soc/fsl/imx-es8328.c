@@ -37,6 +37,16 @@ static struct snd_soc_jack_gpio headset_jack_gpios[] = {
 };
 
 static struct snd_soc_jack headset_jack;
+static struct snd_soc_jack_pin headset_jack_pins[] = {
+	{
+		.pin = "Headphone",
+		.mask = SND_JACK_HEADPHONE,
+	},
+	{
+		.pin = "Mic Jack",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
 
 static int imx_es8328_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -46,9 +56,11 @@ static int imx_es8328_dai_init(struct snd_soc_pcm_runtime *rtd)
 
 	/* Headphone jack detection */
 	if (gpio_is_valid(data->jack_gpio)) {
-		ret = snd_soc_card_jack_new(rtd->card, "Headphone",
-					    SND_JACK_HEADPHONE | SND_JACK_BTN_0,
-					    &headset_jack);
+		ret = snd_soc_card_jack_new_pins(rtd->card, "Headphone",
+						 SND_JACK_HEADSET | SND_JACK_BTN_0,
+						 &headset_jack,
+						 headset_jack_pins,
+						 ARRAY_SIZE(headset_jack_pins));
 		if (ret)
 			return ret;
 
@@ -66,6 +78,11 @@ static const struct snd_soc_dapm_widget imx_es8328_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("audio-amp", 1, 0),
+};
+
+static const struct snd_kcontrol_new imx_es8328_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 };
 
 static int imx_es8328_probe(struct platform_device *pdev)
@@ -183,6 +200,8 @@ static int imx_es8328_probe(struct platform_device *pdev)
 	data->card.dev = dev;
 	data->card.dapm_widgets = imx_es8328_dapm_widgets;
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_es8328_dapm_widgets);
+	data->card.controls = imx_es8328_controls;
+	data->card.num_controls = ARRAY_SIZE(imx_es8328_controls);
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
 	if (ret) {
 		dev_err(dev, "Unable to parse card name\n");

@@ -810,7 +810,6 @@ brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	brcms_c_init_scb(scb);
 
 	wl->pub->global_ampdu = &(scb->scb_ampdu);
-	wl->pub->global_ampdu->scb = scb;
 	wl->pub->global_ampdu->max_pdu = 16;
 
 	/*
@@ -831,7 +830,6 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 	struct ieee80211_sta *sta = params->sta;
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	u16 tid = params->tid;
-	u8 buf_size = params->buf_size;
 
 	if (WARN_ON(scb->magic != SCB_MAGIC))
 		return -EIDRM;
@@ -863,11 +861,11 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		/*
 		 * BA window size from ADDBA response ('buf_size') defines how
 		 * many outstanding MPDUs are allowed for the BA stream by
-		 * recipient and traffic class. 'ampdu_factor' gives maximum
-		 * AMPDU size.
+		 * recipient and traffic class (this is actually unused by the
+		 * rest of the driver). 'ampdu_factor' gives maximum AMPDU size.
 		 */
 		spin_lock_bh(&wl->lock);
-		brcms_c_ampdu_tx_operational(wl->wlc, tid, buf_size,
+		brcms_c_ampdu_tx_operational(wl->wlc, tid,
 			(1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 			 sta->deflink.ht_cap.ampdu_factor)) - 1);
 		spin_unlock_bh(&wl->lock);
@@ -961,6 +959,10 @@ static int brcms_ops_beacon_set_tim(struct ieee80211_hw *hw,
 }
 
 static const struct ieee80211_ops brcms_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = brcms_ops_tx,
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = brcms_ops_start,

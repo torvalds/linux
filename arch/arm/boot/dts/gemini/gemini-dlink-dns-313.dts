@@ -33,10 +33,10 @@
 	gpio_keys {
 		compatible = "gpio-keys";
 
-		button-esc {
+		button-reset {
 			debounce-interval = <100>;
 			wakeup-source;
-			linux,code = <KEY_ESC>;
+			linux,code = <KEY_RESTART>;
 			label = "reset";
 			gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
 		};

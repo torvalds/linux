@@ -10,7 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
@@ -200,7 +200,7 @@ static int mp5416_i2c_probe(struct i2c_client *client)
 		return PTR_ERR(regmap);
 	}
 
-	desc = of_device_get_match_data(dev);
+	desc = i2c_get_match_data(client);
 	if (!desc)
 		return -ENODEV;
 
@@ -223,14 +223,14 @@ static int mp5416_i2c_probe(struct i2c_client *client)
 static const struct of_device_id mp5416_of_match[] = {
 	{ .compatible = "mps,mp5416", .data = &mp5416_regulators_desc },
 	{ .compatible = "mps,mp5496", .data = &mp5496_regulators_desc },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(of, mp5416_of_match);
 
 static const struct i2c_device_id mp5416_id[] = {
-	{ "mp5416", },
-	{ "mp5496", },
-	{ },
+	{ "mp5416", (kernel_ulong_t)&mp5416_regulators_desc },
+	{ "mp5496", (kernel_ulong_t)&mp5496_regulators_desc },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, mp5416_id);
 

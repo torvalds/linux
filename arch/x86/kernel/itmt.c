@@ -74,7 +74,6 @@ static struct ctl_table itmt_kern_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
-	{}
 };
 
 static struct ctl_table_header *itmt_sysctl_header;

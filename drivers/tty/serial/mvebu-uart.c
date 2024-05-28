@@ -187,9 +187,9 @@ static unsigned int mvebu_uart_tx_empty(struct uart_port *port)
 	unsigned long flags;
 	unsigned int st;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	st = readl(port->membase + UART_STAT);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return (st & STAT_TX_EMP) ? TIOCSER_TEMT : 0;
 }
@@ -249,14 +249,14 @@ static void mvebu_uart_break_ctl(struct uart_port *port, int brk)
 	unsigned int ctl;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	ctl = readl(port->membase + UART_CTRL(port));
 	if (brk == -1)
 		ctl |= CTRL_SND_BRK_SEQ;
 	else
 		ctl &= ~CTRL_SND_BRK_SEQ;
 	writel(ctl, port->membase + UART_CTRL(port));
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
@@ -540,7 +540,7 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 	unsigned long flags;
 	unsigned int baud, min_baud, max_baud;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	port->read_status_mask = STAT_RX_RDY(port) | STAT_OVR_ERR |
 		STAT_TX_RDY(port) | STAT_TX_FIFO_FUL;
@@ -589,7 +589,7 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 		uart_update_timeout(port, termios->c_cflag, baud);
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *mvebu_uart_type(struct uart_port *port)
@@ -735,9 +735,9 @@ static void mvebu_uart_console_write(struct console *co, const char *s,
 	int locked = 1;
 
 	if (oops_in_progress)
-		locked = spin_trylock_irqsave(&port->lock, flags);
+		locked = uart_port_trylock_irqsave(port, &flags);
 	else
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 
 	ier = readl(port->membase + UART_CTRL(port)) & CTRL_BRK_INT;
 	intr = readl(port->membase + UART_INTR(port)) &
@@ -758,7 +758,7 @@ static void mvebu_uart_console_write(struct console *co, const char *s,
 	}
 
 	if (locked)
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static int mvebu_uart_console_setup(struct console *co, char *options)
@@ -876,17 +876,12 @@ static int uart_num_counter;
 
 static int mvebu_uart_probe(struct platform_device *pdev)
 {
-	struct resource *reg = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	const struct of_device_id *match = of_match_device(mvebu_uart_of_match,
 							   &pdev->dev);
 	struct uart_port *port;
 	struct mvebu_uart *mvuart;
+	struct resource *reg;
 	int id, irq;
-
-	if (!reg) {
-		dev_err(&pdev->dev, "no registers defined\n");
-		return -EINVAL;
-	}
 
 	/* Assume that all UART ports have a DT alias or none has */
 	id = of_alias_get_id(pdev->dev.of_node, "serial");
@@ -922,11 +917,11 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	 */
 	port->irq        = 0;
 	port->irqflags   = 0;
-	port->mapbase    = reg->start;
 
-	port->membase = devm_ioremap_resource(&pdev->dev, reg);
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &reg);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
+	port->mapbase    = reg->start;
 
 	mvuart = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_uart),
 			      GFP_KERNEL);

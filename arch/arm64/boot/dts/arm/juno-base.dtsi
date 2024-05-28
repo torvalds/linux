@@ -747,7 +747,7 @@
 	};
 
 	thermal-zones {
-		pmic {
+		pmic-thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			thermal-sensors = <&scpi_sensors0 0>;
@@ -760,7 +760,7 @@
 			};
 		};
 
-		soc {
+		soc-thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			thermal-sensors = <&scpi_sensors0 3>;
@@ -773,28 +773,28 @@
 			};
 		};
 
-		big_cluster_thermal_zone: big-cluster {
+		big_cluster_thermal_zone: big-cluster-thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			thermal-sensors = <&scpi_sensors0 21>;
 			status = "disabled";
 		};
 
-		little_cluster_thermal_zone: little-cluster {
+		little_cluster_thermal_zone: little-cluster-thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			thermal-sensors = <&scpi_sensors0 22>;
 			status = "disabled";
 		};
 
-		gpu0_thermal_zone: gpu0 {
+		gpu0_thermal_zone: gpu0-thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			thermal-sensors = <&scpi_sensors0 23>;
 			status = "disabled";
 		};
 
-		gpu1_thermal_zone: gpu1 {
+		gpu1_thermal_zone: gpu1-thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			thermal-sensors = <&scpi_sensors0 24>;

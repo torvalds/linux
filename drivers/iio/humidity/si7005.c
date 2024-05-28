@@ -169,9 +169,16 @@ static const struct i2c_device_id si7005_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, si7005_id);
 
+static const struct of_device_id si7005_dt_ids[] = {
+	{ .compatible = "silabs,si7005" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, si7005_dt_ids);
+
 static struct i2c_driver si7005_driver = {
 	.driver = {
 		.name	= "si7005",
+		.of_match_table = si7005_dt_ids,
 	},
 	.probe = si7005_probe,
 	.id_table = si7005_id,

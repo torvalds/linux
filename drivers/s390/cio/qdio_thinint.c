@@ -137,15 +137,15 @@ static struct airq_struct tiqdio_airq = {
 static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 {
 	struct chsc_scssc_area *scssc = (void *)irq_ptr->chsc_page;
-	u64 summary_indicator_addr, subchannel_indicator_addr;
+	dma64_t summary_indicator_addr, subchannel_indicator_addr;
 	int rc;
 
 	if (reset) {
 		summary_indicator_addr = 0;
 		subchannel_indicator_addr = 0;
 	} else {
-		summary_indicator_addr = virt_to_phys(tiqdio_airq.lsi_ptr);
-		subchannel_indicator_addr = virt_to_phys(irq_ptr->dsci);
+		summary_indicator_addr = virt_to_dma64(tiqdio_airq.lsi_ptr);
+		subchannel_indicator_addr = virt_to_dma64(irq_ptr->dsci);
 	}
 
 	rc = chsc_sadc(irq_ptr->schid, scssc, summary_indicator_addr,

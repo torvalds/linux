@@ -23,6 +23,7 @@
 #include "event.h"
 #include "dso.h"
 #include "debug.h"
+#include "debuginfo.h"
 #include "intlist.h"
 #include "strbuf.h"
 #include "strlist.h"
@@ -31,127 +32,8 @@
 #include "probe-file.h"
 #include "string2.h"
 
-#ifdef HAVE_DEBUGINFOD_SUPPORT
-#include <elfutils/debuginfod.h>
-#endif
-
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64
-
-/* Dwarf FL wrappers */
-static char *debuginfo_path;	/* Currently dummy */
-
-static const Dwfl_Callbacks offline_callbacks = {
-	.find_debuginfo = dwfl_standard_find_debuginfo,
-	.debuginfo_path = &debuginfo_path,
-
-	.section_address = dwfl_offline_section_address,
-
-	/* We use this table for core files too.  */
-	.find_elf = dwfl_build_id_find_elf,
-};
-
-/* Get a Dwarf from offline image */
-static int debuginfo__init_offline_dwarf(struct debuginfo *dbg,
-					 const char *path)
-{
-	GElf_Addr dummy;
-	int fd;
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		return fd;
-
-	dbg->dwfl = dwfl_begin(&offline_callbacks);
-	if (!dbg->dwfl)
-		goto error;
-
-	dwfl_report_begin(dbg->dwfl);
-	dbg->mod = dwfl_report_offline(dbg->dwfl, "", "", fd);
-	if (!dbg->mod)
-		goto error;
-
-	dbg->dbg = dwfl_module_getdwarf(dbg->mod, &dbg->bias);
-	if (!dbg->dbg)
-		goto error;
-
-	dwfl_module_build_id(dbg->mod, &dbg->build_id, &dummy);
-
-	dwfl_report_end(dbg->dwfl, NULL, NULL);
-
-	return 0;
-error:
-	if (dbg->dwfl)
-		dwfl_end(dbg->dwfl);
-	else
-		close(fd);
-	memset(dbg, 0, sizeof(*dbg));
-
-	return -ENOENT;
-}
-
-static struct debuginfo *__debuginfo__new(const char *path)
-{
-	struct debuginfo *dbg = zalloc(sizeof(*dbg));
-	if (!dbg)
-		return NULL;
-
-	if (debuginfo__init_offline_dwarf(dbg, path) < 0)
-		zfree(&dbg);
-	if (dbg)
-		pr_debug("Open Debuginfo file: %s\n", path);
-	return dbg;
-}
-
-enum dso_binary_type distro_dwarf_types[] = {
-	DSO_BINARY_TYPE__FEDORA_DEBUGINFO,
-	DSO_BINARY_TYPE__UBUNTU_DEBUGINFO,
-	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
-	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
-	DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO,
-	DSO_BINARY_TYPE__NOT_FOUND,
-};
-
-struct debuginfo *debuginfo__new(const char *path)
-{
-	enum dso_binary_type *type;
-	char buf[PATH_MAX], nil = '\0';
-	struct dso *dso;
-	struct debuginfo *dinfo = NULL;
-	struct build_id bid;
-
-	/* Try to open distro debuginfo files */
-	dso = dso__new(path);
-	if (!dso)
-		goto out;
-
-	/* Set the build id for DSO_BINARY_TYPE__BUILDID_DEBUGINFO */
-	if (is_regular_file(path) && filename__read_build_id(path, &bid) > 0)
-		dso__set_build_id(dso, &bid);
-
-	for (type = distro_dwarf_types;
-	     !dinfo && *type != DSO_BINARY_TYPE__NOT_FOUND;
-	     type++) {
-		if (dso__read_binary_type_filename(dso, *type, &nil,
-						   buf, PATH_MAX) < 0)
-			continue;
-		dinfo = __debuginfo__new(buf);
-	}
-	dso__put(dso);
-
-out:
-	/* if failed to open all distro debuginfo, open given binary */
-	return dinfo ? : __debuginfo__new(path);
-}
-
-void debuginfo__delete(struct debuginfo *dbg)
-{
-	if (dbg) {
-		if (dbg->dwfl)
-			dwfl_end(dbg->dwfl);
-		free(dbg);
-	}
-}
 
 /*
  * Probe finder related functions
@@ -722,7 +604,7 @@ static int call_probe_finder(Dwarf_Die *sc_die, struct probe_finder *pf)
 	ret = dwarf_getlocation_addr(&fb_attr, pf->addr, &pf->fb_ops, &nops, 1);
 	if (ret <= 0 || nops == 0) {
 		pf->fb_ops = NULL;
-#if _ELFUTILS_PREREQ(0, 142)
+#ifdef HAVE_DWARF_CFI_SUPPORT
 	} else if (nops == 1 && pf->fb_ops[0].atom == DW_OP_call_frame_cfa &&
 		   (pf->cfi_eh != NULL || pf->cfi_dbg != NULL)) {
 		if ((dwarf_cfi_addrframe(pf->cfi_eh, pf->addr, &frame) != 0 &&
@@ -733,7 +615,7 @@ static int call_probe_finder(Dwarf_Die *sc_die, struct probe_finder *pf)
 			free(frame);
 			return -ENOENT;
 		}
-#endif
+#endif /* HAVE_DWARF_CFI_SUPPORT */
 	}
 
 	/* Call finder's callback handler */
@@ -1258,7 +1140,7 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 
 	pf->machine = ehdr.e_machine;
 
-#if _ELFUTILS_PREREQ(0, 142)
+#ifdef HAVE_DWARF_CFI_SUPPORT
 	do {
 		GElf_Shdr shdr;
 
@@ -1268,7 +1150,7 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 
 		pf->cfi_dbg = dwarf_getcfi(dbg->dbg);
 	} while (0);
-#endif
+#endif /* HAVE_DWARF_CFI_SUPPORT */
 
 	ret = debuginfo__find_probe_location(dbg, pf);
 	return ret;
@@ -1677,44 +1559,6 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 	return (ret < 0) ? ret : af.nvls;
 }
 
-/* For the kernel module, we need a special code to get a DIE */
-int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs,
-				bool adjust_offset)
-{
-	int n, i;
-	Elf32_Word shndx;
-	Elf_Scn *scn;
-	Elf *elf;
-	GElf_Shdr mem, *shdr;
-	const char *p;
-
-	elf = dwfl_module_getelf(dbg->mod, &dbg->bias);
-	if (!elf)
-		return -EINVAL;
-
-	/* Get the number of relocations */
-	n = dwfl_module_relocations(dbg->mod);
-	if (n < 0)
-		return -ENOENT;
-	/* Search the relocation related .text section */
-	for (i = 0; i < n; i++) {
-		p = dwfl_module_relocation_info(dbg->mod, i, &shndx);
-		if (strcmp(p, ".text") == 0) {
-			/* OK, get the section header */
-			scn = elf_getscn(elf, shndx);
-			if (!scn)
-				return -ENOENT;
-			shdr = gelf_getshdr(scn, &mem);
-			if (!shdr)
-				return -ENOENT;
-			*offs = shdr->sh_addr;
-			if (adjust_offset)
-				*offs -= shdr->sh_offset;
-		}
-	}
-	return 0;
-}
-
 /* Reverse search */
 int debuginfo__find_probe_point(struct debuginfo *dbg, u64 addr,
 				struct perf_probe_point *ppt)
@@ -2009,41 +1853,6 @@ found:
 	return (ret < 0) ? ret : lf.found;
 }
 
-#ifdef HAVE_DEBUGINFOD_SUPPORT
-/* debuginfod doesn't require the comp_dir but buildid is required */
-static int get_source_from_debuginfod(const char *raw_path,
-				const char *sbuild_id, char **new_path)
-{
-	debuginfod_client *c = debuginfod_begin();
-	const char *p = raw_path;
-	int fd;
-
-	if (!c)
-		return -ENOMEM;
-
-	fd = debuginfod_find_source(c, (const unsigned char *)sbuild_id,
-				0, p, new_path);
-	pr_debug("Search %s from debuginfod -> %d\n", p, fd);
-	if (fd >= 0)
-		close(fd);
-	debuginfod_end(c);
-	if (fd < 0) {
-		pr_debug("Failed to find %s in debuginfod (%s)\n",
-			raw_path, sbuild_id);
-		return -ENOENT;
-	}
-	pr_debug("Got a source %s\n", *new_path);
-
-	return 0;
-}
-#else
-static inline int get_source_from_debuginfod(const char *raw_path __maybe_unused,
-				const char *sbuild_id __maybe_unused,
-				char **new_path __maybe_unused)
-{
-	return -ENOTSUP;
-}
-#endif
 /*
  * Find a src file from a DWARF tag path. Prepend optional source path prefix
  * and chop off leading directories that do not exist. Result is passed back as

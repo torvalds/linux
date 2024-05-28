@@ -30,11 +30,8 @@ static int mana_ib_gd_create_mr(struct mana_ib_dev *dev, struct mana_ib_mr *mr,
 {
 	struct gdma_create_mr_response resp = {};
 	struct gdma_create_mr_request req = {};
-	struct gdma_dev *mdev = dev->gdma_dev;
-	struct gdma_context *gc;
+	struct gdma_context *gc = mdev_to_gc(dev);
 	int err;
-
-	gc = mdev->gdma_context;
 
 	mana_gd_init_req_hdr(&req.hdr, GDMA_CREATE_MR, sizeof(req),
 			     sizeof(resp));
@@ -77,11 +74,8 @@ static int mana_ib_gd_destroy_mr(struct mana_ib_dev *dev, u64 mr_handle)
 {
 	struct gdma_destroy_mr_response resp = {};
 	struct gdma_destroy_mr_request req = {};
-	struct gdma_dev *mdev = dev->gdma_dev;
-	struct gdma_context *gc;
+	struct gdma_context *gc = mdev_to_gc(dev);
 	int err;
-
-	gc = mdev->gdma_context;
 
 	mana_gd_init_req_hdr(&req.hdr, GDMA_DESTROY_MR, sizeof(req),
 			     sizeof(resp));
@@ -133,7 +127,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_free;
 	}
 
-	err = mana_ib_gd_create_dma_region(dev, mr->umem, &dma_region_handle);
+	err = mana_ib_create_dma_region(dev, mr->umem, &dma_region_handle, iova);
 	if (err) {
 		ibdev_dbg(ibdev, "Failed create dma region for user-mr, %d\n",
 			  err);
@@ -141,7 +135,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	}
 
 	ibdev_dbg(ibdev,
-		  "mana_ib_gd_create_dma_region ret %d gdma_region %llx\n", err,
+		  "create_dma_region ret %d gdma_region %llx\n", err,
 		  dma_region_handle);
 
 	mr_params.pd_handle = pd->pd_handle;
@@ -164,8 +158,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	return &mr->ibmr;
 
 err_dma_region:
-	mana_gd_destroy_dma_region(dev->gdma_dev->gdma_context,
-				   dma_region_handle);
+	mana_gd_destroy_dma_region(mdev_to_gc(dev), dma_region_handle);
 
 err_umem:
 	ib_umem_release(mr->umem);

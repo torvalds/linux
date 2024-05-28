@@ -2546,7 +2546,7 @@ static const struct vb2_queue mxt_queue = {
 	.ops = &mxt_queue_ops,
 	.mem_ops = &vb2_vmalloc_memops,
 	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
-	.min_buffers_needed = 1,
+	.min_queued_buffers = 1,
 };
 
 static int mxt_vidioc_querycap(struct file *file, void *priv,

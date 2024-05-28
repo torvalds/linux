@@ -63,3 +63,4 @@ module_exit(exit_rc_map_pine64)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jonas Karlman");
+MODULE_DESCRIPTION("Pine64 IR remote controller keytable");

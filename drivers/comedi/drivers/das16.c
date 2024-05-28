@@ -1067,10 +1067,10 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			osc_base = I8254_OSC_BASE_1MHZ / it->options[3];
 	}
 
-	dev->pacer = comedi_8254_init(dev->iobase + DAS16_TIMER_BASE_REG,
-				      osc_base, I8254_IO8, 0);
-	if (!dev->pacer)
-		return -ENOMEM;
+	dev->pacer = comedi_8254_io_alloc(dev->iobase + DAS16_TIMER_BASE_REG,
+					  osc_base, I8254_IO8, 0);
+	if (IS_ERR(dev->pacer))
+		return PTR_ERR(dev->pacer);
 
 	das16_alloc_dma(dev, it->options[2]);
 
@@ -1145,7 +1145,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* 8255 Digital I/O subdevice */
 	if (board->has_8255) {
 		s = &dev->subdevices[4];
-		ret = subdev_8255_init(dev, s, NULL, board->i8255_offset);
+		ret = subdev_8255_io_init(dev, s, board->i8255_offset);
 		if (ret)
 			return ret;
 	}

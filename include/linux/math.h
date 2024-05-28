@@ -156,6 +156,25 @@ __STRUCT_FRACT(u32)
 	({ signed type __x = (x); __x < 0 ? -__x : __x; }), other)
 
 /**
+ * abs_diff - return absolute value of the difference between the arguments
+ * @a: the first argument
+ * @b: the second argument
+ *
+ * @a and @b have to be of the same type. With this restriction we compare
+ * signed to signed and unsigned to unsigned. The result is the subtraction
+ * the smaller of the two from the bigger, hence result is always a positive
+ * value.
+ *
+ * Return: an absolute value of the difference between the @a and @b.
+ */
+#define abs_diff(a, b) ({			\
+	typeof(a) __a = (a);			\
+	typeof(b) __b = (b);			\
+	(void)(&__a == &__b);			\
+	__a > __b ? (__a - __b) : (__b - __a);	\
+})
+
+/**
  * reciprocal_scale - "scale" a value into range [0, ep_ro)
  * @val: value
  * @ep_ro: right open interval endpoint

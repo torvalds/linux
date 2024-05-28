@@ -189,7 +189,7 @@ static void carl9170_tx_accounting_free(struct ar9170 *ar, struct sk_buff *skb)
 
 static int carl9170_alloc_dev_space(struct ar9170 *ar, struct sk_buff *skb)
 {
-	struct _carl9170_tx_superframe *super = (void *) skb->data;
+	struct _carl9170_tx_superframe *super;
 	unsigned int chunks;
 	int cookie = -1;
 

@@ -7,10 +7,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/dmi.h>
+#include <linux/regmap.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/acpi.h>
@@ -21,10 +20,7 @@
 #include <linux/slab.h>
 #include "sch56xx-common.h"
 
-static bool ignore_dmi;
-module_param(ignore_dmi, bool, 0);
-MODULE_PARM_DESC(ignore_dmi, "Omit DMI check for supported devices (default=0)");
-
+/* Insmod parameters */
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
@@ -62,6 +58,11 @@ struct sch56xx_watchdog_data {
 	u8 watchdog_preset;
 	u8 watchdog_control;
 	u8 watchdog_output_enable;
+};
+
+struct sch56xx_bus_context {
+	struct mutex *lock;	/* Used to serialize access to the mailbox registers */
+	u16 addr;
 };
 
 static struct platform_device *sch56xx_pdev;
@@ -242,6 +243,107 @@ int sch56xx_read_virtual_reg12(u16 addr, u16 msb_reg, u16 lsn_reg,
 		return (msb << 4) | (lsn & 0x0f);
 }
 EXPORT_SYMBOL(sch56xx_read_virtual_reg12);
+
+/*
+ * Regmap support
+ */
+
+int sch56xx_regmap_read16(struct regmap *map, unsigned int reg, unsigned int *val)
+{
+	int lsb, msb, ret;
+
+	/* See sch56xx_read_virtual_reg16() */
+	ret = regmap_read(map, reg, &lsb);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(map, reg + 1, &msb);
+	if (ret < 0)
+		return ret;
+
+	*val = lsb | (msb << 8);
+
+	return 0;
+}
+EXPORT_SYMBOL(sch56xx_regmap_read16);
+
+int sch56xx_regmap_write16(struct regmap *map, unsigned int reg, unsigned int val)
+{
+	int ret;
+
+	ret = regmap_write(map, reg, val & 0xff);
+	if (ret < 0)
+		return ret;
+
+	return regmap_write(map, reg + 1, (val >> 8) & 0xff);
+}
+EXPORT_SYMBOL(sch56xx_regmap_write16);
+
+static int sch56xx_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct sch56xx_bus_context *bus = context;
+	int ret;
+
+	mutex_lock(bus->lock);
+	ret = sch56xx_write_virtual_reg(bus->addr, (u16)reg, (u8)val);
+	mutex_unlock(bus->lock);
+
+	return ret;
+}
+
+static int sch56xx_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct sch56xx_bus_context *bus = context;
+	int ret;
+
+	mutex_lock(bus->lock);
+	ret = sch56xx_read_virtual_reg(bus->addr, (u16)reg);
+	mutex_unlock(bus->lock);
+
+	if (ret < 0)
+		return ret;
+
+	*val = ret;
+
+	return 0;
+}
+
+static void sch56xx_free_context(void *context)
+{
+	kfree(context);
+}
+
+static const struct regmap_bus sch56xx_bus = {
+	.reg_write = sch56xx_reg_write,
+	.reg_read = sch56xx_reg_read,
+	.free_context = sch56xx_free_context,
+	.reg_format_endian_default = REGMAP_ENDIAN_LITTLE,
+	.val_format_endian_default = REGMAP_ENDIAN_LITTLE,
+};
+
+struct regmap *devm_regmap_init_sch56xx(struct device *dev, struct mutex *lock, u16 addr,
+					const struct regmap_config *config)
+{
+	struct sch56xx_bus_context *context;
+	struct regmap *map;
+
+	if (config->reg_bits != 16 && config->val_bits != 8)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
+		return ERR_PTR(-ENOMEM);
+
+	context->lock = lock;
+	context->addr = addr;
+
+	map = devm_regmap_init(dev, &sch56xx_bus, context, config);
+	if (IS_ERR(map))
+		kfree(context);
+
+	return map;
+}
+EXPORT_SYMBOL(devm_regmap_init_sch56xx);
 
 /*
  * Watchdog routines
@@ -523,66 +625,11 @@ static int __init sch56xx_device_add(int address, const char *name)
 	return PTR_ERR_OR_ZERO(sch56xx_pdev);
 }
 
-static const struct dmi_system_id sch56xx_dmi_override_table[] __initconst = {
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "CELSIUS W380"),
-		},
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO P710"),
-		},
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO E9900"),
-		},
-	},
-	{ }
-};
-
-/* For autoloading only */
-static const struct dmi_system_id sch56xx_dmi_table[] __initconst = {
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
-		},
-	},
-	{ }
-};
-MODULE_DEVICE_TABLE(dmi, sch56xx_dmi_table);
-
 static int __init sch56xx_init(void)
 {
-	const char *name = NULL;
 	int address;
+	const char *name = NULL;
 
-	if (!ignore_dmi) {
-		if (!dmi_check_system(sch56xx_dmi_table))
-			return -ENODEV;
-
-		if (!dmi_check_system(sch56xx_dmi_override_table)) {
-			/*
-			 * Some machines like the Esprimo P720 and Esprimo C700 have
-			 * onboard devices named " Antiope"/" Theseus" instead of
-			 * "Antiope"/"Theseus", so we need to check for both.
-			 */
-			if (!dmi_find_device(DMI_DEV_TYPE_OTHER, "Antiope", NULL) &&
-			    !dmi_find_device(DMI_DEV_TYPE_OTHER, " Antiope", NULL) &&
-			    !dmi_find_device(DMI_DEV_TYPE_OTHER, "Theseus", NULL) &&
-			    !dmi_find_device(DMI_DEV_TYPE_OTHER, " Theseus", NULL))
-				return -ENODEV;
-		}
-	}
-
-	/*
-	 * Some devices like the Esprimo C700 have both onboard devices,
-	 * so we still have to check manually
-	 */
 	address = sch56xx_find(0x4e, &name);
 	if (address < 0)
 		address = sch56xx_find(0x2e, &name);

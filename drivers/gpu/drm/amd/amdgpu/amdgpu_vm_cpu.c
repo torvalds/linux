@@ -31,6 +31,7 @@
  */
 static int amdgpu_vm_cpu_map_table(struct amdgpu_bo_vm *table)
 {
+	table->bo.flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 	return amdgpu_bo_kmap(&table->bo, NULL);
 }
 

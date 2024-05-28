@@ -997,14 +997,14 @@ static void pnv_pci_ioda_dma_dev_setup(struct pci_dev *pdev)
 	struct pnv_ioda_pe *pe;
 
 	/* Check if the BDFN for this device is associated with a PE yet */
-	pe = pnv_pci_bdfn_to_pe(phb, pdev->devfn | (pdev->bus->number << 8));
+	pe = pnv_pci_bdfn_to_pe(phb, pci_dev_id(pdev));
 	if (!pe) {
 		/* VF PEs should be pre-configured in pnv_pci_sriov_enable() */
 		if (WARN_ON(pdev->is_virtfn))
 			return;
 
 		pnv_pci_configure_bus(pdev->bus);
-		pe = pnv_pci_bdfn_to_pe(phb, pdev->devfn | (pdev->bus->number << 8));
+		pe = pnv_pci_bdfn_to_pe(phb, pci_dev_id(pdev));
 		pci_info(pdev, "Configured PE#%x\n", pe ? pe->pe_number : 0xfffff);
 
 
@@ -1389,7 +1389,7 @@ static long pnv_pci_ioda2_setup_default_config(struct pnv_ioda_pe *pe)
 	 * DMA window can be larger than available memory, which will
 	 * cause errors later.
 	 */
-	const u64 maxblock = 1UL << (PAGE_SHIFT + MAX_ORDER);
+	const u64 maxblock = 1UL << (PAGE_SHIFT + MAX_PAGE_ORDER);
 
 	/*
 	 * We create the default window as big as we can. The constraint is
@@ -2526,7 +2526,7 @@ static struct iommu_group *pnv_pci_device_group(struct pci_controller *hose,
 	if (WARN_ON(!phb))
 		return ERR_PTR(-ENODEV);
 
-	pe = pnv_pci_bdfn_to_pe(phb, pdev->devfn | (pdev->bus->number << 8));
+	pe = pnv_pci_bdfn_to_pe(phb, pci_dev_id(pdev));
 	if (!pe)
 		return ERR_PTR(-ENODEV);
 

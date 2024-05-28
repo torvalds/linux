@@ -422,7 +422,6 @@ void *hns_xgmac_config(struct hns_mac_cb *mac_cb,
 		       struct mac_params *mac_param);
 
 int hns_mac_init(struct dsaf_device *dsaf_dev);
-void mac_adjust_link(struct net_device *net_dev);
 bool hns_mac_need_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex);
 void hns_mac_get_link_status(struct hns_mac_cb *mac_cb,	u32 *link_status);
 int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb, u32 vmid,

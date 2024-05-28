@@ -96,13 +96,19 @@ static void memconsole_remove(struct coreboot_device *dev)
 	memconsole_exit();
 }
 
+static const struct coreboot_device_id memconsole_ids[] = {
+	{ .tag = CB_TAG_CBMEM_CONSOLE },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(coreboot, memconsole_ids);
+
 static struct coreboot_driver memconsole_driver = {
 	.probe = memconsole_probe,
 	.remove = memconsole_remove,
 	.drv = {
 		.name = "memconsole",
 	},
-	.tag = CB_TAG_CBMEM_CONSOLE,
+	.id_table = memconsole_ids,
 };
 module_coreboot_driver(memconsole_driver);
 

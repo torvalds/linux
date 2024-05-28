@@ -4,7 +4,13 @@
 
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
-#include <asm/switch_to.h>
+
+struct stack_frame_user {
+	unsigned long back_chain;
+	unsigned long empty1[5];
+	unsigned long gprs[10];
+	unsigned long empty2[4];
+};
 
 enum stack_type {
 	STACK_TYPE_UNKNOWN,

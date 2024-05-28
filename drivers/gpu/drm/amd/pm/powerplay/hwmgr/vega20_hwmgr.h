@@ -385,8 +385,7 @@ struct vega20_odn_data {
 	struct vega20_odn_temp_table	odn_temp_table;
 };
 
-enum OD8_FEATURE_ID
-{
+enum OD8_FEATURE_ID {
 	OD8_GFXCLK_LIMITS               = 1 << 0,
 	OD8_GFXCLK_CURVE                = 1 << 1,
 	OD8_UCLK_MAX                    = 1 << 2,
@@ -399,8 +398,7 @@ enum OD8_FEATURE_ID
 	OD8_FAN_ZERO_RPM_CONTROL        = 1 << 9
 };
 
-enum OD8_SETTING_ID
-{
+enum OD8_SETTING_ID {
 	OD8_SETTING_GFXCLK_FMIN = 0,
 	OD8_SETTING_GFXCLK_FMAX,
 	OD8_SETTING_GFXCLK_FREQ1,

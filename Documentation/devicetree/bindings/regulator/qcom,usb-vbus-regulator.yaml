@@ -19,8 +19,15 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - qcom,pm8150b-vbus-reg
+    oneOf:
+      - enum:
+          - qcom,pm8150b-vbus-reg
+      - items:
+          - enum:
+              - qcom,pm4125-vbus-reg
+              - qcom,pm6150-vbus-reg
+              - qcom,pmi632-vbus-reg
+          - const: qcom,pm8150b-vbus-reg
 
   reg:
     maxItems: 1
@@ -36,10 +43,11 @@ unevaluatedProperties: false
 
 examples:
   - |
-     pm8150b {
+     pmic {
         #address-cells = <1>;
         #size-cells = <0>;
-        pm8150b_vbus: usb-vbus-regulator@1100 {
+
+        usb-vbus-regulator@1100 {
             compatible = "qcom,pm8150b-vbus-reg";
             reg = <0x1100>;
             regulator-min-microamp = <500000>;

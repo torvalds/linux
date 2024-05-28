@@ -159,7 +159,7 @@ void __init plat_mem_setup(void)
 	board_setup();
 }
 
-int __init bcm63xx_register_devices(void)
+static int __init bcm63xx_register_devices(void)
 {
 	/* register gpiochip */
 	bcm63xx_gpio_init();

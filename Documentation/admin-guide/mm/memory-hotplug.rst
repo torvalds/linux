@@ -33,7 +33,7 @@ used to expose persistent memory, other performance-differentiated memory and
 reserved memory regions as ordinary system RAM to Linux.
 
 Linux only supports memory hot(un)plug on selected 64 bit architectures, such as
-x86_64, arm64, ppc64, s390x and ia64.
+x86_64, arm64, ppc64 and s390x.
 
 Memory Hot(Un)Plug Granularity
 ------------------------------
@@ -75,7 +75,7 @@ Memory hotunplug consists of two phases:
 (1) Offlining memory blocks
 (2) Removing the memory from Linux
 
-In the fist phase, memory is "hidden" from the page allocator again, for
+In the first phase, memory is "hidden" from the page allocator again, for
 example, by migrating busy memory to other memory locations and removing all
 relevant free pages from the page allocator After this phase, the memory is no
 longer visible in memory statistics of the system.
@@ -250,15 +250,15 @@ Observing the State of Memory Blocks
 The state (online/offline/going-offline) of a memory block can be observed
 either via::
 
-	% cat /sys/device/system/memory/memoryXXX/state
+	% cat /sys/devices/system/memory/memoryXXX/state
 
 Or alternatively (1/0) via::
 
-	% cat /sys/device/system/memory/memoryXXX/online
+	% cat /sys/devices/system/memory/memoryXXX/online
 
 For an online memory block, the managing zone can be observed via::
 
-	% cat /sys/device/system/memory/memoryXXX/valid_zones
+	% cat /sys/devices/system/memory/memoryXXX/valid_zones
 
 Configuring Memory Hot(Un)Plug
 ==============================
@@ -291,6 +291,14 @@ The following files are currently defined:
 		       Availability depends on the CONFIG_ARCH_MEMORY_PROBE
 		       kernel configuration option.
 ``uevent``	       read-write: generic udev file for device subsystems.
+``crash_hotplug``      read-only: when changes to the system memory map
+		       occur due to hot un/plug of memory, this file contains
+		       '1' if the kernel updates the kdump capture kernel memory
+		       map itself (via elfcorehdr), or '0' if userspace must update
+		       the kdump capture kernel memory map.
+
+		       Availability depends on the CONFIG_MEMORY_HOTPLUG kernel
+		       configuration option.
 ====================== =========================================================
 
 .. note::
@@ -318,7 +326,7 @@ however, a memory block might span memory holes. A memory block spanning memory
 holes cannot be offlined.
 
 For example, assume 1 GiB memory block size. A device for a memory starting at
-0x100000000 is ``/sys/device/system/memory/memory4``::
+0x100000000 is ``/sys/devices/system/memory/memory4``::
 
 	(0x100000000 / 1Gib = 4)
 
@@ -433,6 +441,18 @@ The following module parameters are currently defined:
 				 memory in a way that huge pages in bigger
 				 granularity cannot be formed on hotplugged
 				 memory.
+
+				 With value "force" it could result in memory
+				 wastage due to memmap size limitations. For
+				 example, if the memmap for a memory block
+				 requires 1 MiB, but the pageblock size is 2
+				 MiB, 1 MiB of hotplugged memory will be wasted.
+				 Note that there are still cases where the
+				 feature cannot be enforced: for example, if the
+				 memmap is smaller than a single page, or if the
+				 architecture does not support the forced mode
+				 in all configurations.
+
 ``online_policy``		 read-write: Set the basic policy used for
 				 automatic zone selection when onlining memory
 				 blocks without specifying a target zone.
@@ -669,7 +689,7 @@ when still encountering permanently unmovable pages within ZONE_MOVABLE
 (-> BUG), memory offlining will keep retrying until it eventually succeeds.
 
 When offlining is triggered from user space, the offlining context can be
-terminated by sending a fatal signal. A timeout based offlining can easily be
+terminated by sending a signal. A timeout based offlining can easily be
 implemented via::
 
 	% timeout $TIMEOUT offline_block | failure_handling

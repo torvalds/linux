@@ -13,7 +13,6 @@
 
 #include <sound/pcm.h>
 
-#include <asm/prom.h>
 #include <asm/pmac_feature.h>
 #include <asm/dbdma.h>
 

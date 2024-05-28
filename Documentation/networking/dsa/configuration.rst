@@ -31,38 +31,38 @@ at https://www.kernel.org/pub/linux/utils/net/iproute2/
 
 Through DSA every port of a switch is handled like a normal linux Ethernet
 interface. The CPU port is the switch port connected to an Ethernet MAC chip.
-The corresponding linux Ethernet interface is called the master interface.
-All other corresponding linux interfaces are called slave interfaces.
+The corresponding linux Ethernet interface is called the conduit interface.
+All other corresponding linux interfaces are called user interfaces.
 
-The slave interfaces depend on the master interface being up in order for them
-to send or receive traffic. Prior to kernel v5.12, the state of the master
+The user interfaces depend on the conduit interface being up in order for them
+to send or receive traffic. Prior to kernel v5.12, the state of the conduit
 interface had to be managed explicitly by the user. Starting with kernel v5.12,
 the behavior is as follows:
 
-- when a DSA slave interface is brought up, the master interface is
+- when a DSA user interface is brought up, the conduit interface is
   automatically brought up.
-- when the master interface is brought down, all DSA slave interfaces are
+- when the conduit interface is brought down, all DSA user interfaces are
   automatically brought down.
 
 In this documentation the following Ethernet interfaces are used:
 
 *eth0*
-  the master interface
+  the conduit interface
 
 *eth1*
-  another master interface
+  another conduit interface
 
 *lan1*
-  a slave interface
+  a user interface
 
 *lan2*
-  another slave interface
+  another user interface
 
 *lan3*
-  a third slave interface
+  a third user interface
 
 *wan*
-  A slave interface dedicated for upstream traffic
+  A user interface dedicated for upstream traffic
 
 Further Ethernet interfaces can be configured similar.
 The configured IPs and networks are:
@@ -96,11 +96,11 @@ without using a VLAN based configuration.
     ip addr add 192.0.2.5/30 dev lan2
     ip addr add 192.0.2.9/30 dev lan3
 
-    # For kernels earlier than v5.12, the master interface needs to be
-    # brought up manually before the slave ports.
+    # For kernels earlier than v5.12, the conduit interface needs to be
+    # brought up manually before the user ports.
     ip link set eth0 up
 
-    # bring up the slave interfaces
+    # bring up the user interfaces
     ip link set lan1 up
     ip link set lan2 up
     ip link set lan3 up
@@ -108,11 +108,11 @@ without using a VLAN based configuration.
 *bridge*
   .. code-block:: sh
 
-    # For kernels earlier than v5.12, the master interface needs to be
-    # brought up manually before the slave ports.
+    # For kernels earlier than v5.12, the conduit interface needs to be
+    # brought up manually before the user ports.
     ip link set eth0 up
 
-    # bring up the slave interfaces
+    # bring up the user interfaces
     ip link set lan1 up
     ip link set lan2 up
     ip link set lan3 up
@@ -134,11 +134,11 @@ without using a VLAN based configuration.
 *gateway*
   .. code-block:: sh
 
-    # For kernels earlier than v5.12, the master interface needs to be
-    # brought up manually before the slave ports.
+    # For kernels earlier than v5.12, the conduit interface needs to be
+    # brought up manually before the user ports.
     ip link set eth0 up
 
-    # bring up the slave interfaces
+    # bring up the user interfaces
     ip link set wan up
     ip link set lan1 up
     ip link set lan2 up
@@ -178,14 +178,14 @@ configuration.
     ip link add link eth0 name eth0.2 type vlan id 2
     ip link add link eth0 name eth0.3 type vlan id 3
 
-    # For kernels earlier than v5.12, the master interface needs to be
-    # brought up manually before the slave ports.
+    # For kernels earlier than v5.12, the conduit interface needs to be
+    # brought up manually before the user ports.
     ip link set eth0 up
     ip link set eth0.1 up
     ip link set eth0.2 up
     ip link set eth0.3 up
 
-    # bring up the slave interfaces
+    # bring up the user interfaces
     ip link set lan1 up
     ip link set lan2 up
     ip link set lan3 up
@@ -221,12 +221,12 @@ configuration.
     # tag traffic on CPU port
     ip link add link eth0 name eth0.1 type vlan id 1
 
-    # For kernels earlier than v5.12, the master interface needs to be
-    # brought up manually before the slave ports.
+    # For kernels earlier than v5.12, the conduit interface needs to be
+    # brought up manually before the user ports.
     ip link set eth0 up
     ip link set eth0.1 up
 
-    # bring up the slave interfaces
+    # bring up the user interfaces
     ip link set lan1 up
     ip link set lan2 up
     ip link set lan3 up
@@ -261,13 +261,13 @@ configuration.
     ip link add link eth0 name eth0.1 type vlan id 1
     ip link add link eth0 name eth0.2 type vlan id 2
 
-    # For kernels earlier than v5.12, the master interface needs to be
-    # brought up manually before the slave ports.
+    # For kernels earlier than v5.12, the conduit interface needs to be
+    # brought up manually before the user ports.
     ip link set eth0 up
     ip link set eth0.1 up
     ip link set eth0.2 up
 
-    # bring up the slave interfaces
+    # bring up the user interfaces
     ip link set wan up
     ip link set lan1 up
     ip link set lan2 up
@@ -380,22 +380,22 @@ affinities according to the available CPU ports.
 
 Secondly, it is possible to perform load balancing between CPU ports on a per
 packet basis, rather than statically assigning user ports to CPU ports.
-This can be achieved by placing the DSA masters under a LAG interface (bonding
+This can be achieved by placing the DSA conduits under a LAG interface (bonding
 or team). DSA monitors this operation and creates a mirror of this software LAG
-on the CPU ports facing the physical DSA masters that constitute the LAG slave
+on the CPU ports facing the physical DSA conduits that constitute the LAG slave
 devices.
 
 To make use of multiple CPU ports, the firmware (device tree) description of
-the switch must mark all the links between CPU ports and their DSA masters
+the switch must mark all the links between CPU ports and their DSA conduits
 using the ``ethernet`` reference/phandle. At startup, only a single CPU port
-and DSA master will be used - the numerically first port from the firmware
+and DSA conduit will be used - the numerically first port from the firmware
 description which has an ``ethernet`` property. It is up to the user to
-configure the system for the switch to use other masters.
+configure the system for the switch to use other conduits.
 
 DSA uses the ``rtnl_link_ops`` mechanism (with a "dsa" ``kind``) to allow
-changing the DSA master of a user port. The ``IFLA_DSA_MASTER`` u32 netlink
-attribute contains the ifindex of the master device that handles each slave
-device. The DSA master must be a valid candidate based on firmware node
+changing the DSA conduit of a user port. The ``IFLA_DSA_CONDUIT`` u32 netlink
+attribute contains the ifindex of the conduit device that handles each user
+device. The DSA conduit must be a valid candidate based on firmware node
 information, or a LAG interface which contains only slaves which are valid
 candidates.
 
@@ -403,7 +403,7 @@ Using iproute2, the following manipulations are possible:
 
   .. code-block:: sh
 
-    # See the DSA master in current use
+    # See the DSA conduit in current use
     ip -d link show dev swp0
         (...)
         dsa master eth0
@@ -414,7 +414,7 @@ Using iproute2, the following manipulations are possible:
     ip link set swp2 type dsa master eth1
     ip link set swp3 type dsa master eth0
 
-    # CPU ports in LAG, using explicit assignment of the DSA master
+    # CPU ports in LAG, using explicit assignment of the DSA conduit
     ip link add bond0 type bond mode balance-xor && ip link set bond0 up
     ip link set eth1 down && ip link set eth1 master bond0
     ip link set swp0 type dsa master bond0
@@ -426,7 +426,7 @@ Using iproute2, the following manipulations are possible:
         (...)
         dsa master bond0
 
-    # CPU ports in LAG, relying on implicit migration of the DSA master
+    # CPU ports in LAG, relying on implicit migration of the DSA conduit
     ip link add bond0 type bond mode balance-xor && ip link set bond0 up
     ip link set eth0 down && ip link set eth0 master bond0
     ip link set eth1 down && ip link set eth1 master bond0
@@ -435,24 +435,24 @@ Using iproute2, the following manipulations are possible:
         dsa master bond0
 
 Notice that in the case of CPU ports under a LAG, the use of the
-``IFLA_DSA_MASTER`` netlink attribute is not strictly needed, but rather, DSA
-reacts to the ``IFLA_MASTER`` attribute change of its present master (``eth0``)
+``IFLA_DSA_CONDUIT`` netlink attribute is not strictly needed, but rather, DSA
+reacts to the ``IFLA_MASTER`` attribute change of its present conduit (``eth0``)
 and migrates all user ports to the new upper of ``eth0``, ``bond0``. Similarly,
 when ``bond0`` is destroyed using ``RTM_DELLINK``, DSA migrates the user ports
-that were assigned to this interface to the first physical DSA master which is
+that were assigned to this interface to the first physical DSA conduit which is
 eligible, based on the firmware description (it effectively reverts to the
 startup configuration).
 
 In a setup with more than 2 physical CPU ports, it is therefore possible to mix
-static user to CPU port assignment with LAG between DSA masters. It is not
-possible to statically assign a user port towards a DSA master that has any
-upper interfaces (this includes LAG devices - the master must always be the LAG
+static user to CPU port assignment with LAG between DSA conduits. It is not
+possible to statically assign a user port towards a DSA conduit that has any
+upper interfaces (this includes LAG devices - the conduit must always be the LAG
 in this case).
 
-Live changing of the DSA master (and thus CPU port) affinity of a user port is
+Live changing of the DSA conduit (and thus CPU port) affinity of a user port is
 permitted, in order to allow dynamic redistribution in response to traffic.
 
-Physical DSA masters are allowed to join and leave at any time a LAG interface
-used as a DSA master; however, DSA will reject a LAG interface as a valid
-candidate for being a DSA master unless it has at least one physical DSA master
+Physical DSA conduits are allowed to join and leave at any time a LAG interface
+used as a DSA conduit; however, DSA will reject a LAG interface as a valid
+candidate for being a DSA conduit unless it has at least one physical DSA conduit
 as a slave device.

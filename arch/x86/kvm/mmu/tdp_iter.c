@@ -39,13 +39,14 @@ void tdp_iter_restart(struct tdp_iter *iter)
 void tdp_iter_start(struct tdp_iter *iter, struct kvm_mmu_page *root,
 		    int min_level, gfn_t next_last_level_gfn)
 {
-	int root_level = root->role.level;
-
-	WARN_ON(root_level < 1);
-	WARN_ON(root_level > PT64_ROOT_MAX_LEVEL);
+	if (WARN_ON_ONCE(!root || (root->role.level < 1) ||
+			 (root->role.level > PT64_ROOT_MAX_LEVEL))) {
+		iter->valid = false;
+		return;
+	}
 
 	iter->next_last_level_gfn = next_last_level_gfn;
-	iter->root_level = root_level;
+	iter->root_level = root->role.level;
 	iter->min_level = min_level;
 	iter->pt_path[iter->root_level - 1] = (tdp_ptep_t)root->spt;
 	iter->as_id = kvm_mmu_page_as_id(root);
@@ -145,7 +146,7 @@ static bool try_step_up(struct tdp_iter *iter)
  * Step to the next SPTE in a pre-order traversal of the paging structure.
  * To get to the next SPTE, the iterator either steps down towards the goal
  * GFN, if at a present, non-last-level SPTE, or over to a SPTE mapping a
- * highter GFN.
+ * higher GFN.
  *
  * The basic algorithm is as follows:
  * 1. If the current SPTE is a non-last-level SPTE, step down into the page

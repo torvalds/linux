@@ -265,10 +265,11 @@ static void run_with_tmpfile(test_fn fn, const char *desc)
 	fd = fileno(file);
 	if (fd < 0) {
 		ksft_test_result_fail("fileno() failed\n");
-		return;
+		goto close;
 	}
 
 	fn(fd, pagesize);
+close:
 	fclose(file);
 }
 

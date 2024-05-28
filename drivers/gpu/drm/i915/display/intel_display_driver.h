@@ -32,5 +32,11 @@ int __intel_display_driver_resume(struct drm_i915_private *i915,
 				  struct drm_atomic_state *state,
 				  struct drm_modeset_acquire_ctx *ctx);
 
+void intel_display_driver_enable_user_access(struct drm_i915_private *i915);
+void intel_display_driver_disable_user_access(struct drm_i915_private *i915);
+void intel_display_driver_suspend_access(struct drm_i915_private *i915);
+void intel_display_driver_resume_access(struct drm_i915_private *i915);
+bool intel_display_driver_check_access(struct drm_i915_private *i915);
+
 #endif /* __INTEL_DISPLAY_DRIVER_H__ */
 

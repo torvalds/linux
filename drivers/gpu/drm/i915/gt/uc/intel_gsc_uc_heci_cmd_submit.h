@@ -12,11 +12,18 @@ struct i915_vma;
 struct intel_context;
 struct intel_gsc_uc;
 
+#define GSC_HECI_REPLY_LATENCY_MS 500
+/*
+ * Max FW response time is 500ms, but this should be counted from the time the
+ * command has hit the GSC-CS hardware, not the preceding handoff to GuC CTB.
+ */
+
 struct intel_gsc_mtl_header {
 	u32 validity_marker;
 #define GSC_HECI_VALIDITY_MARKER 0xA578875A
 
 	u8 heci_client_id;
+#define HECI_MEADDRESS_MKHI 7
 #define HECI_MEADDRESS_PROXY 10
 #define HECI_MEADDRESS_PXP 17
 #define HECI_MEADDRESS_HDCP 18

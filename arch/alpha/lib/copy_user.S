@@ -12,7 +12,7 @@
  * exception setup stuff..
  */
 
-#include <asm/export.h>
+#include <linux/export.h>
 
 /* Allow an exception for an insn; exit if we get one.  */
 #define EXI(x,y...)			\

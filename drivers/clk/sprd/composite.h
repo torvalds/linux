@@ -19,24 +19,24 @@ struct sprd_comp {
 };
 
 #define SPRD_COMP_CLK_HW_INIT_FN(_struct, _name, _parent, _reg, _table,	\
-				 _mshift, _mwidth, _dshift, _dwidth,	\
-				 _flags, _fn)				\
+				 _mshift, _mwidth, _doffset, _dshift,	\
+				 _dwidth, _flags, _fn)			\
 	struct sprd_comp _struct = {					\
 		.mux	= _SPRD_MUX_CLK(_mshift, _mwidth, _table),	\
-		.div	= _SPRD_DIV_CLK(_dshift, _dwidth),		\
+		.div	= _SPRD_DIV_CLK(_doffset, _dshift, _dwidth),	\
 		.common = {						\
 			.regmap		= NULL,				\
 			.reg		= _reg,				\
 			.hw.init = _fn(_name, _parent,			\
 				       &sprd_comp_ops, _flags),		\
-			 }						\
+		}							\
 	}
 
 #define SPRD_COMP_CLK_TABLE(_struct, _name, _parent, _reg, _table,	\
 			    _mshift, _mwidth, _dshift, _dwidth, _flags)	\
 	SPRD_COMP_CLK_HW_INIT_FN(_struct, _name, _parent, _reg, _table,	\
-				 _mshift, _mwidth, _dshift, _dwidth,	\
-				 _flags, CLK_HW_INIT_PARENTS)
+				 _mshift, _mwidth, 0x0, _dshift,	\
+				 _dwidth, _flags, CLK_HW_INIT_PARENTS)
 
 #define SPRD_COMP_CLK(_struct, _name, _parent, _reg, _mshift,		\
 		      _mwidth, _dshift, _dwidth, _flags)		\
@@ -47,14 +47,32 @@ struct sprd_comp {
 				 _mshift, _mwidth, _dshift,		\
 				 _dwidth, _flags)			\
 	SPRD_COMP_CLK_HW_INIT_FN(_struct, _name, _parent, _reg, _table,	\
-				 _mshift, _mwidth, _dshift, _dwidth,	\
-				 _flags, CLK_HW_INIT_PARENTS_DATA)
+				 _mshift, _mwidth, 0x0, _dshift,	\
+				 _dwidth, _flags,			\
+				 CLK_HW_INIT_PARENTS_DATA)
 
 #define SPRD_COMP_CLK_DATA(_struct, _name, _parent, _reg, _mshift,	\
 			   _mwidth, _dshift, _dwidth, _flags)		\
-	SPRD_COMP_CLK_DATA_TABLE(_struct, _name, _parent, _reg,	NULL,	\
+	SPRD_COMP_CLK_DATA_TABLE(_struct, _name, _parent, _reg, NULL,	\
 				 _mshift, _mwidth, _dshift, _dwidth,	\
 				 _flags)
+
+#define SPRD_COMP_CLK_DATA_TABLE_OFFSET(_struct, _name, _parent, _reg,	\
+					_table, _mshift, _mwidth,	\
+					_doffset, _dshift, _dwidth,	\
+					_flags)				\
+	SPRD_COMP_CLK_HW_INIT_FN(_struct, _name, _parent, _reg, _table,	\
+				 _mshift, _mwidth, _doffset, _dshift,	\
+				 _dwidth, _flags,			\
+				 CLK_HW_INIT_PARENTS_DATA)
+
+#define SPRD_COMP_CLK_DATA_OFFSET(_struct, _name, _parent, _reg,	\
+				  _mshift, _mwidth, _doffset, _dshift,	\
+				  _dwidth, _flags)			\
+	SPRD_COMP_CLK_DATA_TABLE_OFFSET(_struct, _name, _parent, _reg,	\
+					NULL, _mshift, _mwidth,		\
+					_doffset, _dshift, _dwidth,	\
+					_flags)
 
 static inline struct sprd_comp *hw_to_sprd_comp(const struct clk_hw *hw)
 {

@@ -331,6 +331,6 @@ struct cxgb4_link {
 
 struct cxgb4_tc_u32_table {
 	unsigned int size;          /* number of entries in table */
-	struct cxgb4_link table[]; /* Jump table */
+	struct cxgb4_link table[] __counted_by(size); /* Jump table */
 };
 #endif /* __CXGB4_TC_U32_PARSE_H */

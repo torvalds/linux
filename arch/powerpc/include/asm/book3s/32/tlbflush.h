@@ -80,7 +80,7 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 static inline void local_flush_tlb_page_psize(struct mm_struct *mm,
 					      unsigned long vmaddr, int psize)
 {
-	BUILD_BUG();
+	flush_range(mm, vmaddr, vmaddr);
 }
 
 static inline void local_flush_tlb_mm(struct mm_struct *mm)

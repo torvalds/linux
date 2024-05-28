@@ -182,7 +182,7 @@
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
-	stmpe811@44 {
+	port-expander@44 {
 		compatible = "st,stmpe811";
 		reg = <0x44>;
 		interrupt-parent = <&gpio4>;
@@ -197,7 +197,7 @@
 		/* internal ADC reference */
 		st,ref-sel = <0>;
 
-		stmpe_touchscreen {
+		touchscreen {
 			compatible = "st,stmpe-ts";
 			/* 8 sample average control */
 			st,ave-ctrl = <3>;

@@ -17,6 +17,7 @@
  */
 
 #include <linux/pci_hotplug.h>
+#include <linux/pci_regs.h>
 
 extern int ibmphp_debug;
 
@@ -264,8 +265,6 @@ extern struct list_head ibmphp_slot_head;
 void ibmphp_free_ebda_hpc_queue(void);
 int ibmphp_access_ebda(void);
 struct slot *ibmphp_get_slot_from_physical_num(u8);
-int ibmphp_get_total_hp_slots(void);
-void ibmphp_free_ibm_slot(struct slot *);
 void ibmphp_free_bus_info_queue(void);
 void ibmphp_free_ebda_pci_rsrc_queue(void);
 struct bus_info *ibmphp_find_same_bus_num(u32);
@@ -288,8 +287,8 @@ int ibmphp_register_pci(void);
 
 /* pci specific defines */
 #define PCI_VENDOR_ID_NOTVALID		0xFFFF
-#define PCI_HEADER_TYPE_MULTIDEVICE	0x80
-#define PCI_HEADER_TYPE_MULTIBRIDGE	0x81
+#define PCI_HEADER_TYPE_MULTIDEVICE	(PCI_HEADER_TYPE_MFD|PCI_HEADER_TYPE_NORMAL)
+#define PCI_HEADER_TYPE_MULTIBRIDGE	(PCI_HEADER_TYPE_MFD|PCI_HEADER_TYPE_BRIDGE)
 
 #define LATENCY		0x64
 #define CACHE		64

@@ -27,8 +27,8 @@ __naked void stack_out_of_bounds(void)
 
 SEC("socket")
 __description("uninitialized stack1")
-__failure __msg("invalid indirect read from stack")
-__failure_unpriv
+__success __log_level(4) __msg("stack depth 8")
+__failure_unpriv __msg_unpriv("invalid indirect read from stack")
 __naked void uninitialized_stack1(void)
 {
 	asm volatile ("					\
@@ -45,8 +45,8 @@ __naked void uninitialized_stack1(void)
 
 SEC("socket")
 __description("uninitialized stack2")
-__failure __msg("invalid read from stack")
-__failure_unpriv
+__success __log_level(4) __msg("stack depth 8")
+__failure_unpriv __msg_unpriv("invalid read from stack")
 __naked void uninitialized_stack2(void)
 {
 	asm volatile ("					\

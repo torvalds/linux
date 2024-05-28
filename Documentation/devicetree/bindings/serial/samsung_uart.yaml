@@ -18,20 +18,29 @@ description: |+
 properties:
   compatible:
     oneOf:
-      - items:
-          - const: samsung,exynosautov9-uart
-          - const: samsung,exynos850-uart
       - enum:
           - apple,s5l-uart
           - axis,artpec8-uart
-          - samsung,s3c2410-uart
-          - samsung,s3c2412-uart
-          - samsung,s3c2440-uart
+          - google,gs101-uart
           - samsung,s3c6400-uart
           - samsung,s5pv210-uart
           - samsung,exynos4210-uart
           - samsung,exynos5433-uart
           - samsung,exynos850-uart
+      - items:
+          - enum:
+              - samsung,exynos7-uart
+              - tesla,fsd-uart
+          - const: samsung,exynos4210-uart
+      - items:
+          - enum:
+              - samsung,exynos7885-uart
+          - const: samsung,exynos5433-uart
+      - items:
+          - enum:
+              - samsung,exynosautov9-uart
+              - samsung,exynosautov920-uart
+          - const: samsung,exynos850-uart
 
   reg:
     maxItems: 1
@@ -86,8 +95,6 @@ required:
   - interrupts
   - reg
 
-unevaluatedProperties: false
-
 allOf:
   - $ref: serial.yaml#
 
@@ -96,7 +103,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - samsung,s3c2410-uart
               - samsung,s5pv210-uart
     then:
       properties:
@@ -127,6 +133,20 @@ allOf:
           items:
             - const: uart
             - const: clk_uart_baud0
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - google,gs101-uart
+    then:
+      required:
+        - samsung,uart-fifosize
+      properties:
+        reg-io-width: false
+
+unevaluatedProperties: false
 
 examples:
   - |

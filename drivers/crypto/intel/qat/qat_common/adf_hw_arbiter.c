@@ -103,3 +103,28 @@ void adf_exit_arb(struct adf_accel_dev *accel_dev)
 		csr_ops->write_csr_ring_srv_arb_en(csr, i, 0);
 }
 EXPORT_SYMBOL_GPL(adf_exit_arb);
+
+int adf_disable_arb_thd(struct adf_accel_dev *accel_dev, u32 ae, u32 thr)
+{
+	void __iomem *csr = accel_dev->transport->banks[0].csr_addr;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	const u32 *thd_2_arb_cfg;
+	struct arb_info info;
+	u32 ae_thr_map;
+
+	if (ADF_AE_STRAND0_THREAD == thr || ADF_AE_STRAND1_THREAD == thr)
+		thr = ADF_AE_ADMIN_THREAD;
+
+	hw_data->get_arb_info(&info);
+	thd_2_arb_cfg = hw_data->get_arb_mapping(accel_dev);
+	if (!thd_2_arb_cfg)
+		return -EFAULT;
+
+	/* Disable scheduling for this particular AE and thread */
+	ae_thr_map = *(thd_2_arb_cfg + ae);
+	ae_thr_map &= ~(GENMASK(3, 0) << (thr * BIT(2)));
+
+	WRITE_CSR_ARB_WT2SAM(csr, info.arb_offset, info.wt2sam_offset, ae,
+			     ae_thr_map);
+	return 0;
+}

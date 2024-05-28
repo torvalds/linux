@@ -287,6 +287,7 @@ struct ice_nvgre_hdr {
  * M = EVLAN (0x8100) - Outer L2 header has EVLAN (ethernet type 0x8100)
  * N = EVLAN (0x9100) - Outer L2 header has EVLAN (ethernet type 0x9100)
  */
+#define ICE_PKT_FROM_NETWORK	BIT(3)
 #define ICE_PKT_VLAN_STAG	BIT(12)
 #define ICE_PKT_VLAN_ITAG	BIT(13)
 #define ICE_PKT_VLAN_EVLAN	(BIT(14) | BIT(15))
@@ -392,10 +393,10 @@ enum ice_hw_metadata_offset {
 };
 
 enum ice_pkt_flags {
-	ICE_PKT_FLAGS_VLAN = 0,
-	ICE_PKT_FLAGS_TUNNEL = 1,
-	ICE_PKT_FLAGS_TCP = 2,
-	ICE_PKT_FLAGS_ERROR = 3,
+	ICE_PKT_FLAGS_MDID20 = 0,
+	ICE_PKT_FLAGS_MDID21 = 1,
+	ICE_PKT_FLAGS_MDID22 = 2,
+	ICE_PKT_FLAGS_MDID23 = 3,
 };
 
 struct ice_hw_metadata {

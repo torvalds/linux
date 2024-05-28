@@ -9,6 +9,9 @@
 #include <asm/asmmacro.h>
 #include <asm/cpu.h>
 #include <asm/regdef.h>
+#include <asm/unwind_hints.h>
+
+.section .noinstr.text, "ax"
 
 SYM_FUNC_START(memcpy)
 	/*
@@ -17,9 +20,13 @@ SYM_FUNC_START(memcpy)
 	ALTERNATIVE	"b __memcpy_generic", \
 			"b __memcpy_fast", CPU_FEATURE_UAL
 SYM_FUNC_END(memcpy)
-_ASM_NOKPROBE(memcpy)
+SYM_FUNC_ALIAS(__memcpy, memcpy)
 
 EXPORT_SYMBOL(memcpy)
+EXPORT_SYMBOL(__memcpy)
+
+_ASM_NOKPROBE(memcpy)
+_ASM_NOKPROBE(__memcpy)
 
 /*
  * void *__memcpy_generic(void *dst, const void *src, size_t n)
@@ -191,3 +198,5 @@ SYM_FUNC_START(__memcpy_fast)
 	jr	ra
 SYM_FUNC_END(__memcpy_fast)
 _ASM_NOKPROBE(__memcpy_fast)
+
+STACK_FRAME_NON_STANDARD __memcpy_small

@@ -5,6 +5,7 @@
 
 #include <linux/log2.h>
 
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 
 #include "gen8_ppgtt.h"
@@ -222,6 +223,9 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 
+	if (vm->rsvd.obj)
+		i915_gem_object_put(vm->rsvd.obj);
+
 	if (intel_vgpu_active(vm->i915))
 		gen8_ppgtt_notify_vgt(ppgtt, false);
 
@@ -242,9 +246,9 @@ static u64 __gen8_ppgtt_clear(struct i915_address_space * const vm,
 	GEM_BUG_ON(end > vm->total >> GEN8_PTE_SHIFT);
 
 	len = gen8_pd_range(start, end, lvl--, &idx);
-	DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d }\n",
-	    __func__, vm, lvl + 1, start, end,
-	    idx, len, atomic_read(px_used(pd)));
+	GTT_TRACE("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d }\n",
+		  __func__, vm, lvl + 1, start, end,
+		  idx, len, atomic_read(px_used(pd)));
 	GEM_BUG_ON(!len || len >= atomic_read(px_used(pd)));
 
 	do {
@@ -252,8 +256,8 @@ static u64 __gen8_ppgtt_clear(struct i915_address_space * const vm,
 
 		if (atomic_fetch_inc(&pt->used) >> gen8_pd_shift(1) &&
 		    gen8_pd_contains(start, end, lvl)) {
-			DBG("%s(%p):{ lvl:%d, idx:%d, start:%llx, end:%llx } removing pd\n",
-			    __func__, vm, lvl + 1, idx, start, end);
+			GTT_TRACE("%s(%p):{ lvl:%d, idx:%d, start:%llx, end:%llx } removing pd\n",
+				  __func__, vm, lvl + 1, idx, start, end);
 			clear_pd_entry(pd, idx, scratch);
 			__gen8_ppgtt_cleanup(vm, as_pd(pt), I915_PDES, lvl);
 			start += (u64)I915_PDES << gen8_pd_shift(lvl);
@@ -270,10 +274,10 @@ static u64 __gen8_ppgtt_clear(struct i915_address_space * const vm,
 			u64 *vaddr;
 
 			count = gen8_pt_count(start, end);
-			DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d } removing pte\n",
-			    __func__, vm, lvl, start, end,
-			    gen8_pd_index(start, 0), count,
-			    atomic_read(&pt->used));
+			GTT_TRACE("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d } removing pte\n",
+				  __func__, vm, lvl, start, end,
+				  gen8_pd_index(start, 0), count,
+				  atomic_read(&pt->used));
 			GEM_BUG_ON(!count || count >= atomic_read(&pt->used));
 
 			num_ptes = count;
@@ -325,9 +329,9 @@ static void __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 	GEM_BUG_ON(end > vm->total >> GEN8_PTE_SHIFT);
 
 	len = gen8_pd_range(*start, end, lvl--, &idx);
-	DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d }\n",
-	    __func__, vm, lvl + 1, *start, end,
-	    idx, len, atomic_read(px_used(pd)));
+	GTT_TRACE("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d }\n",
+		  __func__, vm, lvl + 1, *start, end,
+		  idx, len, atomic_read(px_used(pd)));
 	GEM_BUG_ON(!len || (idx + len - 1) >> gen8_pd_shift(1));
 
 	spin_lock(&pd->lock);
@@ -338,8 +342,8 @@ static void __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 		if (!pt) {
 			spin_unlock(&pd->lock);
 
-			DBG("%s(%p):{ lvl:%d, idx:%d } allocating new tree\n",
-			    __func__, vm, lvl + 1, idx);
+			GTT_TRACE("%s(%p):{ lvl:%d, idx:%d } allocating new tree\n",
+				  __func__, vm, lvl + 1, idx);
 
 			pt = stash->pt[!!lvl];
 			__i915_gem_object_pin_pages(pt->base);
@@ -369,10 +373,10 @@ static void __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 		} else {
 			unsigned int count = gen8_pt_count(*start, end);
 
-			DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d } inserting pte\n",
-			    __func__, vm, lvl, *start, end,
-			    gen8_pd_index(*start, 0), count,
-			    atomic_read(&pt->used));
+			GTT_TRACE("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d } inserting pte\n",
+				  __func__, vm, lvl, *start, end,
+				  gen8_pd_index(*start, 0), count,
+				  atomic_read(&pt->used));
 
 			atomic_add(count, &pt->used);
 			/* All other pdes may be simultaneously removed */
@@ -950,6 +954,44 @@ err_pd:
 	return ERR_PTR(err);
 }
 
+static int gen8_init_rsvd(struct i915_address_space *vm)
+{
+	struct drm_i915_private *i915 = vm->i915;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int ret;
+
+	if (!intel_gt_needs_wa_16018031267(vm->gt))
+		return 0;
+
+	/* The memory will be used only by GPU. */
+	obj = i915_gem_object_create_lmem(i915, PAGE_SIZE,
+					  I915_BO_ALLOC_VOLATILE |
+					  I915_BO_ALLOC_GPU_ONLY);
+	if (IS_ERR(obj))
+		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto unref;
+	}
+
+	ret = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_HIGH);
+	if (ret)
+		goto unref;
+
+	vm->rsvd.vma = i915_vma_make_unshrinkable(vma);
+	vm->rsvd.obj = obj;
+	vm->total -= vma->node.size;
+	return 0;
+unref:
+	i915_gem_object_put(obj);
+	return ret;
+}
+
 /*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
  * with a net effect resembling a 2-level page table in normal x86 terms. Each
@@ -1030,6 +1072,10 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
 
 	if (intel_vgpu_active(gt->i915))
 		gen8_ppgtt_notify_vgt(ppgtt, true);
+
+	err = gen8_init_rsvd(&ppgtt->vm);
+	if (err)
+		goto err_put;
 
 	return ppgtt;
 

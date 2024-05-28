@@ -27,6 +27,36 @@ int greybus_disabled(void)
 }
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
+static int is_gb_host_device(const struct device *dev)
+{
+	return dev->type == &greybus_hd_type;
+}
+
+static int is_gb_module(const struct device *dev)
+{
+	return dev->type == &greybus_module_type;
+}
+
+static int is_gb_interface(const struct device *dev)
+{
+	return dev->type == &greybus_interface_type;
+}
+
+static int is_gb_control(const struct device *dev)
+{
+	return dev->type == &greybus_control_type;
+}
+
+static int is_gb_bundle(const struct device *dev)
+{
+	return dev->type == &greybus_bundle_type;
+}
+
+static int is_gb_svc(const struct device *dev)
+{
+	return dev->type == &greybus_svc_type;
+}
+
 static bool greybus_match_one_id(struct gb_bundle *bundle,
 				 const struct greybus_bundle_id *id)
 {
@@ -155,7 +185,7 @@ static void greybus_shutdown(struct device *dev)
 	}
 }
 
-struct bus_type greybus_bus_type = {
+const struct bus_type greybus_bus_type = {
 	.name =		"greybus",
 	.match =	greybus_match_device,
 	.uevent =	greybus_uevent,

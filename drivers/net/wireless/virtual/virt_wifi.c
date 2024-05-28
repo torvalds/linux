@@ -453,7 +453,7 @@ static int virt_wifi_net_device_get_iflink(const struct net_device *dev)
 {
 	struct virt_wifi_netdev_priv *priv = netdev_priv(dev);
 
-	return priv->lowerdev->ifindex;
+	return READ_ONCE(priv->lowerdev->ifindex);
 }
 
 static const struct net_device_ops virt_wifi_ops = {

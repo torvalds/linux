@@ -17,16 +17,11 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 
 #include <linux/mfd/da9062/core.h>
 #include <linux/mfd/da9062/registers.h>
-
-/*
- * We need this get the gpio_desc from a <gpio_chip,offset> tuple to decide if
- * the gpio is active low without a vendor specific dt-binding.
- */
-#include "../gpio/gpiolib.h"
 
 #define DA9062_TYPE(offset)		(4 * (offset % 2))
 #define DA9062_PIN_SHIFT(offset)	(4 * (offset % 2))
@@ -286,10 +281,17 @@ static int da9062_pctl_probe(struct platform_device *pdev)
 	return devm_gpiochip_add_data(&pdev->dev, &pctl->gc, pctl);
 }
 
+static const struct of_device_id da9062_compatible_reg_id_table[] = {
+	{ .compatible = "dlg,da9062-gpio" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, da9062_compatible_reg_id_table);
+
 static struct platform_driver da9062_pctl_driver = {
 	.probe = da9062_pctl_probe,
 	.driver = {
 		.name	= "da9062-gpio",
+		.of_match_table = da9062_compatible_reg_id_table,
 	},
 };
 module_platform_driver(da9062_pctl_driver);

@@ -15,7 +15,7 @@
 #define ICH_RES_GPE0	1
 
 /* GPIO compatibility */
-enum {
+enum lpc_gpio_versions {
 	ICH_I3100_GPIO,
 	ICH_V5_GPIO,
 	ICH_V6_GPIO,
@@ -26,11 +26,14 @@ enum {
 	AVOTON_GPIO,
 };
 
+struct lpc_ich_gpio_info;
+
 struct lpc_ich_info {
 	char name[32];
 	unsigned int iTCO_version;
-	unsigned int gpio_version;
+	enum lpc_gpio_versions gpio_version;
 	enum intel_spi_type spi_type;
+	const struct lpc_ich_gpio_info *gpio_info;
 	u8 use_gpio;
 };
 

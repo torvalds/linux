@@ -461,7 +461,6 @@
 
 	rom: memory@1fc00000 {
 		compatible = "mtd-rom";
-		probe-type = "map_rom";
 		reg = <0x1fc00000 0x2000>;
 
 		bank-width = <4>;

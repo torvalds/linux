@@ -53,6 +53,56 @@
 			status = "okay";
 		};
 
+		i2c@c240000 {
+			status = "okay";
+
+			power-sensor@40 {
+				compatible = "ti,ina3221";
+				reg = <0x40>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				input@0 {
+					reg = <0x0>;
+					label = "GPU";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+				input@1 {
+					reg = <0x1>;
+					label = "CPU";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+				input@2 {
+					reg = <0x2>;
+					label = "SOC";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina3221";
+				reg = <0x41>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				input@0 {
+					reg = <0x0>;
+					label = "CV";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+				input@1 {
+					reg = <0x1>;
+					label = "VDDRQ";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+				input@2 {
+					reg = <0x2>;
+					label = "SYS5V";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+			};
+		};
+
 		serial@3110000 {
 			status = "okay";
 		};

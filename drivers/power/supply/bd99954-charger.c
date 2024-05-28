@@ -536,7 +536,7 @@ static irqreturn_t bd9995x_irq_handler_thread(int irq, void *private)
 
 	for_each_set_bit(i, &tmp, 7) {
 		int sub_status, sub_mask;
-		int sub_status_reg[] = {
+		static const int sub_status_reg[] = {
 			INT1_STATUS, INT2_STATUS, INT3_STATUS, INT4_STATUS,
 			INT5_STATUS, INT6_STATUS, INT7_STATUS,
 		};

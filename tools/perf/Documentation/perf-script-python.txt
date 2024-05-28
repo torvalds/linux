@@ -642,8 +642,8 @@ SUPPORTED FIELDS
 
 Currently supported fields:
 
-ev_name, comm, pid, tid, cpu, ip, time, period, phys_addr, addr,
-symbol, symoff, dso, time_enabled, time_running, values, callchain,
+ev_name, comm, id, stream_id, pid, tid, cpu, ip, time, period, phys_addr,
+addr, symbol, symoff, dso, time_enabled, time_running, values, callchain,
 brstack, brstacksym, datasrc, datasrc_decode, iregs, uregs,
 weight, transaction, raw_buf, attr, cpumode.
 

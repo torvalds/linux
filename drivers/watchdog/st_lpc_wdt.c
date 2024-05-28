@@ -15,7 +15,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/watchdog.h>
@@ -42,7 +41,7 @@ struct st_wdog {
 	void __iomem *base;
 	struct device *dev;
 	struct regmap *regmap;
-	struct st_wdog_syscfg *syscfg;
+	const struct st_wdog_syscfg *syscfg;
 	struct clk *clk;
 	unsigned long clkrate;
 	bool warm_reset;
@@ -150,7 +149,6 @@ static void st_clk_disable_unprepare(void *data)
 static int st_wdog_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct device_node *np = dev->of_node;
 	struct st_wdog *st_wdog;
 	struct regmap *regmap;
@@ -173,12 +171,7 @@ static int st_wdog_probe(struct platform_device *pdev)
 	if (!st_wdog)
 		return -ENOMEM;
 
-	match = of_match_device(st_wdog_match, dev);
-	if (!match) {
-		dev_err(dev, "Couldn't match device\n");
-		return -ENODEV;
-	}
-	st_wdog->syscfg	= (struct st_wdog_syscfg *)match->data;
+	st_wdog->syscfg	= (struct st_wdog_syscfg *)device_get_match_data(dev);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

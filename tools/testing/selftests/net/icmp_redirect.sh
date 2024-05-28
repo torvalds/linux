@@ -19,6 +19,7 @@
 # Route on r1 changed to go to r2 via eth0. This causes a redirect to be sent
 # from r1 to h1 telling h1 to use r2 when talking to h2.
 
+source lib.sh
 VERBOSE=0
 PAUSE_ON_FAIL=no
 
@@ -140,11 +141,7 @@ get_linklocal()
 
 cleanup()
 {
-	local ns
-
-	for ns in h1 h2 r1 r2; do
-		ip netns del $ns 2>/dev/null
-	done
+	cleanup_ns $h1 $h2 $r1 $r2
 }
 
 create_vrf()
@@ -171,102 +168,99 @@ setup()
 
 	#
 	# create nodes as namespaces
-	#
-	for ns in h1 h2 r1 r2; do
-		ip netns add $ns
-		ip -netns $ns li set lo up
+	setup_ns h1 h2 r1 r2
+	for ns in $h1 $h2 $r1 $r2; do
+		if echo $ns | grep -q h[12]-; then
+			ip netns exec $ns sysctl -q -w net.ipv4.conf.all.accept_redirects=1
+			ip netns exec $ns sysctl -q -w net.ipv6.conf.all.forwarding=0
+			ip netns exec $ns sysctl -q -w net.ipv6.conf.all.accept_redirects=1
+			ip netns exec $ns sysctl -q -w net.ipv6.conf.all.keep_addr_on_down=1
+		else
+			ip netns exec $ns sysctl -q -w net.ipv4.ip_forward=1
+			ip netns exec $ns sysctl -q -w net.ipv4.conf.all.send_redirects=1
+			ip netns exec $ns sysctl -q -w net.ipv4.conf.default.rp_filter=0
+			ip netns exec $ns sysctl -q -w net.ipv4.conf.all.rp_filter=0
 
-		case "${ns}" in
-		h[12]) ip netns exec $ns sysctl -q -w net.ipv4.conf.all.accept_redirects=1
-		       ip netns exec $ns sysctl -q -w net.ipv6.conf.all.forwarding=0
-		       ip netns exec $ns sysctl -q -w net.ipv6.conf.all.accept_redirects=1
-		       ip netns exec $ns sysctl -q -w net.ipv6.conf.all.keep_addr_on_down=1
-			;;
-		r[12]) ip netns exec $ns sysctl -q -w net.ipv4.ip_forward=1
-		       ip netns exec $ns sysctl -q -w net.ipv4.conf.all.send_redirects=1
-		       ip netns exec $ns sysctl -q -w net.ipv4.conf.default.rp_filter=0
-		       ip netns exec $ns sysctl -q -w net.ipv4.conf.all.rp_filter=0
-
-		       ip netns exec $ns sysctl -q -w net.ipv6.conf.all.forwarding=1
-		       ip netns exec $ns sysctl -q -w net.ipv6.route.mtu_expires=10
-		esac
+			ip netns exec $ns sysctl -q -w net.ipv6.conf.all.forwarding=1
+			ip netns exec $ns sysctl -q -w net.ipv6.route.mtu_expires=10
+		fi
 	done
 
 	#
 	# create interconnects
 	#
-	ip -netns h1 li add eth0 type veth peer name r1h1
-	ip -netns h1 li set r1h1 netns r1 name eth0 up
+	ip -netns $h1 li add eth0 type veth peer name r1h1
+	ip -netns $h1 li set r1h1 netns $r1 name eth0 up
 
-	ip -netns h1 li add eth1 type veth peer name r2h1
-	ip -netns h1 li set r2h1 netns r2 name eth0 up
+	ip -netns $h1 li add eth1 type veth peer name r2h1
+	ip -netns $h1 li set r2h1 netns $r2 name eth0 up
 
-	ip -netns h2 li add eth0 type veth peer name r2h2
-	ip -netns h2 li set eth0 up
-	ip -netns h2 li set r2h2 netns r2 name eth2 up
+	ip -netns $h2 li add eth0 type veth peer name r2h2
+	ip -netns $h2 li set eth0 up
+	ip -netns $h2 li set r2h2 netns $r2 name eth2 up
 
-	ip -netns r1 li add eth1 type veth peer name r2r1
-	ip -netns r1 li set eth1 up
-	ip -netns r1 li set r2r1 netns r2 name eth1 up
+	ip -netns $r1 li add eth1 type veth peer name r2r1
+	ip -netns $r1 li set eth1 up
+	ip -netns $r1 li set r2r1 netns $r2 name eth1 up
 
 	#
 	# h1
 	#
 	if [ "${WITH_VRF}" = "yes" ]; then
-		create_vrf "h1"
+		create_vrf "$h1"
 		H1_VRF_ARG="vrf ${VRF}"
 		H1_PING_ARG="-I ${VRF}"
 	else
 		H1_VRF_ARG=
 		H1_PING_ARG=
 	fi
-	ip -netns h1 li add br0 type bridge
+	ip -netns $h1 li add br0 type bridge
 	if [ "${WITH_VRF}" = "yes" ]; then
-		ip -netns h1 li set br0 vrf ${VRF} up
+		ip -netns $h1 li set br0 vrf ${VRF} up
 	else
-		ip -netns h1 li set br0 up
+		ip -netns $h1 li set br0 up
 	fi
-	ip -netns h1 addr add dev br0 ${H1_N1_IP}/24
-	ip -netns h1 -6 addr add dev br0 ${H1_N1_IP6}/64 nodad
-	ip -netns h1 li set eth0 master br0 up
-	ip -netns h1 li set eth1 master br0 up
+	ip -netns $h1 addr add dev br0 ${H1_N1_IP}/24
+	ip -netns $h1 -6 addr add dev br0 ${H1_N1_IP6}/64 nodad
+	ip -netns $h1 li set eth0 master br0 up
+	ip -netns $h1 li set eth1 master br0 up
 
 	#
 	# h2
 	#
-	ip -netns h2 addr add dev eth0 ${H2_N2_IP}/24
-	ip -netns h2 ro add default via ${R2_N2_IP} dev eth0
-	ip -netns h2 -6 addr add dev eth0 ${H2_N2_IP6}/64 nodad
-	ip -netns h2 -6 ro add default via ${R2_N2_IP6} dev eth0
+	ip -netns $h2 addr add dev eth0 ${H2_N2_IP}/24
+	ip -netns $h2 ro add default via ${R2_N2_IP} dev eth0
+	ip -netns $h2 -6 addr add dev eth0 ${H2_N2_IP6}/64 nodad
+	ip -netns $h2 -6 ro add default via ${R2_N2_IP6} dev eth0
 
 	#
 	# r1
 	#
-	ip -netns r1 addr add dev eth0 ${R1_N1_IP}/24
-	ip -netns r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 nodad
-	ip -netns r1 addr add dev eth1 ${R1_R2_N1_IP}/30
-	ip -netns r1 -6 addr add dev eth1 ${R1_R2_N1_IP6}/126 nodad
+	ip -netns $r1 addr add dev eth0 ${R1_N1_IP}/24
+	ip -netns $r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 nodad
+	ip -netns $r1 addr add dev eth1 ${R1_R2_N1_IP}/30
+	ip -netns $r1 -6 addr add dev eth1 ${R1_R2_N1_IP6}/126 nodad
 
 	#
 	# r2
 	#
-	ip -netns r2 addr add dev eth0 ${R2_N1_IP}/24
-	ip -netns r2 -6 addr add dev eth0 ${R2_N1_IP6}/64 nodad
-	ip -netns r2 addr add dev eth1 ${R2_R1_N1_IP}/30
-	ip -netns r2 -6 addr add dev eth1 ${R2_R1_N1_IP6}/126 nodad
-	ip -netns r2 addr add dev eth2 ${R2_N2_IP}/24
-	ip -netns r2 -6 addr add dev eth2 ${R2_N2_IP6}/64 nodad
+	ip -netns $r2 addr add dev eth0 ${R2_N1_IP}/24
+	ip -netns $r2 -6 addr add dev eth0 ${R2_N1_IP6}/64 nodad
+	ip -netns $r2 addr add dev eth1 ${R2_R1_N1_IP}/30
+	ip -netns $r2 -6 addr add dev eth1 ${R2_R1_N1_IP6}/126 nodad
+	ip -netns $r2 addr add dev eth2 ${R2_N2_IP}/24
+	ip -netns $r2 -6 addr add dev eth2 ${R2_N2_IP6}/64 nodad
 
 	sleep 2
 
-	R1_LLADDR=$(get_linklocal r1 eth0)
+	R1_LLADDR=$(get_linklocal $r1 eth0)
 	if [ $? -ne 0 ]; then
 		echo "Error: Failed to get link-local address of r1's eth0"
 		exit 1
 	fi
 	log_debug "initial gateway is R1's lladdr = ${R1_LLADDR}"
 
-	R2_LLADDR=$(get_linklocal r2 eth0)
+	R2_LLADDR=$(get_linklocal $r2 eth0)
 	if [ $? -ne 0 ]; then
 		echo "Error: Failed to get link-local address of r2's eth0"
 		exit 1
@@ -278,8 +272,8 @@ change_h2_mtu()
 {
 	local mtu=$1
 
-	run_cmd ip -netns h2 li set eth0 mtu ${mtu}
-	run_cmd ip -netns r2 li set eth2 mtu ${mtu}
+	run_cmd ip -netns $h2 li set eth0 mtu ${mtu}
+	run_cmd ip -netns $r2 li set eth2 mtu ${mtu}
 }
 
 check_exception()
@@ -291,40 +285,40 @@ check_exception()
 	# From 172.16.1.101: icmp_seq=1 Redirect Host(New nexthop: 172.16.1.102)
 	if [ "$VERBOSE" = "1" ]; then
 		echo "Commands to check for exception:"
-		run_cmd ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP}
-		run_cmd ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6}
+		run_cmd ip -netns $h1 ro get ${H1_VRF_ARG} ${H2_N2_IP}
+		run_cmd ip -netns $h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6}
 	fi
 
 	if [ -n "${mtu}" ]; then
 		mtu=" mtu ${mtu}"
 	fi
 	if [ "$with_redirect" = "yes" ]; then
-		ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
+		ip -netns $h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -q "cache <redirected> expires [0-9]*sec${mtu}"
 	elif [ -n "${mtu}" ]; then
-		ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
+		ip -netns $h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -q "cache expires [0-9]*sec${mtu}"
 	else
 		# want to verify that neither mtu nor redirected appears in
 		# the route get output. The -v will wipe out the cache line
 		# if either are set so the last grep -q will not find a match
-		ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
+		ip -netns $h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -E -v 'mtu|redirected' | grep -q "cache"
 	fi
 	log_test $? 0 "IPv4: ${desc}" 0
 
 	# No PMTU info for test "redirect" and "mtu exception plus redirect"
 	if [ "$with_redirect" = "yes" ] && [ "$desc" != "redirect exception plus mtu" ]; then
-		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
+		ip -netns $h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
 		grep -v "mtu" | grep -q "${H2_N2_IP6} .*via ${R2_LLADDR} dev br0"
 	elif [ -n "${mtu}" ]; then
-		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
+		ip -netns $h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
 		grep -q "${mtu}"
 	else
 		# IPv6 is a bit harder. First strip out the match if it
 		# contains an mtu exception and then look for the first
 		# gateway - R1's lladdr
-		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
+		ip -netns $h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
 		grep -v "mtu" | grep -q "${R1_LLADDR}"
 	fi
 	log_test $? 0 "IPv6: ${desc}" 1
@@ -334,21 +328,21 @@ run_ping()
 {
 	local sz=$1
 
-	run_cmd ip netns exec h1 ping -q -M want -i 0.5 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP}
-	run_cmd ip netns exec h1 ${ping6} -q -M want -i 0.5 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP6}
+	run_cmd ip netns exec $h1 ping -q -M want -i 0.5 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP}
+	run_cmd ip netns exec $h1 ${ping6} -q -M want -i 0.5 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP6}
 }
 
 replace_route_new()
 {
 	# r1 to h2 via r2 and eth0
-	run_cmd ip -netns r1 nexthop replace id 1 via ${R2_N1_IP} dev eth0
-	run_cmd ip -netns r1 nexthop replace id 2 via ${R2_LLADDR} dev eth0
+	run_cmd ip -netns $r1 nexthop replace id 1 via ${R2_N1_IP} dev eth0
+	run_cmd ip -netns $r1 nexthop replace id 2 via ${R2_LLADDR} dev eth0
 }
 
 reset_route_new()
 {
-	run_cmd ip -netns r1 nexthop flush
-	run_cmd ip -netns h1 nexthop flush
+	run_cmd ip -netns $r1 nexthop flush
+	run_cmd ip -netns $h1 nexthop flush
 
 	initial_route_new
 }
@@ -356,34 +350,34 @@ reset_route_new()
 initial_route_new()
 {
 	# r1 to h2 via r2 and eth1
-	run_cmd ip -netns r1 nexthop add id 1 via ${R2_R1_N1_IP} dev eth1
-	run_cmd ip -netns r1 ro add ${H2_N2} nhid 1
+	run_cmd ip -netns $r1 nexthop add id 1 via ${R2_R1_N1_IP} dev eth1
+	run_cmd ip -netns $r1 ro add ${H2_N2} nhid 1
 
-	run_cmd ip -netns r1 nexthop add id 2 via ${R2_R1_N1_IP6} dev eth1
-	run_cmd ip -netns r1 -6 ro add ${H2_N2_6} nhid 2
+	run_cmd ip -netns $r1 nexthop add id 2 via ${R2_R1_N1_IP6} dev eth1
+	run_cmd ip -netns $r1 -6 ro add ${H2_N2_6} nhid 2
 
 	# h1 to h2 via r1
-	run_cmd ip -netns h1 nexthop add id 1 via ${R1_N1_IP} dev br0
-	run_cmd ip -netns h1 ro add ${H1_VRF_ARG} ${H2_N2} nhid 1
+	run_cmd ip -netns $h1 nexthop add id 1 via ${R1_N1_IP} dev br0
+	run_cmd ip -netns $h1 ro add ${H1_VRF_ARG} ${H2_N2} nhid 1
 
-	run_cmd ip -netns h1 nexthop add id 2 via ${R1_LLADDR} dev br0
-	run_cmd ip -netns h1 -6 ro add ${H1_VRF_ARG} ${H2_N2_6} nhid 2
+	run_cmd ip -netns $h1 nexthop add id 2 via ${R1_LLADDR} dev br0
+	run_cmd ip -netns $h1 -6 ro add ${H1_VRF_ARG} ${H2_N2_6} nhid 2
 }
 
 replace_route_legacy()
 {
 	# r1 to h2 via r2 and eth0
-	run_cmd ip -netns r1    ro replace ${H2_N2}   via ${R2_N1_IP}  dev eth0
-	run_cmd ip -netns r1 -6 ro replace ${H2_N2_6} via ${R2_LLADDR} dev eth0
+	run_cmd ip -netns $r1    ro replace ${H2_N2}   via ${R2_N1_IP}  dev eth0
+	run_cmd ip -netns $r1 -6 ro replace ${H2_N2_6} via ${R2_LLADDR} dev eth0
 }
 
 reset_route_legacy()
 {
-	run_cmd ip -netns r1    ro del ${H2_N2}
-	run_cmd ip -netns r1 -6 ro del ${H2_N2_6}
+	run_cmd ip -netns $r1    ro del ${H2_N2}
+	run_cmd ip -netns $r1 -6 ro del ${H2_N2_6}
 
-	run_cmd ip -netns h1    ro del ${H1_VRF_ARG} ${H2_N2}
-	run_cmd ip -netns h1 -6 ro del ${H1_VRF_ARG} ${H2_N2_6}
+	run_cmd ip -netns $h1    ro del ${H1_VRF_ARG} ${H2_N2}
+	run_cmd ip -netns $h1 -6 ro del ${H1_VRF_ARG} ${H2_N2_6}
 
 	initial_route_legacy
 }
@@ -391,22 +385,22 @@ reset_route_legacy()
 initial_route_legacy()
 {
 	# r1 to h2 via r2 and eth1
-	run_cmd ip -netns r1    ro add ${H2_N2}   via ${R2_R1_N1_IP}  dev eth1
-	run_cmd ip -netns r1 -6 ro add ${H2_N2_6} via ${R2_R1_N1_IP6} dev eth1
+	run_cmd ip -netns $r1    ro add ${H2_N2}   via ${R2_R1_N1_IP}  dev eth1
+	run_cmd ip -netns $r1 -6 ro add ${H2_N2_6} via ${R2_R1_N1_IP6} dev eth1
 
 	# h1 to h2 via r1
 	# - IPv6 redirect only works if gateway is the LLA
-	run_cmd ip -netns h1    ro add ${H1_VRF_ARG} ${H2_N2} via ${R1_N1_IP} dev br0
-	run_cmd ip -netns h1 -6 ro add ${H1_VRF_ARG} ${H2_N2_6} via ${R1_LLADDR} dev br0
+	run_cmd ip -netns $h1    ro add ${H1_VRF_ARG} ${H2_N2} via ${R1_N1_IP} dev br0
+	run_cmd ip -netns $h1 -6 ro add ${H1_VRF_ARG} ${H2_N2_6} via ${R1_LLADDR} dev br0
 }
 
 check_connectivity()
 {
 	local rc
 
-	run_cmd ip netns exec h1 ping -c1 -w1 ${H1_PING_ARG} ${H2_N2_IP}
+	run_cmd ip netns exec $h1 ping -c1 -w1 ${H1_PING_ARG} ${H2_N2_IP}
 	rc=$?
-	run_cmd ip netns exec h1 ${ping6} -c1 -w1 ${H1_PING_ARG} ${H2_N2_IP6}
+	run_cmd ip netns exec $h1 ${ping6} -c1 -w1 ${H1_PING_ARG} ${H2_N2_IP6}
 	[ $? -ne 0 ] && rc=$?
 
 	return $rc

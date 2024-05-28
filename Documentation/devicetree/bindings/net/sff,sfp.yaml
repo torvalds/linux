@@ -120,7 +120,7 @@ examples:
       pinctrl-names = "default";
       pinctrl-0 = <&cps_sfpp0_pins>;
       tx-disable-gpios = <&cps_gpio1 29 GPIO_ACTIVE_HIGH>;
-      tx-fault-gpios  = <&cps_gpio1 26 GPIO_ACTIVE_HIGH>;
+      tx-fault-gpios = <&cps_gpio1 26 GPIO_ACTIVE_HIGH>;
     };
 
     mdio {

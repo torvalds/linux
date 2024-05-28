@@ -37,7 +37,12 @@ void acpi_ut_init_stack_ptr_trace(void)
 {
 	acpi_size current_sp;
 
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && __GNUC__ >= 12
+#pragma GCC diagnostic ignored "-Wdangling-pointer="
+#endif
 	acpi_gbl_entry_stack_pointer = &current_sp;
+#pragma GCC diagnostic pop
 }
 
 /*******************************************************************************

@@ -48,6 +48,10 @@ void srcu_drive_gp(struct work_struct *wp);
 #define DEFINE_STATIC_SRCU(name) \
 	static struct srcu_struct name = __SRCU_STRUCT_INIT(name, name, name)
 
+// Dummy structure for srcu_notifier_head.
+struct srcu_usage { };
+#define __SRCU_USAGE_INIT(name) { }
+
 void synchronize_srcu(struct srcu_struct *ssp);
 
 /*

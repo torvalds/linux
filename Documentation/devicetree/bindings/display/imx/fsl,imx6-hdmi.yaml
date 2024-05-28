@@ -87,7 +87,7 @@ required:
   - interrupts
   - ports
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

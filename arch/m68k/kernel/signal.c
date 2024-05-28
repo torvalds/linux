@@ -51,6 +51,8 @@
 #include <asm/ucontext.h>
 #include <asm/cacheflush.h>
 
+#include "signal.h"
+
 #ifdef CONFIG_MMU
 
 /*
@@ -1109,7 +1111,7 @@ static void do_signal(struct pt_regs *regs)
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs)
+asmlinkage void do_notify_resume(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_NOTIFY_SIGNAL) ||
 	    test_thread_flag(TIF_SIGPENDING))

@@ -9,6 +9,7 @@ additions to this manual.
 .. toctree::
    :maxdepth: 2
 
+   feature-and-driver-maintainers
    configure-git
    rebasing-and-merging
    pull-requests

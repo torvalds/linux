@@ -87,3 +87,4 @@ module_exit(exit_rc_map_budget_ci_old)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("budget-ci-old remote controller keytable");

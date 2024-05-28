@@ -137,11 +137,11 @@ void bcm_vk_set_host_alert(struct bcm_vk *vk, u32 bit_mask)
 #define BCM_VK_HB_TIMER_VALUE (BCM_VK_HB_TIMER_S * HZ)
 #define BCM_VK_HB_LOST_MAX (27 / BCM_VK_HB_TIMER_S)
 
-static void bcm_vk_hb_poll(struct timer_list *t)
+static void bcm_vk_hb_poll(struct work_struct *work)
 {
 	u32 uptime_s;
-	struct bcm_vk_hb_ctrl *hb = container_of(t, struct bcm_vk_hb_ctrl,
-						 timer);
+	struct bcm_vk_hb_ctrl *hb = container_of(to_delayed_work(work), struct bcm_vk_hb_ctrl,
+						 work);
 	struct bcm_vk *vk = container_of(hb, struct bcm_vk, hb_ctrl);
 
 	if (bcm_vk_drv_access_ok(vk) && hb_mon_is_on()) {
@@ -177,22 +177,22 @@ static void bcm_vk_hb_poll(struct timer_list *t)
 		bcm_vk_set_host_alert(vk, ERR_LOG_HOST_HB_FAIL);
 	}
 	/* re-arm timer */
-	mod_timer(&hb->timer, jiffies + BCM_VK_HB_TIMER_VALUE);
+	schedule_delayed_work(&hb->work, BCM_VK_HB_TIMER_VALUE);
 }
 
 void bcm_vk_hb_init(struct bcm_vk *vk)
 {
 	struct bcm_vk_hb_ctrl *hb = &vk->hb_ctrl;
 
-	timer_setup(&hb->timer, bcm_vk_hb_poll, 0);
-	mod_timer(&hb->timer, jiffies + BCM_VK_HB_TIMER_VALUE);
+	INIT_DELAYED_WORK(&hb->work, bcm_vk_hb_poll);
+	schedule_delayed_work(&hb->work, BCM_VK_HB_TIMER_VALUE);
 }
 
 void bcm_vk_hb_deinit(struct bcm_vk *vk)
 {
 	struct bcm_vk_hb_ctrl *hb = &vk->hb_ctrl;
 
-	del_timer(&hb->timer);
+	cancel_delayed_work_sync(&hb->work);
 }
 
 static void bcm_vk_msgid_bitmap_clear(struct bcm_vk *vk,
@@ -703,12 +703,12 @@ int bcm_vk_send_shutdown_msg(struct bcm_vk *vk, u32 shut_type,
 	entry = kzalloc(struct_size(entry, to_v_msg, 1), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
+	entry->to_v_blks = 1;	/* always 1 block */
 
 	/* fill up necessary data */
 	entry->to_v_msg[0].function_id = VK_FID_SHUTDOWN;
 	set_q_num(&entry->to_v_msg[0], q_num);
 	set_msg_id(&entry->to_v_msg[0], VK_SIMPLEX_MSG_ID);
-	entry->to_v_blks = 1; /* always 1 block */
 
 	entry->to_v_msg[0].cmd = shut_type;
 	entry->to_v_msg[0].arg = pid;

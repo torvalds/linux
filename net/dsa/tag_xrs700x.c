@@ -13,7 +13,7 @@
 
 static struct sk_buff *xrs700x_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_port *partner, *dp = dsa_slave_to_port(dev);
+	struct dsa_port *partner, *dp = dsa_user_to_port(dev);
 	u8 *trailer;
 
 	trailer = skb_put(skb, 1);
@@ -39,7 +39,7 @@ static struct sk_buff *xrs700x_rcv(struct sk_buff *skb, struct net_device *dev)
 	if (source_port < 0)
 		return NULL;
 
-	skb->dev = dsa_master_find_slave(dev, 0, source_port);
+	skb->dev = dsa_conduit_find_user(dev, 0, source_port);
 	if (!skb->dev)
 		return NULL;
 
@@ -60,6 +60,7 @@ static const struct dsa_device_ops xrs700x_netdev_ops = {
 	.needed_tailroom = 1,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for XRS700x switches");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_XRS700X, XRS700X_NAME);
 

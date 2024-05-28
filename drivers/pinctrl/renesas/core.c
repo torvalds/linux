@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/math.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
 #include <linux/psci.h>
@@ -639,6 +638,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a779g0_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A779H0
+	{
+		.compatible = "renesas,pfc-r8a779h0",
+		.data = &r8a779h0_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_SH73A0
 	{
 		.compatible = "renesas,pfc-sh73a0",
@@ -649,7 +654,7 @@ static const struct of_device_id sh_pfc_of_table[] = {
 };
 #endif
 
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM_PSCI_FW)
+#if defined(CONFIG_ARM_PSCI_FW)
 static void sh_pfc_nop_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
 {
 }
@@ -732,15 +737,15 @@ static int sh_pfc_resume_noirq(struct device *dev)
 		sh_pfc_walk_regs(pfc, sh_pfc_restore_reg);
 	return 0;
 }
-
-static const struct dev_pm_ops sh_pfc_pm  = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_pfc_suspend_noirq, sh_pfc_resume_noirq)
-};
-#define DEV_PM_OPS	&sh_pfc_pm
+#define pm_psci_sleep_ptr(_ptr)	pm_sleep_ptr(_ptr)
 #else
 static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
-#define DEV_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
+static int sh_pfc_suspend_noirq(struct device *dev) { return 0; }
+static int sh_pfc_resume_noirq(struct device *dev) { return 0; }
+#define pm_psci_sleep_ptr(_ptr)	PTR_IF(false, (_ptr))
+#endif	/* CONFIG_ARM_PSCI_FW */
+
+static DEFINE_NOIRQ_DEV_PM_OPS(sh_pfc_pm, sh_pfc_suspend_noirq, sh_pfc_resume_noirq);
 
 #ifdef DEBUG
 #define SH_PFC_MAX_REGS		300
@@ -910,9 +915,11 @@ static void __init sh_pfc_check_cfg_reg(const char *drvname,
 		sh_pfc_err("reg 0x%x: var_field_width declares %u instead of %u bits\n",
 			   cfg_reg->reg, rw, cfg_reg->reg_width);
 
-	if (n != cfg_reg->nr_enum_ids)
+	if (n != cfg_reg->nr_enum_ids) {
 		sh_pfc_err("reg 0x%x: enum_ids[] has %u instead of %u values\n",
 			   cfg_reg->reg, cfg_reg->nr_enum_ids, n);
+		n = cfg_reg->nr_enum_ids;
+	}
 
 check_enum_ids:
 	sh_pfc_check_reg_enums(drvname, cfg_reg->reg, cfg_reg->enum_ids, n);
@@ -1418,7 +1425,7 @@ static struct platform_driver sh_pfc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table = of_match_ptr(sh_pfc_of_table),
-		.pm     = DEV_PM_OPS,
+		.pm	= pm_psci_sleep_ptr(&sh_pfc_pm),
 	},
 };
 

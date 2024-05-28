@@ -33,3 +33,6 @@
 		     "marvell,armada-ap806-sdhci"; /* Backward compatibility */
 };
 
+&ap_thermal {
+	compatible = "marvell,armada-ap807-thermal";
+};

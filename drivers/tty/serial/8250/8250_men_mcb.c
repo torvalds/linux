@@ -12,11 +12,42 @@
 #define MEN_UART_ID_Z057 0x39
 #define MEN_UART_ID_Z125 0x7d
 
-#define MEN_UART_MEM_SIZE 0x10
+/*
+ * IP Cores Z025 and Z057 can have up to 4 UART
+ * The UARTs available are stored in a global
+ * register saved in physical address + 0x40
+ * Is saved as follows:
+ *
+ * 7                                                              0
+ * +------+-------+-------+-------+-------+-------+-------+-------+
+ * |UART4 | UART3 | UART2 | UART1 | U4irq | U3irq | U2irq | U1irq |
+ * +------+-------+-------+-------+-------+-------+-------+-------+
+ */
+#define MEN_UART1_MASK	0x01
+#define MEN_UART2_MASK	0x02
+#define MEN_UART3_MASK	0x04
+#define MEN_UART4_MASK	0x08
+
+#define MEN_Z125_UARTS_AVAILABLE	0x01
+
+#define MEN_Z025_MAX_UARTS		4
+#define MEN_UART_MEM_SIZE		0x10
+#define MEM_UART_REGISTER_SIZE		0x01
+#define MEN_Z025_REGISTER_OFFSET	0x40
+
+#define MEN_UART1_OFFSET	0
+#define MEN_UART2_OFFSET	(MEN_UART1_OFFSET + MEN_UART_MEM_SIZE)
+#define MEN_UART3_OFFSET	(MEN_UART2_OFFSET + MEN_UART_MEM_SIZE)
+#define MEN_UART4_OFFSET	(MEN_UART3_OFFSET + MEN_UART_MEM_SIZE)
+
+#define MEN_READ_REGISTER(addr)	readb(addr)
+
+#define MAX_PORTS	4
 
 struct serial_8250_men_mcb_data {
-	struct uart_8250_port uart;
-	int line;
+	int num_ports;
+	int line[MAX_PORTS];
+	unsigned int offset[MAX_PORTS];
 };
 
 /*
@@ -37,10 +68,10 @@ static u32 men_lookup_uartclk(struct mcb_device *mdev)
 		clkval = 1041666;
 	else if (strncmp(mdev->bus->name, "F216", 4) == 0)
 		clkval = 1843200;
-	else if (strncmp(mdev->bus->name, "G215", 4) == 0)
-		clkval = 1843200;
 	else if (strncmp(mdev->bus->name, "F210", 4) == 0)
 		clkval = 115200;
+	else if (strstr(mdev->bus->name, "215"))
+		clkval = 1843200;
 	else
 		dev_info(&mdev->dev,
 			 "board not detected, using default uartclk\n");
@@ -50,16 +81,98 @@ static u32 men_lookup_uartclk(struct mcb_device *mdev)
 	return clkval;
 }
 
-static int get_num_ports(struct mcb_device *mdev,
-				  void __iomem *membase)
+static int read_uarts_available_from_register(struct resource *mem_res,
+					      u8 *uarts_available)
+{
+	void __iomem *mem;
+	int reg_value;
+
+	if (!request_mem_region(mem_res->start + MEN_Z025_REGISTER_OFFSET,
+				MEM_UART_REGISTER_SIZE,  KBUILD_MODNAME)) {
+		return -EBUSY;
+	}
+
+	mem = ioremap(mem_res->start + MEN_Z025_REGISTER_OFFSET,
+		      MEM_UART_REGISTER_SIZE);
+	if (!mem) {
+		release_mem_region(mem_res->start + MEN_Z025_REGISTER_OFFSET,
+				   MEM_UART_REGISTER_SIZE);
+		return -ENOMEM;
+	}
+
+	reg_value = MEN_READ_REGISTER(mem);
+
+	iounmap(mem);
+
+	release_mem_region(mem_res->start + MEN_Z025_REGISTER_OFFSET,
+			   MEM_UART_REGISTER_SIZE);
+
+	*uarts_available = reg_value >> 4;
+
+	return 0;
+}
+
+static int read_serial_data(struct mcb_device *mdev,
+			    struct resource *mem_res,
+			    struct serial_8250_men_mcb_data *serial_data)
+{
+	u8 uarts_available;
+	int count = 0;
+	int mask;
+	int res;
+	int i;
+
+	res = read_uarts_available_from_register(mem_res, &uarts_available);
+	if (res < 0)
+		return res;
+
+	for (i = 0; i < MAX_PORTS; i++) {
+		mask = 0x1 << i;
+		switch (uarts_available & mask) {
+		case MEN_UART1_MASK:
+			serial_data->offset[count] = MEN_UART1_OFFSET;
+			count++;
+			break;
+		case MEN_UART2_MASK:
+			serial_data->offset[count] = MEN_UART2_OFFSET;
+			count++;
+			break;
+		case MEN_UART3_MASK:
+			serial_data->offset[count] = MEN_UART3_OFFSET;
+			count++;
+			break;
+		case MEN_UART4_MASK:
+			serial_data->offset[count] = MEN_UART4_OFFSET;
+			count++;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (count <= 0 || count > MAX_PORTS) {
+		dev_err(&mdev->dev, "unexpected number of ports: %u\n",
+			count);
+		return -ENODEV;
+	}
+
+	serial_data->num_ports = count;
+
+	return 0;
+}
+
+static int init_serial_data(struct mcb_device *mdev,
+			    struct resource *mem_res,
+			    struct serial_8250_men_mcb_data *serial_data)
 {
 	switch (mdev->id) {
 	case MEN_UART_ID_Z125:
-		return 1U;
+		serial_data->num_ports = 1;
+		serial_data->offset[0] = 0;
+		return 0;
 	case MEN_UART_ID_Z025:
-		return readb(membase) >> 4;
 	case MEN_UART_ID_Z057:
-		return 4U;
+		return read_serial_data(mdev, mem_res, serial_data);
 	default:
 		dev_err(&mdev->dev, "no supported device!\n");
 		return -ENODEV;
@@ -69,62 +182,54 @@ static int get_num_ports(struct mcb_device *mdev,
 static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 				     const struct mcb_device_id *id)
 {
+	struct uart_8250_port uart;
 	struct serial_8250_men_mcb_data *data;
 	struct resource *mem;
-	int num_ports;
 	int i;
-	void __iomem *membase;
+	int res;
 
 	mem = mcb_get_resource(mdev, IORESOURCE_MEM);
 	if (mem == NULL)
 		return -ENXIO;
-	membase = devm_ioremap_resource(&mdev->dev, mem);
-	if (IS_ERR(membase))
-		return PTR_ERR_OR_ZERO(membase);
 
-	num_ports = get_num_ports(mdev, membase);
-
-	dev_dbg(&mdev->dev, "found a 16z%03u with %u ports\n",
-		mdev->id, num_ports);
-
-	if (num_ports <= 0 || num_ports > 4) {
-		dev_err(&mdev->dev, "unexpected number of ports: %u\n",
-			num_ports);
-		return -ENODEV;
-	}
-
-	data = devm_kcalloc(&mdev->dev, num_ports,
+	data = devm_kzalloc(&mdev->dev,
 			    sizeof(struct serial_8250_men_mcb_data),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
+	res = init_serial_data(mdev, mem, data);
+	if (res < 0)
+		return res;
+
+	dev_dbg(&mdev->dev, "found a 16z%03u with %u ports\n",
+		mdev->id, data->num_ports);
+
 	mcb_set_drvdata(mdev, data);
 
-	for (i = 0; i < num_ports; i++) {
-		data[i].uart.port.dev = mdev->dma_dev;
-		spin_lock_init(&data[i].uart.port.lock);
+	for (i = 0; i < data->num_ports; i++) {
+		memset(&uart, 0, sizeof(struct uart_8250_port));
+		spin_lock_init(&uart.port.lock);
 
-		data[i].uart.port.type = PORT_16550;
-		data[i].uart.port.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ
-					  | UPF_FIXED_TYPE;
-		data[i].uart.port.iotype = UPIO_MEM;
-		data[i].uart.port.uartclk = men_lookup_uartclk(mdev);
-		data[i].uart.port.regshift = 0;
-		data[i].uart.port.irq = mcb_get_irq(mdev);
-		data[i].uart.port.membase = membase;
-		data[i].uart.port.fifosize = 60;
-		data[i].uart.port.mapbase = (unsigned long) mem->start
-					    + i * MEN_UART_MEM_SIZE;
-		data[i].uart.port.iobase = data[i].uart.port.mapbase;
+		uart.port.flags = UPF_SKIP_TEST |
+				  UPF_SHARE_IRQ |
+				  UPF_BOOT_AUTOCONF |
+				  UPF_IOREMAP;
+		uart.port.iotype = UPIO_MEM;
+		uart.port.uartclk = men_lookup_uartclk(mdev);
+		uart.port.irq = mcb_get_irq(mdev);
+		uart.port.mapbase = (unsigned long) mem->start
+					    + data->offset[i];
 
 		/* ok, register the port */
-		data[i].line = serial8250_register_8250_port(&data[i].uart);
-		if (data[i].line < 0) {
+		res = serial8250_register_8250_port(&uart);
+		if (res < 0) {
 			dev_err(&mdev->dev, "unable to register UART port\n");
-			return data[i].line;
+			return res;
 		}
-		dev_info(&mdev->dev, "found MCB UART: ttyS%d\n", data[i].line);
+
+		data->line[i] = res;
+		dev_info(&mdev->dev, "found MCB UART: ttyS%d\n", data->line[i]);
 	}
 
 	return 0;
@@ -132,20 +237,14 @@ static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 
 static void serial_8250_men_mcb_remove(struct mcb_device *mdev)
 {
-	int num_ports, i;
+	int i;
 	struct serial_8250_men_mcb_data *data = mcb_get_drvdata(mdev);
 
 	if (!data)
 		return;
 
-	num_ports = get_num_ports(mdev, data[0].uart.port.membase);
-	if (num_ports <= 0 || num_ports > 4) {
-		dev_err(&mdev->dev, "error retrieving number of ports!\n");
-		return;
-	}
-
-	for (i = 0; i < num_ports; i++)
-		serial8250_unregister_port(data[i].line);
+	for (i = 0; i < data->num_ports; i++)
+		serial8250_unregister_port(data->line[i]);
 }
 
 static const struct mcb_device_id serial_8250_men_mcb_ids[] = {
@@ -159,7 +258,6 @@ MODULE_DEVICE_TABLE(mcb, serial_8250_men_mcb_ids);
 static struct mcb_driver mcb_driver = {
 	.driver = {
 		.name = "8250_men_mcb",
-		.owner = THIS_MODULE,
 	},
 	.probe = serial_8250_men_mcb_probe,
 	.remove = serial_8250_men_mcb_remove,

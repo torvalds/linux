@@ -541,7 +541,7 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 		clk = "AIF2CLK";
 	else
 		clk = "AIF1CLK";
-	return !strcmp(source->name, clk);
+	return !snd_soc_dapm_widget_name_cmp(source, clk);
 }
 
 static int wm8995_put_class_w(struct snd_kcontrol *kcontrol,
@@ -2193,7 +2193,7 @@ static const struct regmap_config wm8995_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8995_reg_defaults),
 	.volatile_reg = wm8995_volatile,
 	.readable_reg = wm8995_readable,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 #if defined(CONFIG_SPI_MASTER)

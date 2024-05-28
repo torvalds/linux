@@ -136,3 +136,4 @@ static void __exit ip_vs_nq_cleanup(void)
 module_init(ip_vs_nq_init);
 module_exit(ip_vs_nq_cleanup);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ipvs never queue scheduler");

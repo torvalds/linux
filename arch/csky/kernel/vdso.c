@@ -8,25 +8,15 @@
 #include <linux/slab.h>
 
 #include <asm/page.h>
-#ifdef GENERIC_TIME_VSYSCALL
 #include <vdso/datapage.h>
-#else
-#include <asm/vdso.h>
-#endif
 
 extern char vdso_start[], vdso_end[];
 
 static unsigned int vdso_pages;
 static struct page **vdso_pagelist;
 
-/*
- * The vDSO data page.
- */
-static union {
-	struct vdso_data	data;
-	u8			page[PAGE_SIZE];
-} vdso_data_store __page_aligned_data;
-struct vdso_data *vdso_data = &vdso_data_store.data;
+static union vdso_data_store vdso_data_store __page_aligned_data;
+struct vdso_data *vdso_data = vdso_data_store.data;
 
 static int __init vdso_init(void)
 {

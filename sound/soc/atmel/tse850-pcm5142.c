@@ -38,7 +38,6 @@
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 
@@ -430,7 +429,7 @@ MODULE_DEVICE_TABLE(of, tse850_dt_ids);
 static struct platform_driver tse850_driver = {
 	.driver = {
 		.name = "axentia-tse850-pcm5142",
-		.of_match_table = of_match_ptr(tse850_dt_ids),
+		.of_match_table = tse850_dt_ids,
 	},
 	.probe = tse850_probe,
 	.remove_new = tse850_remove,

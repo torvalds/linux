@@ -174,12 +174,6 @@ static int img_prl_out_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static const struct snd_soc_dai_ops img_prl_out_dai_ops = {
-	.trigger = img_prl_out_trigger,
-	.hw_params = img_prl_out_hw_params,
-	.set_fmt = img_prl_out_set_fmt
-};
-
 static int img_prl_out_dai_probe(struct snd_soc_dai *dai)
 {
 	struct img_prl_out *prl = snd_soc_dai_get_drvdata(dai);
@@ -189,8 +183,14 @@ static int img_prl_out_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops img_prl_out_dai_ops = {
+	.probe		= img_prl_out_dai_probe,
+	.trigger	= img_prl_out_trigger,
+	.hw_params	= img_prl_out_hw_params,
+	.set_fmt	= img_prl_out_set_fmt
+};
+
 static struct snd_soc_dai_driver img_prl_out_dai = {
-	.probe = img_prl_out_dai_probe,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,

@@ -7,9 +7,12 @@
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/err.h>
+#include <linux/time64.h>
 
 struct user_namespace;
 extern struct user_namespace init_user_ns;
+
+struct vm_area_struct;
 
 struct timens_offsets {
 	struct timespec64 monotonic;

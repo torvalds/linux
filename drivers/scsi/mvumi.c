@@ -1500,7 +1500,7 @@ static void mvumi_rescan_devices(struct mvumi_hba *mhba, int id)
 
 	sdev = scsi_device_lookup(mhba->shost, 0, id, 0);
 	if (sdev) {
-		scsi_rescan_device(&sdev->sdev_gendev);
+		scsi_rescan_device(sdev);
 		scsi_device_put(sdev);
 	}
 }
@@ -2490,7 +2490,7 @@ static int mvumi_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mhba->pdev = pdev;
 	mhba->shost = host;
-	mhba->unique_id = pdev->bus->number << 8 | pdev->devfn;
+	mhba->unique_id = pci_dev_id(pdev);
 
 	ret = mvumi_init_fw(mhba);
 	if (ret)

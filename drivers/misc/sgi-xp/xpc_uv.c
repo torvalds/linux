@@ -24,33 +24,11 @@
 #include <linux/slab.h>
 #include <linux/numa.h>
 #include <asm/uv/uv_hub.h>
-#if defined CONFIG_X86_64
 #include <asm/uv/bios.h>
 #include <asm/uv/uv_irq.h>
-#elif defined CONFIG_IA64_SGI_UV
-#include <asm/sn/intr.h>
-#include <asm/sn/sn_sal.h>
-#endif
 #include "../sgi-gru/gru.h"
 #include "../sgi-gru/grukservices.h"
 #include "xpc.h"
-
-#if defined CONFIG_IA64_SGI_UV
-struct uv_IO_APIC_route_entry {
-	__u64	vector		:  8,
-		delivery_mode	:  3,
-		dest_mode	:  1,
-		delivery_status	:  1,
-		polarity	:  1,
-		__reserved_1	:  1,
-		trigger		:  1,
-		mask		:  1,
-		__reserved_2	: 15,
-		dest		: 32;
-};
-
-#define sn_partition_id 0
-#endif
 
 static struct xpc_heartbeat_uv *xpc_heartbeat_uv;
 
@@ -113,7 +91,6 @@ xpc_get_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq, int cpu, char *irq_name)
 {
 	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
 
-#if defined CONFIG_X86_64
 	mq->irq = uv_setup_irq(irq_name, cpu, mq->mmr_blade, mq->mmr_offset,
 			UV_AFFINITY_CPU);
 	if (mq->irq < 0)
@@ -121,40 +98,13 @@ xpc_get_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq, int cpu, char *irq_name)
 
 	mq->mmr_value = uv_read_global_mmr64(mmr_pnode, mq->mmr_offset);
 
-#elif defined CONFIG_IA64_SGI_UV
-	if (strcmp(irq_name, XPC_ACTIVATE_IRQ_NAME) == 0)
-		mq->irq = SGI_XPC_ACTIVATE;
-	else if (strcmp(irq_name, XPC_NOTIFY_IRQ_NAME) == 0)
-		mq->irq = SGI_XPC_NOTIFY;
-	else
-		return -EINVAL;
-
-	mq->mmr_value = (unsigned long)cpu_physical_id(cpu) << 32 | mq->irq;
-	uv_write_global_mmr64(mmr_pnode, mq->mmr_offset, mq->mmr_value);
-#else
-	#error not a supported configuration
-#endif
-
 	return 0;
 }
 
 static void
 xpc_release_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq)
 {
-#if defined CONFIG_X86_64
 	uv_teardown_irq(mq->irq);
-
-#elif defined CONFIG_IA64_SGI_UV
-	int mmr_pnode;
-	unsigned long mmr_value;
-
-	mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
-	mmr_value = 1UL << 16;
-
-	uv_write_global_mmr64(mmr_pnode, mq->mmr_offset, mmr_value);
-#else
-	#error not a supported configuration
-#endif
 }
 
 static int
@@ -162,17 +112,6 @@ xpc_gru_mq_watchlist_alloc_uv(struct xpc_gru_mq_uv *mq)
 {
 	int ret;
 
-#if defined CONFIG_IA64_SGI_UV
-	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
-
-	ret = sn_mq_watchlist_alloc(mmr_pnode, (void *)uv_gpa(mq->address),
-				    mq->order, &mq->mmr_offset);
-	if (ret < 0) {
-		dev_err(xpc_part, "sn_mq_watchlist_alloc() failed, ret=%d\n",
-			ret);
-		return -EBUSY;
-	}
-#elif defined CONFIG_X86_64
 	ret = uv_bios_mq_watchlist_alloc(uv_gpa(mq->address),
 					 mq->order, &mq->mmr_offset);
 	if (ret < 0) {
@@ -180,9 +119,6 @@ xpc_gru_mq_watchlist_alloc_uv(struct xpc_gru_mq_uv *mq)
 			"ret=%d\n", ret);
 		return ret;
 	}
-#else
-	#error not a supported configuration
-#endif
 
 	mq->watchlist_num = ret;
 	return 0;
@@ -194,15 +130,8 @@ xpc_gru_mq_watchlist_free_uv(struct xpc_gru_mq_uv *mq)
 	int ret;
 	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
 
-#if defined CONFIG_X86_64
 	ret = uv_bios_mq_watchlist_free(mmr_pnode, mq->watchlist_num);
 	BUG_ON(ret != BIOS_STATUS_SUCCESS);
-#elif defined CONFIG_IA64_SGI_UV
-	ret = sn_mq_watchlist_free(mmr_pnode, mq->watchlist_num);
-	BUG_ON(ret != SALRET_OK);
-#else
-	#error not a supported configuration
-#endif
 }
 
 static struct xpc_gru_mq_uv *
@@ -786,7 +715,6 @@ xpc_get_partition_rsvd_page_pa_uv(void *buf, u64 *cookie, unsigned long *rp_pa,
 	s64 status;
 	enum xp_retval ret;
 
-#if defined CONFIG_X86_64
 	status = uv_bios_reserved_page_pa((u64)buf, cookie, (u64 *)rp_pa,
 					  (u64 *)len);
 	if (status == BIOS_STATUS_SUCCESS)
@@ -795,19 +723,6 @@ xpc_get_partition_rsvd_page_pa_uv(void *buf, u64 *cookie, unsigned long *rp_pa,
 		ret = xpNeedMoreInfo;
 	else
 		ret = xpBiosError;
-
-#elif defined CONFIG_IA64_SGI_UV
-	status = sn_partition_reserved_page_pa((u64)buf, cookie, rp_pa, len);
-	if (status == SALRET_OK)
-		ret = xpSuccess;
-	else if (status == SALRET_MORE_PASSES)
-		ret = xpNeedMoreInfo;
-	else
-		ret = xpSalError;
-
-#else
-	#error not a supported configuration
-#endif
 
 	return ret;
 }

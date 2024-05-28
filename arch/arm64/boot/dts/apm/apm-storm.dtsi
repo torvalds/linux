@@ -946,7 +946,7 @@
 			dr_mode = "host";
 		};
 
-		sbgpio: gpio@17001000{
+		sbgpio: gpio@17001000 {
 			compatible = "apm,xgene-gpio-sb";
 			reg = <0x0 0x17001000 0x0 0x400>;
 			#gpio-cells = <2>;

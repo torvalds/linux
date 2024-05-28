@@ -72,9 +72,9 @@ struct intel_uncore_type {
 	unsigned single_fixed:1;
 	unsigned pair_ctr_ctl:1;
 	union {
-		unsigned *msr_offsets;
-		unsigned *pci_offsets;
-		unsigned *mmio_offsets;
+		u64 *msr_offsets;
+		u64 *pci_offsets;
+		u64 *mmio_offsets;
 	};
 	unsigned *box_ids;
 	struct event_constraint unconstrainted;
@@ -593,6 +593,7 @@ extern struct list_head pci2phy_map_head;
 extern struct pci_extra_dev *uncore_extra_pci_dev;
 extern struct event_constraint uncore_constraint_empty;
 extern int spr_uncore_units_ignore[];
+extern int gnr_uncore_units_ignore[];
 
 /* uncore_snb.c */
 int snb_uncore_pci_init(void);
@@ -634,6 +635,9 @@ void icx_uncore_mmio_init(void);
 int spr_uncore_pci_init(void);
 void spr_uncore_cpu_init(void);
 void spr_uncore_mmio_init(void);
+int gnr_uncore_pci_init(void);
+void gnr_uncore_cpu_init(void);
+void gnr_uncore_mmio_init(void);
 
 /* uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);

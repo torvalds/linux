@@ -14,15 +14,42 @@ static unsigned int record_size = 1024;
 module_param(record_size, uint, 0444);
 MODULE_PARM_DESC(record_size, "size of each pstore UEFI var (in bytes, min/default=1024)");
 
-static bool efivars_pstore_disable =
-	IS_ENABLED(CONFIG_EFI_VARS_PSTORE_DEFAULT_DISABLE);
-
-module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
-
 #define PSTORE_EFI_ATTRIBUTES \
 	(EFI_VARIABLE_NON_VOLATILE | \
 	 EFI_VARIABLE_BOOTSERVICE_ACCESS | \
 	 EFI_VARIABLE_RUNTIME_ACCESS)
+
+static bool pstore_disable = IS_ENABLED(CONFIG_EFI_VARS_PSTORE_DEFAULT_DISABLE);
+
+static int efivars_pstore_init(void);
+static void efivars_pstore_exit(void);
+
+static int efi_pstore_disable_set(const char *val, const struct kernel_param *kp)
+{
+	int err;
+	bool old_pstore_disable = pstore_disable;
+
+	err = param_set_bool(val, kp);
+	if (err)
+		return err;
+
+	if (old_pstore_disable != pstore_disable) {
+		if (pstore_disable)
+			efivars_pstore_exit();
+		else
+			efivars_pstore_init();
+	}
+
+	return 0;
+}
+
+static const struct kernel_param_ops pstore_disable_ops = {
+	.set	= efi_pstore_disable_set,
+	.get	= param_get_bool,
+};
+
+module_param_cb(pstore_disable, &pstore_disable_ops, &pstore_disable, 0644);
+__MODULE_PARM_TYPE(pstore_disable, "bool");
 
 static int efi_pstore_open(struct pstore_info *psi)
 {
@@ -218,12 +245,12 @@ static struct pstore_info efi_pstore_info = {
 	.erase		= efi_pstore_erase,
 };
 
-static __init int efivars_pstore_init(void)
+static int efivars_pstore_init(void)
 {
 	if (!efivar_supports_writes())
 		return 0;
 
-	if (efivars_pstore_disable)
+	if (pstore_disable)
 		return 0;
 
 	/*
@@ -250,7 +277,7 @@ static __init int efivars_pstore_init(void)
 	return 0;
 }
 
-static __exit void efivars_pstore_exit(void)
+static void efivars_pstore_exit(void)
 {
 	if (!efi_pstore_info.bufsize)
 		return;

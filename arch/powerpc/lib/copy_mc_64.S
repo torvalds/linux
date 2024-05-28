@@ -4,9 +4,9 @@
  * Derived from copyuser_power7.s by Anton Blanchard <anton@au.ibm.com>
  * Author - Balbir Singh <bsingharora@gmail.com>
  */
+#include <linux/export.h>
 #include <asm/ppc_asm.h>
 #include <asm/errno.h>
-#include <asm/export.h>
 
 	.macro err1
 100:

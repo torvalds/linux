@@ -95,7 +95,7 @@ static int acp5x_i2s_hwparams(struct snd_pcm_substream *substream,
 
 	lrclk_div_val = 0;
 	bclk_div_val = 0;
-	prtd = asoc_substream_to_rtd(substream);
+	prtd = snd_soc_substream_to_rtd(substream);
 	rtd = substream->runtime->private_data;
 	card = prtd->card;
 	adata = snd_soc_dai_get_drvdata(dai);

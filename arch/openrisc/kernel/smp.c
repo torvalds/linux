@@ -23,6 +23,8 @@
 #include <asm/cacheflush.h>
 #include <asm/time.h>
 
+asmlinkage __init void secondary_start_kernel(void);
+
 static void (*smp_cross_call)(const struct cpumask *, unsigned int);
 
 unsigned long secondary_release = -1;
@@ -53,10 +55,6 @@ static void boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * calibrations, then wait for it to finish
 	 */
 	spin_unlock(&boot_lock);
-}
-
-void __init smp_prepare_boot_cpu(void)
-{
 }
 
 void __init smp_init_cpus(void)

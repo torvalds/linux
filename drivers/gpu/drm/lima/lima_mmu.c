@@ -22,7 +22,8 @@
 				  cond, 0, 100);	     \
 	if (__ret)					     \
 		dev_err(dev->dev,			     \
-			"mmu command %x timeout\n", cmd);    \
+			"%s command %x timeout\n",           \
+			lima_ip_name(ip), cmd);              \
 	__ret;						     \
 })
 
@@ -40,14 +41,13 @@ static irqreturn_t lima_mmu_irq_handler(int irq, void *data)
 	if (status & LIMA_MMU_INT_PAGE_FAULT) {
 		u32 fault = mmu_read(LIMA_MMU_PAGE_FAULT_ADDR);
 
-		dev_err(dev->dev, "mmu page fault at 0x%x from bus id %d of type %s on %s\n",
-			fault, LIMA_MMU_STATUS_BUS_ID(status),
-			status & LIMA_MMU_STATUS_PAGE_FAULT_IS_WRITE ? "write" : "read",
-			lima_ip_name(ip));
+		dev_err(dev->dev, "%s page fault at 0x%x from bus id %d of type %s\n",
+			lima_ip_name(ip), fault, LIMA_MMU_STATUS_BUS_ID(status),
+			status & LIMA_MMU_STATUS_PAGE_FAULT_IS_WRITE ? "write" : "read");
 	}
 
 	if (status & LIMA_MMU_INT_READ_BUS_ERROR)
-		dev_err(dev->dev, "mmu %s irq bus error\n", lima_ip_name(ip));
+		dev_err(dev->dev, "%s irq bus error\n", lima_ip_name(ip));
 
 	/* mask all interrupts before resume */
 	mmu_write(LIMA_MMU_INT_MASK, 0);
@@ -102,14 +102,14 @@ int lima_mmu_init(struct lima_ip *ip)
 
 	mmu_write(LIMA_MMU_DTE_ADDR, 0xCAFEBABE);
 	if (mmu_read(LIMA_MMU_DTE_ADDR) != 0xCAFEB000) {
-		dev_err(dev->dev, "mmu %s dte write test fail\n", lima_ip_name(ip));
+		dev_err(dev->dev, "%s dte write test fail\n", lima_ip_name(ip));
 		return -EIO;
 	}
 
 	err = devm_request_irq(dev->dev, ip->irq, lima_mmu_irq_handler,
 			       IRQF_SHARED, lima_ip_name(ip), ip);
 	if (err) {
-		dev_err(dev->dev, "mmu %s fail to request irq\n", lima_ip_name(ip));
+		dev_err(dev->dev, "%s fail to request irq\n", lima_ip_name(ip));
 		return err;
 	}
 
@@ -152,7 +152,7 @@ void lima_mmu_page_fault_resume(struct lima_ip *ip)
 	u32 v;
 
 	if (status & LIMA_MMU_STATUS_PAGE_FAULT_ACTIVE) {
-		dev_info(dev->dev, "mmu resume\n");
+		dev_info(dev->dev, "%s resume\n", lima_ip_name(ip));
 
 		mmu_write(LIMA_MMU_INT_MASK, 0);
 		mmu_write(LIMA_MMU_DTE_ADDR, 0xCAFEBABE);

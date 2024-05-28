@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <asm/alternative.h>
 #include <asm/inst.h>
+#include <asm/unwind.h>
 
 static int rela_stack_push(s64 stack_value, s64 *rela_stack, size_t *rela_stack_top)
 {
@@ -367,6 +368,24 @@ static int apply_r_larch_got_pc(struct module *mod,
 	return apply_r_larch_pcala(mod, location, got, rela_stack, rela_stack_top, type);
 }
 
+static int apply_r_larch_32_pcrel(struct module *mod, u32 *location, Elf_Addr v,
+				  s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+{
+	ptrdiff_t offset = (void *)v - (void *)location;
+
+	*(u32 *)location = offset;
+	return 0;
+}
+
+static int apply_r_larch_64_pcrel(struct module *mod, u32 *location, Elf_Addr v,
+				  s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+{
+	ptrdiff_t offset = (void *)v - (void *)location;
+
+	*(u64 *)location = offset;
+	return 0;
+}
+
 /*
  * reloc_handlers_rela() - Apply a particular relocation to a module
  * @mod: the module to apply the reloc to
@@ -382,7 +401,7 @@ typedef int (*reloc_rela_handler)(struct module *mod, u32 *location, Elf_Addr v,
 
 /* The handlers for known reloc types */
 static reloc_rela_handler reloc_rela_handlers[] = {
-	[R_LARCH_NONE ... R_LARCH_RELAX]		     = apply_r_larch_error,
+	[R_LARCH_NONE ... R_LARCH_64_PCREL]		     = apply_r_larch_error,
 
 	[R_LARCH_NONE]					     = apply_r_larch_none,
 	[R_LARCH_32]					     = apply_r_larch_32,
@@ -396,6 +415,8 @@ static reloc_rela_handler reloc_rela_handlers[] = {
 	[R_LARCH_SOP_POP_32_S_10_5 ... R_LARCH_SOP_POP_32_U] = apply_r_larch_sop_imm_field,
 	[R_LARCH_ADD32 ... R_LARCH_SUB64]		     = apply_r_larch_add_sub,
 	[R_LARCH_PCALA_HI20...R_LARCH_PCALA64_HI12]	     = apply_r_larch_pcala,
+	[R_LARCH_32_PCREL]				     = apply_r_larch_32_pcrel,
+	[R_LARCH_64_PCREL]				     = apply_r_larch_64_pcrel,
 };
 
 int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
@@ -495,15 +516,28 @@ static void module_init_ftrace_plt(const Elf_Ehdr *hdr,
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs, struct module *mod)
 {
-	const Elf_Shdr *s, *se;
 	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+	const Elf_Shdr *s, *alt = NULL, *orc = NULL, *orc_ip = NULL, *ftrace = NULL;
 
-	for (s = sechdrs, se = sechdrs + hdr->e_shnum; s < se; s++) {
+	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
 		if (!strcmp(".altinstructions", secstrs + s->sh_name))
-			apply_alternatives((void *)s->sh_addr, (void *)s->sh_addr + s->sh_size);
+			alt = s;
+		if (!strcmp(".orc_unwind", secstrs + s->sh_name))
+			orc = s;
+		if (!strcmp(".orc_unwind_ip", secstrs + s->sh_name))
+			orc_ip = s;
 		if (!strcmp(".ftrace_trampoline", secstrs + s->sh_name))
-			module_init_ftrace_plt(hdr, s, mod);
+			ftrace = s;
 	}
+
+	if (alt)
+		apply_alternatives((void *)alt->sh_addr, (void *)alt->sh_addr + alt->sh_size);
+
+	if (orc && orc_ip)
+		unwind_module_init(mod, (void *)orc_ip->sh_addr, orc_ip->sh_size, (void *)orc->sh_addr, orc->sh_size);
+
+	if (ftrace)
+		module_init_ftrace_plt(hdr, ftrace, mod);
 
 	return 0;
 }

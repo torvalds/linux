@@ -7,9 +7,6 @@ extern unsigned int memory_caching_control;
 #define CACHE_MTRR 0x01
 #define CACHE_PAT  0x02
 
-void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu);
-void cacheinfo_hygon_init_llc_id(struct cpuinfo_x86 *c, int cpu);
-
 void cache_disable(void);
 void cache_enable(void);
 void set_cache_aps_delayed_init(bool val);

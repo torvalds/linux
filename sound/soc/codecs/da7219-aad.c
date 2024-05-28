@@ -59,9 +59,6 @@ static void da7219_aad_btn_det_work(struct work_struct *work)
 	bool micbias_up = false;
 	int retries = 0;
 
-	/* Disable ground switch */
-	snd_soc_component_update_bits(component, 0xFB, 0x01, 0x00);
-
 	/* Drive headphones/lineout */
 	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
 			    DA7219_HP_L_AMP_OE_MASK,
@@ -154,9 +151,6 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	} else {
 		tonegen_freq_hptest = cpu_to_le16(DA7219_AAD_HPTEST_RAMP_FREQ_INT_OSC);
 	}
-
-	/* Disable ground switch */
-	snd_soc_component_update_bits(component, 0xFB, 0x01, 0x00);
 
 	/* Ensure gain ramping at fastest rate */
 	gain_ramp_ctrl = snd_soc_component_read(component, DA7219_GAIN_RAMP_CTRL);
@@ -421,6 +415,11 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 			 * handle a removal, and we can check at the end of
 			 * hptest if we have a valid result or not.
 			 */
+
+			cancel_delayed_work_sync(&da7219_aad->jack_det_work);
+			/* Disable ground switch */
+			snd_soc_component_update_bits(component, 0xFB, 0x01, 0x00);
+
 			if (statusa & DA7219_JACK_TYPE_STS_MASK) {
 				report |= SND_JACK_HEADSET;
 				mask |=	SND_JACK_HEADSET | SND_JACK_LINEOUT;
@@ -672,8 +671,10 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct device *dev)
 		return NULL;
 
 	aad_pdata = devm_kzalloc(dev, sizeof(*aad_pdata), GFP_KERNEL);
-	if (!aad_pdata)
+	if (!aad_pdata) {
+		fwnode_handle_put(aad_np);
 		return NULL;
+	}
 
 	aad_pdata->irq = i2c->irq;
 
@@ -697,7 +698,7 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct device *dev)
 		aad_pdata->mic_det_thr =
 			da7219_aad_fw_mic_det_thr(dev, fw_val32);
 	else
-		aad_pdata->mic_det_thr = DA7219_AAD_MIC_DET_THR_500_OHMS;
+		aad_pdata->mic_det_thr = DA7219_AAD_MIC_DET_THR_200_OHMS;
 
 	if (fwnode_property_read_u32(aad_np, "dlg,jack-ins-deb", &fw_val32) >= 0)
 		aad_pdata->jack_ins_deb =
@@ -753,6 +754,8 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct device *dev)
 			da7219_aad_fw_adc_1bit_rpt(dev, fw_val32);
 	else
 		aad_pdata->adc_1bit_rpt = DA7219_AAD_ADC_1BIT_RPT_1;
+
+	fwnode_handle_put(aad_np);
 
 	return aad_pdata;
 }
@@ -928,10 +931,15 @@ void da7219_aad_suspend(struct snd_soc_component *component)
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	u8 micbias_ctrl;
 
+	disable_irq(da7219_aad->irq);
+
 	if (da7219_aad->jack) {
 		/* Disable jack detection during suspend */
 		snd_soc_component_update_bits(component, DA7219_ACCDET_CONFIG_1,
 				    DA7219_ACCDET_EN_MASK, 0);
+		cancel_delayed_work_sync(&da7219_aad->jack_det_work);
+		/* Disable ground switch */
+		snd_soc_component_update_bits(component, 0xFB, 0x01, 0x00);
 
 		/*
 		 * If we have a 4-pole jack inserted, then micbias will be
@@ -948,8 +956,6 @@ void da7219_aad_suspend(struct snd_soc_component *component)
 			}
 		}
 	}
-
-	synchronize_irq(da7219_aad->irq);
 }
 
 void da7219_aad_resume(struct snd_soc_component *component)
@@ -972,6 +978,8 @@ void da7219_aad_resume(struct snd_soc_component *component)
 				    DA7219_ACCDET_EN_MASK,
 				    DA7219_ACCDET_EN_MASK);
 	}
+
+	enable_irq(da7219_aad->irq);
 }
 
 

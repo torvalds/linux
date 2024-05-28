@@ -51,10 +51,9 @@ static int pause_parse_request(struct ethnl_req_info *req_base,
 
 static int pause_prepare_data(const struct ethnl_req_info *req_base,
 			      struct ethnl_reply_data *reply_base,
-			      struct genl_info *info)
+			      const struct genl_info *info)
 {
 	const struct pause_req_info *req_info = PAUSE_REQINFO(req_base);
-	struct netlink_ext_ack *extack = info ? info->extack : NULL;
 	struct pause_reply_data *data = PAUSE_REPDATA(reply_base);
 	enum ethtool_mac_stats_src src = req_info->src;
 	struct net_device *dev = reply_base->dev;
@@ -74,7 +73,7 @@ static int pause_prepare_data(const struct ethnl_req_info *req_base,
 	if ((src == ETHTOOL_MAC_STATS_SRC_EMAC ||
 	     src == ETHTOOL_MAC_STATS_SRC_PMAC) &&
 	    !__ethtool_dev_mm_supported(dev)) {
-		NL_SET_ERR_MSG_MOD(extack,
+		NL_SET_ERR_MSG_MOD(info->extack,
 				   "Device does not support MAC merge layer");
 		ethnl_ops_complete(dev);
 		return -EOPNOTSUPP;

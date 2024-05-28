@@ -22,11 +22,11 @@
 #include <linux/hardirq.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/sizes.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/component.h>
 #include <linux/sys_soc.h>
 #include <drm/drm_fourcc.h>
@@ -4765,7 +4765,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	if (soc)
 		dispc->feat = soc->data;
 	else
-		dispc->feat = of_match_device(dispc_of_match, &pdev->dev)->data;
+		dispc->feat = device_get_match_data(&pdev->dev);
 
 	r = dispc_errata_i734_wa_init(dispc);
 	if (r)
@@ -4858,10 +4858,9 @@ static int dispc_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &dispc_component_ops);
 }
 
-static int dispc_remove(struct platform_device *pdev)
+static void dispc_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &dispc_component_ops);
-	return 0;
 }
 
 static __maybe_unused int dispc_runtime_suspend(struct device *dev)
@@ -4913,7 +4912,7 @@ static const struct dev_pm_ops dispc_pm_ops = {
 
 struct platform_driver omap_dispchw_driver = {
 	.probe		= dispc_probe,
-	.remove         = dispc_remove,
+	.remove_new     = dispc_remove,
 	.driver         = {
 		.name   = "omapdss_dispc",
 		.pm	= &dispc_pm_ops,

@@ -197,7 +197,6 @@
 
 &sdmmc0 {
 	bus-width = <4>;
-	mmc-ddr-3_3v;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdmmc0_default>;
 	status = "okay";

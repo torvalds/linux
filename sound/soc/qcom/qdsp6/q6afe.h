@@ -3,8 +3,6 @@
 #ifndef __Q6AFE_H__
 #define __Q6AFE_H__
 
-#include <dt-bindings/sound/qcom,q6afe.h>
-
 #define AFE_PORT_MAX		129
 
 #define MSM_AFE_PORT_TYPE_RX 0

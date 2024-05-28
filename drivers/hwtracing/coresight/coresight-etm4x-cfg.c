@@ -40,7 +40,7 @@
  * Invalid offsets will result in fail code return and feature load failure.
  *
  * @drvdata:	driver data to map into.
- * @reg:	register to map.
+ * @reg_csdev:	register to map.
  * @offset:	device offset for the register
  */
 static int etm4_cfg_map_reg_offset(struct etmv4_drvdata *drvdata,
@@ -132,7 +132,7 @@ static int etm4_cfg_map_reg_offset(struct etmv4_drvdata *drvdata,
  * etm4_cfg_load_feature - load a feature into a device instance.
  *
  * @csdev:	An ETMv4 CoreSight device.
- * @feat:	The feature to be loaded.
+ * @feat_csdev:	The feature to be loaded.
  *
  * The function will load a feature instance into the device, checking that
  * the register definitions are valid for the device.

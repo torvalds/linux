@@ -799,7 +799,7 @@ static struct platform_driver ipq9574_pinctrl_driver = {
 		.of_match_table = ipq9574_pinctrl_of_match,
 	},
 	.probe = ipq9574_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init ipq9574_pinctrl_init(void)

@@ -14,7 +14,7 @@
 #include <linux/mfd/rohm-bd718x7.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 
@@ -87,7 +87,7 @@ static const struct regmap_config bd718xx_regmap_config = {
 	.val_bits = 8,
 	.volatile_table = &volatile_regs,
 	.max_register = BD718XX_MAX_REGISTER - 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int bd718xx_init_press_duration(struct regmap *regmap,

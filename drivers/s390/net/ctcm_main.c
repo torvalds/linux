@@ -200,13 +200,13 @@ static void channel_free(struct channel *ch)
 static void channel_remove(struct channel *ch)
 {
 	struct channel **c = &channels;
-	char chid[CTCM_ID_SIZE+1];
+	char chid[CTCM_ID_SIZE];
 	int ok = 0;
 
 	if (ch == NULL)
 		return;
 	else
-		strncpy(chid, ch->id, CTCM_ID_SIZE);
+		strscpy(chid, ch->id, sizeof(chid));
 
 	channel_free(ch);
 	while (*c) {
@@ -1389,7 +1389,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 		ch->ccw[15].cmd_code = CCW_CMD_WRITE;
 		ch->ccw[15].flags    = CCW_FLAG_SLI | CCW_FLAG_CC;
 		ch->ccw[15].count    = TH_HEADER_LENGTH;
-		ch->ccw[15].cda      = virt_to_phys(ch->discontact_th);
+		ch->ccw[15].cda      = virt_to_dma32(ch->discontact_th);
 
 		ch->ccw[16].cmd_code = CCW_CMD_NOOP;
 		ch->ccw[16].flags    = CCW_FLAG_SLI;

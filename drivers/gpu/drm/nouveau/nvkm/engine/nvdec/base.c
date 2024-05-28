@@ -33,6 +33,7 @@ nvkm_nvdec_dtor(struct nvkm_engine *engine)
 static const struct nvkm_engine_func
 nvkm_nvdec = {
 	.dtor = nvkm_nvdec_dtor,
+	.sclass = { {} },
 };
 
 int
@@ -58,4 +59,4 @@ nvkm_nvdec_new_(const struct nvkm_nvdec_fwif *fwif, struct nvkm_device *device,
 
 	return nvkm_falcon_ctor(nvdec->func->flcn, &nvdec->engine.subdev,
 				nvdec->engine.subdev.name, addr, &nvdec->falcon);
-};
+}

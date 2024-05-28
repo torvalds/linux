@@ -8,6 +8,7 @@
 
 #include <linux/rcupdate.h>
 #include <linux/completion.h>
+#include <linux/sched.h>
 
 /*
  * Structure allowing asynchronous waiting on RCU.
@@ -42,6 +43,11 @@ do {									\
  * call_srcu() function, with this wrapper supplying the pointer to the
  * corresponding srcu_struct.
  *
+ * Note that call_rcu_hurry() should be used instead of call_rcu()
+ * because in kernels built with CONFIG_RCU_LAZY=y the delay between the
+ * invocation of call_rcu() and that of the corresponding RCU callback
+ * can be multiple seconds.
+ *
  * The first argument tells Tiny RCU's _wait_rcu_gp() not to
  * bother waiting for RCU.  The reason for this is because anywhere
  * synchronize_rcu_mult() can be called is automatically already a full
@@ -49,5 +55,14 @@ do {									\
  */
 #define synchronize_rcu_mult(...) \
 	_wait_rcu_gp(IS_ENABLED(CONFIG_TINY_RCU), __VA_ARGS__)
+
+static inline void cond_resched_rcu(void)
+{
+#if defined(CONFIG_DEBUG_ATOMIC_SLEEP) || !defined(CONFIG_PREEMPT_RCU)
+	rcu_read_unlock();
+	cond_resched();
+	rcu_read_lock();
+#endif
+}
 
 #endif /* _LINUX_SCHED_RCUPDATE_WAIT_H */

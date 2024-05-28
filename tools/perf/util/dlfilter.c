@@ -10,6 +10,8 @@
 #include <subcmd/exec-cmd.h>
 #include <linux/zalloc.h>
 #include <linux/build_bug.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 
 #include "debug.h"
 #include "event.h"
@@ -50,8 +52,10 @@ static void al_to_d_al(struct addr_location *al, struct perf_dlfilter_al *d_al)
 		d_al->sym_end = sym->end;
 		if (al->addr < sym->end)
 			d_al->symoff = al->addr - sym->start;
-		else
+		else if (al->map)
 			d_al->symoff = al->addr - map__start(al->map) - sym->start;
+		else
+			d_al->symoff = 0;
 		d_al->sym_binding = sym->binding;
 	} else {
 		d_al->sym = NULL;
@@ -63,6 +67,7 @@ static void al_to_d_al(struct addr_location *al, struct perf_dlfilter_al *d_al)
 	d_al->addr = al->addr;
 	d_al->comm = NULL;
 	d_al->filtered = 0;
+	d_al->priv = NULL;
 }
 
 static struct addr_location *get_al(struct dlfilter *d)
@@ -151,6 +156,11 @@ static char **dlfilter__args(void *ctx, int *dlargc)
 	return d->dlargv;
 }
 
+static bool has_priv(struct perf_dlfilter_al *d_al_p)
+{
+	return d_al_p->size >= offsetof(struct perf_dlfilter_al, priv) + sizeof(d_al_p->priv);
+}
+
 static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlfilter_al *d_al_p)
 {
 	struct dlfilter *d = (struct dlfilter *)ctx;
@@ -166,6 +176,7 @@ static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlf
 	if (!thread)
 		return -1;
 
+	addr_location__init(&al);
 	thread__find_symbol_fb(thread, d->sample->cpumode, address, &al);
 
 	al_to_d_al(&al, &d_al);
@@ -176,7 +187,29 @@ static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlf
 	memcpy(d_al_p, &d_al, min((size_t)sz, sizeof(d_al)));
 	d_al_p->size = sz;
 
+	if (has_priv(d_al_p))
+		d_al_p->priv = memdup(&al, sizeof(al));
+	else /* Avoid leak for v0 API */
+		addr_location__exit(&al);
+
 	return 0;
+}
+
+static void dlfilter__al_cleanup(void *ctx __maybe_unused, struct perf_dlfilter_al *d_al_p)
+{
+	struct addr_location *al;
+
+	/* Ensure backward compatibility */
+	if (!has_priv(d_al_p) || !d_al_p->priv)
+		return;
+
+	al = d_al_p->priv;
+
+	d_al_p->priv = NULL;
+
+	addr_location__exit(al);
+
+	free(al);
 }
 
 static const __u8 *dlfilter__insn(void *ctx, __u32 *len)
@@ -251,13 +284,21 @@ static struct perf_event_attr *dlfilter__attr(void *ctx)
 	return &d->evsel->core.attr;
 }
 
+static __s32 code_read(__u64 ip, struct map *map, struct machine *machine, void *buf, __u32 len)
+{
+	u64 offset = map__map_ip(map, ip);
+
+	if (ip + len >= map__end(map))
+		len = map__end(map) - ip;
+
+	return dso__data_read_offset(map__dso(map), machine, offset, buf, len);
+}
+
 static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 {
 	struct dlfilter *d = (struct dlfilter *)ctx;
 	struct addr_location *al;
 	struct addr_location a;
-	struct map *map;
-	u64 offset;
 	__s32 ret;
 
 	if (!d->ctx_valid)
@@ -267,27 +308,17 @@ static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 	if (!al)
 		return -1;
 
-	map = al->map;
-
-	if (map && ip >= map__start(map) && ip < map__end(map) &&
+	if (al->map && ip >= map__start(al->map) && ip < map__end(al->map) &&
 	    machine__kernel_ip(d->machine, ip) == machine__kernel_ip(d->machine, d->sample->ip))
-		goto have_map;
+		return code_read(ip, al->map, d->machine, buf, len);
 
 	addr_location__init(&a);
-	thread__find_map_fb(al->thread, d->sample->cpumode, ip, &a);
-	if (!a.map) {
-		ret = -1;
-		goto out;
-	}
 
-	map = a.map;
-have_map:
-	offset = map__map_ip(map, ip);
-	if (ip + len >= map__end(map))
-		len = map__end(map) - ip;
-	ret = dso__data_read_offset(map__dso(map), d->machine, offset, buf, len);
-out:
+	thread__find_map_fb(al->thread, d->sample->cpumode, ip, &a);
+	ret = a.map ? code_read(ip, a.map, d->machine, buf, len) : -1;
+
 	addr_location__exit(&a);
+
 	return ret;
 }
 
@@ -296,6 +327,7 @@ static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_addr    = dlfilter__resolve_addr,
 	.args            = dlfilter__args,
 	.resolve_address = dlfilter__resolve_address,
+	.al_cleanup      = dlfilter__al_cleanup,
 	.insn            = dlfilter__insn,
 	.srcline         = dlfilter__srcline,
 	.attr            = dlfilter__attr,

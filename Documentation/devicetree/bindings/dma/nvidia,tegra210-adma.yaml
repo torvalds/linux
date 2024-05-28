@@ -53,6 +53,9 @@ properties:
       ADMA_CHn_CTRL register.
     const: 1
 
+  dma-channel-mask:
+    maxItems: 1
+
 required:
   - compatible
   - reg

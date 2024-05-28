@@ -80,16 +80,6 @@ struct hashmap {
 	size_t sz;
 };
 
-#define HASHMAP_INIT(hash_fn, equal_fn, ctx) {	\
-	.hash_fn = (hash_fn),			\
-	.equal_fn = (equal_fn),			\
-	.ctx = (ctx),				\
-	.buckets = NULL,			\
-	.cap = 0,				\
-	.cap_bits = 0,				\
-	.sz = 0,				\
-}
-
 void hashmap__init(struct hashmap *map, hashmap_hash_fn hash_fn,
 		   hashmap_equal_fn equal_fn, void *ctx);
 struct hashmap *hashmap__new(hashmap_hash_fn hash_fn,

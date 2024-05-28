@@ -34,6 +34,11 @@ struct rt_sigframe {
 	unsigned char retcode[16];	/* trampoline code */
 };
 
+asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs);
+
+asmlinkage int do_work_pending(struct pt_regs *regs, unsigned int thread_flags,
+			       int syscall);
+
 static int restore_sigcontext(struct pt_regs *regs,
 			      struct sigcontext __user *sc)
 {
@@ -224,7 +229,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
  * mode below.
  */
 
-int do_signal(struct pt_regs *regs, int syscall)
+static int do_signal(struct pt_regs *regs, int syscall)
 {
 	struct ksignal ksig;
 	unsigned long continue_addr = 0;

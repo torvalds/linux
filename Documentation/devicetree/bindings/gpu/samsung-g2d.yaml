@@ -22,36 +22,20 @@ properties:
   interrupts:
     maxItems: 1
 
-  clocks: {}
-  clock-names: {}
-  iommus: {}
-  power-domains: {}
+  clocks:
+    minItems: 1
+    maxItems: 2
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: samsung,exynos5250-g2d
+  clock-names:
+    minItems: 1
+    maxItems: 2
 
-then:
-  properties:
-    clocks:
-      items:
-        - description: fimg2d clock
-    clock-names:
-      items:
-        - const: fimg2d
+  iommus:
+    minItems: 1
+    maxItems: 2
 
-else:
-  properties:
-    clocks:
-      items:
-        - description: sclk_fimg2d clock
-        - description: fimg2d clock
-    clock-names:
-      items:
-        - const: sclk_fimg2d
-        - const: fimg2d
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
@@ -59,6 +43,33 @@ required:
   - interrupts
   - clocks
   - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5250-g2d
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: fimg2d clock
+        clock-names:
+          items:
+            - const: fimg2d
+
+    else:
+      properties:
+        clocks:
+          items:
+            - description: sclk_fimg2d clock
+            - description: fimg2d clock
+        clock-names:
+          items:
+            - const: sclk_fimg2d
+            - const: fimg2d
 
 additionalProperties: false
 

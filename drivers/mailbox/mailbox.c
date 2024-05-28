@@ -17,6 +17,7 @@
 #include <linux/bitops.h>
 #include <linux/mailbox_client.h>
 #include <linux/mailbox_controller.h>
+#include <linux/of.h>
 
 #include "mailbox.h"
 

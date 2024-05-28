@@ -208,7 +208,7 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	const struct sdma_firmware_header_v2_0 *sdma_hdr;
 	uint16_t version_major;
 	char ucode_prefix[30];
-	char fw_name[40];
+	char fw_name[52];
 
 	amdgpu_ucode_ip_version_decode(adev, SDMA0_HWIP, ucode_prefix, sizeof(ucode_prefix));
 	if (instance == 0)
@@ -239,9 +239,6 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 			       sizeof(struct amdgpu_sdma_instance));
 	}
 
-	if (amdgpu_sriov_vf(adev))
-		return 0;
-
 	DRM_DEBUG("psp_load == '%s'\n",
 		  adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
 
@@ -254,8 +251,11 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 				else {
 					/* Use a single copy per SDMA firmware type. PSP uses the same instance for all
 					 * groups of SDMAs */
-					if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 4, 2) &&
-					    adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
+					if (amdgpu_ip_version(adev, SDMA0_HWIP,
+							      0) ==
+						    IP_VERSION(4, 4, 2) &&
+					    adev->firmware.load_type ==
+						    AMDGPU_FW_LOAD_PSP &&
 					    adev->sdma.num_inst_per_aid == i) {
 						break;
 					}
@@ -290,27 +290,6 @@ out:
 	if (err)
 		amdgpu_sdma_destroy_inst_ctx(adev, duplicate);
 	return err;
-}
-
-void amdgpu_sdma_unset_buffer_funcs_helper(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *sdma;
-	int i;
-
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (adev->sdma.has_page_queue) {
-			sdma = &adev->sdma.instance[i].page;
-			if (adev->mman.buffer_funcs_ring == sdma) {
-				amdgpu_ttm_set_buffer_funcs_status(adev, false);
-				break;
-			}
-		}
-		sdma = &adev->sdma.instance[i].ring;
-		if (adev->mman.buffer_funcs_ring == sdma) {
-			amdgpu_ttm_set_buffer_funcs_status(adev, false);
-			break;
-		}
-	}
 }
 
 int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)

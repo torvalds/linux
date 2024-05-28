@@ -59,6 +59,9 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		bman_res->flags |= DRM_BUDDY_TOPDOWN_ALLOCATION;
 
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS)
+		bman_res->flags |= DRM_BUDDY_CONTIGUOUS_ALLOCATION;
+
 	if (place->fpfn || lpfn != man->size)
 		bman_res->flags |= DRM_BUDDY_RANGE_ALLOCATION;
 
@@ -71,18 +74,6 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 
 	GEM_BUG_ON(min_page_size < mm->chunk_size);
 	GEM_BUG_ON(!IS_ALIGNED(size, min_page_size));
-
-	if (place->fpfn + PFN_UP(bman_res->base.size) != place->lpfn &&
-	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
-		unsigned long pages;
-
-		size = roundup_pow_of_two(size);
-		min_page_size = size;
-
-		pages = size >> ilog2(mm->chunk_size);
-		if (pages > lpfn)
-			lpfn = pages;
-	}
 
 	if (size > lpfn << PAGE_SHIFT) {
 		err = -E2BIG;
@@ -106,14 +97,6 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 				     bman_res->flags);
 	if (unlikely(err))
 		goto err_free_blocks;
-
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
-		u64 original_size = (u64)bman_res->base.size;
-
-		drm_buddy_block_trim(mm,
-				     original_size,
-				     &bman_res->blocks);
-	}
 
 	if (lpfn <= bman->visible_size) {
 		bman_res->used_visible_size = PFN_UP(bman_res->base.size);

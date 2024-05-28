@@ -2,6 +2,7 @@
 config F2FS_FS
 	tristate "F2FS filesystem support"
 	depends on BLOCK
+	select BUFFER_HEAD
 	select NLS
 	select CRYPTO
 	select CRYPTO_CRC32

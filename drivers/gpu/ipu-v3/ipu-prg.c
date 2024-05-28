@@ -358,7 +358,6 @@ EXPORT_SYMBOL_GPL(ipu_prg_channel_configure_pending);
 static int ipu_prg_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct ipu_prg *prg;
 	u32 val;
 	int i, ret;
@@ -367,11 +366,9 @@ static int ipu_prg_probe(struct platform_device *pdev)
 	if (!prg)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	prg->regs = devm_ioremap_resource(&pdev->dev, res);
+	prg->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(prg->regs))
 		return PTR_ERR(prg->regs);
-
 
 	prg->clk_ipg = devm_clk_get(dev, "ipg");
 	if (IS_ERR(prg->clk_ipg))

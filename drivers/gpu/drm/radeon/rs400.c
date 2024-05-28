@@ -86,7 +86,7 @@ int rs400_gart_init(struct radeon_device *rdev)
 		return 0;
 	}
 	/* Check gart size */
-	switch(rdev->mc.gtt_size / (1024 * 1024)) {
+	switch (rdev->mc.gtt_size / (1024 * 1024)) {
 	case 32:
 	case 64:
 	case 128:
@@ -116,7 +116,7 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	tmp |= RS690_DIS_OUT_OF_PCI_GART_ACCESS;
 	WREG32_MC(RS690_AIC_CTRL_SCRATCH, tmp);
 	/* Check gart size */
-	switch(rdev->mc.gtt_size / (1024 * 1024)) {
+	switch (rdev->mc.gtt_size / (1024 * 1024)) {
 	case 32:
 		size_reg = RS480_VA_SIZE_32MB;
 		break;

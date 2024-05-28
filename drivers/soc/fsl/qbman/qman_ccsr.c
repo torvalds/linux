@@ -468,28 +468,6 @@ static int zero_priv_mem(phys_addr_t addr, size_t sz)
 
 	return 0;
 }
-
-static int qman_fqd(struct reserved_mem *rmem)
-{
-	fqd_a = rmem->base;
-	fqd_sz = rmem->size;
-
-	WARN_ON(!(fqd_a && fqd_sz));
-	return 0;
-}
-RESERVEDMEM_OF_DECLARE(qman_fqd, "fsl,qman-fqd", qman_fqd);
-
-static int qman_pfdr(struct reserved_mem *rmem)
-{
-	pfdr_a = rmem->base;
-	pfdr_sz = rmem->size;
-
-	WARN_ON(!(pfdr_a && pfdr_sz));
-
-	return 0;
-}
-RESERVEDMEM_OF_DECLARE(qman_pfdr, "fsl,qman-pfdr", qman_pfdr);
-
 #endif
 
 unsigned int qm_get_fqid_maxcnt(void)
@@ -796,39 +774,34 @@ static int fsl_qman_probe(struct platform_device *pdev)
 		qm_channel_caam = QMAN_CHANNEL_CAAM_REV3;
 	}
 
-	if (fqd_a) {
-#ifdef CONFIG_PPC
-		/*
-		 * For PPC backward DT compatibility
-		 * FQD memory MUST be zero'd by software
-		 */
-		zero_priv_mem(fqd_a, fqd_sz);
-#else
-		WARN(1, "Unexpected architecture using non shared-dma-mem reservations");
-#endif
-	} else {
-		/*
-		 * Order of memory regions is assumed as FQD followed by PFDR
-		 * in order to ensure allocations from the correct regions the
-		 * driver initializes then allocates each piece in order
-		 */
-		ret = qbman_init_private_mem(dev, 0, &fqd_a, &fqd_sz);
-		if (ret) {
-			dev_err(dev, "qbman_init_private_mem() for FQD failed 0x%x\n",
-				ret);
-			return -ENODEV;
-		}
+	/*
+	* Order of memory regions is assumed as FQD followed by PFDR
+	* in order to ensure allocations from the correct regions the
+	* driver initializes then allocates each piece in order
+	*/
+	ret = qbman_init_private_mem(dev, 0, "fsl,qman-fqd", &fqd_a, &fqd_sz);
+	if (ret) {
+		dev_err(dev, "qbman_init_private_mem() for FQD failed 0x%x\n",
+			ret);
+		return -ENODEV;
 	}
+#ifdef CONFIG_PPC
+	/*
+	 * For PPC backward DT compatibility
+	 * FQD memory MUST be zero'd by software
+	 */
+	zero_priv_mem(fqd_a, fqd_sz);
+#else
+	WARN(1, "Unexpected architecture using non shared-dma-mem reservations");
+#endif
 	dev_dbg(dev, "Allocated FQD 0x%llx 0x%zx\n", fqd_a, fqd_sz);
 
-	if (!pfdr_a) {
-		/* Setup PFDR memory */
-		ret = qbman_init_private_mem(dev, 1, &pfdr_a, &pfdr_sz);
-		if (ret) {
-			dev_err(dev, "qbman_init_private_mem() for PFDR failed 0x%x\n",
-				ret);
-			return -ENODEV;
-		}
+	/* Setup PFDR memory */
+	ret = qbman_init_private_mem(dev, 1, "fsl,qman-pfdr", &pfdr_a, &pfdr_sz);
+	if (ret) {
+		dev_err(dev, "qbman_init_private_mem() for PFDR failed 0x%x\n",
+			ret);
+		return -ENODEV;
 	}
 	dev_dbg(dev, "Allocated PFDR 0x%llx 0x%zx\n", pfdr_a, pfdr_sz);
 

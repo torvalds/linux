@@ -64,19 +64,17 @@ static int xilly_drv_probe(struct platform_device *op)
 	return xillybus_endpoint_discovery(endpoint);
 }
 
-static int xilly_drv_remove(struct platform_device *op)
+static void xilly_drv_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct xilly_endpoint *endpoint = dev_get_drvdata(dev);
 
 	xillybus_endpoint_remove(endpoint);
-
-	return 0;
 }
 
 static struct platform_driver xillybus_platform_driver = {
 	.probe = xilly_drv_probe,
-	.remove = xilly_drv_remove,
+	.remove_new = xilly_drv_remove,
 	.driver = {
 		.name = xillyname,
 		.of_match_table = xillybus_of_match,

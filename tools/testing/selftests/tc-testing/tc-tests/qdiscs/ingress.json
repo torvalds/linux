@@ -7,16 +7,17 @@
             "ingress"
         ],
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "cmdUnderTest": "$TC qdisc add dev $DUMMY ingress",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc ingress ffff:",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -26,8 +27,10 @@
             "qdisc",
             "ingress"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY ingress foorbar",
         "expExitCode": "1",
@@ -35,7 +38,6 @@
         "matchPattern": "qdisc ingress ffff:",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -45,8 +47,10 @@
             "qdisc",
             "ingress"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY ingress",
@@ -55,8 +59,7 @@
         "matchPattern": "qdisc ingress ffff:",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -66,8 +69,10 @@
             "qdisc",
             "ingress"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc del dev $DUMMY ingress",
         "expExitCode": "2",
@@ -75,7 +80,6 @@
         "matchPattern": "qdisc ingress ffff:",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -85,8 +89,10 @@
             "qdisc",
             "ingress"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC qdisc del dev $DUMMY ingress"
         ],
@@ -96,7 +102,6 @@
         "matchPattern": "qdisc ingress ffff:",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -106,8 +111,10 @@
             "qdisc",
             "ingress"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY ingress",
         "expExitCode": "0",
@@ -115,8 +122,7 @@
         "matchPattern": "class ingress",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     }
 ]

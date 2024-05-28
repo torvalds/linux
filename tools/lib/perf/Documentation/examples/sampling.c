@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 
 	libperf_init(libperf_print);
 
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	if (!cpus) {
 		fprintf(stderr, "failed to create cpus\n");
 		return -1;

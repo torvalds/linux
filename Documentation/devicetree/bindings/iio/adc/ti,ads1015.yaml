@@ -23,6 +23,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   "#address-cells":
     const: 1
 
@@ -78,9 +81,9 @@ patternProperties:
       ti,datarate:
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
-        maximum: 6
+        maximum: 7
         description: |
-          Data acquisition rate in samples per second
+          Data acquisition rate in samples per second for ADS1015, TLA2024
           0: 128
           1: 250
           2: 490
@@ -88,6 +91,17 @@ patternProperties:
           4: 1600 (default)
           5: 2400
           6: 3300
+          7: 3300
+
+          Data acquisition rate in samples per second for ADS1115
+          0: 8
+          1: 16
+          2: 32
+          3: 64
+          4: 128 (default)
+          5: 250
+          6: 475
+          7: 860
 
     required:
       - reg

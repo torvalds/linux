@@ -155,7 +155,7 @@ the basic algorithm:
    optimisation.
 
    If there are too many CPUs to read the currently_voting array in
-   one transaction then multiple transations are still required.  The
+   one transaction then multiple transactions are still required.  The
    implementation uses a simple loop of word-sized loads for this
    case.  The number of transactions is still fewer than would be
    required if bytes were loaded individually.

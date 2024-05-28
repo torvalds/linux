@@ -345,7 +345,7 @@ PMBUS_NO_CAPABILITY
 
 Some PMBus chips don't respond with valid data when reading the CAPABILITY
 register. For such chips, this flag should be set so that the PMBus core
-driver doesn't use CAPABILITY to determine it's behavior.
+driver doesn't use CAPABILITY to determine its behavior.
 
 PMBUS_READ_STATUS_AFTER_FAILED_CHECK
 

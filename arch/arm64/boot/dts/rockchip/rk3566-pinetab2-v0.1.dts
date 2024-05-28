@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+
+#include "rk3566-pinetab2.dtsi"
+
+/ {
+	model = "Pine64 PineTab2 v0.1";
+	compatible = "pine64,pinetab2-v0.1", "pine64,pinetab2", "rockchip,rk3566";
+};
+
+&lcd {
+	reset-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_pwren_h &lcd0_rst_l>;
+};
+
+&pinctrl {
+	lcd0 {
+		lcd0_rst_l: lcd0-rst-l {
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&sdmmc1 {
+	vmmc-supply = <&vcc3v3_sys>;
+};

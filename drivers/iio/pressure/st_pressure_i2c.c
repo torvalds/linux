@@ -7,7 +7,6 @@
  * Denis Ciocca <denis.ciocca@st.com>
  */
 
-#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -55,13 +54,11 @@ static const struct of_device_id st_press_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, st_press_of_match);
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id st_press_acpi_match[] = {
 	{"SNO9210", LPS22HB},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, st_press_acpi_match);
-#endif
 
 static const struct i2c_device_id st_press_id_table[] = {
 	{ LPS001WP_PRESS_DEV_NAME, LPS001WP },
@@ -114,7 +111,7 @@ static struct i2c_driver st_press_driver = {
 	.driver = {
 		.name = "st-press-i2c",
 		.of_match_table = st_press_of_match,
-		.acpi_match_table = ACPI_PTR(st_press_acpi_match),
+		.acpi_match_table = st_press_acpi_match,
 	},
 	.probe = st_press_i2c_probe,
 	.id_table = st_press_id_table,

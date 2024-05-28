@@ -18,7 +18,7 @@ description: |
   each IP (DMC, CPU, RIGHTBUS, LEFTBUS, CAM interface, LCD, G3D, MFC).  The
   Exynos PPMU driver uses the devfreq-event class to provide event data to
   various devfreq devices. The devfreq devices would use the event data when
-  derterming the current state of each IP.
+  determining the current state of each IP.
 
 properties:
   compatible:

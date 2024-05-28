@@ -43,6 +43,7 @@ enum oxp_board {
 	aok_zoe_a1 = 1,
 	aya_neo_2,
 	aya_neo_air,
+	aya_neo_air_plus_mendo,
 	aya_neo_air_pro,
 	aya_neo_geek,
 	oxp_mini_amd,
@@ -97,6 +98,13 @@ static const struct dmi_system_id dmi_table[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AIR"),
 		},
 		.driver_data = (void *)aya_neo_air,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AB05-Mendocino"),
+		},
+		.driver_data = (void *)aya_neo_air_plus_mendo,
 	},
 	{
 		.matches = {
@@ -332,6 +340,7 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 			switch (board) {
 			case aya_neo_2:
 			case aya_neo_air:
+			case aya_neo_air_plus_mendo:
 			case aya_neo_air_pro:
 			case aya_neo_geek:
 			case oxp_mini_amd:
@@ -374,6 +383,7 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 			switch (board) {
 			case aya_neo_2:
 			case aya_neo_air:
+			case aya_neo_air_plus_mendo:
 			case aya_neo_air_pro:
 			case aya_neo_geek:
 			case oxp_mini_amd:
@@ -434,22 +444,8 @@ static const struct hwmon_chip_info oxp_ec_chip_info = {
 /* Initialization logic */
 static int oxp_platform_probe(struct platform_device *pdev)
 {
-	const struct dmi_system_id *dmi_entry;
 	struct device *dev = &pdev->dev;
 	struct device *hwdev;
-
-	/*
-	 * Have to check for AMD processor here because DMI strings are the
-	 * same between Intel and AMD boards, the only way to tell them apart
-	 * is the CPU.
-	 * Intel boards seem to have different EC registers and values to
-	 * read/write.
-	 */
-	dmi_entry = dmi_first_match(dmi_table);
-	if (!dmi_entry || boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
-		return -ENODEV;
-
-	board = (enum oxp_board)(unsigned long)dmi_entry->driver_data;
 
 	hwdev = devm_hwmon_device_register_with_info(dev, "oxpec", NULL,
 						     &oxp_ec_chip_info, NULL);
@@ -469,6 +465,21 @@ static struct platform_device *oxp_platform_device;
 
 static int __init oxp_platform_init(void)
 {
+	const struct dmi_system_id *dmi_entry;
+
+	/*
+	 * Have to check for AMD processor here because DMI strings are the
+	 * same between Intel and AMD boards, the only way to tell them apart
+	 * is the CPU.
+	 * Intel boards seem to have different EC registers and values to
+	 * read/write.
+	 */
+	dmi_entry = dmi_first_match(dmi_table);
+	if (!dmi_entry || boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return -ENODEV;
+
+	board = (enum oxp_board)(unsigned long)dmi_entry->driver_data;
+
 	oxp_platform_device =
 		platform_create_bundle(&oxp_platform_driver,
 				       oxp_platform_probe, NULL, 0, NULL, 0);

@@ -197,7 +197,7 @@ parse_mirred_encap(struct mlx5e_tc_act_parse_state *parse_state,
 	}
 	esw_attr->dests[esw_attr->out_count].flags |= MLX5_ESW_DEST_ENCAP;
 	esw_attr->out_count++;
-	/* attr->dests[].rep is resolved when we handle encap */
+	/* attr->dests[].vport is resolved when we handle encap */
 
 	return 0;
 }
@@ -270,7 +270,8 @@ parse_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 
 	out_priv = netdev_priv(out_dev);
 	rpriv = out_priv->ppriv;
-	esw_attr->dests[esw_attr->out_count].rep = rpriv->rep;
+	esw_attr->dests[esw_attr->out_count].vport_valid = true;
+	esw_attr->dests[esw_attr->out_count].vport = rpriv->rep->vport;
 	esw_attr->dests[esw_attr->out_count].mdev = out_priv->mdev;
 
 	esw_attr->out_count++;
@@ -294,6 +295,7 @@ parse_mirred_ovs_master(struct mlx5e_tc_act_parse_state *parse_state,
 	if (err)
 		return err;
 
+	parse_state->if_count = 0;
 	esw_attr->out_count++;
 	return 0;
 }

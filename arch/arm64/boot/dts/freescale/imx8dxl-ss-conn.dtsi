@@ -6,7 +6,7 @@
 /delete-node/ &enet1_lpcg;
 /delete-node/ &fec2;
 
-&conn_subsys {
+/ {
 	conn_enet0_root_clk: clock-conn-enet0-root {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -14,13 +14,22 @@
 		clock-output-names = "conn_enet0_root_clk";
 	};
 
+	clk_dummy: clock-dummy {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "clk_dummy";
+	};
+};
+
+&conn_subsys {
 	eqos: ethernet@5b050000 {
 		compatible = "nxp,imx8dxl-dwmac-eqos", "snps,dwmac-5.10a";
 		reg = <0x5b050000 0x10000>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "eth_wake_irq", "macirq";
+		interrupt-names = "macirq", "eth_wake_irq";
 		clocks = <&eqos_lpcg IMX_LPCG_CLK_4>,
 			 <&eqos_lpcg IMX_LPCG_CLK_6>,
 			 <&eqos_lpcg IMX_LPCG_CLK_0>,
@@ -51,13 +60,6 @@
 		rx-burst-size-dword = <0x10>;
 		power-domains = <&pd IMX_SC_R_USB_1>;
 		status = "disabled";
-
-		clk_dummy: clock-dummy {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <0>;
-			clock-output-names = "clk_dummy";
-		};
 	};
 
 	usbmisc2: usbmisc@5b0e0200 {
@@ -116,7 +118,7 @@
 };
 
 &fec1 {
-	compatible = "fsl,imx8qm-fec";
+	compatible = "fsl,imx8dxl-fec", "fsl,imx8qm-fec", "fsl,imx6sx-fec";
 	interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,

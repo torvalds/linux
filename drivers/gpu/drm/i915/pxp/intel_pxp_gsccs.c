@@ -6,6 +6,7 @@
 #include "gem/i915_gem_internal.h"
 
 #include "gt/intel_context.h"
+#include "gt/intel_gt.h"
 #include "gt/uc/intel_gsc_fw.h"
 #include "gt/uc/intel_gsc_uc_heci_cmd_submit.h"
 
@@ -17,12 +18,13 @@
 #include "intel_pxp_types.h"
 
 static bool
-is_fw_err_platform_config(u32 type)
+is_fw_err_platform_config(struct intel_pxp *pxp, u32 type)
 {
 	switch (type) {
 	case PXP_STATUS_ERROR_API_VERSION:
 	case PXP_STATUS_PLATFCONFIG_KF1_NOVERIF:
 	case PXP_STATUS_PLATFCONFIG_KF1_BAD:
+		pxp->platform_cfg_is_bad = true;
 		return true;
 	default:
 		break;
@@ -110,7 +112,7 @@ gsccs_send_message(struct intel_pxp *pxp,
 
 	ret = intel_gsc_uc_heci_cmd_submit_nonpriv(&gt->uc.gsc,
 						   exec_res->ce, &pkt, exec_res->bb_vaddr,
-						   GSC_REPLY_LATENCY_MS);
+						   GSC_HECI_REPLY_LATENCY_MS);
 	if (ret) {
 		drm_err(&i915->drm, "failed to send gsc PXP msg (%d)\n", ret);
 		goto unlock;
@@ -197,7 +199,7 @@ bool intel_pxp_gsccs_is_ready_for_sessions(struct intel_pxp *pxp)
 	 * are out of order) will suffice.
 	 */
 	if (intel_huc_is_authenticated(&pxp->ctrl_gt->uc.huc, INTEL_HUC_AUTH_BY_GSC) &&
-	    intel_gsc_uc_fw_proxy_init_done(&pxp->ctrl_gt->uc.gsc))
+	    intel_gsc_uc_fw_proxy_init_done(&pxp->ctrl_gt->uc.gsc, true))
 		return true;
 
 	return false;
@@ -207,8 +209,8 @@ int intel_pxp_gsccs_create_session(struct intel_pxp *pxp,
 				   int arb_session_id)
 {
 	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
-	struct pxp43_create_arb_in msg_in = {0};
-	struct pxp43_create_arb_out msg_out = {0};
+	struct pxp43_create_arb_in msg_in = {};
+	struct pxp43_create_arb_out msg_out = {};
 	int ret;
 
 	msg_in.header.api_version = PXP_APIVER(4, 3);
@@ -225,7 +227,7 @@ int intel_pxp_gsccs_create_session(struct intel_pxp *pxp,
 	if (ret) {
 		drm_err(&i915->drm, "Failed to init session %d, ret=[%d]\n", arb_session_id, ret);
 	} else if (msg_out.header.status != 0) {
-		if (is_fw_err_platform_config(msg_out.header.status)) {
+		if (is_fw_err_platform_config(pxp, msg_out.header.status)) {
 			drm_info_once(&i915->drm,
 				      "PXP init-session-%d failed due to BIOS/SOC:0x%08x:%s\n",
 				      arb_session_id, msg_out.header.status,
@@ -245,8 +247,8 @@ int intel_pxp_gsccs_create_session(struct intel_pxp *pxp,
 void intel_pxp_gsccs_end_arb_fw_session(struct intel_pxp *pxp, u32 session_id)
 {
 	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
-	struct pxp42_inv_stream_key_in msg_in = {0};
-	struct pxp42_inv_stream_key_out msg_out = {0};
+	struct pxp42_inv_stream_key_in msg_in = {};
+	struct pxp42_inv_stream_key_out msg_out = {};
 	int ret = 0;
 
 	/*
@@ -268,7 +270,7 @@ void intel_pxp_gsccs_end_arb_fw_session(struct intel_pxp *pxp, u32 session_id)
 		drm_err(&i915->drm, "Failed to inv-stream-key-%u, ret=[%d]\n",
 			session_id, ret);
 	} else if (msg_out.header.status != 0) {
-		if (is_fw_err_platform_config(msg_out.header.status)) {
+		if (is_fw_err_platform_config(pxp, msg_out.header.status)) {
 			drm_info_once(&i915->drm,
 				      "PXP inv-stream-key-%u failed due to BIOS/SOC :0x%08x:%s\n",
 				      session_id, msg_out.header.status,
@@ -336,7 +338,7 @@ gsccs_create_buffer(struct intel_gt *gt,
 	}
 
 	/* return a virtual pointer */
-	*map = i915_gem_object_pin_map_unlocked(obj, i915_coherent_map_type(i915, obj, true));
+	*map = i915_gem_object_pin_map_unlocked(obj, intel_gt_coherent_map_type(gt, obj, true));
 	if (IS_ERR(*map)) {
 		drm_err(&i915->drm, "Failed to map gsccs backend %s.\n", bufname);
 		err = PTR_ERR(*map);

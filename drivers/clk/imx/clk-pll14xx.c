@@ -64,8 +64,6 @@ static const struct imx_pll14xx_rate_table imx_pll1443x_tbl[] = {
 	PLL_1443X_RATE(650000000U, 325, 3, 2, 0),
 	PLL_1443X_RATE(594000000U, 198, 2, 2, 0),
 	PLL_1443X_RATE(519750000U, 173, 2, 2, 16384),
-	PLL_1443X_RATE(393216000U, 262, 2, 3, 9437),
-	PLL_1443X_RATE(361267200U, 361, 3, 3, 17511),
 };
 
 struct imx_pll14xx_clk imx_1443x_pll = {
@@ -106,15 +104,15 @@ static const struct imx_pll14xx_rate_table *imx_get_pll_settings(
 static long pll14xx_calc_rate(struct clk_pll14xx *pll, int mdiv, int pdiv,
 			      int sdiv, int kdiv, unsigned long prate)
 {
-	u64 fvco = prate;
+	u64 fout = prate;
 
-	/* fvco = (m * 65536 + k) * Fin / (p * 65536) */
-	fvco *= (mdiv * 65536 + kdiv);
+	/* fout = (m * 65536 + k) * Fin / (p * 65536) / (1 << sdiv) */
+	fout *= (mdiv * 65536 + kdiv);
 	pdiv *= 65536;
 
-	do_div(fvco, pdiv << sdiv);
+	do_div(fout, pdiv << sdiv);
 
-	return fvco;
+	return fout;
 }
 
 static long pll1443x_calc_kdiv(int mdiv, int pdiv, int sdiv,
@@ -133,19 +131,19 @@ static void imx_pll14xx_calc_settings(struct clk_pll14xx *pll, unsigned long rat
 {
 	u32 pll_div_ctl0, pll_div_ctl1;
 	int mdiv, pdiv, sdiv, kdiv;
-	long fvco, rate_min, rate_max, dist, best = LONG_MAX;
+	long fout, rate_min, rate_max, dist, best = LONG_MAX;
 	const struct imx_pll14xx_rate_table *tt;
 
 	/*
 	 * Fractional PLL constrains:
 	 *
-	 * a) 6MHz <= prate <= 25MHz
-	 * b) 1 <= p <= 63 (1 <= p <= 4 prate = 24MHz)
-	 * c) 64 <= m <= 1023
-	 * d) 0 <= s <= 6
-	 * e) -32768 <= k <= 32767
+	 * a) 1 <= p <= 63
+	 * b) 64 <= m <= 1023
+	 * c) 0 <= s <= 6
+	 * d) -32768 <= k <= 32767
 	 *
 	 * fvco = (m * 65536 + k) * prate / (p * 65536)
+	 * fout = (m * 65536 + k) * prate / (p * 65536) / (1 << sdiv)
 	 */
 
 	/* First try if we can get the desired rate from one of the static entries */
@@ -176,8 +174,8 @@ static void imx_pll14xx_calc_settings(struct clk_pll14xx *pll, unsigned long rat
 		pr_debug("%s: in=%ld, want=%ld Only adjust kdiv %ld -> %d\n",
 			 clk_hw_get_name(&pll->hw), prate, rate,
 			 FIELD_GET(KDIV_MASK, pll_div_ctl1), kdiv);
-		fvco = pll14xx_calc_rate(pll, mdiv, pdiv, sdiv, kdiv, prate);
-		t->rate = (unsigned int)fvco;
+		fout = pll14xx_calc_rate(pll, mdiv, pdiv, sdiv, kdiv, prate);
+		t->rate = (unsigned int)fout;
 		t->mdiv = mdiv;
 		t->pdiv = pdiv;
 		t->sdiv = sdiv;
@@ -186,20 +184,20 @@ static void imx_pll14xx_calc_settings(struct clk_pll14xx *pll, unsigned long rat
 	}
 
 	/* Finally calculate best values */
-	for (pdiv = 1; pdiv <= 7; pdiv++) {
+	for (pdiv = 1; pdiv <= 63; pdiv++) {
 		for (sdiv = 0; sdiv <= 6; sdiv++) {
 			/* calc mdiv = round(rate * pdiv * 2^sdiv) / prate) */
 			mdiv = DIV_ROUND_CLOSEST(rate * (pdiv << sdiv), prate);
 			mdiv = clamp(mdiv, 64, 1023);
 
 			kdiv = pll1443x_calc_kdiv(mdiv, pdiv, sdiv, rate, prate);
-			fvco = pll14xx_calc_rate(pll, mdiv, pdiv, sdiv, kdiv, prate);
+			fout = pll14xx_calc_rate(pll, mdiv, pdiv, sdiv, kdiv, prate);
 
 			/* best match */
-			dist = abs((long)rate - (long)fvco);
+			dist = abs((long)rate - (long)fout);
 			if (dist < best) {
 				best = dist;
-				t->rate = (unsigned int)fvco;
+				t->rate = (unsigned int)fout;
 				t->mdiv = mdiv;
 				t->pdiv = pdiv;
 				t->sdiv = sdiv;

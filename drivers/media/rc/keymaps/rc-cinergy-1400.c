@@ -78,3 +78,4 @@ module_exit(exit_rc_map_cinergy_1400)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Cinergy 1400 DVB-T remote controller keytable");

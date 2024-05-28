@@ -21,6 +21,8 @@
 #include <linux/dma-mapping.h>
 
 #include "amd.h"
+#include "../mach-config.h"
+#include "acp-mach.h"
 
 #define DRV_NAME "acp_i2s_dma"
 
@@ -69,20 +71,25 @@ static const struct snd_pcm_hardware acp_pcm_hardware_capture = {
 int acp_machine_select(struct acp_dev_data *adata)
 {
 	struct snd_soc_acpi_mach *mach;
-	int size;
+	int size, platform;
 
-	size = sizeof(*adata->machines);
-	mach = snd_soc_acpi_find_machine(adata->machines);
-	if (!mach) {
-		dev_err(adata->dev, "warning: No matching ASoC machine driver found\n");
-		return -EINVAL;
+	if (adata->flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
+		platform = adata->platform;
+		adata->mach_dev = platform_device_register_data(adata->dev, "acp-pdm-mach",
+								PLATFORM_DEVID_NONE, &platform,
+								sizeof(platform));
+	} else {
+		size = sizeof(*adata->machines);
+		mach = snd_soc_acpi_find_machine(adata->machines);
+		if (!mach) {
+			dev_err(adata->dev, "warning: No matching ASoC machine driver found\n");
+			return -EINVAL;
+		}
+		adata->mach_dev = platform_device_register_data(adata->dev, mach->drv_name,
+								PLATFORM_DEVID_NONE, mach, size);
 	}
-
-	adata->mach_dev = platform_device_register_data(adata->dev, mach->drv_name,
-							PLATFORM_DEVID_NONE, mach, size);
 	if (IS_ERR(adata->mach_dev))
 		dev_warn(adata->dev, "Unable to register Machine device\n");
-
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_machine_select, SND_SOC_ACP_COMMON);
@@ -127,7 +134,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
-static void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream)
+void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream)
 {
 	struct acp_resource *rsrc = adata->rsrc;
 	u32 pte_reg, pte_size, reg_val;
@@ -143,8 +150,9 @@ static void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream 
 	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + pte_size);
 	writel(0x01, adata->acp_base + ACPAXI2AXI_ATU_CTRL);
 }
+EXPORT_SYMBOL_NS_GPL(config_pte_for_stream, SND_SOC_ACP_COMMON);
 
-static void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int size)
+void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int size)
 {
 	struct snd_pcm_substream *substream = stream->substream;
 	struct acp_resource *rsrc = adata->rsrc;
@@ -168,6 +176,7 @@ static void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream
 		addr += PAGE_SIZE;
 	}
 }
+EXPORT_SYMBOL_NS_GPL(config_acp_dma, SND_SOC_ACP_COMMON);
 
 static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_substream *substream)
 {

@@ -85,7 +85,7 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 		return -EINVAL;
 
 	emu->card = card;
-	emu->name = kstrdup(name, GFP_KERNEL);
+	emu->name = kstrdup_const(name, GFP_KERNEL);
 	emu->voices = kcalloc(emu->max_voices, sizeof(struct snd_emux_voice),
 			      GFP_KERNEL);
 	if (emu->name == NULL || emu->voices == NULL)
@@ -140,7 +140,7 @@ int snd_emux_free(struct snd_emux *emu)
 	snd_emux_delete_hwdep(emu);
 	snd_sf_free(emu->sflist);
 	kfree(emu->voices);
-	kfree(emu->name);
+	kfree_const(emu->name);
 	kfree(emu);
 	return 0;
 }

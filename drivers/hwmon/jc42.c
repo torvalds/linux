@@ -497,7 +497,7 @@ static const struct regmap_config jc42_regmap_config = {
 	.writeable_reg = jc42_writable_reg,
 	.readable_reg = jc42_readable_reg,
 	.volatile_reg = jc42_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int jc42_probe(struct i2c_client *client)

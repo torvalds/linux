@@ -59,7 +59,7 @@ times. In this case, there are the following two rules:
    the hardware is not available.
 
 The result might be surprising. For example, the following two command
-lines have the same result:
+lines have the same result::
 
 	console=ttyS1,9600 console=tty0 console=tty1
 	console=tty0 console=ttyS1,9600 console=tty1

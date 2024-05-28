@@ -226,10 +226,10 @@ alternative_endif
 static __always_inline bool
 alternative_has_cap_likely(const unsigned long cpucap)
 {
-	compiletime_assert(cpucap < ARM64_NCAPS,
-			   "cpucap must be < ARM64_NCAPS");
+	if (!cpucap_is_possible(cpucap))
+		return false;
 
-	asm_volatile_goto(
+	asm goto(
 	ALTERNATIVE_CB("b	%l[l_no]", %[cpucap], alt_cb_patch_nops)
 	:
 	: [cpucap] "i" (cpucap)
@@ -244,10 +244,10 @@ l_no:
 static __always_inline bool
 alternative_has_cap_unlikely(const unsigned long cpucap)
 {
-	compiletime_assert(cpucap < ARM64_NCAPS,
-			   "cpucap must be < ARM64_NCAPS");
+	if (!cpucap_is_possible(cpucap))
+		return false;
 
-	asm_volatile_goto(
+	asm goto(
 	ALTERNATIVE("nop", "b	%l[l_yes]", %[cpucap])
 	:
 	: [cpucap] "i" (cpucap)

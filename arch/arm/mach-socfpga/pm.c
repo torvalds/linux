@@ -13,7 +13,9 @@
 #include <linux/genalloc.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/suspend.h>
 #include <asm/suspend.h>
 #include <asm/fncpy.h>

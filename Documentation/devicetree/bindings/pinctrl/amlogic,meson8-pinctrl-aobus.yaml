@@ -29,7 +29,7 @@ required:
   - compatible
 
 patternProperties:
-  "^bank@[0-9a-z]+$":
+  "^bank@[0-9a-f]+$":
     $ref: amlogic,meson-pinctrl-common.yaml#/$defs/meson-gpio
 
     unevaluatedProperties: false
@@ -43,6 +43,10 @@ patternProperties:
           - const: mux
           - const: pull
           - const: gpio
+
+      gpio-line-names:
+        minItems: 11 # GXL
+        maxItems: 16 # Meson8
 
 unevaluatedProperties:
   type: object

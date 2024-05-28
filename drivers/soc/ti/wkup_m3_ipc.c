@@ -713,7 +713,7 @@ err_free_mbox:
 	return ret;
 }
 
-static int wkup_m3_ipc_remove(struct platform_device *pdev)
+static void wkup_m3_ipc_remove(struct platform_device *pdev)
 {
 	wkup_m3_ipc_dbg_destroy(m3_ipc_state);
 
@@ -723,8 +723,6 @@ static int wkup_m3_ipc_remove(struct platform_device *pdev)
 	rproc_put(m3_ipc_state->rproc);
 
 	m3_ipc_state = NULL;
-
-	return 0;
 }
 
 static int __maybe_unused wkup_m3_ipc_suspend(struct device *dev)
@@ -760,7 +758,7 @@ MODULE_DEVICE_TABLE(of, wkup_m3_ipc_of_match);
 
 static struct platform_driver wkup_m3_ipc_driver = {
 	.probe = wkup_m3_ipc_probe,
-	.remove = wkup_m3_ipc_remove,
+	.remove_new = wkup_m3_ipc_remove,
 	.driver = {
 		.name = "wkup_m3_ipc",
 		.of_match_table = wkup_m3_ipc_of_match,

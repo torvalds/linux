@@ -2407,8 +2407,7 @@ out:
  */
 static void ab8500_fg_external_power_changed(struct power_supply *psy)
 {
-	class_for_each_device(power_supply_class, NULL, psy,
-			      ab8500_fg_get_ext_psy_data);
+	power_supply_for_each_device(psy, ab8500_fg_get_ext_psy_data);
 }
 
 /**
@@ -3227,7 +3226,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	return component_add(dev, &ab8500_fg_component_ops);
 }
 
-static int ab8500_fg_remove(struct platform_device *pdev)
+static void ab8500_fg_remove(struct platform_device *pdev)
 {
 	struct ab8500_fg *di = platform_get_drvdata(pdev);
 
@@ -3236,8 +3235,6 @@ static int ab8500_fg_remove(struct platform_device *pdev)
 	list_del(&di->node);
 	ab8500_fg_sysfs_exit(di);
 	ab8500_fg_sysfs_psy_remove_attrs(di);
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(ab8500_fg_pm_ops, ab8500_fg_suspend, ab8500_fg_resume);
@@ -3250,7 +3247,7 @@ MODULE_DEVICE_TABLE(of, ab8500_fg_match);
 
 struct platform_driver ab8500_fg_driver = {
 	.probe = ab8500_fg_probe,
-	.remove = ab8500_fg_remove,
+	.remove_new = ab8500_fg_remove,
 	.driver = {
 		.name = "ab8500-fg",
 		.of_match_table = ab8500_fg_match,

@@ -103,10 +103,9 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 	i_uid_write(inode, (uid_t)be16_to_cpu(efs_inode->di_uid));
 	i_gid_write(inode, (gid_t)be16_to_cpu(efs_inode->di_gid));
 	inode->i_size  = be32_to_cpu(efs_inode->di_size);
-	inode->i_atime.tv_sec = be32_to_cpu(efs_inode->di_atime);
-	inode->i_mtime.tv_sec = be32_to_cpu(efs_inode->di_mtime);
-	inode->i_ctime.tv_sec = be32_to_cpu(efs_inode->di_ctime);
-	inode->i_atime.tv_nsec = inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec = 0;
+	inode_set_atime(inode, be32_to_cpu(efs_inode->di_atime), 0);
+	inode_set_mtime(inode, be32_to_cpu(efs_inode->di_mtime), 0);
+	inode_set_ctime(inode, be32_to_cpu(efs_inode->di_ctime), 0);
 
 	/* this is the number of blocks in the file */
 	if (inode->i_size == 0) {

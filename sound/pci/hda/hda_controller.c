@@ -24,6 +24,7 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/pcm_params.h>
 #include "hda_controller.h"
 #include "hda_local.h"
 
@@ -108,6 +109,7 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
+	struct hdac_stream *hdas = azx_stream(azx_dev);
 	int ret = 0;
 
 	trace_azx_pcm_hw_params(chip, azx_dev);
@@ -117,9 +119,15 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 		goto unlock;
 	}
 
-	azx_dev->core.bufsize = 0;
-	azx_dev->core.period_bytes = 0;
-	azx_dev->core.format_val = 0;
+	/* Set up BDLEs here, return -ENOMEM if too many BDLEs are required */
+	hdas->bufsize = params_buffer_bytes(hw_params);
+	hdas->period_bytes = params_period_bytes(hw_params);
+	hdas->format_val = 0;
+	hdas->no_period_wakeup =
+		(hw_params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
+		(hw_params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
+	if (snd_hdac_stream_setup_periods(hdas) < 0)
+		ret = -ENOMEM;
 
 unlock:
 	dsp_unlock(azx_dev);
@@ -151,7 +159,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned int format_val, stream_tag;
+	unsigned int format_val, stream_tag, bits;
 	int err;
 	struct hda_spdif_out *spdif =
 		snd_hda_spdif_out_of_nid(apcm->codec, hinfo->nid);
@@ -165,11 +173,9 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	}
 
 	snd_hdac_stream_reset(azx_stream(azx_dev));
-	format_val = snd_hdac_calc_stream_format(runtime->rate,
-						runtime->channels,
-						runtime->format,
-						hinfo->maxbps,
-						ctls);
+	bits = snd_hdac_stream_format_bits(runtime->format, SNDRV_PCM_SUBFORMAT_STD, hinfo->maxbps);
+
+	format_val = snd_hdac_spdif_stream_format(runtime->channels, bits, runtime->rate, ctls);
 	if (!format_val) {
 		dev_err(chip->card->dev,
 			"invalid format_val, rate=%d, ch=%d, format=%d\n",
@@ -182,7 +188,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto unlock;
 
-	snd_hdac_stream_setup(azx_stream(azx_dev));
+	snd_hdac_stream_setup(azx_stream(azx_dev), false);
 
 	stream_tag = azx_dev->core.stream_tag;
 	/* CA-IBG chips need the playback stream starting from 1 */
@@ -1209,6 +1215,9 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 				dev_warn(chip->card->dev,
 					 "Codec #%d probe error; disabling it...\n", c);
 				bus->codec_mask &= ~(1 << c);
+				/* no codecs */
+				if (bus->codec_mask == 0)
+					break;
 				/* More badly, accessing to a non-existing
 				 * codec often screws up the controller chip,
 				 * and disturbs the further communications.

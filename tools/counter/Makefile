@@ -12,9 +12,10 @@ endif
 # (this improves performance and avoids hard-to-debug behaviour);
 MAKEFLAGS += -r
 
-override CFLAGS += -O2 -Wall -g -D_GNU_SOURCE -I$(OUTPUT)include
+override CFLAGS += -O2 -Wall -g -D_GNU_SOURCE -I$(OUTPUT)include \
+	 -I$(srctree)/tools/include
 
-ALL_TARGETS := counter_example
+ALL_TARGETS := counter_example counter_watch_events
 ALL_PROGRAMS := $(patsubst %,$(OUTPUT)%,$(ALL_TARGETS))
 
 all: $(ALL_PROGRAMS)
@@ -37,12 +38,19 @@ $(COUNTER_EXAMPLE): prepare FORCE
 $(OUTPUT)counter_example: $(COUNTER_EXAMPLE)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
+COUNTER_WATCH_EVENTS := $(OUTPUT)counter_watch_events.o
+$(COUNTER_WATCH_EVENTS): prepare FORCE
+	$(Q)$(MAKE) $(build)=counter_watch_events
+$(OUTPUT)counter_watch_events: $(COUNTER_WATCH_EVENTS)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
+
 clean:
 	rm -f $(ALL_PROGRAMS)
 	rm -rf $(OUTPUT)include/linux/counter.h
 	rm -df $(OUTPUT)include/linux
 	rm -df $(OUTPUT)include
 	find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '\.*.d' -delete
+	find $(or $(OUTPUT),.) -name '\.*.o.cmd' -delete
 
 install: $(ALL_PROGRAMS)
 	install -d -m 755 $(DESTDIR)$(bindir);		\
