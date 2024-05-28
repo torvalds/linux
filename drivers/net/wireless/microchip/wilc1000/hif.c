@@ -1594,7 +1594,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	msg->body.net_info.rssi = buffer[8];
 	msg->body.net_info.mgmt = kmemdup(&buffer[9],
 					  msg->body.net_info.frame_len,
-					  GFP_ATOMIC);
+					  GFP_KERNEL);
 	if (!msg->body.net_info.mgmt) {
 		kfree(msg);
 		goto out;
