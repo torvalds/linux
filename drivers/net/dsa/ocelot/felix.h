@@ -82,6 +82,7 @@ struct felix_tag_proto_ops {
 			      struct netlink_ext_ack *extack);
 };
 
+extern const struct phylink_mac_ops felix_phylink_mac_ops;
 extern const struct dsa_switch_ops felix_switch_ops;
 
 /* DSA glue / front-end for struct ocelot */

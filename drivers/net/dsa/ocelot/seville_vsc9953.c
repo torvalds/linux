@@ -1009,6 +1009,7 @@ static int seville_probe(struct platform_device *pdev)
 	ds->dev = &pdev->dev;
 	ds->num_ports = felix->info->num_ports;
 	ds->ops = &felix_switch_ops;
+	ds->phylink_mac_ops = &felix_phylink_mac_ops;
 	ds->priv = ocelot;
 	felix->ds = ds;
 	felix->tag_proto = DSA_TAG_PROTO_SEVILLE;

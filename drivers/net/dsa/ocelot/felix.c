@@ -1050,24 +1050,32 @@ static void felix_phylink_get_caps(struct dsa_switch *ds, int port,
 		  config->supported_interfaces);
 }
 
-static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
+static void felix_phylink_mac_config(struct phylink_config *config,
 				     unsigned int mode,
 				     const struct phylink_link_state *state)
 {
-	struct ocelot *ocelot = ds->priv;
-	struct felix *felix = ocelot_to_felix(ocelot);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ocelot *ocelot = dp->ds->priv;
+	int port = dp->index;
+	struct felix *felix;
+
+	felix = ocelot_to_felix(ocelot);
 
 	if (felix->info->phylink_mac_config)
 		felix->info->phylink_mac_config(ocelot, port, mode, state);
 }
 
-static struct phylink_pcs *felix_phylink_mac_select_pcs(struct dsa_switch *ds,
-							int port,
-							phy_interface_t iface)
+static struct phylink_pcs *
+felix_phylink_mac_select_pcs(struct phylink_config *config,
+			     phy_interface_t iface)
 {
-	struct ocelot *ocelot = ds->priv;
-	struct felix *felix = ocelot_to_felix(ocelot);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ocelot *ocelot = dp->ds->priv;
 	struct phylink_pcs *pcs = NULL;
+	int port = dp->index;
+	struct felix *felix;
+
+	felix = ocelot_to_felix(ocelot);
 
 	if (felix->pcs && felix->pcs[port])
 		pcs = felix->pcs[port];
@@ -1075,11 +1083,13 @@ static struct phylink_pcs *felix_phylink_mac_select_pcs(struct dsa_switch *ds,
 	return pcs;
 }
 
-static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,
+static void felix_phylink_mac_link_down(struct phylink_config *config,
 					unsigned int link_an_mode,
 					phy_interface_t interface)
 {
-	struct ocelot *ocelot = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ocelot *ocelot = dp->ds->priv;
+	int port = dp->index;
 	struct felix *felix;
 
 	felix = ocelot_to_felix(ocelot);
@@ -1088,15 +1098,19 @@ static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,
 				     felix->info->quirks);
 }
 
-static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void felix_phylink_mac_link_up(struct phylink_config *config,
+				      struct phy_device *phydev,
 				      unsigned int link_an_mode,
 				      phy_interface_t interface,
-				      struct phy_device *phydev,
 				      int speed, int duplex,
 				      bool tx_pause, bool rx_pause)
 {
-	struct ocelot *ocelot = ds->priv;
-	struct felix *felix = ocelot_to_felix(ocelot);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ocelot *ocelot = dp->ds->priv;
+	int port = dp->index;
+	struct felix *felix;
+
+	felix = ocelot_to_felix(ocelot);
 
 	ocelot_phylink_mac_link_up(ocelot, port, phydev, link_an_mode,
 				   interface, speed, duplex, tx_pause, rx_pause,
@@ -2083,6 +2097,14 @@ static void felix_get_mm_stats(struct dsa_switch *ds, int port,
 	ocelot_port_get_mm_stats(ocelot, port, stats);
 }
 
+const struct phylink_mac_ops felix_phylink_mac_ops = {
+	.mac_select_pcs		= felix_phylink_mac_select_pcs,
+	.mac_config		= felix_phylink_mac_config,
+	.mac_link_down		= felix_phylink_mac_link_down,
+	.mac_link_up		= felix_phylink_mac_link_up,
+};
+EXPORT_SYMBOL_GPL(felix_phylink_mac_ops);
+
 const struct dsa_switch_ops felix_switch_ops = {
 	.get_tag_protocol		= felix_get_tag_protocol,
 	.change_tag_protocol		= felix_change_tag_protocol,
@@ -2104,10 +2126,6 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.get_sset_count			= felix_get_sset_count,
 	.get_ts_info			= felix_get_ts_info,
 	.phylink_get_caps		= felix_phylink_get_caps,
-	.phylink_mac_config		= felix_phylink_mac_config,
-	.phylink_mac_select_pcs		= felix_phylink_mac_select_pcs,
-	.phylink_mac_link_down		= felix_phylink_mac_link_down,
-	.phylink_mac_link_up		= felix_phylink_mac_link_up,
 	.port_enable			= felix_port_enable,
 	.port_fast_age			= felix_port_fast_age,
 	.port_fdb_dump			= felix_fdb_dump,

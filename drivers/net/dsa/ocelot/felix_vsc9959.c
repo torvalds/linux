@@ -2717,6 +2717,7 @@ static int felix_pci_probe(struct pci_dev *pdev,
 	ds->num_ports = felix->info->num_ports;
 	ds->num_tx_queues = felix->info->num_tx_queues;
 	ds->ops = &felix_switch_ops;
+	ds->phylink_mac_ops = &felix_phylink_mac_ops;
 	ds->priv = ocelot;
 	felix->ds = ds;
 	felix->tag_proto = DSA_TAG_PROTO_OCELOT;

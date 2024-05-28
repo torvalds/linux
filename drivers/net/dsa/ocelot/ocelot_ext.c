@@ -96,6 +96,7 @@ static int ocelot_ext_probe(struct platform_device *pdev)
 	ds->num_tx_queues = felix->info->num_tx_queues;
 
 	ds->ops = &felix_switch_ops;
+	ds->phylink_mac_ops = &felix_phylink_mac_ops;
 	ds->priv = ocelot;
 	felix->ds = ds;
 	felix->tag_proto = DSA_TAG_PROTO_OCELOT;
