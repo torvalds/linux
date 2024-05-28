@@ -68,9 +68,7 @@ void io_msg_ring_cleanup(struct io_kiocb *req)
 
 static inline bool io_msg_need_remote(struct io_ring_ctx *target_ctx)
 {
-	if (!target_ctx->task_complete)
-		return false;
-	return current != target_ctx->submitter_task;
+	return target_ctx->task_complete;
 }
 
 static int io_msg_exec_remote(struct io_kiocb *req, task_work_func_t func)
