@@ -181,7 +181,7 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 		if (task)
 			process_name = task->comm;
 	}
-	snprintf(ss->process_name, sizeof(ss->process_name), process_name);
+	strscpy(ss->process_name, process_name);
 	if (task)
 		put_task_struct(task);
 
