@@ -142,6 +142,7 @@ def define_niobe():
         "drivers/soc/qcom/fsa4480-i2c.ko",
         "drivers/soc/qcom/gh_tlmm_vm_mem_access.ko",
         "drivers/soc/qcom/gic_intr_routing.ko",
+        "drivers/soc/qcom/glink_probe.ko",
         "drivers/soc/qcom/hwkm.ko",
         "drivers/soc/qcom/llcc-qcom.ko",
         "drivers/soc/qcom/mdt_loader.ko",
