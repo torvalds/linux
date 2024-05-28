@@ -9,7 +9,6 @@
 #include <linux/list.h>
 #include <linux/refcount.h>
 #include "misc.h"
-#include "extent_map.h"
 #include "compression.h"
 
 struct btrfs_inode;

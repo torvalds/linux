@@ -29,7 +29,6 @@
 #include "extent-io-tree.h"
 #include "async-thread.h"
 #include "block-rsv.h"
-#include "fs.h"
 
 struct inode;
 struct super_block;
