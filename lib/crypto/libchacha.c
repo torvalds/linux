@@ -32,4 +32,5 @@ void chacha_crypt_generic(u32 *state, u8 *dst, const u8 *src,
 }
 EXPORT_SYMBOL(chacha_crypt_generic);
 
+MODULE_DESCRIPTION("ChaCha stream cipher (RFC7539)");
 MODULE_LICENSE("GPL");
