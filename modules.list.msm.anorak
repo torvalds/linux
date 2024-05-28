@@ -62,3 +62,7 @@ rpmh-regulator.ko
 qti-fixed-regulator.ko
 debug-regulator.ko
 qcom-ipcc.ko
+hwkm.ko
+ufshcd-crypto-qti.ko
+tmecom-intf.ko
+crypto-qti.ko
