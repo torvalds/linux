@@ -3537,6 +3537,10 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 			return ret;
 		}
 
+		/* Store AP encryption key type */
+		if (wlvif->bss_type == BSS_TYPE_AP_BSS)
+			wlvif->encryption_type = key_type;
+
 		/*
 		 * reconfiguring arp response if the unicast (or common)
 		 * encryption key type was changed
