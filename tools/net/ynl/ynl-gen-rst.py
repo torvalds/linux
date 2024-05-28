@@ -49,7 +49,7 @@ def inline(text: str) -> str:
 def sanitize(text: str) -> str:
     """Remove newlines and multiple spaces"""
     # This is useful for some fields that are spread across multiple lines
-    return str(text).replace("\n", "").strip()
+    return str(text).replace("\n", " ").strip()
 
 
 def rst_fields(key: str, value: str, level: int = 0) -> str:
