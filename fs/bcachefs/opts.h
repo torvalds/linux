@@ -488,6 +488,13 @@ struct bch_opts {
 #undef x
 };
 
+struct bch2_opts_parse {
+	struct bch_opts opts;
+
+	/* to save opts that can't be parsed before the FS is opened: */
+	struct printbuf parse_later;
+};
+
 static const __maybe_unused struct bch_opts bch2_opts_default = {
 #define x(_name, _bits, _mode, _type, _sb_opt, _default, ...)		\
 	._name##_defined = true,					\

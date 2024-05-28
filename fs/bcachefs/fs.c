@@ -31,6 +31,7 @@
 #include <linux/backing-dev.h>
 #include <linux/exportfs.h>
 #include <linux/fiemap.h>
+#include <linux/fs_context.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/posix_acl.h>
@@ -1724,15 +1725,11 @@ static struct bch_fs *bch2_path_to_fs(const char *path)
 	return c ?: ERR_PTR(-ENOENT);
 }
 
-static int bch2_remount(struct super_block *sb, int *flags, char *data)
+static int bch2_remount(struct super_block *sb, int *flags,
+			struct bch_opts opts)
 {
 	struct bch_fs *c = sb->s_fs_info;
-	struct bch_opts opts = bch2_opts_empty();
-	int ret;
-
-	ret = bch2_parse_mount_opts(c, &opts, NULL, data);
-	if (ret)
-		goto err;
+	int ret = 0;
 
 	opt_set(opts, read_only, (*flags & SB_RDONLY) != 0);
 
@@ -1859,7 +1856,6 @@ static const struct super_operations bch_super_operations = {
 	.statfs		= bch2_statfs,
 	.show_devname	= bch2_show_devname,
 	.show_options	= bch2_show_options,
-	.remount_fs	= bch2_remount,
 	.put_super	= bch2_put_super,
 	.freeze_fs	= bch2_freeze,
 	.unfreeze_fs	= bch2_unfreeze,
@@ -1893,21 +1889,16 @@ static int bch2_test_super(struct super_block *s, void *data)
 }
 
 static struct dentry *bch2_mount(struct file_system_type *fs_type,
-				 int flags, const char *dev_name, void *data)
+				 int flags, const char *dev_name,
+				 struct bch2_opts_parse opts_parse)
 {
 	struct bch_fs *c;
 	struct super_block *sb;
 	struct inode *vinode;
-	struct bch_opts opts = bch2_opts_empty();
+	struct bch_opts opts = opts_parse.opts;
 	int ret;
 
 	opt_set(opts, read_only, (flags & SB_RDONLY) != 0);
-
-	ret = bch2_parse_mount_opts(NULL, &opts, NULL, data);
-	if (ret) {
-		ret = bch2_err_class(ret);
-		return ERR_PTR(ret);
-	}
 
 	if (!dev_name || strlen(dev_name) == 0)
 		return ERR_PTR(-EINVAL);
@@ -1937,7 +1928,7 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 	}
 
 	/* Some options can't be parsed until after the fs is started: */
-	ret = bch2_parse_mount_opts(c, &opts, NULL, data);
+	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse.parse_later.buf);
 	if (ret) {
 		bch2_fs_stop(c);
 		sb = ERR_PTR(ret);
@@ -2054,12 +2045,92 @@ static void bch2_kill_sb(struct super_block *sb)
 	bch2_fs_free(c);
 }
 
+static void bch2_fs_context_free(struct fs_context *fc)
+{
+	struct bch2_opts_parse *opts = fc->fs_private;
+
+	if (opts) {
+		printbuf_exit(&opts->parse_later);
+		kfree(opts);
+	}
+}
+
+static int bch2_fs_parse_param(struct fs_context *fc,
+			       struct fs_parameter *param)
+{
+	/*
+	 * the "source" param, i.e., the name of the device(s) to mount,
+	 * is handled by the VFS layer.
+	 */
+	if (!strcmp(param->key, "source"))
+		return -ENOPARAM;
+
+	struct bch2_opts_parse *opts = fc->fs_private;
+	struct bch_fs *c = NULL;
+
+	/* for reconfigure, we already have a struct bch_fs */
+	if (fc->root)
+		c = fc->root->d_sb->s_fs_info;
+
+	int ret = bch2_parse_one_mount_opt(c, &opts->opts,
+					   &opts->parse_later, param->key,
+					   param->string);
+
+	return bch2_err_class(ret);
+}
+
+static int bch2_fs_get_tree(struct fs_context *fc)
+{
+	struct bch2_opts_parse *opts = fc->fs_private;
+	const char *dev_name = fc->source;
+	struct dentry *root;
+
+	root = bch2_mount(fc->fs_type, fc->sb_flags, dev_name, *opts);
+
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	fc->root = root;
+
+	return 0;
+}
+
+static int bch2_fs_reconfigure(struct fs_context *fc)
+{
+	struct super_block *sb = fc->root->d_sb;
+	struct bch2_opts_parse *opts = fc->fs_private;
+
+	return bch2_remount(sb, &fc->sb_flags, opts->opts);
+}
+
+static const struct fs_context_operations bch2_context_ops = {
+	.free        = bch2_fs_context_free,
+	.parse_param = bch2_fs_parse_param,
+	.get_tree    = bch2_fs_get_tree,
+	.reconfigure = bch2_fs_reconfigure,
+};
+
+static int bch2_init_fs_context(struct fs_context *fc)
+{
+	struct bch2_opts_parse *opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+
+	if (!opts)
+		return -ENOMEM;
+
+	opts->parse_later = PRINTBUF;
+
+	fc->ops = &bch2_context_ops;
+	fc->fs_private = opts;
+
+	return 0;
+}
+
 static struct file_system_type bcache_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "bcachefs",
-	.mount		= bch2_mount,
-	.kill_sb	= bch2_kill_sb,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "bcachefs",
+	.init_fs_context	= bch2_init_fs_context,
+	.kill_sb		= bch2_kill_sb,
+	.fs_flags		= FS_REQUIRES_DEV,
 };
 
 MODULE_ALIAS_FS("bcachefs");
