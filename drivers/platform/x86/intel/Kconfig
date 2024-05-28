@@ -192,10 +192,14 @@ config INTEL_SMARTCONNECT
 	  This driver checks to determine whether the device has Intel Smart
 	  Connect enabled, and if so disables it.
 
+config INTEL_TPMI_POWER_DOMAINS
+	tristate
+
 config INTEL_TPMI
 	tristate "Intel Topology Aware Register and PM Capsule Interface (TPMI)"
 	depends on INTEL_VSEC
 	depends on X86_64
+	select INTEL_TPMI_POWER_DOMAINS
 	help
 	  The Intel Topology Aware Register and PM Capsule Interface (TPMI),
 	  provides enumerable MMIO interface for power management features.
