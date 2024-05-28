@@ -4,10 +4,16 @@
 //!
 //! C header: [`include/linux/uaccess.h`](srctree/include/linux/uaccess.h)
 
-use crate::{alloc::Flags, bindings, error::Result, prelude::*};
+use crate::{
+    alloc::Flags,
+    bindings,
+    error::Result,
+    prelude::*,
+    types::{AsBytes, FromBytes},
+};
 use alloc::vec::Vec;
 use core::ffi::{c_ulong, c_void};
-use core::mem::MaybeUninit;
+use core::mem::{size_of, MaybeUninit};
 
 /// The type used for userspace addresses.
 pub type UserPtr = usize;
@@ -247,6 +253,41 @@ impl UserSliceReader {
         self.read_raw(out)
     }
 
+    /// Reads a value of the specified type.
+    ///
+    /// Fails with [`EFAULT`] if the read happens on a bad address, or if the read goes out of
+    /// bounds of this [`UserSliceReader`].
+    pub fn read<T: FromBytes>(&mut self) -> Result<T> {
+        let len = size_of::<T>();
+        if len > self.length {
+            return Err(EFAULT);
+        }
+        let Ok(len_ulong) = c_ulong::try_from(len) else {
+            return Err(EFAULT);
+        };
+        let mut out: MaybeUninit<T> = MaybeUninit::uninit();
+        // SAFETY: The local variable `out` is valid for writing `size_of::<T>()` bytes.
+        //
+        // By using the _copy_from_user variant, we skip the check_object_size check that verifies
+        // the kernel pointer. This mirrors the logic on the C side that skips the check when the
+        // length is a compile-time constant.
+        let res = unsafe {
+            bindings::_copy_from_user(
+                out.as_mut_ptr().cast::<c_void>(),
+                self.ptr as *const c_void,
+                len_ulong,
+            )
+        };
+        if res != 0 {
+            return Err(EFAULT);
+        }
+        self.ptr = self.ptr.wrapping_add(len);
+        self.length -= len;
+        // SAFETY: The read above has initialized all bytes in `out`, and since `T` implements
+        // `FromBytes`, any bit-pattern is a valid value for this type.
+        Ok(unsafe { out.assume_init() })
+    }
+
     /// Reads the entirety of the user slice, appending it to the end of the provided buffer.
     ///
     /// Fails with [`EFAULT`] if the read happens on a bad address.
@@ -303,6 +344,40 @@ impl UserSliceWriter {
         // SAFETY: `data_ptr` points into an immutable slice of length `len_ulong`, so we may read
         // that many bytes from it.
         let res = unsafe { bindings::copy_to_user(self.ptr as *mut c_void, data_ptr, len_ulong) };
+        if res != 0 {
+            return Err(EFAULT);
+        }
+        self.ptr = self.ptr.wrapping_add(len);
+        self.length -= len;
+        Ok(())
+    }
+
+    /// Writes the provided Rust value to this userspace pointer.
+    ///
+    /// Fails with [`EFAULT`] if the write happens on a bad address, or if the write goes out of
+    /// bounds of this [`UserSliceWriter`]. This call may modify the associated userspace slice even
+    /// if it returns an error.
+    pub fn write<T: AsBytes>(&mut self, value: &T) -> Result {
+        let len = size_of::<T>();
+        if len > self.length {
+            return Err(EFAULT);
+        }
+        let Ok(len_ulong) = c_ulong::try_from(len) else {
+            return Err(EFAULT);
+        };
+        // SAFETY: The reference points to a value of type `T`, so it is valid for reading
+        // `size_of::<T>()` bytes.
+        //
+        // By using the _copy_to_user variant, we skip the check_object_size check that verifies the
+        // kernel pointer. This mirrors the logic on the C side that skips the check when the length
+        // is a compile-time constant.
+        let res = unsafe {
+            bindings::_copy_to_user(
+                self.ptr as *mut c_void,
+                (value as *const T).cast::<c_void>(),
+                len_ulong,
+            )
+        };
         if res != 0 {
             return Err(EFAULT);
         }
