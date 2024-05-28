@@ -3599,14 +3599,9 @@
 #define  CNP_PWM_CGE_GATING_DISABLE (1 << 13)
 #define  PCH_LP_PARTITION_LEVEL_DISABLE  (1 << 12)
 
-#define _PCH_DP_B		0xe4100
-#define PCH_DP_B		_MMIO(_PCH_DP_B)
-
-#define _PCH_DP_C		0xe4200
-#define PCH_DP_C		_MMIO(_PCH_DP_C)
-
-#define _PCH_DP_D		0xe4300
-#define PCH_DP_D		_MMIO(_PCH_DP_D)
+#define PCH_DP_B		_MMIO(0xe4100)
+#define PCH_DP_C		_MMIO(0xe4200)
+#define PCH_DP_D		_MMIO(0xe4300)
 
 /* CPT */
 #define _TRANS_DP_CTL_A		0xe0300
