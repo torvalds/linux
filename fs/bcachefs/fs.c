@@ -1730,7 +1730,7 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 	struct bch_opts opts = bch2_opts_empty();
 	int ret;
 
-	ret = bch2_parse_mount_opts(c, &opts, data);
+	ret = bch2_parse_mount_opts(c, &opts, NULL, data);
 	if (ret)
 		goto err;
 
@@ -1903,7 +1903,7 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 
 	opt_set(opts, read_only, (flags & SB_RDONLY) != 0);
 
-	ret = bch2_parse_mount_opts(NULL, &opts, data);
+	ret = bch2_parse_mount_opts(NULL, &opts, NULL, data);
 	if (ret) {
 		ret = bch2_err_class(ret);
 		return ERR_PTR(ret);
@@ -1937,7 +1937,7 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 	}
 
 	/* Some options can't be parsed until after the fs is started: */
-	ret = bch2_parse_mount_opts(c, &opts, data);
+	ret = bch2_parse_mount_opts(c, &opts, NULL, data);
 	if (ret) {
 		bch2_fs_stop(c);
 		sb = ERR_PTR(ret);
