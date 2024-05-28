@@ -28,7 +28,7 @@
 #include "clk_mgr_internal.h"
 #include "reg_helper.h"
 #include "dalsmc.h"
-#include "smu13_driver_if.h"
+#include "dcn32_smu13_driver_if.h"
 
 #define mmDAL_MSG_REG  0x1628A
 #define mmDAL_ARG_REG  0x16273

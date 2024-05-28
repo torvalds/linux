@@ -36,7 +36,7 @@
 #include "link.h"
 #include "dc_state_priv.h"
 #include "atomfirmware.h"
-#include "smu13_driver_if.h"
+#include "dcn32_smu13_driver_if.h"
 
 #include "dcn/dcn_3_2_0_offset.h"
 #include "dcn/dcn_3_2_0_sh_mask.h"
