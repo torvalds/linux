@@ -136,8 +136,7 @@ int smu_v14_0_load_microcode(struct smu_context *smu)
 		    1 & ~MP1_SMN_PUB_CTRL__LX3_RESET_MASK);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
-			amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+		if (smu->is_apu)
 			mp1_fw_flags = RREG32_PCIE(MP1_Public |
 						   (smnMP1_FIRMWARE_FLAGS_14_0_0 & 0xffffffff));
 		else
@@ -210,8 +209,7 @@ int smu_v14_0_check_fw_status(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t mp1_fw_flags;
 
-	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
-		amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+	if (smu->is_apu)
 		mp1_fw_flags = RREG32_PCIE(MP1_Public |
 					   (smnMP1_FIRMWARE_FLAGS_14_0_0 & 0xffffffff));
 	else
@@ -866,8 +864,7 @@ static int smu_v14_0_set_irq_state(struct amdgpu_device *adev,
 		WREG32_SOC15(THM, 0, regTHM_THERMAL_INT_ENA, 0);
 
 		/* For MP1 SW irqs */
-		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
-			amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+		if (smu->is_apu) {
 			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0);
 			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 1);
 			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0, val);
@@ -900,8 +897,7 @@ static int smu_v14_0_set_irq_state(struct amdgpu_device *adev,
 		WREG32_SOC15(THM, 0, regTHM_THERMAL_INT_ENA, val);
 
 		/* For MP1 SW irqs */
-		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
-			amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+		if (smu->is_apu) {
 			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_mp1_14_0_0);
 			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, ID, 0xFE);
 			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, VALID, 0);
@@ -1494,8 +1490,7 @@ int smu_v14_0_set_vcn_enable(struct smu_context *smu,
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
-		    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+		if (smu->is_apu) {
 			if (i == 0)
 				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
 								      SMU_MSG_PowerUpVcn0 : SMU_MSG_PowerDownVcn0,
@@ -1527,8 +1522,7 @@ int smu_v14_0_set_jpeg_enable(struct smu_context *smu,
 		if (adev->jpeg.harvest_config & (1 << i))
 			continue;
 
-		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
-		    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+		if (smu->is_apu) {
 			if (i == 0)
 				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
 								      SMU_MSG_PowerUpJpeg0 : SMU_MSG_PowerDownJpeg0,

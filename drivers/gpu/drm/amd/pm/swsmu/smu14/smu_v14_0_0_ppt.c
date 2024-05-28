@@ -723,10 +723,10 @@ static int smu_v14_0_common_get_dpm_freq_by_index(struct smu_context *smu,
 						uint32_t dpm_level,
 						uint32_t *freq)
 {
-	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
-		smu_v14_0_0_get_dpm_freq_by_index(smu, clk_type, dpm_level, freq);
-	else if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
 		smu_v14_0_1_get_dpm_freq_by_index(smu, clk_type, dpm_level, freq);
+	else
+		smu_v14_0_0_get_dpm_freq_by_index(smu, clk_type, dpm_level, freq);
 
 	return 0;
 }
@@ -999,10 +999,10 @@ static int smu_v14_0_common_get_dpm_ultimate_freq(struct smu_context *smu,
 							uint32_t *min,
 							uint32_t *max)
 {
-	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
-		smu_v14_0_0_get_dpm_ultimate_freq(smu, clk_type, min, max);
-	else if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
 		smu_v14_0_1_get_dpm_ultimate_freq(smu, clk_type, min, max);
+	else
+		smu_v14_0_0_get_dpm_ultimate_freq(smu, clk_type, min, max);
 
 	return 0;
 }
@@ -1104,10 +1104,10 @@ static int smu_v14_0_common_get_dpm_level_count(struct smu_context *smu,
 					   enum smu_clk_type clk_type,
 					   uint32_t *count)
 {
-	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
-		smu_v14_0_0_get_dpm_level_count(smu, clk_type, count);
-	else if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
 		smu_v14_0_1_get_dpm_level_count(smu, clk_type, count);
+	else
+		smu_v14_0_0_get_dpm_level_count(smu, clk_type, count);
 
 	return 0;
 }
@@ -1372,10 +1372,10 @@ static int smu_v14_0_0_set_fine_grain_gfx_freq_parameters(struct smu_context *sm
 
 static int smu_v14_0_common_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 {
-	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
-		smu_v14_0_0_set_fine_grain_gfx_freq_parameters(smu);
-	else if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
 		smu_v14_0_1_set_fine_grain_gfx_freq_parameters(smu);
+	else
+		smu_v14_0_0_set_fine_grain_gfx_freq_parameters(smu);
 
 	return 0;
 }
@@ -1436,10 +1436,10 @@ static int smu_14_0_0_get_dpm_table(struct smu_context *smu, struct dpm_clocks *
 
 static int smu_v14_0_common_get_dpm_table(struct smu_context *smu, struct dpm_clocks *clock_table)
 {
-	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
-		smu_14_0_0_get_dpm_table(smu, clock_table);
-	else if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
 		smu_14_0_1_get_dpm_table(smu, clock_table);
+	else
+		smu_14_0_0_get_dpm_table(smu, clock_table);
 
 	return 0;
 }
