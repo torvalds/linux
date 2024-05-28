@@ -107,8 +107,6 @@
 #define ADIS16495_BURST_ID			0xA5A5
 /* total number of segments in burst */
 #define ADIS16495_BURST_MAX_DATA		20
-/* spi max speed in burst mode */
-#define ADIS16495_BURST_MAX_SPEED              6000000
 
 #define ADIS16480_REG_SERIAL_NUM		ADIS16480_REG(0x04, 0x20)
 
@@ -872,33 +870,33 @@ static const char * const adis16480_status_error_msgs[] = {
 
 static int adis16480_enable_irq(struct adis *adis, bool enable);
 
-#define ADIS16480_DATA(_prod_id, _timeouts, _burst_len)			\
-{									\
-	.diag_stat_reg = ADIS16480_REG_DIAG_STS,			\
-	.glob_cmd_reg = ADIS16480_REG_GLOB_CMD,				\
-	.prod_id_reg = ADIS16480_REG_PROD_ID,				\
-	.prod_id = (_prod_id),						\
-	.has_paging = true,						\
-	.read_delay = 5,						\
-	.write_delay = 5,						\
-	.self_test_mask = BIT(1),					\
-	.self_test_reg = ADIS16480_REG_GLOB_CMD,			\
-	.status_error_msgs = adis16480_status_error_msgs,		\
-	.status_error_mask = BIT(ADIS16480_DIAG_STAT_XGYRO_FAIL) |	\
-		BIT(ADIS16480_DIAG_STAT_YGYRO_FAIL) |			\
-		BIT(ADIS16480_DIAG_STAT_ZGYRO_FAIL) |			\
-		BIT(ADIS16480_DIAG_STAT_XACCL_FAIL) |			\
-		BIT(ADIS16480_DIAG_STAT_YACCL_FAIL) |			\
-		BIT(ADIS16480_DIAG_STAT_ZACCL_FAIL) |			\
-		BIT(ADIS16480_DIAG_STAT_XMAGN_FAIL) |			\
-		BIT(ADIS16480_DIAG_STAT_YMAGN_FAIL) |			\
-		BIT(ADIS16480_DIAG_STAT_ZMAGN_FAIL) |			\
-		BIT(ADIS16480_DIAG_STAT_BARO_FAIL),			\
-	.enable_irq = adis16480_enable_irq,				\
-	.timeouts = (_timeouts),					\
-	.burst_reg_cmd = ADIS16495_REG_BURST_CMD,			\
-	.burst_len = (_burst_len),					\
-	.burst_max_speed_hz = ADIS16495_BURST_MAX_SPEED			\
+#define ADIS16480_DATA(_prod_id, _timeouts, _burst_len, _burst_max_speed)	\
+{										\
+	.diag_stat_reg = ADIS16480_REG_DIAG_STS,				\
+	.glob_cmd_reg = ADIS16480_REG_GLOB_CMD,					\
+	.prod_id_reg = ADIS16480_REG_PROD_ID,					\
+	.prod_id = (_prod_id),							\
+	.has_paging = true,							\
+	.read_delay = 5,							\
+	.write_delay = 5,							\
+	.self_test_mask = BIT(1),						\
+	.self_test_reg = ADIS16480_REG_GLOB_CMD,				\
+	.status_error_msgs = adis16480_status_error_msgs,			\
+	.status_error_mask = BIT(ADIS16480_DIAG_STAT_XGYRO_FAIL) |		\
+		BIT(ADIS16480_DIAG_STAT_YGYRO_FAIL) |				\
+		BIT(ADIS16480_DIAG_STAT_ZGYRO_FAIL) |				\
+		BIT(ADIS16480_DIAG_STAT_XACCL_FAIL) |				\
+		BIT(ADIS16480_DIAG_STAT_YACCL_FAIL) |				\
+		BIT(ADIS16480_DIAG_STAT_ZACCL_FAIL) |				\
+		BIT(ADIS16480_DIAG_STAT_XMAGN_FAIL) |				\
+		BIT(ADIS16480_DIAG_STAT_YMAGN_FAIL) |				\
+		BIT(ADIS16480_DIAG_STAT_ZMAGN_FAIL) |				\
+		BIT(ADIS16480_DIAG_STAT_BARO_FAIL),				\
+	.enable_irq = adis16480_enable_irq,					\
+	.timeouts = (_timeouts),						\
+	.burst_reg_cmd = ADIS16495_REG_BURST_CMD,				\
+	.burst_len = (_burst_len),						\
+	.burst_max_speed_hz = _burst_max_speed					\
 }
 
 static const struct adis_timeout adis16485_timeouts = {
@@ -944,7 +942,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 2048,
 		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(16375, &adis16485_timeouts, 0),
+		.adis_data = ADIS16480_DATA(16375, &adis16485_timeouts, 0, 0),
 	},
 	[ADIS16480] = {
 		.channels = adis16480_channels,
@@ -958,7 +956,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 2048,
 		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(16480, &adis16480_timeouts, 0),
+		.adis_data = ADIS16480_DATA(16480, &adis16480_timeouts, 0, 0),
 	},
 	[ADIS16485] = {
 		.channels = adis16485_channels,
@@ -972,7 +970,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 2048,
 		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(16485, &adis16485_timeouts, 0),
+		.adis_data = ADIS16480_DATA(16485, &adis16485_timeouts, 0, 0),
 	},
 	[ADIS16488] = {
 		.channels = adis16480_channels,
@@ -986,7 +984,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 2048,
 		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(16488, &adis16485_timeouts, 0),
+		.adis_data = ADIS16480_DATA(16488, &adis16485_timeouts, 0, 0),
 	},
 	[ADIS16490] = {
 		.channels = adis16485_channels,
@@ -1000,7 +998,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(16490, &adis16495_timeouts, 0),
+		.adis_data = ADIS16480_DATA(16490, &adis16495_timeouts, 0, 0),
 	},
 	[ADIS16495_1] = {
 		.channels = adis16485_channels,
@@ -1016,7 +1014,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.has_pps_clk_mode = true,
 		/* 20 elements of 16bits */
 		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts,
-					    ADIS16495_BURST_MAX_DATA * 2),
+					    ADIS16495_BURST_MAX_DATA * 2,
+					    6000000),
 	},
 	[ADIS16495_2] = {
 		.channels = adis16485_channels,
@@ -1032,7 +1031,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.has_pps_clk_mode = true,
 		/* 20 elements of 16bits */
 		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts,
-					    ADIS16495_BURST_MAX_DATA * 2),
+					    ADIS16495_BURST_MAX_DATA * 2,
+					    6000000),
 	},
 	[ADIS16495_3] = {
 		.channels = adis16485_channels,
@@ -1048,7 +1048,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.has_pps_clk_mode = true,
 		/* 20 elements of 16bits */
 		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts,
-					    ADIS16495_BURST_MAX_DATA * 2),
+					    ADIS16495_BURST_MAX_DATA * 2,
+					    6000000),
 	},
 	[ADIS16497_1] = {
 		.channels = adis16485_channels,
@@ -1064,7 +1065,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.has_pps_clk_mode = true,
 		/* 20 elements of 16bits */
 		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts,
-					    ADIS16495_BURST_MAX_DATA * 2),
+					    ADIS16495_BURST_MAX_DATA * 2,
+					    6000000),
 	},
 	[ADIS16497_2] = {
 		.channels = adis16485_channels,
@@ -1080,7 +1082,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.has_pps_clk_mode = true,
 		/* 20 elements of 16bits */
 		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts,
-					    ADIS16495_BURST_MAX_DATA * 2),
+					    ADIS16495_BURST_MAX_DATA * 2,
+					    6000000),
 	},
 	[ADIS16497_3] = {
 		.channels = adis16485_channels,
@@ -1096,7 +1099,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.has_pps_clk_mode = true,
 		/* 20 elements of 16bits */
 		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts,
-					    ADIS16495_BURST_MAX_DATA * 2),
+					    ADIS16495_BURST_MAX_DATA * 2,
+					    6000000),
 	},
 };
 
