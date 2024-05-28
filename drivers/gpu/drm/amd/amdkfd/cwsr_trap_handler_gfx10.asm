@@ -97,6 +97,7 @@ var S_STATUS_HALT_MASK				= SQ_WAVE_STATE_PRIV_HALT_MASK
 var S_SAVE_PC_HI_TRAP_ID_MASK			= 0xF0000000
 #endif
 
+var SQ_WAVE_STATUS_NO_VGPRS_SHIFT		= 24
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT		= 12
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE		= 9
 var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE		= 8
@@ -451,6 +452,22 @@ L_EXIT_TRAP:
 	s_rfe_b64	[ttmp0, ttmp1]
 
 L_SAVE:
+	// If VGPRs have been deallocated then terminate the wavefront.
+	// It has no remaining program to run and cannot save without VGPRs.
+#if ASIC_FAMILY == CHIP_PLUM_BONITO
+	s_bitcmp1_b32	s_save_status, SQ_WAVE_STATUS_NO_VGPRS_SHIFT
+	s_cbranch_scc0	L_HAVE_VGPRS
+	s_endpgm
+L_HAVE_VGPRS:
+#endif
+#if ASIC_FAMILY >= CHIP_GFX12
+	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_STATUS)
+	s_bitcmp1_b32	s_save_tmp, SQ_WAVE_STATUS_NO_VGPRS_SHIFT
+	s_cbranch_scc0	L_HAVE_VGPRS
+	s_endpgm
+L_HAVE_VGPRS:
+#endif
+
 	s_and_b32	s_save_pc_hi, s_save_pc_hi, 0x0000ffff			//pc[47:32]
 	s_mov_b32	s_save_tmp, 0
 	s_setreg_b32	hwreg(S_TRAPSTS_HWREG, S_TRAPSTS_SAVE_CONTEXT_SHIFT, 1), s_save_tmp	//clear saveCtx bit
