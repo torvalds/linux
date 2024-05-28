@@ -39,31 +39,30 @@ struct sp_pci {
 };
 static struct sp_device *sp_dev_master;
 
-#define security_attribute_show(name, def)					\
+#define security_attribute_show(name)						\
 static ssize_t name##_show(struct device *d, struct device_attribute *attr,	\
 			   char *buf)						\
 {										\
 	struct sp_device *sp = dev_get_drvdata(d);				\
 	struct psp_device *psp = sp->psp_data;					\
-	int bit = PSP_SECURITY_##def << PSP_CAPABILITY_PSP_SECURITY_OFFSET;	\
-	return sysfs_emit(buf, "%d\n", (psp->capability & bit) > 0);		\
+	return sysfs_emit(buf, "%d\n", psp->capability.name);			\
 }
 
-security_attribute_show(fused_part, FUSED_PART)
+security_attribute_show(fused_part)
 static DEVICE_ATTR_RO(fused_part);
-security_attribute_show(debug_lock_on, DEBUG_LOCK_ON)
+security_attribute_show(debug_lock_on)
 static DEVICE_ATTR_RO(debug_lock_on);
-security_attribute_show(tsme_status, TSME_STATUS)
+security_attribute_show(tsme_status)
 static DEVICE_ATTR_RO(tsme_status);
-security_attribute_show(anti_rollback_status, ANTI_ROLLBACK_STATUS)
+security_attribute_show(anti_rollback_status)
 static DEVICE_ATTR_RO(anti_rollback_status);
-security_attribute_show(rpmc_production_enabled, RPMC_PRODUCTION_ENABLED)
+security_attribute_show(rpmc_production_enabled)
 static DEVICE_ATTR_RO(rpmc_production_enabled);
-security_attribute_show(rpmc_spirom_available, RPMC_SPIROM_AVAILABLE)
+security_attribute_show(rpmc_spirom_available)
 static DEVICE_ATTR_RO(rpmc_spirom_available);
-security_attribute_show(hsp_tpm_available, HSP_TPM_AVAILABLE)
+security_attribute_show(hsp_tpm_available)
 static DEVICE_ATTR_RO(hsp_tpm_available);
-security_attribute_show(rom_armor_enforced, ROM_ARMOR_ENFORCED)
+security_attribute_show(rom_armor_enforced)
 static DEVICE_ATTR_RO(rom_armor_enforced);
 
 static struct attribute *psp_security_attrs[] = {
@@ -84,7 +83,7 @@ static umode_t psp_security_is_visible(struct kobject *kobj, struct attribute *a
 	struct sp_device *sp = dev_get_drvdata(dev);
 	struct psp_device *psp = sp->psp_data;
 
-	if (psp && PSP_CAPABILITY(psp, PSP_SECURITY_REPORTING))
+	if (psp && psp->capability.security_reporting)
 		return 0444;
 
 	return 0;
@@ -134,8 +133,7 @@ static umode_t psp_firmware_is_visible(struct kobject *kobj, struct attribute *a
 	    psp->vdata->bootloader_info_reg)
 		val = ioread32(psp->io_regs + psp->vdata->bootloader_info_reg);
 
-	if (attr == &dev_attr_tee_version.attr &&
-	    PSP_CAPABILITY(psp, TEE) &&
+	if (attr == &dev_attr_tee_version.attr && psp->capability.tee &&
 	    psp->vdata->tee->info_reg)
 		val = ioread32(psp->io_regs + psp->vdata->tee->info_reg);
 

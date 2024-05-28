@@ -154,11 +154,10 @@ static unsigned int psp_get_capability(struct psp_device *psp)
 		dev_notice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
 		return -ENODEV;
 	}
-	psp->capability = val;
+	psp->capability.raw = val;
 
 	/* Detect TSME and/or SME status */
-	if (PSP_CAPABILITY(psp, PSP_SECURITY_REPORTING) &&
-	    psp->capability & (PSP_SECURITY_TSME_STATUS << PSP_CAPABILITY_PSP_SECURITY_OFFSET)) {
+	if (psp->capability.security_reporting && psp->capability.tsme_status) {
 		if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
 			dev_notice(psp->dev, "psp: Both TSME and SME are active, SME is unnecessary when TSME is active.\n");
 		else
@@ -171,7 +170,7 @@ static unsigned int psp_get_capability(struct psp_device *psp)
 static int psp_check_sev_support(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
-	if (!PSP_CAPABILITY(psp, SEV)) {
+	if (!psp->capability.sev) {
 		dev_dbg(psp->dev, "psp does not support SEV\n");
 		return -ENODEV;
 	}
@@ -182,7 +181,7 @@ static int psp_check_sev_support(struct psp_device *psp)
 static int psp_check_tee_support(struct psp_device *psp)
 {
 	/* Check if device supports TEE feature */
-	if (!PSP_CAPABILITY(psp, TEE)) {
+	if (!psp->capability.tee) {
 		dev_dbg(psp->dev, "psp does not support TEE\n");
 		return -ENODEV;
 	}
@@ -214,7 +213,7 @@ static int psp_init(struct psp_device *psp)
 
 	/* dbc must come after platform access as it tests the feature */
 	if (PSP_FEATURE(psp, DBC) ||
-	    PSP_CAPABILITY(psp, DBC_THRU_EXT)) {
+	    psp->capability.dbc_thru_ext) {
 		ret = dbc_dev_init(psp);
 		if (ret)
 			return ret;
