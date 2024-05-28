@@ -1262,6 +1262,8 @@ static int __init init_netconsole(void)
 		while ((target_config = strsep(&input, ";"))) {
 			nt = alloc_param_target(target_config, count);
 			if (IS_ERR(nt)) {
+				if (IS_ENABLED(CONFIG_NETCONSOLE_DYNAMIC))
+					continue;
 				err = PTR_ERR(nt);
 				goto fail;
 			}
