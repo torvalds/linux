@@ -58,8 +58,8 @@ properties:
     description: |
       Configuration for DMDIN/GPIO1 pin.
 
-      When ADC3XXX_GPIO_GPO is configured, this causes corresponding the
-      ALSA control "GPIOx Output" to appear, as a switch control.
+      When ADC3XXX_GPIO_GPO is selected, the pin may be controlled via the
+      GPIO framework, as pin number 0 on the device.
 
   ti,dmclk-gpio2:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -76,8 +76,8 @@ properties:
     description: |
       Configuration for DMCLK/GPIO2 pin.
 
-      When ADC3XXX_GPIO_GPO is configured, this causes corresponding the
-      ALSA control "GPIOx Output" to appear, as a switch control.
+      When ADC3XXX_GPIO_GPO is selected, the pin may be controlled via the
+      GPIO framework, as pin number 1 on the device.
 
       Note that there is currently no support for reading the GPIO pins as
       inputs.
