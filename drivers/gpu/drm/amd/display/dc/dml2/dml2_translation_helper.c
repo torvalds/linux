@@ -927,7 +927,7 @@ static void populate_dml_surface_cfg_from_plane_state(enum dml_project_id dml2_p
 	}
 }
 
-static struct scaler_data get_scaler_data_for_plane(const struct dc_plane_state *in, struct dc_state *context)
+static void get_scaler_data_for_plane(const struct dc_plane_state *in, struct dc_state *context, struct scaler_data *out)
 {
 	int i;
 	struct pipe_ctx *temp_pipe = &context->res_ctx.temp_pipe;
@@ -948,7 +948,7 @@ static struct scaler_data get_scaler_data_for_plane(const struct dc_plane_state 
 	}
 
 	ASSERT(i < MAX_PIPES);
-	return temp_pipe->plane_res.scl_data;
+	memcpy(out, &temp_pipe->plane_res.scl_data, sizeof(*out));
 }
 
 static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned int location, const struct dc_stream_state *in)
@@ -1007,27 +1007,31 @@ static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned 
 
 static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out, unsigned int location, const struct dc_plane_state *in, struct dc_state *context)
 {
-	const struct scaler_data scaler_data = get_scaler_data_for_plane(in, context);
+	struct scaler_data *scaler_data = kzalloc(sizeof(*scaler_data), GFP_KERNEL);
+	if (!scaler_data)
+		return;
+
+	get_scaler_data_for_plane(in, context, scaler_data);
 
 	out->CursorBPP[location] = dml_cur_32bit;
 	out->CursorWidth[location] = 256;
 
 	out->GPUVMMinPageSizeKBytes[location] = 256;
 
-	out->ViewportWidth[location] = scaler_data.viewport.width;
-	out->ViewportHeight[location] = scaler_data.viewport.height;
-	out->ViewportWidthChroma[location] = scaler_data.viewport_c.width;
-	out->ViewportHeightChroma[location] = scaler_data.viewport_c.height;
-	out->ViewportXStart[location] = scaler_data.viewport.x;
-	out->ViewportYStart[location] = scaler_data.viewport.y;
-	out->ViewportXStartC[location] = scaler_data.viewport_c.x;
-	out->ViewportYStartC[location] = scaler_data.viewport_c.y;
+	out->ViewportWidth[location] = scaler_data->viewport.width;
+	out->ViewportHeight[location] = scaler_data->viewport.height;
+	out->ViewportWidthChroma[location] = scaler_data->viewport_c.width;
+	out->ViewportHeightChroma[location] = scaler_data->viewport_c.height;
+	out->ViewportXStart[location] = scaler_data->viewport.x;
+	out->ViewportYStart[location] = scaler_data->viewport.y;
+	out->ViewportXStartC[location] = scaler_data->viewport_c.x;
+	out->ViewportYStartC[location] = scaler_data->viewport_c.y;
 	out->ViewportStationary[location] = false;
 
-	out->ScalerEnabled[location] = scaler_data.ratios.horz.value != dc_fixpt_one.value ||
-				scaler_data.ratios.horz_c.value != dc_fixpt_one.value ||
-				scaler_data.ratios.vert.value != dc_fixpt_one.value ||
-				scaler_data.ratios.vert_c.value != dc_fixpt_one.value;
+	out->ScalerEnabled[location] = scaler_data->ratios.horz.value != dc_fixpt_one.value ||
+				scaler_data->ratios.horz_c.value != dc_fixpt_one.value ||
+				scaler_data->ratios.vert.value != dc_fixpt_one.value ||
+				scaler_data->ratios.vert_c.value != dc_fixpt_one.value;
 
 	/* Current driver code base uses LBBitPerPixel as 57. There is a discrepancy
 	 * from the HW/DML teams about this value. Initialize LBBitPerPixel with the
@@ -1043,25 +1047,25 @@ static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out
 		out->VRatioChroma[location] = 1;
 	} else {
 		/* Follow the original dml_wrapper.c code direction to fix scaling issues */
-		out->HRatio[location] = (dml_float_t)scaler_data.ratios.horz.value / (1ULL << 32);
-		out->HRatioChroma[location] = (dml_float_t)scaler_data.ratios.horz_c.value / (1ULL << 32);
-		out->VRatio[location] = (dml_float_t)scaler_data.ratios.vert.value / (1ULL << 32);
-		out->VRatioChroma[location] = (dml_float_t)scaler_data.ratios.vert_c.value / (1ULL << 32);
+		out->HRatio[location] = (dml_float_t)scaler_data->ratios.horz.value / (1ULL << 32);
+		out->HRatioChroma[location] = (dml_float_t)scaler_data->ratios.horz_c.value / (1ULL << 32);
+		out->VRatio[location] = (dml_float_t)scaler_data->ratios.vert.value / (1ULL << 32);
+		out->VRatioChroma[location] = (dml_float_t)scaler_data->ratios.vert_c.value / (1ULL << 32);
 	}
 
-	if (!scaler_data.taps.h_taps) {
+	if (!scaler_data->taps.h_taps) {
 		out->HTaps[location] = 1;
 		out->HTapsChroma[location] = 1;
 	} else {
-		out->HTaps[location] = scaler_data.taps.h_taps;
-		out->HTapsChroma[location] = scaler_data.taps.h_taps_c;
+		out->HTaps[location] = scaler_data->taps.h_taps;
+		out->HTapsChroma[location] = scaler_data->taps.h_taps_c;
 	}
-	if (!scaler_data.taps.v_taps) {
+	if (!scaler_data->taps.v_taps) {
 		out->VTaps[location] = 1;
 		out->VTapsChroma[location] = 1;
 	} else {
-		out->VTaps[location] = scaler_data.taps.v_taps;
-		out->VTapsChroma[location] = scaler_data.taps.v_taps_c;
+		out->VTaps[location] = scaler_data->taps.v_taps;
+		out->VTapsChroma[location] = scaler_data->taps.v_taps_c;
 	}
 
 	out->SourceScan[location] = (enum dml_rotation_angle)in->rotation;
@@ -1072,6 +1076,8 @@ static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out
 	out->DynamicMetadataTransmittedBytes[location] = 0;
 
 	out->NumberOfCursors[location] = 1;
+
+	kfree(scaler_data);
 }
 
 static unsigned int map_stream_to_dml_display_cfg(const struct dml2_context *dml2,
