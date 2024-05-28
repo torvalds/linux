@@ -797,8 +797,8 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		c = '=';
 	}
 
-	seq_printf(s, ",-Mitigation at %lluus, duration%c%llums\n",
-		   ktime_to_us(tze->timestamp), c, duration_ms);
+	seq_printf(s, ",-Mitigation at %llums, duration%c%llums\n",
+		   ktime_to_ms(tze->timestamp), c, duration_ms);
 
 	seq_printf(s, "| trip |     type | temp(°mC) | hyst(°mC) |  duration   |  avg(°mC) |  min(°mC) |  max(°mC) |\n");
 
