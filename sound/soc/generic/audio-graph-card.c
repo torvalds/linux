@@ -19,6 +19,18 @@
 
 #define DPCM_SELECTABLE 1
 
+#define ep_to_port(ep)	of_get_parent(ep)
+static struct device_node *port_to_ports(struct device_node *port)
+{
+	struct device_node *ports = of_get_parent(port);
+
+	if (!of_node_name_eq(ports, "ports")) {
+		of_node_put(ports);
+		return NULL;
+	}
+	return ports;
+}
+
 static int graph_outdrv_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol,
 			      int event)
@@ -68,8 +80,8 @@ static void graph_parse_convert(struct device *dev,
 				struct simple_util_data *adata)
 {
 	struct device_node *top = dev->of_node;
-	struct device_node *port = of_get_parent(ep);
-	struct device_node *ports = of_get_parent(port);
+	struct device_node *port = ep_to_port(ep);
+	struct device_node *ports = port_to_ports(port);
 	struct device_node *node = of_graph_get_port_parent(ep);
 
 	simple_util_parse_convert(top,   NULL,   adata);
@@ -87,8 +99,8 @@ static void graph_parse_mclk_fs(struct device_node *top,
 				struct device_node *ep,
 				struct simple_dai_props *props)
 {
-	struct device_node *port	= of_get_parent(ep);
-	struct device_node *ports	= of_get_parent(port);
+	struct device_node *port	= ep_to_port(ep);
+	struct device_node *ports	= port_to_ports(port);
 
 	of_property_read_u32(top,	"mclk-fs", &props->mclk_fs);
 	if (of_node_name_eq(ports, "ports"))
@@ -231,8 +243,8 @@ static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
 			 "be.%pOFP.%s", codecs->of_node, codecs->dai_name);
 
 		/* check "prefix" from top node */
-		port = of_get_parent(ep);
-		ports = of_get_parent(port);
+		port  = ep_to_port(ep);
+		ports = port_to_ports(port);
 		snd_soc_of_parse_node_prefix(top, cconf, codecs->of_node,
 					      "prefix");
 		if (of_node_name_eq(ports, "ports"))
@@ -350,7 +362,7 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 
 			/* get codec */
 			codec_ep = of_graph_get_remote_endpoint(cpu_ep);
-			codec_port = of_get_parent(codec_ep);
+			codec_port = ep_to_port(codec_ep);
 
 			/* get convert-xxx property */
 			memset(&adata, 0, sizeof(adata));
