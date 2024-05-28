@@ -492,19 +492,16 @@ static int build_tokens_sysfs(struct platform_device *dev)
 		/* add value */
 		value_name = kasprintf(GFP_KERNEL, "%04x_value",
 				       da_tokens[i].tokenID);
-		if (value_name == NULL)
-			goto loop_fail_create_value;
+		if (!value_name) {
+			kfree(location_name);
+			goto out_unwind_strings;
+		}
 
 		sysfs_attr_init(&token_entries[i].value_attr.attr);
 		token_entries[i].value_attr.attr.name = value_name;
 		token_entries[i].value_attr.attr.mode = 0444;
 		token_entries[i].value_attr.show = value_show;
 		token_attrs[j++] = &token_entries[i].value_attr.attr;
-		continue;
-
-loop_fail_create_value:
-		kfree(location_name);
-		goto out_unwind_strings;
 	}
 	smbios_attribute_group.attrs = token_attrs;
 
