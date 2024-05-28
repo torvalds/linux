@@ -328,13 +328,6 @@ static int da8xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 	struct da8xx_glue *glue = dev_get_drvdata(musb->controller->parent);
 	enum phy_mode phy_mode;
 
-	/*
-	 * The PHY has some issues when it is forced in device or host mode.
-	 * Unless the user request another mode, configure the PHY in OTG mode.
-	 */
-	if (!musb->is_initialized)
-		return phy_set_mode(glue->phy, PHY_MODE_USB_OTG);
-
 	switch (musb_mode) {
 	case MUSB_HOST:		/* Force VBUS valid, ID = 0 */
 		phy_mode = PHY_MODE_USB_HOST;
