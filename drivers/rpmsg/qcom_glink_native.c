@@ -1638,8 +1638,11 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 static irqreturn_t qcom_glink_native_thread_intr(int irq, void *data)
 {
 	struct qcom_glink *glink = data;
+	int ret;
 
-	qcom_glink_native_rx(glink, 0);
+	do {
+		ret = qcom_glink_native_rx(glink, 0);
+	} while (ret >= sizeof(struct glink_msg));
 
 	return IRQ_HANDLED;
 }
