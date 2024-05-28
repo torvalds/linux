@@ -2703,6 +2703,7 @@ am65_cpsw_nuss_init_port_ndev(struct am65_cpsw_common *common, u32 port_idx)
 	mutex_init(&ndev_priv->mm_lock);
 	port->qos.link_speed = SPEED_UNKNOWN;
 	SET_NETDEV_DEV(port->ndev, dev);
+	port->ndev->dev.of_node = port->slave.port_np;
 
 	eth_hw_addr_set(port->ndev, port->slave.mac_addr);
 
