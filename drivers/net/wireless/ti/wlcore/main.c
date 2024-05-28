@@ -412,18 +412,18 @@ static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 
 
 	for_each_set_bit(i, wl->links_map, wl->num_links) {
-		u8 diff;
+		u8 diff, tx_lnk_free_pkts;
 		lnk = &wl->links[i];
 
 		/* prevent wrap-around in freed-packets counter */
-		diff = (status->counters.tx_lnk_free_pkts[i] -
-		       lnk->prev_freed_pkts) & 0xff;
+		tx_lnk_free_pkts = status->counters.tx_lnk_free_pkts[i];
+		diff = (tx_lnk_free_pkts - lnk->prev_freed_pkts) & 0xff;
 
 		if (diff == 0)
 			continue;
 
 		lnk->allocated_pkts -= diff;
-		lnk->prev_freed_pkts = status->counters.tx_lnk_free_pkts[i];
+		lnk->prev_freed_pkts = tx_lnk_free_pkts;
 
 		/* accumulate the prev_freed_pkts counter */
 		lnk->total_freed_pkts += diff;
