@@ -389,20 +389,6 @@ static void graph_parse_convert(struct device_node *ep,
 	of_node_put(ports);
 }
 
-static void graph_parse_mclk_fs(struct device_node *ep,
-				struct simple_dai_props *props)
-{
-	struct device_node *port	= ep_to_port(ep);
-	struct device_node *ports	= port_to_ports(port);
-
-	of_property_read_u32(ports,	"mclk-fs", &props->mclk_fs);
-	of_property_read_u32(port,	"mclk-fs", &props->mclk_fs);
-	of_property_read_u32(ep,	"mclk-fs", &props->mclk_fs);
-
-	of_node_put(port);
-	of_node_put(ports);
-}
-
 static int __graph_parse_node(struct simple_util_priv *priv,
 			      enum graph_type gtype,
 			      struct device_node *ep,
@@ -423,8 +409,6 @@ static int __graph_parse_node(struct simple_util_priv *priv,
 		dlc = snd_soc_link_to_codec(dai_link, idx);
 		dai = simple_props_to_dai_codec(dai_props, idx);
 	}
-
-	graph_parse_mclk_fs(ep, dai_props);
 
 	ret = graph_util_parse_dai(dev, ep, dlc, &is_single_links);
 	if (ret < 0)
@@ -770,6 +754,7 @@ static void graph_link_init(struct simple_util_priv *priv,
 			    int is_cpu_node)
 {
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct device_node *ep_cpu, *ep_codec;
 	struct device_node *ports_cpu, *ports_codec;
 	unsigned int daifmt = 0, daiclk = 0;
@@ -812,6 +797,14 @@ static void graph_link_init(struct simple_util_priv *priv,
 	graph_util_parse_link_direction(port_codec,	&playback_only, &capture_only);
 	graph_util_parse_link_direction(ep_cpu,		&playback_only, &capture_only);
 	graph_util_parse_link_direction(ep_codec,	&playback_only, &capture_only);
+
+	of_property_read_u32(lnk,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ports_cpu,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ports_codec,	"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(port_cpu,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(port_codec,	"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ep_cpu,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ep_codec,		"mclk-fs", &dai_props->mclk_fs);
 
 	/*
 	 * convert bit_frame
