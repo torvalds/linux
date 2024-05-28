@@ -3605,13 +3605,28 @@ static void intel_psr_sink_capability(struct intel_dp *intel_dp,
 		   str_yes_no(psr->sink_panel_replay_su_support));
 }
 
+static void intel_psr_print_mode(struct intel_dp *intel_dp,
+				 struct seq_file *m)
+{
+	struct intel_psr *psr = &intel_dp->psr;
+	const char *status;
+
+	if (psr->panel_replay_enabled)
+		status = psr->sel_update_enabled ? "Panel Replay Selective Update Enabled" :
+			"Panel Replay Enabled";
+	else if (psr->enabled)
+		status = psr->sel_update_enabled ? "PSR2" : "PSR1";
+	else
+		status = "disabled";
+	seq_printf(m, "PSR mode: %s\n", status);
+}
+
 static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
 	struct intel_psr *psr = &intel_dp->psr;
 	intel_wakeref_t wakeref;
-	const char *status;
 	bool enabled;
 	u32 val;
 
@@ -3623,14 +3638,7 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	mutex_lock(&psr->lock);
 
-	if (psr->panel_replay_enabled)
-		status = psr->sel_update_enabled ? "Panel Replay Selective Update Enabled" :
-			"Panel Replay Enabled";
-	else if (psr->enabled)
-		status = psr->sel_update_enabled ? "PSR2" : "PSR1";
-	else
-		status = "disabled";
-	seq_printf(m, "PSR mode: %s\n", status);
+	intel_psr_print_mode(intel_dp, m);
 
 	if (!psr->enabled) {
 		seq_printf(m, "PSR sink not reliable: %s\n",
