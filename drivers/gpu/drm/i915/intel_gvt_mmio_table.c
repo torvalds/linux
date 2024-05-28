@@ -517,7 +517,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(SBI_DATA);
 	MMIO_D(SBI_CTL_STAT);
 	MMIO_D(PIXCLK_GATE);
-	MMIO_F(_MMIO(_DPA_AUX_CH_CTL), 6 * 4);
+	MMIO_F(DP_AUX_CH_CTL(AUX_CH_A), 6 * 4);
 	MMIO_D(DDI_BUF_CTL(PORT_A));
 	MMIO_D(DDI_BUF_CTL(PORT_B));
 	MMIO_D(DDI_BUF_CTL(PORT_C));
@@ -888,9 +888,9 @@ static int iterate_pre_skl_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(FORCEWAKE_MT);
 
 	MMIO_D(PCH_ADPA);
-	MMIO_F(_MMIO(_PCH_DPB_AUX_CH_CTL), 6 * 4);
-	MMIO_F(_MMIO(_PCH_DPC_AUX_CH_CTL), 6 * 4);
-	MMIO_F(_MMIO(_PCH_DPD_AUX_CH_CTL), 6 * 4);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_B), 6 * 4);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_C), 6 * 4);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_D), 6 * 4);
 
 	MMIO_F(_MMIO(0x70440), 0xc);
 	MMIO_F(_MMIO(0x71440), 0xc);

@@ -1083,13 +1083,13 @@ static int trigger_aux_channel_interrupt(struct intel_vgpu *vgpu,
 
 	if (reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_A)))
 		event = AUX_CHANNEL_A;
-	else if (reg == _PCH_DPB_AUX_CH_CTL ||
+	else if (reg == i915_mmio_reg_offset(PCH_DP_AUX_CH_CTL(AUX_CH_B)) ||
 		 reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_B)))
 		event = AUX_CHANNEL_B;
-	else if (reg == _PCH_DPC_AUX_CH_CTL ||
+	else if (reg == i915_mmio_reg_offset(PCH_DP_AUX_CH_CTL(AUX_CH_C)) ||
 		 reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_C)))
 		event = AUX_CHANNEL_C;
-	else if (reg == _PCH_DPD_AUX_CH_CTL ||
+	else if (reg == i915_mmio_reg_offset(PCH_DP_AUX_CH_CTL(AUX_CH_D)) ||
 		 reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_D)))
 		event = AUX_CHANNEL_D;
 	else {
@@ -1153,11 +1153,6 @@ static void dp_aux_ch_ctl_link_training(struct intel_vgpu_dpcd_data *dpcd,
 	}
 }
 
-#define _REG_HSW_DP_AUX_CH_CTL(dp) \
-	((dp) ? (_PCH_DPB_AUX_CH_CTL + ((dp)-1)*0x100) : 0x64010)
-
-#define _REG_SKL_DP_AUX_CH_CTL(dp) (0x64010 + (dp) * 0x100)
-
 #define OFFSET_TO_DP_AUX_PORT(offset) (((offset) & 0xF00) >> 8)
 
 #define dpy_is_valid_port(port)	\
@@ -1181,12 +1176,14 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
-	if ((GRAPHICS_VER(vgpu->gvt->gt->i915) >= 9)
-		&& offset != _REG_SKL_DP_AUX_CH_CTL(port_index)) {
+	if (GRAPHICS_VER(vgpu->gvt->gt->i915) >= 9 &&
+	    offset != i915_mmio_reg_offset(DP_AUX_CH_CTL(port_index))) {
 		/* SKL DPB/C/D aux ctl register changed */
 		return 0;
 	} else if (IS_BROADWELL(vgpu->gvt->gt->i915) &&
-		   offset != _REG_HSW_DP_AUX_CH_CTL(port_index)) {
+		   offset != i915_mmio_reg_offset(port_index ?
+						  PCH_DP_AUX_CH_CTL(port_index) :
+						  DP_AUX_CH_CTL(port_index))) {
 		/* write to the data registers */
 		return 0;
 	}
@@ -2299,12 +2296,12 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 		gmbus_mmio_write);
 	MMIO_F(PCH_GPIO_BASE, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
 
-	MMIO_F(_MMIO(_PCH_DPB_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
-		dp_aux_ch_ctl_mmio_write);
-	MMIO_F(_MMIO(_PCH_DPC_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
-		dp_aux_ch_ctl_mmio_write);
-	MMIO_F(_MMIO(_PCH_DPD_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
-		dp_aux_ch_ctl_mmio_write);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_B), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+	       dp_aux_ch_ctl_mmio_write);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_C), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+	       dp_aux_ch_ctl_mmio_write);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_D), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+	       dp_aux_ch_ctl_mmio_write);
 
 	MMIO_DH(PCH_ADPA, D_PRE_SKL, NULL, pch_adpa_mmio_write);
 
@@ -2341,8 +2338,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(SBI_DATA, D_ALL, sbi_data_mmio_read, NULL);
 	MMIO_DH(SBI_CTL_STAT, D_ALL, NULL, sbi_ctl_mmio_write);
 
-	MMIO_F(_MMIO(_DPA_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_ALL, NULL,
-		dp_aux_ch_ctl_mmio_write);
+	MMIO_F(DP_AUX_CH_CTL(AUX_CH_A), 6 * 4, 0, 0, 0, D_ALL, NULL,
+	       dp_aux_ch_ctl_mmio_write);
 
 	MMIO_DH(DDI_BUF_CTL(PORT_A), D_ALL, NULL, ddi_buf_ctl_mmio_write);
 	MMIO_DH(DDI_BUF_CTL(PORT_B), D_ALL, NULL, ddi_buf_ctl_mmio_write);
