@@ -231,6 +231,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	long disabled;
 	int cpu;
 	unsigned int trace_ctx;
+	int skip = STACK_SKIP;
 
 	if (unlikely(!tr->function_enabled))
 		return;
@@ -247,7 +248,11 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	if (likely(disabled == 1)) {
 		trace_ctx = tracing_gen_ctx_flags(flags);
 		trace_function(tr, ip, parent_ip, trace_ctx);
-		__trace_stack(tr, trace_ctx, STACK_SKIP);
+#ifdef CONFIG_UNWINDER_FRAME_POINTER
+		if (ftrace_pids_enabled(op))
+			skip++;
+#endif
+		__trace_stack(tr, trace_ctx, skip);
 	}
 
 	atomic_dec(&data->disabled);
