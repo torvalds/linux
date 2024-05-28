@@ -19,6 +19,7 @@
 #include "tee-dev.h"
 #include "platform-access.h"
 #include "dbc.h"
+#include "hsti.h"
 
 struct psp_device *psp_master;
 
