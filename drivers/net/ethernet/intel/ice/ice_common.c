@@ -240,6 +240,30 @@ bool ice_is_e810t(struct ice_hw *hw)
 }
 
 /**
+ * ice_is_e822 - Check if a device is E822 family device
+ * @hw: pointer to the hardware structure
+ *
+ * Return: true if the device is E822 based, false if not.
+ */
+bool ice_is_e822(struct ice_hw *hw)
+{
+	switch (hw->device_id) {
+	case ICE_DEV_ID_E822C_BACKPLANE:
+	case ICE_DEV_ID_E822C_QSFP:
+	case ICE_DEV_ID_E822C_SFP:
+	case ICE_DEV_ID_E822C_10G_BASE_T:
+	case ICE_DEV_ID_E822C_SGMII:
+	case ICE_DEV_ID_E822L_BACKPLANE:
+	case ICE_DEV_ID_E822L_SFP:
+	case ICE_DEV_ID_E822L_10G_BASE_T:
+	case ICE_DEV_ID_E822L_SGMII:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/**
  * ice_is_e823
  * @hw: pointer to the hardware structure
  *
