@@ -3603,28 +3603,14 @@
 #define PCH_DP_B		_MMIO(_PCH_DP_B)
 #define _PCH_DPB_AUX_CH_CTL	0xe4110
 #define _PCH_DPB_AUX_CH_DATA1	0xe4114
-#define _PCH_DPB_AUX_CH_DATA2	0xe4118
-#define _PCH_DPB_AUX_CH_DATA3	0xe411c
-#define _PCH_DPB_AUX_CH_DATA4	0xe4120
-#define _PCH_DPB_AUX_CH_DATA5	0xe4124
 
 #define _PCH_DP_C		0xe4200
 #define PCH_DP_C		_MMIO(_PCH_DP_C)
 #define _PCH_DPC_AUX_CH_CTL	0xe4210
 #define _PCH_DPC_AUX_CH_DATA1	0xe4214
-#define _PCH_DPC_AUX_CH_DATA2	0xe4218
-#define _PCH_DPC_AUX_CH_DATA3	0xe421c
-#define _PCH_DPC_AUX_CH_DATA4	0xe4220
-#define _PCH_DPC_AUX_CH_DATA5	0xe4224
 
 #define _PCH_DP_D		0xe4300
 #define PCH_DP_D		_MMIO(_PCH_DP_D)
-#define _PCH_DPD_AUX_CH_CTL	0xe4310
-#define _PCH_DPD_AUX_CH_DATA1	0xe4314
-#define _PCH_DPD_AUX_CH_DATA2	0xe4318
-#define _PCH_DPD_AUX_CH_DATA3	0xe431c
-#define _PCH_DPD_AUX_CH_DATA4	0xe4320
-#define _PCH_DPD_AUX_CH_DATA5	0xe4324
 
 #define PCH_DP_AUX_CH_CTL(aux_ch)		_MMIO_PORT((aux_ch) - AUX_CH_B, _PCH_DPB_AUX_CH_CTL, _PCH_DPC_AUX_CH_CTL)
 #define PCH_DP_AUX_CH_DATA(aux_ch, i)	_MMIO(_PORT((aux_ch) - AUX_CH_B, _PCH_DPB_AUX_CH_DATA1, _PCH_DPC_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
