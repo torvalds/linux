@@ -129,12 +129,9 @@ static inline bool can_inc_bucket_gen(struct bucket *b)
 
 bool bch_can_invalidate_bucket(struct cache *ca, struct bucket *b)
 {
-	BUG_ON(!ca->set->gc_mark_valid);
-
-	return (!GC_MARK(b) ||
-		GC_MARK(b) == GC_MARK_RECLAIMABLE) &&
-		!atomic_read(&b->pin) &&
-		can_inc_bucket_gen(b);
+	return (ca->set->gc_mark_valid || b->reclaimable_in_gc) &&
+	       ((!GC_MARK(b) || GC_MARK(b) == GC_MARK_RECLAIMABLE) &&
+	       !atomic_read(&b->pin) && can_inc_bucket_gen(b));
 }
 
 void __bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
@@ -148,6 +145,7 @@ void __bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
 	bch_inc_gen(ca, b);
 	b->prio = INITIAL_PRIO;
 	atomic_inc(&b->pin);
+	b->reclaimable_in_gc = 0;
 }
 
 static void bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
@@ -352,8 +350,7 @@ static int bch_allocator_thread(void *arg)
 		 */
 
 retry_invalidate:
-		allocator_wait(ca, ca->set->gc_mark_valid &&
-			       !ca->invalidate_needs_gc);
+		allocator_wait(ca, !ca->invalidate_needs_gc);
 		invalidate_buckets(ca);
 
 		/*
