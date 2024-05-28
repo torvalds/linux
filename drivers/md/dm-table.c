@@ -160,6 +160,7 @@ int dm_table_create(struct dm_table **result, blk_mode_t mode,
 	t->type = DM_TYPE_NONE;
 	t->mode = mode;
 	t->md = md;
+	t->flush_bypasses_map = true;
 	*result = t;
 	return 0;
 }
@@ -747,6 +748,9 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	if (ti->limit_swap_bios && !static_key_enabled(&swap_bios_enabled.key))
 		static_branch_enable(&swap_bios_enabled);
+
+	if (!ti->flush_bypasses_map)
+		t->flush_bypasses_map = false;
 
 	return 0;
 

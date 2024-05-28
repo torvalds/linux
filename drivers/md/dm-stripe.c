@@ -157,6 +157,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_discard_bios = stripes;
 	ti->num_secure_erase_bios = stripes;
 	ti->num_write_zeroes_bios = stripes;
+	ti->flush_bypasses_map = true;
 
 	sc->chunk_size = chunk_size;
 	if (chunk_size & (chunk_size - 1))
