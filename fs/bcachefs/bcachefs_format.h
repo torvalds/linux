@@ -507,6 +507,7 @@ struct bch_sb_field {
 #include "ec_format.h"
 #include "inode_format.h"
 #include "dirent_format.h"
+#include "disk_groups_format.h"
 #include "xattr_format.h"
 #include "quota_format.h"
 #include "logged_ops_format.h"
@@ -663,24 +664,6 @@ struct bch_replicas_entry_v1 {
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
 	struct bch_replicas_entry_v1 entries[];
-} __packed __aligned(8);
-
-/* BCH_SB_FIELD_disk_groups: */
-
-#define BCH_SB_LABEL_SIZE		32
-
-struct bch_disk_group {
-	__u8			label[BCH_SB_LABEL_SIZE];
-	__le64			flags[2];
-} __packed __aligned(8);
-
-LE64_BITMASK(BCH_GROUP_DELETED,		struct bch_disk_group, flags[0], 0,  1)
-LE64_BITMASK(BCH_GROUP_DATA_ALLOWED,	struct bch_disk_group, flags[0], 1,  6)
-LE64_BITMASK(BCH_GROUP_PARENT,		struct bch_disk_group, flags[0], 6, 24)
-
-struct bch_sb_field_disk_groups {
-	struct bch_sb_field	field;
-	struct bch_disk_group	entries[];
 } __packed __aligned(8);
 
 /*
