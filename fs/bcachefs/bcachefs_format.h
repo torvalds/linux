@@ -507,6 +507,7 @@ struct bch_sb_field {
 #include "dirent_format.h"
 #include "disk_groups_format.h"
 #include "inode_format.h"
+#include "journal_seq_blacklist_format.h"
 #include "logged_ops_format.h"
 #include "quota_format.h"
 #include "reflink_format.h"
@@ -664,16 +665,6 @@ struct bch_sb_field_clean {
 
 	struct jset_entry	start[0];
 	__u64			_data[];
-};
-
-struct journal_seq_blacklist_entry {
-	__le64			start;
-	__le64			end;
-};
-
-struct bch_sb_field_journal_seq_blacklist {
-	struct bch_sb_field	field;
-	struct journal_seq_blacklist_entry start[];
 };
 
 struct bch_sb_field_errors {
