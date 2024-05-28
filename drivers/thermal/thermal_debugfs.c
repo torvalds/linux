@@ -926,3 +926,39 @@ void thermal_debug_tz_remove(struct thermal_zone_device *tz)
 	thermal_debugfs_remove_id(thermal_dbg);
 	kfree(trips_crossed);
 }
+
+void thermal_debug_tz_resume(struct thermal_zone_device *tz)
+{
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	ktime_t now = ktime_get();
+	struct tz_debugfs *tz_dbg;
+	struct tz_episode *tze;
+	int i;
+
+	if (!thermal_dbg)
+		return;
+
+	mutex_lock(&thermal_dbg->lock);
+
+	tz_dbg = &thermal_dbg->tz_dbg;
+
+	if (!tz_dbg->nr_trips)
+		goto out;
+
+	/*
+	 * A mitigation episode was in progress before the preceding system
+	 * suspend transition, so close it because the zone handling is starting
+	 * over from scratch.
+	 */
+	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+
+	for (i = 0; i < tz_dbg->nr_trips; i++)
+		tz_episode_close_trip(tze, tz_dbg->trips_crossed[i], now);
+
+	tze->duration = ktime_sub(now, tze->timestamp);
+
+	tz_dbg->nr_trips = 0;
+
+out:
+	mutex_unlock(&thermal_dbg->lock);
+}

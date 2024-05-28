@@ -1648,6 +1648,7 @@ static void thermal_zone_device_resume(struct work_struct *work)
 
 	tz->suspended = false;
 
+	thermal_debug_tz_resume(tz);
 	thermal_zone_device_init(tz);
 	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
