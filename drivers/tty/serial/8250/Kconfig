@@ -522,7 +522,6 @@ config SERIAL_8250_PXA
 
 config SERIAL_8250_TEGRA
 	tristate "8250 support for Tegra serial ports"
-	default SERIAL_8250
 	depends on SERIAL_8250
 	depends on ARCH_TEGRA || COMPILE_TEST
 	help
