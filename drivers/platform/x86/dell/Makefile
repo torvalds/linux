@@ -9,6 +9,7 @@ obj-$(CONFIG_DCDBAS)			+= dcdbas.o
 obj-$(CONFIG_DELL_LAPTOP)		+= dell-laptop.o
 obj-$(CONFIG_DELL_RBTN)			+= dell-rbtn.o
 obj-$(CONFIG_DELL_RBU)			+= dell_rbu.o
+obj-$(CONFIG_DELL_PC)			+= dell-pc.o
 obj-$(CONFIG_DELL_SMBIOS)		+= dell-smbios.o
 dell-smbios-objs			:= dell-smbios-base.o
 dell-smbios-$(CONFIG_DELL_SMBIOS_WMI)	+= dell-smbios-wmi.o
