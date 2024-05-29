@@ -18,10 +18,8 @@
 #include "xe_device.h"
 #include "xe_bo.h"
 #include "xe_pm.h"
-#include "xe_step.h"
 #include "i915_reg_defs.h"
 #include "i915_utils.h"
-#include "intel_step.h"
 #include "intel_runtime_pm.h"
 #include <linux/pm_runtime.h>
 

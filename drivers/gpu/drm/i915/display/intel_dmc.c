@@ -31,6 +31,7 @@
 #include "intel_de.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
+#include "intel_step.h"
 
 /**
  * DOC: DMC Firmware Support
