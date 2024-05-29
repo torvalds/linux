@@ -26,6 +26,7 @@
 #include <linux/firmware.h>
 
 #include "i915_drv.h"
+#include "i915_gpu_error.h"
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_dmc.h"
