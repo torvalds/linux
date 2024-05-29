@@ -754,9 +754,19 @@ const char *bch2_btree_node_type_str(enum btree_node_type);
 	(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS|		\
 	 BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS)
 
-static inline bool btree_node_type_needs_gc(enum btree_node_type type)
+static inline bool btree_node_type_has_trans_triggers(enum btree_node_type type)
 {
-	return BTREE_NODE_TYPE_HAS_TRIGGERS & BIT_ULL(type);
+	return BIT_ULL(type) & BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS;
+}
+
+static inline bool btree_node_type_has_atomic_triggers(enum btree_node_type type)
+{
+	return BIT_ULL(type) & BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS;
+}
+
+static inline bool btree_node_type_has_triggers(enum btree_node_type type)
+{
+	return BIT_ULL(type) & BTREE_NODE_TYPE_HAS_TRIGGERS;
 }
 
 static inline bool btree_node_type_is_extents(enum btree_node_type type)
