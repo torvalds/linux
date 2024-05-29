@@ -153,9 +153,6 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 1:
 	movq	%rax, %cr4
 
-	jmp 1f
-1:
-
 	/* Flush the TLB (needed?) */
 	movq	%r9, %cr3
 
