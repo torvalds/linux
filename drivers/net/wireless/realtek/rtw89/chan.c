@@ -2322,7 +2322,6 @@ static void rtw89_swap_sub_entity(struct rtw89_dev *rtwdev,
 				  enum rtw89_sub_entity_idx idx2)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
-	struct rtw89_sub_entity tmp;
 	struct rtw89_vif *rtwvif;
 	u8 cur;
 
@@ -2332,9 +2331,7 @@ static void rtw89_swap_sub_entity(struct rtw89_dev *rtwdev,
 	hal->sub[idx1].cfg->idx = idx2;
 	hal->sub[idx2].cfg->idx = idx1;
 
-	tmp = hal->sub[idx1];
-	hal->sub[idx1] = hal->sub[idx2];
-	hal->sub[idx2] = tmp;
+	swap(hal->sub[idx1], hal->sub[idx2]);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		if (!rtwvif->chanctx_assigned)
