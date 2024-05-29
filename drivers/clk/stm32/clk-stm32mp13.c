@@ -1458,7 +1458,7 @@ static const struct clock_config stm32mp13_clock_cfg[] = {
 	STM32_COMPOSITE_CFG(CK_MCO2, ck_mco2, SECF_MCO2),
 };
 
-static int stm32mp13_clock_is_provided_by_secure(void __iomem *base,
+static int stm32mp13_clock_is_provided_by_secure(struct device_node *np, void __iomem *base,
 						 const struct clock_config *cfg)
 {
 	int sec_id = cfg->sec_id;
