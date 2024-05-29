@@ -1357,7 +1357,7 @@ static int ionic_tx_tcp_pseudo_csum(struct sk_buff *skb)
 }
 
 static void ionic_tx_tso_post(struct net_device *netdev, struct ionic_queue *q,
-			      struct ionic_tx_desc_info *desc_info,
+			      struct ionic_txq_desc *desc,
 			      struct sk_buff *skb,
 			      dma_addr_t addr, u8 nsge, u16 len,
 			      unsigned int hdrlen, unsigned int mss,
@@ -1365,7 +1365,6 @@ static void ionic_tx_tso_post(struct net_device *netdev, struct ionic_queue *q,
 			      u16 vlan_tci, bool has_vlan,
 			      bool start, bool done)
 {
-	struct ionic_txq_desc *desc = &q->txq[q->head_idx];
 	u8 flags = 0;
 	u64 cmd;
 
@@ -1503,10 +1502,9 @@ static int ionic_tx_tso(struct net_device *netdev, struct ionic_queue *q,
 		seg_rem = min(tso_rem, mss);
 		done = (tso_rem == 0);
 		/* post descriptor */
-		ionic_tx_tso_post(netdev, q, desc_info, skb,
-				  desc_addr, desc_nsge, desc_len,
-				  hdrlen, mss, outer_csum, vlan_tci, has_vlan,
-				  start, done);
+		ionic_tx_tso_post(netdev, q, desc, skb, desc_addr, desc_nsge,
+				  desc_len, hdrlen, mss, outer_csum, vlan_tci,
+				  has_vlan, start, done);
 		start = false;
 		/* Buffer information is stored with the first tso descriptor */
 		desc_info = &q->tx_info[q->head_idx];
