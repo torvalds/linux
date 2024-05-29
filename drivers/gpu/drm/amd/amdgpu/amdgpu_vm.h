@@ -108,8 +108,11 @@ struct amdgpu_mem_stats;
                                 | AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_CC))
 
 /* gfx10 */
-#define AMDGPU_PTE_MTYPE_NV10(a)       ((uint64_t)(a) << 48)
-#define AMDGPU_PTE_MTYPE_NV10_MASK     AMDGPU_PTE_MTYPE_NV10(7ULL)
+#define AMDGPU_PTE_MTYPE_NV10_SHIFT(mtype)	((uint64_t)(mtype) << 48)
+#define AMDGPU_PTE_MTYPE_NV10_MASK     AMDGPU_PTE_MTYPE_NV10_SHIFT(7ULL)
+#define AMDGPU_PTE_MTYPE_NV10(flags, mtype)			\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_NV10_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_NV10_SHIFT(mtype))
 
 /* gfx12 */
 #define AMDGPU_PTE_PRT_GFX12		(1ULL << 56)
