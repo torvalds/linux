@@ -624,7 +624,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	}
 
 	ret = bch2_key_trigger(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(k),
-			       BTREE_TRIGGER_gc|flags);
+			       BTREE_TRIGGER_gc|BTREE_TRIGGER_insert|flags);
 out:
 fsck_err:
 	printbuf_exit(&buf);
@@ -891,14 +891,16 @@ static int bch2_gc_alloc_done(struct bch_fs *c)
 
 static int bch2_gc_alloc_start(struct bch_fs *c)
 {
+	int ret = 0;
+
 	for_each_member_device(c, ca) {
 		struct bucket_array *buckets = kvmalloc(sizeof(struct bucket_array) +
 				ca->mi.nbuckets * sizeof(struct bucket),
 				GFP_KERNEL|__GFP_ZERO);
 		if (!buckets) {
 			bch2_dev_put(ca);
-			bch_err(c, "error allocating ca->buckets[gc]");
-			return -BCH_ERR_ENOMEM_gc_alloc_start;
+			ret = -BCH_ERR_ENOMEM_gc_alloc_start;
+			break;
 		}
 
 		buckets->first_bucket	= ca->mi.first_bucket;
@@ -908,27 +910,6 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
-	struct bch_dev *ca = NULL;
-	int ret = bch2_trans_run(c,
-		for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
-					 BTREE_ITER_prefetch, k, ({
-			ca = bch2_dev_iterate(c, ca, k.k->p.inode);
-			if (!ca) {
-				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
-				continue;
-			}
-
-			if (bucket_valid(ca, k.k->p.offset)) {
-				struct bch_alloc_v4 a_convert;
-				const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
-
-				struct bucket *g = gc_bucket(ca, k.k->p.offset);
-				g->gen_valid	= 1;
-				g->gen		= a->gen;
-			}
-			0;
-		})));
-	bch2_dev_put(ca);
 	bch_err_fn(c, ret);
 	return ret;
 }

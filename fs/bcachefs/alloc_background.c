@@ -831,10 +831,9 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 	struct bch_alloc_v4 old_a_convert;
 	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
+	struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
 
 	if (flags & BTREE_TRIGGER_transactional) {
-		struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
-
 		alloc_data_type_set(new_a, new_a->data_type);
 
 		if (bch2_bucket_sectors_total(*new_a) > bch2_bucket_sectors_total(*old_a)) {
@@ -906,7 +905,6 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	}
 
 	if ((flags & BTREE_TRIGGER_atomic) && (flags & BTREE_TRIGGER_insert)) {
-		struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
 		u64 journal_seq = trans->journal_res.seq;
 		u64 bucket_journal_seq = new_a->journal_seq;
 
@@ -935,11 +933,9 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 					c->journal.flushed_seq_ondisk,
 					new.k->p.inode, new.k->p.offset,
 					bucket_journal_seq);
-			if (ret) {
-				bch2_fs_fatal_error(c,
-					"setting bucket_needs_journal_commit: %s", bch2_err_str(ret));
+			if (bch2_fs_fatal_err_on(ret, c,
+					"setting bucket_needs_journal_commit: %s", bch2_err_str(ret)))
 				goto err;
-			}
 		}
 
 		if (new_a->gen != old_a->gen) {
@@ -973,6 +969,18 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 		if (statechange(a->data_type == BCH_DATA_need_gc_gens))
 			bch2_gc_gens_async(c);
+	}
+
+	if ((flags & BTREE_TRIGGER_gc) && (flags & BTREE_TRIGGER_insert)) {
+		rcu_read_lock();
+		struct bucket *g = gc_bucket(ca, new.k->p.offset);
+		if (unlikely(!g)) {
+			rcu_read_unlock();
+			goto invalid_bucket;
+		}
+		g->gen_valid	= 1;
+		g->gen		= new_a->gen;
+		rcu_read_unlock();
 	}
 err:
 	printbuf_exit(&buf);
