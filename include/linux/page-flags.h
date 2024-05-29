@@ -947,6 +947,7 @@ enum pagetype {
 	PG_guard	= 0x08000000,
 	PG_hugetlb	= 0x04000000,
 	PG_slab		= 0x02000000,
+	PG_zsmalloc	= 0x01000000,
 
 	PAGE_TYPE_BASE	= 0x80000000,
 
@@ -1070,6 +1071,8 @@ FOLIO_TYPE_OPS(hugetlb, hugetlb)
 #else
 FOLIO_TEST_FLAG_FALSE(hugetlb)
 #endif
+
+PAGE_TYPE_OPS(Zsmalloc, zsmalloc, zsmalloc)
 
 /**
  * PageHuge - Determine if the page belongs to hugetlbfs
