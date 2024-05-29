@@ -1,10 +1,7 @@
-# Suspend to RAM seems to be broken on this machine
-.*suspend.*
-
 # Skip driver specific tests
+^amdgpu.*
 msm_.*
 nouveau_.*
-panfrost_.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
@@ -12,4 +9,6 @@ panfrost_.*
 # Skip intel specific tests
 gem_.*
 i915_.*
-xe_.*
+
+# Panfrost is not a KMS driver, so skip the KMS tests
+kms_.*

@@ -1,7 +1,5 @@
-# Suspend to RAM seems to be broken on this machine
-.*suspend.*
-
 # Skip driver specific tests
+^amdgpu.*
 msm_.*
 nouveau_.*
 panfrost_.*
@@ -12,4 +10,3 @@ panfrost_.*
 # Skip intel specific tests
 gem_.*
 i915_.*
-xe_.*
