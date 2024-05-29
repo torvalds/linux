@@ -735,7 +735,7 @@ config ARM_ERRATA_764319
 	bool "ARM errata: Read to DBGPRSR and DBGOSLSR may generate Undefined instruction"
 	depends on CPU_V7
 	help
-	  This option enables the workaround for the 764319 Cortex A-9 erratum.
+	  This option enables the workaround for the 764319 Cortex-A9 erratum.
 	  CP14 read accesses to the DBGPRSR and DBGOSLSR registers generate an
 	  unexpected Undefined Instruction exception when the DBGSWENABLE
 	  external pin is set to 0, even when the CP14 accesses are performed
