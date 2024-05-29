@@ -4,8 +4,6 @@ debug_symbol.ko
 qcom_wdt_core.ko
 qcom_cpu_vendor_hooks.ko
 qcom_cpucp.ko
-qcom_scmi_vendor.ko
-qcom_scmi_client.ko
 iommu-logger.ko
 qcom-pdc.ko
 arm_smmu.ko
