@@ -2314,6 +2314,16 @@ static int st_asm330lhhx_power_enable(struct st_asm330lhhx_hw *hw)
 	return 0;
 }
 
+static void st_asm330lhh_regulator_power_down(struct st_asm330lhhx_hw *hw)
+{
+	regulator_disable(hw->vdd);
+	regulator_set_voltage(hw->vdd, 0, INT_MAX);
+	regulator_set_load(hw->vdd, 0);
+	regulator_disable(hw->vio);
+	regulator_set_voltage(hw->vio, 0, INT_MAX);
+	regulator_set_load(hw->vio, 0);
+}
+
 static int st_asm330lhh_regulator_init(struct st_asm330lhhx_hw *hw)
 {
 	hw->vdd  = devm_regulator_get(hw->dev, "vdd");
@@ -2628,8 +2638,104 @@ static int __maybe_unused st_asm330lhhx_resume(struct device *dev)
 	return err < 0 ? err : 0;
 }
 
+static int __maybe_unused st_asm330lhhx_freeze(struct device *dev)
+{
+	struct st_asm330lhhx_hw *hw = dev_get_drvdata(dev);
+	struct st_asm330lhhx_sensor *sensor;
+	int i, err = 0;
+
+	dev_info(dev, "Freeze device\n");
+
+	disable_hardirq(hw->irq);
+
+	for (i = 0; i < ST_ASM330LHHX_ID_MAX; i++) {
+		if (!hw->iio_devs[i])
+			continue;
+
+		sensor = iio_priv(hw->iio_devs[i]);
+		if (!(hw->enable_mask & BIT_ULL(sensor->id)))
+			continue;
+
+		/* power off enabled sensors */
+		err = st_asm330lhhx_set_odr(sensor, 0, 0);
+		if (err < 0)
+			return err;
+	}
+
+	if (st_asm330lhhx_is_fifo_enabled(hw)) {
+		err = st_asm330lhhx_suspend_fifo(hw);
+		if (err < 0)
+			return err;
+	}
+
+	err = st_asm330lhhx_bk_regs(hw);
+
+#ifdef CONFIG_IIO_ST_ASM330LHHX_MAY_WAKEUP
+	if (device_may_wakeup(dev))
+		enable_irq_wake(hw->irq);
+#endif /* CONFIG_IIO_ST_ASM330LHHX_MAY_WAKEUP */
+
+
+	st_asm330lhh_regulator_power_down(hw);
+
+	return err < 0 ? err : 0;
+}
+
+static int __maybe_unused st_asm330lhhx_restore(struct device *dev)
+{
+	struct st_asm330lhhx_hw *hw = dev_get_drvdata(dev);
+	struct st_asm330lhhx_sensor *sensor;
+	int i, err = 0;
+
+	dev_info(dev, "Restore device\n");
+	err = st_asm330lhh_regulator_power_up(hw);
+	if (err < 0) {
+		dev_err(hw->dev, "regulator power up failed\n");
+		return err;
+	}
+
+	/* allow time for enabling regulators */
+	usleep_range(1000, 2000);
+
+#ifdef CONFIG_IIO_ST_ASM330LHHX_MAY_WAKEUP
+	if (device_may_wakeup(dev))
+		disable_irq_wake(hw->irq);
+#endif /* CONFIG_IIO_ST_ASM330LHHX_MAY_WAKEUP */
+	err = st_asm330lhhx_restore_regs(hw);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < ST_ASM330LHHX_ID_MAX; i++) {
+		if (!hw->iio_devs[i])
+			continue;
+
+		sensor = iio_priv(hw->iio_devs[i]);
+		if (!(hw->enable_mask & BIT_ULL(sensor->id)))
+			continue;
+
+		err = st_asm330lhhx_set_odr(sensor, sensor->odr, sensor->uodr);
+		if (err < 0)
+			return err;
+	}
+
+	err = st_asm330lhhx_reset_hwts(hw);
+	if (err < 0)
+		return err;
+
+	if (st_asm330lhhx_is_fifo_enabled(hw))
+		err = st_asm330lhhx_set_fifo_mode(hw, ST_ASM330LHHX_FIFO_CONT);
+
+	enable_irq(hw->irq);
+
+	return err < 0 ? err : 0;
+}
+
+
 const struct dev_pm_ops st_asm330lhhx_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(st_asm330lhhx_suspend, st_asm330lhhx_resume)
+	.suspend = st_asm330lhhx_suspend,
+	.resume  = st_asm330lhhx_resume,
+	.freeze  = st_asm330lhhx_freeze,
+	.restore = st_asm330lhhx_restore,
 };
 EXPORT_SYMBOL(st_asm330lhhx_pm_ops);
 
