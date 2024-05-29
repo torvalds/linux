@@ -654,8 +654,8 @@ static void unix_release_sock(struct sock *sk, int embrion)
 	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 		if (state == TCP_LISTEN)
 			unix_release_sock(skb->sk, 1);
+
 		/* passed fds are erased in the kfree_skb hook	      */
-		UNIXCB(skb).consumed = skb->len;
 		kfree_skb(skb);
 	}
 
@@ -2704,9 +2704,8 @@ static int unix_stream_read_generic(struct unix_stream_read_state *state,
 	skip = max(sk_peek_offset(sk, flags), 0);
 
 	do {
-		int chunk;
-		bool drop_skb;
 		struct sk_buff *skb, *last;
+		int chunk;
 
 redo:
 		unix_state_lock(sk);
@@ -2802,11 +2801,7 @@ unlock:
 		}
 
 		chunk = min_t(unsigned int, unix_skb_len(skb) - skip, size);
-		skb_get(skb);
 		chunk = state->recv_actor(skb, skip, chunk, state);
-		drop_skb = !unix_skb_len(skb);
-		/* skb is only safe to use if !drop_skb */
-		consume_skb(skb);
 		if (chunk < 0) {
 			if (copied == 0)
 				copied = -EFAULT;
@@ -2814,18 +2809,6 @@ unlock:
 		}
 		copied += chunk;
 		size -= chunk;
-
-		if (drop_skb) {
-			/* the skb was touched by a concurrent reader;
-			 * we should not expect anything from this skb
-			 * anymore and assume it invalid - we can be
-			 * sure it was dropped from the socket queue
-			 *
-			 * let's report a short read
-			 */
-			err = 0;
-			break;
-		}
 
 		/* Mark read part of skb as used */
 		if (!(flags & MSG_PEEK)) {
