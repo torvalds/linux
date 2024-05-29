@@ -885,7 +885,7 @@ static int phylink_parse_mode(struct phylink *pl,
 	const char *managed;
 	unsigned long caps;
 
-	if (pl->config->ovr_an_inband)
+	if (pl->config->default_an_inband)
 		pl->cfg_link_an_mode = MLO_AN_INBAND;
 
 	dn = fwnode_get_named_child_node(fwnode, "fixed-link");

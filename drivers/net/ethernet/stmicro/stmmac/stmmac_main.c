@@ -1221,7 +1221,7 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 
 	mdio_bus_data = priv->plat->mdio_bus_data;
 	if (mdio_bus_data)
-		priv->phylink_config.ovr_an_inband =
+		priv->phylink_config.default_an_inband =
 			mdio_bus_data->xpcs_an_inband;
 
 	/* Set the platform/firmware specified interface mode. Note, phylink

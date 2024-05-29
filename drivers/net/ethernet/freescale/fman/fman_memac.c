@@ -1232,7 +1232,7 @@ int memac_initialization(struct mac_device *mac_dev,
 	    !of_property_read_bool(mac_node, "managed") &&
 	    mac_dev->phy_if != PHY_INTERFACE_MODE_MII &&
 	    !phy_interface_mode_is_rgmii(mac_dev->phy_if))
-		mac_dev->phylink_config.ovr_an_inband = true;
+		mac_dev->phylink_config.default_an_inband = true;
 	of_node_put(fixed);
 
 	err = memac_init(mac_dev->fman_mac);
