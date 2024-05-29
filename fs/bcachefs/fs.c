@@ -1895,25 +1895,24 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 	struct inode *vinode;
 	struct bch2_opts_parse *opts_parse = fc->fs_private;
 	struct bch_opts opts = opts_parse->opts;
+	darray_str devs;
+	darray_fs devs_to_fs = {};
 	int ret;
 
 	opt_set(opts, read_only, (fc->sb_flags & SB_RDONLY) != 0);
+	opt_set(opts, nostart, true);
 
 	if (!fc->source || strlen(fc->source) == 0)
 		return -EINVAL;
 
-	darray_str devs;
 	ret = bch2_split_devs(fc->source, &devs);
 	if (ret)
 		return ret;
 
-	darray_fs devs_to_fs = {};
 	darray_for_each(devs, i) {
 		ret = darray_push(&devs_to_fs, bch2_path_to_fs(*i));
-		if (ret) {
-			sb = ERR_PTR(ret);
-			goto got_sb;
-		}
+		if (ret)
+			goto err;
 	}
 
 	sb = sget(fc->fs_type, bch2_test_super, bch2_noset_super, fc->sb_flags|SB_NOSEC, &devs_to_fs);
@@ -1921,33 +1920,27 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 		goto got_sb;
 
 	c = bch2_fs_open(devs.data, devs.nr, opts);
-	if (IS_ERR(c)) {
-		sb = ERR_CAST(c);
-		goto got_sb;
-	}
+	ret = PTR_ERR_OR_ZERO(c);
+	if (ret)
+		goto err;
 
 	/* Some options can't be parsed until after the fs is started: */
+	opts = bch2_opts_empty();
 	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf);
-	if (ret) {
-		bch2_fs_stop(c);
-		sb = ERR_PTR(ret);
-		goto got_sb;
-	}
+	if (ret)
+		goto err_stop_fs;
 
 	bch2_opts_apply(&c->opts, opts);
 
+	ret = bch2_fs_start(c);
+	if (ret)
+		goto err_stop_fs;
+
 	sb = sget(fc->fs_type, NULL, bch2_set_super, fc->sb_flags|SB_NOSEC, c);
-	if (IS_ERR(sb))
-		bch2_fs_stop(c);
+	ret = PTR_ERR_OR_ZERO(sb);
+	if (ret)
+		goto err_stop_fs;
 got_sb:
-	darray_exit(&devs_to_fs);
-	bch2_darray_str_exit(&devs);
-
-	if (IS_ERR(sb)) {
-		ret = PTR_ERR(sb);
-		goto err;
-	}
-
 	c = sb->s_fs_info;
 
 	if (sb->s_root) {
@@ -2018,12 +2011,9 @@ got_sb:
 	sb->s_flags |= SB_ACTIVE;
 out:
 	fc->root = dget(sb->s_root);
-	return 0;
-
-err_put_super:
-	__bch2_fs_stop(c);
-	deactivate_locked_super(sb);
 err:
+	darray_exit(&devs_to_fs);
+	bch2_darray_str_exit(&devs);
 	if (ret)
 		pr_err("error: %s", bch2_err_str(ret));
 	/*
@@ -2035,6 +2025,15 @@ err:
 	if (bch2_err_matches(ret, EROFS) && ret != -EROFS)
 		ret = -EIO;
 	return bch2_err_class(ret);
+
+err_stop_fs:
+	bch2_fs_stop(c);
+	goto err;
+
+err_put_super:
+	__bch2_fs_stop(c);
+	deactivate_locked_super(sb);
+	goto err;
 }
 
 static void bch2_kill_sb(struct super_block *sb)
