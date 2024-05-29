@@ -502,7 +502,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 			 XDP_PACKET_HEADROOM, frag_len, false);
 
 	dma_sync_single_range_for_cpu(rxq->dev, ionic_rx_buf_pa(buf_info),
-				      XDP_PACKET_HEADROOM, len,
+				      XDP_PACKET_HEADROOM, frag_len,
 				      DMA_FROM_DEVICE);
 
 	prefetchw(&xdp_buf.data_hard_start);
