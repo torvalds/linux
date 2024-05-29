@@ -1142,15 +1142,11 @@ int bch2_check_allocations(struct bch_fs *c)
 
 	c->gc_count++;
 
-	bch2_journal_block(&c->journal);
-out:
 	ret   = bch2_gc_alloc_done(c) ?:
 		bch2_accounting_gc_done(c) ?:
 		bch2_gc_stripes_done(c) ?:
 		bch2_gc_reflink_done(c);
-
-	bch2_journal_unblock(&c->journal);
-
+out:
 	percpu_down_write(&c->mark_lock);
 	/* Indicates that gc is no longer in progress: */
 	__gc_pos_set(c, gc_phase(GC_PHASE_not_running));
