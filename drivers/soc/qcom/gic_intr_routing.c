@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "gic-router: %s: " fmt, __func__
@@ -347,17 +347,12 @@ static void trace_gic_v3_set_affinity(void *unused, struct irq_data *d,
 		}
 	}
 
-	/* Do not set InterruptRouting for single CPU affinity mask */
-	if (cpumask_weight(cpu_affinity) <= 1)
-		goto clear_class;
-
 	cpumask_or(&all_cpus, &gic_routing_data.gic_routing_class0_cpus,
 			      &gic_routing_data.gic_routing_class1_cpus);
 
-	if (!cpumask_equal(&gic_routing_data.gic_routing_class0_cpus,
-			   cpu_affinity) &&
-	    !cpumask_equal(&gic_routing_data.gic_routing_class1_cpus,
-			   cpu_affinity) &&
+	if (!cpumask_subset(cpu_affinity, &gic_routing_data.gic_routing_class0_cpus) &&
+	    !cpumask_equal(&gic_routing_data.gic_routing_class0_cpus, cpu_affinity) &&
+	    !cpumask_equal(&gic_routing_data.gic_routing_class1_cpus, cpu_affinity) &&
 	    !cpumask_equal(&all_cpus, cpu_affinity)) {
 		pr_debug("irq: %d has subset affinity, skip class setting\n", d->hwirq);
 		goto clear_class;
