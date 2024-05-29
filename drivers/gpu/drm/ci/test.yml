@@ -191,6 +191,7 @@ rockchip:rk3399:
   extends:
     - .lava-igt:x86_64
   stage: i915
+  timeout: "1h30m"
   variables:
     DRIVER_NAME: i915
     DTB: ""
@@ -201,7 +202,6 @@ i915:apl:
   extends:
     - .i915
   parallel: 3
-  timeout: "1h30m"
   variables:
     DEVICE_TYPE: asus-C523NA-A20057-coral
     GPU_VERSION: apl
@@ -211,7 +211,6 @@ i915:glk:
   extends:
     - .i915
   parallel: 2
-  timeout: "1h30m"
   variables:
     DEVICE_TYPE: hp-x360-12b-ca0010nr-n4020-octopus
     GPU_VERSION: glk
@@ -221,7 +220,6 @@ i915:amly:
   extends:
     - .i915
   parallel: 2
-  timeout: "1h30m"
   variables:
     DEVICE_TYPE: asus-C433TA-AJ0005-rammus
     GPU_VERSION: amly
@@ -240,7 +238,6 @@ i915:whl:
   extends:
     - .i915
   parallel: 2
-  timeout: "1h30m"
   variables:
     DEVICE_TYPE: dell-latitude-5400-8665U-sarien
     GPU_VERSION: whl
@@ -250,7 +247,6 @@ i915:cml:
   extends:
     - .i915
   parallel: 2
-  timeout: "1h30m"
   variables:
     DEVICE_TYPE: asus-C436FA-Flip-hatch
     GPU_VERSION: cml
