@@ -461,17 +461,17 @@ static uint64_t gmc_v12_0_map_mtype(struct amdgpu_device *adev, uint32_t flags)
 {
 	switch (flags) {
 	case AMDGPU_VM_MTYPE_DEFAULT:
-		return AMDGPU_PTE_MTYPE_GFX12(MTYPE_NC);
+		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
 	case AMDGPU_VM_MTYPE_NC:
-		return AMDGPU_PTE_MTYPE_GFX12(MTYPE_NC);
+		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
 	case AMDGPU_VM_MTYPE_WC:
-		return AMDGPU_PTE_MTYPE_GFX12(MTYPE_WC);
+		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_WC);
 	case AMDGPU_VM_MTYPE_CC:
-		return AMDGPU_PTE_MTYPE_GFX12(MTYPE_CC);
+		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_CC);
 	case AMDGPU_VM_MTYPE_UC:
-		return AMDGPU_PTE_MTYPE_GFX12(MTYPE_UC);
+		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_UC);
 	default:
-		return AMDGPU_PTE_MTYPE_GFX12(MTYPE_NC);
+		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
 	}
 }
 
@@ -524,8 +524,7 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 
 	if (bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
 			       AMDGPU_GEM_CREATE_UNCACHED))
-		*flags = (*flags & ~AMDGPU_PTE_MTYPE_GFX12_MASK) |
-			 AMDGPU_PTE_MTYPE_GFX12(MTYPE_UC);
+		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_UC);
 
 	bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	coherent = bo->flags & AMDGPU_GEM_CREATE_COHERENT;
@@ -534,7 +533,7 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 
 	/* WA for HW bug */
 	if (is_system || ((bo_adev != adev) && coherent))
-		*flags |= AMDGPU_PTE_MTYPE_GFX12(MTYPE_NC);
+		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_NC);
 
 }
 
@@ -707,7 +706,7 @@ static int gmc_v12_0_gart_init(struct amdgpu_device *adev)
 		return r;
 
 	adev->gart.table_size = adev->gart.num_gpu_pages * 8;
-	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE_GFX12(MTYPE_UC) |
+	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_UC) |
 				    AMDGPU_PTE_EXECUTABLE |
 				    AMDGPU_PTE_IS_PTE;
 

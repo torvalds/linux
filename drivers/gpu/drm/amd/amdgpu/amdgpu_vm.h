@@ -116,8 +116,11 @@ struct amdgpu_mem_stats;
 #define AMDGPU_PTE_PRT_FLAG(adev)	\
 	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PTE_PRT_GFX12 : AMDGPU_PTE_PRT)
 
-#define AMDGPU_PTE_MTYPE_GFX12(a)	((uint64_t)(a) << 54)
-#define AMDGPU_PTE_MTYPE_GFX12_MASK	AMDGPU_PTE_MTYPE_GFX12(3ULL)
+#define AMDGPU_PTE_MTYPE_GFX12_SHIFT(mtype)	((uint64_t)(mtype) << 54)
+#define AMDGPU_PTE_MTYPE_GFX12_MASK	AMDGPU_PTE_MTYPE_GFX12_SHIFT(3ULL)
+#define AMDGPU_PTE_MTYPE_GFX12(flags, mtype)				\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_GFX12_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_GFX12_SHIFT(mtype))
 
 #define AMDGPU_PTE_IS_PTE		(1ULL << 63)
 
