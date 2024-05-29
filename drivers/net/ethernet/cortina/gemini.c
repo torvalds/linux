@@ -288,7 +288,7 @@ static void gmac_set_flow_control(struct net_device *netdev, bool tx, bool rx)
 	spin_unlock_irqrestore(&port->config_lock, flags);
 }
 
-static void gmac_speed_set(struct net_device *netdev)
+static void gmac_adjust_link(struct net_device *netdev)
 {
 	struct gemini_ethernet_port *port = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
@@ -367,7 +367,7 @@ static int gmac_setup_phy(struct net_device *netdev)
 
 	phy = of_phy_get_and_connect(netdev,
 				     dev->of_node,
-				     gmac_speed_set);
+				     gmac_adjust_link);
 	if (!phy)
 		return -ENODEV;
 	netdev->phydev = phy;
