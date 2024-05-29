@@ -2219,6 +2219,20 @@ static const struct adsp_data volcano_cdsp_resource = {
 	.ssctl_id = 0x17,
 };
 
+static const struct adsp_data anorak_adsp_resource = {
+	.crash_reason_smem = 423,
+	.firmware_name = "adsp.mdt",
+	.pas_id = 1,
+	.minidump_id = 5,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "lpass",
+	.sysmon_name = "adsp",
+	.qmp_name = "adsp",
+	.ssctl_id = 0x14,
+};
+
 static const struct adsp_data khaje_cdsp_resource = {
 	.crash_reason_smem = 601,
 	.firmware_name = "cdsp.mdt",
@@ -2773,6 +2787,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,volcano-adsp-pas", .data = &volcano_adsp_resource},
 	{ .compatible = "qcom,volcano-modem-pas", .data = &volcano_mpss_resource},
 	{ .compatible = "qcom,volcano-cdsp-pas", .data = &volcano_cdsp_resource},
+	{ .compatible = "qcom,anorak-adsp-pas", .data = &anorak_adsp_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
