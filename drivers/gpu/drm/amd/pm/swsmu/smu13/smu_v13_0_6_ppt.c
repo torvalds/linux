@@ -2574,24 +2574,14 @@ failed:
 static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	struct amdgpu_hive_info *hive = NULL;
-	u32 hive_ras_recovery = 0;
-	struct amdgpu_ras *ras;
 	u32 fatal_err, param;
 	int ret = 0;
 
-	hive = amdgpu_get_xgmi_hive(adev);
-	ras = amdgpu_ras_get_context(adev);
 	fatal_err = 0;
 	param = SMU_RESET_MODE_1;
 
-	if (hive) {
-		hive_ras_recovery = atomic_read(&hive->ras_recovery);
-		amdgpu_put_xgmi_hive(hive);
-	}
-
 	/* fatal error triggered by ras, PMFW supports the flag */
-	if (ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery))
+	if (amdgpu_ras_in_recovery(adev))
 		fatal_err = 1;
 
 	param |= (fatal_err << 16);

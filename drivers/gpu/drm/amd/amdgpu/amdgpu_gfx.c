@@ -506,9 +506,6 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 {
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
-	struct amdgpu_hive_info *hive;
-	struct amdgpu_ras *ras;
-	int hive_ras_recovery = 0;
 	int i, r = 0;
 	int j;
 
@@ -533,16 +530,9 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	 * This is workaround: only skip kiq_ring test
 	 * during ras recovery in suspend stage for gfx9.4.3
 	 */
-	hive = amdgpu_get_xgmi_hive(adev);
-	if (hive) {
-		hive_ras_recovery = atomic_read(&hive->ras_recovery);
-		amdgpu_put_xgmi_hive(hive);
-	}
-
-	ras = amdgpu_ras_get_context(adev);
 	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
-	     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) &&
-		ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery)) {
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) &&
+	    amdgpu_ras_in_recovery(adev)) {
 		spin_unlock(&kiq->ring_lock);
 		return 0;
 	}

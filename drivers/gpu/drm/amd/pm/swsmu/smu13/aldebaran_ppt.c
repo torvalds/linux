@@ -1863,7 +1863,6 @@ static int aldebaran_mode1_reset(struct smu_context *smu)
 	u32 fatal_err, param;
 	int ret = 0;
 	struct amdgpu_device *adev = smu->adev;
-	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	fatal_err = 0;
 	param = SMU_RESET_MODE_1;
@@ -1876,8 +1875,8 @@ static int aldebaran_mode1_reset(struct smu_context *smu)
 	} else {
 		/* fatal error triggered by ras, PMFW supports the flag
 		   from 68.44.0 */
-		if ((smu->smc_fw_version >= 0x00442c00) && ras &&
-		    atomic_read(&ras->in_recovery))
+		if ((smu->smc_fw_version >= 0x00442c00) &&
+		    amdgpu_ras_in_recovery(adev))
 			fatal_err = 1;
 
 		param |= (fatal_err << 16);
