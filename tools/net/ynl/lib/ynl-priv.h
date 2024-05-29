@@ -79,7 +79,7 @@ static inline void *ynl_dump_obj_next(void *obj)
 	struct ynl_dump_list_type *list;
 
 	uptr -= offsetof(struct ynl_dump_list_type, data);
-	list = (void *)uptr;
+	list = (struct ynl_dump_list_type *)uptr;
 	uptr = (unsigned long)list->next;
 	uptr += offsetof(struct ynl_dump_list_type, data);
 
@@ -139,7 +139,7 @@ int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
 
 static inline struct nlmsghdr *ynl_nlmsg_put_header(void *buf)
 {
-	struct nlmsghdr *nlh = buf;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)buf;
 
 	memset(nlh, 0, sizeof(*nlh));
 	nlh->nlmsg_len = NLMSG_HDRLEN;
@@ -196,7 +196,7 @@ static inline void *ynl_attr_data(const struct nlattr *attr)
 
 static inline void *ynl_attr_data_end(const struct nlattr *attr)
 {
-	return ynl_attr_data(attr) + ynl_attr_data_len(attr);
+	return (char *)ynl_attr_data(attr) + ynl_attr_data_len(attr);
 }
 
 #define ynl_attr_for_each(attr, nlh, fixed_hdr_sz)			\
@@ -228,7 +228,7 @@ ynl_attr_next(const void *end, const struct nlattr *prev)
 {
 	struct nlattr *attr;
 
-	attr = (void *)((char *)prev + NLA_ALIGN(prev->nla_len));
+	attr = (struct nlattr *)((char *)prev + NLA_ALIGN(prev->nla_len));
 	return ynl_attr_if_good(end, attr);
 }
 
@@ -237,8 +237,8 @@ ynl_attr_first(const void *start, size_t len, size_t skip)
 {
 	struct nlattr *attr;
 
-	attr = (void *)((char *)start + NLMSG_ALIGN(skip));
-	return ynl_attr_if_good(start + len, attr);
+	attr = (struct nlattr *)((char *)start + NLMSG_ALIGN(skip));
+	return ynl_attr_if_good((char *)start + len, attr);
 }
 
 static inline bool
@@ -262,9 +262,9 @@ ynl_attr_nest_start(struct nlmsghdr *nlh, unsigned int attr_type)
 	struct nlattr *attr;
 
 	if (__ynl_attr_put_overflow(nlh, 0))
-		return ynl_nlmsg_end_addr(nlh) - NLA_HDRLEN;
+		return (struct nlattr *)ynl_nlmsg_end_addr(nlh) - 1;
 
-	attr = ynl_nlmsg_end_addr(nlh);
+	attr = (struct nlattr *)ynl_nlmsg_end_addr(nlh);
 	attr->nla_type = attr_type | NLA_F_NESTED;
 	nlh->nlmsg_len += NLA_HDRLEN;
 
@@ -286,7 +286,7 @@ ynl_attr_put(struct nlmsghdr *nlh, unsigned int attr_type,
 	if (__ynl_attr_put_overflow(nlh, size))
 		return;
 
-	attr = ynl_nlmsg_end_addr(nlh);
+	attr = (struct nlattr *)ynl_nlmsg_end_addr(nlh);
 	attr->nla_type = attr_type;
 	attr->nla_len = NLA_HDRLEN + size;
 
@@ -305,10 +305,10 @@ ynl_attr_put_str(struct nlmsghdr *nlh, unsigned int attr_type, const char *str)
 	if (__ynl_attr_put_overflow(nlh, len))
 		return;
 
-	attr = ynl_nlmsg_end_addr(nlh);
+	attr = (struct nlattr *)ynl_nlmsg_end_addr(nlh);
 	attr->nla_type = attr_type;
 
-	strcpy(ynl_attr_data(attr), str);
+	strcpy((char *)ynl_attr_data(attr), str);
 	attr->nla_len = NLA_HDRLEN + NLA_ALIGN(len);
 
 	nlh->nlmsg_len += NLMSG_ALIGN(attr->nla_len);
