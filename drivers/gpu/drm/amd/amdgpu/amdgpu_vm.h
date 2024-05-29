@@ -94,8 +94,11 @@ struct amdgpu_mem_stats;
 #define AMDGPU_VM_NORETRY_FLAGS_TF (AMDGPU_PTE_VALID | AMDGPU_PTE_SYSTEM | \
 				   AMDGPU_PTE_PRT)
 /* For GFX9 */
-#define AMDGPU_PTE_MTYPE_VG10(a)	((uint64_t)(a) << 57)
-#define AMDGPU_PTE_MTYPE_VG10_MASK	AMDGPU_PTE_MTYPE_VG10(3ULL)
+#define AMDGPU_PTE_MTYPE_VG10_SHIFT(mtype)	((uint64_t)(mtype) << 57)
+#define AMDGPU_PTE_MTYPE_VG10_MASK	AMDGPU_PTE_MTYPE_VG10_SHIFT(3ULL)
+#define AMDGPU_PTE_MTYPE_VG10(flags, mtype)			\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_VG10_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_VG10_SHIFT(mtype))
 
 #define AMDGPU_MTYPE_NC 0
 #define AMDGPU_MTYPE_CC 2

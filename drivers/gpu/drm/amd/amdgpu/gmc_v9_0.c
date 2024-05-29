@@ -1075,19 +1075,19 @@ static uint64_t gmc_v9_0_map_mtype(struct amdgpu_device *adev, uint32_t flags)
 {
 	switch (flags) {
 	case AMDGPU_VM_MTYPE_DEFAULT:
-		return AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
+		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_NC);
 	case AMDGPU_VM_MTYPE_NC:
-		return AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
+		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_NC);
 	case AMDGPU_VM_MTYPE_WC:
-		return AMDGPU_PTE_MTYPE_VG10(MTYPE_WC);
+		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_WC);
 	case AMDGPU_VM_MTYPE_RW:
-		return AMDGPU_PTE_MTYPE_VG10(MTYPE_RW);
+		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_RW);
 	case AMDGPU_VM_MTYPE_CC:
-		return AMDGPU_PTE_MTYPE_VG10(MTYPE_CC);
+		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_CC);
 	case AMDGPU_VM_MTYPE_UC:
-		return AMDGPU_PTE_MTYPE_VG10(MTYPE_UC);
+		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_UC);
 	default:
-		return AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
+		return AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_NC);
 	}
 }
 
@@ -1228,8 +1228,8 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 	}
 
 	if (mtype != MTYPE_NC)
-		*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
-			 AMDGPU_PTE_MTYPE_VG10(mtype);
+		*flags = AMDGPU_PTE_MTYPE_VG10(*flags, mtype);
+
 	*flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
 }
 
@@ -1281,9 +1281,9 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 	 * and can also be overridden.
 	 */
 	if ((*flags & AMDGPU_PTE_MTYPE_VG10_MASK) !=
-	    AMDGPU_PTE_MTYPE_VG10(MTYPE_NC) &&
+	    AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_NC) &&
 	    (*flags & AMDGPU_PTE_MTYPE_VG10_MASK) !=
-	    AMDGPU_PTE_MTYPE_VG10(MTYPE_UC)) {
+	    AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_UC)) {
 		dev_dbg_ratelimited(adev->dev, "MTYPE is not NC or UC\n");
 		return;
 	}
@@ -1312,7 +1312,7 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 	if (nid == local_node) {
 		uint64_t old_flags = *flags;
 		if ((*flags & AMDGPU_PTE_MTYPE_VG10_MASK) ==
-			AMDGPU_PTE_MTYPE_VG10(MTYPE_NC)) {
+			AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_NC)) {
 			unsigned int mtype_local = MTYPE_RW;
 
 			if (amdgpu_mtype_local == 1)
@@ -1320,12 +1320,10 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 			else if (amdgpu_mtype_local == 2)
 				mtype_local = MTYPE_CC;
 
-			*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
-				 AMDGPU_PTE_MTYPE_VG10(mtype_local);
+			*flags = AMDGPU_PTE_MTYPE_VG10(*flags, mtype_local);
 		} else if (adev->rev_id) {
 			/* MTYPE_UC case */
-			*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
-				 AMDGPU_PTE_MTYPE_VG10(MTYPE_CC);
+			*flags = AMDGPU_PTE_MTYPE_VG10(*flags, MTYPE_CC);
 		}
 
 		dev_dbg_ratelimited(adev->dev, "flags updated from %llx to %llx\n",
@@ -1772,7 +1770,7 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 	if (r)
 		return r;
 	adev->gart.table_size = adev->gart.num_gpu_pages * 8;
-	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE_VG10(MTYPE_UC) |
+	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE_VG10(0ULL, MTYPE_UC) |
 				 AMDGPU_PTE_EXECUTABLE;
 
 	if (!adev->gmc.real_vram_size) {
