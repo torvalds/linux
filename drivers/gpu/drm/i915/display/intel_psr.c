@@ -1525,6 +1525,8 @@ void intel_psr_get_config(struct intel_encoder *encoder,
 			pipe_config->enable_psr2_sel_fetch = true;
 	}
 
+	pipe_config->enable_psr2_su_region_et = intel_dp->psr.su_region_et_enabled;
+
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		val = intel_de_read(dev_priv,
 				    TRANS_EXITLINE(dev_priv, cpu_transcoder));
