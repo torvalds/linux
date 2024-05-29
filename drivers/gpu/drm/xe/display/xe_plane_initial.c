@@ -9,7 +9,6 @@
 #include "regs/xe_gtt_defs.h"
 #include "xe_ggtt.h"
 
-#include "i915_drv.h"
 #include "intel_atomic_plane.h"
 #include "intel_crtc.h"
 #include "intel_display.h"
@@ -25,10 +24,10 @@ intel_reuse_initial_plane_obj(struct intel_crtc *this,
 			      const struct intel_initial_plane_config plane_configs[],
 			      struct drm_framebuffer **fb)
 {
-	struct drm_i915_private *i915 = to_i915(this->base.dev);
+	struct xe_device *xe = to_xe_device(this->base.dev);
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(&i915->drm, crtc) {
+	for_each_intel_crtc(&xe->drm, crtc) {
 		struct intel_plane *plane =
 			to_intel_plane(crtc->base.primary);
 		const struct intel_plane_state *plane_state =
@@ -135,8 +134,7 @@ static bool
 intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 			      struct intel_initial_plane_config *plane_config)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct xe_device *xe = to_xe_device(crtc->base.dev);
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct drm_framebuffer *fb = &plane_config->fb->base;
 	struct xe_bo *bo;
@@ -148,9 +146,9 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	case I915_FORMAT_MOD_4_TILED:
 		break;
 	default:
-		drm_dbg(&dev_priv->drm,
-			"Unsupported modifier for initial FB: 0x%llx\n",
-			fb->modifier);
+		drm_dbg_kms(&xe->drm,
+			    "Unsupported modifier for initial FB: 0x%llx\n",
+			    fb->modifier);
 		return false;
 	}
 
@@ -161,13 +159,13 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	mode_cmd.modifier[0] = fb->modifier;
 	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
 
-	bo = initial_plane_bo(dev_priv, plane_config);
+	bo = initial_plane_bo(xe, plane_config);
 	if (!bo)
 		return false;
 
 	if (intel_framebuffer_init(to_intel_framebuffer(fb),
 				   bo, &mode_cmd)) {
-		drm_dbg_kms(&dev_priv->drm, "intel fb init failed\n");
+		drm_dbg_kms(&xe->drm, "intel fb init failed\n");
 		goto err_bo;
 	}
 	/* Reference handed over to fb */

@@ -5,7 +5,6 @@
 
 #include <drm/ttm/ttm_bo.h>
 
-#include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"

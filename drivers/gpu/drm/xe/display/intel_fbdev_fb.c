@@ -5,7 +5,6 @@
 
 #include <drm/drm_fb_helper.h>
 
-#include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_fbdev_fb.h"
 #include "xe_bo.h"
@@ -17,7 +16,7 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 {
 	struct drm_framebuffer *fb;
 	struct drm_device *dev = helper->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct xe_device *xe = to_xe_device(dev);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
 	int size;
@@ -38,26 +37,26 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 	size = PAGE_ALIGN(size);
 	obj = ERR_PTR(-ENODEV);
 
-	if (!IS_DGFX(dev_priv)) {
-		obj = xe_bo_create_pin_map(dev_priv, xe_device_get_root_tile(dev_priv),
+	if (!IS_DGFX(xe)) {
+		obj = xe_bo_create_pin_map(xe, xe_device_get_root_tile(xe),
 					   NULL, size,
 					   ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
 					   XE_BO_FLAG_STOLEN |
 					   XE_BO_FLAG_PINNED);
 		if (!IS_ERR(obj))
-			drm_info(&dev_priv->drm, "Allocated fbdev into stolen\n");
+			drm_info(&xe->drm, "Allocated fbdev into stolen\n");
 		else
-			drm_info(&dev_priv->drm, "Allocated fbdev into stolen failed: %li\n", PTR_ERR(obj));
+			drm_info(&xe->drm, "Allocated fbdev into stolen failed: %li\n", PTR_ERR(obj));
 	}
 	if (IS_ERR(obj)) {
-		obj = xe_bo_create_pin_map(dev_priv, xe_device_get_root_tile(dev_priv), NULL, size,
-					  ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
-					  XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(dev_priv)) |
-					  XE_BO_FLAG_PINNED);
+		obj = xe_bo_create_pin_map(xe, xe_device_get_root_tile(xe), NULL, size,
+					   ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
+					   XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
+					   XE_BO_FLAG_PINNED);
 	}
 
 	if (IS_ERR(obj)) {
-		drm_err(&dev_priv->drm, "failed to allocate framebuffer (%pe)\n", obj);
+		drm_err(&xe->drm, "failed to allocate framebuffer (%pe)\n", obj);
 		fb = ERR_PTR(-ENOMEM);
 		goto err;
 	}
