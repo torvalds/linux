@@ -222,8 +222,7 @@ int amd_iommu_iopf_init(struct amd_iommu *iommu)
 	if (iommu->iopf_queue)
 		return ret;
 
-	snprintf(iommu->iopfq_name, sizeof(iommu->iopfq_name),
-		 "amdiommu-%#x-iopfq",
+	snprintf(iommu->iopfq_name, sizeof(iommu->iopfq_name), "amdvi-%#x",
 		 PCI_SEG_DEVID_TO_SBDF(iommu->pci_seg->id, iommu->devid));
 
 	iommu->iopf_queue = iopf_queue_alloc(iommu->iopfq_name);
