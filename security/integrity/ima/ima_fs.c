@@ -427,8 +427,6 @@ static void __init remove_securityfs_measurement_lists(struct dentry **lists)
 
 		kfree(lists);
 	}
-
-	securityfs_measurement_list_count = 0;
 }
 
 static int __init create_securityfs_measurement_lists(void)
@@ -625,6 +623,7 @@ out:
 	securityfs_remove(binary_runtime_measurements);
 	remove_securityfs_measurement_lists(ascii_securityfs_measurement_lists);
 	remove_securityfs_measurement_lists(binary_securityfs_measurement_lists);
+	securityfs_measurement_list_count = 0;
 	securityfs_remove(ima_symlink);
 	securityfs_remove(ima_dir);
 
