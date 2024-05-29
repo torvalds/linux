@@ -33,6 +33,8 @@ properties:
       - description: PCIE30 PHY3 pipe clock source
       - description: USB3 PHY pipe clock source
 
+  '#power-domain-cells': false
+
 required:
   - compatible
   - clocks
@@ -57,6 +59,5 @@ examples:
                <&usb3phy_0_cc_pipe_clk>;
       #clock-cells = <1>;
       #reset-cells = <1>;
-      #power-domain-cells = <1>;
     };
 ...
