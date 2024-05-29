@@ -885,14 +885,16 @@ static int phylink_parse_mode(struct phylink *pl,
 	const char *managed;
 	unsigned long caps;
 
+	if (pl->config->ovr_an_inband)
+		pl->cfg_link_an_mode = MLO_AN_INBAND;
+
 	dn = fwnode_get_named_child_node(fwnode, "fixed-link");
 	if (dn || fwnode_property_present(fwnode, "fixed-link"))
 		pl->cfg_link_an_mode = MLO_AN_FIXED;
 	fwnode_handle_put(dn);
 
 	if ((fwnode_property_read_string(fwnode, "managed", &managed) == 0 &&
-	     strcmp(managed, "in-band-status") == 0) ||
-	    pl->config->ovr_an_inband) {
+	     strcmp(managed, "in-band-status") == 0)) {
 		if (pl->cfg_link_an_mode == MLO_AN_FIXED) {
 			phylink_err(pl,
 				    "can't use both fixed-link and in-band-status\n");
