@@ -1220,6 +1220,11 @@ void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
 	spi_unmap_buf_attrs(ctlr, dev, sgt, dir, 0);
 }
 
+/* Dummy SG for unidirect transfers */
+static struct scatterlist dummy_sg = {
+	.page_link = SG_END,
+};
+
 static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 {
 	struct device *tx_dev, *rx_dev;
@@ -1258,6 +1263,8 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 						attrs);
 			if (ret != 0)
 				return ret;
+		} else {
+			xfer->tx_sg.sgl = &dummy_sg;
 		}
 
 		if (xfer->rx_buf != NULL) {
@@ -1271,6 +1278,8 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 				return ret;
 			}
+		} else {
+			xfer->rx_sg.sgl = &dummy_sg;
 		}
 	}
 	/* No transfer has been mapped, bail out with success */
