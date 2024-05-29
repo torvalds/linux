@@ -75,6 +75,7 @@ properties:
           - qcom,pma8084
           - qcom,pmc8180
           - qcom,pmc8180c
+          - qcom,pmc8380
           - qcom,pmd9635
           - qcom,pmi632
           - qcom,pmi8950
