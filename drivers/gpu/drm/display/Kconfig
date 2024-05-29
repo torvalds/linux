@@ -74,6 +74,6 @@ config DRM_DISPLAY_HDMI_HELPER
 config DRM_DISPLAY_HDMI_STATE_HELPER
 	bool
 	depends on DRM_DISPLAY_HELPER
-	depends on DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
 	help
 	  DRM KMS state helpers for HDMI.
