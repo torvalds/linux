@@ -58,6 +58,8 @@ static inline struct gc_pos gc_pos_btree_node(struct btree *b)
 
 static inline int gc_btree_order(enum btree_id btree)
 {
+	if (btree == BTREE_ID_alloc)
+		return -2;
 	if (btree == BTREE_ID_stripes)
 		return -1;
 	return btree;
@@ -65,11 +67,11 @@ static inline int gc_btree_order(enum btree_id btree)
 
 static inline int gc_pos_cmp(struct gc_pos l, struct gc_pos r)
 {
-	return   cmp_int(l.phase, r.phase) ?:
-		 cmp_int(gc_btree_order(l.btree),
-			 gc_btree_order(r.btree)) ?:
-		-cmp_int(l.level, r.level) ?:
-		 bpos_cmp(l.pos, r.pos);
+	return  cmp_int(l.phase, r.phase) ?:
+		cmp_int(gc_btree_order(l.btree),
+			gc_btree_order(r.btree)) ?:
+		cmp_int(l.level, r.level) ?:
+		bpos_cmp(l.pos, r.pos);
 }
 
 static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)
