@@ -213,9 +213,11 @@ static void netfs_prepare_write(struct netfs_io_request *wreq,
  * netfs_write_subrequest_terminated() when complete.
  */
 static void netfs_do_issue_write(struct netfs_io_stream *stream,
-				 struct netfs_io_subrequest *subreq)
+				 struct netfs_io_subrequest *subreq,
+				 struct iov_iter *source)
 {
 	struct netfs_io_request *wreq = subreq->rreq;
+	size_t size = subreq->len - subreq->transferred;
 
 	_enter("R=%x[%x],%zx", wreq->debug_id, subreq->debug_index, subreq->len);
 
@@ -223,27 +225,20 @@ static void netfs_do_issue_write(struct netfs_io_stream *stream,
 		return netfs_write_subrequest_terminated(subreq, subreq->error, false);
 
 	// TODO: Use encrypted buffer
-	if (test_bit(NETFS_RREQ_USE_IO_ITER, &wreq->flags)) {
-		subreq->io_iter = wreq->io_iter;
-		iov_iter_advance(&subreq->io_iter,
-				 subreq->start + subreq->transferred - wreq->start);
-		iov_iter_truncate(&subreq->io_iter,
-				 subreq->len - subreq->transferred);
-	} else {
-		iov_iter_xarray(&subreq->io_iter, ITER_SOURCE, &wreq->mapping->i_pages,
-				subreq->start + subreq->transferred,
-				subreq->len   - subreq->transferred);
-	}
+	subreq->io_iter = *source;
+	iov_iter_advance(source, size);
+	iov_iter_truncate(&subreq->io_iter, size);
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
 	stream->issue_write(subreq);
 }
 
 void netfs_reissue_write(struct netfs_io_stream *stream,
-			 struct netfs_io_subrequest *subreq)
+			 struct netfs_io_subrequest *subreq,
+			 struct iov_iter *source)
 {
 	__set_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
-	netfs_do_issue_write(stream, subreq);
+	netfs_do_issue_write(stream, subreq, source);
 }
 
 static void netfs_issue_write(struct netfs_io_request *wreq,
@@ -257,7 +252,7 @@ static void netfs_issue_write(struct netfs_io_request *wreq,
 
 	if (subreq->start + subreq->len > wreq->start + wreq->submitted)
 		WRITE_ONCE(wreq->submitted, subreq->start + subreq->len - wreq->start);
-	netfs_do_issue_write(stream, subreq);
+	netfs_do_issue_write(stream, subreq, &wreq->io_iter);
 }
 
 /*
@@ -421,6 +416,9 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 	} else {
 		trace_netfs_folio(folio, netfs_folio_trace_store_plus);
 	}
+
+	/* Attach the folio to the rolling buffer. */
+	netfs_buffer_append_folio(wreq, folio, false);
 
 	/* Move the submission point forward to allow for write-streaming data
 	 * not starting at the front of the page.  We don't do write-streaming

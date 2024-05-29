@@ -38,10 +38,6 @@ static inline void folio_start_private_2(struct folio *folio)
 	folio_set_private_2(folio);
 }
 
-/* Marks used on xarray-based buffers */
-#define NETFS_BUF_PUT_MARK	XA_MARK_0	/* - Page needs putting  */
-#define NETFS_BUF_PAGECACHE_MARK XA_MARK_1	/* - Page needs wb/dirty flag wrangling */
-
 enum netfs_io_source {
 	NETFS_SOURCE_UNKNOWN,
 	NETFS_FILL_WITH_ZEROES,
@@ -233,6 +229,8 @@ struct netfs_io_request {
 	struct netfs_io_stream	io_streams[2];	/* Streams of parallel I/O operations */
 #define NR_IO_STREAMS 2 //wreq->nr_io_streams
 	struct netfs_group	*group;		/* Writeback group being written back */
+	struct folio_queue	*buffer;	/* Head of I/O buffer */
+	struct folio_queue	*buffer_tail;	/* Tail of I/O buffer */
 	struct iov_iter		iter;		/* Unencrypted-side iterator */
 	struct iov_iter		io_iter;	/* I/O (Encrypted-side) iterator */
 	void			*netfs_priv;	/* Private data for the netfs */
@@ -254,6 +252,8 @@ struct netfs_io_request {
 	short			error;		/* 0 or error that occurred */
 	enum netfs_io_origin	origin;		/* Origin of the request */
 	bool			direct_bv_unpin; /* T if direct_bv[] must be unpinned */
+	u8			buffer_head_slot; /* First slot in ->buffer */
+	u8			buffer_tail_slot; /* Next slot in ->buffer_tail */
 	unsigned long long	i_size;		/* Size of the file */
 	unsigned long long	start;		/* Start position */
 	atomic64_t		issued_to;	/* Write issuer folio cursor */
