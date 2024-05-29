@@ -329,8 +329,12 @@ static void maximize_lane_settings(const struct link_training_settings *lt_setti
 
 	if (max_requested.PRE_EMPHASIS > PRE_EMPHASIS_MAX_LEVEL)
 		max_requested.PRE_EMPHASIS = PRE_EMPHASIS_MAX_LEVEL;
-	if (max_requested.FFE_PRESET.settings.level > DP_FFE_PRESET_MAX_LEVEL)
-		max_requested.FFE_PRESET.settings.level = DP_FFE_PRESET_MAX_LEVEL;
+
+	/* Note, we are not checking
+	 * if max_requested.FFE_PRESET.settings.level >  DP_FFE_PRESET_MAX_LEVEL,
+	 * since FFE_PRESET.settings.level is 4 bits and DP_FFE_PRESET_MAX_LEVEL equals 15,
+	 * so FFE_PRESET.settings.level will never be greater than 15.
+	 */
 
 	/* make sure the pre-emphasis matches the voltage swing*/
 	if (max_requested.PRE_EMPHASIS >
