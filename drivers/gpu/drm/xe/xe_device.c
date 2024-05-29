@@ -95,12 +95,16 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 	struct xe_exec_queue *q;
 	unsigned long idx;
 
-	mutex_lock(&xef->exec_queue.lock);
+	/*
+	 * No need for exec_queue.lock here as there is no contention for it
+	 * when FD is closing as IOCTLs presumably can't be modifying the
+	 * xarray. Taking exec_queue.lock here causes undue dependency on
+	 * vm->lock taken during xe_exec_queue_kill().
+	 */
 	xa_for_each(&xef->exec_queue.xa, idx, q) {
 		xe_exec_queue_kill(q);
 		xe_exec_queue_put(q);
 	}
-	mutex_unlock(&xef->exec_queue.lock);
 	xa_destroy(&xef->exec_queue.xa);
 	mutex_destroy(&xef->exec_queue.lock);
 	mutex_lock(&xef->vm.lock);
