@@ -32,6 +32,7 @@ load(":dpm_image.bzl", "define_dpm_image")
 load(":image_opts.bzl", "boot_image_opts")
 load(":target_variants.bzl", "la_variants")
 load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
+load(":modules_unprotected.bzl", "get_unprotected_vendor_modules_list")
 
 def _define_build_config(
         msm_target,
@@ -116,6 +117,7 @@ def _define_build_config(
 
 def _define_kernel_build(
         target,
+        msm_target,
         base_kernel,
         in_tree_module_list,
         dtb_list,
@@ -143,10 +145,14 @@ def _define_kernel_build(
     if dtbo_list:
         out_list += dtbo_list
 
+    common_gki_mod_list = [] + COMMON_GKI_MODULES_LIST
+    for mod in get_unprotected_vendor_modules_list(msm_target):
+        common_gki_mod_list.remove(mod)
+
     kernel_build(
         name = target,
         module_outs = in_tree_module_list,
-        module_implicit_outs = COMMON_GKI_MODULES_LIST,
+        module_implicit_outs = common_gki_mod_list,
         outs = out_list,
         build_config = ":{}_build_config".format(target),
         dtstree = dtstree,
@@ -359,6 +365,10 @@ def _define_kernel_dist(
         ":{}_system_dlkm_module_blocklist".format(target),
     ])
 
+    vendor_unprotected_dlkm = " ".join(get_unprotected_vendor_modules_list(msm_target))
+    if vendor_unprotected_dlkm:
+        msm_dist_targets.extend(["{}_vendor_dlkm_module_unprotectedlist".format(target)])
+
     msm_dist_targets.append("{}_avb_sign_boot_image".format(target))
 
     if dpm_overlay:
@@ -466,10 +476,21 @@ def define_msm_la(
     vendor_ramdisk_binaries = get_vendor_ramdisk_binaries(target)
     gki_ramdisk_prebuilt_binary = get_gki_ramdisk_prebuilt_binary()
     build_config_fragments = get_build_config_fragments(msm_target)
+    vendor_dlkm_module_unprotected_list = get_unprotected_vendor_modules_list(msm_target)
 
     # Can't enable dpm_overlay if no overlays are listed
     if len(dtbo_list) == 0 and dpm_overlay:
         dpm_overlay = False
+
+    vendor_unprotected_dlkm = " ".join(vendor_dlkm_module_unprotected_list)
+    if vendor_unprotected_dlkm:
+        write_file(
+            name = "{}_vendor_dlkm_module_unprotectedlist".format(target),
+            out = "{}/vendor_dlkm.modules.unprotectedlist".format(target),
+            content = [vendor_unprotected_dlkm, ""],
+        )
+
+    in_tree_module_list += vendor_dlkm_module_unprotected_list
 
     _define_build_config(
         msm_target,
@@ -481,6 +502,7 @@ def define_msm_la(
 
     _define_kernel_build(
         target,
+        msm_target,
         base_kernel,
         in_tree_module_list,
         dtb_list,
