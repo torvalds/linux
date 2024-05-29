@@ -142,10 +142,8 @@ static int ecdsa_verify(struct akcipher_request *req)
 	struct ecdsa_signature_ctx sig_ctx = {
 		.curve = ctx->curve,
 	};
-	u8 rawhash[ECC_MAX_BYTES];
 	u64 hash[ECC_MAX_DIGITS];
 	unsigned char *buffer;
-	ssize_t diff;
 	int ret;
 
 	if (unlikely(!ctx->pub_key_set))
@@ -164,18 +162,11 @@ static int ecdsa_verify(struct akcipher_request *req)
 	if (ret < 0)
 		goto error;
 
-	/* if the hash is shorter then we will add leading zeros to fit to ndigits */
-	diff = bufsize - req->dst_len;
-	if (diff >= 0) {
-		if (diff)
-			memset(rawhash, 0, diff);
-		memcpy(&rawhash[diff], buffer + req->src_len, req->dst_len);
-	} else if (diff < 0) {
-		/* given hash is longer, we take the left-most bytes */
-		memcpy(&rawhash, buffer + req->src_len, bufsize);
-	}
+	if (bufsize > req->dst_len)
+		bufsize = req->dst_len;
 
-	ecc_swap_digits((u64 *)rawhash, hash, ctx->curve->g.ndigits);
+	ecc_digits_from_bytes(buffer + req->src_len, bufsize,
+			      hash, ctx->curve->g.ndigits);
 
 	ret = _ecdsa_verify(ctx, hash, sig_ctx.r, sig_ctx.s);
 
