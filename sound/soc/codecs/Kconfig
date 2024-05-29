@@ -1102,6 +1102,10 @@ config SND_SOC_ES83XX_DSM_COMMON
 	depends on ACPI
 	tristate
 
+config SND_SOC_ES8311
+	tristate "Everest Semi ES8311 CODEC"
+	depends on I2C
+
 config SND_SOC_ES8316
 	tristate "Everest Semi ES8316 CODEC"
 	depends on I2C
