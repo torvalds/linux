@@ -14,7 +14,7 @@ LDFLAGS_lib/hijack/liblkl-zpoline-$(LKL_HOST_CONFIG_POSIX) += -shared -nodefault
 LDLIBS_lib/hijack/liblkl-zpoline-$(LKL_HOST_CONFIG_POSIX) += -ldl -lc
 
 progs-$(LKL_HOST_CONFIG_FUSE) += lklfuse
-LDLIBS_lklfuse-y := -lfuse
+LDLIBS_lklfuse-y := -lfuse3
 
 progs-$(LKL_HOST_CONFIG_ARCHIVE) += fs2tar
 LDLIBS_fs2tar-y := -larchive

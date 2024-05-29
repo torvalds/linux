@@ -7,14 +7,14 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#define FUSE_USE_VERSION 26
-#include <fuse.h>
-#include <fuse/fuse_opt.h>
-#include <fuse/fuse_lowlevel.h>
+#define FUSE_USE_VERSION 35
+#include <fuse3/fuse.h>
+#include <fuse3/fuse_opt.h>
+#include <fuse3/fuse_lowlevel.h>
 #include <lkl.h>
 #include <lkl_host.h>
 
-#define LKLFUSE_VERSION "0.1"
+#define LKLFUSE_VERSION "0.3"
 
 struct lklfuse {
 	const char *file;
@@ -88,7 +88,9 @@ static int lklfuse_opt_proc(void *data, const char *arg, int key,
 
 	case KEY_HELP:
 		usage();
-		fuse_opt_add_arg(args, "-ho");
+		/* suppress fuse usage */
+		args->argv[0] = "";
+		fuse_opt_add_arg(args, "-h");
 		fuse_main(args->argc, args->argv, NULL, NULL);
 		exit(1);
 
@@ -124,31 +126,24 @@ static void lklfuse_xlat_stat(const struct lkl_stat *in, struct stat *st)
 	st->st_ctim.tv_nsec = in->st_ctime_nsec;
 }
 
-static int lklfuse_fgetattr(const char *path, struct stat *st,
-	                    struct fuse_file_info *fi)
+static int lklfuse_getattr(const char *path, struct stat *st,
+			   struct fuse_file_info *fi)
 {
 	long ret;
 	struct lkl_stat lkl_stat;
 
-	ret = lkl_sys_fstat(fi->fh, &lkl_stat);
-	if (ret)
-		return ret;
+	/*
+	 * With nullpath_ok, path will be provided only if the struct
+	 * fuse_file_info argument is NULL.
+	 */
+	if (fi)
+		ret = lkl_sys_fstat(fi->fh, &lkl_stat);
+	else
+		ret = lkl_sys_lstat(path, &lkl_stat);
+	if (!ret)
+		lklfuse_xlat_stat(&lkl_stat, st);
 
-	lklfuse_xlat_stat(&lkl_stat, st);
-	return 0;
-}
-
-static int lklfuse_getattr(const char *path, struct stat *st)
-{
-	long ret;
-	struct lkl_stat lkl_stat;
-
-	ret = lkl_sys_lstat(path, &lkl_stat);
-	if (ret)
-		return ret;
-
-	lklfuse_xlat_stat(&lkl_stat, st);
-	return 0;
+	return ret;
 }
 
 static int lklfuse_readlink(const char *path, char *buf, size_t len)
@@ -193,9 +188,12 @@ static int lklfuse_symlink(const char *oldname, const char *newname)
 }
 
 
-static int lklfuse_rename(const char *oldname, const char *newname)
+static int lklfuse_rename(const char *oldname, const char *newname,
+			  unsigned int flags)
 {
-	return lkl_sys_rename(oldname, newname);
+	/* libfuse: *flags* may be `RENAME_EXCHANGE` or `RENAME_NOREPLACE` */
+	return lkl_sys_renameat2(LKL_AT_FDCWD, oldname, LKL_AT_FDCWD, newname,
+				 flags);
 }
 
 static int lklfuse_link(const char *oldname, const char *newname)
@@ -203,21 +201,43 @@ static int lklfuse_link(const char *oldname, const char *newname)
 	return lkl_sys_link(oldname, newname);
 }
 
-static int lklfuse_chmod(const char *path, mode_t mode)
+static int lklfuse_chmod(const char *path, mode_t mode,
+			 struct fuse_file_info *fi)
 {
-	return lkl_sys_chmod(path, mode);
+	int ret;
+
+	if (fi)
+		ret = lkl_sys_fchmod(fi->fh, mode);
+	else
+		ret = lkl_sys_fchmodat(LKL_AT_FDCWD, path, mode);
+
+	return ret;
 }
 
-
-static int lklfuse_chown(const char *path, uid_t uid, gid_t gid)
+static int lklfuse_chown(const char *path, uid_t uid, gid_t gid,
+			 struct fuse_file_info *fi)
 {
-	return lkl_sys_fchownat(LKL_AT_FDCWD, path, uid, gid,
+	int ret;
+
+	if (fi)
+		ret = lkl_sys_fchown(fi->fh, uid, gid);
+	else
+		ret = lkl_sys_fchownat(LKL_AT_FDCWD, path, uid, gid,
 				LKL_AT_SYMLINK_NOFOLLOW);
+	return ret;
 }
 
-static int lklfuse_truncate(const char *path, off_t off)
+static int lklfuse_truncate(const char *path, off_t off,
+			    struct fuse_file_info *fi)
 {
-	return lkl_sys_truncate(path, off);
+	int ret;
+
+	if (fi)
+		ret = lkl_sys_ftruncate(fi->fh, off);
+	else
+		ret = lkl_sys_truncate(path, off);
+
+	return ret;
 }
 
 static int lklfuse_open3(const char *path, bool create, mode_t mode,
@@ -397,7 +417,8 @@ static int lklfuse_opendir(const char *path, struct fuse_file_info *fi)
  * Introduced in version 2.3
  */
 static int lklfuse_readdir(const char *path, void *buf, fuse_fill_dir_t fill,
-			 off_t off, struct fuse_file_info *fi)
+			 off_t off, struct fuse_file_info *fi,
+			 enum fuse_readdir_flags flags)
 {
 	struct lkl_dir *dir = (struct lkl_dir *)(uintptr_t)fi->fh;
 	struct lkl_linux_dirent64 *de;
@@ -408,7 +429,7 @@ static int lklfuse_readdir(const char *path, void *buf, fuse_fill_dir_t fill,
 		st.st_ino = de->d_ino;
 		st.st_mode = de->d_type << 12;
 
-		if (fill(buf, de->d_name, &st, 0))
+		if (fill(buf, de->d_name, &st, 0, 0))
 			break;
 	}
 
@@ -442,15 +463,24 @@ static int lklfuse_access(const char *path, int mode)
 	return lkl_sys_access(path, mode);
 }
 
-static int lklfuse_utimens(const char *path, const struct timespec tv[2])
+static int lklfuse_utimens(const char *path, const struct timespec tv[2],
+			   struct fuse_file_info *fi)
 {
+	int ret;
 	struct lkl_timespec ts[2] = {
-		{ tv_sec: tv[0].tv_sec, tv_nsec: tv[0].tv_nsec },
-		{ tv_sec: tv[1].tv_sec, tv_nsec: tv[1].tv_nsec },
+		{ .tv_sec = tv[0].tv_sec, .tv_nsec = tv[0].tv_nsec },
+		{ .tv_sec = tv[1].tv_sec, .tv_nsec = tv[1].tv_nsec },
 	};
 
-	return lkl_sys_utimensat(-1, path, (struct __lkl__kernel_timespec *)ts,
-				 LKL_AT_SYMLINK_NOFOLLOW);
+	if (fi)
+		ret = lkl_sys_utimensat(fi->fh, NULL,
+					(struct __lkl__kernel_timespec *)ts,
+					0);
+	else
+		ret = lkl_sys_utimensat(-1, path,
+					(struct __lkl__kernel_timespec *)ts,
+					LKL_AT_SYMLINK_NOFOLLOW);
+	return ret;
 }
 
 static int lklfuse_fallocate(const char *path, int mode, off_t offset,
@@ -459,10 +489,14 @@ static int lklfuse_fallocate(const char *path, int mode, off_t offset,
 	return lkl_sys_fallocate(fi->fh, mode, offset, len);
 }
 
+static void *lklfuse_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
+{
+	cfg->nullpath_ok = 1;
+	return NULL;
+}
+
 const struct fuse_operations lklfuse_ops = {
-	.flag_nullpath_ok = 1,
-	.flag_nopath = 1,
-	.flag_utime_omit_ok = 1,
+	.init = lklfuse_init,
 
 	.getattr = lklfuse_getattr,
 	.readlink = lklfuse_readlink,
@@ -493,7 +527,6 @@ const struct fuse_operations lklfuse_ops = {
 	.fsyncdir = lklfuse_fsyncdir,
 	.access = lklfuse_access,
 	.create = lklfuse_create,
-	.fgetattr = lklfuse_fgetattr,
 	/* .lock, */
 	.utimens = lklfuse_utimens,
 	/* .bmap, */
@@ -523,8 +556,8 @@ static int start_lkl(void)
 	if (ret < 0)
 		goto out_halt;
 
-	ts = (struct lkl_timespec){ tv_sec: walltime.tv_sec,
-				    tv_nsec: walltime.tv_nsec };
+	ts = (struct lkl_timespec){ .tv_sec = walltime.tv_sec,
+				    .tv_nsec = walltime.tv_nsec };
 	ret = lkl_sys_clock_settime(LKL_CLOCK_REALTIME,
 				    (struct __lkl__kernel_timespec *)&ts);
 	if (ret < 0) {
@@ -578,11 +611,10 @@ static void stop_lkl(void)
 int main(int argc, char **argv)
 {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-	struct fuse_chan *ch;
+	struct fuse_cmdline_opts cli_opts;
 	struct fuse *fuse;
 	struct stat st;
-	char *mnt;
-	int fg, mt, ret;
+	int ret;
 
 	if (fuse_opt_parse(&args, &lklfuse, lklfuse_opts, lklfuse_opt_proc))
 		return 1;
@@ -592,12 +624,12 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (fuse_parse_cmdline(&args, &mnt, &mt, &fg))
+	if (fuse_parse_cmdline(&args, &cli_opts))
 		return 1;
 
-	ret = stat(mnt, &st);
+	ret = stat(cli_opts.mountpoint, &st);
 	if (ret) {
-		perror(mnt);
+		perror(cli_opts.mountpoint);
 		goto out_free;
 	}
 
@@ -623,49 +655,47 @@ int main(int argc, char **argv)
 
 	lklfuse.disk_id = ret;
 
-	ch = fuse_mount(mnt, &args);
-	if (!ch) {
+	fuse = fuse_new(&args, &lklfuse_ops, sizeof(lklfuse_ops), NULL);
+	if (!fuse) {
 		ret = -1;
 		goto out_close_disk;
 	}
 
-	fuse = fuse_new(ch, &args, &lklfuse_ops, sizeof(lklfuse_ops), NULL);
-	if (!fuse) {
-		ret = -1;
-		goto out_fuse_unmount;
-	}
+	ret = fuse_set_signal_handlers(fuse_get_session(fuse));
+	if (ret < 0)
+		goto out_fuse_destroy;
+
+	ret = fuse_mount(fuse, cli_opts.mountpoint);
+	if (ret < 0)
+		goto out_remove_signals;
 
 	fuse_opt_free_args(&args);
 
-	if (fuse_daemonize(fg) ||
-	    fuse_set_signal_handlers(fuse_get_session(fuse))) {
-		ret = -1;
-		goto out_fuse_destroy;
-	}
+	ret = fuse_daemonize(cli_opts.foreground);
+	if (ret < 0)
+		goto out_fuse_unmount;
 
 	ret = start_lkl();
 	if (ret) {
 		ret = -1;
-		goto out_remove_signals;
+		goto out_fuse_unmount;
 	}
 
-	if (mt)
+	if (!cli_opts.singlethread)
 		fprintf(stderr, "warning: multithreaded mode not supported\n");
 
 	ret = fuse_loop(fuse);
 
 	stop_lkl();
 
+out_fuse_unmount:
+	fuse_unmount(fuse);
+
 out_remove_signals:
 	fuse_remove_signal_handlers(fuse_get_session(fuse));
 
-out_fuse_unmount:
-	if (ch)
-		fuse_unmount(mnt, ch);
-
 out_fuse_destroy:
-	if (fuse)
-		fuse_destroy(fuse);
+	fuse_destroy(fuse);
 
 out_lkl_cleanup:
 	lkl_cleanup();
@@ -674,7 +704,7 @@ out_close_disk:
 	close(lklfuse.disk.fd);
 
 out_free:
-	free(mnt);
+	free(cli_opts.mountpoint);
 
 	return ret < 0 ? 1 : 0;
 }
