@@ -1066,7 +1066,6 @@ int memac_initialization(struct mac_device *mac_dev,
 			 struct fman_mac_params *params)
 {
 	int			 err;
-	struct device_node      *fixed;
 	struct phylink_pcs	*pcs;
 	struct fman_mac		*memac;
 	unsigned long		 capabilities;
@@ -1222,18 +1221,15 @@ int memac_initialization(struct mac_device *mac_dev,
 		memac->rgmii_no_half_duplex = true;
 
 	/* Most boards should use MLO_AN_INBAND, but existing boards don't have
-	 * a managed property. Default to MLO_AN_INBAND if nothing else is
-	 * specified. We need to be careful and not enable this if we have a
-	 * fixed link or if we are using MII or RGMII, since those
-	 * configurations modes don't use in-band autonegotiation.
+	 * a managed property. Default to MLO_AN_INBAND rather than MLO_AN_PHY.
+	 * Phylink will allow this to be overriden by a fixed link. We need to
+	 * be careful and not enable this if we are using MII or RGMII, since
+	 * those configurations modes don't use in-band autonegotiation.
 	 */
-	fixed = of_get_child_by_name(mac_node, "fixed-link");
-	if (!fixed && !of_property_read_bool(mac_node, "fixed-link") &&
-	    !of_property_read_bool(mac_node, "managed") &&
+	if (!of_property_read_bool(mac_node, "managed") &&
 	    mac_dev->phy_if != PHY_INTERFACE_MODE_MII &&
 	    !phy_interface_mode_is_rgmii(mac_dev->phy_if))
 		mac_dev->phylink_config.default_an_inband = true;
-	of_node_put(fixed);
 
 	err = memac_init(mac_dev->fman_mac);
 	if (err < 0)
