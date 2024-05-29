@@ -73,6 +73,7 @@ enum dell_laptop_notifier_actions {
 int dell_laptop_register_notifier(struct notifier_block *nb);
 int dell_laptop_unregister_notifier(struct notifier_block *nb);
 void dell_laptop_call_notifier(unsigned long action, void *data);
+bool dell_smbios_class_is_supported(u16 class);
 
 /* for the supported backends */
 #ifdef CONFIG_DELL_SMBIOS_WMI

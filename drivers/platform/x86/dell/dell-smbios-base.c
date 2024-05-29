@@ -350,6 +350,15 @@ void dell_laptop_call_notifier(unsigned long action, void *data)
 }
 EXPORT_SYMBOL_GPL(dell_laptop_call_notifier);
 
+bool dell_smbios_class_is_supported(u16 class)
+{
+	/* Classes over 30 always unsupported */
+	if (class > 30)
+		return false;
+	return da_supported_commands & (1 << class);
+}
+EXPORT_SYMBOL_GPL(dell_smbios_class_is_supported);
+
 static void __init parse_da_table(const struct dmi_header *dm)
 {
 	/* Final token is a terminator, so we don't want to copy it */
