@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2019,2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2008 Intel Corp.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/iopoll.h>
@@ -237,17 +237,20 @@ int xhci_sec_event_ring_cleanup(struct usb_device *udev, struct xhci_ring *ring)
 	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_sec *sec;
+	unsigned long flags;
 
+	spin_lock_irqsave(&xhci->lock, flags);
 	list_for_each_entry(sec, &xhci_sec, list) {
 		if (sec->event_ring == ring) {
 			sec_event_ring_cleanup(xhci, ring, sec->ir_set,
 					&sec->erst);
 			list_del(&sec->list);
 			kfree(sec);
+			spin_unlock_irqrestore(&xhci->lock, flags);
 			return 0;
 		}
 	}
-
+	spin_unlock_irqrestore(&xhci->lock, flags);
 	return 0;
 }
 
