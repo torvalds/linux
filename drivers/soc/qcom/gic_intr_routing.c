@@ -281,6 +281,9 @@ static void trace_gic_v3_set_affinity(void *unused, struct irq_data *d,
 	u32 gicr_ctlr_val;
 	void __iomem *cpu_gicr_ctlr_addr;
 
+	if (d->hwirq < 32 || d->hwirq >= MAX_IRQS)
+		return;
+
 	pr_debug("irq : %d mask: %*pb current affinity: %*pb\n",
 		d->hwirq, cpumask_pr_args(cpu_affinity),
 		cpumask_pr_args(current_affinity));
@@ -422,7 +425,7 @@ static bool need_affinity_setting(struct irq_desc *desc,
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	u32 irq = data->hwirq - 32;
 
-	if (irq < 0 || irq >= MAX_IRQS)
+	if (data->hwirq < 32 || data->hwirq >= MAX_IRQS)
 		return false;
 
 	need_affinity = is_gic_chip(desc, gic_chip);
