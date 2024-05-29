@@ -150,38 +150,38 @@ of an operation.
 Perform a xor->copy->xor operation where each operation depends on the
 result from the previous operation::
 
-    void callback(void *param)
-    {
-	    struct completion *cmp = param;
+    #include <linux/async_tx.h>
 
-	    complete(cmp);
+    static void callback(void *param)
+    {
+	    complete(param);
     }
 
-    void run_xor_copy_xor(struct page **xor_srcs,
-			int xor_src_cnt,
-			struct page *xor_dest,
-			size_t xor_len,
-			struct page *copy_src,
-			struct page *copy_dest,
-			size_t copy_len)
+    #define NDISKS  2
+
+    static void run_xor_copy_xor(struct page **xor_srcs,
+				 struct page *xor_dest,
+				 size_t xor_len,
+				 struct page *copy_src,
+				 struct page *copy_dest,
+				 size_t copy_len)
     {
 	    struct dma_async_tx_descriptor *tx;
-	    addr_conv_t addr_conv[xor_src_cnt];
 	    struct async_submit_ctl submit;
 	    addr_conv_t addr_conv[NDISKS];
 	    struct completion cmp;
 
 	    init_async_submit(&submit, ASYNC_TX_XOR_DROP_DST, NULL, NULL, NULL,
 			    addr_conv);
-	    tx = async_xor(xor_dest, xor_srcs, 0, xor_src_cnt, xor_len, &submit)
+	    tx = async_xor(xor_dest, xor_srcs, 0, NDISKS, xor_len, &submit);
 
-	    submit->depend_tx = tx;
+	    submit.depend_tx = tx;
 	    tx = async_memcpy(copy_dest, copy_src, 0, 0, copy_len, &submit);
 
 	    init_completion(&cmp);
 	    init_async_submit(&submit, ASYNC_TX_XOR_DROP_DST | ASYNC_TX_ACK, tx,
 			    callback, &cmp, addr_conv);
-	    tx = async_xor(xor_dest, xor_srcs, 0, xor_src_cnt, xor_len, &submit);
+	    tx = async_xor(xor_dest, xor_srcs, 0, NDISKS, xor_len, &submit);
 
 	    async_tx_issue_pending_all();
 
