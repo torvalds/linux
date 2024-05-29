@@ -243,6 +243,7 @@ i915-y += \
 	display/hsw_ips.o \
 	display/i9xx_plane.o \
 	display/i9xx_wm.o \
+	display/intel_alpm.o \
 	display/intel_atomic.o \
 	display/intel_atomic_plane.o \
 	display/intel_audio.o \
