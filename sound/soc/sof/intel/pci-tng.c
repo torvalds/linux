@@ -244,6 +244,7 @@ static struct pci_driver snd_sof_pci_intel_tng_driver = {
 module_pci_driver(snd_sof_pci_intel_tng_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for Tangier platforms");
 MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HIFI_EP_IPC);
 MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_IMPORT_NS(SND_SOC_SOF_PCI_DEV);
