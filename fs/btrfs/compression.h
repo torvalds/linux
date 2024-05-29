@@ -82,6 +82,14 @@ static inline unsigned int btrfs_compress_level(unsigned int type_level)
 	return ((type_level & 0xF0) >> 4);
 }
 
+/* @range_end must be exclusive. */
+static inline u32 btrfs_calc_input_length(u64 range_end, u64 cur)
+{
+	u64 page_end = round_down(cur, PAGE_SIZE) + PAGE_SIZE;
+
+	return min(range_end, page_end) - cur;
+}
+
 int __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
 

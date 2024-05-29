@@ -20,6 +20,8 @@
 #include <linux/refcount.h>
 #include "btrfs_inode.h"
 #include "compression.h"
+#include "fs.h"
+#include "subpage.h"
 
 /* workspace buffer size for s390 zlib hardware support */
 #define ZLIB_DFLTCC_BUF_SIZE    (4 * PAGE_SIZE)
@@ -108,6 +110,7 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 	unsigned long len = *total_out;
 	unsigned long nr_dest_folios = *out_folios;
 	const unsigned long max_out = nr_dest_folios * PAGE_SIZE;
+	const u64 orig_end = start + len;
 
 	*out_folios = 0;
 	*total_out = 0;
@@ -153,6 +156,10 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 			if (in_buf_folios > 1) {
 				int i;
 
+				/* S390 hardware acceleration path, not subpage. */
+				ASSERT(!btrfs_is_subpage(
+						inode_to_fs_info(mapping->host),
+						mapping));
 				for (i = 0; i < in_buf_folios; i++) {
 					if (data_in) {
 						kunmap_local(data_in);
@@ -167,9 +174,14 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 					copy_page(workspace->buf + i * PAGE_SIZE,
 						  data_in);
 					start += PAGE_SIZE;
+					workspace->strm.avail_in =
+						(in_buf_folios << PAGE_SHIFT);
 				}
 				workspace->strm.next_in = workspace->buf;
 			} else {
+				unsigned int pg_off;
+				unsigned int cur_len;
+
 				if (data_in) {
 					kunmap_local(data_in);
 					folio_put(in_folio);
@@ -179,12 +191,13 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 						start, &in_folio);
 				if (ret < 0)
 					goto out;
-				data_in = kmap_local_folio(in_folio, 0);
+				pg_off = offset_in_page(start);
+				cur_len = btrfs_calc_input_length(orig_end, start);
+				data_in = kmap_local_folio(in_folio, pg_off);
 				start += PAGE_SIZE;
 				workspace->strm.next_in = data_in;
+				workspace->strm.avail_in = cur_len;
 			}
-			workspace->strm.avail_in = min(bytes_left,
-						       (unsigned long) workspace->buf_size);
 		}
 
 		ret = zlib_deflate(&workspace->strm, Z_SYNC_FLUSH);
