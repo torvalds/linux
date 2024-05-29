@@ -443,6 +443,7 @@
 				<&scmi_clk CK_SCMI_TIMG2>,
 				<&scmi_clk CK_SCMI_PLL3>,
 				<&clk_dsi_txbyte>;
+				access-controllers = <&rifsc 156>;
 		};
 
 		exti1: interrupt-controller@44220000 {
