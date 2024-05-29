@@ -1302,7 +1302,11 @@ static void icl_plane_update_sel_fetch_noarm(struct intel_plane *plane,
 
 	clip = &plane_state->psr2_sel_fetch_area;
 
-	val = (clip->y1 + plane_state->uapi.dst.y1) << 16;
+	if (crtc_state->enable_psr2_su_region_et)
+		y = max(0, plane_state->uapi.dst.y1 - crtc_state->psr2_su_area.y1);
+	else
+		y = (clip->y1 + plane_state->uapi.dst.y1);
+	val = y << 16;
 	val |= plane_state->uapi.dst.x1;
 	intel_de_write_fw(i915, SEL_FETCH_PLANE_POS(pipe, plane->id), val);
 
