@@ -304,6 +304,8 @@ int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id,
 int acpi_unmap_cpu(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
+acpi_handle acpi_get_processor_handle(int cpu);
+
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 int acpi_get_ioapic_id(acpi_handle handle, u32 gsi_base, u64 *phys_addr);
 #endif
@@ -1074,6 +1076,11 @@ static inline u32 acpi_osc_ctx_get_cxl_control(struct acpi_osc_context *context)
 static inline bool acpi_sleep_state_supported(u8 sleep_state)
 {
 	return false;
+}
+
+static inline acpi_handle acpi_get_processor_handle(int cpu)
+{
+	return NULL;
 }
 
 #endif	/* !CONFIG_ACPI */
