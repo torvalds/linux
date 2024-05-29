@@ -237,7 +237,7 @@ static int ionic_request_irq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	const char *name;
 
 	if (lif->registered)
-		name = lif->netdev->name;
+		name = netdev_name(lif->netdev);
 	else
 		name = dev_name(dev);
 
@@ -3732,7 +3732,7 @@ static void ionic_lif_set_netdev_info(struct ionic_lif *lif)
 		},
 	};
 
-	strscpy(ctx.cmd.lif_setattr.name, lif->netdev->name,
+	strscpy(ctx.cmd.lif_setattr.name, netdev_name(lif->netdev),
 		sizeof(ctx.cmd.lif_setattr.name));
 
 	ionic_adminq_post_wait(lif, &ctx);
