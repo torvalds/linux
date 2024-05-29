@@ -86,12 +86,16 @@ static struct xe_reg xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg 
 
 	switch (hwmon_reg) {
 	case REG_PKG_RAPL_LIMIT:
-		if (xe->info.platform == XE_BATTLEMAGE && channel == CHANNEL_PKG)
-			return BMG_PACKAGE_RAPL_LIMIT;
-		else if (xe->info.platform == XE_PVC && channel == CHANNEL_PKG)
+		if (xe->info.platform == XE_BATTLEMAGE) {
+			if (channel == CHANNEL_PKG)
+				return BMG_PACKAGE_RAPL_LIMIT;
+			else
+				return BMG_PLATFORM_POWER_LIMIT;
+		} else if (xe->info.platform == XE_PVC && channel == CHANNEL_PKG) {
 			return PVC_GT0_PACKAGE_RAPL_LIMIT;
-		else if ((xe->info.platform == XE_DG2) && (channel == CHANNEL_PKG))
+		} else if ((xe->info.platform == XE_DG2) && (channel == CHANNEL_PKG)) {
 			return PCU_CR_PACKAGE_RAPL_LIMIT;
+		}
 		break;
 	case REG_PKG_POWER_SKU:
 		if (xe->info.platform == XE_BATTLEMAGE)
@@ -114,12 +118,16 @@ static struct xe_reg xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg 
 			return GT_PERF_STATUS;
 		break;
 	case REG_PKG_ENERGY_STATUS:
-		if (xe->info.platform == XE_BATTLEMAGE && channel == CHANNEL_PKG)
-			return BMG_PACKAGE_ENERGY_STATUS;
-		else if (xe->info.platform == XE_PVC && channel == CHANNEL_PKG)
+		if (xe->info.platform == XE_BATTLEMAGE) {
+			if (channel == CHANNEL_PKG)
+				return BMG_PACKAGE_ENERGY_STATUS;
+			else
+				return BMG_PLATFORM_ENERGY_STATUS;
+		} else if (xe->info.platform == XE_PVC && channel == CHANNEL_PKG) {
 			return PVC_GT0_PLATFORM_ENERGY_STATUS;
-		else if ((xe->info.platform == XE_DG2) && (channel == CHANNEL_PKG))
+		} else if ((xe->info.platform == XE_DG2) && (channel == CHANNEL_PKG)) {
 			return PCU_CR_PACKAGE_ENERGY_STATUS;
+		}
 		break;
 	default:
 		drm_warn(&xe->drm, "Unknown xe hwmon reg id: %d\n", hwmon_reg);
