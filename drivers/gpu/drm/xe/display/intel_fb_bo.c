@@ -4,10 +4,12 @@
  */
 
 #include <drm/drm_modeset_helper.h>
+#include <drm/ttm/ttm_bo.h>
 
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_fb_bo.h"
+#include "xe_bo.h"
 
 void intel_fb_bo_framebuffer_fini(struct xe_bo *bo)
 {

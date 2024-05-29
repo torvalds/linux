@@ -18,6 +18,7 @@
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
 #include "intel_plane_initial.h"
+#include "xe_bo.h"
 
 static bool
 intel_reuse_initial_plane_obj(struct intel_crtc *this,

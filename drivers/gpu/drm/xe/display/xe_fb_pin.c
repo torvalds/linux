@@ -3,16 +3,17 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include <drm/ttm/ttm_bo.h>
+
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
+#include "xe_bo.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_pm.h"
-
-#include <drm/ttm/ttm_bo.h>
 
 static void
 write_dpt_rotated(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs, u32 bo_ofs,

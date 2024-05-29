@@ -44,6 +44,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
 #include "intel_display_types.h"

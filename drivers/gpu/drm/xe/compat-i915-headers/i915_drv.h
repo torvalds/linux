@@ -12,11 +12,8 @@
 
 #include <drm/drm_drv.h>
 
-#include "gem/i915_gem_object.h"
-
 #include "soc/intel_pch.h"
 #include "xe_device.h"
-#include "xe_bo.h"
 #include "xe_pm.h"
 #include "i915_reg_defs.h"
 #include "i915_utils.h"
@@ -112,7 +109,6 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_RAPTORLAKE_U(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_ALDERLAKE_P_RPLU)
 #define IS_ICL_WITH_PORT_F(xe) (xe && 0)
 #define HAS_FLAT_CCS(xe) (xe_device_has_flat_ccs(xe))
-#define to_intel_bo(x) gem_to_xe_bo((x))
 
 #define HAS_128_BYTE_Y_TILING(xe) (xe || 1)
 

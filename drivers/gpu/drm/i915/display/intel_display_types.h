@@ -47,6 +47,7 @@
 #include <drm/intel/i915_hdcp_interface.h>
 #include <media/cec-notifier.h>
 
+#include "gem/i915_gem_object_types.h" /* for to_intel_bo() */
 #include "i915_vma.h"
 #include "i915_vma_types.h"
 #include "intel_bios.h"
