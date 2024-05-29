@@ -805,7 +805,7 @@ enum dc_status dcn401_enable_stream_timing(
 	unsigned int event_triggers = 0;
 	int opp_cnt = 1;
 	int opp_inst[MAX_PIPES] = {0};
-	struct pipe_ctx *opp_heads[MAX_PIPES];
+	struct pipe_ctx *opp_heads[MAX_PIPES] = {0};
 	bool manual_mode;
 	unsigned int tmds_div = PIXEL_RATE_DIV_NA;
 	unsigned int unused_div = PIXEL_RATE_DIV_NA;
