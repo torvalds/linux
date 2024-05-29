@@ -211,12 +211,11 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	}
 
 	/*
-	 * CPU got hot-added, but cpu_data is not initialized yet.  Set a flag
-	 * to delay cpu_idle/throttling initialization and do it when the CPU
-	 * gets online for the first time.
+	 * CPU got hot-added, but cpu_data is not initialized yet. Do
+	 * cpu_idle/throttling initialization when the CPU gets online for
+	 * the first time.
 	 */
 	pr_info("CPU%d has been hot-added\n", pr->id);
-	pr->flags.need_hotplug_init = 1;
 
 out:
 	cpus_write_unlock();
