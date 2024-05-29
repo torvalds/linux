@@ -43,6 +43,7 @@
 
 #define SCFTORTOUT_ERRSTRING(s, x...) pr_alert(SCFTORT_FLAG "!!! " s "\n", ## x)
 
+MODULE_DESCRIPTION("Torture tests on the smp_call_function() family of primitives");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@kernel.org>");
 
