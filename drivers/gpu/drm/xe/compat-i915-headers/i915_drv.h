@@ -12,11 +12,9 @@
 
 #include <drm/drm_drv.h>
 
-#include "soc/intel_pch.h"
-#include "xe_device.h"
-#include "i915_reg_defs.h"
 #include "i915_utils.h"
 #include "intel_runtime_pm.h"
+#include "xe_device_types.h"
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
