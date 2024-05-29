@@ -13,12 +13,11 @@
 #include <sound/pcm_params.h>
 #include <sound/simple_card_utils.h>
 
-static void simple_fixup_sample_fmt(struct simple_util_data *data,
-					 struct snd_pcm_hw_params *params)
+int simple_util_get_sample_fmt(struct simple_util_data *data)
 {
 	int i;
-	struct snd_mask *mask = hw_param_mask(params,
-					      SNDRV_PCM_HW_PARAM_FORMAT);
+	int val = -EINVAL;
+
 	struct {
 		char *fmt;
 		u32 val;
@@ -33,10 +32,25 @@ static void simple_fixup_sample_fmt(struct simple_util_data *data,
 	for (i = 0; i < ARRAY_SIZE(of_sample_fmt_table); i++) {
 		if (!strcmp(data->convert_sample_format,
 			    of_sample_fmt_table[i].fmt)) {
-			snd_mask_none(mask);
-			snd_mask_set(mask, of_sample_fmt_table[i].val);
+			val = of_sample_fmt_table[i].val;
 			break;
 		}
+	}
+	return val;
+}
+EXPORT_SYMBOL_GPL(simple_util_get_sample_fmt);
+
+static void simple_fixup_sample_fmt(struct simple_util_data *data,
+				    struct snd_pcm_hw_params *params)
+{
+	int val;
+	struct snd_mask *mask = hw_param_mask(params,
+					      SNDRV_PCM_HW_PARAM_FORMAT);
+
+	val = simple_util_get_sample_fmt(data);
+	if (val >= 0) {
+		snd_mask_none(mask);
+		snd_mask_set(mask, val);
 	}
 }
 

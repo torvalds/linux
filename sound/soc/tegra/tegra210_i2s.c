@@ -8,11 +8,13 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm_params.h>
+#include <sound/simple_card_utils.h>
 #include <sound/soc.h>
 #include "tegra210_i2s.h"
 #include "tegra_cif.h"
@@ -603,6 +605,7 @@ static int tegra210_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct tegra210_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	unsigned int sample_size, channels, srate, val, reg, path;
 	struct tegra_cif_conf cif_conf;
+	snd_pcm_format_t sample_format;
 
 	memset(&cif_conf, 0, sizeof(struct tegra_cif_conf));
 
@@ -615,28 +618,51 @@ static int tegra210_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	cif_conf.audio_ch = channels;
 	cif_conf.client_ch = channels;
+	if (i2s->client_channels)
+		cif_conf.client_ch = i2s->client_channels;
 
+	/* AHUB CIF Audio bits configs */
 	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S8:
+		cif_conf.audio_bits = TEGRA_ACIF_BITS_8;
+		break;
+	case SNDRV_PCM_FORMAT_S16_LE:
+		cif_conf.audio_bits = TEGRA_ACIF_BITS_16;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		cif_conf.audio_bits = TEGRA_ACIF_BITS_32;
+		break;
+	default:
+		dev_err(dev, "unsupported params audio bit format!\n");
+		return -EOPNOTSUPP;
+	}
+
+	sample_format = params_format(params);
+	if (i2s->client_sample_format >= 0)
+		sample_format = (snd_pcm_format_t)i2s->client_sample_format;
+
+	/*
+	 * Format of the I2S for sending/receiving the audio
+	 * to/from external device.
+	 */
+	switch (sample_format) {
 	case SNDRV_PCM_FORMAT_S8:
 		val = I2S_BITS_8;
 		sample_size = 8;
-		cif_conf.audio_bits = TEGRA_ACIF_BITS_8;
 		cif_conf.client_bits = TEGRA_ACIF_BITS_8;
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		val = I2S_BITS_16;
 		sample_size = 16;
-		cif_conf.audio_bits = TEGRA_ACIF_BITS_16;
 		cif_conf.client_bits = TEGRA_ACIF_BITS_16;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		val = I2S_BITS_32;
 		sample_size = 32;
-		cif_conf.audio_bits = TEGRA_ACIF_BITS_32;
 		cif_conf.client_bits = TEGRA_ACIF_BITS_32;
 		break;
 	default:
-		dev_err(dev, "unsupported format!\n");
+		dev_err(dev, "unsupported client bit format!\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -872,6 +898,40 @@ static const struct regmap_config tegra210_i2s_regmap_config = {
 	.cache_type		= REGCACHE_FLAT,
 };
 
+/*
+ * The AHUB HW modules are interconnected with CIF which are capable of
+ * supporting Channel and Sample bit format conversion. This needs different
+ * CIF Audio and client configuration. As one of the config comes from
+ * params_channels() or params_format(), the extra configuration is passed from
+ * CIF Port of DT I2S node which can help to perform this conversion.
+ *
+ *    4ch          audio = 4ch      client = 2ch       2ch
+ *   -----> ADMAIF -----------> CIF -------------> I2S ---->
+ */
+static void tegra210_parse_client_convert(struct device *dev)
+{
+	struct tegra210_i2s *i2s = dev_get_drvdata(dev);
+	struct device_node *ports, *ep;
+	struct simple_util_data data = {};
+	int cif_port = 0;
+
+	ports = of_get_child_by_name(dev->of_node, "ports");
+	if (ports) {
+		ep = of_graph_get_endpoint_by_regs(ports, cif_port, -1);
+		if (ep) {
+			simple_util_parse_convert(ep, NULL, &data);
+			of_node_put(ep);
+		}
+		of_node_put(ports);
+	}
+
+	if (data.convert_channels)
+		i2s->client_channels = data.convert_channels;
+
+	if (data.convert_sample_format)
+		i2s->client_sample_format = simple_util_get_sample_fmt(&data);
+}
+
 static int tegra210_i2s_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -887,6 +947,7 @@ static int tegra210_i2s_probe(struct platform_device *pdev)
 	i2s->tx_mask = DEFAULT_I2S_SLOT_MASK;
 	i2s->rx_mask = DEFAULT_I2S_SLOT_MASK;
 	i2s->loopback = false;
+	i2s->client_sample_format = -EINVAL;
 
 	dev_set_drvdata(dev, i2s);
 
@@ -915,6 +976,8 @@ static int tegra210_i2s_probe(struct platform_device *pdev)
 		dev_err(dev, "regmap init failed\n");
 		return PTR_ERR(i2s->regmap);
 	}
+
+	tegra210_parse_client_convert(dev);
 
 	regcache_cache_only(i2s->regmap, true);
 
