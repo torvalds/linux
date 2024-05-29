@@ -2077,15 +2077,23 @@ int resource_get_odm_slice_index(const struct pipe_ctx *pipe_ctx)
 int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 		bool is_last_segment)
 {
-	const struct dc_crtc_timing *timing = &otg_master->stream->timing;
-	int count = resource_get_odm_slice_count(otg_master);
-	int h_active = timing->h_addressable +
-			timing->h_border_left +
-			timing->h_border_right;
-	int width = h_active / count;
+	const struct dc_crtc_timing *timing;
+	int count;
+	int h_active;
+	int width;
 	bool two_pixel_alignment_required = false;
 
-	if (otg_master && otg_master->stream_res.tg && otg_master->stream)
+	if (!otg_master || !otg_master->stream)
+		return 0;
+
+	timing = &otg_master->stream->timing;
+	count = resource_get_odm_slice_count(otg_master);
+	h_active = timing->h_addressable +
+		   timing->h_border_left +
+		   timing->h_border_right;
+	width = h_active / count;
+
+	if (otg_master->stream_res.tg && otg_master->stream)
 		two_pixel_alignment_required = otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing);
 
 	if ((width % 2) && two_pixel_alignment_required)
