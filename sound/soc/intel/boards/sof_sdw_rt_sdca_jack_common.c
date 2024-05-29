@@ -74,10 +74,6 @@ static struct snd_soc_jack_pin rt_sdca_jack_pins[] = {
 	},
 };
 
-static const char * const jack_codecs[] = {
-	"rt711", "rt712", "rt713", "rt722"
-};
-
 /*
  * The sdca suffix is required for rt711 since there are two generations of the same chip.
  * RT713 is an SDCA device but the sdca suffix is required for backwards-compatibility with
@@ -91,17 +87,12 @@ int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *d
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_dai *codec_dai;
 	struct snd_soc_component *component;
 	struct snd_soc_jack *jack;
 	int ret;
 	int i;
 
-	codec_dai = get_codec_dai_by_name(rtd, jack_codecs, ARRAY_SIZE(jack_codecs));
-	if (!codec_dai)
-		return -EINVAL;
-
-	component = codec_dai->component;
+	component = dai->component;
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 					  "%s hs:%s",
 					  card->components, component->name_prefix);
