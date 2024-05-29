@@ -6304,6 +6304,7 @@ retry:
 	 * meaningful forward progress. Avoid false OOMs in this case.
 	 */
 	if (!sc->memcg_full_walk) {
+		sc->priority = initial_priority;
 		sc->memcg_full_walk = 1;
 		goto retry;
 	}
