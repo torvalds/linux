@@ -437,4 +437,5 @@ static struct kunit_suite sysctl_test_suite = {
 
 kunit_test_suites(&sysctl_test_suite);
 
+MODULE_DESCRIPTION("KUnit test of proc sysctl");
 MODULE_LICENSE("GPL v2");
