@@ -308,7 +308,8 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 	while (src_mm.remaining) {
-		uint64_t from, to, cur_size;
+		uint64_t from, to, cur_size, tiling_flags;
+		uint32_t num_type, data_format, max_com;
 		struct dma_fence *next;
 
 		/* Never copy more than 256MiB at once to avoid a timeout */
@@ -329,10 +330,20 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		abo_dst = ttm_to_amdgpu_bo(dst->bo);
 		if (tmz)
 			copy_flags |= AMDGPU_COPY_FLAGS_TMZ;
-		if (abo_src->flags & AMDGPU_GEM_CREATE_GFX12_DCC)
+		if ((abo_src->flags & AMDGPU_GEM_CREATE_GFX12_DCC) &&
+		    (abo_src->tbo.resource->mem_type == TTM_PL_VRAM))
 			copy_flags |= AMDGPU_COPY_FLAGS_READ_DECOMPRESSED;
-		if (abo_dst->flags & AMDGPU_GEM_CREATE_GFX12_DCC)
+		if ((abo_dst->flags & AMDGPU_GEM_CREATE_GFX12_DCC) &&
+		    (dst->mem->mem_type == TTM_PL_VRAM)) {
 			copy_flags |= AMDGPU_COPY_FLAGS_WRITE_COMPRESSED;
+			amdgpu_bo_get_tiling_flags(abo_dst, &tiling_flags);
+			max_com = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_MAX_COMPRESSED_BLOCK);
+			num_type = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_NUMBER_TYPE);
+			data_format = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_DATA_FORMAT);
+			copy_flags |= (AMDGPU_COPY_FLAGS_SET(MAX_COMPRESSED, max_com) |
+				       AMDGPU_COPY_FLAGS_SET(NUMBER_TYPE, num_type) |
+				       AMDGPU_COPY_FLAGS_SET(DATA_FORMAT, data_format));
+		}
 
 		r = amdgpu_copy_buffer(ring, from, to, cur_size, resv,
 				       &next, false, true, copy_flags);
