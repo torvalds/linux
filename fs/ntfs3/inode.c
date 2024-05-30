@@ -1098,6 +1098,34 @@ int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
 }
 
 /*
+ * Helper function to read file.
+ */
+int inode_read_data(struct inode *inode, void *data, size_t bytes)
+{
+	pgoff_t idx;
+	struct address_space *mapping = inode->i_mapping;
+
+	for (idx = 0; bytes; idx++) {
+		size_t op = bytes > PAGE_SIZE ? PAGE_SIZE : bytes;
+		struct page *page = read_mapping_page(mapping, idx, NULL);
+		void *kaddr;
+
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
+		kaddr = kmap_atomic(page);
+		memcpy(data, kaddr, op);
+		kunmap_atomic(kaddr);
+
+		put_page(page);
+
+		bytes -= op;
+		data = Add2Ptr(data, PAGE_SIZE);
+	}
+	return 0;
+}
+
+/*
  * ntfs_reparse_bytes
  *
  * Number of bytes for REPARSE_DATA_BUFFER(IO_REPARSE_TAG_SYMLINK)
