@@ -1483,6 +1483,8 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 					   dir, dev_type);
 
 	if (!cfg) {
+		bool get_new_blob = false;
+
 		if (format_change) {
 			/*
 			 * The 32-bit blob was not found in NHLT table, try to
@@ -1490,7 +1492,20 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 			 */
 			bit_depth = params_width(params);
 			format_change = false;
+			get_new_blob = true;
+		} else if (linktype == SOF_DAI_INTEL_DMIC && !single_format) {
+			/*
+			 * The requested 32-bit blob (no format change for the
+			 * blob request) was not found in NHLT table, try to
+			 * look for 16-bit blob if the copier supports multiple
+			 * formats
+			 */
+			bit_depth = 16;
+			format_change = true;
+			get_new_blob = true;
+		}
 
+		if (get_new_blob) {
 			cfg = intel_nhlt_get_endpoint_blob(sdev->dev, ipc4_data->nhlt,
 							   dai_index, nhlt_type,
 							   bit_depth, bit_depth,
@@ -1513,8 +1528,8 @@ out:
 
 	if (format_change) {
 		/*
-		 * Update the params to reflect that we have loaded 32-bit blob
-		 * instead of the 16-bit.
+		 * Update the params to reflect that different blob was loaded
+		 * instead of the requested bit depth (16 -> 32 or 32 -> 16).
 		 * This information is going to be used by the caller to find
 		 * matching copier format on the dai side.
 		 */
@@ -1522,7 +1537,11 @@ out:
 
 		m = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 		snd_mask_none(m);
-		snd_mask_set_format(m, SNDRV_PCM_FORMAT_S32_LE);
+		if (bit_depth == 16)
+			snd_mask_set_format(m, SNDRV_PCM_FORMAT_S16_LE);
+		else
+			snd_mask_set_format(m, SNDRV_PCM_FORMAT_S32_LE);
+
 	}
 
 	return 0;
