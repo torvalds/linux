@@ -4,7 +4,7 @@
  */
 
 #include <drm/drm_print.h>
-#include <drm/i915_hdcp_interface.h>
+#include <drm/intel/i915_hdcp_interface.h>
 #include <linux/delay.h>
 
 #include "abi/gsc_command_header_abi.h"
