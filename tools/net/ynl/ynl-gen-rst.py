@@ -49,7 +49,7 @@ def inline(text: str) -> str:
 def sanitize(text: str) -> str:
     """Remove newlines and multiple spaces"""
     # This is useful for some fields that are spread across multiple lines
-    return str(text).replace("\n", "").strip()
+    return str(text).replace("\n", " ").strip()
 
 
 def rst_fields(key: str, value: str, level: int = 0) -> str:
@@ -156,7 +156,10 @@ def parse_do(do_dict: Dict[str, Any], level: int = 0) -> str:
     lines = []
     for key in do_dict.keys():
         lines.append(rst_paragraph(bold(key), level + 1))
-        lines.append(parse_do_attributes(do_dict[key], level + 1) + "\n")
+        if key in ['request', 'reply']:
+            lines.append(parse_do_attributes(do_dict[key], level + 1) + "\n")
+        else:
+            lines.append(headroom(level + 2) + do_dict[key] + "\n")
 
     return "\n".join(lines)
 
@@ -172,13 +175,13 @@ def parse_do_attributes(attrs: Dict[str, Any], level: int = 0) -> str:
 
 def parse_operations(operations: List[Dict[str, Any]], namespace: str) -> str:
     """Parse operations block"""
-    preprocessed = ["name", "doc", "title", "do", "dump"]
+    preprocessed = ["name", "doc", "title", "do", "dump", "flags"]
     linkable = ["fixed-header", "attribute-set"]
     lines = []
 
     for operation in operations:
         lines.append(rst_section(namespace, 'operation', operation["name"]))
-        lines.append(rst_paragraph(sanitize(operation["doc"])) + "\n")
+        lines.append(rst_paragraph(operation["doc"]) + "\n")
 
         for key in operation.keys():
             if key in preprocessed:
@@ -188,6 +191,8 @@ def parse_operations(operations: List[Dict[str, Any]], namespace: str) -> str:
             if key in linkable:
                 value = rst_ref(namespace, key, value)
             lines.append(rst_fields(key, value, 0))
+        if 'flags' in operation:
+            lines.append(rst_fields('flags', rst_list_inline(operation['flags'])))
 
         if "do" in operation:
             lines.append(rst_paragraph(":do:", 0))
