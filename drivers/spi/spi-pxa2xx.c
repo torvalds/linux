@@ -1434,7 +1434,6 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		if (IS_ERR(platform_info))
 			return dev_err_probe(dev, PTR_ERR(platform_info), "missing platform data\n");
 	}
-	dev_dbg(dev, "DMA burst size set to %u\n", platform_info->dma_burst_size);
 
 	ssp = pxa2xx_spi_ssp_request(pdev);
 	if (IS_ERR(ssp))
@@ -1516,6 +1515,8 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 			controller->max_dma_len = MAX_DMA_LEN;
 			controller->max_transfer_size =
 				pxa2xx_spi_max_dma_transfer_size;
+
+			dev_dbg(dev, "DMA burst size set to %u\n", platform_info->dma_burst_size);
 		}
 	}
 
