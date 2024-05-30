@@ -51,6 +51,7 @@ def define_anorak():
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mailbox/msm_qmp.ko",
         "drivers/mailbox/qcom-ipcc.ko",
+        "drivers/nvme/host/sdexpress.ko",
         "drivers/nvmem/nvmem_qfprom.ko",
         "drivers/pci/controller/pci-msm-drv.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
