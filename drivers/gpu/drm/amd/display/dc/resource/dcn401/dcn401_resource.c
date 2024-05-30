@@ -733,7 +733,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.force_cositing = CHROMA_COSITING_TOPLEFT + 1,
 	.disable_idle_power_optimizations = true,
 	.edp_oled_no_backlight_enable = true,
-	.disable_boot_optimizations = true,
 };
 
 static struct dce_aux *dcn401_aux_engine_create(
