@@ -2089,13 +2089,20 @@ int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 	timing = &otg_master->stream->timing;
 	count = resource_get_odm_slice_count(otg_master);
 	h_active = timing->h_addressable +
-		   timing->h_border_left +
-		   timing->h_border_right;
+			timing->h_border_left +
+			timing->h_border_right;
 	width = h_active / count;
 
 	if (otg_master->stream_res.tg && otg_master->stream)
-		two_pixel_alignment_required = otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing);
-
+		two_pixel_alignment_required =
+				otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing) ||
+				/*
+				 * 422 is sub-sampled horizontally. 1 set of chromas
+				 * (Cb/Cr) is shared for 2 lumas (i.e 2 Y values).
+				 * Therefore even if 422 is still 1 pixel per container,
+				 * ODM segment width still needs to be 2 pixel aligned.
+				 */
+				timing->pixel_encoding == PIXEL_ENCODING_YCBCR422;
 	if ((width % 2) && two_pixel_alignment_required)
 		width++;
 
