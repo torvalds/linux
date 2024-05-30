@@ -18,7 +18,7 @@
 #include <linux/uuid.h>
 #include <drm/drm_connector.h>
 #include <drm/i915_component.h>
-#include <drm/i915_gsc_proxy_mei_interface.h>
+#include <drm/intel/i915_gsc_proxy_mei_interface.h>
 
 /**
  * mei_gsc_proxy_send - Sends a proxy message to ME FW.

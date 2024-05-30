@@ -10,7 +10,7 @@
 
 #include <drm/drm_managed.h>
 #include <drm/i915_component.h>
-#include <drm/i915_gsc_proxy_mei_interface.h>
+#include <drm/intel/i915_gsc_proxy_mei_interface.h>
 
 #include "abi/gsc_proxy_commands_abi.h"
 #include "regs/xe_gsc_regs.h"
