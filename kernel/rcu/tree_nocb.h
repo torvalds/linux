@@ -1442,7 +1442,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 				"rcuog/%d", rdp_gp->cpu);
 		if (WARN_ONCE(IS_ERR(t), "%s: Could not start rcuo GP kthread, OOM is now expected behavior\n", __func__)) {
 			mutex_unlock(&rdp_gp->nocb_gp_kthread_mutex);
-			goto end;
+			goto err;
 		}
 		WRITE_ONCE(rdp_gp->nocb_gp_kthread, t);
 		if (kthread_prio)
@@ -1454,7 +1454,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 	t = kthread_create(rcu_nocb_cb_kthread, rdp,
 			   "rcuo%c/%d", rcu_state.abbr, cpu);
 	if (WARN_ONCE(IS_ERR(t), "%s: Could not start rcuo CB kthread, OOM is now expected behavior\n", __func__))
-		goto end;
+		goto err;
 
 	if (rcu_rdp_is_offloaded(rdp))
 		wake_up_process(t);
@@ -1467,7 +1467,15 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 	WRITE_ONCE(rdp->nocb_cb_kthread, t);
 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
 	return;
-end:
+
+err:
+	/*
+	 * No need to protect against concurrent rcu_barrier()
+	 * because the number of callbacks should be 0 for a non-boot CPU,
+	 * therefore rcu_barrier() shouldn't even try to grab the nocb_lock.
+	 * But hold barrier_mutex to avoid nocb_lock imbalance from shrinker.
+	 */
+	WARN_ON_ONCE(system_state > SYSTEM_BOOTING && rcu_segcblist_n_cbs(&rdp->cblist));
 	mutex_lock(&rcu_state.barrier_mutex);
 	if (rcu_rdp_is_offloaded(rdp)) {
 		rcu_nocb_rdp_deoffload(rdp);
