@@ -1099,6 +1099,8 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	int prev_odm_offset = 0;
 	int next_odm_width = 0;
 	int next_odm_offset = 0;
+	struct pipe_ctx *next_odm_pipe = NULL;
+	struct pipe_ctx *prev_odm_pipe = NULL;
 
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
@@ -1109,6 +1111,7 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 			pipe_split_on = true;
 		}
 	}
+
 
 	/**
 	 * DCN4 moved cursor composition after Scaler, so in HW it is in
@@ -1157,8 +1160,8 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * next/prev_odm_offset is to account for scaled modes that have underscan
 	 */
 	if (odm_combine_on) {
-		struct pipe_ctx *next_odm_pipe = pipe_ctx->next_odm_pipe;
-		struct pipe_ctx *prev_odm_pipe = pipe_ctx->prev_odm_pipe;
+		next_odm_pipe = pipe_ctx->next_odm_pipe;
+		prev_odm_pipe = pipe_ctx->prev_odm_pipe;
 
 		while (next_odm_pipe != NULL) {
 			next_odm_width += next_odm_pipe->plane_res.scl_data.recout.width;
