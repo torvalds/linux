@@ -1188,6 +1188,29 @@ int ath12k_core_pre_init(struct ath12k_base *ab)
 	return 0;
 }
 
+static int ath12k_core_panic_handler(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	struct ath12k_base *ab = container_of(nb, struct ath12k_base,
+					      panic_nb);
+
+	return ath12k_hif_panic_handler(ab);
+}
+
+static int ath12k_core_panic_notifier_register(struct ath12k_base *ab)
+{
+	ab->panic_nb.notifier_call = ath12k_core_panic_handler;
+
+	return atomic_notifier_chain_register(&panic_notifier_list,
+					      &ab->panic_nb);
+}
+
+static void ath12k_core_panic_notifier_unregister(struct ath12k_base *ab)
+{
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &ab->panic_nb);
+}
+
 int ath12k_core_init(struct ath12k_base *ab)
 {
 	int ret;
@@ -1198,11 +1221,17 @@ int ath12k_core_init(struct ath12k_base *ab)
 		return ret;
 	}
 
+	ret = ath12k_core_panic_notifier_register(ab);
+	if (ret)
+		ath12k_warn(ab, "failed to register panic handler: %d\n", ret);
+
 	return 0;
 }
 
 void ath12k_core_deinit(struct ath12k_base *ab)
 {
+	ath12k_core_panic_notifier_unregister(ab);
+
 	mutex_lock(&ab->core_lock);
 
 	ath12k_core_pdev_destroy(ab);

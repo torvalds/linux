@@ -14,6 +14,7 @@
 #include <linux/dmi.h>
 #include <linux/ctype.h>
 #include <linux/firmware.h>
+#include <linux/panic_notifier.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -923,6 +924,8 @@ struct ath12k_base {
 	} acpi;
 
 #endif /* CONFIG_ACPI */
+
+	struct notifier_block panic_nb;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
