@@ -444,12 +444,10 @@ static int lklfuse_access(const char *path, int mode)
 
 static int lklfuse_utimens(const char *path, const struct timespec tv[2])
 {
-	struct lkl_timespec ts[2];
-
-	ts[0].tv_sec = tv[0].tv_sec;
-	ts[0].tv_nsec = tv[0].tv_nsec;
-	ts[1].tv_sec = tv[0].tv_sec;
-	ts[1].tv_nsec = tv[0].tv_nsec;
+	struct lkl_timespec ts[2] = {
+		{ tv_sec: tv[0].tv_sec, tv_nsec: tv[0].tv_nsec },
+		{ tv_sec: tv[1].tv_sec, tv_nsec: tv[1].tv_nsec },
+	};
 
 	return lkl_sys_utimensat(-1, path, (struct __lkl__kernel_timespec *)ts,
 				 LKL_AT_SYMLINK_NOFOLLOW);
