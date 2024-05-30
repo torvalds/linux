@@ -1,0 +1,9 @@
+Package: linux-tools-host
+Build-Profiles: <!stage1>
+Architecture: all
+Multi-Arch: foreign
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, python3
+Description: Linux kernel VM host tools
+ This package provides kernel tools useful for VM hosts.

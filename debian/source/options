@@ -1,0 +1,8 @@
+# Ignore vbox symlinks, we will regenerate these at clean (LP:1426113)
+## autoreconstruct -- begin
+# Ignore any symlinks created since the orig which are rebuilt by reconstruct.
+## autoreconstruct -- end
+
+# force "dpkg-source -I -i" behavior
+diff-ignore
+tar-ignore

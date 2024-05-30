@@ -1,0 +1,14 @@
+
+Package: linux-buildinfo-PKGVER-ABINUM-FLAVOUR
+Build-Profiles: <!stage1>
+Architecture: ARCH
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Built-Using: ${linux:BuiltUsing}
+Description: Linux kernel buildinfo for version PKGVER on DESC
+ This package contains the Linux kernel buildinfo for version PKGVER on
+ DESC.
+ .
+ You likely do not want to install this package.
+
