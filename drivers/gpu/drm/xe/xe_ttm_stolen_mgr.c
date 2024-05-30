@@ -13,6 +13,7 @@
 
 #include <generated/xe_wa_oob.h>
 
+#include "regs/xe_bars.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"

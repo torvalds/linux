@@ -11,8 +11,6 @@
 struct xe_device;
 struct xe_reg;
 
-#define LMEM_BAR		2
-
 int xe_mmio_init(struct xe_device *xe);
 int xe_mmio_probe_tiles(struct xe_device *xe);
 
