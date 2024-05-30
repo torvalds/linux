@@ -1540,11 +1540,9 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 
 	r = amdgpu_ucode_request(adev, &adev->mes.fw[pipe], fw_name);
 	if (r && need_retry && pipe == AMDGPU_MES_SCHED_PIPE) {
-		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mes.bin",
-			 ucode_prefix);
-		DRM_INFO("try to fall back to %s\n", fw_name);
+		dev_info(adev->dev, "try to fall back to %s_mes.bin\n", ucode_prefix);
 		r = amdgpu_ucode_request(adev, &adev->mes.fw[pipe],
-					 fw_name);
+					 "amdgpu/%s_mes.bin", ucode_prefix);
 	}
 
 	if (r)
