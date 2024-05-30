@@ -1441,9 +1441,6 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (!ssp)
 		ssp = &platform_info->ssp;
 
-	if (!ssp->mmio_base)
-		return dev_err_probe(dev, -ENODEV, "failed to get SSP\n");
-
 	if (platform_info->is_target)
 		controller = devm_spi_alloc_target(dev, sizeof(*drv_data));
 	else
