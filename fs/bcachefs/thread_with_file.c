@@ -364,13 +364,21 @@ int bch2_stdio_redirect_read(struct stdio_redirect *stdio, char *ubuf, size_t le
 	return ret;
 }
 
-int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, darray_char *line)
+int bch2_stdio_redirect_readline_timeout(struct stdio_redirect *stdio,
+					 darray_char *line,
+					 unsigned long timeout)
 {
+	unsigned long until = jiffies + timeout, t;
 	struct stdio_buf *buf = &stdio->input;
 	size_t seen = 0;
 again:
-	wait_event_timeout(buf->wait, stdio_redirect_has_more_input(stdio, seen),
-			   sysctl_hung_task_timeout_secs * HZ / 2);
+	t = timeout != MAX_SCHEDULE_TIMEOUT
+		? max_t(long, until - jiffies, 0)
+		: timeout;
+
+	t = min(t, sysctl_hung_task_timeout_secs * HZ / 2);
+
+	wait_event_timeout(buf->wait, stdio_redirect_has_more_input(stdio, seen), t);
 
 	if (stdio->done)
 		return -1;
@@ -378,6 +386,12 @@ again:
 	spin_lock(&buf->lock);
 	seen = buf->buf.nr;
 	char *n = memchr(buf->buf.data, '\n', seen);
+
+	if (!n && timeout != MAX_SCHEDULE_TIMEOUT && jiffies >= until) {
+		spin_unlock(&buf->lock);
+		return -ETIME;
+	}
+
 	if (!n) {
 		buf->waiting_for_line = true;
 		spin_unlock(&buf->lock);
@@ -406,6 +420,11 @@ again:
 
 	wake_up(&buf->wait);
 	return 0;
+}
+
+int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, darray_char *line)
+{
+	return bch2_stdio_redirect_readline_timeout(stdio, line, MAX_SCHEDULE_TIMEOUT);
 }
 
 __printf(3, 0)

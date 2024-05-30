@@ -72,6 +72,7 @@ int bch2_run_thread_with_stdout(struct thread_with_stdio *,
 				const struct thread_with_stdio_ops *);
 int bch2_stdio_redirect_read(struct stdio_redirect *, char *, size_t);
 
+int bch2_stdio_redirect_readline_timeout(struct stdio_redirect *, darray_char *, unsigned long);
 int bch2_stdio_redirect_readline(struct stdio_redirect *, darray_char *);
 
 __printf(3, 0) ssize_t bch2_stdio_redirect_vprintf(struct stdio_redirect *, bool, const char *, va_list);
