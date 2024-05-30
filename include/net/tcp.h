@@ -1071,6 +1071,13 @@ static inline bool tcp_skb_can_collapse(const struct sk_buff *to,
 		      skb_pure_zcopy_same(to, from));
 }
 
+static inline bool tcp_skb_can_collapse_rx(const struct sk_buff *to,
+					   const struct sk_buff *from)
+{
+	return likely(mptcp_skb_can_collapse(to, from) &&
+		      !skb_cmp_decrypted(to, from));
+}
+
 /* Events passed to congestion control interface */
 enum tcp_ca_event {
 	CA_EVENT_TX_START,	/* first transmit when no packets in flight */

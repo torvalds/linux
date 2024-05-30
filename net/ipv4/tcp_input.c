@@ -4813,10 +4813,7 @@ static bool tcp_try_coalesce(struct sock *sk,
 	if (TCP_SKB_CB(from)->seq != TCP_SKB_CB(to)->end_seq)
 		return false;
 
-	if (!mptcp_skb_can_collapse(to, from))
-		return false;
-
-	if (skb_cmp_decrypted(from, to))
+	if (!tcp_skb_can_collapse_rx(to, from))
 		return false;
 
 	if (!skb_try_coalesce(to, from, fragstolen, &delta))
@@ -5372,7 +5369,7 @@ restart:
 			break;
 		}
 
-		if (n && n != tail && mptcp_skb_can_collapse(skb, n) &&
+		if (n && n != tail && tcp_skb_can_collapse_rx(skb, n) &&
 		    TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(n)->seq) {
 			end_of_skbs = false;
 			break;
@@ -5423,10 +5420,8 @@ restart:
 				skb = tcp_collapse_one(sk, skb, list, root);
 				if (!skb ||
 				    skb == tail ||
-				    !mptcp_skb_can_collapse(nskb, skb) ||
+				    !tcp_skb_can_collapse_rx(nskb, skb) ||
 				    (TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)))
-					goto end;
-				if (skb_cmp_decrypted(skb, nskb))
 					goto end;
 			}
 		}
