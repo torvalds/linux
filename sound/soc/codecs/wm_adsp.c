@@ -2085,5 +2085,6 @@ static const struct cs_dsp_client_ops wm_adsp2_client_ops = {
 	.watchdog_expired = wm_adsp_fatal_error,
 };
 
+MODULE_DESCRIPTION("Cirrus Logic ASoC DSP Support");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(FW_CS_DSP);
