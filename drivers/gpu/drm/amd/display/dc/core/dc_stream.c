@@ -1006,9 +1006,9 @@ static unsigned int dc_stream_get_max_flickerless_instant_vtotal_delta(struct dc
 	int safe_refresh_v_total = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, safe_refresh_hz*stream->timing.h_total);
 
 	if (increase)
-		return ((stream->timing.v_total - safe_refresh_v_total) >= 0) ? (stream->timing.v_total - safe_refresh_v_total) : 0;
+		return (((int) stream->timing.v_total - safe_refresh_v_total) >= 0) ? (stream->timing.v_total - safe_refresh_v_total) : 0;
 
-	return ((safe_refresh_v_total - stream->timing.v_total) >= 0) ? (safe_refresh_v_total - stream->timing.v_total) : 0;
+	return ((safe_refresh_v_total - (int) stream->timing.v_total) >= 0) ? (safe_refresh_v_total - stream->timing.v_total) : 0;
 }
 
 /*
