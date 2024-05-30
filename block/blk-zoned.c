@@ -455,6 +455,20 @@ static bool disk_zone_is_last(struct gendisk *disk, struct blk_zone *zone)
 	return zone->start + zone->len >= get_capacity(disk);
 }
 
+static bool disk_zone_is_full(struct gendisk *disk,
+			      unsigned int zno, unsigned int offset_in_zone)
+{
+	if (zno < disk->nr_zones - 1)
+		return offset_in_zone >= disk->zone_capacity;
+	return offset_in_zone >= disk->last_zone_capacity;
+}
+
+static bool disk_zone_wplug_is_full(struct gendisk *disk,
+				    struct blk_zone_wplug *zwplug)
+{
+	return disk_zone_is_full(disk, zwplug->zone_no, zwplug->wp_offset);
+}
+
 static bool disk_insert_zone_wplug(struct gendisk *disk,
 				   struct blk_zone_wplug *zwplug)
 {
@@ -548,7 +562,7 @@ static inline bool disk_should_remove_zone_wplug(struct gendisk *disk,
 		return false;
 
 	/* We can remove zone write plugs for zones that are empty or full. */
-	return !zwplug->wp_offset || zwplug->wp_offset >= disk->zone_capacity;
+	return !zwplug->wp_offset || disk_zone_wplug_is_full(disk, zwplug);
 }
 
 static void disk_remove_zone_wplug(struct gendisk *disk,
@@ -669,13 +683,12 @@ static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
 static void disk_zone_wplug_abort_unaligned(struct gendisk *disk,
 					    struct blk_zone_wplug *zwplug)
 {
-	unsigned int zone_capacity = disk->zone_capacity;
 	unsigned int wp_offset = zwplug->wp_offset;
 	struct bio_list bl = BIO_EMPTY_LIST;
 	struct bio *bio;
 
 	while ((bio = bio_list_pop(&zwplug->bio_list))) {
-		if (wp_offset >= zone_capacity ||
+		if (disk_zone_is_full(disk, zwplug->zone_no, wp_offset) ||
 		    (bio_op(bio) != REQ_OP_ZONE_APPEND &&
 		     bio_offset_from_zone_start(bio) != wp_offset)) {
 			blk_zone_wplug_bio_io_error(zwplug, bio);
@@ -914,7 +927,6 @@ void blk_zone_write_plug_init_request(struct request *req)
 	sector_t req_back_sector = blk_rq_pos(req) + blk_rq_sectors(req);
 	struct request_queue *q = req->q;
 	struct gendisk *disk = q->disk;
-	unsigned int zone_capacity = disk->zone_capacity;
 	struct blk_zone_wplug *zwplug =
 		disk_get_zone_wplug(disk, blk_rq_pos(req));
 	unsigned long flags;
@@ -938,7 +950,7 @@ void blk_zone_write_plug_init_request(struct request *req)
 	 * into the back of the request.
 	 */
 	spin_lock_irqsave(&zwplug->lock, flags);
-	while (zwplug->wp_offset < zone_capacity) {
+	while (!disk_zone_wplug_is_full(disk, zwplug)) {
 		bio = bio_list_peek(&zwplug->bio_list);
 		if (!bio)
 			break;
@@ -984,7 +996,7 @@ static bool blk_zone_wplug_prepare_bio(struct blk_zone_wplug *zwplug,
 	 * We know such BIO will fail, and that would potentially overflow our
 	 * write pointer offset beyond the end of the zone.
 	 */
-	if (zwplug->wp_offset >= disk->zone_capacity)
+	if (disk_zone_wplug_is_full(disk, zwplug))
 		goto err;
 
 	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
@@ -1561,6 +1573,7 @@ void disk_free_zone_resources(struct gendisk *disk)
 	kfree(disk->conv_zones_bitmap);
 	disk->conv_zones_bitmap = NULL;
 	disk->zone_capacity = 0;
+	disk->last_zone_capacity = 0;
 	disk->nr_zones = 0;
 }
 
@@ -1605,6 +1618,7 @@ struct blk_revalidate_zone_args {
 	unsigned long	*conv_zones_bitmap;
 	unsigned int	nr_zones;
 	unsigned int	zone_capacity;
+	unsigned int	last_zone_capacity;
 	sector_t	sector;
 };
 
@@ -1622,6 +1636,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 
 	disk->nr_zones = args->nr_zones;
 	disk->zone_capacity = args->zone_capacity;
+	disk->last_zone_capacity = args->last_zone_capacity;
 	swap(disk->conv_zones_bitmap, args->conv_zones_bitmap);
 	if (disk->conv_zones_bitmap)
 		nr_conv_zones = bitmap_weight(disk->conv_zones_bitmap,
@@ -1673,6 +1688,9 @@ static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
 		return -ENODEV;
 	}
 
+	if (disk_zone_is_last(disk, zone))
+		args->last_zone_capacity = zone->capacity;
+
 	if (!disk_need_zone_resources(disk))
 		return 0;
 
@@ -1703,8 +1721,9 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	 */
 	if (!args->zone_capacity)
 		args->zone_capacity = zone->capacity;
-	if (!disk_zone_is_last(disk, zone) &&
-	    zone->capacity != args->zone_capacity) {
+	if (disk_zone_is_last(disk, zone)) {
+		args->last_zone_capacity = zone->capacity;
+	} else if (zone->capacity != args->zone_capacity) {
 		pr_warn("%s: Invalid variable zone capacity\n",
 			disk->disk_name);
 		return -ENODEV;
