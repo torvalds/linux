@@ -55,7 +55,7 @@ _resize_bar(struct xe_device *xe, int resno, resource_size_t size)
  * if force_vram_bar_size is set, attempt to set to the requested size
  * else set to maximum possible size
  */
-static void xe_resize_vram_bar(struct xe_device *xe)
+static void resize_vram_bar(struct xe_device *xe)
 {
 	u64 force_vram_bar_size = xe_modparam.force_vram_bar_size;
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -127,7 +127,7 @@ static void xe_resize_vram_bar(struct xe_device *xe)
 	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
 }
 
-static bool xe_pci_resource_valid(struct pci_dev *pdev, int bar)
+static bool resource_is_valid(struct pci_dev *pdev, int bar)
 {
 	if (!pci_resource_flags(pdev, bar))
 		return false;
@@ -141,16 +141,16 @@ static bool xe_pci_resource_valid(struct pci_dev *pdev, int bar)
 	return true;
 }
 
-static int xe_determine_lmem_bar_size(struct xe_device *xe)
+static int determine_lmem_bar_size(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
-	if (!xe_pci_resource_valid(pdev, LMEM_BAR)) {
+	if (!resource_is_valid(pdev, LMEM_BAR)) {
 		drm_err(&xe->drm, "pci resource is not valid\n");
 		return -ENXIO;
 	}
 
-	xe_resize_vram_bar(xe);
+	resize_vram_bar(xe);
 
 	xe->mem.vram.io_start = pci_resource_start(pdev, LMEM_BAR);
 	xe->mem.vram.io_size = pci_resource_len(pdev, LMEM_BAR);
@@ -202,8 +202,8 @@ static inline u64 get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size)
 	return offset;
 }
 
-/**
- * xe_mmio_tile_vram_size() - Collect vram size and offset information
+/*
+ * tile_vram_size() - Collect vram size and offset information
  * @tile: tile to get info for
  * @vram_size: available vram (size - device reserved portions)
  * @tile_size: actual vram size
@@ -221,8 +221,8 @@ static inline u64 get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size)
  * NOTE: multi-tile bases will include the tile offset.
  *
  */
-static int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size,
-				  u64 *tile_size, u64 *tile_offset)
+static int tile_vram_size(struct xe_tile *tile, u64 *vram_size,
+			  u64 *tile_size, u64 *tile_offset)
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_gt *gt = tile->primary_gt;
@@ -289,11 +289,11 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 
 	/* Get the size of the root tile's vram for later accessibility comparison */
 	tile = xe_device_get_root_tile(xe);
-	err = xe_mmio_tile_vram_size(tile, &vram_size, &tile_size, &tile_offset);
+	err = tile_vram_size(tile, &vram_size, &tile_size, &tile_offset);
 	if (err)
 		return err;
 
-	err = xe_determine_lmem_bar_size(xe);
+	err = determine_lmem_bar_size(xe);
 	if (err)
 		return err;
 
@@ -304,7 +304,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 
 	/* tile specific ranges */
 	for_each_tile(tile, xe, id) {
-		err = xe_mmio_tile_vram_size(tile, &vram_size, &tile_size, &tile_offset);
+		err = tile_vram_size(tile, &vram_size, &tile_size, &tile_offset);
 		if (err)
 			return err;
 
