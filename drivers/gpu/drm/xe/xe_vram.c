@@ -15,8 +15,10 @@
 #include "xe_device.h"
 #include "xe_force_wake.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_sriov_vf.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
+#include "xe_sriov.h"
 #include "xe_vram.h"
 
 #define BAR_SIZE_SHIFT 20
@@ -219,6 +221,22 @@ static int tile_vram_size(struct xe_tile *tile, u64 *vram_size,
 	u64 offset;
 	int err;
 	u32 reg;
+
+	if (IS_SRIOV_VF(xe)) {
+		struct xe_tile *t;
+		int id;
+
+		offset = 0;
+		for_each_tile(t, xe, id)
+			for_each_if(t->id < tile->id)
+				offset += xe_gt_sriov_vf_lmem(t->primary_gt);
+
+		*tile_size = xe_gt_sriov_vf_lmem(gt);
+		*vram_size = *tile_size;
+		*tile_offset = offset;
+
+		return 0;
+	}
 
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (err)
