@@ -254,6 +254,7 @@ struct rzg2l_pinctrl_data {
 	const u64 *variable_pin_cfg;
 	unsigned int n_variable_pin_cfg;
 	void (*pwpr_pfc_lock_unlock)(struct rzg2l_pinctrl *pctrl, bool lock);
+	void (*pmc_writeb)(struct rzg2l_pinctrl *pctrl, u8 val, u16 offset);
 };
 
 /**
@@ -382,6 +383,11 @@ static const u64 r9a07g043f_variable_pin_cfg[] = {
 					   PIN_CFG_NOGPIO_INT),
 };
 #endif
+
+static void rzg2l_pmc_writeb(struct rzg2l_pinctrl *pctrl, u8 val, u16 offset)
+{
+	writeb(val, pctrl->base + offset);
+}
 
 static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 				       u8 pin, u8 off, u8 func)
@@ -1329,7 +1335,7 @@ static int rzg2l_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	/* Select GPIO mode in PMC Register */
 	reg8 = readb(pctrl->base + PMC(off));
 	reg8 &= ~BIT(bit);
-	writeb(reg8, pctrl->base + PMC(off));
+	pctrl->data->pmc_writeb(pctrl, reg8, PMC(off));
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
@@ -2616,6 +2622,7 @@ static struct rzg2l_pinctrl_data r9a07g043_data = {
 	.n_variable_pin_cfg = ARRAY_SIZE(r9a07g043f_variable_pin_cfg),
 #endif
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
+	.pmc_writeb = &rzg2l_pmc_writeb,
 };
 
 static struct rzg2l_pinctrl_data r9a07g044_data = {
@@ -2628,6 +2635,7 @@ static struct rzg2l_pinctrl_data r9a07g044_data = {
 		ARRAY_SIZE(rzg2l_dedicated_pins.rzg2l_pins),
 	.hwcfg = &rzg2l_hwcfg,
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
+	.pmc_writeb = &rzg2l_pmc_writeb,
 };
 
 static struct rzg2l_pinctrl_data r9a08g045_data = {
@@ -2639,6 +2647,7 @@ static struct rzg2l_pinctrl_data r9a08g045_data = {
 	.n_dedicated_pins = ARRAY_SIZE(rzg3s_dedicated_pins),
 	.hwcfg = &rzg3s_hwcfg,
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
+	.pmc_writeb = &rzg2l_pmc_writeb,
 };
 
 static const struct of_device_id rzg2l_pinctrl_of_table[] = {
