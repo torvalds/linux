@@ -39,6 +39,34 @@ static int settcpca(int fd, const char *tcp_ca)
 	return 0;
 }
 
+static bool start_test(char *addr_str,
+		       const struct network_helper_opts *srv_opts,
+		       const struct network_helper_opts *cli_opts,
+		       int *srv_fd, int *cli_fd)
+{
+	*srv_fd = start_server_str(AF_INET6, SOCK_STREAM, addr_str, 0, srv_opts);
+	if (!ASSERT_NEQ(*srv_fd, -1, "start_server_str"))
+		goto err;
+
+	/* connect to server */
+	*cli_fd = connect_to_fd_opts(*srv_fd, cli_opts);
+	if (!ASSERT_NEQ(*cli_fd, -1, "connect_to_fd_opts"))
+		goto err;
+
+	return true;
+
+err:
+	if (*srv_fd != -1) {
+		close(*srv_fd);
+		*srv_fd = -1;
+	}
+	if (*cli_fd != -1) {
+		close(*cli_fd);
+		*cli_fd = -1;
+	}
+	return false;
+}
+
 static void do_test(const struct network_helper_opts *opts,
 		    const struct network_helper_opts *cli_opts,
 		    const struct bpf_map *sk_stg_map)
@@ -46,13 +74,7 @@ static void do_test(const struct network_helper_opts *opts,
 	int lfd = -1, fd = -1;
 	int err;
 
-	lfd = start_server_str(AF_INET6, SOCK_STREAM, NULL, 0, opts);
-	if (!ASSERT_NEQ(lfd, -1, "socket"))
-		return;
-
-	/* connect to server */
-	fd = connect_to_fd_opts(lfd, cli_opts);
-	if (!ASSERT_NEQ(fd, -1, "connect_to_fd_opts"))
+	if (!start_test(NULL, opts, cli_opts, &lfd, &fd))
 		goto done;
 
 	if (sk_stg_map) {
@@ -68,8 +90,10 @@ static void do_test(const struct network_helper_opts *opts,
 	ASSERT_OK(send_recv_data(lfd, fd, total_bytes), "send_recv_data");
 
 done:
-	close(lfd);
-	close(fd);
+	if (lfd != -1)
+		close(lfd);
+	if (fd != -1)
+		close(fd);
 }
 
 static int cc_cb(int fd, void *opts)
