@@ -10,6 +10,7 @@
 #define _GNU_SOURCE
 #include MSRHEADER
 #include INTEL_FAMILY_HEADER
+#include BUILD_BUG_HEADER
 #include <stdarg.h>
 #include <stdio.h>
 #include <err.h>
@@ -38,7 +39,6 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <linux/kernel.h>
-#include <linux/build_bug.h>
 
 #define UNUSED(x) (void)(x)
 
