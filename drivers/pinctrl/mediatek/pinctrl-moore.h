@@ -43,6 +43,14 @@
 		.data = id##_funcs,							\
 	}
 
+#define PINCTRL_PIN_FUNCTION(_name_, id)							\
+	{											\
+		.name = _name_,									\
+		.group_names = id##_groups,							\
+		.num_group_names = ARRAY_SIZE(id##_groups),					\
+		.data = NULL,									\
+	}
+
 int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 			    const struct mtk_pin_soc *soc);
 
