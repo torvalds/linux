@@ -1590,8 +1590,10 @@ sof_ipc4_prepare_dai_copier(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
 	struct sof_ipc4_available_audio_format *available_fmt;
 	struct snd_pcm_hw_params dai_params = *params;
 	struct sof_ipc4_copier_data *copier_data;
+	struct sof_ipc4_pin_format *pin_fmts;
 	struct sof_ipc4_copier *ipc4_copier;
 	bool single_bitdepth;
+	u32 num_pin_fmts;
 	int ret;
 
 	ipc4_copier = dai->private;
@@ -1605,31 +1607,23 @@ sof_ipc4_prepare_dai_copier(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
 	 * format lookup
 	 */
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
-		single_bitdepth = sof_ipc4_copier_is_single_bitdepth(sdev,
-						available_fmt->output_pin_fmts,
-						available_fmt->num_output_formats);
-
-		/* Update the dai_params with the only supported format */
-		if (single_bitdepth) {
-			ret = sof_ipc4_update_hw_params(sdev, &dai_params,
-					&available_fmt->output_pin_fmts[0].audio_fmt,
-					BIT(SNDRV_PCM_HW_PARAM_FORMAT));
-			if (ret)
-				return ret;
-		}
+		pin_fmts = available_fmt->output_pin_fmts;
+		num_pin_fmts = available_fmt->num_output_formats;
 	} else {
-		single_bitdepth = sof_ipc4_copier_is_single_bitdepth(sdev,
-						available_fmt->input_pin_fmts,
-						available_fmt->num_input_formats);
+		pin_fmts = available_fmt->input_pin_fmts;
+		num_pin_fmts = available_fmt->num_input_formats;
+	}
 
-		/* Update the dai_params with the only supported format */
-		if (single_bitdepth) {
-			ret = sof_ipc4_update_hw_params(sdev, &dai_params,
-					&available_fmt->input_pin_fmts[0].audio_fmt,
-					BIT(SNDRV_PCM_HW_PARAM_FORMAT));
-			if (ret)
-				return ret;
-		}
+	single_bitdepth = sof_ipc4_copier_is_single_bitdepth(sdev, pin_fmts,
+							     num_pin_fmts);
+
+	/* Update the dai_params with the only supported format */
+	if (single_bitdepth) {
+		ret = sof_ipc4_update_hw_params(sdev, &dai_params,
+						&pin_fmts[0].audio_fmt,
+						BIT(SNDRV_PCM_HW_PARAM_FORMAT));
+		if (ret)
+			return ret;
 	}
 
 	ret = snd_sof_get_nhlt_endpoint_data(sdev, dai, single_bitdepth,
