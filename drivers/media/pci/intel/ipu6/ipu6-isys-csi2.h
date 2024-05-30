@@ -45,7 +45,6 @@ struct ipu6_isys_csi2 {
 	u32 receiver_errors;
 	unsigned int nlanes;
 	unsigned int port;
-	unsigned int stream_count;
 };
 
 struct ipu6_isys_csi2_timing {
@@ -77,6 +76,5 @@ int ipu6_isys_csi2_get_remote_desc(u32 source_stream,
 				   struct ipu6_isys_csi2 *csi2,
 				   struct media_entity *source_entity,
 				   struct v4l2_mbus_frame_desc_entry *entry);
-void ipu6_isys_set_csi2_streams_status(struct ipu6_isys_video *av, bool status);
 
 #endif /* IPU6_ISYS_CSI2_H */
