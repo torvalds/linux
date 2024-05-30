@@ -97,16 +97,14 @@ static int isp_load_fw_by_psp(struct amdgpu_device *adev)
 {
 	const struct common_firmware_header *hdr;
 	char ucode_prefix[10];
-	char fw_name[40];
 	int r = 0;
 
 	/* get isp fw binary name and path */
 	amdgpu_ucode_ip_version_decode(adev, ISP_HWIP, ucode_prefix,
 				       sizeof(ucode_prefix));
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
 
 	/* read isp fw */
-	r = amdgpu_ucode_request(adev, &adev->isp.fw, fw_name);
+	r = amdgpu_ucode_request(adev, &adev->isp.fw, "amdgpu/%s.bin", ucode_prefix);
 	if (r) {
 		amdgpu_ucode_release(&adev->isp.fw);
 		return r;
