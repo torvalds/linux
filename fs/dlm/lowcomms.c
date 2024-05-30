@@ -858,12 +858,6 @@ static void free_processqueue_entry(struct processqueue_entry *pentry)
 	kfree(pentry);
 }
 
-struct dlm_processed_nodes {
-	int nodeid;
-
-	struct list_head list;
-};
-
 static void process_dlm_messages(struct work_struct *work)
 {
 	struct processqueue_entry *pentry;
