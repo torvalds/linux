@@ -1469,7 +1469,7 @@ static void btrfs_release_dir_index_item_space(struct btrfs_trans_handle *trans)
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   const char *name, int name_len,
 				   struct btrfs_inode *dir,
-				   struct btrfs_disk_key *disk_key, u8 flags,
+				   const struct btrfs_disk_key *disk_key, u8 flags,
 				   u64 index)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -1755,7 +1755,7 @@ void btrfs_readdir_put_delayed_items(struct inode *inode,
 	downgrade_write(&inode->i_rwsem);
 }
 
-int btrfs_should_delete_dir_index(struct list_head *del_list,
+int btrfs_should_delete_dir_index(const struct list_head *del_list,
 				  u64 index)
 {
 	struct btrfs_delayed_item *curr;
@@ -1776,7 +1776,7 @@ int btrfs_should_delete_dir_index(struct list_head *del_list,
  * Read dir info stored in the delayed tree.
  */
 int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
-				    struct list_head *ins_list)
+				    const struct list_head *ins_list)
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_delayed_item *curr, *next;

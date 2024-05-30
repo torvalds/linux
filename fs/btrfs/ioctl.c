@@ -552,7 +552,7 @@ static noinline int btrfs_ioctl_fitrim(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int __pure btrfs_is_empty_uuid(u8 *uuid)
+int __pure btrfs_is_empty_uuid(const u8 *uuid)
 {
 	int i;
 

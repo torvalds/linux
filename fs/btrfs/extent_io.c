@@ -180,7 +180,7 @@ void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
 }
 
 static void process_one_page(struct btrfs_fs_info *fs_info,
-			     struct page *page, struct page *locked_page,
+			     struct page *page, const struct page *locked_page,
 			     unsigned long page_ops, u64 start, u64 end)
 {
 	struct folio *folio = page_folio(page);
@@ -203,7 +203,7 @@ static void process_one_page(struct btrfs_fs_info *fs_info,
 }
 
 static void __process_pages_contig(struct address_space *mapping,
-				   struct page *locked_page, u64 start, u64 end,
+				   const struct page *locked_page, u64 start, u64 end,
 				   unsigned long page_ops)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(mapping->host);
@@ -230,8 +230,8 @@ static void __process_pages_contig(struct address_space *mapping,
 	}
 }
 
-static noinline void __unlock_for_delalloc(struct inode *inode,
-					   struct page *locked_page,
+static noinline void __unlock_for_delalloc(const struct inode *inode,
+					   const struct page *locked_page,
 					   u64 start, u64 end)
 {
 	unsigned long index = start >> PAGE_SHIFT;
@@ -246,7 +246,7 @@ static noinline void __unlock_for_delalloc(struct inode *inode,
 }
 
 static noinline int lock_delalloc_pages(struct inode *inode,
-					struct page *locked_page,
+					const struct page *locked_page,
 					u64 start,
 					u64 end)
 {
@@ -411,7 +411,7 @@ out_failed:
 }
 
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
-				  struct page *locked_page,
+				  const struct page *locked_page,
 				  struct extent_state **cached,
 				  u32 clear_bits, unsigned long page_ops)
 {
@@ -1382,7 +1382,7 @@ out:
  * Return the next dirty range in [@start, @end).
  * If no dirty range is found, @start will be page_offset(page) + PAGE_SIZE.
  */
-static void find_next_dirty_byte(struct btrfs_fs_info *fs_info,
+static void find_next_dirty_byte(const struct btrfs_fs_info *fs_info,
 				 struct page *page, u64 *start, u64 *end)
 {
 	struct folio *folio = page_folio(page);
@@ -1743,7 +1743,7 @@ static void set_btree_ioerr(struct extent_buffer *eb)
  * context.
  */
 static struct extent_buffer *find_extent_buffer_nolock(
-		struct btrfs_fs_info *fs_info, u64 start)
+		const struct btrfs_fs_info *fs_info, u64 start)
 {
 	struct extent_buffer *eb;
 
@@ -2312,7 +2312,7 @@ retry:
  * already been ran (aka, ordered extent inserted) and all pages are still
  * locked.
  */
-void extent_write_locked_range(struct inode *inode, struct page *locked_page,
+void extent_write_locked_range(struct inode *inode, const struct page *locked_page,
 			       u64 start, u64 end, struct writeback_control *wbc,
 			       bool pages_dirty)
 {
@@ -2597,7 +2597,7 @@ static bool folio_range_has_eb(struct btrfs_fs_info *fs_info, struct folio *foli
 	return false;
 }
 
-static void detach_extent_buffer_folio(struct extent_buffer *eb, struct folio *folio)
+static void detach_extent_buffer_folio(const struct extent_buffer *eb, struct folio *folio)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	const bool mapped = !test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
@@ -2658,7 +2658,7 @@ static void detach_extent_buffer_folio(struct extent_buffer *eb, struct folio *f
 }
 
 /* Release all pages attached to the extent buffer */
-static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
+static void btrfs_release_extent_buffer_pages(const struct extent_buffer *eb)
 {
 	ASSERT(!extent_buffer_under_io(eb));
 
@@ -3575,7 +3575,7 @@ static void end_bbio_meta_read(struct btrfs_bio *bbio)
 }
 
 int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
-			     struct btrfs_tree_parent_check *check)
+			     const struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_bio *bbio;
 	bool ret;
@@ -4188,7 +4188,7 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 
 #define GANG_LOOKUP_SIZE	16
 static struct extent_buffer *get_next_extent_buffer(
-		struct btrfs_fs_info *fs_info, struct page *page, u64 bytenr)
+		const struct btrfs_fs_info *fs_info, struct page *page, u64 bytenr)
 {
 	struct extent_buffer *gang[GANG_LOOKUP_SIZE];
 	struct extent_buffer *found = NULL;

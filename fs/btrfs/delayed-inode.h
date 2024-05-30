@@ -110,7 +110,7 @@ void btrfs_init_delayed_root(struct btrfs_delayed_root *delayed_root);
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   const char *name, int name_len,
 				   struct btrfs_inode *dir,
-				   struct btrfs_disk_key *disk_key, u8 flags,
+				   const struct btrfs_disk_key *disk_key, u8 flags,
 				   u64 index);
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
@@ -150,10 +150,10 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 void btrfs_readdir_put_delayed_items(struct inode *inode,
 				     struct list_head *ins_list,
 				     struct list_head *del_list);
-int btrfs_should_delete_dir_index(struct list_head *del_list,
+int btrfs_should_delete_dir_index(const struct list_head *del_list,
 				  u64 index);
 int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
-				    struct list_head *ins_list);
+				    const struct list_head *ins_list);
 
 /* Used during directory logging. */
 void btrfs_log_get_delayed_items(struct btrfs_inode *inode,

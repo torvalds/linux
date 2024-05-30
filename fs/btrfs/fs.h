@@ -956,7 +956,7 @@ static inline bool btrfs_is_zoned(const struct btrfs_fs_info *fs_info)
 /*
  * Count how many fs_info->max_extent_size cover the @size
  */
-static inline u32 count_max_extents(struct btrfs_fs_info *fs_info, u64 size)
+static inline u32 count_max_extents(const struct btrfs_fs_info *fs_info, u64 size)
 {
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	if (!fs_info)
@@ -1017,7 +1017,7 @@ void __btrfs_clear_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 #define btrfs_test_opt(fs_info, opt)	((fs_info)->mount_opt & \
 					 BTRFS_MOUNT_##opt)
 
-static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
+static inline int btrfs_fs_closing(const struct btrfs_fs_info *fs_info)
 {
 	/* Do it this way so we only ever do one test_bit in the normal case. */
 	if (test_bit(BTRFS_FS_CLOSING_START, &fs_info->flags)) {
@@ -1036,7 +1036,7 @@ static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
  * since setting and checking for SB_RDONLY in the superblock's flags is not
  * atomic.
  */
-static inline int btrfs_need_cleaner_sleep(struct btrfs_fs_info *fs_info)
+static inline int btrfs_need_cleaner_sleep(const struct btrfs_fs_info *fs_info)
 {
 	return test_bit(BTRFS_FS_STATE_RO, &fs_info->fs_state) ||
 		btrfs_fs_closing(fs_info);
@@ -1057,7 +1057,7 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 
 #define EXPORT_FOR_TESTS
 
-static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
+static inline int btrfs_is_testing(const struct btrfs_fs_info *fs_info)
 {
 	return test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 }
@@ -1068,7 +1068,7 @@ void btrfs_test_destroy_inode(struct inode *inode);
 
 #define EXPORT_FOR_TESTS static
 
-static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
+static inline int btrfs_is_testing(const struct btrfs_fs_info *fs_info)
 {
 	return 0;
 }

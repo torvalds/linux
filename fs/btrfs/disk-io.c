@@ -213,7 +213,7 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
  *			structure for details.
  */
 int btrfs_read_extent_buffer(struct extent_buffer *eb,
-			     struct btrfs_tree_parent_check *check)
+			     const struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	int failed = 0;
@@ -358,7 +358,7 @@ static bool check_tree_block_fsid(struct extent_buffer *eb)
 
 /* Do basic extent buffer checks at read time */
 int btrfs_validate_extent_buffer(struct extent_buffer *eb,
-				 struct btrfs_tree_parent_check *check)
+				 const struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	u64 found_start;
@@ -425,7 +425,7 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 		goto out;
 	}
 	if (check->has_first_key) {
-		struct btrfs_key *expect_key = &check->first_key;
+		const struct btrfs_key *expect_key = &check->first_key;
 		struct btrfs_key found_key;
 
 		if (found_level)
@@ -1025,7 +1025,7 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 
 static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 					      struct btrfs_path *path,
-					      struct btrfs_key *key)
+					      const struct btrfs_key *key)
 {
 	struct btrfs_root *root;
 	struct btrfs_tree_parent_check check = { 0 };
@@ -1087,7 +1087,7 @@ fail:
 }
 
 struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
-					struct btrfs_key *key)
+					const struct btrfs_key *key)
 {
 	struct btrfs_root *root;
 	struct btrfs_path *path;
@@ -1222,7 +1222,7 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-void btrfs_check_leaked_roots(struct btrfs_fs_info *fs_info)
+void btrfs_check_leaked_roots(const struct btrfs_fs_info *fs_info)
 {
 #ifdef CONFIG_BTRFS_DEBUG
 	struct btrfs_root *root;
@@ -2339,8 +2339,8 @@ out:
  * 		1, 2	2nd and 3rd backup copy
  * 	       -1	skip bytenr check
  */
-int btrfs_validate_super(struct btrfs_fs_info *fs_info,
-			 struct btrfs_super_block *sb, int mirror_num)
+int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
+			 const struct btrfs_super_block *sb, int mirror_num)
 {
 	u64 nodesize = btrfs_super_nodesize(sb);
 	u64 sectorsize = btrfs_super_sectorsize(sb);
@@ -3192,7 +3192,7 @@ int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount)
 }
 
 int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_devices,
-		      char *options)
+		      const char *options)
 {
 	u32 sectorsize;
 	u32 nodesize;

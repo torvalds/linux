@@ -26,6 +26,6 @@ int btrfs_load_inode_props(struct inode *inode, struct btrfs_path *path);
 
 int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 			      struct inode *inode,
-			      struct inode *dir);
+			      const struct inode *dir);
 
 #endif

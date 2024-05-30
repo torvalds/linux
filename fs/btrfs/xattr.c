@@ -24,7 +24,7 @@
 #include "accessors.h"
 #include "dir-item.h"
 
-int btrfs_getxattr(struct inode *inode, const char *name,
+int btrfs_getxattr(const struct inode *inode, const char *name,
 				void *buffer, size_t size)
 {
 	struct btrfs_dir_item *di;

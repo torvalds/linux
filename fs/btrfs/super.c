@@ -629,7 +629,7 @@ static void btrfs_clear_oneshot_options(struct btrfs_fs_info *fs_info)
 	btrfs_clear_opt(fs_info->mount_opt, NOSPACECACHE);
 }
 
-static bool check_ro_option(struct btrfs_fs_info *fs_info,
+static bool check_ro_option(const struct btrfs_fs_info *fs_info,
 			    unsigned long mount_opt, unsigned long opt,
 			    const char *opt_name)
 {
@@ -641,7 +641,7 @@ static bool check_ro_option(struct btrfs_fs_info *fs_info,
 	return false;
 }
 
-bool btrfs_check_options(struct btrfs_fs_info *info, unsigned long *mount_opt,
+bool btrfs_check_options(const struct btrfs_fs_info *info, unsigned long *mount_opt,
 			 unsigned long flags)
 {
 	bool ret = true;

@@ -27,7 +27,7 @@ struct prop_handler {
 	int (*validate)(const struct btrfs_inode *inode, const char *value,
 			size_t len);
 	int (*apply)(struct inode *inode, const char *value, size_t len);
-	const char *(*extract)(struct inode *inode);
+	const char *(*extract)(const struct inode *inode);
 	bool (*ignore)(const struct btrfs_inode *inode);
 	int inheritable;
 };
@@ -359,7 +359,7 @@ static bool prop_compression_ignore(const struct btrfs_inode *inode)
 	return false;
 }
 
-static const char *prop_compression_extract(struct inode *inode)
+static const char *prop_compression_extract(const struct inode *inode)
 {
 	switch (BTRFS_I(inode)->prop_compress) {
 	case BTRFS_COMPRESS_ZLIB:
@@ -385,7 +385,7 @@ static struct prop_handler prop_handlers[] = {
 };
 
 int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
-			      struct inode *inode, struct inode *parent)
+			      struct inode *inode, const struct inode *parent)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;

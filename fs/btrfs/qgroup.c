@@ -30,7 +30,7 @@
 #include "root-tree.h"
 #include "tree-checker.h"
 
-enum btrfs_qgroup_mode btrfs_qgroup_mode(struct btrfs_fs_info *fs_info)
+enum btrfs_qgroup_mode btrfs_qgroup_mode(const struct btrfs_fs_info *fs_info)
 {
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
 		return BTRFS_QGROUP_MODE_DISABLED;
@@ -39,12 +39,12 @@ enum btrfs_qgroup_mode btrfs_qgroup_mode(struct btrfs_fs_info *fs_info)
 	return BTRFS_QGROUP_MODE_FULL;
 }
 
-bool btrfs_qgroup_enabled(struct btrfs_fs_info *fs_info)
+bool btrfs_qgroup_enabled(const struct btrfs_fs_info *fs_info)
 {
 	return btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_DISABLED;
 }
 
-bool btrfs_qgroup_full_accounting(struct btrfs_fs_info *fs_info)
+bool btrfs_qgroup_full_accounting(const struct btrfs_fs_info *fs_info)
 {
 	return btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_FULL;
 }
@@ -107,7 +107,7 @@ static void qgroup_rsv_release(struct btrfs_fs_info *fs_info,
 
 static void qgroup_rsv_add_by_qgroup(struct btrfs_fs_info *fs_info,
 				     struct btrfs_qgroup *dest,
-				     struct btrfs_qgroup *src)
+				     const struct btrfs_qgroup *src)
 {
 	int i;
 
@@ -117,7 +117,7 @@ static void qgroup_rsv_add_by_qgroup(struct btrfs_fs_info *fs_info,
 
 static void qgroup_rsv_release_by_qgroup(struct btrfs_fs_info *fs_info,
 					 struct btrfs_qgroup *dest,
-					  struct btrfs_qgroup *src)
+					 const struct btrfs_qgroup *src)
 {
 	int i;
 
@@ -141,14 +141,14 @@ static void btrfs_qgroup_update_new_refcnt(struct btrfs_qgroup *qg, u64 seq,
 	qg->new_refcnt += mod;
 }
 
-static inline u64 btrfs_qgroup_get_old_refcnt(struct btrfs_qgroup *qg, u64 seq)
+static inline u64 btrfs_qgroup_get_old_refcnt(const struct btrfs_qgroup *qg, u64 seq)
 {
 	if (qg->old_refcnt < seq)
 		return 0;
 	return qg->old_refcnt - seq;
 }
 
-static inline u64 btrfs_qgroup_get_new_refcnt(struct btrfs_qgroup *qg, u64 seq)
+static inline u64 btrfs_qgroup_get_new_refcnt(const struct btrfs_qgroup *qg, u64 seq)
 {
 	if (qg->new_refcnt < seq)
 		return 0;
@@ -171,7 +171,7 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 static void qgroup_rescan_zero_tracking(struct btrfs_fs_info *fs_info);
 
 /* must be called with qgroup_ioctl_lock held */
-static struct btrfs_qgroup *find_qgroup_rb(struct btrfs_fs_info *fs_info,
+static struct btrfs_qgroup *find_qgroup_rb(const struct btrfs_fs_info *fs_info,
 					   u64 qgroupid)
 {
 	struct rb_node *n = fs_info->qgroup_tree.rb_node;
@@ -346,7 +346,7 @@ static int del_relation_rb(struct btrfs_fs_info *fs_info,
 }
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
+int btrfs_verify_qgroup_counts(const struct btrfs_fs_info *fs_info, u64 qgroupid,
 			       u64 rfer, u64 excl)
 {
 	struct btrfs_qgroup *qgroup;
@@ -608,7 +608,7 @@ out:
  * Return false if no reserved space is left.
  * Return true if some reserved space is leaked.
  */
-bool btrfs_check_quota_leak(struct btrfs_fs_info *fs_info)
+bool btrfs_check_quota_leak(const struct btrfs_fs_info *fs_info)
 {
 	struct rb_node *node;
 	bool ret = false;
@@ -4903,7 +4903,7 @@ void btrfs_free_squota_rsv(struct btrfs_fs_info *fs_info, u64 root, u64 rsv_byte
 }
 
 int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
-			      struct btrfs_squota_delta *delta)
+			      const struct btrfs_squota_delta *delta)
 {
 	int ret;
 	struct btrfs_qgroup *qgroup;

@@ -722,7 +722,7 @@ error_free_page:
 	return -EINVAL;
 }
 
-u8 *btrfs_sb_fsid_ptr(struct btrfs_super_block *sb)
+const u8 *btrfs_sb_fsid_ptr(const struct btrfs_super_block *sb)
 {
 	bool has_metadata_uuid = (btrfs_super_incompat_flags(sb) &
 				  BTRFS_FEATURE_INCOMPAT_METADATA_UUID);

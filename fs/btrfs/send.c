@@ -8066,7 +8066,7 @@ static void dedupe_in_progress_warn(const struct btrfs_root *root)
 		      btrfs_root_id(root), root->dedupe_in_progress);
 }
 
-long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
+long btrfs_ioctl_send(struct inode *inode, const struct btrfs_ioctl_send_args *arg)
 {
 	int ret = 0;
 	struct btrfs_root *send_root = BTRFS_I(inode)->root;

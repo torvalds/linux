@@ -767,7 +767,7 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info, unsigned long *mount_opt)
+int btrfs_check_mountopts_zoned(const struct btrfs_fs_info *info, unsigned long *mount_opt)
 {
 	if (!btrfs_is_zoned(info))
 		return 0;
