@@ -87,7 +87,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 		}
 	}
 
-	ACPI_COMPANION_SET(&pdev->dev, adev ?: parent);
+	device_set_node(&pdev->dev, acpi_fwnode_handle(adev ?: parent));
 }
 #else
 static inline void mfd_acpi_add_device(const struct mfd_cell *cell,
@@ -131,8 +131,7 @@ allocate_of_node:
 	of_entry->np = np;
 	list_add_tail(&of_entry->list, &mfd_of_node_list);
 
-	pdev->dev.of_node = np;
-	pdev->dev.fwnode = &np->fwnode;
+	device_set_node(&pdev->dev, of_fwnode_handle(np));
 #endif
 	return 0;
 }
