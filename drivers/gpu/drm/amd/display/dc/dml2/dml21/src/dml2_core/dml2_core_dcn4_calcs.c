@@ -8919,10 +8919,6 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			} // prefetch schedule
 		}
 
-		for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-			mode_lib->ms.use_one_row_for_frame[k] = mode_lib->ms.use_one_row_for_frame[k];
-		}
-
 		s->mSOCParameters.UrgentLatency = mode_lib->ms.UrgLatency;
 		s->mSOCParameters.ExtraLatency = mode_lib->ms.ExtraLatency;
 		s->mSOCParameters.ExtraLatency_sr = mode_lib->ms.ExtraLatency_sr;
