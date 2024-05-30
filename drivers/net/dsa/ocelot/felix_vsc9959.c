@@ -2663,6 +2663,7 @@ static irqreturn_t felix_irq_handler(int irq, void *data)
 static int felix_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
 {
+	struct device *dev = &pdev->dev;
 	struct dsa_switch *ds;
 	struct ocelot *ocelot;
 	struct felix *felix;
@@ -2670,45 +2671,43 @@ static int felix_pci_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "device enable failed\n");
-		goto err_pci_enable;
+		dev_err(dev, "device enable failed: %pe\n", ERR_PTR(err));
+		return err;
 	}
 
-	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
+	felix = devm_kzalloc(dev, sizeof(struct felix), GFP_KERNEL);
 	if (!felix) {
 		err = -ENOMEM;
-		dev_err(&pdev->dev, "Failed to allocate driver memory\n");
-		goto err_alloc_felix;
+		goto out_disable;
 	}
 
 	pci_set_drvdata(pdev, felix);
 	ocelot = &felix->ocelot;
-	ocelot->dev = &pdev->dev;
+	ocelot->dev = dev;
 	ocelot->num_flooding_pgids = OCELOT_NUM_TC;
 	felix->info = &felix_info_vsc9959;
 	felix->switch_base = pci_resource_start(pdev, VSC9959_SWITCH_PCI_BAR);
 
 	pci_set_master(pdev);
 
-	err = devm_request_threaded_irq(&pdev->dev, pdev->irq, NULL,
+	err = devm_request_threaded_irq(dev, pdev->irq, NULL,
 					&felix_irq_handler, IRQF_ONESHOT,
 					"felix-intb", ocelot);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to request irq\n");
-		goto err_alloc_irq;
+		dev_err(dev, "Failed to request irq: %pe\n", ERR_PTR(err));
+		goto out_disable;
 	}
 
 	ocelot->ptp = 1;
 	ocelot->mm_supported = true;
 
-	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
+	ds = devm_kzalloc(dev, sizeof(struct dsa_switch), GFP_KERNEL);
 	if (!ds) {
 		err = -ENOMEM;
-		dev_err(&pdev->dev, "Failed to allocate DSA switch\n");
-		goto err_alloc_ds;
+		goto out_disable;
 	}
 
-	ds->dev = &pdev->dev;
+	ds->dev = dev;
 	ds->num_ports = felix->info->num_ports;
 	ds->num_tx_queues = felix->info->num_tx_queues;
 	ds->ops = &felix_switch_ops;
@@ -2719,20 +2718,14 @@ static int felix_pci_probe(struct pci_dev *pdev,
 
 	err = dsa_register_switch(ds);
 	if (err) {
-		dev_err_probe(&pdev->dev, err, "Failed to register DSA switch\n");
-		goto err_register_ds;
+		dev_err_probe(dev, err, "Failed to register DSA switch\n");
+		goto out_disable;
 	}
 
 	return 0;
 
-err_register_ds:
-	kfree(ds);
-err_alloc_ds:
-err_alloc_irq:
-	kfree(felix);
-err_alloc_felix:
+out_disable:
 	pci_disable_device(pdev);
-err_pci_enable:
 	return err;
 }
 
@@ -2744,9 +2737,6 @@ static void felix_pci_remove(struct pci_dev *pdev)
 		return;
 
 	dsa_unregister_switch(felix->ds);
-
-	kfree(felix->ds);
-	kfree(felix);
 
 	pci_disable_device(pdev);
 }
