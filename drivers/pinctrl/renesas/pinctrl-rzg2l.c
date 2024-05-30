@@ -532,7 +532,7 @@ static int rzg2l_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 	}
 
-	ret = pinconf_generic_parse_dt_config(np, NULL, &configs, &num_configs);
+	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs, &num_configs);
 	if (ret < 0)
 		return ret;
 
