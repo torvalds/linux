@@ -13,7 +13,7 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
-#include <drm/xe_pciids.h>
+#include <drm/intel/xe_pciids.h>
 
 #include "display/xe_display.h"
 #include "regs/xe_gt_regs.h"
