@@ -114,6 +114,13 @@
 						 FIELD_GET(RZG2L_SINGLE_PIN_INDEX_MASK, (cfg)) : \
 						 FIELD_GET(PIN_CFG_PIN_REG_MASK, (cfg)))
 
+#define VARIABLE_PIN_CFG_PIN_MASK		GENMASK_ULL(54, 52)
+#define VARIABLE_PIN_CFG_PORT_MASK		GENMASK_ULL(51, 47)
+#define RZG2L_VARIABLE_PIN_CFG_PACK(port, pin, cfg) \
+	(FIELD_PREP_CONST(VARIABLE_PIN_CFG_PIN_MASK, (pin)) | \
+	 FIELD_PREP_CONST(VARIABLE_PIN_CFG_PORT_MASK, (port)) | \
+	 FIELD_PREP_CONST(PIN_CFG_MASK, (cfg)))
+
 #define P(off)			(0x0000 + (off))
 #define PM(off)			(0x0100 + (off) * 2)
 #define PMC(off)		(0x0200 + (off))
@@ -234,18 +241,6 @@ struct rzg2l_dedicated_configs {
 	u64 config;
 };
 
-/**
- * struct rzg2l_variable_pin_cfg - pin data cfg
- * @cfg: port pin configuration
- * @port: port number
- * @pin: port pin
- */
-struct rzg2l_variable_pin_cfg {
-	u64 cfg:47;
-	u64 port:5;
-	u64 pin:3;
-};
-
 struct rzg2l_pinctrl_data {
 	const char * const *port_pins;
 	const u64 *port_pin_configs;
@@ -254,7 +249,7 @@ struct rzg2l_pinctrl_data {
 	unsigned int n_port_pins;
 	unsigned int n_dedicated_pins;
 	const struct rzg2l_hwcfg *hwcfg;
-	const struct rzg2l_variable_pin_cfg *variable_pin_cfg;
+	const u64 *variable_pin_cfg;
 	unsigned int n_variable_pin_cfg;
 };
 
@@ -331,131 +326,57 @@ static u64 rzg2l_pinctrl_get_variable_pin_cfg(struct rzg2l_pinctrl *pctrl,
 	unsigned int i;
 
 	for (i = 0; i < pctrl->data->n_variable_pin_cfg; i++) {
-		if (pctrl->data->variable_pin_cfg[i].port == port &&
-		    pctrl->data->variable_pin_cfg[i].pin == pin)
-			return (pincfg & ~PIN_CFG_VARIABLE) | pctrl->data->variable_pin_cfg[i].cfg;
+		u64 cfg = pctrl->data->variable_pin_cfg[i];
+
+		if (FIELD_GET(VARIABLE_PIN_CFG_PORT_MASK, cfg) == port &&
+		    FIELD_GET(VARIABLE_PIN_CFG_PIN_MASK, cfg) == pin)
+			return (pincfg & ~PIN_CFG_VARIABLE) | FIELD_GET(PIN_CFG_MASK, cfg);
 	}
 
 	return 0;
 }
 
-static const struct rzg2l_variable_pin_cfg r9a07g043f_variable_pin_cfg[] = {
-	{
-		.port = 20,
-		.pin = 0,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
-		       PIN_CFG_IEN | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 20,
-		.pin = 1,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
-		       PIN_CFG_IEN | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 20,
-		.pin = 2,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
-		       PIN_CFG_IEN  | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 20,
-		.pin = 3,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_IEN | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 20,
-		.pin = 4,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_IEN | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 20,
-		.pin = 5,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_IEN | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 20,
-		.pin = 6,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_IEN | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 20,
-		.pin = 7,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_IEN | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 23,
-		.pin = 1,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_NOGPIO_INT
-	},
-	{
-		.port = 23,
-		.pin = 2,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 23,
-		.pin = 3,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 23,
-		.pin = 4,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 23,
-		.pin = 5,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 24,
-		.pin = 0,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 24,
-		.pin = 1,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 24,
-		.pin = 2,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 24,
-		.pin = 3,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 24,
-		.pin = 4,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_NOGPIO_INT,
-	},
-	{
-		.port = 24,
-		.pin = 5,
-		.cfg = PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-		       PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
-		       PIN_CFG_NOGPIO_INT,
-	},
+static const u64 r9a07g043f_variable_pin_cfg[] = {
+	RZG2L_VARIABLE_PIN_CFG_PACK(20, 0, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(20, 1, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(20, 2, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+					   PIN_CFG_IEN  | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(20, 3, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(20, 4, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(20, 5, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(20, 6, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(20, 7, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(23, 1, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(23, 2, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(23, 3, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(23, 4, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(23, 5, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(24, 0, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(24, 1, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(24, 2, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(24, 3, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(24, 4, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_NOGPIO_INT),
+	RZG2L_VARIABLE_PIN_CFG_PACK(24, 5, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
+					   PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+					   PIN_CFG_NOGPIO_INT),
 };
 #endif
 
