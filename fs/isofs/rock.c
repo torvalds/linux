@@ -688,11 +688,10 @@ int parse_rock_ridge_inode(struct iso_directory_record *de, struct inode *inode,
  */
 static int rock_ridge_symlink_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct iso_inode_info *ei = ISOFS_I(inode);
 	struct isofs_sb_info *sbi = ISOFS_SB(inode->i_sb);
-	char *link = page_address(page);
+	char *link = folio_address(folio);
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
 	struct buffer_head *bh;
 	char *rpnt = link;
@@ -779,9 +778,10 @@ repeat:
 		goto fail;
 	brelse(bh);
 	*rpnt = '\0';
-	SetPageUptodate(page);
-	unlock_page(page);
-	return 0;
+	ret = 0;
+end:
+	folio_end_read(folio, ret == 0);
+	return ret;
 
 	/* error exit from macro */
 out:
@@ -795,9 +795,8 @@ out_bad_span:
 fail:
 	brelse(bh);
 error:
-	SetPageError(page);
-	unlock_page(page);
-	return -EIO;
+	ret = -EIO;
+	goto end;
 }
 
 const struct address_space_operations isofs_symlink_aops = {
