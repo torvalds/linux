@@ -229,16 +229,21 @@ static void test_invalid_license(void)
 static void test_dctcp_fallback(void)
 {
 	int err, lfd = -1, cli_fd = -1, srv_fd = -1;
-	struct network_helper_opts opts = {
-		.post_socket_cb	= cc_cb,
-	};
 	struct bpf_dctcp *dctcp_skel;
 	struct bpf_link *link = NULL;
 	struct cb_opts dctcp = {
 		.cc = "bpf_dctcp",
 	};
+	struct network_helper_opts srv_opts = {
+		.post_socket_cb = cc_cb,
+		.cb_opts = &dctcp,
+	};
 	struct cb_opts cubic = {
 		.cc = "cubic",
+	};
+	struct network_helper_opts cli_opts = {
+		.post_socket_cb = cc_cb,
+		.cb_opts = &cubic,
 	};
 	char srv_cc[16];
 	socklen_t cc_len = sizeof(srv_cc);
@@ -254,14 +259,7 @@ static void test_dctcp_fallback(void)
 	if (!ASSERT_OK_PTR(link, "dctcp link"))
 		goto done;
 
-	opts.cb_opts = &dctcp;
-	lfd = start_server_str(AF_INET6, SOCK_STREAM, "::1", 0, &opts);
-	if (!ASSERT_GE(lfd, 0, "lfd"))
-		goto done;
-
-	opts.cb_opts = &cubic;
-	cli_fd = connect_to_fd_opts(lfd, &opts);
-	if (!ASSERT_GE(cli_fd, 0, "cli_fd"))
+	if (!start_test("::1", &srv_opts, &cli_opts, &lfd, &cli_fd))
 		goto done;
 
 	srv_fd = accept(lfd, NULL, 0);
