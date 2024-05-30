@@ -106,15 +106,15 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 	unsigned long flags;
 
 	flags = READ_ONCE(desc->flags);
-	if (test_bit(FLAG_USED_AS_IRQ, &flags) &&
-	    !test_bit(FLAG_REQUESTED, &flags))
-		return "interrupt";
-
-	if (!test_bit(FLAG_REQUESTED, &flags))
-		return NULL;
 
 	label = srcu_dereference_check(desc->label, &desc->gdev->desc_srcu,
 				srcu_read_lock_held(&desc->gdev->desc_srcu));
+
+	if (test_bit(FLAG_USED_AS_IRQ, &flags))
+		return label->str ?: "interrupt";
+
+	if (!test_bit(FLAG_REQUESTED, &flags))
+		return NULL;
 
 	return label->str;
 }
