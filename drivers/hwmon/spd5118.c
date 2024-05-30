@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/regmap.h>
 #include <linux/units.h>
 
@@ -432,6 +433,8 @@ static int spd5118_probe(struct i2c_client *client)
 	if (!spd5118_vendor_valid(bank, vendor))
 		return -ENODEV;
 
+	dev_set_drvdata(dev, regmap);
+
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, "spd5118",
 							 regmap, &spd5118_chip_info,
 							 NULL);
@@ -448,6 +451,41 @@ static int spd5118_probe(struct i2c_client *client)
 
 	return 0;
 }
+
+static int spd5118_suspend(struct device *dev)
+{
+	struct regmap *regmap = dev_get_drvdata(dev);
+	u32 regval;
+	int err;
+
+	/*
+	 * Make sure the configuration register in the regmap cache is current
+	 * before bypassing it.
+	 */
+	err = regmap_read(regmap, SPD5118_REG_TEMP_CONFIG, &regval);
+	if (err < 0)
+		return err;
+
+	regcache_cache_bypass(regmap, true);
+	regmap_update_bits(regmap, SPD5118_REG_TEMP_CONFIG, SPD5118_TS_DISABLE,
+			   SPD5118_TS_DISABLE);
+	regcache_cache_bypass(regmap, false);
+
+	regcache_cache_only(regmap, true);
+	regcache_mark_dirty(regmap);
+
+	return 0;
+}
+
+static int spd5118_resume(struct device *dev)
+{
+	struct regmap *regmap = dev_get_drvdata(dev);
+
+	regcache_cache_only(regmap, false);
+	return regcache_sync(regmap);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(spd5118_pm_ops, spd5118_suspend, spd5118_resume);
 
 static const struct i2c_device_id spd5118_id[] = {
 	{ "spd5118", 0 },
@@ -466,6 +504,7 @@ static struct i2c_driver spd5118_driver = {
 	.driver = {
 		.name	= "spd5118",
 		.of_match_table = spd5118_of_ids,
+		.pm = pm_sleep_ptr(&spd5118_pm_ops),
 	},
 	.probe		= spd5118_probe,
 	.id_table	= spd5118_id,
