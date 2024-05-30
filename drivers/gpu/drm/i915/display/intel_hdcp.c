@@ -13,7 +13,7 @@
 #include <linux/random.h>
 
 #include <drm/display/drm_hdcp_helper.h>
-#include <drm/i915_component.h>
+#include <drm/intel/i915_component.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"

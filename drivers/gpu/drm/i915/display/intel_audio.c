@@ -26,7 +26,7 @@
 
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
-#include <drm/i915_component.h>
+#include <drm/intel/i915_component.h>
 
 #include "i915_drv.h"
 #include "intel_atomic.h"

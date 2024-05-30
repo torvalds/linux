@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/uuid.h>
 #include <drm/drm_connector.h>
-#include <drm/i915_component.h>
+#include <drm/intel/i915_component.h>
 #include <drm/intel/i915_gsc_proxy_mei_interface.h>
 
 /**

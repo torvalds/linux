@@ -150,7 +150,7 @@ High Definition Audio
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_audio.c
    :internal:
 
-.. kernel-doc:: include/drm/i915_component.h
+.. kernel-doc:: include/drm/intel/i915_component.h
    :internal:
 
 Intel HDMI LPE Audio Support
