@@ -1,0 +1,5 @@
+[abi_symbol_list]
+
+# for type visibility
+  ANDROID_GKI_struct_dwc3
+  ANDROID_GKI_struct_kernel_all_info

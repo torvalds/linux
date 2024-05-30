@@ -120,6 +120,7 @@ filegroup(
         "android/abi_gki_aarch64_rockchip",
         "android/abi_gki_aarch64_sony",
         "android/abi_gki_aarch64_tuxera",
+        "android/abi_gki_aarch64_type_visibility",
         "android/abi_gki_aarch64_unisoc",
         "android/abi_gki_aarch64_virtual_device",
         "android/abi_gki_aarch64_vivo",
