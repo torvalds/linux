@@ -1393,23 +1393,19 @@ static int pxa2xx_spi_fw_translate_cs(struct spi_controller *controller,
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
-	if (has_acpi_companion(drv_data->ssp->dev)) {
-		switch (drv_data->ssp_type) {
-		/*
-		 * For Atoms the ACPI DeviceSelection used by the Windows
-		 * driver starts from 1 instead of 0 so translate it here
-		 * to match what Linux expects.
-		 */
-		case LPSS_BYT_SSP:
-		case LPSS_BSW_SSP:
-			return cs - 1;
+	switch (drv_data->ssp_type) {
+	/*
+	 * For some of Intel Atoms the ACPI DeviceSelection used by the Windows
+	 * driver starts from 1 instead of 0 so translate it here to match what
+	 * Linux expects.
+	 */
+	case LPSS_BYT_SSP:
+	case LPSS_BSW_SSP:
+		return cs - 1;
 
-		default:
-			break;
-		}
+	default:
+		return cs;
 	}
-
-	return cs;
 }
 
 static size_t pxa2xx_spi_max_dma_transfer_size(struct spi_device *spi)
