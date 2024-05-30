@@ -28,6 +28,8 @@
 #include "amdgpu.h"
 #include "amdgpu_ucode.h"
 
+#define AMDGPU_UCODE_NAME_MAX		(128)
+
 static void amdgpu_ucode_print_common_hdr(const struct common_firmware_header *hdr)
 {
 	DRM_DEBUG("size_bytes: %u\n", le32_to_cpu(hdr->size_bytes));
@@ -1427,28 +1429,40 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
  *
  * @adev: amdgpu device
  * @fw: pointer to load firmware to
- * @fw_name: firmware to load
+ * @fmt: firmware name format string
+ * @...: variable arguments
  *
  * This is a helper that will use request_firmware and amdgpu_ucode_validate
  * to load and run basic validation on firmware. If the load fails, remap
  * the error code to -ENODEV, so that early_init functions will fail to load.
  */
 int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
-			 const char *fw_name)
+			 const char *fmt, ...)
 {
-	int err = request_firmware(fw, fw_name, adev->dev);
+	char fname[AMDGPU_UCODE_NAME_MAX];
+	va_list ap;
+	int r;
 
-	if (err)
+	va_start(ap, fmt);
+	r = vsnprintf(fname, sizeof(fname), fmt, ap);
+	va_end(ap);
+	if (r == sizeof(fname)) {
+		dev_warn(adev->dev, "amdgpu firmware name buffer overflow\n");
+		return -EOVERFLOW;
+	}
+
+	r = request_firmware(fw, fname, adev->dev);
+	if (r)
 		return -ENODEV;
 
-	err = amdgpu_ucode_validate(*fw);
-	if (err) {
-		dev_dbg(adev->dev, "\"%s\" failed to validate\n", fw_name);
+	r = amdgpu_ucode_validate(*fw);
+	if (r) {
+		dev_dbg(adev->dev, "\"%s\" failed to validate\n", fname);
 		release_firmware(*fw);
 		*fw = NULL;
 	}
 
-	return err;
+	return r;
 }
 
 /*
