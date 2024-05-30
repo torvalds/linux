@@ -20,7 +20,7 @@
 #include <linux/component.h>
 #include <drm/drm_connector.h>
 #include <drm/intel/i915_component.h>
-#include <drm/i915_pxp_tee_interface.h>
+#include <drm/intel/i915_pxp_tee_interface.h>
 
 #include "mei_pxp.h"
 
