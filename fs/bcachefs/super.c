@@ -89,6 +89,19 @@ const char * const bch2_fs_flag_strs[] = {
 	NULL
 };
 
+void bch2_print_str(struct bch_fs *c, const char *str)
+{
+#ifdef __KERNEL__
+	struct stdio_redirect *stdio = bch2_fs_stdio_redirect(c);
+
+	if (unlikely(stdio)) {
+		bch2_stdio_redirect_printf(stdio, true, "%s", str);
+		return;
+	}
+#endif
+	bch2_print_string_as_lines(KERN_ERR, str);
+}
+
 __printf(2, 0)
 static void bch2_print_maybe_redirect(struct stdio_redirect *stdio, const char *fmt, va_list args)
 {
