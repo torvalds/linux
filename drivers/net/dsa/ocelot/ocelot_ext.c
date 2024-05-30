@@ -64,44 +64,8 @@ static const struct felix_info vsc7512_info = {
 
 static int ocelot_ext_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct dsa_switch *ds;
-	struct ocelot *ocelot;
-	struct felix *felix;
-	int err;
-
-	felix = devm_kzalloc(dev, sizeof(*felix), GFP_KERNEL);
-	if (!felix)
-		return -ENOMEM;
-
-	dev_set_drvdata(dev, felix);
-
-	ocelot = &felix->ocelot;
-	ocelot->dev = dev;
-
-	ocelot->num_flooding_pgids = 1;
-
-	felix->info = &vsc7512_info;
-
-	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
-	if (!ds)
-		return -ENOMEM;
-
-	ds->dev = dev;
-	ds->num_ports = felix->info->num_ports;
-	ds->num_tx_queues = OCELOT_NUM_TC;
-
-	ds->ops = &felix_switch_ops;
-	ds->phylink_mac_ops = &felix_phylink_mac_ops;
-	ds->priv = ocelot;
-	felix->ds = ds;
-	felix->tag_proto = DSA_TAG_PROTO_OCELOT;
-
-	err = dsa_register_switch(ds);
-	if (err)
-		dev_err_probe(dev, err, "Failed to register DSA switch\n");
-
-	return err;
+	return felix_register_switch(&pdev->dev, 0, 1, false, false,
+				     DSA_TAG_PROTO_OCELOT, &vsc7512_info);
 }
 
 static void ocelot_ext_remove(struct platform_device *pdev)

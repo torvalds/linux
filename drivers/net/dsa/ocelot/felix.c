@@ -2195,6 +2195,53 @@ const struct dsa_switch_ops felix_switch_ops = {
 };
 EXPORT_SYMBOL_GPL(felix_switch_ops);
 
+int felix_register_switch(struct device *dev, resource_size_t switch_base,
+			  int num_flooding_pgids, bool ptp,
+			  bool mm_supported,
+			  enum dsa_tag_protocol init_tag_proto,
+			  const struct felix_info *info)
+{
+	struct dsa_switch *ds;
+	struct ocelot *ocelot;
+	struct felix *felix;
+	int err;
+
+	felix = devm_kzalloc(dev, sizeof(*felix), GFP_KERNEL);
+	if (!felix)
+		return -ENOMEM;
+
+	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	if (!ds)
+		return -ENOMEM;
+
+	dev_set_drvdata(dev, felix);
+
+	ocelot = &felix->ocelot;
+	ocelot->dev = dev;
+	ocelot->num_flooding_pgids = num_flooding_pgids;
+	ocelot->ptp = ptp;
+	ocelot->mm_supported = mm_supported;
+
+	felix->info = info;
+	felix->switch_base = switch_base;
+	felix->ds = ds;
+	felix->tag_proto = init_tag_proto;
+
+	ds->dev = dev;
+	ds->num_ports = info->num_ports;
+	ds->num_tx_queues = OCELOT_NUM_TC;
+	ds->ops = &felix_switch_ops;
+	ds->phylink_mac_ops = &felix_phylink_mac_ops;
+	ds->priv = ocelot;
+
+	err = dsa_register_switch(ds);
+	if (err)
+		dev_err_probe(dev, err, "Failed to register DSA switch\n");
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(felix_register_switch);
+
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);

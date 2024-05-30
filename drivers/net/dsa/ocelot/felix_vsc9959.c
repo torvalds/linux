@@ -2673,9 +2673,7 @@ static int felix_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
-	struct dsa_switch *ds;
-	struct ocelot *ocelot;
-	struct felix *felix;
+	resource_size_t switch_base;
 	int err;
 
 	err = pci_enable_device(pdev);
@@ -2684,45 +2682,15 @@ static int felix_pci_probe(struct pci_dev *pdev,
 		return err;
 	}
 
-	felix = devm_kzalloc(dev, sizeof(struct felix), GFP_KERNEL);
-	if (!felix) {
-		err = -ENOMEM;
-		goto out_disable;
-	}
-
-	pci_set_drvdata(pdev, felix);
-	ocelot = &felix->ocelot;
-	ocelot->dev = dev;
-	ocelot->num_flooding_pgids = OCELOT_NUM_TC;
-	felix->info = &felix_info_vsc9959;
-	felix->switch_base = pci_resource_start(pdev, VSC9959_SWITCH_PCI_BAR);
-
 	pci_set_master(pdev);
 
-	ocelot->ptp = 1;
-	ocelot->mm_supported = true;
+	switch_base = pci_resource_start(pdev, VSC9959_SWITCH_PCI_BAR);
 
-	ds = devm_kzalloc(dev, sizeof(struct dsa_switch), GFP_KERNEL);
-	if (!ds) {
-		err = -ENOMEM;
+	err = felix_register_switch(dev, switch_base, OCELOT_NUM_TC,
+				    true, true, DSA_TAG_PROTO_OCELOT,
+				    &felix_info_vsc9959);
+	if (err)
 		goto out_disable;
-	}
-
-	ds->dev = dev;
-	ds->num_ports = felix->info->num_ports;
-	ds->num_tx_queues = OCELOT_NUM_TC;
-
-	ds->ops = &felix_switch_ops;
-	ds->phylink_mac_ops = &felix_phylink_mac_ops;
-	ds->priv = ocelot;
-	felix->ds = ds;
-	felix->tag_proto = DSA_TAG_PROTO_OCELOT;
-
-	err = dsa_register_switch(ds);
-	if (err) {
-		dev_err_probe(dev, err, "Failed to register DSA switch\n");
-		goto out_disable;
-	}
 
 	return 0;
 

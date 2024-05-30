@@ -971,49 +971,17 @@ static const struct felix_info seville_info_vsc9953 = {
 static int seville_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct dsa_switch *ds;
-	struct ocelot *ocelot;
 	struct resource *res;
-	struct felix *felix;
-	int err;
-
-	felix = devm_kzalloc(dev, sizeof(struct felix), GFP_KERNEL);
-	if (!felix)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, felix);
-
-	ocelot = &felix->ocelot;
-	ocelot->dev = dev;
-	ocelot->num_flooding_pgids = 1;
-	felix->info = &seville_info_vsc9953;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "Invalid resource\n");
 		return -EINVAL;
 	}
-	felix->switch_base = res->start;
 
-	ds = devm_kzalloc(dev, sizeof(struct dsa_switch), GFP_KERNEL);
-	if (!ds)
-		return -ENOMEM;
-
-	ds->dev = dev;
-	ds->num_ports = felix->info->num_ports;
-	ds->num_tx_queues = OCELOT_NUM_TC;
-
-	ds->ops = &felix_switch_ops;
-	ds->phylink_mac_ops = &felix_phylink_mac_ops;
-	ds->priv = ocelot;
-	felix->ds = ds;
-	felix->tag_proto = DSA_TAG_PROTO_SEVILLE;
-
-	err = dsa_register_switch(ds);
-	if (err)
-		dev_err(dev, "Failed to register DSA switch: %d\n", err);
-
-	return err;
+	return felix_register_switch(dev, res->start, 1, false, false,
+				     DSA_TAG_PROTO_SEVILLE,
+				     &seville_info_vsc9953);
 }
 
 static void seville_remove(struct platform_device *pdev)
