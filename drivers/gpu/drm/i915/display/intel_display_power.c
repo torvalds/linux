@@ -675,6 +675,12 @@ intel_display_power_put_async_work(struct work_struct *work)
 	release_async_put_domains(power_domains,
 				  &power_domains->async_put_domains[0]);
 
+	/*
+	 * Cancel the work that got queued after this one got dequeued,
+	 * since here we released the corresponding async-put reference.
+	 */
+	cancel_async_put_work(power_domains, false);
+
 	/* Requeue the work if more domains were async put meanwhile. */
 	if (!bitmap_empty(power_domains->async_put_domains[1].bits, POWER_DOMAIN_NUM)) {
 		bitmap_copy(power_domains->async_put_domains[0].bits,
@@ -686,12 +692,6 @@ intel_display_power_put_async_work(struct work_struct *work)
 					     fetch_and_zero(&new_work_wakeref),
 					     power_domains->async_put_next_delay);
 		power_domains->async_put_next_delay = 0;
-	} else {
-		/*
-		 * Cancel the work that got queued after this one got dequeued,
-		 * since here we released the corresponding async-put reference.
-		 */
-		cancel_async_put_work(power_domains, false);
 	}
 
 out_verify:
