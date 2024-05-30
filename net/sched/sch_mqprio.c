@@ -215,10 +215,8 @@ static int mqprio_parse_tc_entries(struct Qdisc *sch, struct nlattr *nlattr_opt,
 	for (tc = 0; tc < TC_QOPT_MAX_QUEUE; tc++)
 		fp[tc] = priv->fp[tc];
 
-	nla_for_each_attr(n, nlattr_opt, nlattr_opt_len, rem) {
-		if (nla_type(n) != TCA_MQPRIO_TC_ENTRY)
-			continue;
-
+	nla_for_each_attr_type(n, TCA_MQPRIO_TC_ENTRY, nlattr_opt,
+			       nlattr_opt_len, rem) {
 		err = mqprio_parse_tc_entry(fp, n, &seen_tcs, extack);
 		if (err)
 			goto out;

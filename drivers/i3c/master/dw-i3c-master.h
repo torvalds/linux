@@ -57,6 +57,8 @@ struct dw_i3c_master {
 
 	/* platform-specific data */
 	const struct dw_i3c_platform_ops *platform_ops;
+
+	struct work_struct hj_work;
 };
 
 struct dw_i3c_platform_ops {

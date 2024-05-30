@@ -1346,7 +1346,7 @@ static int switch_basic_regs_show(struct tb_switch *sw, struct seq_file *s)
 	if (tb_switch_is_usb4(sw))
 		dwords = ARRAY_SIZE(data);
 	else
-		dwords = 7;
+		dwords = 5;
 
 	ret = tb_sw_read(sw, data, TB_CFG_SWITCH, 0, dwords);
 	if (ret)

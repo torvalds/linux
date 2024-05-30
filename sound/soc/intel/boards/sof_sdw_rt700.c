@@ -13,26 +13,13 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
-#include "sof_board_helpers.h"
 #include "sof_sdw_common.h"
-
-static const struct snd_soc_dapm_widget rt700_widgets[] = {
-	SND_SOC_DAPM_HP("Headphones", NULL),
-	SND_SOC_DAPM_MIC("AMIC", NULL),
-	SND_SOC_DAPM_SPK("Speaker", NULL),
-};
 
 static const struct snd_soc_dapm_route rt700_map[] = {
 	/* Headphones */
 	{ "Headphones", NULL, "rt700 HP" },
 	{ "Speaker", NULL, "rt700 SPK" },
 	{ "rt700 MIC2", NULL, "AMIC" },
-};
-
-static const struct snd_kcontrol_new rt700_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Headphones"),
-	SOC_DAPM_PIN_SWITCH("AMIC"),
-	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
 
 static struct snd_soc_jack_pin rt700_jack_pins[] = {
@@ -50,7 +37,7 @@ static const char * const jack_codecs[] = {
 	"rt700"
 };
 
-int rt700_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt700_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -69,20 +56,6 @@ int rt700_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  card->components);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_add_card_controls(card, rt700_controls,
-					ARRAY_SIZE(rt700_controls));
-	if (ret) {
-		dev_err(card->dev, "rt700 controls addition failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt700_widgets,
-					ARRAY_SIZE(rt700_widgets));
-	if (ret) {
-		dev_err(card->dev, "rt700 widgets addition failed: %d\n", ret);
-		return ret;
-	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, rt700_map,
 				      ARRAY_SIZE(rt700_map));

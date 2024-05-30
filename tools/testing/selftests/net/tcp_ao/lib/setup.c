@@ -17,37 +17,37 @@ static pthread_mutex_t ksft_print_lock = PTHREAD_MUTEX_INITIALIZER;
 void __test_msg(const char *buf)
 {
 	pthread_mutex_lock(&ksft_print_lock);
-	ksft_print_msg(buf);
+	ksft_print_msg("%s", buf);
 	pthread_mutex_unlock(&ksft_print_lock);
 }
 void __test_ok(const char *buf)
 {
 	pthread_mutex_lock(&ksft_print_lock);
-	ksft_test_result_pass(buf);
+	ksft_test_result_pass("%s", buf);
 	pthread_mutex_unlock(&ksft_print_lock);
 }
 void __test_fail(const char *buf)
 {
 	pthread_mutex_lock(&ksft_print_lock);
-	ksft_test_result_fail(buf);
+	ksft_test_result_fail("%s", buf);
 	pthread_mutex_unlock(&ksft_print_lock);
 }
 void __test_xfail(const char *buf)
 {
 	pthread_mutex_lock(&ksft_print_lock);
-	ksft_test_result_xfail(buf);
+	ksft_test_result_xfail("%s", buf);
 	pthread_mutex_unlock(&ksft_print_lock);
 }
 void __test_error(const char *buf)
 {
 	pthread_mutex_lock(&ksft_print_lock);
-	ksft_test_result_error(buf);
+	ksft_test_result_error("%s", buf);
 	pthread_mutex_unlock(&ksft_print_lock);
 }
 void __test_skip(const char *buf)
 {
 	pthread_mutex_lock(&ksft_print_lock);
-	ksft_test_result_skip(buf);
+	ksft_test_result_skip("%s", buf);
 	pthread_mutex_unlock(&ksft_print_lock);
 }
 

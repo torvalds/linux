@@ -49,7 +49,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm3 0 3000>;
+		pwms = <&pwm3 0 3000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 		pinctrl-names = "default";
@@ -69,6 +69,5 @@
 };
 
 &pwm3 {
-	#pwm-cells = <2>;
 	status = "okay";
 };

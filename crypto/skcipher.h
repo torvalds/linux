@@ -10,16 +10,6 @@
 #include <crypto/internal/skcipher.h>
 #include "internal.h"
 
-static inline struct crypto_istat_cipher *skcipher_get_stat_common(
-	struct skcipher_alg_common *alg)
-{
-#ifdef CONFIG_CRYPTO_STATS
-	return &alg->stat;
-#else
-	return NULL;
-#endif
-}
-
 int crypto_lskcipher_encrypt_sg(struct skcipher_request *req);
 int crypto_lskcipher_decrypt_sg(struct skcipher_request *req);
 int crypto_init_lskcipher_ops_sg(struct crypto_tfm *tfm);

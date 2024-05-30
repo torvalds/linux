@@ -20,6 +20,7 @@
 #define ACP_SOFT_RESET                          0x1000
 #define ACP_CONTROL                             0x1004
 #define ACP_PIN_CONFIG				0x1440
+#define ACP3X_PIN_CONFIG			0x1400
 
 #define ACP_EXTERNAL_INTR_REG_ADDR(adata, offset, ctrl) \
 	(adata->acp_base + adata->rsrc->irq_reg_offset + offset + (ctrl * 0x04))

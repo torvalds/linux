@@ -661,9 +661,9 @@ static ssize_t get_performance_level(struct device *dev,
 	/* The logic is backwards, yeah, lots of fun... */
 	for (i = 0; config->performance_levels[i].name; ++i) {
 		if (sretval.data[0] == config->performance_levels[i].value)
-			return sprintf(buf, "%s\n", config->performance_levels[i].name);
+			return sysfs_emit(buf, "%s\n", config->performance_levels[i].name);
 	}
-	return sprintf(buf, "%s\n", "unknown");
+	return sysfs_emit(buf, "%s\n", "unknown");
 }
 
 static ssize_t set_performance_level(struct device *dev,
@@ -744,7 +744,7 @@ static ssize_t get_battery_life_extender(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", ret);
+	return sysfs_emit(buf, "%d\n", ret);
 }
 
 static ssize_t set_battery_life_extender(struct device *dev,
@@ -813,7 +813,7 @@ static ssize_t get_usb_charge(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", ret);
+	return sysfs_emit(buf, "%d\n", ret);
 }
 
 static ssize_t set_usb_charge(struct device *dev,
@@ -878,7 +878,7 @@ static ssize_t get_lid_handling(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", ret);
+	return sysfs_emit(buf, "%d\n", ret);
 }
 
 static ssize_t set_lid_handling(struct device *dev,

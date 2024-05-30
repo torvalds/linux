@@ -355,12 +355,8 @@ enum {
 
 /* Interrupt disable masks */
 enum {
-	/* Interrupt disable mask for UFSHCI v1.0 */
-	INTERRUPT_MASK_ALL_VER_10	= 0x30FFF,
-	INTERRUPT_MASK_RW_VER_10	= 0x30000,
-
 	/* Interrupt disable mask for UFSHCI v1.1 */
-	INTERRUPT_MASK_ALL_VER_11	= 0x31FFF,
+	INTERRUPT_MASK_ALL_VER_11       = 0x31FFF,
 
 	/* Interrupt disable mask for UFSHCI v2.1 */
 	INTERRUPT_MASK_ALL_VER_21	= 0x71FFF,
@@ -424,13 +420,6 @@ union ufs_crypto_cfg_entry {
 /*
  * Request Descriptor Definitions
  */
-
-/* Transfer request command type */
-enum {
-	UTP_CMD_TYPE_SCSI		= 0x0,
-	UTP_CMD_TYPE_UFS		= 0x1,
-	UTP_CMD_TYPE_DEV_MANAGE		= 0x2,
-};
 
 /* To accommodate UFS2.0 required Command type */
 enum {

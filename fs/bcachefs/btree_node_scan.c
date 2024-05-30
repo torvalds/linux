@@ -57,13 +57,14 @@ static void found_btree_node_to_key(struct bkey_i *k, const struct found_btree_n
 	bp->v.seq		= cpu_to_le64(f->cookie);
 	bp->v.sectors_written	= 0;
 	bp->v.flags		= 0;
+	bp->v.sectors_written	= cpu_to_le16(f->sectors_written);
 	bp->v.min_key		= f->min_key;
 	SET_BTREE_PTR_RANGE_UPDATED(&bp->v, f->range_updated);
 	memcpy(bp->v.start, f->ptrs, sizeof(struct bch_extent_ptr) * f->nr_ptrs);
 }
 
 static bool found_btree_node_is_readable(struct btree_trans *trans,
-					 const struct found_btree_node *f)
+					 struct found_btree_node *f)
 {
 	struct { __BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX); } k;
 
@@ -71,8 +72,10 @@ static bool found_btree_node_is_readable(struct btree_trans *trans,
 
 	struct btree *b = bch2_btree_node_get_noiter(trans, &k.k, f->btree_id, f->level, false);
 	bool ret = !IS_ERR_OR_NULL(b);
-	if (ret)
+	if (ret) {
+		f->sectors_written = b->written;
 		six_unlock_read(&b->c.lock);
+	}
 
 	/*
 	 * We might update this node's range; if that happens, we need the node
@@ -133,7 +136,17 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	if (le64_to_cpu(bn->magic) != bset_magic(c))
 		return;
 
+	if (bch2_csum_type_is_encryption(BSET_CSUM_TYPE(&bn->keys))) {
+		struct nonce nonce = btree_nonce(&bn->keys, 0);
+		unsigned bytes = (void *) &bn->keys - (void *) &bn->flags;
+
+		bch2_encrypt(c, BSET_CSUM_TYPE(&bn->keys), nonce, &bn->flags, bytes);
+	}
+
 	if (btree_id_is_alloc(BTREE_NODE_ID(bn)))
+		return;
+
+	if (BTREE_NODE_LEVEL(bn) >= BTREE_MAX_DEPTH)
 		return;
 
 	rcu_read_lock();
@@ -195,8 +208,13 @@ static int read_btree_nodes_worker(void *p)
 				last_print = jiffies;
 			}
 
-			try_read_btree_node(w->f, ca, bio, buf,
-					    bucket * ca->mi.bucket_size + bucket_offset);
+			u64 sector = bucket * ca->mi.bucket_size + bucket_offset;
+
+			if (c->sb.version_upgrade_complete >= bcachefs_metadata_version_mi_btree_bitmap &&
+			    !bch2_dev_btree_bitmap_marked_sectors(ca, sector, btree_sectors(c)))
+				continue;
+
+			try_read_btree_node(w->f, ca, bio, buf, sector);
 		}
 err:
 	bio_put(bio);
@@ -287,6 +305,8 @@ again:
 
 			start->max_key = bpos_predecessor(n->min_key);
 			start->range_updated = true;
+		} else if (n->level) {
+			n->overwritten = true;
 		} else {
 			struct printbuf buf = PRINTBUF;
 

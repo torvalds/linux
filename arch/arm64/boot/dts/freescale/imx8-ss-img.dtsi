@@ -21,7 +21,6 @@ img_subsys: bus@58000000 {
 		interrupts = <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&img_jpeg_dec_lpcg IMX_LPCG_CLK_0>,
 			 <&img_jpeg_dec_lpcg IMX_LPCG_CLK_4>;
-		clock-names = "per", "ipg";
 		assigned-clocks = <&img_jpeg_dec_lpcg IMX_LPCG_CLK_0>,
 				  <&img_jpeg_dec_lpcg IMX_LPCG_CLK_4>;
 		assigned-clock-rates = <200000000>, <200000000>;
@@ -35,7 +34,6 @@ img_subsys: bus@58000000 {
 		interrupts = <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&img_jpeg_enc_lpcg IMX_LPCG_CLK_0>,
 			 <&img_jpeg_enc_lpcg IMX_LPCG_CLK_4>;
-		clock-names = "per", "ipg";
 		assigned-clocks = <&img_jpeg_enc_lpcg IMX_LPCG_CLK_0>,
 				  <&img_jpeg_enc_lpcg IMX_LPCG_CLK_4>;
 		assigned-clock-rates = <200000000>, <200000000>;

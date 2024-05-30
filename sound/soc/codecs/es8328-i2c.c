@@ -16,8 +16,8 @@
 #include "es8328.h"
 
 static const struct i2c_device_id es8328_id[] = {
-	{ "es8328", 0 },
-	{ "es8388", 0 },
+	{ "es8328" },
+	{ "es8388" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, es8328_id);

@@ -26,11 +26,6 @@ const char * const bch2_recovery_passes[] = {
 	NULL
 };
 
-static int bch2_check_allocations(struct bch_fs *c)
-{
-	return bch2_gc(c, true, false);
-}
-
 static int bch2_set_may_go_rw(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;
@@ -44,7 +39,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
-	if (keys->nr || c->opts.fsck || !c->sb.clean)
+	if (keys->nr || c->opts.fsck || !c->sb.clean || c->recovery_passes_explicit)
 		return bch2_fs_read_write_early(c);
 	return 0;
 }
@@ -227,7 +222,8 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 		if (should_run_recovery_pass(c, c->curr_recovery_pass)) {
 			unsigned pass = c->curr_recovery_pass;
 
-			ret = bch2_run_recovery_pass(c, c->curr_recovery_pass);
+			ret =   bch2_run_recovery_pass(c, c->curr_recovery_pass) ?:
+				bch2_journal_flush(&c->journal);
 			if (bch2_err_matches(ret, BCH_ERR_restart_recovery) ||
 			    (ret && c->curr_recovery_pass < pass))
 				continue;

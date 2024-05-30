@@ -21,7 +21,7 @@ static void make_listen(int sk)
 static void test_vefify_ao_info(int sk, struct tcp_ao_info_opt *info,
 				const char *tst)
 {
-	struct tcp_ao_info_opt tmp;
+	struct tcp_ao_info_opt tmp = {};
 	socklen_t len = sizeof(tmp);
 
 	if (getsockopt(sk, IPPROTO_TCP, TCP_AO_INFO, &tmp, &len))

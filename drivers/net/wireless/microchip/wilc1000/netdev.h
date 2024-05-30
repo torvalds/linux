@@ -32,8 +32,8 @@
 
 #define wilc_for_each_vif(w, v) \
 	struct wilc *_w = w; \
-	list_for_each_entry_srcu(v, &_w->vif_list, list, \
-				 srcu_read_lock_held(&_w->srcu))
+	list_for_each_entry_rcu(v, &_w->vif_list, list, \
+				 rcu_read_lock_held())
 
 struct wilc_wfi_stats {
 	unsigned long rx_packets;
@@ -220,7 +220,6 @@ struct wilc {
 
 	/* protect vif list */
 	struct mutex vif_mutex;
-	struct srcu_struct srcu;
 	u8 open_ifcs;
 
 	/* protect head of transmit queue */

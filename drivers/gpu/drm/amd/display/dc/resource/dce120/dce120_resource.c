@@ -1060,7 +1060,7 @@ static bool dce120_resource_construct(
 	struct irq_service_init_data irq_init_data;
 	static const struct resource_create_funcs *res_funcs;
 	bool is_vg20 = ASICREV_IS_VEGA20_P(ctx->asic_id.hw_internal_rev);
-	uint32_t pipe_fuses;
+	uint32_t pipe_fuses = 0;
 
 	ctx->dc_bios->regs = &bios_regs;
 

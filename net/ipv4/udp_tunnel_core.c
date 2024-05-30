@@ -183,7 +183,8 @@ void udp_tunnel_sock_release(struct socket *sock)
 EXPORT_SYMBOL_GPL(udp_tunnel_sock_release);
 
 struct metadata_dst *udp_tun_rx_dst(struct sk_buff *skb,  unsigned short family,
-				    __be16 flags, __be64 tunnel_id, int md_size)
+				    const unsigned long *flags,
+				    __be64 tunnel_id, int md_size)
 {
 	struct metadata_dst *tun_dst;
 	struct ip_tunnel_info *info;
@@ -199,7 +200,7 @@ struct metadata_dst *udp_tun_rx_dst(struct sk_buff *skb,  unsigned short family,
 	info->key.tp_src = udp_hdr(skb)->source;
 	info->key.tp_dst = udp_hdr(skb)->dest;
 	if (udp_hdr(skb)->check)
-		info->key.tun_flags |= TUNNEL_CSUM;
+		__set_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 	return tun_dst;
 }
 EXPORT_SYMBOL_GPL(udp_tun_rx_dst);

@@ -71,6 +71,14 @@ static struct hsr_node *find_node_by_addr_A(struct list_head *node_db,
 	return NULL;
 }
 
+/* Check if node for a given MAC address is already present in data base
+ */
+bool hsr_is_node_in_db(struct list_head *node_db,
+		       const unsigned char addr[ETH_ALEN])
+{
+	return !!find_node_by_addr_A(node_db, addr);
+}
+
 /* Helper for device init; the self_node is used in hsr_rcv() to recognize
  * frames from self that's been looped over the HSR ring.
  */
@@ -217,6 +225,15 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct list_head *node_db,
 			return node;
 		}
 		if (ether_addr_equal(node->macaddress_B, ethhdr->h_source)) {
+			if (hsr->proto_ops->update_san_info)
+				hsr->proto_ops->update_san_info(node, is_sup);
+			return node;
+		}
+	}
+
+	/* Check if required node is not in proxy nodes table */
+	list_for_each_entry_rcu(node, &hsr->proxy_node_db, mac_list) {
+		if (ether_addr_equal(node->macaddress_A, ethhdr->h_source)) {
 			if (hsr->proto_ops->update_san_info)
 				hsr->proto_ops->update_san_info(node, is_sup);
 			return node;
@@ -418,6 +435,10 @@ void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
 
 	node_dst = find_node_by_addr_A(&port->hsr->node_db,
 				       eth_hdr(skb)->h_dest);
+	if (!node_dst && port->hsr->redbox)
+		node_dst = find_node_by_addr_A(&port->hsr->proxy_node_db,
+					       eth_hdr(skb)->h_dest);
+
 	if (!node_dst) {
 		if (port->hsr->prot_version != PRP_V1 && net_ratelimit())
 			netdev_err(skb->dev, "%s: Unknown node\n", __func__);
@@ -559,6 +580,37 @@ void hsr_prune_nodes(struct timer_list *t)
 	/* Restart timer */
 	mod_timer(&hsr->prune_timer,
 		  jiffies + msecs_to_jiffies(PRUNE_PERIOD));
+}
+
+void hsr_prune_proxy_nodes(struct timer_list *t)
+{
+	struct hsr_priv *hsr = from_timer(hsr, t, prune_proxy_timer);
+	unsigned long timestamp;
+	struct hsr_node *node;
+	struct hsr_node *tmp;
+
+	spin_lock_bh(&hsr->list_lock);
+	list_for_each_entry_safe(node, tmp, &hsr->proxy_node_db, mac_list) {
+		timestamp = node->time_in[HSR_PT_INTERLINK];
+
+		/* Prune old entries */
+		if (time_is_before_jiffies(timestamp +
+				msecs_to_jiffies(HSR_PROXY_NODE_FORGET_TIME))) {
+			hsr_nl_nodedown(hsr, node->macaddress_A);
+			if (!node->removed) {
+				list_del_rcu(&node->mac_list);
+				node->removed = true;
+				/* Note that we need to free this entry later: */
+				kfree_rcu(node, rcu_head);
+			}
+		}
+	}
+
+	spin_unlock_bh(&hsr->list_lock);
+
+	/* Restart timer */
+	mod_timer(&hsr->prune_proxy_timer,
+		  jiffies + msecs_to_jiffies(PRUNE_PROXY_PERIOD));
 }
 
 void *hsr_get_next_node(struct hsr_priv *hsr, void *_pos,

@@ -98,7 +98,7 @@ static ssize_t driver_override_show(struct device *dev,
 	ssize_t len;
 
 	device_lock(dev);
-	len = snprintf(buf, PAGE_SIZE, "%s\n", vdev->driver_override);
+	len = sysfs_emit(buf, "%s\n", vdev->driver_override);
 	device_unlock(dev);
 
 	return len;
@@ -967,7 +967,7 @@ vdpa_dev_blk_seg_size_config_fill(struct sk_buff *msg, u64 features,
 
 	val_u32 = __virtio32_to_cpu(true, config->size_max);
 
-	return nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_SEG_SIZE, val_u32);
+	return nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_SIZE_MAX, val_u32);
 }
 
 /* fill the block size*/
@@ -1089,7 +1089,7 @@ static int vdpa_dev_blk_ro_config_fill(struct sk_buff *msg, u64 features)
 	u8 ro;
 
 	ro = ((features & BIT_ULL(VIRTIO_BLK_F_RO)) == 0) ? 0 : 1;
-	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_READ_ONLY, ro))
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_READ_ONLY, ro))
 		return -EMSGSIZE;
 
 	return 0;
@@ -1100,7 +1100,7 @@ static int vdpa_dev_blk_flush_config_fill(struct sk_buff *msg, u64 features)
 	u8 flush;
 
 	flush = ((features & BIT_ULL(VIRTIO_BLK_F_FLUSH)) == 0) ? 0 : 1;
-	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_FLUSH, flush))
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_FLUSH, flush))
 		return -EMSGSIZE;
 
 	return 0;

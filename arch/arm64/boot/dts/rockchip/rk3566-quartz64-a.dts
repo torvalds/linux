@@ -8,7 +8,7 @@
 #include "rk3566.dtsi"
 
 / {
-	model = "Pine64 RK3566 Quartz64-A Board";
+	model = "Pine64 Quartz64 Model A";
 	compatible = "pine64,quartz64-a", "rockchip,rk3566";
 
 	aliases {

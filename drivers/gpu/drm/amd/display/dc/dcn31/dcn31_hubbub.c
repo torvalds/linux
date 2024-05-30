@@ -172,7 +172,7 @@ static uint32_t convert_and_clamp(
 
 static bool hubbub31_program_urgent_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -362,7 +362,7 @@ static bool hubbub31_program_urgent_watermarks(
 
 static bool hubbub31_program_stutter_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -635,7 +635,7 @@ static bool hubbub31_program_stutter_watermarks(
 
 static bool hubbub31_program_pstate_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -717,7 +717,7 @@ static bool hubbub31_program_pstate_watermarks(
 
 static bool hubbub31_program_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {

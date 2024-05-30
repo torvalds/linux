@@ -24,7 +24,6 @@
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/io.h>
-#include <asm/core_apecs.h>
 #include <asm/core_cia.h>
 #include <asm/tlbflush.h>
 
@@ -253,64 +252,6 @@ noritake_swizzle(struct pci_dev *dev, u8 *pinp)
 	return slot;
 }
 
-#if defined(CONFIG_ALPHA_GENERIC) || !defined(CONFIG_ALPHA_PRIMO)
-static void
-noritake_apecs_machine_check(unsigned long vector, unsigned long la_ptr)
-{
-#define MCHK_NO_DEVSEL 0x205U
-#define MCHK_NO_TABT 0x204U
-
-        struct el_common *mchk_header;
-        unsigned int code;
-
-        mchk_header = (struct el_common *)la_ptr;
-
-        /* Clear the error before any reporting.  */
-        mb();
-        mb(); /* magic */
-        draina();
-        apecs_pci_clr_err();
-        wrmces(0x7);
-        mb();
-
-        code = mchk_header->code;
-        process_mcheck_info(vector, la_ptr, "NORITAKE APECS",
-                            (mcheck_expected(0)
-                             && (code == MCHK_NO_DEVSEL
-                                 || code == MCHK_NO_TABT)));
-}
-#endif
-
-
-/*
- * The System Vectors
- */
-
-#if defined(CONFIG_ALPHA_GENERIC) || !defined(CONFIG_ALPHA_PRIMO)
-struct alpha_machine_vector noritake_mv __initmv = {
-	.vector_name		= "Noritake",
-	DO_EV4_MMU,
-	DO_DEFAULT_RTC,
-	DO_APECS_IO,
-	.machine_check		= noritake_apecs_machine_check,
-	.max_isa_dma_address	= ALPHA_MAX_ISA_DMA_ADDRESS,
-	.min_io_address		= EISA_DEFAULT_IO_BASE,
-	.min_mem_address	= APECS_AND_LCA_DEFAULT_MEM_BASE,
-
-	.nr_irqs		= 48,
-	.device_interrupt	= noritake_device_interrupt,
-
-	.init_arch		= apecs_init_arch,
-	.init_irq		= noritake_init_irq,
-	.init_rtc		= common_init_rtc,
-	.init_pci		= common_init_pci,
-	.pci_map_irq		= noritake_map_irq,
-	.pci_swizzle		= noritake_swizzle,
-};
-ALIAS_MV(noritake)
-#endif
-
-#if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_PRIMO)
 struct alpha_machine_vector noritake_primo_mv __initmv = {
 	.vector_name		= "Noritake-Primo",
 	DO_EV5_MMU,
@@ -333,4 +274,3 @@ struct alpha_machine_vector noritake_primo_mv __initmv = {
 	.pci_swizzle		= noritake_swizzle,
 };
 ALIAS_MV(noritake_primo)
-#endif

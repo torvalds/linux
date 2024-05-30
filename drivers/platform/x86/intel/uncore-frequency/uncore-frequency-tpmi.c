@@ -29,7 +29,7 @@
 #include "uncore-frequency-common.h"
 
 #define	UNCORE_MAJOR_VERSION		0
-#define	UNCORE_MINOR_VERSION		1
+#define	UNCORE_MINOR_VERSION		2
 #define UNCORE_HEADER_INDEX		0
 #define UNCORE_FABRIC_CLUSTER_OFFSET	8
 
@@ -240,6 +240,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 	bool read_blocked = 0, write_blocked = 0;
 	struct intel_tpmi_plat_info *plat_info;
 	struct tpmi_uncore_struct *tpmi_uncore;
+	bool uncore_sysfs_added = false;
 	int ret, i, pkg = 0;
 	int num_resources;
 
@@ -329,7 +330,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 			goto remove_clusters;
 		}
 
-		if (TPMI_MINOR_VERSION(pd_info->ufs_header_ver) != UNCORE_MINOR_VERSION)
+		if (TPMI_MINOR_VERSION(pd_info->ufs_header_ver) > UNCORE_MINOR_VERSION)
 			dev_info(&auxdev->dev, "Uncore: Ignore: Unsupported minor version:%lx\n",
 				 TPMI_MINOR_VERSION(pd_info->ufs_header_ver));
 
@@ -384,7 +385,13 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 			}
 			/* Point to next cluster offset */
 			cluster_offset >>= UNCORE_MAX_CLUSTER_PER_DOMAIN;
+			uncore_sysfs_added = true;
 		}
+	}
+
+	if (!uncore_sysfs_added) {
+		ret = -ENODEV;
+		goto remove_clusters;
 	}
 
 	auxiliary_set_drvdata(auxdev, tpmi_uncore);

@@ -556,8 +556,24 @@ static int check_reply_pl(const u8 *pl, const char *func)
 	pl += 2;
 	ret = *((u32 *)pl);
 	if (ret != 0) {
-		ZCRYPT_DBF_ERR("%s return value 0x%04x != 0\n", func, ret);
+		ZCRYPT_DBF_ERR("%s return value 0x%08x != 0\n", func, ret);
 		return -EIO;
+	}
+
+	return 0;
+}
+
+/* Check ep11 reply cprb, return 0 or suggested errno value. */
+static int check_reply_cprb(const struct ep11_cprb *rep, const char *func)
+{
+	/* check ep11 reply return code field */
+	if (rep->ret_code) {
+		ZCRYPT_DBF_ERR("%s ep11 reply ret_code=0x%08x\n", __func__,
+			       rep->ret_code);
+		if (rep->ret_code == 0x000c0003)
+			return -EBUSY;
+		else
+			return -EIO;
 	}
 
 	return 0;
@@ -627,6 +643,12 @@ static int ep11_query_info(u16 cardnr, u16 domain, u32 query_type,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -877,6 +899,12 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1028,6 +1056,12 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1185,6 +1219,12 @@ static int _ep11_unwrapkey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1339,6 +1379,12 @@ static int _ep11_wrapkey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1542,9 +1588,9 @@ int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 	struct ep11_card_info eci;
 
 	/* fetch status of all crypto cards */
-	device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				       sizeof(struct zcrypt_device_status_ext),
-				       GFP_KERNEL);
+	device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+				 sizeof(struct zcrypt_device_status_ext),
+				 GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);

@@ -113,10 +113,6 @@
 	status = "okay";
 };
 
-&clk {
-	status = "okay";
-};
-
 &rtc0 {
 	status = "okay";
 };

@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 	adjtimex(&tx1);
 
 	if (err)
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

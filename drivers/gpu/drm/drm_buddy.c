@@ -57,6 +57,16 @@ static void list_insert_sorted(struct drm_buddy *mm,
 	__list_add(&block->link, node->link.prev, &node->link);
 }
 
+static void clear_reset(struct drm_buddy_block *block)
+{
+	block->header &= ~DRM_BUDDY_HEADER_CLEAR;
+}
+
+static void mark_cleared(struct drm_buddy_block *block)
+{
+	block->header |= DRM_BUDDY_HEADER_CLEAR;
+}
+
 static void mark_allocated(struct drm_buddy_block *block)
 {
 	block->header &= ~DRM_BUDDY_HEADER_STATE;
@@ -80,6 +90,133 @@ static void mark_split(struct drm_buddy_block *block)
 	block->header |= DRM_BUDDY_SPLIT;
 
 	list_del(&block->link);
+}
+
+static inline bool overlaps(u64 s1, u64 e1, u64 s2, u64 e2)
+{
+	return s1 <= e2 && e1 >= s2;
+}
+
+static inline bool contains(u64 s1, u64 e1, u64 s2, u64 e2)
+{
+	return s1 <= s2 && e1 >= e2;
+}
+
+static struct drm_buddy_block *
+__get_buddy(struct drm_buddy_block *block)
+{
+	struct drm_buddy_block *parent;
+
+	parent = block->parent;
+	if (!parent)
+		return NULL;
+
+	if (parent->left == block)
+		return parent->right;
+
+	return parent->left;
+}
+
+static unsigned int __drm_buddy_free(struct drm_buddy *mm,
+				     struct drm_buddy_block *block,
+				     bool force_merge)
+{
+	struct drm_buddy_block *parent;
+	unsigned int order;
+
+	while ((parent = block->parent)) {
+		struct drm_buddy_block *buddy;
+
+		buddy = __get_buddy(block);
+
+		if (!drm_buddy_block_is_free(buddy))
+			break;
+
+		if (!force_merge) {
+			/*
+			 * Check the block and its buddy clear state and exit
+			 * the loop if they both have the dissimilar state.
+			 */
+			if (drm_buddy_block_is_clear(block) !=
+			    drm_buddy_block_is_clear(buddy))
+				break;
+
+			if (drm_buddy_block_is_clear(block))
+				mark_cleared(parent);
+		}
+
+		list_del(&buddy->link);
+		if (force_merge && drm_buddy_block_is_clear(buddy))
+			mm->clear_avail -= drm_buddy_block_size(mm, buddy);
+
+		drm_block_free(mm, block);
+		drm_block_free(mm, buddy);
+
+		block = parent;
+	}
+
+	order = drm_buddy_block_order(block);
+	mark_free(mm, block);
+
+	return order;
+}
+
+static int __force_merge(struct drm_buddy *mm,
+			 u64 start,
+			 u64 end,
+			 unsigned int min_order)
+{
+	unsigned int order;
+	int i;
+
+	if (!min_order)
+		return -ENOMEM;
+
+	if (min_order > mm->max_order)
+		return -EINVAL;
+
+	for (i = min_order - 1; i >= 0; i--) {
+		struct drm_buddy_block *block, *prev;
+
+		list_for_each_entry_safe_reverse(block, prev, &mm->free_list[i], link) {
+			struct drm_buddy_block *buddy;
+			u64 block_start, block_end;
+
+			if (!block->parent)
+				continue;
+
+			block_start = drm_buddy_block_offset(block);
+			block_end = block_start + drm_buddy_block_size(mm, block) - 1;
+
+			if (!contains(start, end, block_start, block_end))
+				continue;
+
+			buddy = __get_buddy(block);
+			if (!drm_buddy_block_is_free(buddy))
+				continue;
+
+			WARN_ON(drm_buddy_block_is_clear(block) ==
+				drm_buddy_block_is_clear(buddy));
+
+			/*
+			 * If the prev block is same as buddy, don't access the
+			 * block in the next iteration as we would free the
+			 * buddy block as part of the free function.
+			 */
+			if (prev == buddy)
+				prev = list_prev_entry(prev, link);
+
+			list_del(&block->link);
+			if (drm_buddy_block_is_clear(block))
+				mm->clear_avail -= drm_buddy_block_size(mm, block);
+
+			order = __drm_buddy_free(mm, block, true);
+			if (order >= min_order)
+				return 0;
+		}
+	}
+
+	return -ENOMEM;
 }
 
 /**
@@ -112,6 +249,7 @@ int drm_buddy_init(struct drm_buddy *mm, u64 size, u64 chunk_size)
 
 	mm->size = size;
 	mm->avail = size;
+	mm->clear_avail = 0;
 	mm->chunk_size = chunk_size;
 	mm->max_order = ilog2(size) - ilog2(chunk_size);
 
@@ -186,11 +324,21 @@ EXPORT_SYMBOL(drm_buddy_init);
  */
 void drm_buddy_fini(struct drm_buddy *mm)
 {
+	u64 root_size, size;
+	unsigned int order;
 	int i;
 
+	size = mm->size;
+
 	for (i = 0; i < mm->n_roots; ++i) {
+		order = ilog2(size) - ilog2(mm->chunk_size);
+		__force_merge(mm, 0, size, order);
+
 		WARN_ON(!drm_buddy_block_is_free(mm->roots[i]));
 		drm_block_free(mm, mm->roots[i]);
+
+		root_size = mm->chunk_size << order;
+		size -= root_size;
 	}
 
 	WARN_ON(mm->avail != mm->size);
@@ -223,24 +371,15 @@ static int split_block(struct drm_buddy *mm,
 	mark_free(mm, block->left);
 	mark_free(mm, block->right);
 
+	if (drm_buddy_block_is_clear(block)) {
+		mark_cleared(block->left);
+		mark_cleared(block->right);
+		clear_reset(block);
+	}
+
 	mark_split(block);
 
 	return 0;
-}
-
-static struct drm_buddy_block *
-__get_buddy(struct drm_buddy_block *block)
-{
-	struct drm_buddy_block *parent;
-
-	parent = block->parent;
-	if (!parent)
-		return NULL;
-
-	if (parent->left == block)
-		return parent->right;
-
-	return parent->left;
 }
 
 /**
@@ -260,30 +399,6 @@ drm_get_buddy(struct drm_buddy_block *block)
 }
 EXPORT_SYMBOL(drm_get_buddy);
 
-static void __drm_buddy_free(struct drm_buddy *mm,
-			     struct drm_buddy_block *block)
-{
-	struct drm_buddy_block *parent;
-
-	while ((parent = block->parent)) {
-		struct drm_buddy_block *buddy;
-
-		buddy = __get_buddy(block);
-
-		if (!drm_buddy_block_is_free(buddy))
-			break;
-
-		list_del(&buddy->link);
-
-		drm_block_free(mm, block);
-		drm_block_free(mm, buddy);
-
-		block = parent;
-	}
-
-	mark_free(mm, block);
-}
-
 /**
  * drm_buddy_free_block - free a block
  *
@@ -295,42 +410,74 @@ void drm_buddy_free_block(struct drm_buddy *mm,
 {
 	BUG_ON(!drm_buddy_block_is_allocated(block));
 	mm->avail += drm_buddy_block_size(mm, block);
-	__drm_buddy_free(mm, block);
+	if (drm_buddy_block_is_clear(block))
+		mm->clear_avail += drm_buddy_block_size(mm, block);
+
+	__drm_buddy_free(mm, block, false);
 }
 EXPORT_SYMBOL(drm_buddy_free_block);
+
+static void __drm_buddy_free_list(struct drm_buddy *mm,
+				  struct list_head *objects,
+				  bool mark_clear,
+				  bool mark_dirty)
+{
+	struct drm_buddy_block *block, *on;
+
+	WARN_ON(mark_dirty && mark_clear);
+
+	list_for_each_entry_safe(block, on, objects, link) {
+		if (mark_clear)
+			mark_cleared(block);
+		else if (mark_dirty)
+			clear_reset(block);
+		drm_buddy_free_block(mm, block);
+		cond_resched();
+	}
+	INIT_LIST_HEAD(objects);
+}
+
+static void drm_buddy_free_list_internal(struct drm_buddy *mm,
+					 struct list_head *objects)
+{
+	/*
+	 * Don't touch the clear/dirty bit, since allocation is still internal
+	 * at this point. For example we might have just failed part of the
+	 * allocation.
+	 */
+	__drm_buddy_free_list(mm, objects, false, false);
+}
 
 /**
  * drm_buddy_free_list - free blocks
  *
  * @mm: DRM buddy manager
  * @objects: input list head to free blocks
+ * @flags: optional flags like DRM_BUDDY_CLEARED
  */
-void drm_buddy_free_list(struct drm_buddy *mm, struct list_head *objects)
+void drm_buddy_free_list(struct drm_buddy *mm,
+			 struct list_head *objects,
+			 unsigned int flags)
 {
-	struct drm_buddy_block *block, *on;
+	bool mark_clear = flags & DRM_BUDDY_CLEARED;
 
-	list_for_each_entry_safe(block, on, objects, link) {
-		drm_buddy_free_block(mm, block);
-		cond_resched();
-	}
-	INIT_LIST_HEAD(objects);
+	__drm_buddy_free_list(mm, objects, mark_clear, !mark_clear);
 }
 EXPORT_SYMBOL(drm_buddy_free_list);
 
-static inline bool overlaps(u64 s1, u64 e1, u64 s2, u64 e2)
+static bool block_incompatible(struct drm_buddy_block *block, unsigned int flags)
 {
-	return s1 <= e2 && e1 >= s2;
-}
+	bool needs_clear = flags & DRM_BUDDY_CLEAR_ALLOCATION;
 
-static inline bool contains(u64 s1, u64 e1, u64 s2, u64 e2)
-{
-	return s1 <= s2 && e1 >= e2;
+	return needs_clear != drm_buddy_block_is_clear(block);
 }
 
 static struct drm_buddy_block *
-alloc_range_bias(struct drm_buddy *mm,
-		 u64 start, u64 end,
-		 unsigned int order)
+__alloc_range_bias(struct drm_buddy *mm,
+		   u64 start, u64 end,
+		   unsigned int order,
+		   unsigned long flags,
+		   bool fallback)
 {
 	u64 req_size = mm->chunk_size << order;
 	struct drm_buddy_block *block;
@@ -377,6 +524,9 @@ alloc_range_bias(struct drm_buddy *mm,
 				continue;
 		}
 
+		if (!fallback && block_incompatible(block, flags))
+			continue;
+
 		if (contains(start, end, block_start, block_end) &&
 		    order == drm_buddy_block_order(block)) {
 			/*
@@ -410,30 +560,57 @@ err_undo:
 	if (buddy &&
 	    (drm_buddy_block_is_free(block) &&
 	     drm_buddy_block_is_free(buddy)))
-		__drm_buddy_free(mm, block);
+		__drm_buddy_free(mm, block, false);
 	return ERR_PTR(err);
 }
 
 static struct drm_buddy_block *
-get_maxblock(struct drm_buddy *mm, unsigned int order)
+__drm_buddy_alloc_range_bias(struct drm_buddy *mm,
+			     u64 start, u64 end,
+			     unsigned int order,
+			     unsigned long flags)
 {
-	struct drm_buddy_block *max_block = NULL, *node;
+	struct drm_buddy_block *block;
+	bool fallback = false;
+
+	block = __alloc_range_bias(mm, start, end, order,
+				   flags, fallback);
+	if (IS_ERR(block))
+		return __alloc_range_bias(mm, start, end, order,
+					  flags, !fallback);
+
+	return block;
+}
+
+static struct drm_buddy_block *
+get_maxblock(struct drm_buddy *mm, unsigned int order,
+	     unsigned long flags)
+{
+	struct drm_buddy_block *max_block = NULL, *block = NULL;
 	unsigned int i;
 
 	for (i = order; i <= mm->max_order; ++i) {
-		if (!list_empty(&mm->free_list[i])) {
-			node = list_last_entry(&mm->free_list[i],
-					       struct drm_buddy_block,
-					       link);
-			if (!max_block) {
-				max_block = node;
-				continue;
-			}
+		struct drm_buddy_block *tmp_block;
 
-			if (drm_buddy_block_offset(node) >
-			    drm_buddy_block_offset(max_block)) {
-				max_block = node;
-			}
+		list_for_each_entry_reverse(tmp_block, &mm->free_list[i], link) {
+			if (block_incompatible(tmp_block, flags))
+				continue;
+
+			block = tmp_block;
+			break;
+		}
+
+		if (!block)
+			continue;
+
+		if (!max_block) {
+			max_block = block;
+			continue;
+		}
+
+		if (drm_buddy_block_offset(block) >
+		    drm_buddy_block_offset(max_block)) {
+			max_block = block;
 		}
 	}
 
@@ -450,11 +627,29 @@ alloc_from_freelist(struct drm_buddy *mm,
 	int err;
 
 	if (flags & DRM_BUDDY_TOPDOWN_ALLOCATION) {
-		block = get_maxblock(mm, order);
+		block = get_maxblock(mm, order, flags);
 		if (block)
 			/* Store the obtained block order */
 			tmp = drm_buddy_block_order(block);
 	} else {
+		for (tmp = order; tmp <= mm->max_order; ++tmp) {
+			struct drm_buddy_block *tmp_block;
+
+			list_for_each_entry_reverse(tmp_block, &mm->free_list[tmp], link) {
+				if (block_incompatible(tmp_block, flags))
+					continue;
+
+				block = tmp_block;
+				break;
+			}
+
+			if (block)
+				break;
+		}
+	}
+
+	if (!block) {
+		/* Fallback method */
 		for (tmp = order; tmp <= mm->max_order; ++tmp) {
 			if (!list_empty(&mm->free_list[tmp])) {
 				block = list_last_entry(&mm->free_list[tmp],
@@ -464,10 +659,10 @@ alloc_from_freelist(struct drm_buddy *mm,
 					break;
 			}
 		}
-	}
 
-	if (!block)
-		return ERR_PTR(-ENOSPC);
+		if (!block)
+			return ERR_PTR(-ENOSPC);
+	}
 
 	BUG_ON(!drm_buddy_block_is_free(block));
 
@@ -483,7 +678,7 @@ alloc_from_freelist(struct drm_buddy *mm,
 
 err_undo:
 	if (tmp != order)
-		__drm_buddy_free(mm, block);
+		__drm_buddy_free(mm, block, false);
 	return ERR_PTR(err);
 }
 
@@ -526,16 +721,18 @@ static int __alloc_range(struct drm_buddy *mm,
 		}
 
 		if (contains(start, end, block_start, block_end)) {
-			if (!drm_buddy_block_is_free(block)) {
+			if (drm_buddy_block_is_free(block)) {
+				mark_allocated(block);
+				total_allocated += drm_buddy_block_size(mm, block);
+				mm->avail -= drm_buddy_block_size(mm, block);
+				if (drm_buddy_block_is_clear(block))
+					mm->clear_avail -= drm_buddy_block_size(mm, block);
+				list_add_tail(&block->link, &allocated);
+				continue;
+			} else if (!mm->clear_avail) {
 				err = -ENOSPC;
 				goto err_free;
 			}
-
-			mark_allocated(block);
-			total_allocated += drm_buddy_block_size(mm, block);
-			mm->avail -= drm_buddy_block_size(mm, block);
-			list_add_tail(&block->link, &allocated);
-			continue;
 		}
 
 		if (!drm_buddy_block_is_split(block)) {
@@ -567,14 +764,14 @@ err_undo:
 	if (buddy &&
 	    (drm_buddy_block_is_free(block) &&
 	     drm_buddy_block_is_free(buddy)))
-		__drm_buddy_free(mm, block);
+		__drm_buddy_free(mm, block, false);
 
 err_free:
 	if (err == -ENOSPC && total_allocated_on_err) {
 		list_splice_tail(&allocated, blocks);
 		*total_allocated_on_err = total_allocated;
 	} else {
-		drm_buddy_free_list(mm, &allocated);
+		drm_buddy_free_list_internal(mm, &allocated);
 	}
 
 	return err;
@@ -640,11 +837,11 @@ static int __alloc_contig_try_harder(struct drm_buddy *mm,
 			list_splice(&blocks_lhs, blocks);
 			return 0;
 		} else if (err != -ENOSPC) {
-			drm_buddy_free_list(mm, blocks);
+			drm_buddy_free_list_internal(mm, blocks);
 			return err;
 		}
 		/* Free blocks for the next iteration */
-		drm_buddy_free_list(mm, blocks);
+		drm_buddy_free_list_internal(mm, blocks);
 	}
 
 	return -ENOSPC;
@@ -700,6 +897,8 @@ int drm_buddy_block_trim(struct drm_buddy *mm,
 	list_del(&block->link);
 	mark_free(mm, block);
 	mm->avail += drm_buddy_block_size(mm, block);
+	if (drm_buddy_block_is_clear(block))
+		mm->clear_avail += drm_buddy_block_size(mm, block);
 
 	/* Prevent recursively freeing this node */
 	parent = block->parent;
@@ -711,6 +910,8 @@ int drm_buddy_block_trim(struct drm_buddy *mm,
 	if (err) {
 		mark_allocated(block);
 		mm->avail -= drm_buddy_block_size(mm, block);
+		if (drm_buddy_block_is_clear(block))
+			mm->clear_avail -= drm_buddy_block_size(mm, block);
 		list_add(&block->link, blocks);
 	}
 
@@ -719,13 +920,28 @@ int drm_buddy_block_trim(struct drm_buddy *mm,
 }
 EXPORT_SYMBOL(drm_buddy_block_trim);
 
+static struct drm_buddy_block *
+__drm_buddy_alloc_blocks(struct drm_buddy *mm,
+			 u64 start, u64 end,
+			 unsigned int order,
+			 unsigned long flags)
+{
+	if (flags & DRM_BUDDY_RANGE_ALLOCATION)
+		/* Allocate traversing within the range */
+		return  __drm_buddy_alloc_range_bias(mm, start, end,
+						     order, flags);
+	else
+		/* Allocate from freelist */
+		return alloc_from_freelist(mm, order, flags);
+}
+
 /**
  * drm_buddy_alloc_blocks - allocate power-of-two blocks
  *
  * @mm: DRM buddy manager to allocate from
  * @start: start of the allowed range for this block
  * @end: end of the allowed range for this block
- * @size: size of the allocation
+ * @size: size of the allocation in bytes
  * @min_block_size: alignment of the allocation
  * @blocks: output list head to add allocated blocks
  * @flags: DRM_BUDDY_*_ALLOCATION flags
@@ -800,23 +1016,33 @@ int drm_buddy_alloc_blocks(struct drm_buddy *mm,
 		BUG_ON(order < min_order);
 
 		do {
-			if (flags & DRM_BUDDY_RANGE_ALLOCATION)
-				/* Allocate traversing within the range */
-				block = alloc_range_bias(mm, start, end, order);
-			else
-				/* Allocate from freelist */
-				block = alloc_from_freelist(mm, order, flags);
-
+			block = __drm_buddy_alloc_blocks(mm, start,
+							 end,
+							 order,
+							 flags);
 			if (!IS_ERR(block))
 				break;
 
 			if (order-- == min_order) {
+				/* Try allocation through force merge method */
+				if (mm->clear_avail &&
+				    !__force_merge(mm, start, end, min_order)) {
+					block = __drm_buddy_alloc_blocks(mm, start,
+									 end,
+									 min_order,
+									 flags);
+					if (!IS_ERR(block)) {
+						order = min_order;
+						break;
+					}
+				}
+
+				/*
+				 * Try contiguous block allocation through
+				 * try harder method.
+				 */
 				if (flags & DRM_BUDDY_CONTIGUOUS_ALLOCATION &&
 				    !(flags & DRM_BUDDY_RANGE_ALLOCATION))
-					/*
-					 * Try contiguous block allocation through
-					 * try harder method
-					 */
 					return __alloc_contig_try_harder(mm,
 									 original_size,
 									 original_min_size,
@@ -828,6 +1054,8 @@ int drm_buddy_alloc_blocks(struct drm_buddy *mm,
 
 		mark_allocated(block);
 		mm->avail -= drm_buddy_block_size(mm, block);
+		if (drm_buddy_block_is_clear(block))
+			mm->clear_avail -= drm_buddy_block_size(mm, block);
 		kmemleak_update_trace(block);
 		list_add_tail(&block->link, &allocated);
 
@@ -866,7 +1094,7 @@ int drm_buddy_alloc_blocks(struct drm_buddy *mm,
 	return 0;
 
 err_free:
-	drm_buddy_free_list(mm, &allocated);
+	drm_buddy_free_list_internal(mm, &allocated);
 	return err;
 }
 EXPORT_SYMBOL(drm_buddy_alloc_blocks);
@@ -899,8 +1127,8 @@ void drm_buddy_print(struct drm_buddy *mm, struct drm_printer *p)
 {
 	int order;
 
-	drm_printf(p, "chunk_size: %lluKiB, total: %lluMiB, free: %lluMiB\n",
-		   mm->chunk_size >> 10, mm->size >> 20, mm->avail >> 20);
+	drm_printf(p, "chunk_size: %lluKiB, total: %lluMiB, free: %lluMiB, clear_free: %lluMiB\n",
+		   mm->chunk_size >> 10, mm->size >> 20, mm->avail >> 20, mm->clear_avail >> 20);
 
 	for (order = mm->max_order; order >= 0; order--) {
 		struct drm_buddy_block *block;

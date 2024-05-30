@@ -139,7 +139,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	else
 		sb->s_d_op = &v9fs_dentry_operations;
 
-	inode = v9fs_get_inode_from_fid(v9ses, fid, sb);
+	inode = v9fs_get_inode_from_fid(v9ses, fid, sb, true);
 	if (IS_ERR(inode)) {
 		retval = PTR_ERR(inode);
 		goto release_sb;
@@ -244,6 +244,21 @@ done:
 	return res;
 }
 
+static int v9fs_drop_inode(struct inode *inode)
+{
+	struct v9fs_session_info *v9ses;
+
+	v9ses = v9fs_inode2v9ses(inode);
+	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
+		return generic_drop_inode(inode);
+	/*
+	 * in case of non cached mode always drop the
+	 * inode because we want the inode attribute
+	 * to always match that on the server.
+	 */
+	return 1;
+}
+
 static int v9fs_write_inode(struct inode *inode,
 			    struct writeback_control *wbc)
 {
@@ -268,6 +283,7 @@ static const struct super_operations v9fs_super_ops = {
 	.alloc_inode = v9fs_alloc_inode,
 	.free_inode = v9fs_free_inode,
 	.statfs = simple_statfs,
+	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,
 	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
@@ -278,6 +294,7 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.alloc_inode = v9fs_alloc_inode,
 	.free_inode = v9fs_free_inode,
 	.statfs = v9fs_statfs,
+	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,
 	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,

@@ -551,5 +551,6 @@ static void __exit ac97_bus_exit(void)
 }
 module_exit(ac97_bus_exit);
 
+MODULE_DESCRIPTION("AC97 bus interface");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Jarzmik <robert.jarzmik@free.fr>");

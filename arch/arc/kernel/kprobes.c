@@ -190,7 +190,8 @@ static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
 	}
 }
 
-int __kprobes arc_kprobe_handler(unsigned long addr, struct pt_regs *regs)
+static int
+__kprobes arc_kprobe_handler(unsigned long addr, struct pt_regs *regs)
 {
 	struct kprobe *p;
 	struct kprobe_ctlblk *kcb;
@@ -241,8 +242,8 @@ int __kprobes arc_kprobe_handler(unsigned long addr, struct pt_regs *regs)
 	return 0;
 }
 
-static int __kprobes arc_post_kprobe_handler(unsigned long addr,
-					 struct pt_regs *regs)
+static int
+__kprobes arc_post_kprobe_handler(unsigned long addr, struct pt_regs *regs)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();

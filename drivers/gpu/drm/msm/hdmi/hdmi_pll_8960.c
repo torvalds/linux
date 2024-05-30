@@ -236,12 +236,12 @@ static const struct pll_rate freqtbl[] = {
 
 static inline void pll_write(struct hdmi_pll_8960 *pll, u32 reg, u32 data)
 {
-	msm_writel(data, pll->mmio + reg);
+	writel(data, pll->mmio + reg);
 }
 
 static inline u32 pll_read(struct hdmi_pll_8960 *pll, u32 reg)
 {
-	return msm_readl(pll->mmio + reg);
+	return readl(pll->mmio + reg);
 }
 
 static inline struct hdmi_phy *pll_get_phy(struct hdmi_pll_8960 *pll)

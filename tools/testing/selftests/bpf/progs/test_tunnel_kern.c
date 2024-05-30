@@ -567,12 +567,18 @@ int ip6vxlan_get_tunnel_src(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
+struct local_geneve_opt {
+	struct geneve_opt gopt;
+	int data;
+};
+
 SEC("tc")
 int geneve_set_tunnel(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
-	struct geneve_opt gopt;
+	struct local_geneve_opt local_gopt;
+	struct geneve_opt *gopt = (struct geneve_opt *) &local_gopt;
 
 	__builtin_memset(&key, 0x0, sizeof(key));
 	key.remote_ipv4 = 0xac100164; /* 172.16.1.100 */
@@ -580,14 +586,14 @@ int geneve_set_tunnel(struct __sk_buff *skb)
 	key.tunnel_tos = 0;
 	key.tunnel_ttl = 64;
 
-	__builtin_memset(&gopt, 0x0, sizeof(gopt));
-	gopt.opt_class = bpf_htons(0x102); /* Open Virtual Networking (OVN) */
-	gopt.type = 0x08;
-	gopt.r1 = 0;
-	gopt.r2 = 0;
-	gopt.r3 = 0;
-	gopt.length = 2; /* 4-byte multiple */
-	*(int *) &gopt.opt_data = bpf_htonl(0xdeadbeef);
+	__builtin_memset(gopt, 0x0, sizeof(local_gopt));
+	gopt->opt_class = bpf_htons(0x102); /* Open Virtual Networking (OVN) */
+	gopt->type = 0x08;
+	gopt->r1 = 0;
+	gopt->r2 = 0;
+	gopt->r3 = 0;
+	gopt->length = 2; /* 4-byte multiple */
+	*(int *) &gopt->opt_data = bpf_htonl(0xdeadbeef);
 
 	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
 				     BPF_F_ZERO_CSUM_TX);
@@ -596,7 +602,7 @@ int geneve_set_tunnel(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	ret = bpf_skb_set_tunnel_opt(skb, &gopt, sizeof(gopt));
+	ret = bpf_skb_set_tunnel_opt(skb, gopt, sizeof(local_gopt));
 	if (ret < 0) {
 		log_err(ret);
 		return TC_ACT_SHOT;
@@ -631,7 +637,8 @@ SEC("tc")
 int ip6geneve_set_tunnel(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
-	struct geneve_opt gopt;
+	struct local_geneve_opt local_gopt;
+	struct geneve_opt *gopt = (struct geneve_opt *) &local_gopt;
 	int ret;
 
 	__builtin_memset(&key, 0x0, sizeof(key));
@@ -647,16 +654,16 @@ int ip6geneve_set_tunnel(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	__builtin_memset(&gopt, 0x0, sizeof(gopt));
-	gopt.opt_class = bpf_htons(0x102); /* Open Virtual Networking (OVN) */
-	gopt.type = 0x08;
-	gopt.r1 = 0;
-	gopt.r2 = 0;
-	gopt.r3 = 0;
-	gopt.length = 2; /* 4-byte multiple */
-	*(int *) &gopt.opt_data = bpf_htonl(0xfeedbeef);
+	__builtin_memset(gopt, 0x0, sizeof(local_gopt));
+	gopt->opt_class = bpf_htons(0x102); /* Open Virtual Networking (OVN) */
+	gopt->type = 0x08;
+	gopt->r1 = 0;
+	gopt->r2 = 0;
+	gopt->r3 = 0;
+	gopt->length = 2; /* 4-byte multiple */
+	*(int *) &gopt->opt_data = bpf_htonl(0xfeedbeef);
 
-	ret = bpf_skb_set_tunnel_opt(skb, &gopt, sizeof(gopt));
+	ret = bpf_skb_set_tunnel_opt(skb, gopt, sizeof(gopt));
 	if (ret < 0) {
 		log_err(ret);
 		return TC_ACT_SHOT;

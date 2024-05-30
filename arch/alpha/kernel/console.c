@@ -15,6 +15,7 @@
 #include <asm/machvec.h>
 
 #include "pci_impl.h"
+#include "proto.h"
 
 #ifdef CONFIG_VGA_HOSE
 

@@ -2,8 +2,6 @@
 /*
  * Copyright (C) 2023, Tencent, Inc.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <x86intrin.h>
 
 #include "pmu.h"
@@ -21,7 +19,6 @@
 
 static uint8_t kvm_pmu_version;
 static bool kvm_has_perf_caps;
-static bool is_forced_emulation_enabled;
 
 static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 						  void *guest_code,
@@ -31,11 +28,7 @@ static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 	struct kvm_vm *vm;
 
 	vm = vm_create_with_one_vcpu(vcpu, guest_code);
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(*vcpu);
-
 	sync_global_to_guest(vm, kvm_pmu_version);
-	sync_global_to_guest(vm, is_forced_emulation_enabled);
 
 	/*
 	 * Set PERF_CAPABILITIES before PMU version as KVM disallows enabling
@@ -416,11 +409,29 @@ static void guest_rd_wr_counters(uint32_t base_msr, uint8_t nr_possible_counters
 
 static void guest_test_gp_counters(void)
 {
+	uint8_t pmu_version = guest_get_pmu_version();
 	uint8_t nr_gp_counters = 0;
 	uint32_t base_msr;
 
-	if (guest_get_pmu_version())
+	if (pmu_version)
 		nr_gp_counters = this_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS);
+
+	/*
+	 * For v2+ PMUs, PERF_GLOBAL_CTRL's architectural post-RESET value is
+	 * "Sets bits n-1:0 and clears the upper bits", where 'n' is the number
+	 * of GP counters.  If there are no GP counters, require KVM to leave
+	 * PERF_GLOBAL_CTRL '0'.  This edge case isn't covered by the SDM, but
+	 * follow the spirit of the architecture and only globally enable GP
+	 * counters, of which there are none.
+	 */
+	if (pmu_version > 1) {
+		uint64_t global_ctrl = rdmsr(MSR_CORE_PERF_GLOBAL_CTRL);
+
+		if (nr_gp_counters)
+			GUEST_ASSERT_EQ(global_ctrl, GENMASK_ULL(nr_gp_counters - 1, 0));
+		else
+			GUEST_ASSERT_EQ(global_ctrl, 0);
+	}
 
 	if (this_cpu_has(X86_FEATURE_PDCM) &&
 	    rdmsr(MSR_IA32_PERF_CAPABILITIES) & PMU_CAP_FW_WRITES)
@@ -612,7 +623,6 @@ int main(int argc, char *argv[])
 
 	kvm_pmu_version = kvm_cpu_property(X86_PROPERTY_PMU_VERSION);
 	kvm_has_perf_caps = kvm_cpu_has(X86_FEATURE_PDCM);
-	is_forced_emulation_enabled = kvm_is_forced_emulation_enabled();
 
 	test_intel_counters();
 

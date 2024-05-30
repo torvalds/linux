@@ -225,6 +225,8 @@ static int umsch_mm_v4_0_ring_start(struct amdgpu_umsch_mm *umsch)
 
 	WREG32_SOC15(VCN, 0, regVCN_UMSCH_RB_SIZE, ring->ring_size);
 
+	ring->wptr = 0;
+
 	data = RREG32_SOC15(VCN, 0, regVCN_RB_ENABLE);
 	data &= ~(VCN_RB_ENABLE__AUDIO_RB_EN_MASK);
 	WREG32_SOC15(VCN, 0, regVCN_RB_ENABLE, data);

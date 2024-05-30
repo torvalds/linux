@@ -29,7 +29,7 @@ The essence of the process (aka 'TL;DR')
 ========================================
 
 *[If you are new to building or bisecting Linux, ignore this section and head
-over to the* ":ref:`step-by-step guide<introguide_bissbs>`" *below. It utilizes
+over to the* ':ref:`step-by-step guide <introguide_bissbs>`' *below. It utilizes
 the same commands as this section while describing them in brief fashion. The
 steps are nevertheless easy to follow and together with accompanying entries
 in a reference section mention many alternatives, pitfalls, and additional
@@ -38,8 +38,8 @@ aspects, all of which might be essential in your present case.]*
 **In case you want to check if a bug is present in code currently supported by
 developers**, execute just the *preparations* and *segment 1*; while doing so,
 consider the newest Linux kernel you regularly use to be the 'working' kernel.
-In the following example that's assumed to be 6.0.13, which is why the sources
-of 6.0 will be used to prepare the .config file.
+In the following example that's assumed to be 6.0, which is why its sources
+will be used to prepare the .config file.
 
 **In case you face a regression**, follow the steps at least till the end of
 *segment 2*. Then you can submit a preliminary report -- or continue with
@@ -61,7 +61,7 @@ will be considered the 'good' release and used to prepare the .config file.
     cd ~/linux/
     git remote add -t master stable \
       https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
-    git checkout --detach v6.0
+    git switch --detach v6.0
     # * Hint: if you used an existing clone, ensure no stale .config is around.
     make olddefconfig
     # * Ensure the former command picked the .config of the 'working' kernel.
@@ -87,7 +87,7 @@ will be considered the 'good' release and used to prepare the .config file.
   a) Checking out latest mainline code::
 
        cd ~/linux/
-       git checkout --force --detach mainline/master
+       git switch --discard-changes --detach mainline/master
 
   b) Build, install, and boot a kernel::
 
@@ -125,7 +125,7 @@ will be considered the 'good' release and used to prepare the .config file.
   a) Start by checking out the sources of the 'good' version::
 
        cd ~/linux/
-       git checkout --force --detach v6.0
+       git switch --discard-changes --detach v6.0
 
   b) Build, install, and boot a kernel as described earlier in *segment 1,
      section b* -- just feel free to skip the 'du' commands, as you have a rough
@@ -136,8 +136,7 @@ will be considered the 'good' release and used to prepare the .config file.
 
 * **Segment 3**: perform and validate the bisection.
 
-  a) In case your 'broken' version is a stable/longterm release, add the Git
-     branch holding it::
+  a) Retrieve the sources for your 'bad' version::
 
        git remote set-branches --add stable linux-6.1.y
        git fetch stable
@@ -157,11 +156,12 @@ will be considered the 'good' release and used to prepare the .config file.
      works with the newly built kernel. If it does, tell Git by executing
      ``git bisect good``; if it does not, run ``git bisect bad`` instead.
 
-     All three commands will make Git checkout another commit; then re-execute
+     All three commands will make Git check out another commit; then re-execute
      this step (e.g. build, install, boot, and test a kernel to then tell Git
      the outcome). Do so again and again until Git shows which commit broke
      things. If you run short of disk space during this process, check the
-     "Supplementary tasks" section below.
+     section 'Complementary tasks: cleanup during and after the process'
+     below.
 
   d) Once your finished the bisection, put a few things away::
 
@@ -172,14 +172,17 @@ will be considered the 'good' release and used to prepare the .config file.
 
   e) Try to verify the bisection result::
 
-       git checkout --force --detach mainline/master
+       git switch --discard-changes --detach mainline/master
        git revert --no-edit cafec0cacaca0
+       cp ~/kernel-config-working .config
+       ./scripts/config --set-str CONFIG_LOCALVERSION '-local-cafec0cacaca0-reverted'
 
     This is optional, as some commits are impossible to revert. But if the
     second command worked flawlessly, build, install, and boot one more kernel
-    kernel, which should not show the regression.
+    kernel; just this time skip the first command copying the base .config file
+    over, as that already has been taken care off.
 
-* **Supplementary tasks**: cleanup during and after the process.
+* **Complementary tasks**: cleanup during and after the process.
 
   a) To avoid running out of disk space during a bisection, you might need to
      remove some kernels you built earlier. You most likely want to keep those
@@ -202,13 +205,25 @@ will be considered the 'good' release and used to prepare the .config file.
      the kernels you built earlier and later you might want to keep around for
      a week or two.
 
+* **Optional task**: test a debug patch or a proposed fix later::
+
+    git fetch mainline
+    git switch --discard-changes --detach mainline/master
+    git apply /tmp/foobars-proposed-fix-v1.patch
+    cp ~/kernel-config-working .config
+    ./scripts/config --set-str CONFIG_LOCALVERSION '-local-foobars-fix-v1'
+
+  Build, install, and boot a kernel as described in *segment 1, section b* --
+  but this time omit the first command copying the build configuration over,
+  as that has been taken care of already.
+
 .. _introguide_bissbs:
 
 Step-by-step guide on how to verify bugs and bisect regressions
 ===============================================================
 
 This guide describes how to set up your own Linux kernels for investigating bugs
-or regressions you intent to report. How far you want to follow the instructions
+or regressions you intend to report. How far you want to follow the instructions
 depends on your issue:
 
 Execute all steps till the end of *segment 1* to **verify if your kernel problem
@@ -221,15 +236,17 @@ report; instead of the latter your could also head straight on and follow
 *segment 3* to **perform a bisection** for a full-fledged regression report
 developers are obliged to act upon.
 
- :ref:`Preparations: set up everything to build your own kernels.<introprep_bissbs>`
+ :ref:`Preparations: set up everything to build your own kernels <introprep_bissbs>`.
 
- :ref:`Segment 1: try to reproduce the problem with the latest codebase.<introlatestcheck_bissbs>`
+ :ref:`Segment 1: try to reproduce the problem with the latest codebase <introlatestcheck_bissbs>`.
 
- :ref:`Segment 2: check if the kernels you build work fine.<introworkingcheck_bissbs>`
+ :ref:`Segment 2: check if the kernels you build work fine <introworkingcheck_bissbs>`.
 
- :ref:`Segment 3: perform a bisection and validate the result.<introbisect_bissbs>`
+ :ref:`Segment 3: perform a bisection and validate the result <introbisect_bissbs>`.
 
- :ref:`Supplementary tasks: cleanup during and after following this guide.<introclosure_bissbs>`
+ :ref:`Complementary tasks: cleanup during and after following this guide <introclosure_bissbs>`.
+
+ :ref:`Optional tasks: test reverts, patches, or later versions <introoptional_bissbs>`.
 
 The steps in each segment illustrate the important aspects of the process, while
 a comprehensive reference section holds additional details for almost all of the
@@ -240,24 +257,35 @@ to get things rolling again.
 For further details on how to report Linux kernel issues or regressions check
 out Documentation/admin-guide/reporting-issues.rst, which works in conjunction
 with this document. It among others explains why you need to verify bugs with
-the latest 'mainline' kernel, even if you face a problem with a kernel from a
-'stable/longterm' series; for users facing a regression it also explains that
-sending a preliminary report after finishing segment 2 might be wise, as the
-regression and its culprit might be known already. For further details on
-what actually qualifies as a regression check out
-Documentation/admin-guide/reporting-regressions.rst.
+the latest 'mainline' kernel (e.g. versions like 6.0, 6.1-rc1, or 6.1-rc6),
+even if you face a problem with a kernel from a 'stable/longterm' series
+(say 6.0.13).
+
+For users facing a regression that document also explains why sending a
+preliminary report after segment 2 might be wise, as the regression and its
+culprit might be known already. For further details on what actually qualifies
+as a regression check out Documentation/admin-guide/reporting-regressions.rst.
+
+If you run into any problems while following this guide or have ideas how to
+improve it, :ref:`please let the kernel developers know <submit_improvements>`.
 
 .. _introprep_bissbs:
 
 Preparations: set up everything to build your own kernels
 ---------------------------------------------------------
 
+The following steps lay the groundwork for all further tasks.
+
+Note: the instructions assume you are building and testing on the same
+machine; if you want to compile the kernel on another system, check
+:ref:`Build kernels on a different machine <buildhost_bis>` below.
+
 .. _backup_bissbs:
 
 * Create a fresh backup and put system repair and restore tools at hand, just
   to be prepared for the unlikely case of something going sideways.
 
-  [:ref:`details<backup_bisref>`]
+  [:ref:`details <backup_bisref>`]
 
 .. _vanilla_bissbs:
 
@@ -265,7 +293,7 @@ Preparations: set up everything to build your own kernels
   builds them automatically. That includes but is not limited to DKMS, openZFS,
   VirtualBox, and Nvidia's graphics drivers (including the GPLed kernel module).
 
-  [:ref:`details<vanilla_bisref>`]
+  [:ref:`details <vanilla_bisref>`]
 
 .. _secureboot_bissbs:
 
@@ -276,48 +304,49 @@ Preparations: set up everything to build your own kernels
   their restrictions through a process initiated by
   ``mokutil --disable-validation``.
 
-  [:ref:`details<secureboot_bisref>`]
+  [:ref:`details <secureboot_bisref>`]
 
 .. _rangecheck_bissbs:
 
 * Determine the kernel versions considered 'good' and 'bad' throughout this
-  guide.
+  guide:
 
-  Do you follow this guide to verify if a bug is present in the code developers
-  care for? Then consider the mainline release your 'working' kernel (the newest
-  one you regularly use) is based on to be the 'good' version; if your 'working'
-  kernel for example is 6.0.11, then your 'good' kernel is 6.0.
+  * Do you follow this guide to verify if a bug is present in the code the
+    primary developers care for? Then consider the version of the newest kernel
+    you regularly use currently as 'good' (e.g. 6.0, 6.0.13, or 6.1-rc2).
 
-  In case you face a regression, it depends on the version range where the
-  regression was introduced:
+  * Do you face a regression, e.g. something broke or works worse after
+    switching to a newer kernel version? In that case it depends on the version
+    range during which the problem appeared:
 
-  * Something which used to work in Linux 6.0 broke when switching to Linux
-    6.1-rc1? Then henceforth regard 6.0 as the last known 'good' version
-    and 6.1-rc1 as the first 'bad' one.
+    * Something regressed when updating from a stable/longterm release
+      (say 6.0.13) to a newer mainline series (like 6.1-rc7 or 6.1) or a
+      stable/longterm version based on one (say 6.1.5)? Then consider the
+      mainline release your working kernel is based on to be the 'good'
+      version (e.g. 6.0) and the first version to be broken as the 'bad' one
+      (e.g. 6.1-rc7, 6.1, or 6.1.5). Note, at this point it is merely assumed
+      that 6.0 is fine; this hypothesis will be checked in segment 2.
 
-  * Some function stopped working when updating from 6.0.11 to 6.1.4? Then for
-    the time being consider 6.0 as the last 'good' version and 6.1.4 as
-    the 'bad' one. Note, at this point it is merely assumed that 6.0 is fine;
-    this assumption will be checked in segment 2.
+    * Something regressed when switching from one mainline version (say 6.0) to
+      a later one (like 6.1-rc1) or a stable/longterm release based on it
+      (say 6.1.5)? Then regard the last working version (e.g. 6.0) as 'good' and
+      the first broken (e.g. 6.1-rc1 or 6.1.5) as 'bad'.
 
-  * A feature you used in 6.0.11 does not work at all or worse in 6.1.13? In
-    that case you want to bisect within a stable/longterm series: consider
-    6.0.11 as the last known 'good' version and 6.0.13 as the first 'bad'
-    one. Note, in this case you still want to compile and test a mainline kernel
-    as explained in segment 1: the outcome will determine if you need to report
-    your issue to the regular developers or the stable team.
+    * Something regressed when updating within a stable/longterm series (say
+      from 6.0.13 to 6.0.15)? Then consider those versions as 'good' and 'bad'
+      (e.g. 6.0.13 and 6.0.15), as you need to bisect within that series.
 
   *Note, do not confuse 'good' version with 'working' kernel; the latter term
   throughout this guide will refer to the last kernel that has been working
   fine.*
 
-  [:ref:`details<rangecheck_bisref>`]
+  [:ref:`details <rangecheck_bisref>`]
 
 .. _bootworking_bissbs:
 
 * Boot into the 'working' kernel and briefly use the apparently broken feature.
 
-  [:ref:`details<bootworking_bisref>`]
+  [:ref:`details <bootworking_bisref>`]
 
 .. _diskspace_bissbs:
 
@@ -327,7 +356,7 @@ Preparations: set up everything to build your own kernels
   debug symbols: both explain approaches reducing the amount of space, which
   should allow you to master these tasks with about 4 Gigabytes free space.
 
-  [:ref:`details<diskspace_bisref>`]
+  [:ref:`details <diskspace_bisref>`]
 
 .. _buildrequires_bissbs:
 
@@ -337,7 +366,7 @@ Preparations: set up everything to build your own kernels
   reference section shows how to quickly install those on various popular Linux
   distributions.
 
-  [:ref:`details<buildrequires_bisref>`]
+  [:ref:`details <buildrequires_bisref>`]
 
 .. _sources_bissbs:
 
@@ -360,14 +389,23 @@ Preparations: set up everything to build your own kernels
     git remote add -t master stable \
       https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 
-  [:ref:`details<sources_bisref>`]
+  [:ref:`details <sources_bisref>`]
+
+.. _stablesources_bissbs:
+
+* Is one of the versions you earlier established as 'good' or 'bad' a stable or
+  longterm release (say 6.1.5)? Then download the code for the series it belongs
+  to ('linux-6.1.y' in this example)::
+
+    git remote set-branches --add stable linux-6.1.y
+    git fetch stable
 
 .. _oldconfig_bissbs:
 
 * Start preparing a kernel build configuration (the '.config' file).
 
   Before doing so, ensure you are still running the 'working' kernel an earlier
-  step told you to boot; if you are unsure, check the current kernel release
+  step told you to boot; if you are unsure, check the current kernelrelease
   identifier using ``uname -r``.
 
   Afterwards check out the source code for the version earlier established as
@@ -375,7 +413,7 @@ Preparations: set up everything to build your own kernels
   the version number in this and all later Git commands needs to be prefixed
   with a 'v'::
 
-    git checkout --detach v6.0
+    git switch --discard-changes --detach v6.0
 
   Now create a build configuration file::
 
@@ -398,7 +436,7 @@ Preparations: set up everything to build your own kernels
   'make olddefconfig' again and check if it now picked up the right config file
   as base.
 
-  [:ref:`details<oldconfig_bisref>`]
+  [:ref:`details <oldconfig_bisref>`]
 
 .. _localmodconfig_bissbs:
 
@@ -432,7 +470,7 @@ Preparations: set up everything to build your own kernels
   spending much effort on, as long as it boots and allows to properly test the
   feature that causes trouble.
 
-  [:ref:`details<localmodconfig_bisref>`]
+  [:ref:`details <localmodconfig_bisref>`]
 
 .. _tagging_bissbs:
 
@@ -442,7 +480,7 @@ Preparations: set up everything to build your own kernels
     ./scripts/config --set-str CONFIG_LOCALVERSION '-local'
     ./scripts/config -e CONFIG_LOCALVERSION_AUTO
 
-  [:ref:`details<tagging_bisref>`]
+  [:ref:`details <tagging_bisref>`]
 
 .. _debugsymbols_bissbs:
 
@@ -461,7 +499,7 @@ Preparations: set up everything to build your own kernels
     ./scripts/config -d DEBUG_INFO -d DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT \
       -d DEBUG_INFO_DWARF4 -d DEBUG_INFO_DWARF5 -e CONFIG_DEBUG_INFO_NONE
 
-  [:ref:`details<debugsymbols_bisref>`]
+  [:ref:`details <debugsymbols_bisref>`]
 
 .. _configmods_bissbs:
 
@@ -471,14 +509,14 @@ Preparations: set up everything to build your own kernels
   * Are you running Debian? Then you want to avoid known problems by performing
     additional adjustments explained in the reference section.
 
-    [:ref:`details<configmods_distros_bisref>`].
+    [:ref:`details <configmods_distros_bisref>`].
 
   * If you want to influence other aspects of the configuration, do so now using
     your preferred tool. Note, to use make targets like 'menuconfig' or
     'nconfig', you will need to install the development files of ncurses; for
     'xconfig' you likewise need the Qt5 or Qt6 headers.
 
-    [:ref:`details<configmods_individual_bisref>`].
+    [:ref:`details <configmods_individual_bisref>`].
 
 .. _saveconfig_bissbs:
 
@@ -488,7 +526,7 @@ Preparations: set up everything to build your own kernels
      make olddefconfig
      cp .config ~/kernel-config-working
 
-  [:ref:`details<saveconfig_bisref>`]
+  [:ref:`details <saveconfig_bisref>`]
 
 .. _introlatestcheck_bissbs:
 
@@ -498,16 +536,30 @@ Segment 1: try to reproduce the problem with the latest codebase
 The following steps verify if the problem occurs with the code currently
 supported by developers. In case you face a regression, it also checks that the
 problem is not caused by some .config change, as reporting the issue then would
-be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
+be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
 
 .. _checkoutmaster_bissbs:
 
-* Check out the latest Linux codebase::
+* Check out the latest Linux codebase.
 
-    cd ~/linux/
-    git checkout --force --detach mainline/master
+  * Are your 'good' and 'bad' versions from the same stable or longterm series?
+    Then check the `front page of kernel.org <https://kernel.org/>`_: if it
+    lists a release from that series without an '[EOL]' tag, checkout the series
+    latest version ('linux-6.1.y' in the following example)::
 
-  [:ref:`details<checkoutmaster_bisref>`]
+      cd ~/linux/
+      git switch --discard-changes --detach stable/linux-6.1.y
+
+    Your series is unsupported, if is not listed or carrying a 'end of life'
+    tag. In that case you might want to check if a successor series (say
+    linux-6.2.y) or mainline (see next point) fix the bug.
+
+  * In all other cases, run::
+
+      cd ~/linux/
+      git switch --discard-changes --detach mainline/master
+
+  [:ref:`details <checkoutmaster_bisref>`]
 
 .. _build_bissbs:
 
@@ -522,7 +574,7 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
   reference section for alternatives, which obviously will require other
   steps to install as well.
 
-  [:ref:`details<build_bisref>`]
+  [:ref:`details <build_bisref>`]
 
 .. _install_bissbs:
 
@@ -555,7 +607,7 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
   down: if you will build more kernels as described in segment 2 and 3, you will
   have to perform those again after executing ``command -v installkernel [...]``.
 
-  [:ref:`details<install_bisref>`]
+  [:ref:`details <install_bisref>`]
 
 .. _storagespace_bissbs:
 
@@ -568,7 +620,7 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
   Write down or remember those two values for later: they enable you to prevent
   running out of disk space accidentally during a bisection.
 
-  [:ref:`details<storagespace_bisref>`]
+  [:ref:`details <storagespace_bisref>`]
 
 .. _kernelrelease_bissbs:
 
@@ -595,7 +647,7 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
   If that command does not return '0', check the reference section, as the cause
   for this might interfere with your testing.
 
-  [:ref:`details<tainted_bisref>`]
+  [:ref:`details <tainted_bisref>`]
 
 .. _recheckbroken_bissbs:
 
@@ -603,21 +655,19 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
   out the instructions in the reference section to ensure nothing went sideways
   during your tests.
 
-  [:ref:`details<recheckbroken_bisref>`]
+  [:ref:`details <recheckbroken_bisref>`]
 
 .. _recheckstablebroken_bissbs:
 
-* Are you facing a problem within a stable/longterm series, but failed to
-  reproduce it with the mainline kernel you just built? One that according to
-  the `front page of kernel.org <https://kernel.org/>`_ is still supported? Then
-  check if the latest codebase for the particular series might already fix the
-  problem. To do so, add the stable series Git branch for your 'good' kernel
-  (again, this here is assumed to be 6.0) and check out the latest version::
+* Did you just built a stable or longterm kernel? And were you able to reproduce
+  the regression with it? Then you should test the latest mainline codebase as
+  well, because the result determines which developers the bug must be submitted
+  to.
+
+  To prepare that test, check out current mainline::
 
     cd ~/linux/
-    git remote set-branches --add stable linux-6.0.y
-    git fetch stable
-    git checkout --force --detach linux-6.0.y
+    git switch --discard-changes --detach mainline/master
 
   Now use the checked out code to build and install another kernel using the
   commands the earlier steps already described in more detail::
@@ -639,14 +689,16 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
     uname -r
     cat /proc/sys/kernel/tainted
 
-  Now verify if this kernel is showing the problem.
+  Now verify if this kernel is showing the problem. If it does, then you need
+  to report the bug to the primary developers; if it does not, report it to the
+  stable team. See Documentation/admin-guide/reporting-issues.rst for details.
 
-  [:ref:`details<recheckstablebroken_bisref>`]
+  [:ref:`details <recheckstablebroken_bisref>`]
 
 Do you follow this guide to verify if a problem is present in the code
 currently supported by Linux kernel developers? Then you are done at this
 point. If you later want to remove the kernel you just built, check out
-:ref:`Supplementary tasks: cleanup during and after following this guide<introclosure_bissbs>`.
+:ref:`Complementary tasks: cleanup during and after following this guide <introclosure_bissbs>`.
 
 In case you face a regression, move on and execute at least the next segment
 as well.
@@ -658,7 +710,7 @@ Segment 2: check if the kernels you build work fine
 
 In case of a regression, you now want to ensure the trimmed configuration file
 you created earlier works as expected; a bisection with the .config file
-otherwise would be a waste of time. [:ref:`details<introworkingcheck_bisref>`]
+otherwise would be a waste of time. [:ref:`details <introworkingcheck_bisref>`]
 
 .. _recheckworking_bissbs:
 
@@ -669,7 +721,7 @@ otherwise would be a waste of time. [:ref:`details<introworkingcheck_bisref>`]
   'good' (once again assumed to be 6.0 here)::
 
     cd ~/linux/
-    git checkout --detach v6.0
+    git switch --discard-changes --detach v6.0
 
   Now use the checked out code to configure, build, and install another kernel
   using the commands the previous subsection explained in more detail::
@@ -693,7 +745,7 @@ otherwise would be a waste of time. [:ref:`details<introworkingcheck_bisref>`]
   Now check if this kernel works as expected; if not, consult the reference
   section for further instructions.
 
-  [:ref:`details<recheckworking_bisref>`]
+  [:ref:`details <recheckworking_bisref>`]
 
 .. _introbisect_bissbs:
 
@@ -703,17 +755,10 @@ Segment 3: perform the bisection and validate the result
 With all the preparations and precaution builds taken care of, you are now ready
 to begin the bisection. This will make you build quite a few kernels -- usually
 about 15 in case you encountered a regression when updating to a newer series
-(say from 6.0.11 to 6.1.3). But do not worry, due to the trimmed build
+(say from 6.0.13 to 6.1.5). But do not worry, due to the trimmed build
 configuration created earlier this works a lot faster than many people assume:
 overall on average it will often just take about 10 to 15 minutes to compile
 each kernel on commodity x86 machines.
-
-* In case your 'bad' version is a stable/longterm release (say 6.1.5), add its
-  stable branch, unless you already did so earlier::
-
-    cd ~/linux/
-    git remote set-branches --add stable linux-6.1.y
-    git fetch stable
 
 .. _bisectstart_bissbs:
 
@@ -725,7 +770,7 @@ each kernel on commodity x86 machines.
     git bisect good v6.0
     git bisect bad v6.1.5
 
-  [:ref:`details<bisectstart_bisref>`]
+  [:ref:`details <bisectstart_bisref>`]
 
 .. _bisectbuild_bissbs:
 
@@ -745,7 +790,7 @@ each kernel on commodity x86 machines.
   If compilation fails for some reason, run ``git bisect skip`` and restart
   executing the stack of commands from the beginning.
 
-  In case you skipped the "test latest codebase" step in the guide, check its
+  In case you skipped the 'test latest codebase' step in the guide, check its
   description as for why the 'df [...]' and 'make -s kernelrelease [...]'
   commands are here.
 
@@ -754,7 +799,7 @@ each kernel on commodity x86 machines.
   totally normal to see release identifiers like '6.0-rc1-local-gcafec0cacaca0'
   if you bisect between versions 6.1 and 6.2 for example.
 
-  [:ref:`details<bisectbuild_bisref>`]
+  [:ref:`details <bisectbuild_bisref>`]
 
 .. _bisecttest_bissbs:
 
@@ -794,7 +839,7 @@ each kernel on commodity x86 machines.
   might need to scroll up to see the message mentioning the culprit;
   alternatively, run ``git bisect log > ~/bisection-log``.
 
-  [:ref:`details<bisecttest_bisref>`]
+  [:ref:`details <bisecttest_bisref>`]
 
 .. _bisectlog_bissbs:
 
@@ -806,7 +851,7 @@ each kernel on commodity x86 machines.
     cp .config ~/bisection-config-culprit
     git bisect reset
 
-  [:ref:`details<bisectlog_bisref>`]
+  [:ref:`details <bisectlog_bisref>`]
 
 .. _revert_bissbs:
 
@@ -823,16 +868,16 @@ each kernel on commodity x86 machines.
   Begin by checking out the latest codebase depending on the range you bisected:
 
   * Did you face a regression within a stable/longterm series (say between
-    6.0.11 and 6.0.13) that does not happen in mainline? Then check out the
+    6.0.13 and 6.0.15) that does not happen in mainline? Then check out the
     latest codebase for the affected series like this::
 
       git fetch stable
-      git checkout --force --detach linux-6.0.y
+      git switch --discard-changes --detach linux-6.0.y
 
   * In all other cases check out latest mainline::
 
       git fetch mainline
-      git checkout --force --detach mainline/master
+      git switch --discard-changes --detach mainline/master
 
     If you bisected a regression within a stable/longterm series that also
     happens in mainline, there is one more thing to do: look up the mainline
@@ -846,27 +891,33 @@ each kernel on commodity x86 machines.
 
     git revert --no-edit cafec0cacaca0
 
-  If that fails, give up trying and move on to the next step. But if it works,
-  build a kernel again using the familiar command sequence::
+  If that fails, give up trying and move on to the next step; if it works,
+  adjust the tag to facilitate the identification and prevent accidentally
+  overwriting another kernel::
 
     cp ~/kernel-config-working .config
+    ./scripts/config --set-str CONFIG_LOCALVERSION '-local-cafec0cacaca0-reverted'
+
+  Build a kernel using the familiar command sequence, just without copying the
+  the base .config over::
+
     make olddefconfig &&
-    make -j $(nproc --all) &&
+    make -j $(nproc --all)
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
     sudo make modules_install
     command -v installkernel && sudo make install
-    Make -s kernelrelease | tee -a ~/kernels-built
+    make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
-  Now check one last time if the feature that made you perform a bisection work
-  with that kernel.
+  Now check one last time if the feature that made you perform a bisection works
+  with that kernel: if everything went well, it should not show the regression.
 
-  [:ref:`details<revert_bisref>`]
+  [:ref:`details <revert_bisref>`]
 
 .. _introclosure_bissbs:
 
-Supplementary tasks: cleanup during and after the bisection
+Complementary tasks: cleanup during and after the bisection
 -----------------------------------------------------------
 
 During and after following this guide you might want or need to remove some of
@@ -903,7 +954,7 @@ space might run out.
   kernel image and related files behind; in that case remove them as described
   in the reference section.
 
-  [:ref:`details<makeroom_bisref>`]
+  [:ref:`details <makeroom_bisref>`]
 
 .. _finishingtouch_bissbs:
 
@@ -926,18 +977,99 @@ space might run out.
     the version considered 'good', and the last three or four you compiled
     during the actual bisection process.
 
-  [:ref:`details<finishingtouch_bisref>`]
+  [:ref:`details <finishingtouch_bisref>`]
+
+.. _introoptional_bissbs:
+
+Optional: test reverts, patches, or later versions
+--------------------------------------------------
+
+While or after reporting a bug, you might want or potentially will be asked to
+test reverts, debug patches, proposed fixes, or other versions. In that case
+follow these instructions.
+
+* Update your Git clone and check out the latest code.
+
+  * In case you want to test mainline, fetch its latest changes before checking
+    its code out::
+
+      git fetch mainline
+      git switch --discard-changes --detach mainline/master
+
+  * In case you want to test a stable or longterm kernel, first add the branch
+    holding the series you are interested in (6.2 in the example), unless you
+    already did so earlier::
+
+      git remote set-branches --add stable linux-6.2.y
+
+    Then fetch the latest changes and check out the latest version from the
+    series::
+
+      git fetch stable
+      git switch --discard-changes --detach stable/linux-6.2.y
+
+* Copy your kernel build configuration over::
+
+    cp ~/kernel-config-working .config
+
+* Your next step depends on what you want to do:
+
+  * In case you just want to test the latest codebase, head to the next step,
+    you are already all set.
+
+  * In case you want to test if a revert fixes an issue, revert one or multiple
+    changes by specifying their commit ids::
+
+      git revert --no-edit cafec0cacaca0
+
+    Now give that kernel a special tag to facilitates its identification and
+    prevent accidentally overwriting another kernel::
+
+      ./scripts/config --set-str CONFIG_LOCALVERSION '-local-cafec0cacaca0-reverted'
+
+  * In case you want to test a patch, store the patch in a file like
+    '/tmp/foobars-proposed-fix-v1.patch' and apply it like this::
+
+      git apply /tmp/foobars-proposed-fix-v1.patch
+
+    In case of multiple patches, repeat this step with the others.
+
+    Now give that kernel a special tag to facilitates its identification and
+    prevent accidentally overwriting another kernel::
+
+    ./scripts/config --set-str CONFIG_LOCALVERSION '-local-foobars-fix-v1'
+
+* Build a kernel using the familiar commands, just without copying the kernel
+  build configuration over, as that has been taken care of already::
+
+    make olddefconfig &&
+    make -j $(nproc --all)
+    # * Check if the free space suffices holding another kernel:
+    df -h /boot/ /lib/modules/
+    sudo make modules_install
+    command -v installkernel && sudo make install
+    make -s kernelrelease | tee -a ~/kernels-built
+    reboot
+
+* Now verify you booted the newly built kernel and check it.
+
+[:ref:`details <introoptional_bisref>`]
 
 .. _submit_improvements:
 
-This concludes the step-by-step guide.
+Conclusion
+----------
+
+You have reached the end of the step-by-step guide.
 
 Did you run into trouble following any of the above steps not cleared up by the
 reference section below? Did you spot errors? Or do you have ideas how to
-improve the guide? Then please take a moment and let the maintainer of this
+improve the guide?
+
+If any of that applies, please take a moment and let the maintainer of this
 document know by email (Thorsten Leemhuis <linux@leemhuis.info>), ideally while
 CCing the Linux docs mailing list (linux-doc@vger.kernel.org). Such feedback is
-vital to improve this document further, which is in everybody's interest, as it
+vital to improve this text further, which is in everybody's interest, as it
 will enable more people to master the task described here -- and hopefully also
 improve similar guides inspired by this one.
 
@@ -948,10 +1080,20 @@ Reference section for the step-by-step guide
 This section holds additional information for almost all the items in the above
 step-by-step guide.
 
+Preparations for building your own kernels
+------------------------------------------
+
+  *The steps in this section lay the groundwork for all further tests.*
+  [:ref:`... <introprep_bissbs>`]
+
+The steps in all later sections of this guide depend on those described here.
+
+[:ref:`back to step-by-step guide <introprep_bissbs>`].
+
 .. _backup_bisref:
 
 Prepare for emergencies
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
   *Create a fresh backup and put system repair and restore tools at hand.*
   [:ref:`... <backup_bissbs>`]
@@ -966,7 +1108,7 @@ for something going sideways, even if that should not happen.
 .. _vanilla_bisref:
 
 Remove anything related to externally maintained kernel modules
----------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Remove all software that depends on externally developed kernel drivers or
   builds them automatically.* [:ref:`...<vanilla_bissbs>`]
@@ -984,7 +1126,7 @@ explains in more detail.
 .. _secureboot_bisref:
 
 Deal with techniques like Secure Boot
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *On platforms with 'Secure Boot' or similar techniques, prepare everything to
   ensure the system will permit your self-compiled kernel to boot later.*
@@ -1021,7 +1163,7 @@ Afterwards, permit MokManager to reboot the machine.
 .. _bootworking_bisref:
 
 Boot the last kernel that was working
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Boot into the last working kernel and briefly recheck if the feature that
   regressed really works.* [:ref:`...<bootworking_bissbs>`]
@@ -1034,7 +1176,7 @@ the right thing.
 .. _diskspace_bisref:
 
 Space requirements
-------------------
+~~~~~~~~~~~~~~~~~~
 
   *Ensure to have enough free space for building Linux.*
   [:ref:`... <diskspace_bissbs>`]
@@ -1052,32 +1194,32 @@ space by quite a few gigabytes.
 .. _rangecheck_bisref:
 
 Bisection range
----------------
+~~~~~~~~~~~~~~~
 
   *Determine the kernel versions considered 'good' and 'bad' throughout this
   guide.* [:ref:`...<rangecheck_bissbs>`]
 
 Establishing the range of commits to be checked is mostly straightforward,
 except when a regression occurred when switching from a release of one stable
-series to a release of a later series (e.g. from 6.0.11 to 6.1.4). In that case
+series to a release of a later series (e.g. from 6.0.13 to 6.1.5). In that case
 Git will need some hand holding, as there is no straight line of descent.
 
 That's because with the release of 6.0 mainline carried on to 6.1 while the
 stable series 6.0.y branched to the side. It's therefore theoretically possible
-that the issue you face with 6.1.4 only worked in 6.0.11, as it was fixed by a
+that the issue you face with 6.1.5 only worked in 6.0.13, as it was fixed by a
 commit that went into one of the 6.0.y releases, but never hit mainline or the
 6.1.y series. Thankfully that normally should not happen due to the way the
 stable/longterm maintainers maintain the code. It's thus pretty safe to assume
 6.0 as a 'good' kernel. That assumption will be tested anyway, as that kernel
 will be built and tested in the segment '2' of this guide; Git would force you
-to do this as well, if you tried bisecting between 6.0.11 and 6.1.13.
+to do this as well, if you tried bisecting between 6.0.13 and 6.1.15.
 
 [:ref:`back to step-by-step guide <rangecheck_bissbs>`]
 
 .. _buildrequires_bisref:
 
 Install build requirements
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Install all software required to build a Linux kernel.*
   [:ref:`...<buildrequires_bissbs>`]
@@ -1117,7 +1259,7 @@ These commands install a few packages that are often, but not always needed. You
 for example might want to skip installing the development headers for ncurses,
 which you will only need in case you later might want to adjust the kernel build
 configuration using make the targets 'menuconfig' or 'nconfig'; likewise omit
-the headers of Qt6 is you do not plan to adjust the .config using 'xconfig'.
+the headers of Qt6 if you do not plan to adjust the .config using 'xconfig'.
 
 You furthermore might need additional libraries and their development headers
 for tasks not covered in this guide -- for example when building utilities from
@@ -1128,7 +1270,7 @@ the kernel's tools/ directory.
 .. _sources_bisref:
 
 Download the sources using Git
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Retrieve the Linux mainline sources.*
   [:ref:`...<sources_bissbs>`]
@@ -1148,7 +1290,7 @@ work better for you:
 .. _sources_bundle_bisref:
 
 Downloading Linux mainline sources using a bundle
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""""""""""""""""""""""""""""""""""""""""""""""""
 
 Use the following commands to retrieve the Linux mainline sources using a
 bundle::
@@ -1184,7 +1326,7 @@ First, execute the following command to retrieve the latest mainline codebase::
       https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 
 Now deepen your clone's history to the second predecessor of the mainline
-release of your 'good' version. In case the latter are 6.0 or 6.0.11, 5.19 would
+release of your 'good' version. In case the latter are 6.0 or 6.0.13, 5.19 would
 be the first predecessor and 5.18 the second -- hence deepen the history up to
 that version::
 
@@ -1219,7 +1361,7 @@ Note, shallow clones have a few peculiar characteristics:
 .. _oldconfig_bisref:
 
 Start defining the build configuration for your kernel
-------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Start preparing a kernel build configuration (the '.config' file).*
   [:ref:`... <oldconfig_bissbs>`]
@@ -1279,7 +1421,7 @@ that file to the build machine and store it as ~/linux/.config; afterwards run
 .. _localmodconfig_bisref:
 
 Trim the build configuration for your kernel
---------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Disable any kernel modules apparently superfluous for your setup.*
   [:ref:`... <localmodconfig_bissbs>`]
@@ -1328,7 +1470,7 @@ step-by-step guide mentions::
 .. _tagging_bisref:
 
 Tag the kernels about to be build
----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Ensure all the kernels you will build are clearly identifiable using a
   special tag and a unique version identifier.* [:ref:`... <tagging_bissbs>`]
@@ -1344,7 +1486,7 @@ confusing during the bisection.
 .. _debugsymbols_bisref:
 
 Decide to enable or disable debug symbols
------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Decide how to handle debug symbols.* [:ref:`... <debugsymbols_bissbs>`]
 
@@ -1373,7 +1515,7 @@ explains this process in more detail.
 .. _configmods_bisref:
 
 Adjust build configuration
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Check if you may want or need to adjust some other kernel configuration
   options:*
@@ -1384,7 +1526,7 @@ kernel configuration options.
 .. _configmods_distros_bisref:
 
 Distro specific adjustments
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""""""""""""""""""""""""""
 
   *Are you running* [:ref:`... <configmods_bissbs>`]
 
@@ -1409,7 +1551,7 @@ when following this guide on a few commodity distributions.
 .. _configmods_individual_bisref:
 
 Individual adjustments
-~~~~~~~~~~~~~~~~~~~~~~
+""""""""""""""""""""""
 
   *If you want to influence the other aspects of the configuration, do so
   now.* [:ref:`... <configmods_bissbs>`]
@@ -1426,13 +1568,13 @@ is missing.
 .. _saveconfig_bisref:
 
 Put the .config file aside
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Reprocess the .config after the latest changes and store it in a safe place.*
   [:ref:`... <saveconfig_bissbs>`]
 
 Put the .config you prepared aside, as you want to copy it back to the build
-directory every time  during this guide before you start building another
+directory every time during this guide before you start building another
 kernel. That's because going back and forth between different versions can alter
 .config files in odd ways; those occasionally cause side effects that could
 confuse testing or in some cases render the result of your bisection
@@ -1442,8 +1584,8 @@ meaningless.
 
 .. _introlatestcheck_bisref:
 
-Try to reproduce the regression
------------------------------------------
+Try to reproduce the problem with the latest codebase
+-----------------------------------------------------
 
   *Verify the regression is not caused by some .config change and check if it
   still occurs with the latest codebase.* [:ref:`... <introlatestcheck_bissbs>`]
@@ -1490,28 +1632,28 @@ highly recommended for these reasons:
 
   Your report might be ignored if you send it to the wrong party -- and even
   when you get a reply there is a decent chance that developers tell you to
-  evaluate   which of the two cases it is before they take a closer look.
+  evaluate which of the two cases it is before they take a closer look.
 
 [:ref:`back to step-by-step guide <introlatestcheck_bissbs>`]
 
 .. _checkoutmaster_bisref:
 
 Check out the latest Linux codebase
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Check out the latest Linux codebase.*
-  [:ref:`... <introlatestcheck_bissbs>`]
+  [:ref:`... <checkoutmaster_bissbs>`]
 
 In case you later want to recheck if an ever newer codebase might fix the
 problem, remember to run that ``git fetch --shallow-exclude [...]`` command
 again mentioned earlier to update your local Git repository.
 
-[:ref:`back to step-by-step guide <introlatestcheck_bissbs>`]
+[:ref:`back to step-by-step guide <checkoutmaster_bissbs>`]
 
 .. _build_bisref:
 
 Build your kernel
------------------
+~~~~~~~~~~~~~~~~~
 
   *Build the image and the modules of your first kernel using the config file
   you prepared.* [:ref:`... <build_bissbs>`]
@@ -1521,7 +1663,7 @@ yourself. Another subsection explains how to directly package your kernel up as
 deb, rpm or tar file.
 
 Dealing with build errors
-~~~~~~~~~~~~~~~~~~~~~~~~~
+"""""""""""""""""""""""""
 
 When a build error occurs, it might be caused by some aspect of your machine's
 setup that often can be fixed quickly; other times though the problem lies in
@@ -1552,11 +1694,11 @@ by modifying your search terms or using another line from the error messages.
 
 In the end, most issues you run into have likely been encountered and
 reported by others already. That includes issues where the cause is not your
-system, but lies in the code. If you run into one of those, you might thus find a
-solution (e.g. a patch) or workaround for your issue, too.
+system, but lies in the code. If you run into one of those, you might thus find
+a solution (e.g. a patch) or workaround for your issue, too.
 
 Package your kernel up
-~~~~~~~~~~~~~~~~~~~~~~
+""""""""""""""""""""""
 
 The step-by-step guide uses the default make targets (e.g. 'bzImage' and
 'modules' on x86) to build the image and the modules of your kernel, which later
@@ -1587,7 +1729,7 @@ distribution's kernel packages.
 .. _install_bisref:
 
 Put the kernel in place
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
   *Install the kernel you just built.* [:ref:`... <install_bissbs>`]
 
@@ -1630,7 +1772,7 @@ process. Afterwards add your kernel to your bootloader configuration and reboot.
 .. _storagespace_bisref:
 
 Storage requirements per kernel
--------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Check how much storage space the kernel, its modules, and other related files
   like the initramfs consume.* [:ref:`... <storagespace_bissbs>`]
@@ -1651,7 +1793,7 @@ need to look in different places.
 .. _tainted_bisref:
 
 Check if your newly built kernel considers itself 'tainted'
------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Check if the kernel marked itself as 'tainted'.*
   [:ref:`... <tainted_bissbs>`]
@@ -1670,7 +1812,7 @@ interest, as your testing might be flawed otherwise.
 .. _recheckbroken_bisref:
 
 Check the kernel built from a recent mainline codebase
-------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Verify if your bug occurs with the newly built kernel.*
   [:ref:`... <recheckbroken_bissbs>`]
@@ -1696,7 +1838,7 @@ the kernel you built from the latest codebase. These are the most frequent:
 .. _recheckstablebroken_bisref:
 
 Check the kernel built from the latest stable/longterm codebase
----------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Are you facing a regression within a stable/longterm release, but failed to
   reproduce it with the kernel you just built using the latest mainline sources?
@@ -1741,7 +1883,7 @@ ensure the kernel version you assumed to be 'good' earlier in the process (e.g.
 .. _recheckworking_bisref:
 
 Build your own version of the 'good' kernel
--------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Build your own variant of the working kernel and check if the feature that
   regressed works as expected with it.* [:ref:`... <recheckworking_bissbs>`]
@@ -1767,15 +1909,25 @@ multitude of reasons why this might happen. Some ideas where to look:
 
 Note, if you found and fixed problems with the .config file, you want to use it
 to build another kernel from the latest codebase, as your earlier tests with
-mainline and the latest version from an affected stable/longterm series were most
-likely flawed.
+mainline and the latest version from an affected stable/longterm series were
+most likely flawed.
 
 [:ref:`back to step-by-step guide <recheckworking_bissbs>`]
+
+Perform a bisection and validate the result
+-------------------------------------------
+
+  *With all the preparations and precaution builds taken care of, you are now
+  ready to begin the bisection.* [:ref:`... <introbisect_bissbs>`]
+
+The steps in this segment perform and validate the bisection.
+
+[:ref:`back to step-by-step guide <introbisect_bissbs>`].
 
 .. _bisectstart_bisref:
 
 Start the bisection
--------------------
+~~~~~~~~~~~~~~~~~~~
 
   *Start the bisection and tell Git about the versions earlier established as
   'good' and 'bad'.* [:ref:`... <bisectstart_bissbs>`]
@@ -1789,7 +1941,7 @@ for you to test.
 .. _bisectbuild_bisref:
 
 Build a kernel from the bisection point
----------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Build, install, and boot a kernel from the code Git checked out using the
   same commands you used earlier.* [:ref:`... <bisectbuild_bissbs>`]
@@ -1817,7 +1969,7 @@ There are two things worth of note here:
 .. _bisecttest_bisref:
 
 Bisection checkpoint
---------------------
+~~~~~~~~~~~~~~~~~~~~
 
   *Check if the feature that regressed works in the kernel you just built.*
   [:ref:`... <bisecttest_bissbs>`]
@@ -1831,7 +1983,7 @@ will be for nothing.
 .. _bisectlog_bisref:
 
 Put the bisection log away
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Store Git's bisection log and the current .config file in a safe place.*
   [:ref:`... <bisectlog_bissbs>`]
@@ -1851,7 +2003,7 @@ ask for it after you report the regression.
 .. _revert_bisref:
 
 Try reverting the culprit
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *Try reverting the culprit on top of the latest codebase to see if this fixes
   your regression.* [:ref:`... <revert_bissbs>`]
@@ -1869,14 +2021,20 @@ succeeds, test that kernel version instead.
 
 [:ref:`back to step-by-step guide <revert_bissbs>`]
 
+Cleanup steps during and after following this guide
+---------------------------------------------------
 
-Supplementary tasks: cleanup during and after the bisection
------------------------------------------------------------
+  *During and after following this guide you might want or need to remove some
+  of the kernels you installed.* [:ref:`... <introclosure_bissbs>`]
+
+The steps in this section describe clean-up procedures.
+
+[:ref:`back to step-by-step guide <introclosure_bissbs>`].
 
 .. _makeroom_bisref:
 
 Cleaning up during the bisection
---------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   *To remove one of the kernels you installed, look up its 'kernelrelease'
   identifier.* [:ref:`... <makeroom_bissbs>`]
@@ -1911,13 +2069,13 @@ Now remove the boot entry for the kernel from your bootloader's configuration;
 the steps to do that vary quite a bit between Linux distributions.
 
 Note, be careful with wildcards like '*' when deleting files or directories
-for kernels manually: you might accidentally remove files of a 6.0.11 kernel
+for kernels manually: you might accidentally remove files of a 6.0.13 kernel
 when all you want is to remove 6.0 or 6.0.1.
 
 [:ref:`back to step-by-step guide <makeroom_bissbs>`]
 
 Cleaning up after the bisection
--------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. _finishingtouch_bisref:
 
@@ -1932,26 +2090,105 @@ build artifacts and the Linux sources, but will leave the Git repository
 (~/linux/.git/) behind -- a simple ``git reset --hard`` thus will bring the
 sources back.
 
-Removing the repository as well would likely be unwise at this point: there is a
-decent chance developers will ask you to build another kernel to perform
-additional tests. This is often required to debug an issue or check proposed
-fixes. Before doing so you want to run the ``git fetch mainline`` command again
-followed by ``git checkout mainline/master`` to bring your clone up to date and
-checkout the latest codebase. Then apply the patch using ``git apply
-<filename>`` or ``git am <filename>`` and build yet another kernel using the
-familiar commands.
+Removing the repository as well would likely be unwise at this point: there
+is a decent chance developers will ask you to build another kernel to
+perform additional tests -- like testing a debug patch or a proposed fix.
+Details on how to perform those can be found in the section :ref:`Optional
+tasks: test reverts, patches, or later versions <introoptional_bissbs>`.
 
 Additional tests are also the reason why you want to keep the
 ~/kernel-config-working file around for a few weeks.
 
 [:ref:`back to step-by-step guide <finishingtouch_bissbs>`]
 
+.. _introoptional_bisref:
+
+Test reverts, patches, or later versions
+----------------------------------------
+
+  *While or after reporting a bug, you might want or potentially will be asked
+  to test reverts, patches, proposed fixes, or other versions.*
+  [:ref:`... <introoptional_bissbs>`]
+
+All the commands used in this section should be pretty straight forward, so
+there is not much to add except one thing: when setting a kernel tag as
+instructed, ensure it is not much longer than the one used in the example, as
+problems will arise if the kernelrelease identifier exceeds 63 characters.
+
+[:ref:`back to step-by-step guide <introoptional_bissbs>`].
+
+
+Additional information
+======================
+
+.. _buildhost_bis:
+
+Build kernels on a different machine
+------------------------------------
+
+To compile kernels on another system, slightly alter the step-by-step guide's
+instructions:
+
+* Start following the guide on the machine where you want to install and test
+  the kernels later.
+
+* After executing ':ref:`Boot into the working kernel and briefly use the
+  apparently broken feature <bootworking_bissbs>`', save the list of loaded
+  modules to a file using ``lsmod > ~/test-machine-lsmod``. Then locate the
+  build configuration for the running kernel (see ':ref:`Start defining the
+  build configuration for your kernel <oldconfig_bisref>`' for hints on where
+  to find it) and store it as '~/test-machine-config-working'. Transfer both
+  files to the home directory of your build host.
+
+* Continue the guide on the build host (e.g. with ':ref:`Ensure to have enough
+  free space for building [...] <diskspace_bissbs>`').
+
+* When you reach ':ref:`Start preparing a kernel build configuration[...]
+  <oldconfig_bissbs>`': before running ``make olddefconfig`` for the first time,
+  execute the following command to base your configuration on the one from the
+  test machine's 'working' kernel::
+
+    cp ~/test-machine-config-working ~/linux/.config
+
+* During the next step to ':ref:`disable any apparently superfluous kernel
+  modules <localmodconfig_bissbs>`' use the following command instead::
+
+    yes '' | make localmodconfig LSMOD=~/lsmod_foo-machine localmodconfig
+
+* Continue the guide, but ignore the instructions outlining how to compile,
+  install, and reboot into a kernel every time they come up. Instead build
+  like this::
+
+    cp ~/kernel-config-working .config
+    make olddefconfig &&
+    make -j $(nproc --all) targz-pkg
+
+  This will generate a gzipped tar file whose name is printed in the last
+  line shown; for example, a kernel with the kernelrelease identifier
+  '6.0.0-rc1-local-g928a87efa423' built for x86 machines usually will
+  be stored as '~/linux/linux-6.0.0-rc1-local-g928a87efa423-x86.tar.gz'.
+
+  Copy that file to your test machine's home directory.
+
+* Switch to the test machine to check if you have enough space to hold another
+  kernel. Then extract the file you transferred::
+
+    sudo tar -xvzf ~/linux-6.0.0-rc1-local-g928a87efa423-x86.tar.gz -C /
+
+  Afterwards :ref:`generate the initramfs and add the kernel to your boot
+  loader's configuration <install_bisref>`; on some distributions the following
+  command will take care of both these tasks::
+
+    sudo /sbin/installkernel 6.0.0-rc1-local-g928a87efa423 /boot/vmlinuz-6.0.0-rc1-local-g928a87efa423
+
+  Now reboot and ensure you started the intended kernel.
+
+This approach even works when building for another architecture: just install
+cross-compilers and add the appropriate parameters to every invocation of make
+(e.g. ``make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- [...]``).
 
 Additional reading material
-===========================
-
-Further sources
----------------
+---------------------------
 
 * The `man page for 'git bisect' <https://git-scm.com/docs/git-bisect>`_ and
   `fighting regressions with 'git bisect' <https://git-scm.com/docs/git-bisect-lk2009.html>`_

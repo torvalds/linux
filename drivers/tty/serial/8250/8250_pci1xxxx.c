@@ -382,10 +382,10 @@ static void pci1xxxx_rx_burst(struct uart_port *port, u32 uart_status)
 }
 
 static void pci1xxxx_process_write_data(struct uart_port *port,
-					struct circ_buf *xmit,
 					int *data_empty_count,
 					u32 *valid_byte_count)
 {
+	struct tty_port *tport = &port->state->port;
 	u32 valid_burst_count = *valid_byte_count / UART_BURST_SIZE;
 
 	/*
@@ -395,41 +395,36 @@ static void pci1xxxx_process_write_data(struct uart_port *port,
 	 * one byte at a time.
 	 */
 	while (valid_burst_count) {
+		u32 c;
+
 		if (*data_empty_count - UART_BURST_SIZE < 0)
 			break;
-		if (xmit->tail > (UART_XMIT_SIZE - UART_BURST_SIZE))
+		if (kfifo_len(&tport->xmit_fifo) < UART_BURST_SIZE)
 			break;
-		writel(*(unsigned int *)&xmit->buf[xmit->tail],
-		       port->membase + UART_TX_BURST_FIFO);
+		if (WARN_ON(kfifo_out(&tport->xmit_fifo, (u8 *)&c, sizeof(c)) !=
+		    sizeof(c)))
+			break;
+		writel(c, port->membase + UART_TX_BURST_FIFO);
 		*valid_byte_count -= UART_BURST_SIZE;
 		*data_empty_count -= UART_BURST_SIZE;
 		valid_burst_count -= UART_BYTE_SIZE;
-
-		xmit->tail = (xmit->tail + UART_BURST_SIZE) &
-			     (UART_XMIT_SIZE - 1);
 	}
 
 	while (*valid_byte_count) {
-		if (*data_empty_count - UART_BYTE_SIZE < 0)
+		u8 c;
+
+		if (!kfifo_get(&tport->xmit_fifo, &c))
 			break;
-		writeb(xmit->buf[xmit->tail], port->membase +
-		       UART_TX_BYTE_FIFO);
+		writeb(c, port->membase + UART_TX_BYTE_FIFO);
 		*data_empty_count -= UART_BYTE_SIZE;
 		*valid_byte_count -= UART_BYTE_SIZE;
-
-		/*
-		 * When the tail of the circular buffer is reached, the next
-		 * byte is transferred to the beginning of the buffer.
-		 */
-		xmit->tail = (xmit->tail + UART_BYTE_SIZE) &
-			     (UART_XMIT_SIZE - 1);
 
 		/*
 		 * If there are any pending burst count, data is handled by
 		 * transmitting DWORDs at a time.
 		 */
-		if (valid_burst_count && (xmit->tail <
-		   (UART_XMIT_SIZE - UART_BURST_SIZE)))
+		if (valid_burst_count &&
+		    kfifo_len(&tport->xmit_fifo) >= UART_BURST_SIZE)
 			break;
 	}
 }
@@ -437,11 +432,9 @@ static void pci1xxxx_process_write_data(struct uart_port *port,
 static void pci1xxxx_tx_burst(struct uart_port *port, u32 uart_status)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
+	struct tty_port *tport = &port->state->port;
 	u32 valid_byte_count;
 	int data_empty_count;
-	struct circ_buf *xmit;
-
-	xmit = &port->state->xmit;
 
 	if (port->x_char) {
 		writeb(port->x_char, port->membase + UART_TX);
@@ -450,25 +443,25 @@ static void pci1xxxx_tx_burst(struct uart_port *port, u32 uart_status)
 		return;
 	}
 
-	if ((uart_tx_stopped(port)) || (uart_circ_empty(xmit))) {
+	if ((uart_tx_stopped(port)) || kfifo_is_empty(&tport->xmit_fifo)) {
 		port->ops->stop_tx(port);
 	} else {
 		data_empty_count = (pci1xxxx_read_burst_status(port) &
 				    UART_BST_STAT_TX_COUNT_MASK) >> 8;
 		do {
-			valid_byte_count = uart_circ_chars_pending(xmit);
+			valid_byte_count = kfifo_len(&tport->xmit_fifo);
 
-			pci1xxxx_process_write_data(port, xmit,
+			pci1xxxx_process_write_data(port,
 						    &data_empty_count,
 						    &valid_byte_count);
 
 			port->icount.tx++;
-			if (uart_circ_empty(xmit))
+			if (kfifo_is_empty(&tport->xmit_fifo))
 				break;
 		} while (data_empty_count && valid_byte_count);
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	 /*
@@ -476,7 +469,8 @@ static void pci1xxxx_tx_burst(struct uart_port *port, u32 uart_status)
 	  * the HW can go idle. So we get here once again with empty FIFO and
 	  * disable the interrupt and RPM in __stop_tx()
 	  */
-	if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
+	if (kfifo_is_empty(&tport->xmit_fifo) &&
+	    !(up->capabilities & UART_CAP_RPM))
 		port->ops->stop_tx(port);
 }
 

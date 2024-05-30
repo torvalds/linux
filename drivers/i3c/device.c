@@ -27,6 +27,10 @@
  * This function can sleep and thus cannot be called in atomic context.
  *
  * Return: 0 in case of success, a negative error core otherwise.
+ *	   -EAGAIN: controller lost address arbitration. Target
+ *		    (IBI, HJ or controller role request) win the bus. Client
+ *		    driver needs to resend the 'xfers' some time later.
+ *		    See I3C spec ver 1.1.1 09-Jun-2021. Section: 5.1.2.2.3.
  */
 int i3c_device_do_priv_xfers(struct i3c_device *dev,
 			     struct i3c_priv_xfer *xfers,

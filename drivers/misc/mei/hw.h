@@ -247,12 +247,10 @@ enum mei_ext_hdr_type {
  * struct mei_ext_hdr - extend header descriptor (TLV)
  * @type: enum mei_ext_hdr_type
  * @length: length excluding descriptor
- * @data: the extended header payload
  */
 struct mei_ext_hdr {
 	u8 type;
 	u8 length;
-	u8 data[];
 } __packed;
 
 /**

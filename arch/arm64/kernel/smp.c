@@ -264,6 +264,13 @@ asmlinkage notrace void secondary_start_kernel(void)
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
+	/*
+	 * Secondary CPUs enter the kernel with all DAIF exceptions masked.
+	 *
+	 * As with setup_arch() we must unmask Debug and SError exceptions, and
+	 * as the root irqchip has already been detected and initialized we can
+	 * unmask IRQ and FIQ at the same time.
+	 */
 	local_daif_restore(DAIF_PROCCTX);
 
 	/*

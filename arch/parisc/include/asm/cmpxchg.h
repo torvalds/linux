@@ -56,26 +56,24 @@ __arch_xchg(unsigned long x, volatile void *ptr, int size)
 /* bug catcher for when unsupported size is used - won't link */
 extern void __cmpxchg_called_with_bad_pointer(void);
 
-/* __cmpxchg_u32/u64 defined in arch/parisc/lib/bitops.c */
-extern unsigned long __cmpxchg_u32(volatile unsigned int *m, unsigned int old,
-				   unsigned int new_);
-extern u64 __cmpxchg_u64(volatile u64 *ptr, u64 old, u64 new_);
+/* __cmpxchg_u... defined in arch/parisc/lib/bitops.c */
 extern u8 __cmpxchg_u8(volatile u8 *ptr, u8 old, u8 new_);
+extern u16 __cmpxchg_u16(volatile u16 *ptr, u16 old, u16 new_);
+extern u32 __cmpxchg_u32(volatile u32 *m, u32 old, u32 new_);
+extern u64 __cmpxchg_u64(volatile u64 *ptr, u64 old, u64 new_);
 
 /* don't worry...optimizer will get rid of most of this */
 static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new_, int size)
 {
-	switch (size) {
+	return
 #ifdef CONFIG_64BIT
-	case 8: return __cmpxchg_u64((u64 *)ptr, old, new_);
+		size == 8 ? __cmpxchg_u64(ptr, old, new_) :
 #endif
-	case 4: return __cmpxchg_u32((unsigned int *)ptr,
-				     (unsigned int)old, (unsigned int)new_);
-	case 1: return __cmpxchg_u8((u8 *)ptr, old & 0xff, new_ & 0xff);
-	}
-	__cmpxchg_called_with_bad_pointer();
-	return old;
+		size == 4 ? __cmpxchg_u32(ptr, old, new_) :
+		size == 2 ? __cmpxchg_u16(ptr, old, new_) :
+		size == 1 ? __cmpxchg_u8(ptr, old, new_) :
+			(__cmpxchg_called_with_bad_pointer(), old);
 }
 
 #define arch_cmpxchg(ptr, o, n)						 \

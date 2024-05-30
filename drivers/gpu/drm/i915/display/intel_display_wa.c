@@ -10,20 +10,12 @@
 
 static void gen11_display_wa_apply(struct drm_i915_private *i915)
 {
-	/* Wa_1409120013 */
-	intel_de_write(i915, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-		       DPFC_CHICKEN_COMP_DUMMY_PIXEL);
-
 	/* Wa_14010594013 */
 	intel_de_rmw(i915, GEN8_CHICKEN_DCPR_1, 0, ICL_DELAY_PMRSP);
 }
 
 static void xe_d_display_wa_apply(struct drm_i915_private *i915)
 {
-	/* Wa_1409120013 */
-	intel_de_write(i915, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-		       DPFC_CHICKEN_COMP_DUMMY_PIXEL);
-
 	/* Wa_14013723622 */
 	intel_de_rmw(i915, CLKREQ_POLICY, CLKREQ_POLICY_MEM_UP_OVRD, 0);
 }

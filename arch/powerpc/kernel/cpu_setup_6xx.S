@@ -401,7 +401,7 @@ _GLOBAL(__save_cpu_setup)
 	andi.	r3,r3,0xff00
 	cmpwi	cr0,r3,0x0200
 	bne	1f
-	mfspr	r4,SPRN_HID2
+	mfspr	r4,SPRN_HID2_750FX
 	stw	r4,CS_HID2(r5)
 1:
 	mtcr	r7
@@ -496,7 +496,7 @@ _GLOBAL(__restore_cpu_setup)
 	bne	4f
 	lwz	r4,CS_HID2(r5)
 	rlwinm	r4,r4,0,19,17
-	mtspr	SPRN_HID2,r4
+	mtspr	SPRN_HID2_750FX,r4
 	sync
 4:
 	lwz	r4,CS_HID1(r5)

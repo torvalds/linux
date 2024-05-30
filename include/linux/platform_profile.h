@@ -36,6 +36,7 @@ struct platform_profile_handler {
 
 int platform_profile_register(struct platform_profile_handler *pprof);
 int platform_profile_remove(void);
+int platform_profile_cycle(void);
 void platform_profile_notify(void);
 
 #endif  /*_PLATFORM_PROFILE_H_*/

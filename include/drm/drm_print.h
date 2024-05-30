@@ -28,14 +28,14 @@
 
 #include <linux/compiler.h>
 #include <linux/printk.h>
-#include <linux/seq_file.h>
 #include <linux/device.h>
-#include <linux/debugfs.h>
 #include <linux/dynamic_debug.h>
 
 #include <drm/drm.h>
 
+struct debugfs_regset32;
 struct drm_device;
+struct seq_file;
 
 /* Do *not* use outside of drm_print.[ch]! */
 extern unsigned long __drm_debug;

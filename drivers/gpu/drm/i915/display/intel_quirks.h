@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-struct drm_i915_private;
+struct intel_display;
 
 enum intel_quirk_id {
 	QUIRK_BACKLIGHT_PRESENT,
@@ -19,7 +19,7 @@ enum intel_quirk_id {
 	QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK,
 };
 
-void intel_init_quirks(struct drm_i915_private *i915);
-bool intel_has_quirk(struct drm_i915_private *i915, enum intel_quirk_id quirk);
+void intel_init_quirks(struct intel_display *display);
+bool intel_has_quirk(struct intel_display *display, enum intel_quirk_id quirk);
 
 #endif /* __INTEL_QUIRKS_H__ */

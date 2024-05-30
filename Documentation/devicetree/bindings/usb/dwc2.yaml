@@ -59,6 +59,7 @@ properties:
       - const: amcc,dwc-otg
       - const: apm,apm82181-dwc-otg
       - const: snps,dwc2
+      - const: sophgo,cv1800-usb
       - const: st,stm32f4x9-fsotg
       - const: st,stm32f4x9-hsotg
       - const: st,stm32f7-hsotg
@@ -171,6 +172,10 @@ properties:
     $ref: /schemas/graph.yaml#/properties/port
 
   tpl-support: true
+
+  access-controllers:
+    minItems: 1
+    maxItems: 2
 
 dependencies:
   port: [ usb-role-switch ]

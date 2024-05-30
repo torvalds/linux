@@ -6,14 +6,15 @@
 #include "buckets_types.h"
 #include "extents_types.h"
 
-enum bkey_invalid_flags;
+enum bch_validate_flags;
 
 int bch2_stripe_invalid(struct bch_fs *, struct bkey_s_c,
-			enum bkey_invalid_flags, struct printbuf *);
+			enum bch_validate_flags, struct printbuf *);
 void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 			 struct bkey_s_c);
 int bch2_trigger_stripe(struct btree_trans *, enum btree_id, unsigned,
-			struct bkey_s_c, struct bkey_s, unsigned);
+			struct bkey_s_c, struct bkey_s,
+			enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_stripe ((struct bkey_ops) {	\
 	.key_invalid	= bch2_stripe_invalid,		\
@@ -32,6 +33,8 @@ static inline unsigned stripe_csums_per_device(const struct bch_stripe *s)
 static inline unsigned stripe_csum_offset(const struct bch_stripe *s,
 					  unsigned dev, unsigned csum_idx)
 {
+	EBUG_ON(s->csum_type >= BCH_CSUM_NR);
+
 	unsigned csum_bytes = bch_crc_bytes[s->csum_type];
 
 	return sizeof(struct bch_stripe) +

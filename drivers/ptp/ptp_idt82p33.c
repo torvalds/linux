@@ -1447,15 +1447,13 @@ static int idt82p33_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int idt82p33_remove(struct platform_device *pdev)
+static void idt82p33_remove(struct platform_device *pdev)
 {
 	struct idt82p33 *idt82p33 = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&idt82p33->extts_work);
 
 	idt82p33_ptp_clock_unregister_all(idt82p33);
-
-	return 0;
 }
 
 static struct platform_driver idt82p33_driver = {
@@ -1463,7 +1461,7 @@ static struct platform_driver idt82p33_driver = {
 		.name = "82p33x1x-phc",
 	},
 	.probe = idt82p33_probe,
-	.remove	= idt82p33_remove,
+	.remove_new = idt82p33_remove,
 };
 
 module_platform_driver(idt82p33_driver);

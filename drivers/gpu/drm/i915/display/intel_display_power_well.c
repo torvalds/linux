@@ -17,6 +17,7 @@
 #include "intel_dkl_phy.h"
 #include "intel_dkl_phy_regs.h"
 #include "intel_dmc.h"
+#include "intel_dmc_wl.h"
 #include "intel_dp_aux_regs.h"
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
@@ -26,6 +27,7 @@
 #include "intel_tc.h"
 #include "intel_vga.h"
 #include "skl_watermark.h"
+#include "vlv_dpio_phy_regs.h"
 #include "vlv_sideband.h"
 #include "vlv_sideband_reg.h"
 
@@ -199,6 +201,9 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv,
 		gen8_irq_power_well_pre_disable(dev_priv, irq_pipe_mask);
 }
 
+#define ICL_AUX_PW_TO_PHY(pw_idx)	\
+	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + PHY_A)
+
 #define ICL_AUX_PW_TO_CH(pw_idx)	\
 	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + AUX_CH_A)
 
@@ -217,27 +222,22 @@ static struct intel_digital_port *
 aux_ch_to_digital_port(struct drm_i915_private *dev_priv,
 		       enum aux_ch aux_ch)
 {
-	struct intel_digital_port *dig_port = NULL;
 	struct intel_encoder *encoder;
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		struct intel_digital_port *dig_port;
+
 		/* We'll check the MST primary port */
 		if (encoder->type == INTEL_OUTPUT_DP_MST)
 			continue;
 
 		dig_port = enc_to_dig_port(encoder);
-		if (!dig_port)
-			continue;
 
-		if (dig_port->aux_ch != aux_ch) {
-			dig_port = NULL;
-			continue;
-		}
-
-		break;
+		if (dig_port && dig_port->aux_ch == aux_ch)
+			return dig_port;
 	}
 
-	return dig_port;
+	return NULL;
 }
 
 static enum phy icl_aux_pw_to_phy(struct drm_i915_private *i915,
@@ -253,7 +253,7 @@ static enum phy icl_aux_pw_to_phy(struct drm_i915_private *i915,
 	 * as HDMI-only and routed to a combo PHY, the encoder either won't be
 	 * present at all or it will not have an aux_ch assigned.
 	 */
-	return dig_port ? intel_port_to_phy(i915, dig_port->base.port) : PHY_NONE;
+	return dig_port ? intel_encoder_to_phy(&dig_port->base) : PHY_NONE;
 }
 
 static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
@@ -396,17 +396,11 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
-static bool intel_port_is_edp(struct drm_i915_private *i915, enum port port)
+static bool intel_aux_ch_is_edp(struct drm_i915_private *i915, enum aux_ch aux_ch)
 {
-	struct intel_encoder *encoder;
+	struct intel_digital_port *dig_port = aux_ch_to_digital_port(i915, aux_ch);
 
-	for_each_intel_encoder(&i915->drm, encoder) {
-		if (encoder->type == INTEL_OUTPUT_EDP &&
-		    encoder->port == port)
-			return true;
-	}
-
-	return false;
+	return dig_port && dig_port->base.type == INTEL_OUTPUT_EDP;
 }
 
 static void
@@ -415,24 +409,25 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 {
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
 	int pw_idx = i915_power_well_instance(power_well)->hsw.idx;
-	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 
 	drm_WARN_ON(&dev_priv->drm, !IS_ICELAKE(dev_priv));
 
 	intel_de_rmw(dev_priv, regs->driver, 0, HSW_PWR_WELL_CTL_REQ(pw_idx));
 
-	/* FIXME this is a mess */
-	if (phy != PHY_NONE)
-		intel_de_rmw(dev_priv, ICL_PORT_CL_DW12(phy),
-			     0, ICL_LANE_ENABLE_AUX);
+	/*
+	 * FIXME not sure if we should derive the PHY from the pw_idx, or
+	 * from the VBT defined AUX_CH->DDI->PHY mapping.
+	 */
+	intel_de_rmw(dev_priv, ICL_PORT_CL_DW12(ICL_AUX_PW_TO_PHY(pw_idx)),
+		     0, ICL_LANE_ENABLE_AUX);
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well, false);
 
 	/* Display WA #1178: icl */
 	if (pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= ICL_PW_CTL_IDX_AUX_B &&
-	    !intel_port_is_edp(dev_priv, (enum port)phy))
-		intel_de_rmw(dev_priv, ICL_AUX_ANAOVRD1(pw_idx),
-			     0, ICL_AUX_ANAOVRD1_ENABLE | ICL_AUX_ANAOVRD1_LDO_BYPASS);
+	    !intel_aux_ch_is_edp(dev_priv, ICL_AUX_PW_TO_CH(pw_idx)))
+		intel_de_rmw(dev_priv, ICL_PORT_TX_DW6_AUX(ICL_AUX_PW_TO_PHY(pw_idx)),
+			     0, O_FUNC_OVRD_EN | O_LDO_BYPASS_CRI);
 }
 
 static void
@@ -441,14 +436,15 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 {
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
 	int pw_idx = i915_power_well_instance(power_well)->hsw.idx;
-	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 
 	drm_WARN_ON(&dev_priv->drm, !IS_ICELAKE(dev_priv));
 
-	/* FIXME this is a mess */
-	if (phy != PHY_NONE)
-		intel_de_rmw(dev_priv, ICL_PORT_CL_DW12(phy),
-			     ICL_LANE_ENABLE_AUX, 0);
+	/*
+	 * FIXME not sure if we should derive the PHY from the pw_idx, or
+	 * from the VBT defined AUX_CH->DDI->PHY mapping.
+	 */
+	intel_de_rmw(dev_priv, ICL_PORT_CL_DW12(ICL_AUX_PW_TO_PHY(pw_idx)),
+		     ICL_LANE_ENABLE_AUX, 0);
 
 	intel_de_rmw(dev_priv, regs->driver, HSW_PWR_WELL_CTL_REQ(pw_idx), 0);
 
@@ -827,6 +823,8 @@ void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 		intel_de_rmw(dev_priv, GEN8_CHICKEN_DCPR_1,
 			     0, SKL_SELECT_ALTERNATE_DC_EXIT);
 
+	intel_dmc_wl_enable(&dev_priv->display);
+
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC5);
 }
 
@@ -855,6 +853,8 @@ void skl_enable_dc6(struct drm_i915_private *dev_priv)
 	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
 		intel_de_rmw(dev_priv, GEN8_CHICKEN_DCPR_1,
 			     0, SKL_SELECT_ALTERNATE_DC_EXIT);
+
+	intel_dmc_wl_enable(&dev_priv->display);
 
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 }
@@ -906,39 +906,39 @@ static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	bxt_ddi_phy_init(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+	bxt_dpio_phy_init(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 }
 
 static void bxt_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	bxt_ddi_phy_uninit(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+	bxt_dpio_phy_uninit(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 }
 
 static bool bxt_dpio_cmn_power_well_enabled(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	return bxt_ddi_phy_is_enabled(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+	return bxt_dpio_phy_is_enabled(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 }
 
-static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
+static void bxt_verify_dpio_phy_power_wells(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *power_well;
 
 	power_well = lookup_power_well(dev_priv, BXT_DISP_PW_DPIO_CMN_A);
 	if (intel_power_well_refcount(power_well) > 0)
-		bxt_ddi_phy_verify_state(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+		bxt_dpio_phy_verify_state(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 
 	power_well = lookup_power_well(dev_priv, VLV_DISP_PW_DPIO_CMN_BC);
 	if (intel_power_well_refcount(power_well) > 0)
-		bxt_ddi_phy_verify_state(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+		bxt_dpio_phy_verify_state(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 
 	if (IS_GEMINILAKE(dev_priv)) {
 		power_well = lookup_power_well(dev_priv,
 					       GLK_DISP_PW_DPIO_CMN_C);
 		if (intel_power_well_refcount(power_well) > 0)
-			bxt_ddi_phy_verify_state(dev_priv,
-						 i915_power_well_instance(power_well)->bxt.phy);
+			bxt_dpio_phy_verify_state(dev_priv,
+						  i915_power_well_instance(power_well)->bxt.phy);
 	}
 }
 
@@ -976,16 +976,18 @@ void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
+	intel_dmc_wl_disable(&dev_priv->display);
+
 	intel_cdclk_get_cdclk(dev_priv, &cdclk_config);
 	/* Can't read out voltage_level so can't use intel_cdclk_changed() */
 	drm_WARN_ON(&dev_priv->drm,
-		    intel_cdclk_needs_modeset(&dev_priv->display.cdclk.hw,
+		    intel_cdclk_clock_changed(&dev_priv->display.cdclk.hw,
 					      &cdclk_config));
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		bxt_verify_ddi_phy_power_wells(dev_priv);
+		bxt_verify_dpio_phy_power_wells(dev_priv);
 
 	if (DISPLAY_VER(dev_priv) >= 11)
 		/*
@@ -1396,8 +1398,8 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 	 * The PHY may be busy with some initial calibration and whatnot,
 	 * so the power state can take a while to actually change.
 	 */
-	if (intel_de_wait_for_register(dev_priv, DISPLAY_PHY_STATUS,
-				       phy_status_mask, phy_status, 10))
+	if (intel_de_wait(dev_priv, DISPLAY_PHY_STATUS,
+			  phy_status_mask, phy_status, 10))
 		drm_err(&dev_priv->drm,
 			"Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
 			intel_de_read(dev_priv, DISPLAY_PHY_STATUS) & phy_status_mask,
@@ -1441,9 +1443,9 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW28, tmp);
 
 	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
-		tmp = vlv_dpio_read(dev_priv, phy, _CHV_CMN_DW6_CH1);
+		tmp = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW6_CH1);
 		tmp |= DPIO_DYNPWRDOWNEN_CH1;
-		vlv_dpio_write(dev_priv, phy, _CHV_CMN_DW6_CH1, tmp);
+		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW6_CH1, tmp);
 	} else {
 		/*
 		 * Force the non-existing CL2 off. BXT does this
@@ -1519,9 +1521,9 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 		return;
 
 	if (ch == DPIO_CH0)
-		reg = _CHV_CMN_DW0_CH0;
+		reg = CHV_CMN_DW0_CH0;
 	else
-		reg = _CHV_CMN_DW6_CH1;
+		reg = CHV_CMN_DW6_CH1;
 
 	vlv_dpio_get(dev_priv);
 	val = vlv_dpio_read(dev_priv, phy, reg);
@@ -1552,10 +1554,11 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 	}
 
 	if (ch == DPIO_CH0)
-		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH0;
+		actual = REG_FIELD_GET(DPIO_ANYDL_POWERDOWN_CH0 |
+				       DPIO_ALLDL_POWERDOWN_CH0, val);
 	else
-		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH1;
-	actual &= DPIO_ALLDL_POWERDOWN | DPIO_ANYDL_POWERDOWN;
+		actual = REG_FIELD_GET(DPIO_ANYDL_POWERDOWN_CH1 |
+				       DPIO_ALLDL_POWERDOWN_CH1, val);
 
 	drm_WARN(&dev_priv->drm, actual != expected,
 		 "Unexpected DPIO lane power down: all %d, any %d. Expected: all %d, any %d. (0x%x = 0x%08x)\n",

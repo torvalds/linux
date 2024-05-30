@@ -140,7 +140,7 @@ int hubbub21_init_dchub(struct hubbub *hubbub,
 
 bool hubbub21_program_urgent_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -334,7 +334,7 @@ bool hubbub21_program_urgent_watermarks(
 
 bool hubbub21_program_stutter_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -487,7 +487,7 @@ bool hubbub21_program_stutter_watermarks(
 
 bool hubbub21_program_pstate_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -573,7 +573,7 @@ bool hubbub21_program_pstate_watermarks(
 
 bool hubbub21_program_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {

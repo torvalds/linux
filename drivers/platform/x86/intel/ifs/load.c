@@ -233,7 +233,9 @@ static int copy_hashes_authenticate_chunks_gen2(struct device *dev)
 		chunk_table[0] = starting_chunk_nr + i;
 		chunk_table[1] = linear_addr;
 		do {
+			local_irq_disable();
 			wrmsrl(MSR_AUTHENTICATE_AND_COPY_CHUNK, (u64)chunk_table);
+			local_irq_enable();
 			rdmsrl(MSR_CHUNKS_AUTHENTICATION_STATUS, chunk_status.data);
 			err_code = chunk_status.error_code;
 		} while (err_code == AUTH_INTERRUPTED_ERROR && --retry_count);

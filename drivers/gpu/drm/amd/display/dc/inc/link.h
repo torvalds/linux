@@ -288,7 +288,7 @@ struct link_service {
 			struct dc_link *link, uint32_t coasting_vtotal);
 	bool (*edp_replay_residency)(const struct dc_link *link,
 			unsigned int *residency, const bool is_start,
-			const bool is_alpm);
+			const enum pr_residency_mode mode);
 	bool (*edp_set_replay_power_opt_and_coasting_vtotal)(struct dc_link *link,
 			const unsigned int *power_opts, uint32_t coasting_vtotal);
 

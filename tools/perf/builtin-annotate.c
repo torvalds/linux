@@ -37,11 +37,13 @@
 #include "util/map_symbol.h"
 #include "util/branch.h"
 #include "util/util.h"
+#include "ui/progress.h"
 
 #include <dlfcn.h>
 #include <errno.h>
 #include <linux/bitmap.h>
 #include <linux/err.h>
+#include <inttypes.h>
 
 struct perf_annotate {
 	struct perf_tool tool;
@@ -217,7 +219,7 @@ static int process_branch_callback(struct evsel *evsel,
 	}
 
 	if (a.map != NULL)
-		map__dso(a.map)->hit = 1;
+		dso__set_hit(map__dso(a.map));
 
 	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
 
@@ -252,7 +254,7 @@ static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
 		if (al->sym != NULL) {
 			struct dso *dso = map__dso(al->map);
 
-			rb_erase_cached(&al->sym->rb_node, &dso->symbols);
+			rb_erase_cached(&al->sym->rb_node, dso__symbols(dso));
 			symbol__delete(al->sym);
 			dso__reset_find_symbol_cache(dso);
 		}
@@ -327,77 +329,6 @@ static int hist_entry__tty_annotate(struct hist_entry *he,
 	return symbol__tty_annotate2(&he->ms, evsel);
 }
 
-static void print_annotated_data_header(struct hist_entry *he, struct evsel *evsel)
-{
-	struct dso *dso = map__dso(he->ms.map);
-	int nr_members = 1;
-	int nr_samples = he->stat.nr_events;
-
-	if (evsel__is_group_event(evsel)) {
-		struct hist_entry *pair;
-
-		list_for_each_entry(pair, &he->pairs.head, pairs.node)
-			nr_samples += pair->stat.nr_events;
-	}
-
-	printf("Annotate type: '%s' in %s (%d samples):\n",
-	       he->mem_type->self.type_name, dso->name, nr_samples);
-
-	if (evsel__is_group_event(evsel)) {
-		struct evsel *pos;
-		int i = 0;
-
-		for_each_group_evsel(pos, evsel)
-			printf(" event[%d] = %s\n", i++, pos->name);
-
-		nr_members = evsel->core.nr_members;
-	}
-
-	printf("============================================================================\n");
-	printf("%*s %10s %10s  %s\n", 11 * nr_members, "samples", "offset", "size", "field");
-}
-
-static void print_annotated_data_type(struct annotated_data_type *mem_type,
-				      struct annotated_member *member,
-				      struct evsel *evsel, int indent)
-{
-	struct annotated_member *child;
-	struct type_hist *h = mem_type->histograms[evsel->core.idx];
-	int i, nr_events = 1, samples = 0;
-
-	for (i = 0; i < member->size; i++)
-		samples += h->addr[member->offset + i].nr_samples;
-	printf(" %10d", samples);
-
-	if (evsel__is_group_event(evsel)) {
-		struct evsel *pos;
-
-		for_each_group_member(pos, evsel) {
-			h = mem_type->histograms[pos->core.idx];
-
-			samples = 0;
-			for (i = 0; i < member->size; i++)
-				samples += h->addr[member->offset + i].nr_samples;
-			printf(" %10d", samples);
-		}
-		nr_events = evsel->core.nr_members;
-	}
-
-	printf(" %10d %10d  %*s%s\t%s",
-	       member->offset, member->size, indent, "", member->type_name,
-	       member->var_name ?: "");
-
-	if (!list_empty(&member->children))
-		printf(" {\n");
-
-	list_for_each_entry(child, &member->children, node)
-		print_annotated_data_type(mem_type, child, evsel, indent + 4);
-
-	if (!list_empty(&member->children))
-		printf("%*s}", 11 * nr_events + 24 + indent, "");
-	printf(";\n");
-}
-
 static void print_annotate_data_stat(struct annotated_data_stat *s)
 {
 #define PRINT_STAT(fld) if (s->fld) printf("%10d : %s\n", s->fld, #fld)
@@ -430,6 +361,7 @@ static void print_annotate_data_stat(struct annotated_data_stat *s)
 	PRINT_STAT(no_typeinfo);
 	PRINT_STAT(invalid_size);
 	PRINT_STAT(bad_offset);
+	PRINT_STAT(insn_track);
 	printf("\n");
 
 #undef PRINT_STAT
@@ -487,7 +419,7 @@ static void hists__find_annotations(struct hists *hists,
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct annotation *notes;
 
-		if (he->ms.sym == NULL || map__dso(he->ms.map)->annotate_warned)
+		if (he->ms.sym == NULL || dso__annotate_warned(map__dso(he->ms.map)))
 			goto find_next;
 
 		if (ann->sym_hist_filter &&
@@ -537,10 +469,32 @@ find_next:
 					goto find_next;
 			}
 
-			print_annotated_data_header(he, evsel);
-			print_annotated_data_type(he->mem_type, &he->mem_type->self, evsel, 0);
-			printf("\n");
-			goto find_next;
+			if (use_browser == 1)
+				key = hist_entry__annotate_data_tui(he, evsel, NULL);
+			else
+				key = hist_entry__annotate_data_tty(he, evsel);
+
+			switch (key) {
+			case -1:
+				if (!ann->skip_missing)
+					return;
+				/* fall through */
+			case K_RIGHT:
+			case '>':
+				next = rb_next(nd);
+				break;
+			case K_LEFT:
+			case '<':
+				next = rb_prev(nd);
+				break;
+			default:
+				return;
+			}
+
+			if (use_browser == 0 || next != NULL)
+				nd = next;
+
+			continue;
 		}
 
 		if (use_browser == 2) {
@@ -632,13 +586,23 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	evlist__for_each_entry(session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_samples;
+		struct ui_progress prog;
 
 		if (nr_samples > 0) {
 			total_nr_samples += nr_samples;
-			hists__collapse_resort(hists, NULL);
+
+			ui_progress__init(&prog, nr_samples,
+					  "Merging related events...");
+			hists__collapse_resort(hists, &prog);
+			ui_progress__finish();
+
 			/* Don't sort callchain */
 			evsel__reset_sample_bit(pos, CALLCHAIN);
-			evsel__output_resort(pos, NULL);
+
+			ui_progress__init(&prog, nr_samples,
+					  "Sorting events for output...");
+			evsel__output_resort(pos, &prog);
+			ui_progress__finish();
 
 			/*
 			 * An event group needs to display other events too.
@@ -809,8 +773,6 @@ int cmd_annotate(int argc, const char **argv)
 		    "Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
-	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
-		    "Show event group information together"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
@@ -935,9 +897,7 @@ int cmd_annotate(int argc, const char **argv)
 		use_browser = 2;
 #endif
 
-	/* FIXME: only support stdio for now */
 	if (annotate.data_type) {
-		use_browser = 0;
 		annotate_opts.annotate_src = false;
 		symbol_conf.annotate_data_member = true;
 		symbol_conf.annotate_data_sample = true;

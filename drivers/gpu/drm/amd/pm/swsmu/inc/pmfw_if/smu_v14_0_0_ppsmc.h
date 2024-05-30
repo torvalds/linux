@@ -72,23 +72,19 @@
 #define PPSMC_MSG_SetHardMinSocclkByFreq        0x13 ///< Set hard min for SOC CLK
 #define PPSMC_MSG_SetSoftMinFclk                0x14 ///< Set hard min for FCLK
 #define PPSMC_MSG_SetSoftMinVcn0                0x15 ///< Set soft min for VCN0 clocks (VCLK0 and DCLK0)
-
 #define PPSMC_MSG_EnableGfxImu                  0x16 ///< Enable GFX IMU
-
-#define PPSMC_MSG_spare_0x17                    0x17
-#define PPSMC_MSG_spare_0x18                    0x18
+#define PPSMC_MSG_spare_0x17                    0x17 ///< Get GFX clock frequency
+#define PPSMC_MSG_spare_0x18                    0x18 ///< Get FCLK frequency
 #define PPSMC_MSG_AllowGfxOff                   0x19 ///< Inform PMFW of allowing GFXOFF entry
 #define PPSMC_MSG_DisallowGfxOff                0x1A ///< Inform PMFW of disallowing GFXOFF entry
 #define PPSMC_MSG_SetSoftMaxGfxClk              0x1B ///< Set soft max for GFX CLK
 #define PPSMC_MSG_SetHardMinGfxClk              0x1C ///< Set hard min for GFX CLK
-
 #define PPSMC_MSG_SetSoftMaxSocclkByFreq        0x1D ///< Set soft max for SOC CLK
 #define PPSMC_MSG_SetSoftMaxFclkByFreq          0x1E ///< Set soft max for FCLK
 #define PPSMC_MSG_SetSoftMaxVcn0                0x1F ///< Set soft max for VCN0 clocks (VCLK0 and DCLK0)
-#define PPSMC_MSG_spare_0x20                    0x20
+#define PPSMC_MSG_spare_0x20                    0x20 ///< Set power limit percentage
 #define PPSMC_MSG_PowerDownJpeg0                0x21 ///< Power down Jpeg of VCN0
 #define PPSMC_MSG_PowerUpJpeg0                  0x22 ///< Power up Jpeg of VCN0; VCN0 is power gated by default
-
 #define PPSMC_MSG_SetHardMinFclkByFreq          0x23 ///< Set hard min for FCLK
 #define PPSMC_MSG_SetSoftMinSocclkByFreq        0x24 ///< Set soft min for SOC CLK
 #define PPSMC_MSG_AllowZstates                  0x25 ///< Inform PMFM of allowing Zstate entry, i.e. no Miracast activity
@@ -99,8 +95,8 @@
 #define PPSMC_MSG_PowerUpIspByTile              0x2A ///< This message is used to power up ISP tiles and enable the ISP DPM
 #define PPSMC_MSG_SetHardMinIspiclkByFreq       0x2B ///< Set HardMin by frequency for ISPICLK
 #define PPSMC_MSG_SetHardMinIspxclkByFreq       0x2C ///< Set HardMin by frequency for ISPXCLK
-#define PPSMC_MSG_PowerDownUmsch                0x2D ///< Power down VCN.UMSCH (aka VSCH) scheduler
-#define PPSMC_MSG_PowerUpUmsch                  0x2E ///< Power up VCN.UMSCH (aka VSCH) scheduler
+#define PPSMC_MSG_PowerDownUmsch                0x2D ///< Power down VCN0.UMSCH (aka VSCH) scheduler
+#define PPSMC_MSG_PowerUpUmsch                  0x2E ///< Power up VCN0.UMSCH (aka VSCH) scheduler
 #define PPSMC_Message_IspStutterOn_MmhubPgDis   0x2F ///< ISP StutterOn mmHub PgDis
 #define PPSMC_Message_IspStutterOff_MmhubPgEn   0x30 ///< ISP StufferOff mmHub PgEn
 #define PPSMC_MSG_PowerUpVpe                    0x31 ///< Power up VPE
@@ -110,7 +106,9 @@
 #define PPSMC_MSG_DisableLSdma                  0x35 ///< Disable LSDMA
 #define PPSMC_MSG_SetSoftMaxVpe                 0x36 ///<
 #define PPSMC_MSG_SetSoftMinVpe                 0x37 ///<
-#define PPSMC_Message_Count                     0x38 ///< Total number of PPSMC messages
+#define PPSMC_MSG_AllocMALLCache                0x38 ///< Allocating MALL Cache
+#define PPSMC_MSG_ReleaseMALLCache              0x39 ///< Releasing MALL Cache
+#define PPSMC_Message_Count                     0x3A ///< Total number of PPSMC messages
 /** @}*/
 
 /**

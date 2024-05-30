@@ -208,6 +208,10 @@ int ccw_device_start_timeout_key(struct ccw_device *cdev, struct ccw1 *cpa,
 		if (!cdev->private->flags.fake_irb) {
 			cdev->private->flags.fake_irb = FAKE_CMD_IRB;
 			cdev->private->intparm = intparm;
+			CIO_MSG_EVENT(2, "fakeirb: queue device 0.%x.%04x intparm %lx type=%d\n",
+				      cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno, intparm,
+				      cdev->private->flags.fake_irb);
 			return 0;
 		} else
 			/* There's already a fake I/O around. */
@@ -551,6 +555,10 @@ int ccw_device_tm_start_timeout_key(struct ccw_device *cdev, struct tcw *tcw,
 		if (!cdev->private->flags.fake_irb) {
 			cdev->private->flags.fake_irb = FAKE_TM_IRB;
 			cdev->private->intparm = intparm;
+			CIO_MSG_EVENT(2, "fakeirb: queue device 0.%x.%04x intparm %lx type=%d\n",
+				      cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno, intparm,
+				      cdev->private->flags.fake_irb);
 			return 0;
 		} else
 			/* There's already a fake I/O around. */

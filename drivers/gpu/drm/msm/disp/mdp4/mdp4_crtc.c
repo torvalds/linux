@@ -182,8 +182,8 @@ static void blend_setup(struct drm_crtc *crtc)
 		enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
 		int idx = idxs[pipe_id];
 		if (idx > 0) {
-			const struct mdp_format *format =
-					to_mdp_format(msm_framebuffer_format(plane->state->fb));
+			const struct msm_format *format =
+					msm_framebuffer_format(plane->state->fb);
 			alpha[idx-1] = format->alpha_enable;
 		}
 	}

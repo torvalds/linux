@@ -605,8 +605,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 		    intel_de_read(dev_priv, pp_stat_reg),
 		    intel_de_read(dev_priv, pp_ctrl_reg));
 
-	if (intel_de_wait_for_register(dev_priv, pp_stat_reg,
-				       mask, value, 5000))
+	if (intel_de_wait(dev_priv, pp_stat_reg, mask, value, 5000))
 		drm_err(&dev_priv->drm,
 			"[ENCODER:%d:%s] %s panel status timeout: PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 			dig_port->base.base.base.id, dig_port->base.base.name,
@@ -1351,7 +1350,7 @@ static void pps_init_delays_bios(struct intel_dp *intel_dp,
 static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 				struct edp_power_seq *vbt)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector = intel_dp->attached_connector;
 
 	*vbt = connector->panel.vbt.edp.pps;
@@ -1364,9 +1363,9 @@ static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 	 * just fails to power back on. Increasing the delay to 800ms
 	 * seems sufficient to avoid this problem.
 	 */
-	if (intel_has_quirk(dev_priv, QUIRK_INCREASE_T12_DELAY)) {
+	if (intel_has_quirk(display, QUIRK_INCREASE_T12_DELAY)) {
 		vbt->t11_t12 = max_t(u16, vbt->t11_t12, 1300 * 10);
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "Increasing T12 panel delay as per the quirk to %d\n",
 			    vbt->t11_t12);
 	}
@@ -1669,6 +1668,37 @@ void intel_pps_setup(struct drm_i915_private *i915)
 		i915->display.pps.mmio_base = VLV_PPS_BASE;
 	else
 		i915->display.pps.mmio_base = PPS_BASE;
+}
+
+static int intel_pps_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = m->private;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+
+	if (connector->base.status != connector_status_connected)
+		return -ENODEV;
+
+	seq_printf(m, "Panel power up delay: %d\n",
+		   intel_dp->pps.panel_power_up_delay);
+	seq_printf(m, "Panel power down delay: %d\n",
+		   intel_dp->pps.panel_power_down_delay);
+	seq_printf(m, "Backlight on delay: %d\n",
+		   intel_dp->pps.backlight_on_delay);
+	seq_printf(m, "Backlight off delay: %d\n",
+		   intel_dp->pps.backlight_off_delay);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(intel_pps);
+
+void intel_pps_connector_debugfs_add(struct intel_connector *connector)
+{
+	struct dentry *root = connector->base.debugfs_entry;
+	int connector_type = connector->base.connector_type;
+
+	if (connector_type == DRM_MODE_CONNECTOR_eDP)
+		debugfs_create_file("i915_panel_timings", 0444, root,
+				    connector, &intel_pps_fops);
 }
 
 void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)

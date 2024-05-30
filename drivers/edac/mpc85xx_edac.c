@@ -496,7 +496,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	edac_dev = edac_device_alloc_ctl_info(sizeof(*pdata),
-					      "cpu", 1, "L", 1, 2, NULL, 0,
+					      "cpu", 1, "L", 1, 2,
 					      edac_dev_idx);
 	if (!edac_dev) {
 		devres_release_group(&op->dev, mpc85xx_l2_err_probe);

@@ -51,6 +51,8 @@ void vlv_pps_init(struct intel_encoder *encoder,
 void intel_pps_unlock_regs_wa(struct drm_i915_private *i915);
 void intel_pps_setup(struct drm_i915_private *i915);
 
+void intel_pps_connector_debugfs_add(struct intel_connector *connector);
+
 void assert_pps_unlocked(struct drm_i915_private *i915, enum pipe pipe);
 
 #endif /* __INTEL_PPS_H__ */

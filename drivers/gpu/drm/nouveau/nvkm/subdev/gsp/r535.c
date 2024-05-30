@@ -1112,7 +1112,7 @@ r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 	rpc->numEntries = NV_GSP_REG_NUM_ENTRIES;
 
 	str_offset = offsetof(typeof(*rpc), entries[NV_GSP_REG_NUM_ENTRIES]);
-	strings = (char *)&rpc->entries[NV_GSP_REG_NUM_ENTRIES];
+	strings = (char *)rpc + str_offset;
 	for (i = 0; i < NV_GSP_REG_NUM_ENTRIES; i++) {
 		int name_len = strlen(r535_registry_entries[i].name) + 1;
 
@@ -1624,7 +1624,7 @@ r535_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
 	meta->magic = GSP_FW_WPR_META_MAGIC;
 	meta->revision = GSP_FW_WPR_META_REVISION;
 
-	meta->sysmemAddrOfRadix3Elf = gsp->radix3.mem[0].addr;
+	meta->sysmemAddrOfRadix3Elf = gsp->radix3.lvl0.addr;
 	meta->sizeOfRadix3Elf = gsp->fb.wpr2.elf.size;
 
 	meta->sysmemAddrOfBootloader = gsp->boot.fw.addr;
@@ -1919,8 +1919,9 @@ nvkm_gsp_sg(struct nvkm_device *device, u64 size, struct sg_table *sgt)
 static void
 nvkm_gsp_radix3_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_radix3 *rx3)
 {
-	for (int i = ARRAY_SIZE(rx3->mem) - 1; i >= 0; i--)
-		nvkm_gsp_mem_dtor(gsp, &rx3->mem[i]);
+	nvkm_gsp_sg_free(gsp->subdev.device, &rx3->lvl2);
+	nvkm_gsp_mem_dtor(gsp, &rx3->lvl1);
+	nvkm_gsp_mem_dtor(gsp, &rx3->lvl0);
 }
 
 /**
@@ -1960,36 +1961,60 @@ static int
 nvkm_gsp_radix3_sg(struct nvkm_gsp *gsp, struct sg_table *sgt, u64 size,
 		   struct nvkm_gsp_radix3 *rx3)
 {
-	u64 addr;
+	struct sg_dma_page_iter sg_dma_iter;
+	struct scatterlist *sg;
+	size_t bufsize;
+	u64 *pte;
+	int ret, i, page_idx = 0;
 
-	for (int i = ARRAY_SIZE(rx3->mem) - 1; i >= 0; i--) {
-		u64 *ptes;
-		size_t bufsize;
-		int ret, idx;
+	ret = nvkm_gsp_mem_ctor(gsp, GSP_PAGE_SIZE, &rx3->lvl0);
+	if (ret)
+		return ret;
 
-		bufsize = ALIGN((size / GSP_PAGE_SIZE) * sizeof(u64), GSP_PAGE_SIZE);
-		ret = nvkm_gsp_mem_ctor(gsp, bufsize, &rx3->mem[i]);
-		if (ret)
-			return ret;
+	ret = nvkm_gsp_mem_ctor(gsp, GSP_PAGE_SIZE, &rx3->lvl1);
+	if (ret)
+		goto lvl1_fail;
 
-		ptes = rx3->mem[i].data;
-		if (i == 2) {
-			struct scatterlist *sgl;
+	// Allocate level 2
+	bufsize = ALIGN((size / GSP_PAGE_SIZE) * sizeof(u64), GSP_PAGE_SIZE);
+	ret = nvkm_gsp_sg(gsp->subdev.device, bufsize, &rx3->lvl2);
+	if (ret)
+		goto lvl2_fail;
 
-			for_each_sgtable_dma_sg(sgt, sgl, idx) {
-				for (int j = 0; j < sg_dma_len(sgl) / GSP_PAGE_SIZE; j++)
-					*ptes++ = sg_dma_address(sgl) + (GSP_PAGE_SIZE * j);
-			}
-		} else {
-			for (int j = 0; j < size / GSP_PAGE_SIZE; j++)
-				*ptes++ = addr + GSP_PAGE_SIZE * j;
+	// Write the bus address of level 1 to level 0
+	pte = rx3->lvl0.data;
+	*pte = rx3->lvl1.addr;
+
+	// Write the bus address of each page in level 2 to level 1
+	pte = rx3->lvl1.data;
+	for_each_sgtable_dma_page(&rx3->lvl2, &sg_dma_iter, 0)
+		*pte++ = sg_page_iter_dma_address(&sg_dma_iter);
+
+	// Finally, write the bus address of each page in sgt to level 2
+	for_each_sgtable_sg(&rx3->lvl2, sg, i) {
+		void *sgl_end;
+
+		pte = sg_virt(sg);
+		sgl_end = (void *)pte + sg->length;
+
+		for_each_sgtable_dma_page(sgt, &sg_dma_iter, page_idx) {
+			*pte++ = sg_page_iter_dma_address(&sg_dma_iter);
+			page_idx++;
+
+			// Go to the next scatterlist for level 2 if we've reached the end
+			if ((void *)pte >= sgl_end)
+				break;
 		}
-
-		size = rx3->mem[i].size;
-		addr = rx3->mem[i].addr;
 	}
 
-	return 0;
+	if (ret) {
+lvl2_fail:
+		nvkm_gsp_mem_dtor(gsp, &rx3->lvl1);
+lvl1_fail:
+		nvkm_gsp_mem_dtor(gsp, &rx3->lvl0);
+	}
+
+	return ret;
 }
 
 int
@@ -2021,7 +2046,7 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 		sr = gsp->sr.meta.data;
 		sr->magic = GSP_FW_SR_META_MAGIC;
 		sr->revision = GSP_FW_SR_META_REVISION;
-		sr->sysmemAddrOfSuspendResumeData = gsp->sr.radix3.mem[0].addr;
+		sr->sysmemAddrOfSuspendResumeData = gsp->sr.radix3.lvl0.addr;
 		sr->sizeOfSuspendResumeData = len;
 
 		mbox0 = lower_32_bits(gsp->sr.meta.addr);

@@ -2,7 +2,7 @@
 /*
  * Intel SST generic IPC Support
  *
- * Copyright (C) 2015, Intel Corporation. All rights reserved.
+ * Copyright (C) 2015, Intel Corporation
  */
 
 #include <linux/types.h>

@@ -9,7 +9,6 @@
 #include "vlv_sideband.h"
 
 #include "display/intel_dpio_phy.h"
-#include "display/intel_display_types.h"
 
 /*
  * IOSF sideband, see VLV2_SidebandMsg_HAS.docx and

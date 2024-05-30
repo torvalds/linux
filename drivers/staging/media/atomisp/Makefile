@@ -21,7 +21,6 @@ atomisp-objs += \
 	pci/atomisp_fops.o \
 	pci/atomisp_ioctl.o \
 	pci/atomisp_subdev.o \
-	pci/atomisp_tpg.o \
 	pci/atomisp_v4l2.o \
 	pci/sh_css_firmware.o \
 	pci/sh_css_host_data.o \

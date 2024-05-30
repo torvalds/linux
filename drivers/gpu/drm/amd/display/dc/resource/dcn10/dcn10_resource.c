@@ -513,7 +513,7 @@ static const struct dc_plane_cap plane_cap = {
 			.argb8888 = true,
 			.nv12 = true,
 			.fp16 = true,
-			.p010 = true
+			.p010 = false
 	},
 
 	.max_upscale_factor = {
@@ -569,6 +569,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = true,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
+		.enable_legacy_fast_update = true,
 };
 
 static void dcn10_dpp_destroy(struct dpp **dpp)
@@ -1631,6 +1632,7 @@ static bool dcn10_resource_construct(
 	/* valid pipe num */
 	pool->base.pipe_count = j;
 	pool->base.timing_generator_count = j;
+	pool->base.mpcc_count = j;
 
 	/* within dml lib, it is hard code to 4. If ASIC pipe is fused,
 	 * the value may be changed

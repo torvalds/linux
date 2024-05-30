@@ -22,7 +22,7 @@
 #include <linux/usb/typec_mux.h>
 
 #define IT5205_REG_CHIP_ID(x)	(0x4 + (x))
-#define IT5205FN_CHIP_ID	0x35323035 /* "5205" */
+#define IT5205FN_CHIP_ID	0x35303235 /* "5025" -> "5205" */
 
 /* MUX power down register */
 #define IT5205_REG_MUXPDR        0x10

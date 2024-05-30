@@ -17,25 +17,6 @@
 #define _HRT_HIVE_TYPES_H
 
 #include "version.h"
-#include "defs.h"
-
-#ifndef HRTCAT3
-#define _HRTCAT3(m, n, o)     m##n##o
-#define HRTCAT3(m, n, o)      _HRTCAT3(m, n, o)
-#endif
-
-#ifndef HRTCAT4
-#define _HRTCAT4(m, n, o, p)     m##n##o##p
-#define HRTCAT4(m, n, o, p)      _HRTCAT4(m, n, o, p)
-#endif
-
-#ifndef HRTMIN
-#define HRTMIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-
-#ifndef HRTMAX
-#define HRTMAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
 
 /* boolean data type */
 typedef unsigned int hive_bool;

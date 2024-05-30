@@ -290,7 +290,7 @@ enum vcap_keyfield_set {
  *   Sparx5: TCP flag RST , LAN966x: TCP: TCP flag RST. PTP over UDP: messageType
  *   bit 3
  * VCAP_KF_L4_SEQUENCE_EQ0_IS: W1, sparx5: is2/es2, lan966x: is2
- *   Set if TCP sequence number is 0, LAN966x: Overlayed with PTP over UDP:
+ *   Set if TCP sequence number is 0, LAN966x: Overlaid with PTP over UDP:
  *   messageType bit 0
  * VCAP_KF_L4_SPORT: W16, sparx5: is0/is2/es2, lan966x: is1/is2
  *   TCP/UDP source port

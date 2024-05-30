@@ -28,7 +28,7 @@
 	})[0].attr.attr)
 
 #define ARM_CSPMU_FORMAT_ATTR(_name, _config)				\
-	ARM_CSPMU_EXT_ATTR(_name, arm_cspmu_sysfs_format_show, (char *)_config)
+	ARM_CSPMU_EXT_ATTR(_name, device_show_string, _config)
 
 #define ARM_CSPMU_EVENT_ATTR(_name, _config)				\
 	PMU_EVENT_ATTR_ID(_name, arm_cspmu_sysfs_event_show, _config)
@@ -166,11 +166,6 @@ struct arm_cspmu {
 ssize_t arm_cspmu_sysfs_event_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf);
-
-/* Default function to show format attribute in sysfs. */
-ssize_t arm_cspmu_sysfs_format_show(struct device *dev,
-				    struct device_attribute *attr,
-				    char *buf);
 
 /* Register vendor backend. */
 int arm_cspmu_impl_register(const struct arm_cspmu_impl_match *impl_match);

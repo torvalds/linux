@@ -23,30 +23,44 @@
 #include "ishtp-dev.h"
 #include "hw-ish.h"
 
+enum ishtp_driver_data_index {
+	ISHTP_DRIVER_DATA_NONE,
+	ISHTP_DRIVER_DATA_LNL_M,
+};
+
+#define ISH_FW_FILENAME_LNL_M "intel/ish/ish_lnlm.bin"
+
+static struct ishtp_driver_data ishtp_driver_data[] = {
+	[ISHTP_DRIVER_DATA_LNL_M] = {
+		.fw_filename = ISH_FW_FILENAME_LNL_M,
+	},
+};
+
 static const struct pci_device_id ish_pci_tbl[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CHV_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, BXT_Ax_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, BXT_Bx_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, APL_Ax_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, SPT_Ax_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CNL_Ax_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, GLK_Ax_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CNL_H_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ICL_MOBILE_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, SPT_H_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CML_LP_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CMP_H_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, EHL_Ax_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, TGL_LP_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, TGL_H_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ADL_S_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ADL_P_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ADL_N_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, RPL_S_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MTL_P_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ARL_H_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ARL_S_DEVICE_ID)},
-	{0, }
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_CHV)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_BXT_Ax)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_BXT_Bx)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_APL_Ax)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_SPT_Ax)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_CNL_Ax)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_GLK_Ax)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_CNL_H)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_ICL_MOBILE)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_SPT_H)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_CML_LP)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_CMP_H)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_EHL_Ax)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_TGL_LP)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_TGL_H)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_ADL_S)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_ADL_P)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_ADL_N)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_RPL_S)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_MTL_P)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_ARL_H)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_ARL_S)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_LNL_M), .driver_data = ISHTP_DRIVER_DATA_LNL_M},
+	{}
 };
 MODULE_DEVICE_TABLE(pci, ish_pci_tbl);
 
@@ -105,19 +119,19 @@ static int ish_init(struct ishtp_device *dev)
 
 static const struct pci_device_id ish_invalid_pci_ids[] = {
 	/* Mehlow platform special pci ids */
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xA309)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xA30A)},
+	{PCI_VDEVICE(INTEL, 0xA309)},
+	{PCI_VDEVICE(INTEL, 0xA30A)},
 	{}
 };
 
 static inline bool ish_should_enter_d0i3(struct pci_dev *pdev)
 {
-	return !pm_suspend_via_firmware() || pdev->device == CHV_DEVICE_ID;
+	return !pm_suspend_via_firmware() || pdev->device == PCI_DEVICE_ID_INTEL_ISH_CHV;
 }
 
 static inline bool ish_should_leave_d0i3(struct pci_dev *pdev)
 {
-	return !pm_resume_via_firmware() || pdev->device == CHV_DEVICE_ID;
+	return !pm_resume_via_firmware() || pdev->device == PCI_DEVICE_ID_INTEL_ISH_CHV;
 }
 
 /**
@@ -166,6 +180,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	hw = to_ish_hw(ishtp);
 	ishtp->print_log = ish_event_tracer;
+	ishtp->driver_data = &ishtp_driver_data[ent->driver_data];
 
 	/* mapping IO device memory */
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
@@ -173,6 +188,11 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* request and enable interrupt */
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0) {
+		dev_err(dev, "ISH: Failed to allocate IRQ vectors\n");
+		return ret;
+	}
+
 	if (!pdev->msi_enabled && !pdev->msix_enabled)
 		irq_flag = IRQF_SHARED;
 
@@ -189,7 +209,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	init_waitqueue_head(&ishtp->resume_wait);
 
 	/* Enable PME for EHL */
-	if (pdev->device == EHL_Ax_DEVICE_ID)
+	if (pdev->device == PCI_DEVICE_ID_INTEL_ISH_EHL_Ax)
 		device_init_wakeup(dev, true);
 
 	ret = ish_init(ishtp);
@@ -222,7 +242,7 @@ static void ish_remove(struct pci_dev *pdev)
  */
 static void ish_shutdown(struct pci_dev *pdev)
 {
-	if (pdev->device == EHL_Ax_DEVICE_ID)
+	if (pdev->device == PCI_DEVICE_ID_INTEL_ISH_EHL_Ax)
 		pci_prepare_to_sleep(pdev);
 }
 
@@ -376,3 +396,5 @@ MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 
 MODULE_DESCRIPTION("Intel(R) Integrated Sensor Hub PCI Device Driver");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE(ISH_FW_FILENAME_LNL_M);

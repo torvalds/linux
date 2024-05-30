@@ -450,6 +450,7 @@ static const struct of_device_id mtk_smi_larb_of_ids[] = {
 	{.compatible = "mediatek,mt8195-smi-larb", .data = &mtk_smi_larb_mt8195},
 	{}
 };
+MODULE_DEVICE_TABLE(of, mtk_smi_larb_of_ids);
 
 static int mtk_smi_larb_sleep_ctrl_enable(struct mtk_smi_larb *larb)
 {
@@ -735,6 +736,7 @@ static const struct of_device_id mtk_smi_common_of_ids[] = {
 	{.compatible = "mediatek,mt8365-smi-common", .data = &mtk_smi_common_mt8365},
 	{}
 };
+MODULE_DEVICE_TABLE(of, mtk_smi_common_of_ids);
 
 static int mtk_smi_common_probe(struct platform_device *pdev)
 {

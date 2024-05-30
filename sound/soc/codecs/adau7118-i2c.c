@@ -68,7 +68,7 @@ static const struct of_device_id adau7118_of_match[] = {
 MODULE_DEVICE_TABLE(of, adau7118_of_match);
 
 static const struct i2c_device_id adau7118_id[] = {
-	{"adau7118", 0},
+	{"adau7118"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, adau7118_id);

@@ -606,8 +606,8 @@ static int wm9090_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm9090_id[] = {
-	{ "wm9090", 0 },
-	{ "wm9093", 0 },
+	{ "wm9090" },
+	{ "wm9093" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm9090_id);

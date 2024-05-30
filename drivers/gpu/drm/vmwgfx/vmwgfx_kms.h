@@ -217,21 +217,11 @@ struct vmw_kms_dirty {
 struct vmw_framebuffer {
 	struct drm_framebuffer base;
 	bool bo;
-	uint32_t user_handle;
-};
-
-/*
- * Clip rectangle
- */
-struct vmw_clip_rect {
-	int x1, x2, y1, y2;
 };
 
 struct vmw_framebuffer_surface {
 	struct vmw_framebuffer base;
 	struct vmw_surface *surface;
-	struct vmw_bo *buffer;
-	struct list_head head;
 	bool is_bo_proxy;  /* true if this is proxy surface for DMA buf */
 };
 
@@ -243,10 +233,10 @@ struct vmw_framebuffer_bo {
 
 
 static const uint32_t __maybe_unused vmw_primary_plane_formats[] = {
-	DRM_FORMAT_XRGB1555,
-	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB1555,
 };
 
 static const uint32_t __maybe_unused vmw_cursor_plane_formats[] = {
@@ -359,7 +349,6 @@ struct vmw_display_unit {
 	struct vmw_cursor_plane cursor;
 
 	struct vmw_surface *cursor_surface;
-	struct vmw_bo *cursor_bo;
 	size_t cursor_age;
 
 	int cursor_x;
@@ -387,11 +376,25 @@ struct vmw_display_unit {
 	bool is_implicit;
 	int set_gui_x;
 	int set_gui_y;
-};
 
-struct vmw_validation_ctx {
-	struct vmw_resource *res;
-	struct vmw_bo *buf;
+	struct {
+		struct work_struct crc_generator_work;
+		struct hrtimer timer;
+		ktime_t period_ns;
+
+		/* protects concurrent access to the vblank handler */
+		atomic_t atomic_lock;
+		/* protected by @atomic_lock */
+		bool crc_enabled;
+		struct vmw_surface *surface;
+
+		/* protects concurrent access to the crc worker */
+		spinlock_t crc_state_lock;
+		/* protected by @crc_state_lock */
+		bool crc_pending;
+		u64 frame_start;
+		u64 frame_end;
+	} vkms;
 };
 
 #define vmw_crtc_to_du(x) \
@@ -403,6 +406,7 @@ struct vmw_validation_ctx {
 /*
  * Shared display unit functions - vmwgfx_kms.c
  */
+void vmw_du_init(struct vmw_display_unit *du);
 void vmw_du_cleanup(struct vmw_display_unit *du);
 void vmw_du_crtc_save(struct drm_crtc *crtc);
 void vmw_du_crtc_restore(struct drm_crtc *crtc);
@@ -488,8 +492,6 @@ void vmw_du_plane_unpin_surf(struct vmw_plane_state *vps,
 int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
 			     struct drm_atomic_state *state);
 void vmw_du_crtc_atomic_begin(struct drm_crtc *crtc,
-			      struct drm_atomic_state *state);
-void vmw_du_crtc_atomic_flush(struct drm_crtc *crtc,
 			      struct drm_atomic_state *state);
 void vmw_du_crtc_reset(struct drm_crtc *crtc);
 struct drm_crtc_state *vmw_du_crtc_duplicate_state(struct drm_crtc *crtc);

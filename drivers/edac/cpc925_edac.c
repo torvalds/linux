@@ -797,7 +797,7 @@ static void cpc925_add_edac_devices(void __iomem *vbase)
 		dev_info->edac_idx = edac_device_alloc_index();
 		dev_info->edac_dev =
 			edac_device_alloc_ctl_info(0, dev_info->ctl_name,
-				1, NULL, 0, 0, NULL, 0, dev_info->edac_idx);
+				1, NULL, 0, 0, dev_info->edac_idx);
 		if (!dev_info->edac_dev) {
 			cpc925_printk(KERN_ERR, "No memory for edac device\n");
 			goto err1;

@@ -1518,7 +1518,7 @@ static void adv7842_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 	timings->bt.flags |= V4L2_DV_FL_CAN_DETECT_REDUCED_FPS;
 }
 
-static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
+static int adv7842_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				    struct v4l2_dv_timings *timings)
 {
 	struct adv7842_state *state = to_state(sd);
@@ -1526,6 +1526,9 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 	struct stdi_readback stdi = { 0 };
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 
@@ -1643,7 +1646,7 @@ found:
 	return 0;
 }
 
-static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
+static int adv7842_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_dv_timings *timings)
 {
 	struct adv7842_state *state = to_state(sd);
@@ -1651,6 +1654,9 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 	int err;
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	if (state->mode == ADV7842_MODE_SDP)
 		return -ENODATA;
@@ -1689,10 +1695,13 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv7842_g_dv_timings(struct v4l2_subdev *sd,
+static int adv7842_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_dv_timings *timings)
 {
 	struct adv7842_state *state = to_state(sd);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	if (state->mode == ADV7842_MODE_SDP)
 		return -ENODATA;
@@ -2780,7 +2789,7 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 				"interlaced" : "progressive",
 			hs_pol, vs_pol);
 	}
-	if (adv7842_query_dv_timings(sd, &timings))
+	if (adv7842_query_dv_timings(sd, 0, &timings))
 		v4l2_info(sd, "No video detected\n");
 	else
 		v4l2_print_dv_timings(sd->name, "Detected format: ",
@@ -3226,7 +3235,7 @@ static int adv7842_command_ram_test(struct v4l2_subdev *sd)
 
 	memset(&state->timings, 0, sizeof(struct v4l2_dv_timings));
 
-	adv7842_s_dv_timings(sd, &timings);
+	adv7842_s_dv_timings(sd, 0, &timings);
 
 	return ret;
 }
@@ -3298,9 +3307,6 @@ static const struct v4l2_subdev_video_ops adv7842_video_ops = {
 	.s_routing = adv7842_s_routing,
 	.querystd = adv7842_querystd,
 	.g_input_status = adv7842_g_input_status,
-	.s_dv_timings = adv7842_s_dv_timings,
-	.g_dv_timings = adv7842_g_dv_timings,
-	.query_dv_timings = adv7842_query_dv_timings,
 };
 
 static const struct v4l2_subdev_pad_ops adv7842_pad_ops = {
@@ -3309,6 +3315,9 @@ static const struct v4l2_subdev_pad_ops adv7842_pad_ops = {
 	.set_fmt = adv7842_set_format,
 	.get_edid = adv7842_get_edid,
 	.set_edid = adv7842_set_edid,
+	.s_dv_timings = adv7842_s_dv_timings,
+	.g_dv_timings = adv7842_g_dv_timings,
+	.query_dv_timings = adv7842_query_dv_timings,
 	.enum_dv_timings = adv7842_enum_dv_timings,
 	.dv_timings_cap = adv7842_dv_timings_cap,
 };
