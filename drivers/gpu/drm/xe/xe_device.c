@@ -50,6 +50,7 @@
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_sys_mgr.h"
 #include "xe_vm.h"
+#include "xe_vram.h"
 #include "xe_wait_user_fence.h"
 
 static int xe_file_open(struct drm_device *dev, struct drm_file *file)
@@ -619,7 +620,7 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		goto err_irq_shutdown;
 
-	err = xe_mmio_probe_vram(xe);
+	err = xe_vram_probe(xe);
 	if (err)
 		goto err_irq_shutdown;
 
