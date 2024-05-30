@@ -543,6 +543,7 @@ static int ad7173_append_status(struct ad_sigma_delta *sd, bool append)
 	unsigned int interface_mode = st->interface_mode;
 	int ret;
 
+	interface_mode &= ~AD7173_INTERFACE_DATA_STAT;
 	interface_mode |= AD7173_INTERFACE_DATA_STAT_EN(append);
 	ret = ad_sd_write_reg(&st->sd, AD7173_REG_INTERFACE_MODE, 2, interface_mode);
 	if (ret)
