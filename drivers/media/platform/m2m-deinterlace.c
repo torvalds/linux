@@ -724,10 +724,6 @@ static const struct v4l2_ioctl_ops deinterlace_ioctl_ops = {
 /*
  * Queue operations
  */
-struct vb2_dc_conf {
-	struct device           *dev;
-};
-
 static int deinterlace_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], struct device *alloc_devs[])
