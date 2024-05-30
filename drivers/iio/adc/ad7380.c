@@ -232,6 +232,9 @@ struct ad7380_state {
 	struct regmap *regmap;
 	unsigned int vref_mv;
 	unsigned int vcm_mv[MAX_NUM_CHANNELS];
+	/* xfers, message an buffer for reading sample data */
+	struct spi_transfer xfer[2];
+	struct spi_message msg;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -331,15 +334,9 @@ static irqreturn_t ad7380_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7380_state *st = iio_priv(indio_dev);
-	struct spi_transfer xfer = {
-		.bits_per_word = st->chip_info->channels[0].scan_type.realbits,
-		.len = (st->chip_info->num_channels - 1) *
-		       BITS_TO_BYTES(st->chip_info->channels->scan_type.storagebits),
-		.rx_buf = st->scan_data.raw,
-	};
 	int ret;
 
-	ret = spi_sync_transfer(st->spi, &xfer, 1);
+	ret = spi_sync(st->spi, &st->msg);
 	if (ret)
 		goto out;
 
@@ -355,33 +352,9 @@ out:
 static int ad7380_read_direct(struct ad7380_state *st,
 			      struct iio_chan_spec const *chan, int *val)
 {
-	struct spi_transfer xfers[] = {
-		/* toggle CS (no data xfer) to trigger a conversion */
-		{
-			.speed_hz = AD7380_REG_WR_SPEED_HZ,
-			.bits_per_word = chan->scan_type.realbits,
-			.delay = {
-				.value = T_CONVERT_NS,
-				.unit = SPI_DELAY_UNIT_NSECS,
-			},
-			.cs_change = 1,
-			.cs_change_delay = {
-				.value = st->chip_info->timing_specs->t_csh_ns,
-				.unit = SPI_DELAY_UNIT_NSECS,
-			},
-		},
-		/* then read all channels */
-		{
-			.speed_hz = AD7380_REG_WR_SPEED_HZ,
-			.bits_per_word = chan->scan_type.realbits,
-			.rx_buf = st->scan_data.raw,
-			.len = (st->chip_info->num_channels - 1) *
-			       ((chan->scan_type.storagebits > 16) ? 4 : 2),
-		},
-	};
 	int ret;
 
-	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
+	ret = spi_sync(st->spi, &st->msg);
 	if (ret < 0)
 		return ret;
 
@@ -462,6 +435,11 @@ static int ad7380_init(struct ad7380_state *st, struct regulator *vref)
 static void ad7380_regulator_disable(void *p)
 {
 	regulator_disable(p);
+}
+
+static void ad7380_unoptimize_msg(void *msg)
+{
+	spi_unoptimize_message(msg);
 }
 
 static int ad7380_probe(struct spi_device *spi)
@@ -551,6 +529,34 @@ static int ad7380_probe(struct spi_device *spi)
 	if (IS_ERR(st->regmap))
 		return dev_err_probe(&spi->dev, PTR_ERR(st->regmap),
 				     "failed to allocate register map\n");
+
+	/*
+	 * Setting up a low latency read for getting sample data. Used for both
+	 * direct read an triggered buffer.
+	 */
+
+	/* toggle CS (no data xfer) to trigger a conversion */
+	st->xfer[0].delay.value = T_CONVERT_NS;
+	st->xfer[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+	st->xfer[0].cs_change = 1;
+	st->xfer[0].cs_change_delay.value = st->chip_info->timing_specs->t_csh_ns;
+	st->xfer[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	/* then do a second xfer to read the data */
+	st->xfer[1].bits_per_word = st->chip_info->channels[0].scan_type.realbits;
+	st->xfer[1].rx_buf = st->scan_data.raw;
+	st->xfer[1].len = BITS_TO_BYTES(st->chip_info->channels[0].scan_type.storagebits)
+				* (st->chip_info->num_channels - 1);
+
+	spi_message_init_with_transfers(&st->msg, st->xfer, ARRAY_SIZE(st->xfer));
+
+	ret = spi_optimize_message(st->spi, &st->msg);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&spi->dev, ad7380_unoptimize_msg, &st->msg);
+	if (ret)
+		return ret;
 
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
