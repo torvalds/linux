@@ -72,20 +72,9 @@ static void do_test(const struct network_helper_opts *opts,
 		    const struct bpf_map *sk_stg_map)
 {
 	int lfd = -1, fd = -1;
-	int err;
 
 	if (!start_test(NULL, opts, cli_opts, &lfd, &fd))
 		goto done;
-
-	if (sk_stg_map) {
-		int tmp_stg;
-
-		err = bpf_map_lookup_elem(bpf_map__fd(sk_stg_map), &fd,
-					  &tmp_stg);
-		if (!ASSERT_ERR(err, "bpf_map_lookup_elem(sk_stg_map)") ||
-				!ASSERT_EQ(errno, ENOENT, "bpf_map_lookup_elem(sk_stg_map)"))
-			goto done;
-	}
 
 	ASSERT_OK(send_recv_data(lfd, fd, total_bytes), "send_recv_data");
 
@@ -163,6 +152,7 @@ static void test_dctcp(void)
 		.post_socket_cb	= stg_post_socket_cb,
 		.cb_opts	= &cb_opts,
 	};
+	int lfd = -1, fd = -1, tmp_stg, err;
 	struct bpf_dctcp *dctcp_skel;
 	struct bpf_link *link;
 
@@ -177,11 +167,24 @@ static void test_dctcp(void)
 	}
 
 	cb_opts.map_fd = bpf_map__fd(dctcp_skel->maps.sk_stg_map);
-	do_test(&opts, &cli_opts, dctcp_skel->maps.sk_stg_map);
+	if (!start_test(NULL, &opts, &cli_opts, &lfd, &fd))
+		goto done;
+
+	err = bpf_map_lookup_elem(cb_opts.map_fd, &fd, &tmp_stg);
+	if (!ASSERT_ERR(err, "bpf_map_lookup_elem(sk_stg_map)") ||
+			!ASSERT_EQ(errno, ENOENT, "bpf_map_lookup_elem(sk_stg_map)"))
+		goto done;
+
+	ASSERT_OK(send_recv_data(lfd, fd, total_bytes), "send_recv_data");
 	ASSERT_EQ(dctcp_skel->bss->stg_result, expected_stg, "stg_result");
 
+done:
 	bpf_link__destroy(link);
 	bpf_dctcp__destroy(dctcp_skel);
+	if (lfd != -1)
+		close(lfd);
+	if (fd != -1)
+		close(fd);
 }
 
 static char *err_str;
