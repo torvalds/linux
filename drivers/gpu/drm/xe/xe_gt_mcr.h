@@ -12,6 +12,7 @@
 struct drm_printer;
 struct xe_gt;
 
+void xe_gt_mcr_init_early(struct xe_gt *gt);
 void xe_gt_mcr_init(struct xe_gt *gt);
 
 void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt);
