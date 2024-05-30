@@ -2658,7 +2658,6 @@ static const struct felix_info felix_info_vsc9959 = {
 	.vcap_pol_max2		= 0,
 	.num_mact_rows		= 2048,
 	.num_ports		= VSC9959_NUM_PORTS,
-	.num_tx_queues		= OCELOT_NUM_TC,
 	.quirks			= FELIX_MAC_QUIRKS,
 	.quirk_no_xtr_irq	= true,
 	.ptp_caps		= &vsc9959_ptp_caps,
@@ -2711,7 +2710,8 @@ static int felix_pci_probe(struct pci_dev *pdev,
 
 	ds->dev = dev;
 	ds->num_ports = felix->info->num_ports;
-	ds->num_tx_queues = felix->info->num_tx_queues;
+	ds->num_tx_queues = OCELOT_NUM_TC;
+
 	ds->ops = &felix_switch_ops;
 	ds->phylink_mac_ops = &felix_phylink_mac_ops;
 	ds->priv = ocelot;

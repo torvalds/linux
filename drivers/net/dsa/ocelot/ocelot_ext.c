@@ -57,7 +57,6 @@ static const struct felix_info vsc7512_info = {
 	.vcap				= vsc7514_vcap_props,
 	.num_mact_rows			= 1024,
 	.num_ports			= VSC7514_NUM_PORTS,
-	.num_tx_queues			= OCELOT_NUM_TC,
 	.port_modes			= vsc7512_port_modes,
 	.phylink_mac_config		= ocelot_phylink_mac_config,
 	.configure_serdes		= ocelot_port_configure_serdes,
@@ -90,7 +89,7 @@ static int ocelot_ext_probe(struct platform_device *pdev)
 
 	ds->dev = dev;
 	ds->num_ports = felix->info->num_ports;
-	ds->num_tx_queues = felix->info->num_tx_queues;
+	ds->num_tx_queues = OCELOT_NUM_TC;
 
 	ds->ops = &felix_switch_ops;
 	ds->phylink_mac_ops = &felix_phylink_mac_ops;

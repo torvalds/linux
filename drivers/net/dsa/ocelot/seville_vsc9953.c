@@ -963,7 +963,6 @@ static const struct felix_info seville_info_vsc9953 = {
 	.quirks			= FELIX_MAC_QUIRKS,
 	.num_mact_rows		= 2048,
 	.num_ports		= VSC9953_NUM_PORTS,
-	.num_tx_queues		= OCELOT_NUM_TC,
 	.mdio_bus_alloc		= vsc9953_mdio_bus_alloc,
 	.mdio_bus_free		= vsc9953_mdio_bus_free,
 	.port_modes		= vsc9953_port_modes,
@@ -1002,6 +1001,8 @@ static int seville_probe(struct platform_device *pdev)
 
 	ds->dev = dev;
 	ds->num_ports = felix->info->num_ports;
+	ds->num_tx_queues = OCELOT_NUM_TC;
+
 	ds->ops = &felix_switch_ops;
 	ds->phylink_mac_ops = &felix_phylink_mac_ops;
 	ds->priv = ocelot;
