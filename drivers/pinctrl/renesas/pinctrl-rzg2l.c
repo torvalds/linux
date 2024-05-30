@@ -127,6 +127,7 @@
 #define PFC(off)		(0x0400 + (off) * 4)
 #define PIN(off)		(0x0800 + (off))
 #define IOLH(off)		(0x1000 + (off) * 8)
+#define SR(off)			(0x1400 + (off) * 8)
 #define IEN(off)		(0x1800 + (off) * 8)
 #define ISEL(off)		(0x2C00 + (off) * 8)
 #define SD_CH(off, ch)		((off) + (ch) * 4)
@@ -145,6 +146,7 @@
 #define PFC_MASK		0x07
 #define IEN_MASK		0x01
 #define IOLH_MASK		0x03
+#define SR_MASK			0x01
 
 #define PM_INPUT		0x1
 #define PM_OUTPUT		0x2
@@ -1049,6 +1051,13 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		arg = ret;
 		break;
 
+	case PIN_CONFIG_SLEW_RATE:
+		if (!(cfg & PIN_CFG_SR))
+			return -EINVAL;
+
+		arg = rzg2l_read_pin_config(pctrl, SR(off), bit, SR_MASK);
+		break;
+
 	case PIN_CONFIG_DRIVE_STRENGTH: {
 		unsigned int index;
 
@@ -1153,6 +1162,15 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 
 		case PIN_CONFIG_POWER_SOURCE:
 			settings.power_source = pinconf_to_config_argument(_configs[i]);
+			break;
+
+		case PIN_CONFIG_SLEW_RATE:
+			arg = pinconf_to_config_argument(_configs[i]);
+
+			if (!(cfg & PIN_CFG_SR) || arg > 1)
+				return -EINVAL;
+
+			rzg2l_rmw_pin_config(pctrl, SR(off), bit, SR_MASK, arg);
 			break;
 
 		case PIN_CONFIG_DRIVE_STRENGTH:
