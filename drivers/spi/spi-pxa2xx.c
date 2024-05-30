@@ -1718,12 +1718,12 @@ static const struct dev_pm_ops pxa2xx_spi_pm_ops = {
 };
 
 static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
-	{ "80860F0E", LPSS_BYT_SSP },
-	{ "8086228E", LPSS_BSW_SSP },
-	{ "INT33C0", LPSS_LPT_SSP },
-	{ "INT33C1", LPSS_LPT_SSP },
-	{ "INT3430", LPSS_LPT_SSP },
-	{ "INT3431", LPSS_LPT_SSP },
+	{ "80860F0E" },
+	{ "8086228E" },
+	{ "INT33C0" },
+	{ "INT33C1" },
+	{ "INT3430" },
+	{ "INT3431" },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, pxa2xx_spi_acpi_match);
