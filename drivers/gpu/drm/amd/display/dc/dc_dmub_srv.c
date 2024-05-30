@@ -1506,6 +1506,8 @@ void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return;
 
+	allow_idle &= (!dc->debug.ips_disallow_entry);
+
 	if (dc_dmub_srv->idle_allowed == allow_idle)
 		return;
 

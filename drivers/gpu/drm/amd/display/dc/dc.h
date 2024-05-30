@@ -924,6 +924,7 @@ struct dc_debug_options {
 	bool disable_z9_mpc;
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;
+	bool ips_disallow_entry;
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
 	bool disable_idle_power_optimizations;
