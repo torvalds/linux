@@ -509,11 +509,28 @@ static int start_lkl(void)
 {
 	long ret;
 	char mpoint[32];
+	struct timespec walltime;
+	struct lkl_timespec ts;
 
 	ret = lkl_start_kernel("mem=%dM", lklfuse.mb);
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		goto out;
+	}
+
+	/* forward host walltime to lkl */
+	ret = clock_gettime(CLOCK_REALTIME, &walltime);
+	if (ret < 0)
+		goto out_halt;
+
+	ts = (struct lkl_timespec){ tv_sec: walltime.tv_sec,
+				    tv_nsec: walltime.tv_nsec };
+	ret = lkl_sys_clock_settime(LKL_CLOCK_REALTIME,
+				    (struct __lkl__kernel_timespec *)&ts);
+	if (ret < 0) {
+		fprintf(stderr, "lkl_sys_clock_settime() failed: %s\n",
+			lkl_strerror(ret));
+		goto out_halt;
 	}
 
 	ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.part, lklfuse.type,
