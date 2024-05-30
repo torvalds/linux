@@ -195,12 +195,11 @@ static ssize_t vidi_store_connection(struct device *dev,
 	if (ctx->connected > 1)
 		return -EINVAL;
 
-	/* use fake edid data for test. */
-	if (!ctx->raw_edid)
-		ctx->raw_edid = (struct edid *)fake_edid_info;
-
-	/* if raw_edid isn't same as fake data then it can't be tested. */
-	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
+	/*
+	 * Use fake edid data for test. If raw_edid is set then it can't be
+	 * tested.
+	 */
+	if (ctx->raw_edid) {
 		DRM_DEV_DEBUG_KMS(dev, "edid data is not fake data.\n");
 		return -EINVAL;
 	}
@@ -261,15 +260,9 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 			return -ENOMEM;
 		}
 	} else {
-		/*
-		 * with connection = 0, free raw_edid
-		 * only if raw edid data isn't same as fake data.
-		 */
-		if (ctx->raw_edid && ctx->raw_edid !=
-				(struct edid *)fake_edid_info) {
-			kfree(ctx->raw_edid);
-			ctx->raw_edid = NULL;
-		}
+		/* with connection = 0, free raw_edid */
+		kfree(ctx->raw_edid);
+		ctx->raw_edid = NULL;
 	}
 
 	ctx->connected = vidi->connection;
@@ -310,16 +303,7 @@ static int vidi_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int count;
 
-	/*
-	 * the edid data comes from user side and it would be set
-	 * to ctx->raw_edid through specific ioctl.
-	 */
-	if (!ctx->raw_edid) {
-		DRM_DEV_DEBUG_KMS(ctx->dev, "raw_edid is null.\n");
-		return 0;
-	}
-
-	edid = drm_edid_duplicate(ctx->raw_edid);
+	edid = drm_edid_duplicate(ctx->raw_edid ?: fake_edid_info);
 	if (!edid)
 		return 0;
 
@@ -467,10 +451,8 @@ static void vidi_remove(struct platform_device *pdev)
 {
 	struct vidi_context *ctx = platform_get_drvdata(pdev);
 
-	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
-		kfree(ctx->raw_edid);
-		ctx->raw_edid = NULL;
-	}
+	kfree(ctx->raw_edid);
+	ctx->raw_edid = NULL;
 
 	component_del(&pdev->dev, &vidi_component_ops);
 }
