@@ -396,7 +396,7 @@ static void emit_job_gen12_gsc(struct xe_sched_job *job)
 
 	xe_gt_assert(gt, job->q->width <= 1); /* no parallel submission for GSCCS */
 
-	__emit_job_gen12_simple(job, job->q->lrc,
+	__emit_job_gen12_simple(job, job->q->lrc[0],
 				job->ptrs[0].batch_addr,
 				xe_sched_job_lrc_seqno(job));
 }
@@ -406,13 +406,13 @@ static void emit_job_gen12_copy(struct xe_sched_job *job)
 	int i;
 
 	if (xe_sched_job_is_migration(job->q)) {
-		emit_migration_job_gen12(job, job->q->lrc,
+		emit_migration_job_gen12(job, job->q->lrc[0],
 					 xe_sched_job_lrc_seqno(job));
 		return;
 	}
 
 	for (i = 0; i < job->q->width; ++i)
-		__emit_job_gen12_simple(job, job->q->lrc + i,
+		__emit_job_gen12_simple(job, job->q->lrc[i],
 					job->ptrs[i].batch_addr,
 					xe_sched_job_lrc_seqno(job));
 }
@@ -423,7 +423,7 @@ static void emit_job_gen12_video(struct xe_sched_job *job)
 
 	/* FIXME: Not doing parallel handshake for now */
 	for (i = 0; i < job->q->width; ++i)
-		__emit_job_gen12_video(job, job->q->lrc + i,
+		__emit_job_gen12_video(job, job->q->lrc[i],
 				       job->ptrs[i].batch_addr,
 				       xe_sched_job_lrc_seqno(job));
 }
@@ -433,7 +433,7 @@ static void emit_job_gen12_render_compute(struct xe_sched_job *job)
 	int i;
 
 	for (i = 0; i < job->q->width; ++i)
-		__emit_job_gen12_render_compute(job, job->q->lrc + i,
+		__emit_job_gen12_render_compute(job, job->q->lrc[i],
 						job->ptrs[i].batch_addr,
 						xe_sched_job_lrc_seqno(job));
 }

@@ -808,11 +808,20 @@ static void xe_lrc_set_ppgtt(struct xe_lrc *lrc, struct xe_vm *vm)
 	xe_lrc_write_ctx_reg(lrc, CTX_PDP0_LDW, lower_32_bits(desc));
 }
 
+static void xe_lrc_finish(struct xe_lrc *lrc)
+{
+	xe_hw_fence_ctx_finish(&lrc->fence_ctx);
+	xe_bo_lock(lrc->bo, false);
+	xe_bo_unpin(lrc->bo);
+	xe_bo_unlock(lrc->bo);
+	xe_bo_put(lrc->bo);
+}
+
 #define PVC_CTX_ASID		(0x2e + 1)
 #define PVC_CTX_ACC_CTR_THOLD	(0x2a + 1)
 
-int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
-		struct xe_exec_queue *q, struct xe_vm *vm, u32 ring_size)
+static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
+		       struct xe_vm *vm, u32 ring_size)
 {
 	struct xe_gt *gt = hwe->gt;
 	struct xe_tile *tile = gt_to_tile(gt);
@@ -823,6 +832,7 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	u32 lrc_size;
 	int err;
 
+	kref_init(&lrc->refcount);
 	lrc->flags = 0;
 	lrc_size = ring_size + xe_gt_lrc_size(gt, hwe->class);
 	if (xe_gt_has_indirect_ring_state(gt))
@@ -935,13 +945,31 @@ err_lrc_finish:
 	return err;
 }
 
-void xe_lrc_finish(struct xe_lrc *lrc)
+struct xe_lrc *xe_lrc_create(struct xe_hw_engine *hwe, struct xe_vm *vm,
+			     u32 ring_size)
 {
-	xe_hw_fence_ctx_finish(&lrc->fence_ctx);
-	xe_bo_lock(lrc->bo, false);
-	xe_bo_unpin(lrc->bo);
-	xe_bo_unlock(lrc->bo);
-	xe_bo_put(lrc->bo);
+	struct xe_lrc *lrc;
+	int err;
+
+	lrc = kzalloc(sizeof(*lrc), GFP_KERNEL);
+	if (!lrc)
+		return ERR_PTR(-ENOMEM);
+
+	err = xe_lrc_init(lrc, hwe, vm, ring_size);
+	if (err) {
+		kfree(lrc);
+		return ERR_PTR(err);
+	}
+
+	return lrc;
+}
+
+void xe_lrc_destroy(struct kref *ref)
+{
+	struct xe_lrc *lrc = container_of(ref, struct xe_lrc, refcount);
+
+	xe_lrc_finish(lrc);
+	kfree(lrc);
 }
 
 void xe_lrc_set_ring_tail(struct xe_lrc *lrc, u32 tail)

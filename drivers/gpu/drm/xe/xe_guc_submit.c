@@ -490,7 +490,7 @@ static void __register_mlrc_exec_queue(struct xe_guc *guc,
 	action[len++] = info->hwlrca_hi;
 
 	for (i = 1; i < q->width; ++i) {
-		struct xe_lrc *lrc = q->lrc + i;
+		struct xe_lrc *lrc = q->lrc[i];
 
 		action[len++] = lower_32_bits(xe_lrc_descriptor(lrc));
 		action[len++] = upper_32_bits(xe_lrc_descriptor(lrc));
@@ -527,7 +527,7 @@ static void register_exec_queue(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
-	struct xe_lrc *lrc = q->lrc;
+	struct xe_lrc *lrc = q->lrc[0];
 	struct guc_ctxt_registration_info info;
 
 	xe_assert(xe, !exec_queue_registered(q));
@@ -586,7 +586,7 @@ static int wq_wait_for_space(struct xe_exec_queue *q, u32 wqi_size)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
-	struct iosys_map map = xe_lrc_parallel_map(q->lrc);
+	struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
 	unsigned int sleep_period_ms = 1;
 
 #define AVAILABLE_SPACE \
@@ -614,7 +614,7 @@ static int wq_noop_append(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
-	struct iosys_map map = xe_lrc_parallel_map(q->lrc);
+	struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
 	u32 len_dw = wq_space_until_wrap(q) / sizeof(u32) - 1;
 
 	if (wq_wait_for_space(q, wq_space_until_wrap(q)))
@@ -634,7 +634,7 @@ static void wq_item_append(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
-	struct iosys_map map = xe_lrc_parallel_map(q->lrc);
+	struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
 #define WQ_HEADER_SIZE	4	/* Includes 1 LRC address too */
 	u32 wqi[XE_HW_ENGINE_MAX_INSTANCE + (WQ_HEADER_SIZE - 1)];
 	u32 wqi_size = (q->width + (WQ_HEADER_SIZE - 1)) * sizeof(u32);
@@ -650,12 +650,12 @@ static void wq_item_append(struct xe_exec_queue *q)
 
 	wqi[i++] = FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_MULTI_LRC) |
 		FIELD_PREP(WQ_LEN_MASK, len_dw);
-	wqi[i++] = xe_lrc_descriptor(q->lrc);
+	wqi[i++] = xe_lrc_descriptor(q->lrc[0]);
 	wqi[i++] = FIELD_PREP(WQ_GUC_ID_MASK, q->guc->id) |
-		FIELD_PREP(WQ_RING_TAIL_MASK, q->lrc->ring.tail / sizeof(u64));
+		FIELD_PREP(WQ_RING_TAIL_MASK, q->lrc[0]->ring.tail / sizeof(u64));
 	wqi[i++] = 0;
 	for (j = 1; j < q->width; ++j) {
-		struct xe_lrc *lrc = q->lrc + j;
+		struct xe_lrc *lrc = q->lrc[j];
 
 		wqi[i++] = lrc->ring.tail / sizeof(u64);
 	}
@@ -670,7 +670,7 @@ static void wq_item_append(struct xe_exec_queue *q)
 
 	xe_device_wmb(xe);
 
-	map = xe_lrc_parallel_map(q->lrc);
+	map = xe_lrc_parallel_map(q->lrc[0]);
 	parallel_write(xe, map, wq_desc.tail, q->guc->wqi_tail);
 }
 
@@ -679,7 +679,7 @@ static void submit_exec_queue(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
-	struct xe_lrc *lrc = q->lrc;
+	struct xe_lrc *lrc = q->lrc[0];
 	u32 action[3];
 	u32 g2h_len = 0;
 	u32 num_g2h = 0;
@@ -1236,7 +1236,7 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 		  msecs_to_jiffies(q->sched_props.job_timeout_ms);
 	err = xe_sched_init(&ge->sched, &drm_sched_ops, &xe_sched_ops,
 			    get_submit_wq(guc),
-			    q->lrc[0].ring.size / MAX_JOB_SIZE_BYTES, 64,
+			    q->lrc[0]->ring.size / MAX_JOB_SIZE_BYTES, 64,
 			    timeout, guc_to_gt(guc)->ordered_wq, NULL,
 			    q->name, gt_to_xe(q->gt)->drm.dev);
 	if (err)
@@ -1464,7 +1464,7 @@ static void guc_exec_queue_stop(struct xe_guc *guc, struct xe_exec_queue *q)
 				ban = true;
 			}
 		} else if (xe_exec_queue_is_lr(q) &&
-			   (xe_lrc_ring_head(q->lrc) != xe_lrc_ring_tail(q->lrc))) {
+			   (xe_lrc_ring_head(q->lrc[0]) != xe_lrc_ring_tail(q->lrc[0]))) {
 			ban = true;
 		}
 
@@ -1529,7 +1529,7 @@ static void guc_exec_queue_start(struct xe_exec_queue *q)
 
 		trace_xe_exec_queue_resubmit(q);
 		for (i = 0; i < q->width; ++i)
-			xe_lrc_set_ring_head(q->lrc + i, q->lrc[i].ring.tail);
+			xe_lrc_set_ring_head(q->lrc[i], q->lrc[i]->ring.tail);
 		xe_sched_resubmit_jobs(sched);
 	}
 
@@ -1775,7 +1775,7 @@ guc_exec_queue_wq_snapshot_capture(struct xe_exec_queue *q,
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
-	struct iosys_map map = xe_lrc_parallel_map(q->lrc);
+	struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
 	int i;
 
 	snapshot->guc.wqi_head = q->guc->wqi_head;
@@ -1855,7 +1855,7 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 
 	if (snapshot->lrc) {
 		for (i = 0; i < q->width; ++i) {
-			struct xe_lrc *lrc = q->lrc + i;
+			struct xe_lrc *lrc = q->lrc[i];
 
 			snapshot->lrc[i] = xe_lrc_snapshot_capture(lrc);
 		}

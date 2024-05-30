@@ -146,7 +146,7 @@ struct xe_exec_queue {
 	/** @run_ticks: hw engine class run time in ticks for this exec queue */
 	u64 run_ticks;
 	/** @lrc: logical ring context for this exec queue */
-	struct xe_lrc lrc[];
+	struct xe_lrc *lrc[];
 };
 
 /**

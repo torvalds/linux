@@ -86,7 +86,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 
 	if (extensions) {
 		/*
-		 * may set q->usm, must come before xe_lrc_init(),
+		 * may set q->usm, must come before xe_lrc_create(),
 		 * may overwrite q->sched_props, must come before q->ops->init()
 		 */
 		err = exec_queue_user_extensions(xe, q, extensions, 0);
@@ -104,9 +104,11 @@ static int __xe_exec_queue_init(struct xe_exec_queue *q)
 	int i, err;
 
 	for (i = 0; i < q->width; ++i) {
-		err = xe_lrc_init(q->lrc + i, q->hwe, q, q->vm, SZ_16K);
-		if (err)
+		q->lrc[i] = xe_lrc_create(q->hwe, q->vm, SZ_16K);
+		if (IS_ERR(q->lrc[i])) {
+			err = PTR_ERR(q->lrc[i]);
 			goto err_lrc;
+		}
 	}
 
 	err = q->ops->init(q);
@@ -117,7 +119,7 @@ static int __xe_exec_queue_init(struct xe_exec_queue *q)
 
 err_lrc:
 	for (i = i - 1; i >= 0; --i)
-		xe_lrc_finish(q->lrc + i);
+		xe_lrc_put(q->lrc[i]);
 	return err;
 }
 
@@ -198,7 +200,7 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 	int i;
 
 	for (i = 0; i < q->width; ++i)
-		xe_lrc_finish(q->lrc + i);
+		xe_lrc_put(q->lrc[i]);
 	__xe_exec_queue_free(q);
 }
 
@@ -701,7 +703,7 @@ bool xe_exec_queue_is_lr(struct xe_exec_queue *q)
 
 static s32 xe_exec_queue_num_job_inflight(struct xe_exec_queue *q)
 {
-	return q->lrc->fence_ctx.next_seqno - xe_lrc_seqno(q->lrc) - 1;
+	return q->lrc[0]->fence_ctx.next_seqno - xe_lrc_seqno(q->lrc[0]) - 1;
 }
 
 /**
@@ -712,7 +714,7 @@ static s32 xe_exec_queue_num_job_inflight(struct xe_exec_queue *q)
  */
 bool xe_exec_queue_ring_full(struct xe_exec_queue *q)
 {
-	struct xe_lrc *lrc = q->lrc;
+	struct xe_lrc *lrc = q->lrc[0];
 	s32 max_job = lrc->ring.size / MAX_JOB_SIZE_BYTES;
 
 	return xe_exec_queue_num_job_inflight(q) >= max_job;
@@ -738,16 +740,16 @@ bool xe_exec_queue_is_idle(struct xe_exec_queue *q)
 		int i;
 
 		for (i = 0; i < q->width; ++i) {
-			if (xe_lrc_seqno(&q->lrc[i]) !=
-			    q->lrc[i].fence_ctx.next_seqno - 1)
+			if (xe_lrc_seqno(q->lrc[i]) !=
+			    q->lrc[i]->fence_ctx.next_seqno - 1)
 				return false;
 		}
 
 		return true;
 	}
 
-	return xe_lrc_seqno(&q->lrc[0]) ==
-		q->lrc[0].fence_ctx.next_seqno - 1;
+	return xe_lrc_seqno(q->lrc[0]) ==
+		q->lrc[0]->fence_ctx.next_seqno - 1;
 }
 
 /**
@@ -779,7 +781,7 @@ void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 	 * the LRCs and reading them in different time could also introduce
 	 * errors.
 	 */
-	lrc = &q->lrc[0];
+	lrc = q->lrc[0];
 	new_ts = xe_lrc_update_timestamp(lrc, &old_ts);
 	q->run_ticks += (new_ts - old_ts) * q->width;
 }

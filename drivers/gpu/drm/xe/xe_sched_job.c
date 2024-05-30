@@ -216,7 +216,7 @@ void xe_sched_job_set_error(struct xe_sched_job *job, int error)
 
 bool xe_sched_job_started(struct xe_sched_job *job)
 {
-	struct xe_lrc *lrc = job->q->lrc;
+	struct xe_lrc *lrc = job->q->lrc[0];
 
 	return !__dma_fence_is_later(xe_sched_job_lrc_seqno(job),
 				     xe_lrc_start_seqno(lrc),
@@ -225,7 +225,7 @@ bool xe_sched_job_started(struct xe_sched_job *job)
 
 bool xe_sched_job_completed(struct xe_sched_job *job)
 {
-	struct xe_lrc *lrc = job->q->lrc;
+	struct xe_lrc *lrc = job->q->lrc[0];
 
 	/*
 	 * Can safely check just LRC[0] seqno as that is last seqno written when
@@ -265,7 +265,7 @@ void xe_sched_job_arm(struct xe_sched_job *job)
 		struct dma_fence_chain *chain;
 
 		fence = job->ptrs[i].lrc_fence;
-		xe_lrc_init_seqno_fence(&q->lrc[i], fence);
+		xe_lrc_init_seqno_fence(q->lrc[i], fence);
 		job->ptrs[i].lrc_fence = NULL;
 		if (!i) {
 			job->lrc_seqno = fence->seqno;
