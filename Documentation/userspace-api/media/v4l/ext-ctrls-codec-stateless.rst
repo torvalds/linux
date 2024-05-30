@@ -3439,7 +3439,7 @@ semantics" of :ref:`av1`.
       - Bitmask defining which features are enabled in each segment. Use
         V4L2_AV1_SEGMENT_FEATURE_ENABLED to build a suitable mask.
     * - __u16
-      - `feature_data[V4L2_AV1_MAX_SEGMENTS][V4L2_AV1_SEG_LVL_MAX]``
+      - ``feature_data[V4L2_AV1_MAX_SEGMENTS][V4L2_AV1_SEG_LVL_MAX]``
       -  Data attached to each feature. Data entry is only valid if the feature
          is enabled.
 
