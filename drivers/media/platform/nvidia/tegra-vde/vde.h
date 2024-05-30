@@ -47,7 +47,6 @@ struct iommu_group;
 struct iommu_domain;
 struct reset_control;
 struct dma_buf_attachment;
-struct tegra_vde_h264_frame;
 struct tegra_vde_h264_decoder_ctx;
 
 struct tegra_video_frame {

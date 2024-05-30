@@ -19,11 +19,6 @@
 #define FLAG_B_FRAME		0x1
 #define FLAG_REFERENCE		0x2
 
-struct tegra_vde_h264_frame {
-	unsigned int frame_num;
-	unsigned int flags;
-};
-
 struct tegra_vde_h264_decoder_ctx {
 	unsigned int dpb_frames_nb;
 	unsigned int dpb_ref_frames_with_earlier_poc_nb;
