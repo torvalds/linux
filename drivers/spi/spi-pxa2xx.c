@@ -1304,6 +1304,27 @@ pxa2xx_spi_init_ssp(struct platform_device *pdev, struct ssp_device *ssp, enum p
 	return 0;
 }
 
+static void pxa2xx_spi_ssp_release(void *ssp)
+{
+	pxa_ssp_free(ssp);
+}
+
+static struct ssp_device *pxa2xx_spi_ssp_request(struct platform_device *pdev)
+{
+	struct ssp_device *ssp;
+	int status;
+
+	ssp = pxa_ssp_request(pdev->id, pdev->name);
+	if (!ssp)
+		return ssp;
+
+	status = devm_add_action_or_reset(&pdev->dev, pxa2xx_spi_ssp_release, ssp);
+	if (status)
+		return ERR_PTR(status);
+
+	return ssp;
+}
+
 static struct pxa2xx_spi_controller *
 pxa2xx_spi_init_pdata(struct platform_device *pdev)
 {
@@ -1331,11 +1352,11 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 
 		type = (enum pxa_ssp_type)value;
 	} else {
-		ssp = pxa_ssp_request(pdev->id, pdev->name);
-		if (ssp) {
+		ssp = pxa2xx_spi_ssp_request(pdev);
+		if (IS_ERR(ssp))
+			return ERR_CAST(ssp);
+		if (ssp)
 			type = ssp->type;
-			pxa_ssp_free(ssp);
-		}
 	}
 
 	/* Validate the SSP type correctness */
@@ -1420,7 +1441,9 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	}
 	dev_dbg(dev, "DMA burst size set to %u\n", platform_info->dma_burst_size);
 
-	ssp = pxa_ssp_request(pdev->id, pdev->name);
+	ssp = pxa2xx_spi_ssp_request(pdev);
+	if (IS_ERR(ssp))
+		return PTR_ERR(ssp);
 	if (!ssp)
 		ssp = &platform_info->ssp;
 
@@ -1431,11 +1454,9 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		controller = devm_spi_alloc_target(dev, sizeof(*drv_data));
 	else
 		controller = devm_spi_alloc_host(dev, sizeof(*drv_data));
+	if (!controller)
+		return dev_err_probe(dev, -ENOMEM, "cannot alloc spi_controller\n");
 
-	if (!controller) {
-		status = dev_err_probe(dev, -ENOMEM, "cannot alloc spi_controller\n");
-		goto out_error_controller_alloc;
-	}
 	drv_data = spi_controller_get_devdata(controller);
 	drv_data->controller = controller;
 	drv_data->controller_info = platform_info;
@@ -1486,10 +1507,8 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 
 	status = request_irq(ssp->irq, ssp_int, IRQF_SHARED, dev_name(dev),
 			drv_data);
-	if (status < 0) {
-		dev_err_probe(dev, status, "cannot get IRQ %d\n", ssp->irq);
-		goto out_error_controller_alloc;
-	}
+	if (status < 0)
+		return dev_err_probe(dev, status, "cannot get IRQ %d\n", ssp->irq);
 
 	/* Setup DMA if requested */
 	if (platform_info->enable_dma) {
@@ -1619,8 +1638,6 @@ out_error_dma_irq_alloc:
 	pxa2xx_spi_dma_release(drv_data);
 	free_irq(ssp->irq, drv_data);
 
-out_error_controller_alloc:
-	pxa_ssp_free(ssp);
 	return status;
 }
 
@@ -1646,9 +1663,6 @@ static void pxa2xx_spi_remove(struct platform_device *pdev)
 
 	/* Release IRQ */
 	free_irq(ssp->irq, drv_data);
-
-	/* Release SSP */
-	pxa_ssp_free(ssp);
 }
 
 static int pxa2xx_spi_suspend(struct device *dev)
