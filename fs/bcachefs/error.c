@@ -109,18 +109,21 @@ static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
 	if (!stdio)
 		return YN_NO;
 
-	char buf[100];
+	darray_char line = {};
 	int ret;
 
 	do {
 		bch2_print(c, " (y,n, or Y,N for all errors of this type) ");
 
-		int r = bch2_stdio_redirect_readline(stdio, buf, sizeof(buf) - 1);
-		if (r < 0)
-			return YN_NO;
-		buf[r] = '\0';
-	} while ((ret = parse_yn_response(buf)) < 0);
+		int r = bch2_stdio_redirect_readline(stdio, &line);
+		if (r < 0) {
+			ret = YN_NO;
+			break;
+		}
+		darray_last(line) = '\0';
+	} while ((ret = parse_yn_response(line.data)) < 0);
 
+	darray_exit(&line);
 	return ret;
 }
 #else

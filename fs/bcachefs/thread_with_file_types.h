@@ -8,6 +8,7 @@ struct stdio_buf {
 	spinlock_t		lock;
 	wait_queue_head_t	wait;
 	darray_char		buf;
+	bool			waiting_for_line;
 };
 
 struct stdio_redirect {
