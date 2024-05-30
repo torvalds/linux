@@ -241,6 +241,8 @@ struct rzg2l_dedicated_configs {
 	u64 config;
 };
 
+struct rzg2l_pinctrl;
+
 struct rzg2l_pinctrl_data {
 	const char * const *port_pins;
 	const u64 *port_pin_configs;
@@ -251,6 +253,7 @@ struct rzg2l_pinctrl_data {
 	const struct rzg2l_hwcfg *hwcfg;
 	const u64 *variable_pin_cfg;
 	unsigned int n_variable_pin_cfg;
+	void (*pwpr_pfc_lock_unlock)(struct rzg2l_pinctrl *pctrl, bool lock);
 };
 
 /**
@@ -383,7 +386,6 @@ static const u64 r9a07g043f_variable_pin_cfg[] = {
 static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 				       u8 pin, u8 off, u8 func)
 {
-	const struct rzg2l_register_offsets *regs = &pctrl->data->hwcfg->regs;
 	unsigned long flags;
 	u32 reg;
 
@@ -394,26 +396,22 @@ static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 	reg &= ~(PM_MASK << (pin * 2));
 	writew(reg, pctrl->base + PM(off));
 
+	pctrl->data->pwpr_pfc_lock_unlock(pctrl, false);
+
 	/* Temporarily switch to GPIO mode with PMC register */
 	reg = readb(pctrl->base + PMC(off));
 	writeb(reg & ~BIT(pin), pctrl->base + PMC(off));
-
-	/* Set the PWPR register to allow PFC register to write */
-	writel(0x0, pctrl->base + regs->pwpr);		/* B0WI=0, PFCWE=0 */
-	writel(PWPR_PFCWE, pctrl->base + regs->pwpr);	/* B0WI=0, PFCWE=1 */
 
 	/* Select Pin function mode with PFC register */
 	reg = readl(pctrl->base + PFC(off));
 	reg &= ~(PFC_MASK << (pin * 4));
 	writel(reg | (func << (pin * 4)), pctrl->base + PFC(off));
 
-	/* Set the PWPR register to be write-protected */
-	writel(0x0, pctrl->base + regs->pwpr);		/* B0WI=0, PFCWE=0 */
-	writel(PWPR_B0WI, pctrl->base + regs->pwpr);	/* B0WI=1, PFCWE=0 */
-
 	/* Switch to Peripheral pin function with PMC register */
 	reg = readb(pctrl->base + PMC(off));
 	writeb(reg | BIT(pin), pctrl->base + PMC(off));
+
+	pctrl->data->pwpr_pfc_lock_unlock(pctrl, true);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 };
@@ -2439,12 +2437,8 @@ static void rzg2l_pinctrl_pm_setup_dedicated_regs(struct rzg2l_pinctrl *pctrl, b
 static void rzg2l_pinctrl_pm_setup_pfc(struct rzg2l_pinctrl *pctrl)
 {
 	u32 nports = pctrl->data->n_port_pins / RZG2L_PINS_PER_PORT;
-	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
-	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
 
-	/* Set the PWPR register to allow PFC register to write. */
-	writel(0x0, pctrl->base + regs->pwpr);		/* B0WI=0, PFCWE=0 */
-	writel(PWPR_PFCWE, pctrl->base + regs->pwpr);	/* B0WI=0, PFCWE=1 */
+	pctrl->data->pwpr_pfc_lock_unlock(pctrl, false);
 
 	/* Restore port registers. */
 	for (u32 port = 0; port < nports; port++) {
@@ -2487,9 +2481,7 @@ static void rzg2l_pinctrl_pm_setup_pfc(struct rzg2l_pinctrl *pctrl)
 		}
 	}
 
-	/* Set the PWPR register to be write-protected. */
-	writel(0x0, pctrl->base + regs->pwpr);		/* B0WI=0, PFCWE=0 */
-	writel(PWPR_B0WI, pctrl->base + regs->pwpr);	/* B0WI=1, PFCWE=0 */
+	pctrl->data->pwpr_pfc_lock_unlock(pctrl, true);
 }
 
 static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
@@ -2551,6 +2543,21 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	return 0;
 }
 
+static void rzg2l_pwpr_pfc_lock_unlock(struct rzg2l_pinctrl *pctrl, bool lock)
+{
+	const struct rzg2l_register_offsets *regs = &pctrl->data->hwcfg->regs;
+
+	if (lock) {
+		/* Set the PWPR register to be write-protected */
+		writel(0x0, pctrl->base + regs->pwpr);		/* B0WI=0, PFCWE=0 */
+		writel(PWPR_B0WI, pctrl->base + regs->pwpr);	/* B0WI=1, PFCWE=0 */
+	} else {
+		/* Set the PWPR register to allow PFC register to write */
+		writel(0x0, pctrl->base + regs->pwpr);		/* B0WI=0, PFCWE=0 */
+		writel(PWPR_PFCWE, pctrl->base + regs->pwpr);	/* B0WI=0, PFCWE=1 */
+	}
+}
+
 static const struct rzg2l_hwcfg rzg2l_hwcfg = {
 	.regs = {
 		.pwpr = 0x3014,
@@ -2608,6 +2615,7 @@ static struct rzg2l_pinctrl_data r9a07g043_data = {
 	.variable_pin_cfg = r9a07g043f_variable_pin_cfg,
 	.n_variable_pin_cfg = ARRAY_SIZE(r9a07g043f_variable_pin_cfg),
 #endif
+	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 };
 
 static struct rzg2l_pinctrl_data r9a07g044_data = {
@@ -2619,6 +2627,7 @@ static struct rzg2l_pinctrl_data r9a07g044_data = {
 	.n_dedicated_pins = ARRAY_SIZE(rzg2l_dedicated_pins.common) +
 		ARRAY_SIZE(rzg2l_dedicated_pins.rzg2l_pins),
 	.hwcfg = &rzg2l_hwcfg,
+	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 };
 
 static struct rzg2l_pinctrl_data r9a08g045_data = {
@@ -2629,6 +2638,7 @@ static struct rzg2l_pinctrl_data r9a08g045_data = {
 	.n_port_pins = ARRAY_SIZE(r9a08g045_gpio_configs) * RZG2L_PINS_PER_PORT,
 	.n_dedicated_pins = ARRAY_SIZE(rzg3s_dedicated_pins),
 	.hwcfg = &rzg3s_hwcfg,
+	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 };
 
 static const struct of_device_id rzg2l_pinctrl_of_table[] = {
