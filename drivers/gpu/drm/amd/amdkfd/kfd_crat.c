@@ -2213,9 +2213,6 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * Modify length and total_entries as subunits are added.
 	 */
 	avail_size -= sizeof(struct crat_header);
-	if (avail_size < 0)
-		return -ENOMEM;
-
 	memset(crat_table, 0, sizeof(struct crat_header));
 
 	memcpy(&crat_table->signature, CRAT_SIGNATURE,
@@ -2229,9 +2226,6 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * First fill in the sub type header and then sub type data
 	 */
 	avail_size -= sizeof(struct crat_subtype_computeunit);
-	if (avail_size < 0)
-		return -ENOMEM;
-
 	sub_type_hdr = (struct crat_subtype_generic *)(crat_table + 1);
 	memset(sub_type_hdr, 0, sizeof(struct crat_subtype_computeunit));
 
