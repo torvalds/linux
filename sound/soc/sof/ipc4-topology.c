@@ -1584,6 +1584,55 @@ bool sof_ipc4_copier_is_single_bitdepth(struct snd_sof_dev *sdev,
 }
 
 static int
+sof_ipc4_adjust_params_to_dai_format(struct snd_sof_dev *sdev,
+				     struct snd_pcm_hw_params *params,
+				     struct sof_ipc4_pin_format *pin_fmts,
+				     u32 pin_fmts_size)
+{
+	u32 params_mask = BIT(SNDRV_PCM_HW_PARAM_RATE) |
+			  BIT(SNDRV_PCM_HW_PARAM_CHANNELS) |
+			  BIT(SNDRV_PCM_HW_PARAM_FORMAT);
+	struct sof_ipc4_audio_format *fmt;
+	u32 rate, channels, valid_bits;
+	int i;
+
+	fmt = &pin_fmts[0].audio_fmt;
+	rate = fmt->sampling_frequency;
+	channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+	valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+
+	/* check if parameters in topology defined formats are the same */
+	for (i = 1; i < pin_fmts_size; i++) {
+		u32 val;
+
+		fmt = &pin_fmts[i].audio_fmt;
+
+		if (params_mask & BIT(SNDRV_PCM_HW_PARAM_RATE)) {
+			val = fmt->sampling_frequency;
+			if (val != rate)
+				params_mask &= ~BIT(SNDRV_PCM_HW_PARAM_RATE);
+		}
+		if (params_mask & BIT(SNDRV_PCM_HW_PARAM_CHANNELS)) {
+			val = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+			if (val != channels)
+				params_mask &= ~BIT(SNDRV_PCM_HW_PARAM_CHANNELS);
+		}
+		if (params_mask & BIT(SNDRV_PCM_HW_PARAM_FORMAT)) {
+			val = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+			if (val != valid_bits)
+				params_mask &= ~BIT(SNDRV_PCM_HW_PARAM_FORMAT);
+		}
+	}
+
+	if (params_mask)
+		return sof_ipc4_update_hw_params(sdev, params,
+						 &pin_fmts[0].audio_fmt,
+						 params_mask);
+
+	return 0;
+}
+
+static int
 sof_ipc4_prepare_dai_copier(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
 			    struct snd_pcm_hw_params *params, int dir)
 {
@@ -1601,10 +1650,9 @@ sof_ipc4_prepare_dai_copier(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
 	available_fmt = &ipc4_copier->available_fmt;
 
 	/*
-	 * If the copier on the DAI side supports only single bit depth then
-	 * this depth (format) should be used to look for the NHLT blob (if
-	 * needed) and in case of capture this should be used for the input
-	 * format lookup
+	 * Fixup the params based on the format parameters of the DAI. If any
+	 * of the RATE, CHANNELS, bit depth is static among the formats then
+	 * narrow the params to only allow that specific parameter value.
 	 */
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
 		pin_fmts = available_fmt->output_pin_fmts;
@@ -1614,18 +1662,13 @@ sof_ipc4_prepare_dai_copier(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
 		num_pin_fmts = available_fmt->num_input_formats;
 	}
 
+	ret = sof_ipc4_adjust_params_to_dai_format(sdev, &dai_params, pin_fmts,
+						   num_pin_fmts);
+	if (ret)
+		return ret;
+
 	single_bitdepth = sof_ipc4_copier_is_single_bitdepth(sdev, pin_fmts,
 							     num_pin_fmts);
-
-	/* Update the dai_params with the only supported format */
-	if (single_bitdepth) {
-		ret = sof_ipc4_update_hw_params(sdev, &dai_params,
-						&pin_fmts[0].audio_fmt,
-						BIT(SNDRV_PCM_HW_PARAM_FORMAT));
-		if (ret)
-			return ret;
-	}
-
 	ret = snd_sof_get_nhlt_endpoint_data(sdev, dai, single_bitdepth,
 					     &dai_params,
 					     ipc4_copier->dai_index,
