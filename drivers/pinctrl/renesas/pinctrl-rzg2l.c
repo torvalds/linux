@@ -78,9 +78,9 @@
 					 PIN_CFG_FILNUM | \
 					 PIN_CFG_FILCLKSEL)
 
-#define PIN_CFG_PIN_MAP_MASK		GENMASK_ULL(35, 28)
-#define PIN_CFG_PIN_REG_MASK		GENMASK(27, 20)
-#define PIN_CFG_MASK			GENMASK(19, 0)
+#define PIN_CFG_PIN_MAP_MASK		GENMASK_ULL(62, 55)
+#define PIN_CFG_PIN_REG_MASK		GENMASK_ULL(54, 47)
+#define PIN_CFG_MASK			GENMASK_ULL(46, 0)
 
 /*
  * m indicates the bitmap of supported pins, a is the register index
@@ -102,8 +102,8 @@
  * (b * 8) and f is the pin configuration capabilities supported.
  */
 #define RZG2L_SINGLE_PIN		BIT_ULL(63)
-#define RZG2L_SINGLE_PIN_INDEX_MASK	GENMASK(30, 24)
-#define RZG2L_SINGLE_PIN_BITS_MASK	GENMASK(22, 20)
+#define RZG2L_SINGLE_PIN_INDEX_MASK	GENMASK_ULL(62, 56)
+#define RZG2L_SINGLE_PIN_BITS_MASK	GENMASK_ULL(55, 53)
 
 #define RZG2L_SINGLE_PIN_PACK(p, b, f)	(RZG2L_SINGLE_PIN | \
 					 FIELD_PREP_CONST(RZG2L_SINGLE_PIN_INDEX_MASK, (p)) | \
@@ -241,9 +241,9 @@ struct rzg2l_dedicated_configs {
  * @pin: port pin
  */
 struct rzg2l_variable_pin_cfg {
-	u32 cfg:20;
-	u32 port:5;
-	u32 pin:3;
+	u64 cfg:47;
+	u64 port:5;
+	u64 pin:3;
 };
 
 struct rzg2l_pinctrl_data {
@@ -1081,7 +1081,8 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	const struct pinctrl_pin_desc *pin = &pctrl->desc.pins[_pin];
 	u64 *pin_data = pin->drv_data;
 	unsigned int arg = 0;
-	u32 off, cfg;
+	u32 off;
+	u64 cfg;
 	int ret;
 	u8 bit;
 
@@ -1185,7 +1186,8 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 	u64 *pin_data = pin->drv_data;
 	enum pin_config_param param;
 	unsigned int i, arg, index;
-	u32 cfg, off;
+	u32 off;
+	u64 cfg;
 	int ret;
 	u8 bit;
 
@@ -2413,9 +2415,9 @@ static void rzg2l_pinctrl_pm_setup_regs(struct rzg2l_pinctrl *pctrl, bool suspen
 
 	for (u32 port = 0; port < nports; port++) {
 		bool has_iolh, has_ien;
-		u32 off, caps;
+		u64 cfg, caps;
 		u8 pincnt;
-		u64 cfg;
+		u32 off;
 
 		cfg = pctrl->data->port_pin_configs[port];
 		off = RZG2L_PIN_CFG_TO_PORT_OFFSET(cfg);
@@ -2459,12 +2461,14 @@ static void rzg2l_pinctrl_pm_setup_regs(struct rzg2l_pinctrl *pctrl, bool suspen
 static void rzg2l_pinctrl_pm_setup_dedicated_regs(struct rzg2l_pinctrl *pctrl, bool suspend)
 {
 	struct rzg2l_pinctrl_reg_cache *cache = pctrl->dedicated_cache;
+	u64 caps;
+	u32 i;
 
 	/*
 	 * Make sure entries in pctrl->data->n_dedicated_pins[] having the same
 	 * port offset are close together.
 	 */
-	for (u32 i = 0, caps = 0; i < pctrl->data->n_dedicated_pins; i++) {
+	for (i = 0, caps = 0; i < pctrl->data->n_dedicated_pins; i++) {
 		bool has_iolh, has_ien;
 		u32 off, next_off = 0;
 		u64 cfg, next_cfg;
