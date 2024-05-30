@@ -71,7 +71,7 @@ static int ocelot_ext_probe(struct platform_device *pdev)
 	struct felix *felix;
 	int err;
 
-	felix = kzalloc(sizeof(*felix), GFP_KERNEL);
+	felix = devm_kzalloc(dev, sizeof(*felix), GFP_KERNEL);
 	if (!felix)
 		return -ENOMEM;
 
@@ -84,12 +84,9 @@ static int ocelot_ext_probe(struct platform_device *pdev)
 
 	felix->info = &vsc7512_info;
 
-	ds = kzalloc(sizeof(*ds), GFP_KERNEL);
-	if (!ds) {
-		err = -ENOMEM;
-		dev_err_probe(dev, err, "Failed to allocate DSA switch\n");
-		goto err_free_felix;
-	}
+	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	if (!ds)
+		return -ENOMEM;
 
 	ds->dev = dev;
 	ds->num_ports = felix->info->num_ports;
@@ -102,17 +99,9 @@ static int ocelot_ext_probe(struct platform_device *pdev)
 	felix->tag_proto = DSA_TAG_PROTO_OCELOT;
 
 	err = dsa_register_switch(ds);
-	if (err) {
+	if (err)
 		dev_err_probe(dev, err, "Failed to register DSA switch\n");
-		goto err_free_ds;
-	}
 
-	return 0;
-
-err_free_ds:
-	kfree(ds);
-err_free_felix:
-	kfree(felix);
 	return err;
 }
 
@@ -124,9 +113,6 @@ static void ocelot_ext_remove(struct platform_device *pdev)
 		return;
 
 	dsa_unregister_switch(felix->ds);
-
-	kfree(felix->ds);
-	kfree(felix);
 }
 
 static void ocelot_ext_shutdown(struct platform_device *pdev)
