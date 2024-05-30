@@ -31,15 +31,7 @@ static int coda_symlink_filler(struct file *file, struct folio *folio)
 	cii = ITOC(inode);
 
 	error = venus_readlink(inode->i_sb, &cii->c_fid, p, &len);
-	if (error)
-		goto fail;
-	folio_mark_uptodate(folio);
-	folio_unlock(folio);
-	return 0;
-
-fail:
-	folio_set_error(folio);
-	folio_unlock(folio);
+	folio_end_read(folio, error == 0);
 	return error;
 }
 
