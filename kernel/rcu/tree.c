@@ -79,9 +79,6 @@ static void rcu_sr_normal_gp_cleanup_work(struct work_struct *);
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, rcu_data) = {
 	.gpwrap = true,
-#ifdef CONFIG_RCU_NOCB_CPU
-	.cblist.flags = SEGCBLIST_RCU_CORE,
-#endif
 };
 static struct rcu_state rcu_state = {
 	.level = { &rcu_state.node[0] },

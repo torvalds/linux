@@ -1060,7 +1060,6 @@ static int rcu_nocb_rdp_deoffload(struct rcu_data *rdp)
 	WARN_ON_ONCE(rcu_cblist_n_cbs(&rdp->nocb_bypass));
 	WARN_ON_ONCE(rcu_segcblist_n_cbs(&rdp->cblist));
 
-	rcu_segcblist_set_flags(cblist, SEGCBLIST_RCU_CORE);
 	wake_gp = rdp_offload_toggle(rdp, false, flags);
 
 	mutex_lock(&rdp_gp->nocb_gp_kthread_mutex);
@@ -1167,13 +1166,6 @@ static int rcu_nocb_rdp_offload(struct rcu_data *rdp)
 
 	swait_event_exclusive(rdp->nocb_state_wq,
 			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
-
-	/*
-	 * All kthreads are ready to work, we can finally enable nocb bypass.
-	 */
-	rcu_nocb_lock_irqsave(rdp, flags);
-	rcu_segcblist_clear_flags(cblist, SEGCBLIST_RCU_CORE);
-	rcu_nocb_unlock_irqrestore(rdp, flags);
 
 	return 0;
 }
@@ -1350,7 +1342,6 @@ void __init rcu_init_nohz(void)
 			rcu_segcblist_init(&rdp->cblist);
 		rcu_segcblist_offload(&rdp->cblist, true);
 		rcu_segcblist_set_flags(&rdp->cblist, SEGCBLIST_KTHREAD_GP);
-		rcu_segcblist_clear_flags(&rdp->cblist, SEGCBLIST_RCU_CORE);
 	}
 	rcu_organize_nocb_kthreads();
 }
