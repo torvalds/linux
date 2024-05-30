@@ -421,6 +421,7 @@ struct rcu_state {
 	atomic_t srs_cleanups_pending; /* srs inflight worker cleanups. */
 
 #ifdef CONFIG_RCU_NOCB_CPU
+	struct mutex nocb_mutex;		/* Guards (de-)offloading */
 	int nocb_is_setup;			/* nocb is setup from boot */
 #endif
 };
