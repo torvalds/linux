@@ -210,7 +210,7 @@ static int vcn_v4_0_3_hw_init(void *handle)
 	if (amdgpu_sriov_vf(adev)) {
 		r = vcn_v4_0_3_start_sriov(adev);
 		if (r)
-			goto done;
+			return r;
 
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 			ring = &adev->vcn.inst[i].ring_enc[0];
@@ -246,14 +246,9 @@ static int vcn_v4_0_3_hw_init(void *handle)
 
 			r = amdgpu_ring_test_helper(ring);
 			if (r)
-				goto done;
+				return r;
 		}
 	}
-
-done:
-	if (!r)
-		DRM_DEV_INFO(adev->dev, "VCN decode initialized successfully(under %s).\n",
-			(adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)?"DPG Mode":"SPG Mode");
 
 	return r;
 }
@@ -1450,7 +1445,6 @@ static void vcn_v4_0_3_set_unified_ring_funcs(struct amdgpu_device *adev)
 		adev->vcn.inst[i].aid_id =
 			vcn_inst / adev->vcn.num_inst_per_aid;
 	}
-	DRM_DEV_INFO(adev->dev, "VCN decode is enabled in VM mode\n");
 }
 
 /**

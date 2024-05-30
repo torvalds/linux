@@ -131,16 +131,11 @@ static int jpeg_v2_0_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
-	int r;
 
 	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
 		(adev->doorbell_index.vcn.vcn_ring0_1 << 1), 0);
 
-	r = amdgpu_ring_test_helper(ring);
-	if (!r)
-		DRM_INFO("JPEG decode initialized successfully.\n");
-
-	return r;
+	return amdgpu_ring_test_helper(ring);
 }
 
 /**
@@ -795,7 +790,6 @@ static const struct amdgpu_ring_funcs jpeg_v2_0_dec_ring_vm_funcs = {
 static void jpeg_v2_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	adev->jpeg.inst->ring_dec->funcs = &jpeg_v2_0_dec_ring_vm_funcs;
-	DRM_INFO("JPEG decode is enabled in VM mode\n");
 }
 
 static const struct amdgpu_irq_src_funcs jpeg_v2_0_irq_funcs = {
