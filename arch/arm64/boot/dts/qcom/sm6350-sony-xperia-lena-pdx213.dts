@@ -375,6 +375,7 @@
 };
 
 &usb_1_dwc3 {
+	/delete-property/ usb-role-switch;
 	maximum-speed = "super-speed";
 	dr_mode = "peripheral";
 };
