@@ -64,6 +64,7 @@ struct felix_info {
 				      const struct phylink_link_state *state);
 	int	(*configure_serdes)(struct ocelot *ocelot, int port,
 				    struct device_node *portnp);
+	int	(*request_irq)(struct ocelot *ocelot);
 };
 
 /* Methods for initializing the hardware resources specific to a tagging

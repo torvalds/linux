@@ -2605,6 +2605,28 @@ set:
 	}
 }
 
+/* The INTB interrupt is shared between for PTP TX timestamp availability
+ * notification and MAC Merge status change on each port.
+ */
+static irqreturn_t vsc9959_irq_handler(int irq, void *data)
+{
+	struct ocelot *ocelot = data;
+
+	ocelot_get_txtstamp(ocelot);
+	ocelot_mm_irq(ocelot);
+
+	return IRQ_HANDLED;
+}
+
+static int vsc9959_request_irq(struct ocelot *ocelot)
+{
+	struct pci_dev *pdev = to_pci_dev(ocelot->dev);
+
+	return devm_request_threaded_irq(ocelot->dev, pdev->irq, NULL,
+					 &vsc9959_irq_handler, IRQF_ONESHOT,
+					 "felix-intb", ocelot);
+}
+
 static const struct ocelot_ops vsc9959_ops = {
 	.reset			= vsc9959_reset,
 	.wm_enc			= vsc9959_wm_enc,
@@ -2645,20 +2667,8 @@ static const struct felix_info felix_info_vsc9959 = {
 	.port_modes		= vsc9959_port_modes,
 	.port_setup_tc		= vsc9959_port_setup_tc,
 	.port_sched_speed_set	= vsc9959_sched_speed_set,
+	.request_irq		= vsc9959_request_irq,
 };
-
-/* The INTB interrupt is shared between for PTP TX timestamp availability
- * notification and MAC Merge status change on each port.
- */
-static irqreturn_t felix_irq_handler(int irq, void *data)
-{
-	struct ocelot *ocelot = (struct ocelot *)data;
-
-	ocelot_get_txtstamp(ocelot);
-	ocelot_mm_irq(ocelot);
-
-	return IRQ_HANDLED;
-}
 
 static int felix_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
@@ -2689,14 +2699,6 @@ static int felix_pci_probe(struct pci_dev *pdev,
 	felix->switch_base = pci_resource_start(pdev, VSC9959_SWITCH_PCI_BAR);
 
 	pci_set_master(pdev);
-
-	err = devm_request_threaded_irq(dev, pdev->irq, NULL,
-					&felix_irq_handler, IRQF_ONESHOT,
-					"felix-intb", ocelot);
-	if (err) {
-		dev_err(dev, "Failed to request irq: %pe\n", ERR_PTR(err));
-		goto out_disable;
-	}
 
 	ocelot->ptp = 1;
 	ocelot->mm_supported = true;

@@ -1597,6 +1597,15 @@ static int felix_setup(struct dsa_switch *ds)
 		felix_port_qos_map_init(ocelot, dp->index);
 	}
 
+	if (felix->info->request_irq) {
+		err = felix->info->request_irq(ocelot);
+		if (err) {
+			dev_err(ocelot->dev, "Failed to request IRQ: %pe\n",
+				ERR_PTR(err));
+			goto out_deinit_ports;
+		}
+	}
+
 	err = ocelot_devlink_sb_register(ocelot);
 	if (err)
 		goto out_deinit_ports;
