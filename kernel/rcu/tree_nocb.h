@@ -1049,43 +1049,26 @@ static int rdp_offload_toggle(struct rcu_data *rdp,
 	return wake_gp;
 }
 
-static long rcu_nocb_rdp_deoffload(void *arg)
+static int rcu_nocb_rdp_deoffload(struct rcu_data *rdp)
 {
-	struct rcu_data *rdp = arg;
 	struct rcu_segcblist *cblist = &rdp->cblist;
 	unsigned long flags;
 	int wake_gp;
 	struct rcu_data *rdp_gp = rdp->nocb_gp_rdp;
 
-	/*
-	 * rcu_nocb_rdp_deoffload() may be called directly if
-	 * rcuog/o[p] spawn failed, because at this time the rdp->cpu
-	 * is not online yet.
-	 */
-	WARN_ON_ONCE((rdp->cpu != raw_smp_processor_id()) && cpu_online(rdp->cpu));
+	/* CPU must be offline, unless it's early boot */
+	WARN_ON_ONCE(cpu_online(rdp->cpu) && rdp->cpu != raw_smp_processor_id());
 
 	pr_info("De-offloading %d\n", rdp->cpu);
 
+	/* Flush all callbacks from segcblist and bypass */
+	rcu_barrier();
+
 	rcu_nocb_lock_irqsave(rdp, flags);
-	/*
-	 * Flush once and for all now. This suffices because we are
-	 * running on the target CPU holding ->nocb_lock (thus having
-	 * interrupts disabled), and because rdp_offload_toggle()
-	 * invokes rcu_segcblist_offload(), which clears SEGCBLIST_OFFLOADED.
-	 * Thus future calls to rcu_segcblist_completely_offloaded() will
-	 * return false, which means that future calls to rcu_nocb_try_bypass()
-	 * will refuse to put anything into the bypass.
-	 */
-	WARN_ON_ONCE(!rcu_nocb_flush_bypass(rdp, NULL, jiffies, false));
-	/*
-	 * Start with invoking rcu_core() early. This way if the current thread
-	 * happens to preempt an ongoing call to rcu_core() in the middle,
-	 * leaving some work dismissed because rcu_core() still thinks the rdp is
-	 * completely offloaded, we are guaranteed a nearby future instance of
-	 * rcu_core() to catch up.
-	 */
+	WARN_ON_ONCE(rcu_cblist_n_cbs(&rdp->nocb_bypass));
+	WARN_ON_ONCE(rcu_segcblist_n_cbs(&rdp->cblist));
+
 	rcu_segcblist_set_flags(cblist, SEGCBLIST_RCU_CORE);
-	invoke_rcu_core();
 	wake_gp = rdp_offload_toggle(rdp, false, flags);
 
 	mutex_lock(&rdp_gp->nocb_gp_kthread_mutex);
@@ -1128,10 +1111,6 @@ static long rcu_nocb_rdp_deoffload(void *arg)
 	 */
 	raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
 
-	/* Sanity check */
-	WARN_ON_ONCE(rcu_cblist_n_cbs(&rdp->nocb_bypass));
-
-
 	return 0;
 }
 
@@ -1142,18 +1121,16 @@ int rcu_nocb_cpu_deoffload(int cpu)
 
 	cpus_read_lock();
 	mutex_lock(&rcu_state.nocb_mutex);
-	mutex_lock(&rcu_state.barrier_mutex);
 	if (rcu_rdp_is_offloaded(rdp)) {
-		if (cpu_online(cpu)) {
-			ret = work_on_cpu(cpu, rcu_nocb_rdp_deoffload, rdp);
+		if (!cpu_online(cpu)) {
+			ret = rcu_nocb_rdp_deoffload(rdp);
 			if (!ret)
 				cpumask_clear_cpu(cpu, rcu_nocb_mask);
 		} else {
-			pr_info("NOCB: Cannot CB-deoffload offline CPU %d\n", rdp->cpu);
+			pr_info("NOCB: Cannot CB-deoffload online CPU %d\n", rdp->cpu);
 			ret = -EINVAL;
 		}
 	}
-	mutex_unlock(&rcu_state.barrier_mutex);
 	mutex_unlock(&rcu_state.nocb_mutex);
 	cpus_read_unlock();
 
@@ -1161,15 +1138,14 @@ int rcu_nocb_cpu_deoffload(int cpu)
 }
 EXPORT_SYMBOL_GPL(rcu_nocb_cpu_deoffload);
 
-static long rcu_nocb_rdp_offload(void *arg)
+static int rcu_nocb_rdp_offload(struct rcu_data *rdp)
 {
-	struct rcu_data *rdp = arg;
 	struct rcu_segcblist *cblist = &rdp->cblist;
 	unsigned long flags;
 	int wake_gp;
 	struct rcu_data *rdp_gp = rdp->nocb_gp_rdp;
 
-	WARN_ON_ONCE(rdp->cpu != raw_smp_processor_id());
+	WARN_ON_ONCE(cpu_online(rdp->cpu));
 	/*
 	 * For now we only support re-offload, ie: the rdp must have been
 	 * offloaded on boot first.
@@ -1182,28 +1158,15 @@ static long rcu_nocb_rdp_offload(void *arg)
 
 	pr_info("Offloading %d\n", rdp->cpu);
 
+	WARN_ON_ONCE(rcu_cblist_n_cbs(&rdp->nocb_bypass));
+	WARN_ON_ONCE(rcu_segcblist_n_cbs(&rdp->cblist));
+
 	/*
 	 * Can't use rcu_nocb_lock_irqsave() before SEGCBLIST_LOCKING
 	 * is set.
 	 */
 	raw_spin_lock_irqsave(&rdp->nocb_lock, flags);
 
-	/*
-	 * We didn't take the nocb lock while working on the
-	 * rdp->cblist with SEGCBLIST_LOCKING cleared (pure softirq/rcuc mode).
-	 * Every modifications that have been done previously on
-	 * rdp->cblist must be visible remotely by the nocb kthreads
-	 * upon wake up after reading the cblist flags.
-	 *
-	 * The layout against nocb_lock enforces that ordering:
-	 *
-	 *  __rcu_nocb_rdp_offload()   nocb_cb_wait()/nocb_gp_wait()
-	 * -------------------------   ----------------------------
-	 *      WRITE callbacks           rcu_nocb_lock()
-	 *      rcu_nocb_lock()           READ flags
-	 *      WRITE flags               READ callbacks
-	 *      rcu_nocb_unlock()         rcu_nocb_unlock()
-	 */
 	wake_gp = rdp_offload_toggle(rdp, true, flags);
 	if (wake_gp)
 		wake_up_process(rdp_gp->nocb_gp_kthread);
@@ -1214,8 +1177,7 @@ static long rcu_nocb_rdp_offload(void *arg)
 			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
 
 	/*
-	 * All kthreads are ready to work, we can finally relieve rcu_core() and
-	 * enable nocb bypass.
+	 * All kthreads are ready to work, we can finally enable nocb bypass.
 	 */
 	rcu_nocb_lock_irqsave(rdp, flags);
 	rcu_segcblist_clear_flags(cblist, SEGCBLIST_RCU_CORE);
@@ -1231,18 +1193,16 @@ int rcu_nocb_cpu_offload(int cpu)
 
 	cpus_read_lock();
 	mutex_lock(&rcu_state.nocb_mutex);
-	mutex_lock(&rcu_state.barrier_mutex);
 	if (!rcu_rdp_is_offloaded(rdp)) {
-		if (cpu_online(cpu)) {
-			ret = work_on_cpu(cpu, rcu_nocb_rdp_offload, rdp);
+		if (!cpu_online(cpu)) {
+			ret = rcu_nocb_rdp_offload(rdp);
 			if (!ret)
 				cpumask_set_cpu(cpu, rcu_nocb_mask);
 		} else {
-			pr_info("NOCB: Cannot CB-offload offline CPU %d\n", rdp->cpu);
+			pr_info("NOCB: Cannot CB-offload online CPU %d\n", rdp->cpu);
 			ret = -EINVAL;
 		}
 	}
-	mutex_unlock(&rcu_state.barrier_mutex);
 	mutex_unlock(&rcu_state.nocb_mutex);
 	cpus_read_unlock();
 
