@@ -324,6 +324,7 @@ struct wl12xx_rx_filter {
 
 struct wl1271_station {
 	u8 hlid;
+	bool fw_added;
 	bool in_connection;
 
 	/*
@@ -334,6 +335,11 @@ struct wl1271_station {
 	 */
 	u64 total_freed_pkts;
 };
+
+static inline struct wl1271_station *wl1271_station(struct ieee80211_sta *sta)
+{
+	return (struct wl1271_station *)sta->drv_priv;
+}
 
 struct wl12xx_vif {
 	struct wl1271 *wl;
