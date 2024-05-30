@@ -547,14 +547,27 @@ int mana_ib_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
 	struct mana_ib_dev *dev = container_of(ibdev,
 			struct mana_ib_dev, ib_dev);
 
+	memset(props, 0, sizeof(*props));
+	props->max_mr_size = MANA_IB_MAX_MR_SIZE;
+	props->page_size_cap = PAGE_SZ_BM;
 	props->max_qp = dev->adapter_caps.max_qp_count;
 	props->max_qp_wr = dev->adapter_caps.max_qp_wr;
+	props->device_cap_flags = IB_DEVICE_RC_RNR_NAK_GEN;
+	props->max_send_sge = dev->adapter_caps.max_send_sge_count;
+	props->max_recv_sge = dev->adapter_caps.max_recv_sge_count;
+	props->max_sge_rd = dev->adapter_caps.max_recv_sge_count;
 	props->max_cq = dev->adapter_caps.max_cq_count;
 	props->max_cqe = dev->adapter_caps.max_qp_wr;
 	props->max_mr = dev->adapter_caps.max_mr_count;
-	props->max_mr_size = MANA_IB_MAX_MR_SIZE;
-	props->max_send_sge = dev->adapter_caps.max_send_sge_count;
-	props->max_recv_sge = dev->adapter_caps.max_recv_sge_count;
+	props->max_pd = dev->adapter_caps.max_pd_count;
+	props->max_qp_rd_atom = dev->adapter_caps.max_inbound_read_limit;
+	props->max_res_rd_atom = props->max_qp_rd_atom * props->max_qp;
+	props->max_qp_init_rd_atom = dev->adapter_caps.max_outbound_read_limit;
+	props->atomic_cap = IB_ATOMIC_NONE;
+	props->masked_atomic_cap = IB_ATOMIC_NONE;
+	props->max_ah = INT_MAX;
+	props->max_pkeys = 1;
+	props->local_ca_ack_delay = MANA_CA_ACK_DELAY;
 
 	return 0;
 }

@@ -27,6 +27,11 @@
  */
 #define MANA_IB_MAX_MR		0xFFFFFFu
 
+/*
+ * The CA timeout is approx. 260ms (4us * 2^(DELAY))
+ */
+#define MANA_CA_ACK_DELAY	16
+
 struct mana_ib_adapter_caps {
 	u32 max_sq_id;
 	u32 max_rq_id;
