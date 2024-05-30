@@ -79,6 +79,12 @@ struct bnxt_pps {
 	struct pps_pin pins[BNXT_MAX_TSIO_PINS];
 };
 
+struct bnxt_ptp_stats {
+	u64		ts_pkts;
+	u64		ts_lost;
+	atomic64_t	ts_err;
+};
+
 struct bnxt_ptp_cfg {
 	struct ptp_clock_info	ptp_info;
 	struct ptp_clock	*ptp_clock;
@@ -125,6 +131,8 @@ struct bnxt_ptp_cfg {
 	u32			refclk_mapped_regs[2];
 	u32			txts_tmo;
 	unsigned long		abs_txts_tmo;
+
+	struct bnxt_ptp_stats	stats;
 };
 
 #if BITS_PER_LONG == 32
