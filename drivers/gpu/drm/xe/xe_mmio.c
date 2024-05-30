@@ -28,9 +28,6 @@
 #include "xe_sriov.h"
 #include "xe_tile.h"
 
-#define XEHP_MTCFG_ADDR		XE_REG(0x101800)
-#define TILE_COUNT		REG_GENMASK(15, 8)
-
 #define BAR_SIZE_SHIFT 20
 
 static void
