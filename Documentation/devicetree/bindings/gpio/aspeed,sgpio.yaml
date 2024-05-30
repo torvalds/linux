@@ -46,6 +46,9 @@ properties:
 
   interrupt-controller: true
 
+  '#interrupt-cells':
+    const: 2
+
   clocks:
     maxItems: 1
 
@@ -60,6 +63,7 @@ required:
   - '#gpio-cells'
   - interrupts
   - interrupt-controller
+  - '#interrupt-cells'
   - ngpios
   - clocks
   - bus-frequency
@@ -77,6 +81,7 @@ examples:
         reg = <0x1e780200 0x0100>;
         clocks = <&syscon ASPEED_CLK_APB>;
         interrupt-controller;
+        #interrupt-cells = <2>;
         ngpios = <80>;
         bus-frequency = <12000000>;
     };
