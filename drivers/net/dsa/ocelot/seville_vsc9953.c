@@ -971,42 +971,36 @@ static const struct felix_info seville_info_vsc9953 = {
 
 static int seville_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct dsa_switch *ds;
 	struct ocelot *ocelot;
 	struct resource *res;
 	struct felix *felix;
 	int err;
 
-	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
-	if (!felix) {
-		err = -ENOMEM;
-		dev_err(&pdev->dev, "Failed to allocate driver memory\n");
-		goto err_alloc_felix;
-	}
+	felix = devm_kzalloc(dev, sizeof(struct felix), GFP_KERNEL);
+	if (!felix)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, felix);
 
 	ocelot = &felix->ocelot;
-	ocelot->dev = &pdev->dev;
+	ocelot->dev = dev;
 	ocelot->num_flooding_pgids = 1;
 	felix->info = &seville_info_vsc9953;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		err = -EINVAL;
-		dev_err(&pdev->dev, "Invalid resource\n");
-		goto err_alloc_felix;
+		dev_err(dev, "Invalid resource\n");
+		return -EINVAL;
 	}
 	felix->switch_base = res->start;
 
-	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
-	if (!ds) {
-		err = -ENOMEM;
-		dev_err(&pdev->dev, "Failed to allocate DSA switch\n");
-		goto err_alloc_ds;
-	}
+	ds = devm_kzalloc(dev, sizeof(struct dsa_switch), GFP_KERNEL);
+	if (!ds)
+		return -ENOMEM;
 
-	ds->dev = &pdev->dev;
+	ds->dev = dev;
 	ds->num_ports = felix->info->num_ports;
 	ds->ops = &felix_switch_ops;
 	ds->phylink_mac_ops = &felix_phylink_mac_ops;
@@ -1015,18 +1009,9 @@ static int seville_probe(struct platform_device *pdev)
 	felix->tag_proto = DSA_TAG_PROTO_SEVILLE;
 
 	err = dsa_register_switch(ds);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to register DSA switch: %d\n", err);
-		goto err_register_ds;
-	}
+	if (err)
+		dev_err(dev, "Failed to register DSA switch: %d\n", err);
 
-	return 0;
-
-err_register_ds:
-	kfree(ds);
-err_alloc_ds:
-err_alloc_felix:
-	kfree(felix);
 	return err;
 }
 
@@ -1038,9 +1023,6 @@ static void seville_remove(struct platform_device *pdev)
 		return;
 
 	dsa_unregister_switch(felix->ds);
-
-	kfree(felix->ds);
-	kfree(felix);
 }
 
 static void seville_shutdown(struct platform_device *pdev)
