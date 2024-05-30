@@ -8131,6 +8131,8 @@ static void ufshcd_set_rtt(struct ufs_hba *hba)
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 	u32 rtt = 0;
 	u32 dev_rtt = 0;
+	int host_rtt_cap = hba->vops && hba->vops->max_num_rtt ?
+			   hba->vops->max_num_rtt : hba->nortt;
 
 	/* RTT override makes sense only for UFS-4.0 and above */
 	if (dev_info->wspecversion < 0x400)
@@ -8146,7 +8148,8 @@ static void ufshcd_set_rtt(struct ufs_hba *hba)
 	if (dev_rtt != DEFAULT_MAX_NUM_RTT)
 		return;
 
-	rtt = min_t(int, dev_info->rtt_cap, hba->nortt);
+	rtt = min_t(int, dev_info->rtt_cap, host_rtt_cap);
+
 	if (rtt == dev_rtt)
 		return;
 
