@@ -2116,7 +2116,7 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 	struct q2spi_geni *q2spi;
 	struct q2spi_request q2spi_req;
 	struct q2spi_packet *cur_q2spi_pkt;
-	void *data_buf = NULL, *user_buf;
+	void *data_buf = NULL, *user_buf = NULL;
 	int ret, flow_id = 0;
 
 	if (!filp || !buf || !len || !filp->private_data) {
