@@ -129,7 +129,8 @@ static inline int check_feature_gpt_level(void)
 static inline bool amd_iommu_gt_ppr_supported(void)
 {
 	return (check_feature(FEATURE_GT) &&
-		check_feature(FEATURE_PPR));
+		check_feature(FEATURE_PPR) &&
+		check_feature(FEATURE_EPHSUP));
 }
 
 static inline u64 iommu_virt_to_phys(void *vaddr)
