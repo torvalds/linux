@@ -737,13 +737,12 @@ static int rzn1_pinctrl_parse_groups(struct device_node *np,
 
 static int rzn1_pinctrl_count_function_groups(struct device_node *np)
 {
-	struct device_node *child;
 	int count = 0;
 
 	if (of_property_count_u32_elems(np, RZN1_PINS_PROP) > 0)
 		count++;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		if (of_property_count_u32_elems(child, RZN1_PINS_PROP) > 0)
 			count++;
 	}
