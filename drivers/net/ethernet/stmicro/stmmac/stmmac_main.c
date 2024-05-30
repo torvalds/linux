@@ -1341,7 +1341,7 @@ static int stmmac_init_phy(struct net_device *dev)
 			    !priv->phydev->drv->config_intr(priv->phydev)) {
 				pr_err(" qcom-ethqos: %s config_phy_intr successful aftre connect\n",
 					 __func__);
-				priv->plat->request_phy_wol(priv->plat);
+
 		}
 	} else {
 			pr_info("stmmac phy polling mode\n");
