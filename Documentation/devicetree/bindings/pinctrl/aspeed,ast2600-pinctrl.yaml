@@ -88,6 +88,8 @@ additionalProperties:
         - I2C7
         - I2C8
         - I2C9
+        - I3C1
+        - I3C2
         - I3C3
         - I3C4
         - I3C5
@@ -232,6 +234,8 @@ additionalProperties:
         - UART7
         - UART8
         - UART9
+        - USB11BHID
+        - USB2AD
         - USB2AH
         - USB2AHP
         - USB2BD
@@ -310,6 +314,8 @@ additionalProperties:
         - I2C7
         - I2C8
         - I2C9
+        - I3C1
+        - I3C2
         - I3C3
         - I3C4
         - I3C5
