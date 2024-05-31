@@ -4664,9 +4664,9 @@ static void gfx_v10_0_alloc_ip_dump(struct amdgpu_device *adev)
 	ptr = kcalloc(reg_count * inst, sizeof(uint32_t), GFP_KERNEL);
 	if (ptr == NULL) {
 		DRM_ERROR("Failed to allocate memory for GFX CP IP Dump\n");
-		adev->gfx.ip_dump_cp_queues = NULL;
+		adev->gfx.ip_dump_compute_queues = NULL;
 	} else {
-		adev->gfx.ip_dump_cp_queues = ptr;
+		adev->gfx.ip_dump_compute_queues = ptr;
 	}
 
 	/* Allocate memory for gfx queue registers for all the instances */
@@ -4886,7 +4886,7 @@ static int gfx_v10_0_sw_fini(void *handle)
 	gfx_v10_0_free_microcode(adev);
 
 	kfree(adev->gfx.ip_dump_core);
-	kfree(adev->gfx.ip_dump_cp_queues);
+	kfree(adev->gfx.ip_dump_compute_queues);
 	kfree(adev->gfx.ip_dump_gfx_queues);
 
 	return 0;
@@ -9261,7 +9261,7 @@ static void gfx_v10_ip_print(void *handle, struct drm_printer *p)
 			   adev->gfx.ip_dump_core[i]);
 
 	/* print compute queue registers for all instances */
-	if (!adev->gfx.ip_dump_cp_queues)
+	if (!adev->gfx.ip_dump_compute_queues)
 		return;
 
 	reg_count = ARRAY_SIZE(gc_cp_reg_list_10);
@@ -9277,7 +9277,7 @@ static void gfx_v10_ip_print(void *handle, struct drm_printer *p)
 				for (reg = 0; reg < reg_count; reg++) {
 					drm_printf(p, "%-50s \t 0x%08x\n",
 						   gc_cp_reg_list_10[reg].reg_name,
-						   adev->gfx.ip_dump_cp_queues[index + reg]);
+						   adev->gfx.ip_dump_compute_queues[index + reg]);
 				}
 				index += reg_count;
 			}
@@ -9324,7 +9324,7 @@ static void gfx_v10_ip_dump(void *handle)
 	amdgpu_gfx_off_ctrl(adev, true);
 
 	/* dump compute queue registers for all instances */
-	if (!adev->gfx.ip_dump_cp_queues)
+	if (!adev->gfx.ip_dump_compute_queues)
 		return;
 
 	reg_count = ARRAY_SIZE(gc_cp_reg_list_10);
@@ -9337,7 +9337,7 @@ static void gfx_v10_ip_dump(void *handle)
 				nv_grbm_select(adev, 1 + i, j, k, 0);
 
 				for (reg = 0; reg < reg_count; reg++) {
-					adev->gfx.ip_dump_cp_queues[index + reg] =
+					adev->gfx.ip_dump_compute_queues[index + reg] =
 						RREG32(SOC15_REG_ENTRY_OFFSET(
 							gc_cp_reg_list_10[reg]));
 				}
