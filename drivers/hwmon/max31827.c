@@ -24,6 +24,7 @@
 
 #define MAX31827_CONFIGURATION_1SHOT_MASK	BIT(0)
 #define MAX31827_CONFIGURATION_CNV_RATE_MASK	GENMASK(3, 1)
+#define MAX31827_CONFIGURATION_PEC_EN_MASK	BIT(4)
 #define MAX31827_CONFIGURATION_TIMEOUT_MASK	BIT(5)
 #define MAX31827_CONFIGURATION_RESOLUTION_MASK	GENMASK(7, 6)
 #define MAX31827_CONFIGURATION_ALRM_POL_MASK	BIT(8)
@@ -382,7 +383,8 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 		}
 
 	case hwmon_chip:
-		if (attr == hwmon_chip_update_interval) {
+		switch (attr) {
+		case hwmon_chip_update_interval:
 			if (!st->enable)
 				return -EINVAL;
 
@@ -410,14 +412,18 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 				return ret;
 
 			st->update_interval = val;
-		}
-		break;
 
+			return 0;
+		case hwmon_chip_pec:
+			return regmap_update_bits(st->regmap, MAX31827_CONFIGURATION_REG,
+						  MAX31827_CONFIGURATION_PEC_EN_MASK,
+						  val ? MAX31827_CONFIGURATION_PEC_EN_MASK : 0);
+		default:
+			return -EOPNOTSUPP;
+		}
 	default:
 		return -EOPNOTSUPP;
 	}
-
-	return 0;
 }
 
 static ssize_t temp1_resolution_show(struct device *dev,
@@ -583,7 +589,7 @@ static const struct hwmon_channel_info *max31827_info[] = {
 					 HWMON_T_MIN_HYST | HWMON_T_MIN_ALARM |
 					 HWMON_T_MAX | HWMON_T_MAX_HYST |
 					 HWMON_T_MAX_ALARM),
-	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL | HWMON_C_PEC),
 	NULL,
 };
 
