@@ -18,14 +18,6 @@
 
 #define CACHELINE_BYTES 64
 
-enum intel_dsb_id {
-	INTEL_DSB_0,
-	INTEL_DSB_1,
-	INTEL_DSB_2,
-
-	I915_MAX_DSBS,
-};
-
 struct intel_dsb {
 	enum intel_dsb_id id;
 

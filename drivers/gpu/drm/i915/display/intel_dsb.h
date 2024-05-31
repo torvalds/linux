@@ -14,6 +14,14 @@ struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dsb;
 
+enum intel_dsb_id {
+	INTEL_DSB_0,
+	INTEL_DSB_1,
+	INTEL_DSB_2,
+
+	I915_MAX_DSBS,
+};
+
 struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
 				    unsigned int max_cmds);
 void intel_dsb_finish(struct intel_dsb *dsb);
