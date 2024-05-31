@@ -2034,8 +2034,8 @@ vmxnet3_rq_destroy_all_rxdataring(struct vmxnet3_adapter *adapter)
 					  rq->data_ring.base,
 					  rq->data_ring.basePA);
 			rq->data_ring.base = NULL;
-			rq->data_ring.desc_size = 0;
 		}
+		rq->data_ring.desc_size = 0;
 	}
 }
 
