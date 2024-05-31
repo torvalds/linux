@@ -421,6 +421,7 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
+	struct drm_crtc_state *new_crtc_state;
 	int ret;
 
 	if (!crtc) {
@@ -430,6 +431,7 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	stdu     = vmw_crtc_to_stdu(crtc);
 	dev_priv = vmw_priv(crtc->dev);
+	new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
 	if (dev_priv->vkms_enabled)
 		drm_crtc_vblank_off(crtc);
@@ -440,6 +442,14 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 			DRM_ERROR("Failed to blank CRTC\n");
 
 		(void) vmw_stdu_update_st(dev_priv, stdu);
+
+		/* Don't destroy the Screen Target if we are only setting the
+		 * display as inactive
+		 */
+		if (new_crtc_state->enable &&
+		    !new_crtc_state->active &&
+		    !new_crtc_state->mode_changed)
+			return;
 
 		ret = vmw_stdu_destroy_st(dev_priv, stdu);
 		if (ret)
