@@ -46,8 +46,7 @@ void tcp_set_ca_state(struct sock *sk, const u8 ca_state)
 }
 
 /* Must be called with rcu lock held */
-static struct tcp_congestion_ops *tcp_ca_find_autoload(struct net *net,
-						       const char *name)
+static struct tcp_congestion_ops *tcp_ca_find_autoload(const char *name)
 {
 	struct tcp_congestion_ops *ca = tcp_ca_find(name);
 
@@ -178,7 +177,7 @@ int tcp_update_congestion_control(struct tcp_congestion_ops *ca, struct tcp_cong
 	return ret;
 }
 
-u32 tcp_ca_get_key_by_name(struct net *net, const char *name, bool *ecn_ca)
+u32 tcp_ca_get_key_by_name(const char *name, bool *ecn_ca)
 {
 	const struct tcp_congestion_ops *ca;
 	u32 key = TCP_CA_UNSPEC;
@@ -186,7 +185,7 @@ u32 tcp_ca_get_key_by_name(struct net *net, const char *name, bool *ecn_ca)
 	might_sleep();
 
 	rcu_read_lock();
-	ca = tcp_ca_find_autoload(net, name);
+	ca = tcp_ca_find_autoload(name);
 	if (ca) {
 		key = ca->key;
 		*ecn_ca = ca->flags & TCP_CONG_NEEDS_ECN;
@@ -283,7 +282,7 @@ int tcp_set_default_congestion_control(struct net *net, const char *name)
 	int ret;
 
 	rcu_read_lock();
-	ca = tcp_ca_find_autoload(net, name);
+	ca = tcp_ca_find_autoload(name);
 	if (!ca) {
 		ret = -ENOENT;
 	} else if (!bpf_try_module_get(ca, ca->owner)) {
@@ -421,7 +420,7 @@ int tcp_set_congestion_control(struct sock *sk, const char *name, bool load,
 	if (!load)
 		ca = tcp_ca_find(name);
 	else
-		ca = tcp_ca_find_autoload(sock_net(sk), name);
+		ca = tcp_ca_find_autoload(name);
 
 	/* No change asking for existing value */
 	if (ca == icsk->icsk_ca_ops) {
