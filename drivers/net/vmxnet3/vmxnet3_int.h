@@ -454,6 +454,7 @@ struct vmxnet3_adapter {
 	/* Size of buffer in the ts ring */
 	u16     tx_ts_desc_size;
 	u16     rx_ts_desc_size;
+	u32     disabledOffloads;
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \

@@ -126,6 +126,7 @@ enum {
 	VMXNET3_CMD_GET_MAX_CAPABILITIES,
 	VMXNET3_CMD_GET_DCR0_REG,
 	VMXNET3_CMD_GET_TSRING_DESC_SIZE,
+	VMXNET3_CMD_GET_DISABLED_OFFLOADS,
 };
 
 /*
@@ -911,5 +912,8 @@ struct Vmxnet3_DriverShared {
 #define VMXNET3_CAP_VERSION_7_MAX                  18
 /* when new capability is introduced, update VMXNET3_CAP_MAX */
 #define VMXNET3_CAP_MAX                            VMXNET3_CAP_VERSION_7_MAX
+
+#define VMXNET3_OFFLOAD_TSO         BIT(0)
+#define VMXNET3_OFFLOAD_LRO         BIT(1)
 
 #endif /* _VMXNET3_DEFS_H_ */
