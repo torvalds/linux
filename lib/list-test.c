@@ -1201,12 +1201,6 @@ static struct kunit_suite hlist_test_module = {
 };
 
 
-struct klist_test_struct {
-	int data;
-	struct klist klist;
-	struct klist_node klist_node;
-};
-
 static int node_count;
 static struct klist_node *last_node;
 
