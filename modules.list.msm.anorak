@@ -1,7 +1,8 @@
+gh_virt_wdt.ko
+qcom_wdt_core.ko
 dcvs_fp.ko
 qcom-dcvs.ko
 debug_symbol.ko
-qcom_wdt_core.ko
 qcom_cpu_vendor_hooks.ko
 qcom_cpucp.ko
 iommu-logger.ko
@@ -17,6 +18,8 @@ qcom_iommu_util.ko
 qcom-dload-mode.ko
 minidump.ko
 qcom_dma_heaps.ko
+gh_msgq.ko
+gh_rm_drv.ko
 qcom-scm.ko
 mem_buf.ko
 mem_buf_dev.ko
