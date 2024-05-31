@@ -179,6 +179,15 @@ static int ufshcd_mcq_config_nr_queues(struct ufs_hba *hba)
 		return -EOPNOTSUPP;
 	}
 
+	/*
+	 * Device should support at least one I/O queue to handle device
+	 * commands via hba->dev_cmd_queue.
+	 */
+	if (hba_maxq == poll_queues) {
+		dev_err(hba->dev, "At least one non-poll queue required\n");
+		return -EOPNOTSUPP;
+	}
+
 	rem = hba_maxq;
 
 	if (rw_queues) {
