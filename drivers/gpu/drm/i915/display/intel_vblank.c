@@ -5,6 +5,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -637,7 +638,8 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 	 * DSB execution waits for the transcoder's undelayed vblank,
 	 * hence we must kick off the commit before that.
 	 */
-	if (new_crtc_state->dsb || new_crtc_state->update_m_n || new_crtc_state->update_lrr)
+	if (intel_color_uses_dsb(new_crtc_state) ||
+	    new_crtc_state->update_m_n || new_crtc_state->update_lrr)
 		evade->min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
 }
 
