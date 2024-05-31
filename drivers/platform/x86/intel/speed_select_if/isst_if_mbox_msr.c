@@ -21,8 +21,6 @@
 
 #include "isst_if_common.h"
 
-#define MSR_OS_MAILBOX_INTERFACE	0xB0
-#define MSR_OS_MAILBOX_DATA		0xB1
 #define MSR_OS_MAILBOX_BUSY_BIT		31
 
 /*

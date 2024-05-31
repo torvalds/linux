@@ -814,6 +814,7 @@ void isst_if_cdev_unregister(int device_type)
 EXPORT_SYMBOL_GPL(isst_if_cdev_unregister);
 
 #define SST_HPM_SUPPORTED	0x01
+#define SST_MBOX_SUPPORTED	0x02
 
 static const struct x86_cpu_id isst_cpu_ids[] = {
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,	SST_HPM_SUPPORTED),
@@ -824,7 +825,7 @@ static const struct x86_cpu_id isst_cpu_ids[] = {
 	X86_MATCH_VFM(INTEL_ICELAKE_D,		0),
 	X86_MATCH_VFM(INTEL_ICELAKE_X,		0),
 	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X,	0),
-	X86_MATCH_VFM(INTEL_SKYLAKE_X,		0),
+	X86_MATCH_VFM(INTEL_SKYLAKE_X,		SST_MBOX_SUPPORTED),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, isst_cpu_ids);
@@ -837,8 +838,16 @@ static int __init isst_if_common_init(void)
 	if (!id)
 		return -ENODEV;
 
-	if (id->driver_data == SST_HPM_SUPPORTED)
+	if (id->driver_data == SST_HPM_SUPPORTED) {
 		isst_hpm_support = true;
+	} else if (id->driver_data == SST_MBOX_SUPPORTED) {
+		u64 data;
+
+		/* Can fail only on some Skylake-X generations */
+		if (rdmsrl_safe(MSR_OS_MAILBOX_INTERFACE, &data) ||
+		    rdmsrl_safe(MSR_OS_MAILBOX_DATA, &data))
+			return -ENODEV;
+	}
 
 	return isst_misc_reg();
 }
