@@ -3632,6 +3632,9 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 	len = skb->len;
 	trace_net_dev_start_xmit(skb, dev);
+
+	trace_android_vh_dc_send_copy(skb, dev);
+
 	rc = netdev_start_xmit(skb, dev, txq, more);
 	trace_net_dev_xmit(skb, rc, dev, len);
 
@@ -5331,6 +5334,7 @@ static int __netif_receive_skb_core(struct sk_buff **pskb, bool pfmemalloc,
 	bool deliver_exact = false;
 	int ret = NET_RX_DROP;
 	__be16 type;
+	int flag = 0;
 
 	net_timestamp_check(!READ_ONCE(netdev_tstamp_prequeue), skb);
 
@@ -5349,6 +5353,10 @@ another_round:
 	skb->skb_iif = skb->dev->ifindex;
 
 	__this_cpu_inc(softnet_data.processed);
+
+	trace_android_vh_dc_receive(skb, &flag);
+	if (flag != 0)
+		return NET_RX_DROP;
 
 	if (static_branch_unlikely(&generic_xdp_needed_key)) {
 		int ret2;
