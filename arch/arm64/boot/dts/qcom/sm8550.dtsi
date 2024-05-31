@@ -3279,6 +3279,7 @@
 				snps,has-lpm-erratum;
 				tx-fifo-resize;
 				dma-coherent;
+				usb-role-switch;
 
 				ports {
 					#address-cells = <1>;

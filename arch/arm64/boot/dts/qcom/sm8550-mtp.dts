@@ -948,7 +948,6 @@
 
 &usb_1_dwc3 {
 	dr_mode = "otg";
-	usb-role-switch;
 };
 
 &usb_1_dwc3_hs {
