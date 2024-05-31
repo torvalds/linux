@@ -995,14 +995,8 @@ void double_pt_lock(spinlock_t *ptl1,
 	__acquires(ptl1)
 	__acquires(ptl2)
 {
-	spinlock_t *ptl_tmp;
-
-	if (ptl1 > ptl2) {
-		/* exchange ptl1 and ptl2 */
-		ptl_tmp = ptl1;
-		ptl1 = ptl2;
-		ptl2 = ptl_tmp;
-	}
+	if (ptl1 > ptl2)
+		swap(ptl1, ptl2);
 	/* lock in virtual address order to avoid lock inversion */
 	spin_lock(ptl1);
 	if (ptl1 != ptl2)
