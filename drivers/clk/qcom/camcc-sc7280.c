@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -2247,6 +2248,9 @@ static struct clk_branch cam_cc_sleep_clk = {
 
 static struct gdsc cam_cc_titan_top_gdsc = {
 	.gdscr = 0xc194,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "cam_cc_titan_top_gdsc",
 	},
@@ -2256,6 +2260,9 @@ static struct gdsc cam_cc_titan_top_gdsc = {
 
 static struct gdsc cam_cc_bps_gdsc = {
 	.gdscr = 0x7004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "cam_cc_bps_gdsc",
 	},
@@ -2265,6 +2272,9 @@ static struct gdsc cam_cc_bps_gdsc = {
 
 static struct gdsc cam_cc_ife_0_gdsc = {
 	.gdscr = 0xa004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "cam_cc_ife_0_gdsc",
 	},
@@ -2274,6 +2284,9 @@ static struct gdsc cam_cc_ife_0_gdsc = {
 
 static struct gdsc cam_cc_ife_1_gdsc = {
 	.gdscr = 0xb004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "cam_cc_ife_1_gdsc",
 	},
@@ -2283,6 +2296,9 @@ static struct gdsc cam_cc_ife_1_gdsc = {
 
 static struct gdsc cam_cc_ife_2_gdsc = {
 	.gdscr = 0xb070,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "cam_cc_ife_2_gdsc",
 	},
@@ -2292,6 +2308,9 @@ static struct gdsc cam_cc_ife_2_gdsc = {
 
 static struct gdsc cam_cc_ipe_0_gdsc = {
 	.gdscr = 0x8004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "cam_cc_ipe_0_gdsc",
 	},

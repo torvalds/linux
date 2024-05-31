@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -232,6 +233,9 @@ static struct clk_branch video_cc_venus_ahb_clk = {
 
 static struct gdsc mvs0_gdsc = {
 	.gdscr = 0x3004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0x6,
 	.pd = {
 		.name = "mvs0_gdsc",
 	},
@@ -241,6 +245,9 @@ static struct gdsc mvs0_gdsc = {
 
 static struct gdsc mvsc_gdsc = {
 	.gdscr = 0x2004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0x6,
 	.pd = {
 		.name = "mvsc_gdsc",
 	},

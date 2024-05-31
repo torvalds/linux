@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -3094,6 +3095,9 @@ static struct clk_branch gcc_wpss_rscp_clk = {
 
 static struct gdsc gcc_pcie_0_gdsc = {
 	.gdscr = 0x6b004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "gcc_pcie_0_gdsc",
 	},
@@ -3112,6 +3116,9 @@ static struct gdsc gcc_pcie_1_gdsc = {
 
 static struct gdsc gcc_ufs_phy_gdsc = {
 	.gdscr = 0x77004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "gcc_ufs_phy_gdsc",
 	},
@@ -3121,6 +3128,9 @@ static struct gdsc gcc_ufs_phy_gdsc = {
 
 static struct gdsc gcc_usb30_prim_gdsc = {
 	.gdscr = 0xf004,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "gcc_usb30_prim_gdsc",
 	},
