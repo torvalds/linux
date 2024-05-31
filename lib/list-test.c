@@ -1493,4 +1493,5 @@ static struct kunit_suite klist_test_module = {
 
 kunit_test_suites(&list_test_module, &hlist_test_module, &klist_test_module);
 
+MODULE_DESCRIPTION("KUnit test for the Kernel Linked-list structures");
 MODULE_LICENSE("GPL v2");
