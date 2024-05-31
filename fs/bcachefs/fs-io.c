@@ -192,7 +192,7 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret;
+	int ret, err;
 
 	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
@@ -205,6 +205,11 @@ out:
 	ret = bch2_err_class(ret);
 	if (ret == -EROFS)
 		ret = -EIO;
+
+	err = file_check_and_advance_wb_err(file);
+	if (!ret)
+		ret = err;
+
 	return ret;
 }
 
