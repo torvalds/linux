@@ -53,6 +53,14 @@ static inline bool fd_empty(struct fd f)
 }
 
 #define EMPTY_FD (struct fd){0}
+static inline struct fd BORROWED_FD(struct file *f)
+{
+	return (struct fd){(unsigned long)f};
+}
+static inline struct fd CLONED_FD(struct file *f)
+{
+	return (struct fd){(unsigned long)f | FDPUT_FPUT};
+}
 
 static inline void fdput(struct fd fd)
 {
@@ -63,30 +71,11 @@ static inline void fdput(struct fd fd)
 extern struct file *fget(unsigned int fd);
 extern struct file *fget_raw(unsigned int fd);
 extern struct file *fget_task(struct task_struct *task, unsigned int fd);
-extern unsigned long __fdget(unsigned int fd);
-extern unsigned long __fdget_raw(unsigned int fd);
-extern unsigned long __fdget_pos(unsigned int fd);
 extern void __f_unlock_pos(struct file *);
 
-static inline struct fd __to_fd(unsigned long v)
-{
-	return (struct fd){v};
-}
-
-static inline struct fd fdget(unsigned int fd)
-{
-	return __to_fd(__fdget(fd));
-}
-
-static inline struct fd fdget_raw(unsigned int fd)
-{
-	return __to_fd(__fdget_raw(fd));
-}
-
-static inline struct fd fdget_pos(int fd)
-{
-	return __to_fd(__fdget_pos(fd));
-}
+struct fd fdget(unsigned int fd);
+struct fd fdget_raw(unsigned int fd);
+struct fd fdget_pos(unsigned int fd);
 
 static inline void fdput_pos(struct fd f)
 {
