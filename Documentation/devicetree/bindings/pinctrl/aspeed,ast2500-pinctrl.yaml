@@ -171,6 +171,7 @@ additionalProperties:
         - SD2
         - SDA1
         - SDA2
+        - SGPM
         - SGPS1
         - SGPS2
         - SIOONCTRL
