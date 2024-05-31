@@ -194,6 +194,8 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	int ret, err;
 
+	trace_bch2_fsync(file, datasync);
+
 	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
 		goto out;

@@ -26,6 +26,7 @@
 #include "snapshot.h"
 #include "super.h"
 #include "xattr.h"
+#include "trace.h"
 
 #include <linux/aio.h>
 #include <linux/backing-dev.h>
@@ -1696,6 +1697,8 @@ static int bch2_sync_fs(struct super_block *sb, int wait)
 {
 	struct bch_fs *c = sb->s_fs_info;
 	int ret;
+
+	trace_bch2_sync_fs(sb, wait);
 
 	if (c->opts.journal_flush_disabled)
 		return 0;
