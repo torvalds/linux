@@ -101,12 +101,13 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_ZBC);
 
 #define SD_MINORS	16
 
-static void sd_config_discard(struct scsi_disk *, unsigned int);
-static void sd_config_write_same(struct scsi_disk *);
+static void sd_config_discard(struct scsi_disk *sdkp, struct queue_limits *lim,
+		unsigned int mode);
+static void sd_config_write_same(struct scsi_disk *sdkp,
+		struct queue_limits *lim);
 static int  sd_revalidate_disk(struct gendisk *);
 static void sd_unlock_native_capacity(struct gendisk *disk);
 static void sd_shutdown(struct device *);
-static void sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer);
 static void scsi_disk_release(struct device *cdev);
 
 static DEFINE_IDA(sd_index_ida);
@@ -456,7 +457,8 @@ provisioning_mode_store(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
-	int mode;
+	struct queue_limits lim;
+	int mode, err;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -472,8 +474,13 @@ provisioning_mode_store(struct device *dev, struct device_attribute *attr,
 	if (mode < 0)
 		return -EINVAL;
 
-	sd_config_discard(sdkp, mode);
-
+	lim = queue_limits_start_update(sdkp->disk->queue);
+	sd_config_discard(sdkp, &lim, mode);
+	blk_mq_freeze_queue(sdkp->disk->queue);
+	err = queue_limits_commit_update(sdkp->disk->queue, &lim);
+	blk_mq_unfreeze_queue(sdkp->disk->queue);
+	if (err)
+		return err;
 	return count;
 }
 static DEVICE_ATTR_RW(provisioning_mode);
@@ -556,6 +563,7 @@ max_write_same_blocks_store(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
+	struct queue_limits lim;
 	unsigned long max;
 	int err;
 
@@ -577,8 +585,13 @@ max_write_same_blocks_store(struct device *dev, struct device_attribute *attr,
 		sdkp->max_ws_blocks = max;
 	}
 
-	sd_config_write_same(sdkp);
-
+	lim = queue_limits_start_update(sdkp->disk->queue);
+	sd_config_write_same(sdkp, &lim);
+	blk_mq_freeze_queue(sdkp->disk->queue);
+	err = queue_limits_commit_update(sdkp->disk->queue, &lim);
+	blk_mq_unfreeze_queue(sdkp->disk->queue);
+	if (err)
+		return err;
 	return count;
 }
 static DEVICE_ATTR_RW(max_write_same_blocks);
@@ -827,17 +840,15 @@ static void sd_disable_discard(struct scsi_disk *sdkp)
 	blk_queue_max_discard_sectors(sdkp->disk->queue, 0);
 }
 
-static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
+static void sd_config_discard(struct scsi_disk *sdkp, struct queue_limits *lim,
+		unsigned int mode)
 {
-	struct request_queue *q = sdkp->disk->queue;
 	unsigned int logical_block_size = sdkp->device->sector_size;
 	unsigned int max_blocks = 0;
 
-	q->limits.discard_alignment =
-		sdkp->unmap_alignment * logical_block_size;
-	q->limits.discard_granularity =
-		max(sdkp->physical_block_size,
-		    sdkp->unmap_granularity * logical_block_size);
+	lim->discard_alignment = sdkp->unmap_alignment * logical_block_size;
+	lim->discard_granularity = max(sdkp->physical_block_size,
+			sdkp->unmap_granularity * logical_block_size);
 	sdkp->provisioning_mode = mode;
 
 	switch (mode) {
@@ -875,7 +886,8 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 		break;
 	}
 
-	blk_queue_max_discard_sectors(q, max_blocks * (logical_block_size >> 9));
+	lim->max_hw_discard_sectors = max_blocks *
+		(logical_block_size >> SECTOR_SHIFT);
 }
 
 static void *sd_set_special_bvec(struct request *rq, unsigned int data_len)
@@ -1010,9 +1022,9 @@ static void sd_disable_write_same(struct scsi_disk *sdkp)
 	blk_queue_max_write_zeroes_sectors(sdkp->disk->queue, 0);
 }
 
-static void sd_config_write_same(struct scsi_disk *sdkp)
+static void sd_config_write_same(struct scsi_disk *sdkp,
+		struct queue_limits *lim)
 {
-	struct request_queue *q = sdkp->disk->queue;
 	unsigned int logical_block_size = sdkp->device->sector_size;
 
 	if (sdkp->device->no_write_same) {
@@ -1066,8 +1078,8 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
 	}
 
 out:
-	blk_queue_max_write_zeroes_sectors(q, sdkp->max_ws_blocks *
-					 (logical_block_size >> 9));
+	lim->max_write_zeroes_sectors =
+		sdkp->max_ws_blocks * (logical_block_size >> SECTOR_SHIFT);
 }
 
 static blk_status_t sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
@@ -2523,7 +2535,7 @@ static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
 #define READ_CAPACITY_RETRIES_ON_RESET	10
 
 static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
-						unsigned char *buffer)
+		struct queue_limits *lim, unsigned char *buffer)
 {
 	unsigned char cmd[16];
 	struct scsi_sense_hdr sshdr;
@@ -2597,7 +2609,7 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 
 	/* Lowest aligned logical block */
 	alignment = ((buffer[14] & 0x3f) << 8 | buffer[15]) * sector_size;
-	blk_queue_alignment_offset(sdp->request_queue, alignment);
+	lim->alignment_offset = alignment;
 	if (alignment && sdkp->first_scan)
 		sd_printk(KERN_NOTICE, sdkp,
 			  "physical block alignment offset: %u\n", alignment);
@@ -2608,7 +2620,7 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		if (buffer[14] & 0x40) /* LBPRZ */
 			sdkp->lbprz = 1;
 
-		sd_config_discard(sdkp, SD_LBP_WS16);
+		sd_config_discard(sdkp, lim, SD_LBP_WS16);
 	}
 
 	sdkp->capacity = lba + 1;
@@ -2711,13 +2723,14 @@ static int sd_try_rc16_first(struct scsi_device *sdp)
  * read disk capacity
  */
 static void
-sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer)
+sd_read_capacity(struct scsi_disk *sdkp, struct queue_limits *lim,
+		unsigned char *buffer)
 {
 	int sector_size;
 	struct scsi_device *sdp = sdkp->device;
 
 	if (sd_try_rc16_first(sdp)) {
-		sector_size = read_capacity_16(sdkp, sdp, buffer);
+		sector_size = read_capacity_16(sdkp, sdp, lim, buffer);
 		if (sector_size == -EOVERFLOW)
 			goto got_data;
 		if (sector_size == -ENODEV)
@@ -2737,7 +2750,7 @@ sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer)
 			int old_sector_size = sector_size;
 			sd_printk(KERN_NOTICE, sdkp, "Very big device. "
 					"Trying to use READ CAPACITY(16).\n");
-			sector_size = read_capacity_16(sdkp, sdp, buffer);
+			sector_size = read_capacity_16(sdkp, sdp, lim, buffer);
 			if (sector_size < 0) {
 				sd_printk(KERN_NOTICE, sdkp,
 					"Using 0xffffffff as device size\n");
@@ -2796,9 +2809,8 @@ got_data:
 		 */
 		sector_size = 512;
 	}
-	blk_queue_logical_block_size(sdp->request_queue, sector_size);
-	blk_queue_physical_block_size(sdp->request_queue,
-				      sdkp->physical_block_size);
+	lim->logical_block_size = sector_size;
+	lim->physical_block_size = sdkp->physical_block_size;
 	sdkp->device->sector_size = sector_size;
 
 	if (sdkp->capacity > 0xffffffff)
@@ -3220,11 +3232,11 @@ static unsigned int sd_discard_mode(struct scsi_disk *sdkp)
 	return SD_LBP_DISABLE;
 }
 
-/**
- * sd_read_block_limits - Query disk device for preferred I/O sizes.
- * @sdkp: disk to query
+/*
+ * Query disk device for preferred I/O sizes.
  */
-static void sd_read_block_limits(struct scsi_disk *sdkp)
+static void sd_read_block_limits(struct scsi_disk *sdkp,
+		struct queue_limits *lim)
 {
 	struct scsi_vpd *vpd;
 
@@ -3258,7 +3270,7 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 			sdkp->unmap_alignment =
 				get_unaligned_be32(&vpd->data[32]) & ~(1 << 31);
 
-		sd_config_discard(sdkp, sd_discard_mode(sdkp));
+		sd_config_discard(sdkp, lim, sd_discard_mode(sdkp));
 	}
 
  out:
@@ -3277,11 +3289,9 @@ static void sd_read_block_limits_ext(struct scsi_disk *sdkp)
 	rcu_read_unlock();
 }
 
-/**
- * sd_read_block_characteristics - Query block dev. characteristics
- * @sdkp: disk to query
- */
-static void sd_read_block_characteristics(struct scsi_disk *sdkp)
+/* Query block device characteristics */
+static void sd_read_block_characteristics(struct scsi_disk *sdkp,
+		struct queue_limits *lim)
 {
 	struct request_queue *q = sdkp->disk->queue;
 	struct scsi_vpd *vpd;
@@ -3307,29 +3317,26 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 
 #ifdef CONFIG_BLK_DEV_ZONED /* sd_probe rejects ZBD devices early otherwise */
 	if (sdkp->device->type == TYPE_ZBC) {
-		/*
-		 * Host-managed.
-		 */
-		disk_set_zoned(sdkp->disk);
+		lim->zoned = true;
 
 		/*
 		 * Per ZBC and ZAC specifications, writes in sequential write
 		 * required zones of host-managed devices must be aligned to
 		 * the device physical block size.
 		 */
-		blk_queue_zone_write_granularity(q, sdkp->physical_block_size);
+		lim->zone_write_granularity = sdkp->physical_block_size;
 	} else {
 		/*
 		 * Host-aware devices are treated as conventional.
 		 */
-		WARN_ON_ONCE(blk_queue_is_zoned(q));
+		lim->zoned = false;
 	}
 #endif /* CONFIG_BLK_DEV_ZONED */
 
 	if (!sdkp->first_scan)
 		return;
 
-	if (blk_queue_is_zoned(q))
+	if (lim->zoned)
 		sd_printk(KERN_NOTICE, sdkp, "Host-managed zoned block device\n");
 	else if (sdkp->zoned == 1)
 		sd_printk(KERN_NOTICE, sdkp, "Host-aware SMR disk used as regular disk\n");
@@ -3605,8 +3612,10 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	struct scsi_device *sdp = sdkp->device;
 	struct request_queue *q = sdkp->disk->queue;
 	sector_t old_capacity = sdkp->capacity;
+	struct queue_limits lim;
 	unsigned char *buffer;
 	unsigned int dev_max;
+	int err;
 
 	SCSI_LOG_HLQUEUE(3, sd_printk(KERN_INFO, sdkp,
 				      "sd_revalidate_disk\n"));
@@ -3627,12 +3636,14 @@ static int sd_revalidate_disk(struct gendisk *disk)
 
 	sd_spinup_disk(sdkp);
 
+	lim = queue_limits_start_update(sdkp->disk->queue);
+
 	/*
 	 * Without media there is no reason to ask; moreover, some devices
 	 * react badly if we do.
 	 */
 	if (sdkp->media_present) {
-		sd_read_capacity(sdkp, buffer);
+		sd_read_capacity(sdkp, &lim, buffer);
 		/*
 		 * Some USB/UAS devices return generic values for mode pages
 		 * until the media has been accessed. Trigger a READ operation
@@ -3651,10 +3662,10 @@ static int sd_revalidate_disk(struct gendisk *disk)
 
 		if (scsi_device_supports_vpd(sdp)) {
 			sd_read_block_provisioning(sdkp);
-			sd_read_block_limits(sdkp);
+			sd_read_block_limits(sdkp, &lim);
 			sd_read_block_limits_ext(sdkp);
-			sd_read_block_characteristics(sdkp);
-			sd_zbc_read_zones(sdkp, buffer);
+			sd_read_block_characteristics(sdkp, &lim);
+			sd_zbc_read_zones(sdkp, &lim, buffer);
 			sd_read_cpr(sdkp);
 		}
 
@@ -3680,30 +3691,35 @@ static int sd_revalidate_disk(struct gendisk *disk)
 
 	/* Some devices report a maximum block count for READ/WRITE requests. */
 	dev_max = min_not_zero(dev_max, sdkp->max_xfer_blocks);
-	q->limits.max_dev_sectors = logical_to_sectors(sdp, dev_max);
+	lim.max_dev_sectors = logical_to_sectors(sdp, dev_max);
 
 	if (sd_validate_min_xfer_size(sdkp))
-		blk_queue_io_min(sdkp->disk->queue,
-				 logical_to_bytes(sdp, sdkp->min_xfer_blocks));
+		lim.io_min = logical_to_bytes(sdp, sdkp->min_xfer_blocks);
 	else
-		blk_queue_io_min(sdkp->disk->queue, 0);
+		lim.io_min = 0;
 
 	/*
 	 * Limit default to SCSI host optimal sector limit if set. There may be
 	 * an impact on performance for when the size of a request exceeds this
 	 * host limit.
 	 */
-	q->limits.io_opt = sdp->host->opt_sectors << SECTOR_SHIFT;
+	lim.io_opt = sdp->host->opt_sectors << SECTOR_SHIFT;
 	if (sd_validate_opt_xfer_size(sdkp, dev_max)) {
-		q->limits.io_opt = min_not_zero(q->limits.io_opt,
+		lim.io_opt = min_not_zero(lim.io_opt,
 				logical_to_bytes(sdp, sdkp->opt_xfer_blocks));
 	}
 
 	sdkp->first_scan = 0;
 
 	set_capacity_and_notify(disk, logical_to_sectors(sdp, sdkp->capacity));
-	sd_config_write_same(sdkp);
+	sd_config_write_same(sdkp, &lim);
 	kfree(buffer);
+
+	blk_mq_freeze_queue(sdkp->disk->queue);
+	err = queue_limits_commit_update(sdkp->disk->queue, &lim);
+	blk_mq_unfreeze_queue(sdkp->disk->queue);
+	if (err)
+		return err;
 
 	/*
 	 * For a zoned drive, revalidating the zones can be done only once

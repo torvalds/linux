@@ -239,7 +239,8 @@ static inline int sd_is_zoned(struct scsi_disk *sdkp)
 
 #ifdef CONFIG_BLK_DEV_ZONED
 
-int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE]);
+int sd_zbc_read_zones(struct scsi_disk *sdkp, struct queue_limits *lim,
+		u8 buf[SD_BUF_SIZE]);
 int sd_zbc_revalidate_zones(struct scsi_disk *sdkp);
 blk_status_t sd_zbc_setup_zone_mgmt_cmnd(struct scsi_cmnd *cmd,
 					 unsigned char op, bool all);
@@ -250,7 +251,8 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 
 #else /* CONFIG_BLK_DEV_ZONED */
 
-static inline int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE])
+static inline int sd_zbc_read_zones(struct scsi_disk *sdkp,
+		struct queue_limits *lim, u8 buf[SD_BUF_SIZE])
 {
 	return 0;
 }
