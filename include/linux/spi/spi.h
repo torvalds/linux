@@ -447,7 +447,6 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @cur_msg_need_completion: Flag used internally to opportunistically skip
  *	the @cur_msg_completion. This flag is used to signal the context that
  *	is running spi_finalize_current_message() that it needs to complete()
- * @cur_msg_mapped: message has been mapped for DMA
  * @fallback: fallback to PIO if DMA transfer return failure with
  *	SPI_TRANS_FAIL_NO_START.
  * @last_cs_mode_high: was (mode & SPI_CS_HIGH) true on the last call to set_cs.
@@ -708,7 +707,6 @@ struct spi_controller {
 	bool				running;
 	bool				rt;
 	bool				auto_runtime_pm;
-	bool				cur_msg_mapped;
 	bool                            fallback;
 	bool				last_cs_mode_high;
 	s8				last_cs[SPI_CS_CNT_MAX];
@@ -981,6 +979,8 @@ struct spi_res {
  *      transfer this transfer. Set to 0 if the SPI bus driver does
  *      not support it.
  * @transfer_list: transfers are sequenced through @spi_message.transfers
+ * @tx_sg_mapped: If true, the @tx_sg is mapped for DMA
+ * @rx_sg_mapped: If true, the @rx_sg is mapped for DMA
  * @tx_sg: Scatterlist for transmit, currently not for client use
  * @rx_sg: Scatterlist for receive, currently not for client use
  * @ptp_sts_word_pre: The word (subject to bits_per_word semantics) offset
@@ -1077,10 +1077,13 @@ struct spi_transfer {
 #define SPI_TRANS_FAIL_IO	BIT(1)
 	u16		error;
 
-	dma_addr_t	tx_dma;
-	dma_addr_t	rx_dma;
+	bool		tx_sg_mapped;
+	bool		rx_sg_mapped;
+
 	struct sg_table tx_sg;
 	struct sg_table rx_sg;
+	dma_addr_t	tx_dma;
+	dma_addr_t	rx_dma;
 
 	unsigned	dummy_data:1;
 	unsigned	cs_off:1;
