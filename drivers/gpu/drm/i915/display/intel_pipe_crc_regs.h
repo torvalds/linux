@@ -66,28 +66,33 @@
 #define _PIPE_CRC_RES_BLUE_A		0x60068
 #define PIPE_CRC_RES_BLUE(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_BLUE_A)
 
-#define _PIPE_CRC_RES_RES1_A_I915	0x6006c
+#define _PIPE_CRC_RES_RES1_A_I915	0x6006c /* i915+ */
 #define PIPE_CRC_RES_RES1_I915(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_RES1_A_I915)
 
-#define _PIPE_CRC_RES_RES2_A_G4X	0x60080
+#define _PIPE_CRC_RES_RES2_A_G4X	0x60080 /* g4x+ */
 #define PIPE_CRC_RES_RES2_G4X(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_RES2_A_G4X)
 
+/* ivb */
 #define _PIPE_CRC_RES_1_A_IVB		0x60064
 #define _PIPE_CRC_RES_1_B_IVB		0x61064
 #define PIPE_CRC_RES_1_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_RES_1_A_IVB, _PIPE_CRC_RES_1_B_IVB)
 
+/* ivb */
 #define _PIPE_CRC_RES_2_A_IVB		0x60068
 #define _PIPE_CRC_RES_2_B_IVB		0x61068
 #define PIPE_CRC_RES_2_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_RES_2_A_IVB, _PIPE_CRC_RES_2_B_IVB)
 
+/* ivb */
 #define _PIPE_CRC_RES_3_A_IVB		0x6006c
 #define _PIPE_CRC_RES_3_B_IVB		0x6106c
 #define PIPE_CRC_RES_3_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_RES_3_A_IVB, _PIPE_CRC_RES_3_B_IVB)
 
+/* ivb */
 #define _PIPE_CRC_RES_4_A_IVB		0x60070
 #define _PIPE_CRC_RES_4_B_IVB		0x61070
 #define PIPE_CRC_RES_4_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_RES_4_A_IVB, _PIPE_CRC_RES_4_B_IVB)
 
+/* ivb */
 #define _PIPE_CRC_RES_5_A_IVB		0x60074
 #define _PIPE_CRC_RES_5_B_IVB		0x61074
 #define PIPE_CRC_RES_5_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_RES_5_A_IVB, _PIPE_CRC_RES_5_B_IVB)
