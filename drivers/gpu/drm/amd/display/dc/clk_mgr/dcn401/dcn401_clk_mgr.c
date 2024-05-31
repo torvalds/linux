@@ -940,7 +940,7 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 	}
 
 	/* CLK_MGR401_UPDATE_IDLE_HARDMINS */
-	if (update_idle_uclk && is_idle_dpm_enabled) {
+	if ((update_idle_uclk || update_idle_fclk) && is_idle_dpm_enabled) {
 		block_sequence[num_steps].params.update_idle_hardmin_params.uclk_mhz = idle_uclk_mhz;
 		block_sequence[num_steps].params.update_idle_hardmin_params.fclk_mhz = idle_fclk_mhz;
 		block_sequence[num_steps].func = CLK_MGR401_UPDATE_IDLE_HARDMINS;
