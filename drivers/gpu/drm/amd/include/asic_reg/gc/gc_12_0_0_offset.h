@@ -85,6 +85,8 @@
 #define regSDMA0_ATOMIC_PREOP_LO_BASE_IDX                                                               0
 #define regSDMA0_ATOMIC_PREOP_HI                                                                        0x0033
 #define regSDMA0_ATOMIC_PREOP_HI_BASE_IDX                                                               0
+#define regSDMA0_DCC_CNTL                                                                               0x0034
+#define regSDMA0_DCC_CNTL_BASE_IDX                                                                      0
 #define regSDMA0_UTCL1_CNTL                                                                             0x0035
 #define regSDMA0_UTCL1_CNTL_BASE_IDX                                                                    0
 #define regSDMA0_UTCL1_WATERMK                                                                          0x0036
@@ -1065,6 +1067,8 @@
 #define regSDMA1_ATOMIC_PREOP_LO_BASE_IDX                                                               0
 #define regSDMA1_ATOMIC_PREOP_HI                                                                        0x0633
 #define regSDMA1_ATOMIC_PREOP_HI_BASE_IDX                                                               0
+#define regSDMA1_DCC_CNTL                                                                               0x0634
+#define regSDMA1_DCC_CNTL_BASE_IDX                                                                      0
 #define regSDMA1_UTCL1_CNTL                                                                             0x0635
 #define regSDMA1_UTCL1_CNTL_BASE_IDX                                                                    0
 #define regSDMA1_UTCL1_WATERMK                                                                          0x0636
@@ -5523,6 +5527,10 @@
 #define regCHC_CTRL_BASE_IDX                                                                            1
 #define regCHC_STATUS                                                                                   0x2dc1
 #define regCHC_STATUS_BASE_IDX                                                                          1
+#define regCHC_CTRL2                                                                                    0x2dc2
+#define regCHC_CTRL2_BASE_IDX                                                                           1
+#define regCHC_STATUS2                                                                                  0x2dc3
+#define regCHC_STATUS2_BASE_IDX                                                                         1
 
 
 // addressBlock: gc_gfx_cpwd_cpwd_gl2dec
