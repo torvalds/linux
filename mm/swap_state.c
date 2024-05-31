@@ -788,6 +788,8 @@ static void swap_ra_info(struct vm_fault *vmf,
 		lpfn = fpfn - left;
 		rpfn = fpfn + win - left;
 	}
+	if ((long)lpfn < 0)
+		lpfn = 0;
 	start = max3(lpfn, PFN_DOWN(vma->vm_start),
 		     PFN_DOWN(faddr & PMD_MASK));
 	end = min3(rpfn, PFN_DOWN(vma->vm_end),
