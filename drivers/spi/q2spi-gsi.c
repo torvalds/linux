@@ -658,12 +658,13 @@ void q2spi_gsi_ch_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb, void *
 	struct q2spi_geni *q2spi = ptr;
 	int num_crs, i = 0;
 
-	Q2SPI_DEBUG(q2spi, "%s event:%d\n", __func__, cb->cb_event);
+	Q2SPI_DEBUG(q2spi, "%s event:%s\n", __func__, TO_GPI_CB_EVENT_STR(cb->cb_event));
 	switch (cb->cb_event) {
 	case MSM_GPI_QUP_NOTIFY:
 	case MSM_GPI_QUP_MAX_EVENT:
-		Q2SPI_DEBUG(q2spi, "%s:cb_ev%d status%llu ts%llu count%llu\n",
-			    __func__, cb->cb_event, cb->status, cb->timestamp, cb->count);
+		Q2SPI_DEBUG(q2spi, "%s cb_ev %s status %llu ts %llu count %llu\n",
+			    __func__, TO_GPI_CB_EVENT_STR(cb->cb_event), cb->status,
+			    cb->timestamp, cb->count);
 		break;
 	case MSM_GPI_QUP_ERROR:
 	case MSM_GPI_QUP_CH_ERROR:

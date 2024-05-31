@@ -5,6 +5,8 @@
  */
 
 /* Register offsets from gpi-top */
+#define GPI_GPII_MAP_EE_n_CH_k_VP_TABLE(n, k) \
+		(0x17800 + (0x4 * (k)) + (0x80 * (n)))
 #define GPI_GPII_n_CH_k_CNTXT_0_OFFS(n, k) \
 		(0x20000 + (0x4000 * (n)) + (0x80 * (k)))
 #define GPI_GPII_n_CH_k_CNTXT_2_OFFS(n, k) \
