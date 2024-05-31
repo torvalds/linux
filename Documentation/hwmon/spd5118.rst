@@ -53,3 +53,11 @@ temp1_crit_alarm	Temperature critical alarm
 
 Alarm attributes are sticky until read and will be cleared afterwards
 unless the alarm condition still applies.
+
+
+SPD (Serial Presence Detect) support
+------------------------------------
+
+The driver also supports reading the SPD NVRAM on SPD5118 compatible chips.
+SPD data is available from the 'eeprom' binary attribute file attached to the
+chip's I2C device.
