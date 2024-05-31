@@ -1976,4 +1976,5 @@ static struct kunit_suite regmap_test_suite = {
 };
 kunit_test_suite(regmap_test_suite);
 
+MODULE_DESCRIPTION("Regmap KUnit tests");
 MODULE_LICENSE("GPL v2");
