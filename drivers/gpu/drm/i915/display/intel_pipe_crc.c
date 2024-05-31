@@ -34,6 +34,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_pipe_crc.h"
+#include "intel_pipe_crc_regs.h"
 
 static const char * const pipe_crc_sources[] = {
 	[INTEL_PIPE_CRC_SOURCE_NONE] = "none",
