@@ -187,7 +187,9 @@ static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	int retval = 0, err = 0;
 	u32 sr;
 
-	pm_runtime_get_sync((struct device *) priv->rng.priv);
+	retval = pm_runtime_resume_and_get((struct device *)priv->rng.priv);
+	if (retval)
+		return retval;
 
 	if (readl_relaxed(priv->base + RNG_SR) & RNG_SR_SEIS)
 		stm32_rng_conceal_seed_error(rng);
