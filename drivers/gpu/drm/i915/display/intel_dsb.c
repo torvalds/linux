@@ -18,16 +18,16 @@
 
 #define CACHELINE_BYTES 64
 
-enum dsb_id {
-	INVALID_DSB = -1,
-	DSB1,
-	DSB2,
-	DSB3,
-	MAX_DSB_PER_PIPE
+enum intel_dsb_id {
+	INTEL_DSB_0,
+	INTEL_DSB_1,
+	INTEL_DSB_2,
+
+	I915_MAX_DSBS,
 };
 
 struct intel_dsb {
-	enum dsb_id id;
+	enum intel_dsb_id id;
 
 	struct intel_dsb_buffer dsb_buf;
 	struct intel_crtc *crtc;
@@ -120,9 +120,9 @@ static void intel_dsb_dump(struct intel_dsb *dsb)
 }
 
 static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
-			enum dsb_id id)
+			enum intel_dsb_id dsb_id)
 {
-	return intel_de_read_fw(i915, DSB_CTRL(pipe, id)) & DSB_STATUS_BUSY;
+	return intel_de_read_fw(i915, DSB_CTRL(pipe, dsb_id)) & DSB_STATUS_BUSY;
 }
 
 static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
@@ -481,7 +481,7 @@ struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
 
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
-	dsb->id = DSB1;
+	dsb->id = INTEL_DSB_0;
 	dsb->crtc = crtc;
 	dsb->size = size / 4; /* in dwords */
 	dsb->free_pos = 0;
@@ -496,7 +496,7 @@ out_put_rpm:
 out:
 	drm_info_once(&i915->drm,
 		      "[CRTC:%d:%s] DSB %d queue setup failed, will fallback to MMIO for display HW programming\n",
-		      crtc->base.base.id, crtc->base.name, DSB1);
+		      crtc->base.base.id, crtc->base.name, INTEL_DSB_0);
 
 	return NULL;
 }
