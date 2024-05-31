@@ -929,7 +929,8 @@ static bool all_timings_support_svp(const struct dml2_pmo_instance *pmo,
 
 			/* check recout height covers entire otg vactive, and single plane */
 			if (num_planes_per_stream[plane_descriptor->stream_index] > 1 ||
-					!plane_descriptor->composition.rect_out_height_spans_vactive) {
+					!plane_descriptor->composition.rect_out_height_spans_vactive ||
+					plane_descriptor->composition.rotation_angle != dml2_rotation_0) {
 				return false;
 			}
 		}
