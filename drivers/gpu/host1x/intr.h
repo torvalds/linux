@@ -11,6 +11,11 @@
 struct host1x;
 struct host1x_syncpt_fence;
 
+struct host1x_intr_irq_data {
+	struct host1x *host;
+	u32 offset;
+};
+
 /* Initialize host1x sync point interrupt */
 int host1x_intr_init(struct host1x *host);
 
