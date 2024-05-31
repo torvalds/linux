@@ -475,6 +475,7 @@ EXPORT_SYMBOL(panic);
 	[ TAINT_##taint ] = {						\
 		.c_true = _c_true, .c_false = _c_false,			\
 		.module = _module,					\
+		.desc = #taint,						\
 	}
 
 /*
@@ -505,8 +506,9 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 
 #undef TAINT_FLAG
 
-static void print_tainted_seq(struct seq_buf *s)
+static void print_tainted_seq(struct seq_buf *s, bool verbose)
 {
+	const char *sep = "";
 	int i;
 
 	if (!tainted_mask) {
@@ -520,8 +522,30 @@ static void print_tainted_seq(struct seq_buf *s)
 		bool is_set = test_bit(i, &tainted_mask);
 		char c = is_set ? t->c_true : t->c_false;
 
-		seq_buf_putc(s, c);
+		if (verbose) {
+			if (is_set) {
+				seq_buf_printf(s, "%s[%c]=%s", sep, c, t->desc);
+				sep = ", ";
+			}
+		} else {
+			seq_buf_putc(s, c);
+		}
 	}
+}
+
+static const char *_print_tainted(bool verbose)
+{
+	/* FIXME: what should the size be? */
+	static char buf[sizeof(taint_flags)];
+	struct seq_buf s;
+
+	BUILD_BUG_ON(ARRAY_SIZE(taint_flags) != TAINT_FLAGS_COUNT);
+
+	seq_buf_init(&s, buf, sizeof(buf));
+
+	print_tainted_seq(&s, verbose);
+
+	return seq_buf_str(&s);
 }
 
 /**
@@ -534,16 +558,15 @@ static void print_tainted_seq(struct seq_buf *s)
  */
 const char *print_tainted(void)
 {
-	static char buf[TAINT_FLAGS_COUNT + sizeof("Tainted: ")];
-	struct seq_buf s;
+	return _print_tainted(false);
+}
 
-	BUILD_BUG_ON(ARRAY_SIZE(taint_flags) != TAINT_FLAGS_COUNT);
-
-	seq_buf_init(&s, buf, sizeof(buf));
-
-	print_tainted_seq(&s);
-
-	return seq_buf_str(&s);
+/**
+ * print_tainted_verbose - A more verbose version of print_tainted()
+ */
+const char *print_tainted_verbose(void)
+{
+	return _print_tainted(true);
 }
 
 int test_taint(unsigned flag)
