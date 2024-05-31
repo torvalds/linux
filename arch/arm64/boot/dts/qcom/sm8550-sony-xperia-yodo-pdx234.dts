@@ -737,10 +737,6 @@
 	status = "okay";
 };
 
-&usb_1_dwc3 {
-	dr_mode = "otg";
-};
-
 &usb_1_dwc3_hs {
 	remote-endpoint = <&pmic_glink_hs_in>;
 };
