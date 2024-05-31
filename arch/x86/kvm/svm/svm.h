@@ -39,6 +39,7 @@ extern int vgif;
 extern bool intercept_smi;
 extern bool x2avic_enabled;
 extern bool vnmi;
+extern int lbrv;
 
 /*
  * Clean bits in VMCB.
