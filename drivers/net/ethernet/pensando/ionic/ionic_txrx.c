@@ -502,7 +502,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 			 XDP_PACKET_HEADROOM, frag_len, false);
 
 	dma_sync_single_range_for_cpu(rxq->dev, ionic_rx_buf_pa(buf_info),
-				      XDP_PACKET_HEADROOM, len,
+				      XDP_PACKET_HEADROOM, frag_len,
 				      DMA_FROM_DEVICE);
 
 	prefetchw(&xdp_buf.data_hard_start);
@@ -582,7 +582,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 					   buf_info->page_offset,
 					   true);
 		__netif_tx_unlock(nq);
-		if (err) {
+		if (unlikely(err)) {
 			netdev_dbg(netdev, "tx ionic_xdp_post_frame err %d\n", err);
 			goto out_xdp_abort;
 		}
@@ -597,7 +597,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 			       IONIC_PAGE_SIZE, DMA_FROM_DEVICE);
 
 		err = xdp_do_redirect(netdev, &xdp_buf, xdp_prog);
-		if (err) {
+		if (unlikely(err)) {
 			netdev_dbg(netdev, "xdp_do_redirect err %d\n", err);
 			goto out_xdp_abort;
 		}
@@ -1058,7 +1058,7 @@ static dma_addr_t ionic_tx_map_single(struct ionic_queue *q,
 	dma_addr_t dma_addr;
 
 	dma_addr = dma_map_single(dev, data, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, dma_addr)) {
+	if (unlikely(dma_mapping_error(dev, dma_addr))) {
 		net_warn_ratelimited("%s: DMA single map failed on %s!\n",
 				     dev_name(dev), q->name);
 		q_to_tx_stats(q)->dma_map_err++;
@@ -1075,7 +1075,7 @@ static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q,
 	dma_addr_t dma_addr;
 
 	dma_addr = skb_frag_dma_map(dev, frag, offset, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, dma_addr)) {
+	if (unlikely(dma_mapping_error(dev, dma_addr))) {
 		net_warn_ratelimited("%s: DMA frag map failed on %s!\n",
 				     dev_name(dev), q->name);
 		q_to_tx_stats(q)->dma_map_err++;
@@ -1316,7 +1316,7 @@ static int ionic_tx_tcp_inner_pseudo_csum(struct sk_buff *skb)
 	int err;
 
 	err = skb_cow_head(skb, 0);
-	if (err)
+	if (unlikely(err))
 		return err;
 
 	if (skb->protocol == cpu_to_be16(ETH_P_IP)) {
@@ -1340,7 +1340,7 @@ static int ionic_tx_tcp_pseudo_csum(struct sk_buff *skb)
 	int err;
 
 	err = skb_cow_head(skb, 0);
-	if (err)
+	if (unlikely(err))
 		return err;
 
 	if (skb->protocol == cpu_to_be16(ETH_P_IP)) {
@@ -1357,7 +1357,7 @@ static int ionic_tx_tcp_pseudo_csum(struct sk_buff *skb)
 }
 
 static void ionic_tx_tso_post(struct net_device *netdev, struct ionic_queue *q,
-			      struct ionic_tx_desc_info *desc_info,
+			      struct ionic_txq_desc *desc,
 			      struct sk_buff *skb,
 			      dma_addr_t addr, u8 nsge, u16 len,
 			      unsigned int hdrlen, unsigned int mss,
@@ -1365,7 +1365,6 @@ static void ionic_tx_tso_post(struct net_device *netdev, struct ionic_queue *q,
 			      u16 vlan_tci, bool has_vlan,
 			      bool start, bool done)
 {
-	struct ionic_txq_desc *desc = &q->txq[q->head_idx];
 	u8 flags = 0;
 	u64 cmd;
 
@@ -1445,7 +1444,7 @@ static int ionic_tx_tso(struct net_device *netdev, struct ionic_queue *q,
 		err = ionic_tx_tcp_inner_pseudo_csum(skb);
 	else
 		err = ionic_tx_tcp_pseudo_csum(skb);
-	if (err) {
+	if (unlikely(err)) {
 		/* clean up mapping from ionic_tx_map_skb */
 		ionic_tx_desc_unmap_bufs(q, desc_info);
 		return err;
@@ -1503,10 +1502,9 @@ static int ionic_tx_tso(struct net_device *netdev, struct ionic_queue *q,
 		seg_rem = min(tso_rem, mss);
 		done = (tso_rem == 0);
 		/* post descriptor */
-		ionic_tx_tso_post(netdev, q, desc_info, skb,
-				  desc_addr, desc_nsge, desc_len,
-				  hdrlen, mss, outer_csum, vlan_tci, has_vlan,
-				  start, done);
+		ionic_tx_tso_post(netdev, q, desc, skb, desc_addr, desc_nsge,
+				  desc_len, hdrlen, mss, outer_csum, vlan_tci,
+				  has_vlan, start, done);
 		start = false;
 		/* Buffer information is stored with the first tso descriptor */
 		desc_info = &q->tx_info[q->head_idx];
@@ -1731,7 +1729,7 @@ static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 linearize:
 	if (too_many_frags) {
 		err = skb_linearize(skb);
-		if (err)
+		if (unlikely(err))
 			return err;
 		q_to_tx_stats(q)->linearize++;
 	}
@@ -1765,7 +1763,7 @@ static netdev_tx_t ionic_start_hwstamp_xmit(struct sk_buff *skb,
 	else
 		err = ionic_tx(netdev, q, skb);
 
-	if (err)
+	if (unlikely(err))
 		goto err_out_drop;
 
 	return NETDEV_TX_OK;
@@ -1811,7 +1809,7 @@ netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	else
 		err = ionic_tx(netdev, q, skb);
 
-	if (err)
+	if (unlikely(err))
 		goto err_out_drop;
 
 	return NETDEV_TX_OK;

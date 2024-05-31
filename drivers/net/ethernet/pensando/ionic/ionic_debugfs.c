@@ -220,7 +220,7 @@ static int netdev_show(struct seq_file *seq, void *v)
 {
 	struct net_device *netdev = seq->private;
 
-	seq_printf(seq, "%s\n", netdev->name);
+	seq_printf(seq, "%s\n", netdev_name(netdev));
 
 	return 0;
 }
