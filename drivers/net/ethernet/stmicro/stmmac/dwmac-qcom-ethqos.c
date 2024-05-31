@@ -605,6 +605,14 @@ static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos)
 	return 0;
 }
 
+static void ethqos_set_serdes_speed(struct qcom_ethqos *ethqos, int speed)
+{
+	if (ethqos->serdes_speed != speed) {
+		phy_set_speed(ethqos->serdes_phy, speed);
+		ethqos->serdes_speed = speed;
+	}
+}
+
 /* On interface toggle MAC registers gets reset.
  * Configure MAC block for SGMII on ethernet phy link up
  */
@@ -622,9 +630,7 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
 		rgmii_updatel(ethqos, RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
 			      RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
 			      RGMII_IO_MACRO_CONFIG2);
-		if (ethqos->serdes_speed != SPEED_2500)
-			phy_set_speed(ethqos->serdes_phy, SPEED_2500);
-		ethqos->serdes_speed = SPEED_2500;
+		ethqos_set_serdes_speed(ethqos, SPEED_2500);
 		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 0, 0, 0);
 		break;
 	case SPEED_1000:
@@ -632,16 +638,12 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
 		rgmii_updatel(ethqos, RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
 			      RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
 			      RGMII_IO_MACRO_CONFIG2);
-		if (ethqos->serdes_speed != SPEED_1000)
-			phy_set_speed(ethqos->serdes_phy, SPEED_1000);
-		ethqos->serdes_speed = SPEED_1000;
+		ethqos_set_serdes_speed(ethqos, SPEED_1000);
 		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, 0, 0);
 		break;
 	case SPEED_100:
 		val |= ETHQOS_MAC_CTRL_PORT_SEL | ETHQOS_MAC_CTRL_SPEED_MODE;
-		if (ethqos->serdes_speed != SPEED_1000)
-			phy_set_speed(ethqos->serdes_phy, SPEED_1000);
-		ethqos->serdes_speed = SPEED_1000;
+		ethqos_set_serdes_speed(ethqos, SPEED_1000);
 		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, 0, 0);
 		break;
 	case SPEED_10:
@@ -651,9 +653,7 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
 			      FIELD_PREP(RGMII_CONFIG_SGMII_CLK_DVDR,
 					 SGMII_10M_RX_CLK_DVDR),
 			      RGMII_IO_MACRO_CONFIG);
-		if (ethqos->serdes_speed != SPEED_1000)
-			phy_set_speed(ethqos->serdes_phy, ethqos->speed);
-		ethqos->serdes_speed = SPEED_1000;
+		ethqos_set_serdes_speed(ethqos, SPEED_1000);
 		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, 0, 0);
 		break;
 	}
