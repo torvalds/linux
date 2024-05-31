@@ -1674,3 +1674,23 @@ void dcn401_unblank_stream(struct pipe_ctx *pipe_ctx,
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
 		hws->funcs.edp_backlight_control(link, true);
 }
+
+void dcn401_hardware_release(struct dc *dc)
+{
+	dc_dmub_srv_fams2_update_config(dc, dc->current_state, false);
+
+	/* If pstate unsupported, or still supported
+	 * by firmware, force it supported by dcn
+	 */
+	if (dc->current_state) {
+		if ((!dc->clk_mgr->clks.p_state_change_support ||
+				dc->current_state->bw_ctx.bw.dcn.fams2_stream_count > 0) &&
+				dc->res_pool->hubbub->funcs->force_pstate_change_control)
+			dc->res_pool->hubbub->funcs->force_pstate_change_control(
+					dc->res_pool->hubbub, true, true);
+
+		dc->current_state->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+		dc->clk_mgr->funcs->update_clocks(dc->clk_mgr, dc->current_state, true);
+	}
+}
+
