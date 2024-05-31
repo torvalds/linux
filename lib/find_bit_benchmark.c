@@ -194,4 +194,5 @@ static int __init find_bit_test(void)
 }
 module_init(find_bit_test);
 
+MODULE_DESCRIPTION("Test for find_*_bit functions");
 MODULE_LICENSE("GPL");
