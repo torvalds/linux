@@ -1500,7 +1500,6 @@ F:	drivers/irqchip/irq-goldfish-pic.c
 ANDROID GOLDFISH RTC DRIVER
 M:	Jiaxun Yang <jiaxun.yang@flygoat.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/rtc/google,goldfish-rtc.txt
 F:	drivers/rtc/rtc-goldfish.c
 
 AOA (Apple Onboard Audio) ALSA DRIVER
@@ -3855,6 +3854,7 @@ BPF JIT for ARM64
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Alexei Starovoitov <ast@kernel.org>
 M:	Puranjay Mohan <puranjay@kernel.org>
+R:	Xu Kuohai <xukuohai@huaweicloud.com>
 L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/arm64/net/
@@ -21317,7 +21317,7 @@ F:	arch/riscv/boot/dts/starfive/
 
 STARFIVE DWMAC GLUE LAYER
 M:	Emil Renner Berthing <kernel@esmil.dk>
-M:	Samin Guo <samin.guo@starfivetech.com>
+M:	Minda Chen <minda.chen@starfivetech.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/starfive,jh7110-dwmac.yaml
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-starfive.c

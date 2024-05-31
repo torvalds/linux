@@ -335,8 +335,8 @@ MODULE_DEVICE_TABLE(of, ektf2127_of_match);
 #endif
 
 static const struct i2c_device_id ektf2127_i2c_id[] = {
-	{ "ektf2127", 0 },
-	{ "ektf2132", 0 },
+	{ "ektf2127" },
+	{ "ektf2132" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ektf2127_i2c_id);

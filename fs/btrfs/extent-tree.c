@@ -477,7 +477,7 @@ again:
 		if (path->slots[0] >= nritems) {
 			ret = btrfs_next_leaf(root, path);
 			if (ret) {
-				if (ret > 1)
+				if (ret > 0)
 					return -ENOENT;
 				return ret;
 			}

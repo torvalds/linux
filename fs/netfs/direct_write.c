@@ -12,7 +12,7 @@
 static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
 {
 	struct inode *inode = wreq->inode;
-	unsigned long long end = wreq->start + wreq->len;
+	unsigned long long end = wreq->start + wreq->transferred;
 
 	if (!wreq->error &&
 	    i_size_read(inode) < end) {
@@ -27,7 +27,7 @@ static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
  * Perform an unbuffered write where we may have to do an RMW operation on an
  * encrypted file.  This can also be used for direct I/O writes.
  */
-static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *iter,
+ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *iter,
 						  struct netfs_group *netfs_group)
 {
 	struct netfs_io_request *wreq;
@@ -117,6 +117,7 @@ out:
 	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
 	return ret;
 }
+EXPORT_SYMBOL(netfs_unbuffered_write_iter_locked);
 
 /**
  * netfs_unbuffered_write_iter - Unbuffered write to a file

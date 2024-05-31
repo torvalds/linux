@@ -20,7 +20,7 @@
 static int host_supports_tls = -1;
 int host_gdt_entry_tls_min;
 
-int do_set_thread_area(struct user_desc *info)
+static int do_set_thread_area(struct user_desc *info)
 {
 	int ret;
 	u32 cpu;
@@ -31,22 +31,6 @@ int do_set_thread_area(struct user_desc *info)
 
 	if (ret)
 		printk(KERN_ERR "PTRACE_SET_THREAD_AREA failed, err = %d, "
-		       "index = %d\n", ret, info->entry_number);
-
-	return ret;
-}
-
-int do_get_thread_area(struct user_desc *info)
-{
-	int ret;
-	u32 cpu;
-
-	cpu = get_cpu();
-	ret = os_get_thread_area(info, userspace_pid[cpu]);
-	put_cpu();
-
-	if (ret)
-		printk(KERN_ERR "PTRACE_GET_THREAD_AREA failed, err = %d, "
 		       "index = %d\n", ret, info->entry_number);
 
 	return ret;
@@ -231,7 +215,6 @@ out:
 	return ret;
 }
 
-/* XXX: use do_get_thread_area to read the host value? I'm not at all sure! */
 static int get_tls_entry(struct task_struct *task, struct user_desc *info,
 			 int idx)
 {

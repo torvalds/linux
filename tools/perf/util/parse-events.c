@@ -1549,7 +1549,7 @@ static int parse_events_add_pmu(struct parse_events_state *parse_state,
 }
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
-			       const char *event_name, u64 hw_config,
+			       const char *event_name,
 			       const struct parse_events_terms *const_parsed_terms,
 			       struct list_head **listp, void *loc_)
 {
@@ -1557,8 +1557,8 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	struct list_head *list = NULL;
 	struct perf_pmu *pmu = NULL;
 	YYLTYPE *loc = loc_;
-	int ok = 0, core_ok = 0;
-	const char *tmp;
+	int ok = 0;
+	const char *config;
 	struct parse_events_terms parsed_terms;
 
 	*listp = NULL;
@@ -1571,15 +1571,15 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			return ret;
 	}
 
-	tmp = strdup(event_name);
-	if (!tmp)
+	config = strdup(event_name);
+	if (!config)
 		goto out_err;
 
 	if (parse_events_term__num(&term,
 				   PARSE_EVENTS__TERM_TYPE_USER,
-				   tmp, /*num=*/1, /*novalue=*/true,
+				   config, /*num=*/1, /*novalue=*/true,
 				   loc, /*loc_val=*/NULL) < 0) {
-		zfree(&tmp);
+		zfree(&config);
 		goto out_err;
 	}
 	list_add_tail(&term->list, &parsed_terms.terms);
@@ -1610,8 +1610,6 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			pr_debug("%s -> %s/%s/\n", event_name, pmu->name, sb.buf);
 			strbuf_release(&sb);
 			ok++;
-			if (pmu->is_core)
-				core_ok++;
 		}
 	}
 
@@ -1626,18 +1624,6 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			strbuf_release(&sb);
 			ok++;
 		}
-	}
-
-	if (hw_config != PERF_COUNT_HW_MAX && !core_ok) {
-		/*
-		 * The event wasn't found on core PMUs but it has a hardware
-		 * config version to try.
-		 */
-		if (!parse_events_add_numeric(parse_state, list,
-						PERF_TYPE_HARDWARE, hw_config,
-						const_parsed_terms,
-						/*wildcard=*/true))
-			ok++;
 	}
 
 out_err:
@@ -1693,8 +1679,7 @@ int parse_events_multi_pmu_add_or_add_pmu(struct parse_events_state *parse_state
 
 	/* Failure to add, assume event_or_pmu is an event name. */
 	zfree(listp);
-	if (!parse_events_multi_pmu_add(parse_state, event_or_pmu, PERF_COUNT_HW_MAX,
-					const_parsed_terms, listp, loc))
+	if (!parse_events_multi_pmu_add(parse_state, event_or_pmu, const_parsed_terms, listp, loc))
 		return 0;
 
 	if (asprintf(&help, "Unable to find PMU or event on a PMU of '%s'", event_or_pmu) < 0)

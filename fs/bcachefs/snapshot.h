@@ -176,12 +176,9 @@ static inline bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ances
 
 static inline bool bch2_snapshot_has_children(struct bch_fs *c, u32 id)
 {
-	const struct snapshot_t *t;
-	bool ret;
-
 	rcu_read_lock();
-	t = snapshot_t(c, id);
-	ret = (t->children[0]|t->children[1]) != 0;
+	const struct snapshot_t *t = snapshot_t(c, id);
+	bool ret = t && (t->children[0]|t->children[1]) != 0;
 	rcu_read_unlock();
 
 	return ret;

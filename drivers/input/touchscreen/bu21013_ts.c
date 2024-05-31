@@ -597,7 +597,7 @@ static int bu21013_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(bu21013_dev_pm_ops, bu21013_suspend, bu21013_resume);
 
 static const struct i2c_device_id bu21013_id[] = {
-	{ DRIVER_TP, 0 },
+	{ DRIVER_TP },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bu21013_id);

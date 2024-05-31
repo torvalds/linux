@@ -634,8 +634,8 @@ static int ilitek_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(ilitek_pm_ops, ilitek_suspend, ilitek_resume);
 
 static const struct i2c_device_id ilitek_ts_i2c_id[] = {
-	{ ILITEK_TS_NAME, 0 },
-	{ },
+	{ ILITEK_TS_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ilitek_ts_i2c_id);
 
