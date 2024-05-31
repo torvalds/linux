@@ -189,4 +189,7 @@ struct ufs_mtk_host {
 /* MTK delay of autosuspend: 500 ms */
 #define MTK_RPM_AUTOSUSPEND_DELAY_MS 500
 
+/* MTK RTT support number */
+#define MTK_MAX_NUM_RTT 2
+
 #endif /* !_UFS_MEDIATEK_H */
