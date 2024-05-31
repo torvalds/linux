@@ -23,6 +23,7 @@ enum intel_dsb_id {
 };
 
 struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
+				    enum intel_dsb_id dsb_id,
 				    unsigned int max_cmds);
 void intel_dsb_finish(struct intel_dsb *dsb);
 void intel_dsb_cleanup(struct intel_dsb *dsb);

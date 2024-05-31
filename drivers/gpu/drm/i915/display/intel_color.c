@@ -1914,7 +1914,7 @@ void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
 		return;
 
-	crtc_state->dsb = intel_dsb_prepare(crtc_state, 1024);
+	crtc_state->dsb = intel_dsb_prepare(crtc_state, INTEL_DSB_0, 1024);
 	if (!crtc_state->dsb)
 		return;
 
