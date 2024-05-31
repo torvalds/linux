@@ -72,3 +72,7 @@ ufs_qcom.ko
 phy-qcom-ufs.ko
 spmi-pmic-arb.ko
 qti-regmap-debugfs.ko
+qcom-spmi-pmic.ko
+rtc-pm8xxx.ko
+nvmem_qcom-spmi-sdam.ko
+pmic-pon-log.ko
