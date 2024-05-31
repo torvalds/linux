@@ -794,9 +794,9 @@ xfs_ioc_exchange_range(
 	fxr.flags		= args.flags;
 
 	file1 = fdget(args.file1_fd);
-	if (!file1.file)
+	if (!fd_file(file1))
 		return -EBADF;
-	fxr.file1 = file1.file;
+	fxr.file1 = fd_file(file1);
 
 	error = xfs_exchange_range(&fxr);
 	fdput(file1);

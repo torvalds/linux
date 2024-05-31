@@ -980,7 +980,7 @@ SYSCALL_DEFINE4(quotactl_fd, unsigned int, fd, unsigned int, cmd,
 	int ret;
 
 	f = fdget_raw(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
 	ret = -EINVAL;
@@ -988,12 +988,12 @@ SYSCALL_DEFINE4(quotactl_fd, unsigned int, fd, unsigned int, cmd,
 		goto out;
 
 	if (quotactl_cmd_write(cmds)) {
-		ret = mnt_want_write(f.file->f_path.mnt);
+		ret = mnt_want_write(fd_file(f)->f_path.mnt);
 		if (ret)
 			goto out;
 	}
 
-	sb = f.file->f_path.mnt->mnt_sb;
+	sb = fd_file(f)->f_path.mnt->mnt_sb;
 	if (quotactl_cmd_onoff(cmds))
 		down_write(&sb->s_umount);
 	else
@@ -1007,7 +1007,7 @@ SYSCALL_DEFINE4(quotactl_fd, unsigned int, fd, unsigned int, cmd,
 		up_read(&sb->s_umount);
 
 	if (quotactl_cmd_write(cmds))
-		mnt_drop_write(f.file->f_path.mnt);
+		mnt_drop_write(fd_file(f)->f_path.mnt);
 out:
 	fdput(f);
 	return ret;

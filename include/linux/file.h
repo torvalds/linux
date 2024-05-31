@@ -42,10 +42,12 @@ struct fd {
 #define FDPUT_FPUT       1
 #define FDPUT_POS_UNLOCK 2
 
+#define fd_file(f) ((f).file)
+
 static inline void fdput(struct fd fd)
 {
 	if (fd.flags & FDPUT_FPUT)
-		fput(fd.file);
+		fput(fd_file(fd));
 }
 
 extern struct file *fget(unsigned int fd);
@@ -79,7 +81,7 @@ static inline struct fd fdget_pos(int fd)
 static inline void fdput_pos(struct fd f)
 {
 	if (f.flags & FDPUT_POS_UNLOCK)
-		__f_unlock_pos(f.file);
+		__f_unlock_pos(fd_file(f));
 	fdput(f);
 }
 

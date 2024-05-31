@@ -209,13 +209,13 @@ static loff_t ovl_llseek(struct file *file, loff_t offset, int whence)
 	 * files, so we use the real file to perform seeks.
 	 */
 	ovl_inode_lock(inode);
-	real.file->f_pos = file->f_pos;
+	fd_file(real)->f_pos = file->f_pos;
 
 	old_cred = ovl_override_creds(inode->i_sb);
-	ret = vfs_llseek(real.file, offset, whence);
+	ret = vfs_llseek(fd_file(real), offset, whence);
 	revert_creds(old_cred);
 
-	file->f_pos = real.file->f_pos;
+	file->f_pos = fd_file(real)->f_pos;
 	ovl_inode_unlock(inode);
 
 	fdput(real);
@@ -275,7 +275,7 @@ static ssize_t ovl_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (ret)
 		return ret;
 
-	ret = backing_file_read_iter(real.file, iter, iocb, iocb->ki_flags,
+	ret = backing_file_read_iter(fd_file(real), iter, iocb, iocb->ki_flags,
 				     &ctx);
 	fdput(real);
 
@@ -314,7 +314,7 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	 * this property in case it is set by the issuer.
 	 */
 	ifl &= ~IOCB_DIO_CALLER_COMP;
-	ret = backing_file_write_iter(real.file, iter, iocb, ifl, &ctx);
+	ret = backing_file_write_iter(fd_file(real), iter, iocb, ifl, &ctx);
 	fdput(real);
 
 out_unlock:
@@ -339,7 +339,7 @@ static ssize_t ovl_splice_read(struct file *in, loff_t *ppos,
 	if (ret)
 		return ret;
 
-	ret = backing_file_splice_read(real.file, ppos, pipe, len, flags, &ctx);
+	ret = backing_file_splice_read(fd_file(real), ppos, pipe, len, flags, &ctx);
 	fdput(real);
 
 	return ret;
@@ -348,7 +348,7 @@ static ssize_t ovl_splice_read(struct file *in, loff_t *ppos,
 /*
  * Calling iter_file_splice_write() directly from overlay's f_op may deadlock
  * due to lock order inversion between pipe->mutex in iter_file_splice_write()
- * and file_start_write(real.file) in ovl_write_iter().
+ * and file_start_write(fd_file(real)) in ovl_write_iter().
  *
  * So do everything ovl_write_iter() does and call iter_file_splice_write() on
  * the real file.
@@ -373,7 +373,7 @@ static ssize_t ovl_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	if (ret)
 		goto out_unlock;
 
-	ret = backing_file_splice_write(pipe, real.file, ppos, len, flags, &ctx);
+	ret = backing_file_splice_write(pipe, fd_file(real), ppos, len, flags, &ctx);
 	fdput(real);
 
 out_unlock:
@@ -397,9 +397,9 @@ static int ovl_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		return ret;
 
 	/* Don't sync lower file for fear of receiving EROFS error */
-	if (file_inode(real.file) == ovl_inode_upper(file_inode(file))) {
+	if (file_inode(fd_file(real)) == ovl_inode_upper(file_inode(file))) {
 		old_cred = ovl_override_creds(file_inode(file)->i_sb);
-		ret = vfs_fsync_range(real.file, start, end, datasync);
+		ret = vfs_fsync_range(fd_file(real), start, end, datasync);
 		revert_creds(old_cred);
 	}
 
@@ -439,7 +439,7 @@ static long ovl_fallocate(struct file *file, int mode, loff_t offset, loff_t len
 		goto out_unlock;
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	ret = vfs_fallocate(real.file, mode, offset, len);
+	ret = vfs_fallocate(fd_file(real), mode, offset, len);
 	revert_creds(old_cred);
 
 	/* Update size */
@@ -464,7 +464,7 @@ static int ovl_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 		return ret;
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	ret = vfs_fadvise(real.file, offset, len, advice);
+	ret = vfs_fadvise(fd_file(real), offset, len, advice);
 	revert_creds(old_cred);
 
 	fdput(real);
@@ -509,18 +509,18 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 	old_cred = ovl_override_creds(file_inode(file_out)->i_sb);
 	switch (op) {
 	case OVL_COPY:
-		ret = vfs_copy_file_range(real_in.file, pos_in,
-					  real_out.file, pos_out, len, flags);
+		ret = vfs_copy_file_range(fd_file(real_in), pos_in,
+					  fd_file(real_out), pos_out, len, flags);
 		break;
 
 	case OVL_CLONE:
-		ret = vfs_clone_file_range(real_in.file, pos_in,
-					   real_out.file, pos_out, len, flags);
+		ret = vfs_clone_file_range(fd_file(real_in), pos_in,
+					   fd_file(real_out), pos_out, len, flags);
 		break;
 
 	case OVL_DEDUPE:
-		ret = vfs_dedupe_file_range_one(real_in.file, pos_in,
-						real_out.file, pos_out, len,
+		ret = vfs_dedupe_file_range_one(fd_file(real_in), pos_in,
+						fd_file(real_out), pos_out, len,
 						flags);
 		break;
 	}
@@ -583,9 +583,9 @@ static int ovl_flush(struct file *file, fl_owner_t id)
 	if (err)
 		return err;
 
-	if (real.file->f_op->flush) {
+	if (fd_file(real)->f_op->flush) {
 		old_cred = ovl_override_creds(file_inode(file)->i_sb);
-		err = real.file->f_op->flush(real.file, id);
+		err = fd_file(real)->f_op->flush(fd_file(real), id);
 		revert_creds(old_cred);
 	}
 	fdput(real);
