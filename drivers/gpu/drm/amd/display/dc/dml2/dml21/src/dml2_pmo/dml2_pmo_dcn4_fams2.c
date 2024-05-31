@@ -717,6 +717,8 @@ bool pmo_dcn4_fams2_init_for_vmin(struct dml2_pmo_init_for_vmin_in_out *in_out)
 			&in_out->base_display_config->display_config;
 	const struct dml2_core_mode_support_result *mode_support_result =
 			&in_out->base_display_config->mode_support_result;
+	struct dml2_optimization_stage4_state *state =
+			&in_out->base_display_config->stage4;
 
 	if (in_out->instance->options->disable_dyn_odm ||
 			(in_out->instance->options->disable_dyn_odm_for_multi_stream && display_config->num_streams > 1))
@@ -737,27 +739,29 @@ bool pmo_dcn4_fams2_init_for_vmin(struct dml2_pmo_init_for_vmin_in_out *in_out)
 		 */
 		if (mode_support_result->cfg_support_info.plane_support_info[i].dpps_used > 1 &&
 				mode_support_result->cfg_support_info.stream_support_info[display_config->plane_descriptors[i].stream_index].odms_used == 1)
-			in_out->base_display_config->stage4.unoptimizable_streams[display_config->plane_descriptors[i].stream_index] = true;
+			state->unoptimizable_streams[display_config->plane_descriptors[i].stream_index] = true;
 
 	for (i = 0; i < display_config->num_streams; i++) {
 		if (display_config->stream_descriptors[i].overrides.disable_dynamic_odm)
-			in_out->base_display_config->stage4.unoptimizable_streams[i] = true;
+			state->unoptimizable_streams[i] = true;
 		else if (in_out->base_display_config->stage3.stream_svp_meta[i].valid &&
 				in_out->instance->options->disable_dyn_odm_for_stream_with_svp)
-			in_out->base_display_config->stage4.unoptimizable_streams[i] = true;
+			state->unoptimizable_streams[i] = true;
 		/*
 		 * ODM Combine requires horizontal timing divisible by 2 so each
 		 * ODM segment has the same size.
 		 */
 		else if (!is_h_timing_divisible_by(&display_config->stream_descriptors[i].timing, 2))
-			in_out->base_display_config->stage4.unoptimizable_streams[i] = true;
+			state->unoptimizable_streams[i] = true;
 		/*
 		 * Our hardware support seamless ODM transitions for DP encoders
 		 * only.
 		 */
 		else if (!is_dp_encoder(display_config->stream_descriptors[i].output.output_encoder))
-			in_out->base_display_config->stage4.unoptimizable_streams[i] = true;
+			state->unoptimizable_streams[i] = true;
 	}
+
+	state->performed = true;
 
 	return true;
 }
