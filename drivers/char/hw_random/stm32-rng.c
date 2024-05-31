@@ -517,7 +517,7 @@ static int stm32_rng_probe(struct platform_device *ofdev)
 	struct stm32_rng_private *priv;
 	struct resource *res;
 
-	priv = devm_kzalloc(dev, sizeof(struct stm32_rng_private), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
