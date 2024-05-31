@@ -451,6 +451,11 @@ static int smu_v13_0_6_allocate_dpm_context(struct smu_context *smu)
 
 	smu_dpm->dpm_policies =
 		kzalloc(sizeof(struct smu_dpm_policy_ctxt), GFP_KERNEL);
+	if (!smu_dpm->dpm_policies) {
+		kfree(smu_dpm->dpm_context);
+		return -ENOMEM;
+	}
+
 	if (!(smu->adev->flags & AMD_IS_APU)) {
 		policy = &(smu_dpm->dpm_policies->policies[0]);
 
