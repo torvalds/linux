@@ -945,6 +945,17 @@ err_lrc_finish:
 	return err;
 }
 
+/**
+ * xe_lrc_create - Create a LRC
+ * @hwe: Hardware Engine
+ * @vm: The VM (address space)
+ * @ring_size: LRC ring size
+ *
+ * Allocate and initialize the Logical Ring Context (LRC).
+ *
+ * Return pointer to created LRC upon success and an error pointer
+ * upon failure.
+ */
 struct xe_lrc *xe_lrc_create(struct xe_hw_engine *hwe, struct xe_vm *vm,
 			     u32 ring_size)
 {
@@ -964,6 +975,13 @@ struct xe_lrc *xe_lrc_create(struct xe_hw_engine *hwe, struct xe_vm *vm,
 	return lrc;
 }
 
+/**
+ * xe_lrc_destroy - Destroy the LRC
+ * @ref: reference to LRC
+ *
+ * Called when ref == 0, release resources held by the Logical Ring Context
+ * (LRC) and free the LRC memory.
+ */
 void xe_lrc_destroy(struct kref *ref)
 {
 	struct xe_lrc *lrc = container_of(ref, struct xe_lrc, refcount);

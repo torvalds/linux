@@ -26,12 +26,25 @@ struct xe_lrc *xe_lrc_create(struct xe_hw_engine *hwe, struct xe_vm *vm,
 			     u32 ring_size);
 void xe_lrc_destroy(struct kref *ref);
 
+/**
+ * xe_lrc_get - Get reference to the LRC
+ * @lrc: Logical Ring Context
+ *
+ * Increment reference count of @lrc
+ */
 static inline struct xe_lrc *xe_lrc_get(struct xe_lrc *lrc)
 {
 	kref_get(&lrc->refcount);
 	return lrc;
 }
 
+/**
+ * xe_lrc_put - Put reference of the LRC
+ * @lrc: Logical Ring Context
+ *
+ * Decrement reference count of @lrc, call xe_lrc_destroy when
+ * reference count reaches 0.
+ */
 static inline void xe_lrc_put(struct xe_lrc *lrc)
 {
 	kref_put(&lrc->refcount, xe_lrc_destroy);
