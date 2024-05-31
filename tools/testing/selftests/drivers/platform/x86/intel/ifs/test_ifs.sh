@@ -17,6 +17,7 @@ readonly IFS_SCAN_MODE="0"
 readonly IFS_ARRAY_BIST_SCAN_MODE="1"
 readonly IFS_PATH="/sys/devices/virtual/misc/intel_ifs"
 readonly IFS_SCAN_SYSFS_PATH="${IFS_PATH}_${IFS_SCAN_MODE}"
+readonly IFS_ARRAY_BIST_SYSFS_PATH="${IFS_PATH}_${IFS_ARRAY_BIST_SCAN_MODE}"
 readonly RUN_TEST="run_test"
 readonly STATUS="status"
 readonly DETAILS="details"
@@ -478,6 +479,13 @@ test_ifs()
 		test_bad_and_origin_ifs_image "$DEFAULT_IMG_ID"
 		test_ifs_scan_available_imgs
 		test_ifs_same_cpu_loop "$IFS_SCAN_MODE" "$RANDOM_CPU" "$LOOP_TIMES"
+	fi
+
+	if [[ -d "$IFS_ARRAY_BIST_SYSFS_PATH" ]]; then
+		ifs_test_cpus "$SIBLINGS" "$IFS_ARRAY_BIST_SCAN_MODE"
+		test_ifs_same_cpu_loop "$IFS_ARRAY_BIST_SCAN_MODE" "$RANDOM_CPU" "$LOOP_TIMES"
+	else
+		append_log "[$SKIP] No $IFS_ARRAY_BIST_SYSFS_PATH, skip IFS ARRAY BIST scan"
 	fi
 }
 
