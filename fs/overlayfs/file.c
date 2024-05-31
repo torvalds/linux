@@ -93,11 +93,11 @@ static int ovl_real_fdget_meta(const struct file *file, struct fd *real,
 			       bool allow_meta)
 {
 	struct dentry *dentry = file_dentry(file);
+	struct file *realfile = file->private_data;
 	struct path realpath;
 	int err;
 
-	real->flags = 0;
-	real->file = file->private_data;
+	real->word = (unsigned long)realfile;
 
 	if (allow_meta) {
 		ovl_path_real(dentry, &realpath);
@@ -113,16 +113,17 @@ static int ovl_real_fdget_meta(const struct file *file, struct fd *real,
 		return -EIO;
 
 	/* Has it been copied up since we'd opened it? */
-	if (unlikely(file_inode(real->file) != d_inode(realpath.dentry))) {
-		real->flags = FDPUT_FPUT;
-		real->file = ovl_open_realfile(file, &realpath);
-
-		return PTR_ERR_OR_ZERO(real->file);
+	if (unlikely(file_inode(realfile) != d_inode(realpath.dentry))) {
+		struct file *f = ovl_open_realfile(file, &realpath);
+		if (IS_ERR(f))
+			return PTR_ERR(f);
+		real->word = (unsigned long)ovl_open_realfile(file, &realpath) | FDPUT_FPUT;
+		return 0;
 	}
 
 	/* Did the flags change since open? */
-	if (unlikely((file->f_flags ^ real->file->f_flags) & ~OVL_OPEN_FLAGS))
-		return ovl_change_flags(real->file, file->f_flags);
+	if (unlikely((file->f_flags ^ realfile->f_flags) & ~OVL_OPEN_FLAGS))
+		return ovl_change_flags(realfile, file->f_flags);
 
 	return 0;
 }
@@ -130,10 +131,11 @@ static int ovl_real_fdget_meta(const struct file *file, struct fd *real,
 static int ovl_real_fdget(const struct file *file, struct fd *real)
 {
 	if (d_is_dir(file_dentry(file))) {
-		real->flags = 0;
-		real->file = ovl_dir_real_file(file, false);
-
-		return PTR_ERR_OR_ZERO(real->file);
+		struct file *f = ovl_dir_real_file(file, false);
+		if (IS_ERR(f))
+			return PTR_ERR(f);
+		real->word = (unsigned long)f;
+		return 0;
 	}
 
 	return ovl_real_fdget_meta(file, real, false);

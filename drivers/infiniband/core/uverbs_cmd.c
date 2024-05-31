@@ -572,7 +572,7 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	struct inode                   *inode = NULL;
 	int				new_xrcd = 0;
 	struct ib_device *ib_dev;
-	struct fd f = {};
+	struct fd f = EMPTY_FD;
 	int ret;
 
 	ret = uverbs_request(attrs, &cmd, sizeof(cmd));

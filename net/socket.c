@@ -559,7 +559,7 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 	if (fd_file(f)) {
 		sock = sock_from_file(fd_file(f));
 		if (likely(sock)) {
-			*fput_needed = f.flags & FDPUT_FPUT;
+			*fput_needed = f.word & FDPUT_FPUT;
 			return sock;
 		}
 		*err = -ENOTSOCK;

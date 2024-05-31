@@ -35,18 +35,28 @@ static inline void fput_light(struct file *file, int fput_needed)
 		fput(file);
 }
 
+/* either a reference to struct file + flags
+ * (cloned vs. borrowed, pos locked), with
+ * flags stored in lower bits of value,
+ * or empty (represented by 0).
+ */
 struct fd {
-	struct file *file;
-	unsigned int flags;
+	unsigned long word;
 };
 #define FDPUT_FPUT       1
 #define FDPUT_POS_UNLOCK 2
 
-#define fd_file(f) ((f).file)
+#define fd_file(f) ((struct file *)((f).word & ~(FDPUT_FPUT|FDPUT_POS_UNLOCK)))
+static inline bool fd_empty(struct fd f)
+{
+	return unlikely(!f.word);
+}
+
+#define EMPTY_FD (struct fd){0}
 
 static inline void fdput(struct fd fd)
 {
-	if (fd.flags & FDPUT_FPUT)
+	if (fd.word & FDPUT_FPUT)
 		fput(fd_file(fd));
 }
 
@@ -60,7 +70,7 @@ extern void __f_unlock_pos(struct file *);
 
 static inline struct fd __to_fd(unsigned long v)
 {
-	return (struct fd){(struct file *)(v & ~3),v & 3};
+	return (struct fd){v};
 }
 
 static inline struct fd fdget(unsigned int fd)
@@ -80,7 +90,7 @@ static inline struct fd fdget_pos(int fd)
 
 static inline void fdput_pos(struct fd f)
 {
-	if (f.flags & FDPUT_POS_UNLOCK)
+	if (f.word & FDPUT_POS_UNLOCK)
 		__f_unlock_pos(fd_file(f));
 	fdput(f);
 }
