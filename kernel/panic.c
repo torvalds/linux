@@ -35,6 +35,7 @@
 #include <linux/debugfs.h>
 #include <linux/sysfs.h>
 #include <linux/context_tracking.h>
+#include <linux/seq_buf.h>
 #include <trace/events/error_report.h>
 #include <asm/sections.h>
 
@@ -496,6 +497,25 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 	[ TAINT_TEST ]			= { 'N', ' ', true },
 };
 
+static void print_tainted_seq(struct seq_buf *s)
+{
+	int i;
+
+	if (!tainted_mask) {
+		seq_buf_puts(s, "Not tainted");
+		return;
+	}
+
+	seq_buf_printf(s, "Tainted: ");
+	for (i = 0; i < TAINT_FLAGS_COUNT; i++) {
+		const struct taint_flag *t = &taint_flags[i];
+		bool is_set = test_bit(i, &tainted_mask);
+		char c = is_set ? t->c_true : t->c_false;
+
+		seq_buf_putc(s, c);
+	}
+}
+
 /**
  * print_tainted - return a string to represent the kernel taint state.
  *
@@ -507,25 +527,15 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 const char *print_tainted(void)
 {
 	static char buf[TAINT_FLAGS_COUNT + sizeof("Tainted: ")];
-	char *s;
-	int i;
+	struct seq_buf s;
 
 	BUILD_BUG_ON(ARRAY_SIZE(taint_flags) != TAINT_FLAGS_COUNT);
 
-	if (!tainted_mask) {
-		snprintf(buf, sizeof(buf), "Not tainted");
-		return buf;
-	}
+	seq_buf_init(&s, buf, sizeof(buf));
 
-	s = buf + sprintf(buf, "Tainted: ");
-	for (i = 0; i < TAINT_FLAGS_COUNT; i++) {
-		const struct taint_flag *t = &taint_flags[i];
-		*s++ = test_bit(i, &tainted_mask) ?
-			t->c_true : t->c_false;
-	}
-	*s = 0;
+	print_tainted_seq(&s);
 
-	return buf;
+	return seq_buf_str(&s);
 }
 
 int test_taint(unsigned flag)
