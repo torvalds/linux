@@ -42,6 +42,8 @@ struct address_space *swapper_spaces[MAX_SWAPFILES] __read_mostly;
 static unsigned int nr_swapper_spaces[MAX_SWAPFILES] __read_mostly;
 static bool enable_vma_readahead __read_mostly = true;
 
+#define SWAP_RA_ORDER_CEILING	5
+
 #define SWAP_RA_WIN_SHIFT	(PAGE_SHIFT / 2)
 #define SWAP_RA_HITS_MASK	((1UL << SWAP_RA_WIN_SHIFT) - 1)
 #define SWAP_RA_HITS_MAX	SWAP_RA_HITS_MASK
@@ -739,16 +741,9 @@ void exit_swap_address_space(unsigned int type)
 	swapper_spaces[type] = NULL;
 }
 
-#define SWAP_RA_ORDER_CEILING	5
-
-struct vma_swap_readahead {
-	unsigned short win;
-	unsigned short offset;
-	unsigned short nr_pte;
-};
-
-static void swap_ra_info(struct vm_fault *vmf,
-			 struct vma_swap_readahead *ra_info)
+static unsigned short swap_vma_ra_win(struct vm_fault *vmf,
+				      unsigned short *offset,
+				      unsigned short *nr_pte)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	unsigned long ra_val;
@@ -758,10 +753,8 @@ static void swap_ra_info(struct vm_fault *vmf,
 
 	max_win = 1 << min_t(unsigned int, READ_ONCE(page_cluster),
 			     SWAP_RA_ORDER_CEILING);
-	if (max_win == 1) {
-		ra_info->win = 1;
-		return;
-	}
+	if (max_win == 1)
+		return 1;
 
 	faddr = vmf->address;
 	fpfn = PFN_DOWN(faddr);
@@ -769,12 +762,11 @@ static void swap_ra_info(struct vm_fault *vmf,
 	pfn = PFN_DOWN(SWAP_RA_ADDR(ra_val));
 	prev_win = SWAP_RA_WIN(ra_val);
 	hits = SWAP_RA_HITS(ra_val);
-	ra_info->win = win = __swapin_nr_pages(pfn, fpfn, hits,
-					       max_win, prev_win);
+	win = __swapin_nr_pages(pfn, fpfn, hits, max_win, prev_win);
 	atomic_long_set(&vma->swap_readahead_info,
 			SWAP_RA_VAL(faddr, win, 0));
 	if (win == 1)
-		return;
+		return 1;
 
 	if (fpfn == pfn + 1) {
 		lpfn = fpfn;
@@ -795,8 +787,10 @@ static void swap_ra_info(struct vm_fault *vmf,
 	end = min3(rpfn, PFN_DOWN(vma->vm_end),
 		   PFN_DOWN((faddr & PMD_MASK) + PMD_SIZE));
 
-	ra_info->nr_pte = end - start;
-	ra_info->offset = fpfn - start;
+	*nr_pte = end - start;
+	*offset = fpfn - start;
+
+	return win;
 }
 
 /**
@@ -827,19 +821,17 @@ static struct folio *swap_vma_readahead(swp_entry_t targ_entry, gfp_t gfp_mask,
 	pgoff_t ilx;
 	unsigned int i;
 	bool page_allocated;
-	struct vma_swap_readahead ra_info = {
-		.win = 1,
-	};
+	unsigned short win, nr_pte, offset;
 
-	swap_ra_info(vmf, &ra_info);
-	if (ra_info.win == 1)
+	win = swap_vma_ra_win(vmf, &offset, &nr_pte);
+	if (win == 1)
 		goto skip;
 
-	addr = vmf->address - (ra_info.offset * PAGE_SIZE);
-	ilx = targ_ilx - ra_info.offset;
+	addr = vmf->address - offset * PAGE_SIZE;
+	ilx = targ_ilx - offset;
 
 	blk_start_plug(&plug);
-	for (i = 0; i < ra_info.nr_pte; i++, ilx++, addr += PAGE_SIZE) {
+	for (i = 0; i < nr_pte; i++, ilx++, addr += PAGE_SIZE) {
 		if (!pte++) {
 			pte = pte_offset_map(vmf->pmd, addr);
 			if (!pte)
@@ -859,7 +851,7 @@ static struct folio *swap_vma_readahead(swp_entry_t targ_entry, gfp_t gfp_mask,
 			continue;
 		if (page_allocated) {
 			swap_read_folio(folio, false, &splug);
-			if (i != ra_info.offset) {
+			if (i != offset) {
 				folio_set_readahead(folio);
 				count_vm_event(SWAP_RA);
 			}
