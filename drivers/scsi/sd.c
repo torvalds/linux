@@ -461,13 +461,12 @@ provisioning_mode_store(struct device *dev, struct device_attribute *attr,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if (sd_is_zoned(sdkp)) {
-		sd_config_discard(sdkp, SD_LBP_DISABLE);
-		return count;
-	}
-
 	if (sdp->type != TYPE_DISK)
 		return -EINVAL;
+
+	/* ignore the provisioning mode for ZBC devices */
+	if (sd_is_zoned(sdkp))
+		return count;
 
 	mode = sysfs_match_string(lbp_mode, buf);
 	if (mode < 0)
