@@ -166,7 +166,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  */
 static inline bool slab_test_pfmemalloc(const struct slab *slab)
 {
-	return folio_test_active((struct folio *)slab_folio(slab));
+	return folio_test_active(slab_folio(slab));
 }
 
 static inline void slab_set_pfmemalloc(struct slab *slab)
@@ -211,7 +211,7 @@ static inline struct slab *virt_to_slab(const void *addr)
 
 static inline int slab_order(const struct slab *slab)
 {
-	return folio_order((struct folio *)slab_folio(slab));
+	return folio_order(slab_folio(slab));
 }
 
 static inline size_t slab_size(const struct slab *slab)

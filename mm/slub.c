@@ -962,11 +962,9 @@ void print_tracking(struct kmem_cache *s, void *object)
 
 static void print_slab_info(const struct slab *slab)
 {
-	struct folio *folio = (struct folio *)slab_folio(slab);
-
 	pr_err("Slab 0x%p objects=%u used=%u fp=0x%p flags=%pGp\n",
 	       slab, slab->objects, slab->inuse, slab->freelist,
-	       folio_flags(folio, 0));
+	       &slab->__page_flags);
 }
 
 /*
@@ -2532,7 +2530,7 @@ static void discard_slab(struct kmem_cache *s, struct slab *slab)
  */
 static inline bool slab_test_node_partial(const struct slab *slab)
 {
-	return folio_test_workingset((struct folio *)slab_folio(slab));
+	return folio_test_workingset(slab_folio(slab));
 }
 
 static inline void slab_set_node_partial(struct slab *slab)
