@@ -1021,6 +1021,81 @@ err_desc_free:
 	return NULL;
 }
 
+static struct dma_async_tx_descriptor *stm32_dma3_prep_dma_cyclic(struct dma_chan *c,
+								  dma_addr_t buf_addr,
+								  size_t buf_len, size_t period_len,
+								  enum dma_transfer_direction dir,
+								  unsigned long flags)
+{
+	struct stm32_dma3_chan *chan = to_stm32_dma3_chan(c);
+	struct stm32_dma3_swdesc *swdesc;
+	dma_addr_t src, dst;
+	u32 count, i, ctr1, ctr2;
+	int ret;
+
+	if (!buf_len || !period_len || period_len > STM32_DMA3_MAX_BLOCK_SIZE) {
+		dev_err(chan2dev(chan), "Invalid buffer/period length\n");
+		return NULL;
+	}
+
+	if (buf_len % period_len) {
+		dev_err(chan2dev(chan), "Buffer length not multiple of period length\n");
+		return NULL;
+	}
+
+	count = buf_len / period_len;
+	swdesc = stm32_dma3_chan_desc_alloc(chan, count);
+	if (!swdesc)
+		return NULL;
+
+	if (dir == DMA_MEM_TO_DEV) {
+		src = buf_addr;
+		dst = chan->dma_config.dst_addr;
+
+		ret = stm32_dma3_chan_prep_hw(chan, DMA_MEM_TO_DEV, &swdesc->ccr, &ctr1, &ctr2,
+					      src, dst, period_len);
+	} else if (dir == DMA_DEV_TO_MEM) {
+		src = chan->dma_config.src_addr;
+		dst = buf_addr;
+
+		ret = stm32_dma3_chan_prep_hw(chan, DMA_DEV_TO_MEM, &swdesc->ccr, &ctr1, &ctr2,
+					      src, dst, period_len);
+	} else {
+		dev_err(chan2dev(chan), "Invalid direction\n");
+		ret = -EINVAL;
+	}
+
+	if (ret)
+		goto err_desc_free;
+
+	for (i = 0; i < count; i++) {
+		if (dir == DMA_MEM_TO_DEV) {
+			src = buf_addr + i * period_len;
+			dst = chan->dma_config.dst_addr;
+		} else { /* (dir == DMA_DEV_TO_MEM) */
+			src = chan->dma_config.src_addr;
+			dst = buf_addr + i * period_len;
+		}
+
+		stm32_dma3_chan_prep_hwdesc(chan, swdesc, i, src, dst, period_len,
+					    ctr1, ctr2, i == (count - 1), true);
+	}
+
+	/* Enable Error interrupts */
+	swdesc->ccr |= CCR_USEIE | CCR_ULEIE | CCR_DTEIE;
+	/* Enable Transfer state interrupts */
+	swdesc->ccr |= CCR_TCIE;
+
+	swdesc->cyclic = true;
+
+	return vchan_tx_prep(&chan->vchan, &swdesc->vdesc, flags);
+
+err_desc_free:
+	stm32_dma3_chan_desc_free(chan, swdesc);
+
+	return NULL;
+}
+
 static void stm32_dma3_caps(struct dma_chan *c, struct dma_slave_caps *caps)
 {
 	struct stm32_dma3_chan *chan = to_stm32_dma3_chan(c);
@@ -1255,6 +1330,7 @@ static int stm32_dma3_probe(struct platform_device *pdev)
 
 	dma_cap_set(DMA_SLAVE, dma_dev->cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma_dev->cap_mask);
+	dma_cap_set(DMA_CYCLIC, dma_dev->cap_mask);
 	dma_dev->dev = &pdev->dev;
 	/*
 	 * This controller supports up to 8-byte buswidth depending on the port used and the
@@ -1277,6 +1353,7 @@ static int stm32_dma3_probe(struct platform_device *pdev)
 	dma_dev->device_alloc_chan_resources = stm32_dma3_alloc_chan_resources;
 	dma_dev->device_free_chan_resources = stm32_dma3_free_chan_resources;
 	dma_dev->device_prep_slave_sg = stm32_dma3_prep_slave_sg;
+	dma_dev->device_prep_dma_cyclic = stm32_dma3_prep_dma_cyclic;
 	dma_dev->device_caps = stm32_dma3_caps;
 	dma_dev->device_config = stm32_dma3_config;
 	dma_dev->device_terminate_all = stm32_dma3_terminate_all;
