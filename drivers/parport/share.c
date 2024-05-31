@@ -1219,4 +1219,5 @@ irqreturn_t parport_irq_handler(int irq, void *dev_id)
 }
 EXPORT_SYMBOL(parport_irq_handler);
 
+MODULE_DESCRIPTION("Parallel-port resource manager");
 MODULE_LICENSE("GPL");
