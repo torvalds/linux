@@ -705,7 +705,7 @@ void *kvrealloc_noprof(const void *p, size_t oldsize, size_t newsize, gfp_t flag
 
 	if (oldsize >= newsize)
 		return (void *)p;
-	newp = kvmalloc(newsize, flags);
+	newp = kvmalloc_noprof(newsize, flags);
 	if (!newp)
 		return NULL;
 	memcpy(newp, p, oldsize);
@@ -726,7 +726,7 @@ void *__vmalloc_array_noprof(size_t n, size_t size, gfp_t flags)
 
 	if (unlikely(check_mul_overflow(n, size, &bytes)))
 		return NULL;
-	return __vmalloc(bytes, flags);
+	return __vmalloc_noprof(bytes, flags);
 }
 EXPORT_SYMBOL(__vmalloc_array_noprof);
 
@@ -737,7 +737,7 @@ EXPORT_SYMBOL(__vmalloc_array_noprof);
  */
 void *vmalloc_array_noprof(size_t n, size_t size)
 {
-	return __vmalloc_array(n, size, GFP_KERNEL);
+	return __vmalloc_array_noprof(n, size, GFP_KERNEL);
 }
 EXPORT_SYMBOL(vmalloc_array_noprof);
 
@@ -749,7 +749,7 @@ EXPORT_SYMBOL(vmalloc_array_noprof);
  */
 void *__vcalloc_noprof(size_t n, size_t size, gfp_t flags)
 {
-	return __vmalloc_array(n, size, flags | __GFP_ZERO);
+	return __vmalloc_array_noprof(n, size, flags | __GFP_ZERO);
 }
 EXPORT_SYMBOL(__vcalloc_noprof);
 
@@ -760,7 +760,7 @@ EXPORT_SYMBOL(__vcalloc_noprof);
  */
 void *vcalloc_noprof(size_t n, size_t size)
 {
-	return __vmalloc_array(n, size, GFP_KERNEL | __GFP_ZERO);
+	return __vmalloc_array_noprof(n, size, GFP_KERNEL | __GFP_ZERO);
 }
 EXPORT_SYMBOL(vcalloc_noprof);
 
