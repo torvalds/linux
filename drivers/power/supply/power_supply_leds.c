@@ -91,7 +91,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 
 	switch (status.intval) {
 	case POWER_SUPPLY_STATUS_FULL:
-		led_trigger_event(psy->charging_full_trig, LED_FULL);
+		led_trigger_event(psy->trig, LED_FULL);
 		led_trigger_event(psy->charging_trig, LED_OFF);
 		led_trigger_event(psy->full_trig, LED_FULL);
 		/* Going from blink to LED on requires a LED_OFF event to stop blink */
@@ -103,7 +103,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 				     LED_FULL);
 		break;
 	case POWER_SUPPLY_STATUS_CHARGING:
-		led_trigger_event(psy->charging_full_trig, LED_FULL);
+		led_trigger_event(psy->trig, LED_FULL);
 		led_trigger_event(psy->charging_trig, LED_FULL);
 		led_trigger_event(psy->full_trig, LED_OFF);
 		led_trigger_blink(psy->charging_blink_full_solid_trig, 0, 0);
@@ -113,7 +113,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 				     LED_FULL);
 		break;
 	default:
-		led_trigger_event(psy->charging_full_trig, LED_OFF);
+		led_trigger_event(psy->trig, LED_OFF);
 		led_trigger_event(psy->charging_trig, LED_OFF);
 		led_trigger_event(psy->full_trig, LED_OFF);
 		led_trigger_event(psy->charging_blink_full_solid_trig,
@@ -126,7 +126,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 
 static void power_supply_remove_bat_triggers(struct power_supply *psy)
 {
-	power_supply_unregister_led_trigger(psy->charging_full_trig);
+	power_supply_unregister_led_trigger(psy->trig);
 	power_supply_unregister_led_trigger(psy->charging_trig);
 	power_supply_unregister_led_trigger(psy->full_trig);
 	power_supply_unregister_led_trigger(psy->charging_blink_full_solid_trig);
@@ -138,7 +138,7 @@ static int power_supply_create_bat_triggers(struct power_supply *psy)
 	int err = 0;
 
 	power_supply_register_led_trigger(psy, "%s-charging-or-full",
-					  &psy->charging_full_trig, &err);
+					  &psy->trig, &err);
 	power_supply_register_led_trigger(psy, "%s-charging",
 					  &psy->charging_trig, &err);
 	power_supply_register_led_trigger(psy, "%s-full",
@@ -165,19 +165,19 @@ static void power_supply_update_gen_leds(struct power_supply *psy)
 	dev_dbg(&psy->dev, "%s %d\n", __func__, online.intval);
 
 	if (online.intval)
-		led_trigger_event(psy->online_trig, LED_FULL);
+		led_trigger_event(psy->trig, LED_FULL);
 	else
-		led_trigger_event(psy->online_trig, LED_OFF);
+		led_trigger_event(psy->trig, LED_OFF);
 }
 
 static int power_supply_create_gen_triggers(struct power_supply *psy)
 {
-	return power_supply_register_led_trigger(psy, "%s-online", &psy->online_trig, NULL);
+	return power_supply_register_led_trigger(psy, "%s-online", &psy->trig, NULL);
 }
 
 static void power_supply_remove_gen_triggers(struct power_supply *psy)
 {
-	power_supply_unregister_led_trigger(psy->online_trig);
+	power_supply_unregister_led_trigger(psy->trig);
 }
 
 /* Choice what triggers to create&update. */

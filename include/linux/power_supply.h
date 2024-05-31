@@ -309,10 +309,9 @@ struct power_supply {
 #endif
 
 #ifdef CONFIG_LEDS_TRIGGERS
-	struct led_trigger *charging_full_trig;
+	struct led_trigger *trig;
 	struct led_trigger *charging_trig;
 	struct led_trigger *full_trig;
-	struct led_trigger *online_trig;
 	struct led_trigger *charging_blink_full_solid_trig;
 	struct led_trigger *charging_orange_full_green_trig;
 #endif
