@@ -1482,7 +1482,7 @@ static void gfx_v11_0_alloc_ip_dump(struct amdgpu_device *adev)
 
 	ptr = kcalloc(reg_count, sizeof(uint32_t), GFP_KERNEL);
 	if (ptr == NULL) {
-		DRM_ERROR("Failed to allocate memory for IP Dump\n");
+		DRM_ERROR("Failed to allocate memory for GFX IP Dump\n");
 		adev->gfx.ip_dump_core = NULL;
 	} else {
 		adev->gfx.ip_dump_core = ptr;
@@ -1495,7 +1495,7 @@ static void gfx_v11_0_alloc_ip_dump(struct amdgpu_device *adev)
 
 	ptr = kcalloc(reg_count * inst, sizeof(uint32_t), GFP_KERNEL);
 	if (ptr == NULL) {
-		DRM_ERROR("Failed to allocate memory for GFX CP IP Dump\n");
+		DRM_ERROR("Failed to allocate memory for Compute Queues IP Dump\n");
 		adev->gfx.ip_dump_compute_queues = NULL;
 	} else {
 		adev->gfx.ip_dump_compute_queues = ptr;
@@ -1508,7 +1508,7 @@ static void gfx_v11_0_alloc_ip_dump(struct amdgpu_device *adev)
 
 	ptr = kcalloc(reg_count * inst, sizeof(uint32_t), GFP_KERNEL);
 	if (ptr == NULL) {
-		DRM_ERROR("Failed to allocate memory for GFX CP IP Dump\n");
+		DRM_ERROR("Failed to allocate memory for GFX Queues IP Dump\n");
 		adev->gfx.ip_dump_gfx_queues = NULL;
 	} else {
 		adev->gfx.ip_dump_gfx_queues = ptr;
