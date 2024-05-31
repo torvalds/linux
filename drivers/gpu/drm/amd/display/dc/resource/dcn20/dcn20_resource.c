@@ -1612,7 +1612,7 @@ unsigned int dcn20_calc_max_scaled_time(
 	if (time_per_byte == 0)
 		time_per_byte = 1;
 
-	small_free_entry  = (total_y_free_entry > total_c_free_entry) ? total_c_free_entry : total_y_free_entry;
+	small_free_entry  = total_c_free_entry;
 	max_free_entry    = (mode == PACKED_444) ? total_y_free_entry + total_c_free_entry : small_free_entry;
 	buf_lh_capability = max_free_entry*time_per_byte*32/16; /* there is 4bit fraction */
 	max_scaled_time   = buf_lh_capability - urgent_watermark;
