@@ -10,6 +10,7 @@ readonly KSFT_FAIL=1
 readonly KSFT_XFAIL=2
 readonly KSFT_SKIP=4
 
+readonly IMG_PATH="/lib/firmware/intel/ifs_0"
 readonly IFS_SCAN_MODE="0"
 readonly IFS_PATH="/sys/devices/virtual/misc/intel_ifs"
 readonly IFS_SCAN_SYSFS_PATH="${IFS_PATH}_${IFS_SCAN_MODE}"
@@ -29,14 +30,18 @@ readonly INTEL_FAM6="06"
 
 FML=""
 MODEL=""
-
+STEPPING=""
+CPU_FMS=""
 TRUE="true"
 FALSE="false"
 RESULT=$KSFT_PASS
+IMAGE_NAME=""
 export INTERVAL_TIME=1
 # For IFS cleanup tags
 ORIGIN_IFS_LOADED=""
+IFS_IMAGE_NEED_RESTORE=$FALSE
 IFS_LOG="/tmp/ifs_logs.$$"
+DEFAULT_IMG_ID=""
 
 append_log()
 {
@@ -68,6 +73,13 @@ ifs_scan_result_summary()
 
 ifs_cleanup()
 {
+	echo "[$INFO] Restore environment after IFS test"
+
+	# Restore ifs origin image if origin image backup step is needed
+	[[ "$IFS_IMAGE_NEED_RESTORE" == "$TRUE" ]] && {
+		mv -f "$IMG_PATH"/"$IMAGE_NAME"_origin "$IMG_PATH"/"$IMAGE_NAME"
+	}
+
 	lsmod | grep -q "$IFS_NAME" && [[ "$ORIGIN_IFS_LOADED" == "$FALSE" ]] && {
 		echo "[$INFO] modprobe -r $IFS_NAME"
 		modprobe -r "$IFS_NAME"
@@ -78,6 +90,21 @@ ifs_cleanup()
 
 	echo "[RESULT] IFS test exit with $RESULT"
 	exit "$RESULT"
+}
+
+do_cmd()
+{
+	local cmd=$*
+	local ret=""
+
+	append_log "[$INFO] $cmd"
+	eval "$cmd"
+	ret=$?
+	if [[ $ret -ne 0 ]]; then
+		append_log "[$FAIL] $cmd failed. Return code is $ret"
+		RESULT=$KSFT_XFAIL
+		ifs_cleanup
+	fi
 }
 
 test_exit()
@@ -99,6 +126,8 @@ get_cpu_fms()
 {
 	FML=$(grep -m 1 "family" /proc/cpuinfo | awk -F ":" '{printf "%02x",$2;}')
 	MODEL=$(grep -m 1 "model" /proc/cpuinfo | awk -F ":" '{printf "%02x",$2;}')
+	STEPPING=$(grep -m 1 "stepping" /proc/cpuinfo | awk -F ":" '{printf "%02x",$2;}')
+	CPU_FMS="${FML}-${MODEL}-${STEPPING}"
 }
 
 check_cpu_ifs_support_interval_time()
@@ -162,9 +191,93 @@ test_ifs_scan_entry()
 	fi
 }
 
+load_image()
+{
+	local image_id=$1
+	local image_info=""
+	local ret=""
+
+	check_ifs_loaded
+	if [[ -e "${IMG_PATH}/${IMAGE_NAME}" ]]; then
+		append_log "[$INFO] echo 0x$image_id > ${IFS_SCAN_SYSFS_PATH}/current_batch"
+		echo "0x$image_id" > "$IFS_SCAN_SYSFS_PATH"/current_batch 2>/dev/null
+		ret=$?
+		[[ "$ret" -eq 0 ]] || {
+			append_log "[$FAIL] Load ifs image $image_id failed with ret:$ret\n"
+			return "$ret"
+		}
+		image_info=$(cat ${IFS_SCAN_SYSFS_PATH}/current_batch)
+		if [[ "$image_info" == 0x"$image_id" ]]; then
+			append_log "[$PASS] load IFS current_batch:$image_info"
+		else
+			append_log "[$FAIL] current_batch:$image_info is not expected:$image_id"
+			return "$KSFT_FAIL"
+		fi
+	else
+		append_log "[$FAIL] No IFS image file ${IMG_PATH}/${IMAGE_NAME}"\
+		return "$KSFT_FAIL"
+	fi
+	return 0
+}
+
+test_load_origin_ifs_image()
+{
+	local image_id=$1
+
+	IMAGE_NAME="${CPU_FMS}-${image_id}.scan"
+
+	load_image "$image_id" || return $?
+	return 0
+}
+
+test_load_bad_ifs_image()
+{
+	local image_id=$1
+
+	IMAGE_NAME="${CPU_FMS}-${image_id}.scan"
+
+	do_cmd "mv -f ${IMG_PATH}/${IMAGE_NAME} ${IMG_PATH}/${IMAGE_NAME}_origin"
+
+	# Set IFS_IMAGE_NEED_RESTORE to true before corrupt the origin ifs image file
+	IFS_IMAGE_NEED_RESTORE=$TRUE
+	do_cmd "dd if=/dev/urandom of=${IMG_PATH}/${IMAGE_NAME} bs=1K count=6 2>/dev/null"
+
+	# Use the specified judgment for negative testing
+	append_log "[$INFO] echo 0x$image_id > ${IFS_SCAN_SYSFS_PATH}/current_batch"
+	echo "0x$image_id" > "$IFS_SCAN_SYSFS_PATH"/current_batch 2>/dev/null
+	ret=$?
+	if [[ "$ret" -ne 0 ]]; then
+		append_log "[$PASS] Load invalid ifs image failed with ret:$ret not 0 as expected"
+	else
+		append_log "[$FAIL] Load invalid ifs image ret:$ret unexpectedly"
+	fi
+
+	do_cmd "mv -f ${IMG_PATH}/${IMAGE_NAME}_origin ${IMG_PATH}/${IMAGE_NAME}"
+	IFS_IMAGE_NEED_RESTORE=$FALSE
+}
+
+test_bad_and_origin_ifs_image()
+{
+	local image_id=$1
+
+	append_log "[$INFO] Test loading bad and then loading original IFS image:"
+	test_load_origin_ifs_image "$image_id" || return $?
+	test_load_bad_ifs_image "$image_id"
+	# Load origin image again and make sure it's worked
+	test_load_origin_ifs_image "$image_id" || return $?
+	append_log "[$INFO] Loading invalid IFS image and then loading initial image passed.\n"
+}
+
 prepare_ifs_test_env()
 {
 	check_cpu_ifs_support_interval_time
+
+	DEFAULT_IMG_ID=$(find $IMG_PATH -maxdepth 1 -name "${CPU_FMS}-[0-9a-fA-F][0-9a-fA-F].scan" \
+			 2>/dev/null \
+			 | sort \
+			 | head -n 1 \
+			 | awk -F "-" '{print $NF}' \
+			 | cut -d "." -f 1)
 }
 
 test_ifs()
@@ -172,6 +285,12 @@ test_ifs()
 	prepare_ifs_test_env
 
 	test_ifs_scan_entry
+
+	if [[ -z "$DEFAULT_IMG_ID" ]]; then
+		append_log "[$SKIP] No proper ${IMG_PATH}/${CPU_FMS}-*.scan, skip ifs_0 scan"
+	else
+		test_bad_and_origin_ifs_image "$DEFAULT_IMG_ID"
+	fi
 }
 
 trap ifs_cleanup SIGTERM SIGINT
