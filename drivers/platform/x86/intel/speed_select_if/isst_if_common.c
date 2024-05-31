@@ -775,6 +775,9 @@ int isst_if_cdev_register(int device_type, struct isst_if_cmd_cb *cb)
 	if (device_type >= ISST_IF_DEV_MAX)
 		return -EINVAL;
 
+	if (device_type < ISST_IF_DEV_TPMI && isst_hpm_support)
+		return -ENODEV;
+
 	mutex_lock(&punit_misc_dev_open_lock);
 	/* Device is already open, we don't want to add new callbacks */
 	if (misc_device_open) {
