@@ -56,6 +56,24 @@
 #define   PIPE_CRC_SOURCE_DP_C_G4X	REG_FIELD_PREP(PIPE_CRC_SOURCE_MASK_I9XX, 7)
 /* gen2 doesn't have source selection bits */
 #define   PIPE_CRC_INCLUDE_BORDER_I8XX	REG_BIT(30)
+#define   PIPE_CRC_EXP_RED_MASK		REG_BIT(22, 0) /* pre-ivb */
+#define   PIPE_CRC_EXP_1_MASK_IVB	REG_BIT(22, 0) /* ivb */
+
+#define _PIPE_CRC_EXP_GREEN_A		0x60054
+#define PIPE_CRC_EXP_GREEN(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_EXP_GREEN_A)
+#define   PIPE_CRC_EXP_GREEN_MASK	REG_BIT(22, 0) /* pre-ivb */
+
+#define _PIPE_CRC_EXP_BLUE_A		0x60058
+#define PIPE_CRC_EXP_BLUE(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_EXP_BLUE_A)
+#define   PIPE_CRC_EXP_BLUE_MASK	REG_BIT(22, 0) /* pre-ivb */
+
+#define _PIPE_CRC_EXP_RES1_A_I915	0x6005c /* i915+ */
+#define PIPE_CRC_EXP_RES1_I915(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_EXP_RES1_A_I915)
+#define   PIPE_CRC_EXP_RES1_MASK	REG_BIT(22, 0) /* pre-ivb */
+
+#define _PIPE_CRC_EXP_RES2_A_G4X	0x60080 /* g4x+ */
+#define PIPE_CRC_EXP_RES2_G4X(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_EXP_RES2_A_G4X)
+#define   PIPE_CRC_EXP_RES2_MASK	REG_BIT(22, 0) /* pre-ivb */
 
 #define _PIPE_CRC_RES_RED_A		0x60060
 #define PIPE_CRC_RES_RED(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_RED_A)
@@ -71,6 +89,30 @@
 
 #define _PIPE_CRC_RES_RES2_A_G4X	0x60080 /* g4x+ */
 #define PIPE_CRC_RES_RES2_G4X(dev_priv, pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_RES2_A_G4X)
+
+/* ivb */
+#define _PIPE_CRC_EXP_2_A_IVB		0x60054
+#define _PIPE_CRC_EXP_2_B_IVB		0x61054
+#define PIPE_CRC_EXP_2_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_EXP_2_A_IVB, _PIPE_CRC_EXP_2_B_IVB)
+#define   PIPE_CRC_EXP_2_MASK_IVB	REG_BIT(22, 0) /* ivb */
+
+/* ivb */
+#define _PIPE_CRC_EXP_3_A_IVB		0x60058
+#define _PIPE_CRC_EXP_3_B_IVB		0x61058
+#define PIPE_CRC_EXP_3_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_EXP_3_A_IVB, _PIPE_CRC_EXP_3_B_IVB)
+#define   PIPE_CRC_EXP_3_MASK_IVB	REG_BIT(22, 0) /* ivb */
+
+/* ivb */
+#define _PIPE_CRC_EXP_4_A_IVB		0x6005c
+#define _PIPE_CRC_EXP_4_B_IVB		0x6105c
+#define PIPE_CRC_EXP_4_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_EXP_2_A_IVB, _PIPE_CRC_EXP_2_B_IVB)
+#define   PIPE_CRC_EXP_4_MASK_IVB	REG_BIT(22, 0) /* ivb */
+
+/* ivb */
+#define _PIPE_CRC_EXP_5_A_IVB		0x60060
+#define _PIPE_CRC_EXP_5_B_IVB		0x61060
+#define PIPE_CRC_EXP_5_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_EXP_2_A_IVB, _PIPE_CRC_EXP_2_B_IVB)
+#define   PIPE_CRC_EXP_5_MASK_IVB	REG_BIT(22, 0) /* ivb */
 
 /* ivb */
 #define _PIPE_CRC_RES_1_A_IVB		0x60064
@@ -96,6 +138,11 @@
 #define _PIPE_CRC_RES_5_A_IVB		0x60074
 #define _PIPE_CRC_RES_5_B_IVB		0x61074
 #define PIPE_CRC_RES_5_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_RES_5_A_IVB, _PIPE_CRC_RES_5_B_IVB)
+
+/* hsw+ */
+#define _PIPE_CRC_EXP_A_HSW		0x60054
+#define _PIPE_CRC_EXP_B_HSW		0x61054
+#define PIPE_CRC_EXP_HSW(pipe)			_MMIO_PIPE(pipe, _PIPE_CRC_EXP_A_HSW, _PIPE_CRC_EXP_B_HSW)
 
 /* hsw+ */
 #define _PIPE_CRC_RES_A_HSW		0x60064
