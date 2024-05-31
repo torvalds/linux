@@ -1096,4 +1096,5 @@ static struct kunit_suite fortify_test_suite = {
 
 kunit_test_suite(fortify_test_suite);
 
+MODULE_DESCRIPTION("Runtime test cases for CONFIG_FORTIFY_SOURCE");
 MODULE_LICENSE("GPL");
