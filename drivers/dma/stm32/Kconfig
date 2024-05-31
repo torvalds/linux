@@ -34,4 +34,14 @@ config STM32_MDMA
 	  If you have a board based on STM32 SoC with such DMA controller
 	  and want to use MDMA say Y here.
 
+config STM32_DMA3
+	tristate "STMicroelectronics STM32 DMA3 support"
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the on-chip DMA3 controller on STMicroelectronics
+	  STM32 platforms.
+	  If you have a board based on STM32 SoC with such DMA3 controller
+	  and want to use DMA3, say Y here.
+
 endif
