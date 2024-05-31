@@ -92,4 +92,9 @@
 #define _PIPE_CRC_RES_5_B_IVB		0x61074
 #define PIPE_CRC_RES_5_IVB(pipe)		_MMIO_PIPE(pipe, _PIPE_CRC_RES_5_A_IVB, _PIPE_CRC_RES_5_B_IVB)
 
+/* hsw+ */
+#define _PIPE_CRC_RES_A_HSW		0x60064
+#define _PIPE_CRC_RES_B_HSW		0x61064
+#define PIPE_CRC_RES_HSW(pipe)			_MMIO_PIPE(pipe, _PIPE_CRC_RES_A_HSW, _PIPE_CRC_RES_B_HSW)
+
 #endif /* __INTEL_PIPE_CRC_REGS_H__ */
