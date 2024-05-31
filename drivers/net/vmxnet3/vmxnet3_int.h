@@ -193,6 +193,11 @@ struct vmxnet3_tx_data_ring {
 	dma_addr_t          basePA;
 };
 
+struct vmxnet3_tx_ts_ring {
+	struct Vmxnet3_TxTSDesc *base;
+	dma_addr_t          basePA;
+};
+
 #define VMXNET3_MAP_NONE	0
 #define VMXNET3_MAP_SINGLE	BIT(0)
 #define VMXNET3_MAP_PAGE	BIT(1)
@@ -245,6 +250,7 @@ struct vmxnet3_tx_ctx {
 	u32 copy_size;       /* # of bytes copied into the data ring */
 	union Vmxnet3_GenericDesc *sop_txd;
 	union Vmxnet3_GenericDesc *eop_txd;
+	struct Vmxnet3_TxTSDesc *ts_txd;
 };
 
 struct vmxnet3_tx_queue {
@@ -254,6 +260,7 @@ struct vmxnet3_tx_queue {
 	struct vmxnet3_cmd_ring         tx_ring;
 	struct vmxnet3_tx_buf_info      *buf_info;
 	struct vmxnet3_tx_data_ring     data_ring;
+	struct vmxnet3_tx_ts_ring       ts_ring;
 	struct vmxnet3_comp_ring        comp_ring;
 	struct Vmxnet3_TxQueueCtrl      *shared;
 	struct vmxnet3_tq_driver_stats  stats;
@@ -262,6 +269,8 @@ struct vmxnet3_tx_queue {
 						    * stopped */
 	int				qid;
 	u16				txdata_desc_size;
+	u16                             tx_ts_desc_size;
+	u16                             tsPktCount;
 } ____cacheline_aligned;
 
 enum vmxnet3_rx_buf_type {
@@ -309,6 +318,11 @@ struct vmxnet3_rx_data_ring {
 	u16 desc_size;
 };
 
+struct vmxnet3_rx_ts_ring {
+	struct Vmxnet3_RxTSDesc *base;
+	dma_addr_t basePA;
+};
+
 struct vmxnet3_rx_queue {
 	char			name[IFNAMSIZ + 8]; /* To identify interrupt */
 	struct vmxnet3_adapter	  *adapter;
@@ -316,6 +330,7 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_cmd_ring   rx_ring[2];
 	struct vmxnet3_rx_data_ring data_ring;
 	struct vmxnet3_comp_ring  comp_ring;
+	struct vmxnet3_rx_ts_ring ts_ring;
 	struct vmxnet3_rx_ctx     rx_ctx;
 	u32 qid;            /* rqID in RCD for buffer from 1st ring */
 	u32 qid2;           /* rqID in RCD for buffer from 2nd ring */
@@ -325,6 +340,7 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_rq_driver_stats  stats;
 	struct page_pool *page_pool;
 	struct xdp_rxq_info xdp_rxq;
+	u16                             rx_ts_desc_size;
 } ____cacheline_aligned;
 
 #define VMXNET3_DEVICE_MAX_TX_QUEUES 32
@@ -434,6 +450,10 @@ struct vmxnet3_adapter {
 	u16    rx_prod_offset;
 	u16    rx_prod2_offset;
 	struct bpf_prog __rcu *xdp_bpf_prog;
+	struct Vmxnet3_LatencyConf *latencyConf;
+	/* Size of buffer in the ts ring */
+	u16     tx_ts_desc_size;
+	u16     rx_ts_desc_size;
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \
