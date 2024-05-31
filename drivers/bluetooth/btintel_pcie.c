@@ -797,7 +797,6 @@ static int btintel_pcie_setup_txq_bufs(struct btintel_pcie_data *data,
 		kfree(txq->bufs);
 		return -ENOMEM;
 	}
-	memset(txq->buf_v_addr, 0, txq->count * BTINTEL_PCIE_BUFFER_SIZE);
 
 	/* Setup the allocated DMA buffer to bufs. Each data_buf should
 	 * have virtual address and physical address
@@ -842,7 +841,6 @@ static int btintel_pcie_setup_rxq_bufs(struct btintel_pcie_data *data,
 		kfree(rxq->bufs);
 		return -ENOMEM;
 	}
-	memset(rxq->buf_v_addr, 0, rxq->count * BTINTEL_PCIE_BUFFER_SIZE);
 
 	/* Setup the allocated DMA buffer to bufs. Each data_buf should
 	 * have virtual address and physical address
