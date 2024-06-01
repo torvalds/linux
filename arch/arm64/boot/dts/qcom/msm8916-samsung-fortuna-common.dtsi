@@ -79,6 +79,35 @@
 		max-microvolt = <3300000>;
 	};
 
+	i2c_nfc: i2c-nfc {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-0 = <&nfc_i2c_default>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		s3fwrn5_nfc: nfc@27 {
+			compatible = "samsung,s3fwrn5-i2c";
+			reg = <0x27>;
+
+			interrupts-extended = <&tlmm 21 IRQ_TYPE_EDGE_RISING>;
+
+			en-gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+			wake-gpios = <&tlmm 49 GPIO_ACTIVE_HIGH>;
+
+			clocks = <&rpmcc RPM_SMD_BB_CLK2_PIN>;
+
+			pinctrl-0 = <&nfc_default>, <&nfc_clk_req>;
+			pinctrl-names = "default";
+
+			status = "disabled";
+		};
+	};
+
 	reg_motor_vdd: regulator-motor-vdd {
 		compatible = "regulator-fixed";
 		regulator-name = "motor_vdd";
