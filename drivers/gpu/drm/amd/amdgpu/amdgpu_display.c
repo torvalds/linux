@@ -654,6 +654,10 @@ amdgpu_lookup_format_info(u32 format, uint64_t modifier)
 	if (!IS_AMD_FMT_MOD(modifier))
 		return NULL;
 
+	if (AMD_FMT_MOD_GET(TILE_VERSION, modifier) < AMD_FMT_MOD_TILE_VER_GFX9 ||
+	    AMD_FMT_MOD_GET(TILE_VERSION, modifier) >= AMD_FMT_MOD_TILE_VER_GFX12)
+		return NULL;
+
 	if (AMD_FMT_MOD_GET(DCC_RETILE, modifier))
 		return lookup_format_info(dcc_retile_formats,
 					  ARRAY_SIZE(dcc_retile_formats),
