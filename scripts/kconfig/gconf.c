@@ -65,8 +65,6 @@ static void display_list(void);
 static void display_tree(struct menu *menu);
 static void display_tree_part(void);
 static void update_tree(struct menu *src, GtkTreeIter * dst);
-static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row);
-static gchar **fill_row(struct menu *menu);
 static void conf_changed(void);
 
 static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
