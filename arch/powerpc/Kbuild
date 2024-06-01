@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
+subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror -Wa,--fatal-warnings
+subdir-asflags-$(CONFIG_PPC_WERROR) := -Wa,--fatal-warnings
 
 obj-y += kernel/
 obj-y += mm/

@@ -826,8 +826,8 @@ static void group_free_queue(struct panthor_group *group, struct panthor_queue *
 
 	panthor_queue_put_syncwait_obj(queue);
 
-	panthor_kernel_bo_destroy(group->vm, queue->ringbuf);
-	panthor_kernel_bo_destroy(panthor_fw_vm(group->ptdev), queue->iface.mem);
+	panthor_kernel_bo_destroy(queue->ringbuf);
+	panthor_kernel_bo_destroy(queue->iface.mem);
 
 	kfree(queue);
 }
@@ -837,15 +837,14 @@ static void group_release_work(struct work_struct *work)
 	struct panthor_group *group = container_of(work,
 						   struct panthor_group,
 						   release_work);
-	struct panthor_device *ptdev = group->ptdev;
 	u32 i;
 
 	for (i = 0; i < group->queue_count; i++)
 		group_free_queue(group, group->queues[i]);
 
-	panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), group->suspend_buf);
-	panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), group->protm_suspend_buf);
-	panthor_kernel_bo_destroy(group->vm, group->syncobjs);
+	panthor_kernel_bo_destroy(group->suspend_buf);
+	panthor_kernel_bo_destroy(group->protm_suspend_buf);
+	panthor_kernel_bo_destroy(group->syncobjs);
 
 	panthor_vm_put(group->vm);
 	kfree(group);
@@ -1281,7 +1280,16 @@ cs_slot_process_fatal_event_locked(struct panthor_device *ptdev,
 	if (group)
 		group->fatal_queues |= BIT(cs_id);
 
-	sched_queue_delayed_work(sched, tick, 0);
+	if (CS_EXCEPTION_TYPE(fatal) == DRM_PANTHOR_EXCEPTION_CS_UNRECOVERABLE) {
+		/* If this exception is unrecoverable, queue a reset, and make
+		 * sure we stop scheduling groups until the reset has happened.
+		 */
+		panthor_device_schedule_reset(ptdev);
+		cancel_delayed_work(&sched->tick_work);
+	} else {
+		sched_queue_delayed_work(sched, tick, 0);
+	}
+
 	drm_warn(&ptdev->base,
 		 "CSG slot %d CS slot: %d\n"
 		 "CS_FATAL.EXCEPTION_TYPE: 0x%x (%s)\n"
@@ -1385,7 +1393,12 @@ static int group_process_tiler_oom(struct panthor_group *group, u32 cs_id)
 					pending_frag_count, &new_chunk_va);
 	}
 
-	if (ret && ret != -EBUSY) {
+	/* If the heap context doesn't have memory for us, we want to let the
+	 * FW try to reclaim memory by waiting for fragment jobs to land or by
+	 * executing the tiler OOM exception handler, which is supposed to
+	 * implement incremental rendering.
+	 */
+	if (ret && ret != -ENOMEM) {
 		drm_warn(&ptdev->base, "Failed to extend the tiler heap\n");
 		group->fatal_queues |= BIT(cs_id);
 		sched_queue_delayed_work(sched, tick, 0);
@@ -2720,15 +2733,22 @@ void panthor_sched_pre_reset(struct panthor_device *ptdev)
 	mutex_unlock(&sched->reset.lock);
 }
 
-void panthor_sched_post_reset(struct panthor_device *ptdev)
+void panthor_sched_post_reset(struct panthor_device *ptdev, bool reset_failed)
 {
 	struct panthor_scheduler *sched = ptdev->scheduler;
 	struct panthor_group *group, *group_tmp;
 
 	mutex_lock(&sched->reset.lock);
 
-	list_for_each_entry_safe(group, group_tmp, &sched->reset.stopped_groups, run_node)
+	list_for_each_entry_safe(group, group_tmp, &sched->reset.stopped_groups, run_node) {
+		/* Consider all previously running group as terminated if the
+		 * reset failed.
+		 */
+		if (reset_failed)
+			group->state = PANTHOR_CS_GROUP_TERMINATED;
+
 		panthor_group_start(group);
+	}
 
 	/* We're done resetting the GPU, clear the reset.in_progress bit so we can
 	 * kick the scheduler.
@@ -2736,9 +2756,11 @@ void panthor_sched_post_reset(struct panthor_device *ptdev)
 	atomic_set(&sched->reset.in_progress, false);
 	mutex_unlock(&sched->reset.lock);
 
-	sched_queue_delayed_work(sched, tick, 0);
-
-	sched_queue_work(sched, sync_upd);
+	/* No need to queue a tick and update syncs if the reset failed. */
+	if (!reset_failed) {
+		sched_queue_delayed_work(sched, tick, 0);
+		sched_queue_work(sched, sync_upd);
+	}
 }
 
 static void group_sync_upd_work(struct work_struct *work)

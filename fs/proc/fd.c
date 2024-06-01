@@ -39,10 +39,8 @@ static int seq_show(struct seq_file *m, void *v)
 		spin_lock(&files->file_lock);
 		file = files_lookup_fd_locked(files, fd);
 		if (file) {
-			struct fdtable *fdt = files_fdtable(files);
-
 			f_flags = file->f_flags;
-			if (close_on_exec(fd, fdt))
+			if (close_on_exec(fd, files))
 				f_flags |= O_CLOEXEC;
 
 			get_file(file);

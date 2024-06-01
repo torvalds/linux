@@ -5,6 +5,7 @@
 
 KASAN_SANITIZE_slab_common.o := n
 KASAN_SANITIZE_slub.o := n
+KASAN_SANITIZE_kmemleak.o := n
 KCSAN_SANITIZE_kmemleak.o := n
 
 # These produce frequent data race reports: most of them are due to races on
@@ -40,6 +41,10 @@ mmu-$(CONFIG_MMU)	:= highmem.o memory.o mincore.o \
 
 ifdef CONFIG_CROSS_MEMORY_ATTACH
 mmu-$(CONFIG_MMU)	+= process_vm_access.o
+endif
+
+ifdef CONFIG_64BIT
+mmu-$(CONFIG_MMU)	+= mseal.o
 endif
 
 obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \

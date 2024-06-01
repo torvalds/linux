@@ -17,6 +17,7 @@
 #include <linux/suspend.h>
 #include <linux/dma-direct.h>
 #include <linux/execmem.h>
+#include <linux/vmalloc.h>
 
 #include <asm/swiotlb.h>
 #include <asm/machdep.h>
@@ -31,7 +32,7 @@
 
 #include <mm/mmu_decl.h>
 
-unsigned long long memory_limit;
+unsigned long long memory_limit __initdata;
 
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
 EXPORT_SYMBOL(empty_zero_page);

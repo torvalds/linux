@@ -8,6 +8,7 @@
  *  This is the "shell" of the ARMv6 processor support.
  */
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/linkage.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
@@ -34,15 +35,17 @@
 
 .arch armv6
 
-ENTRY(cpu_v6_proc_init)
+SYM_TYPED_FUNC_START(cpu_v6_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_v6_proc_init)
 
-ENTRY(cpu_v6_proc_fin)
+SYM_TYPED_FUNC_START(cpu_v6_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x0006			@ .............ca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_v6_proc_fin)
 
 /*
  *	cpu_v6_reset(loc)
@@ -55,14 +58,14 @@ ENTRY(cpu_v6_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_v6_reset)
+SYM_TYPED_FUNC_START(cpu_v6_reset)
 	mrc	p15, 0, r1, c1, c0, 0		@ ctrl register
 	bic	r1, r1, #0x1			@ ...............m
 	mcr	p15, 0, r1, c1, c0, 0		@ disable MMU
 	mov	r1, #0
 	mcr	p15, 0, r1, c7, c5, 4		@ ISB
 	ret	r0
-ENDPROC(cpu_v6_reset)
+SYM_FUNC_END(cpu_v6_reset)
 	.popsection
 
 /*
@@ -72,18 +75,20 @@ ENDPROC(cpu_v6_reset)
  *
  *	IRQs are already disabled.
  */
-ENTRY(cpu_v6_do_idle)
+SYM_TYPED_FUNC_START(cpu_v6_do_idle)
 	mov	r1, #0
 	mcr	p15, 0, r1, c7, c10, 4		@ DWB - WFI may enter a low-power mode
 	mcr	p15, 0, r1, c7, c0, 4		@ wait for interrupt
 	ret	lr
+SYM_FUNC_END(cpu_v6_do_idle)
 
-ENTRY(cpu_v6_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_v6_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #D_CACHE_LINE_SIZE
 	subs	r1, r1, #D_CACHE_LINE_SIZE
 	bhi	1b
 	ret	lr
+SYM_FUNC_END(cpu_v6_dcache_clean_area)
 
 /*
  *	cpu_v6_switch_mm(pgd_phys, tsk)
@@ -95,7 +100,7 @@ ENTRY(cpu_v6_dcache_clean_area)
  *	It is assumed that:
  *	- we are not using split page tables
  */
-ENTRY(cpu_v6_switch_mm)
+SYM_TYPED_FUNC_START(cpu_v6_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r2, #0
 	mmid	r1, r1				@ get mm->context.id
@@ -113,6 +118,7 @@ ENTRY(cpu_v6_switch_mm)
 	mcr	p15, 0, r1, c13, c0, 1		@ set context ID
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_v6_switch_mm)
 
 /*
  *	cpu_v6_set_pte_ext(ptep, pte, ext)
@@ -126,17 +132,18 @@ ENTRY(cpu_v6_switch_mm)
  */
 	armv6_mt_table cpu_v6
 
-ENTRY(cpu_v6_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_v6_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv6_set_pte_ext cpu_v6
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_v6_set_pte_ext)
 
 /* Suspend/resume support: taken from arch/arm/mach-s3c64xx/sleep.S */
 .globl	cpu_v6_suspend_size
 .equ	cpu_v6_suspend_size, 4 * 6
 #ifdef CONFIG_ARM_CPU_SUSPEND
-ENTRY(cpu_v6_do_suspend)
+SYM_TYPED_FUNC_START(cpu_v6_do_suspend)
 	stmfd	sp!, {r4 - r9, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ FCSE/PID
 #ifdef CONFIG_MMU
@@ -148,9 +155,9 @@ ENTRY(cpu_v6_do_suspend)
 	mrc	p15, 0, r9, c1, c0, 0	@ control register
 	stmia	r0, {r4 - r9}
 	ldmfd	sp!, {r4- r9, pc}
-ENDPROC(cpu_v6_do_suspend)
+SYM_FUNC_END(cpu_v6_do_suspend)
 
-ENTRY(cpu_v6_do_resume)
+SYM_TYPED_FUNC_START(cpu_v6_do_resume)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c14, 0	@ clean+invalidate D cache
 	mcr	p15, 0, ip, c7, c5, 0	@ invalidate I cache
@@ -172,7 +179,7 @@ ENTRY(cpu_v6_do_resume)
 	mcr	p15, 0, ip, c7, c5, 4	@ ISB
 	mov	r0, r9			@ control register
 	b	cpu_resume_mmu
-ENDPROC(cpu_v6_do_resume)
+SYM_FUNC_END(cpu_v6_do_resume)
 #endif
 
 	string	cpu_v6_name, "ARMv6-compatible processor"

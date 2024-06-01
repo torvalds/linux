@@ -368,11 +368,7 @@ static int swsusp_swap_check(void)
 	if (IS_ERR(hib_resume_bdev_file))
 		return PTR_ERR(hib_resume_bdev_file);
 
-	res = set_blocksize(file_bdev(hib_resume_bdev_file), PAGE_SIZE);
-	if (res < 0)
-		fput(hib_resume_bdev_file);
-
-	return res;
+	return 0;
 }
 
 /**
@@ -1574,7 +1570,6 @@ int swsusp_check(bool exclusive)
 	hib_resume_bdev_file = bdev_file_open_by_dev(swsusp_resume_device,
 				BLK_OPEN_READ, holder, NULL);
 	if (!IS_ERR(hib_resume_bdev_file)) {
-		set_blocksize(file_bdev(hib_resume_bdev_file), PAGE_SIZE);
 		clear_page(swsusp_header);
 		error = hib_submit_io(REQ_OP_READ, swsusp_resume_block,
 					swsusp_header, NULL);
@@ -1600,7 +1595,7 @@ int swsusp_check(bool exclusive)
 
 put:
 		if (error)
-			fput(hib_resume_bdev_file);
+			bdev_fput(hib_resume_bdev_file);
 		else
 			pr_debug("Image signature found, resuming\n");
 	} else {

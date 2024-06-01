@@ -329,8 +329,7 @@ static struct net_device *ipoib_get_master_net_dev(struct net_device *dev)
 
 	rcu_read_lock();
 	master = netdev_master_upper_dev_get_rcu(dev);
-	if (master)
-		dev_hold(master);
+	dev_hold(master);
 	rcu_read_unlock();
 
 	if (master)

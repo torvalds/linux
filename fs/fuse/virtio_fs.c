@@ -7,6 +7,8 @@
 #include <linux/fs.h>
 #include <linux/dax.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
+#include <linux/group_cpus.h>
 #include <linux/pfn_t.h>
 #include <linux/memremap.h>
 #include <linux/module.h>
@@ -66,6 +68,8 @@ struct virtio_fs {
 	unsigned int nvqs;               /* number of virtqueues */
 	unsigned int num_request_queues; /* number of request queues */
 	struct dax_device *dax_dev;
+
+	unsigned int *mq_map; /* index = cpu id, value = request vq id */
 
 	/* DAX memory window where file contents are mapped */
 	void *window_kaddr;
@@ -185,6 +189,7 @@ static void virtio_fs_ktype_release(struct kobject *kobj)
 {
 	struct virtio_fs *vfs = container_of(kobj, struct virtio_fs, kobj);
 
+	kfree(vfs->mq_map);
 	kfree(vfs->vqs);
 	kfree(vfs);
 }
@@ -706,6 +711,44 @@ static void virtio_fs_requests_done_work(struct work_struct *work)
 	}
 }
 
+static void virtio_fs_map_queues(struct virtio_device *vdev, struct virtio_fs *fs)
+{
+	const struct cpumask *mask, *masks;
+	unsigned int q, cpu;
+
+	/* First attempt to map using existing transport layer affinities
+	 * e.g. PCIe MSI-X
+	 */
+	if (!vdev->config->get_vq_affinity)
+		goto fallback;
+
+	for (q = 0; q < fs->num_request_queues; q++) {
+		mask = vdev->config->get_vq_affinity(vdev, VQ_REQUEST + q);
+		if (!mask)
+			goto fallback;
+
+		for_each_cpu(cpu, mask)
+			fs->mq_map[cpu] = q;
+	}
+
+	return;
+fallback:
+	/* Attempt to map evenly in groups over the CPUs */
+	masks = group_cpus_evenly(fs->num_request_queues);
+	/* If even this fails we default to all CPUs use queue zero */
+	if (!masks) {
+		for_each_possible_cpu(cpu)
+			fs->mq_map[cpu] = 0;
+		return;
+	}
+
+	for (q = 0; q < fs->num_request_queues; q++) {
+		for_each_cpu(cpu, &masks[q])
+			fs->mq_map[cpu] = q;
+	}
+	kfree(masks);
+}
+
 /* Virtqueue interrupt handler */
 static void virtio_fs_vq_done(struct virtqueue *vq)
 {
@@ -742,6 +785,11 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 {
 	struct virtqueue **vqs;
 	vq_callback_t **callbacks;
+	/* Specify pre_vectors to ensure that the queues before the
+	 * request queues (e.g. hiprio) don't claim any of the CPUs in
+	 * the multi-queue mapping and interrupt affinities
+	 */
+	struct irq_affinity desc = { .pre_vectors = VQ_REQUEST };
 	const char **names;
 	unsigned int i;
 	int ret = 0;
@@ -751,6 +799,9 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 	if (fs->num_request_queues == 0)
 		return -EINVAL;
 
+	/* Truncate nr of request queues to nr_cpu_id */
+	fs->num_request_queues = min_t(unsigned int, fs->num_request_queues,
+					nr_cpu_ids);
 	fs->nvqs = VQ_REQUEST + fs->num_request_queues;
 	fs->vqs = kcalloc(fs->nvqs, sizeof(fs->vqs[VQ_HIPRIO]), GFP_KERNEL);
 	if (!fs->vqs)
@@ -760,7 +811,9 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 	callbacks = kmalloc_array(fs->nvqs, sizeof(callbacks[VQ_HIPRIO]),
 					GFP_KERNEL);
 	names = kmalloc_array(fs->nvqs, sizeof(names[VQ_HIPRIO]), GFP_KERNEL);
-	if (!vqs || !callbacks || !names) {
+	fs->mq_map = kcalloc_node(nr_cpu_ids, sizeof(*fs->mq_map), GFP_KERNEL,
+					dev_to_node(&vdev->dev));
+	if (!vqs || !callbacks || !names || !fs->mq_map) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -780,7 +833,7 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 		names[i] = fs->vqs[i].name;
 	}
 
-	ret = virtio_find_vqs(vdev, fs->nvqs, vqs, callbacks, names, NULL);
+	ret = virtio_find_vqs(vdev, fs->nvqs, vqs, callbacks, names, &desc);
 	if (ret < 0)
 		goto out;
 
@@ -792,8 +845,10 @@ out:
 	kfree(names);
 	kfree(callbacks);
 	kfree(vqs);
-	if (ret)
+	if (ret) {
 		kfree(fs->vqs);
+		kfree(fs->mq_map);
+	}
 	return ret;
 }
 
@@ -939,7 +994,7 @@ static int virtio_fs_probe(struct virtio_device *vdev)
 	if (ret < 0)
 		goto out;
 
-	/* TODO vq affinity */
+	virtio_fs_map_queues(vdev, fs);
 
 	ret = virtio_fs_setup_dax(vdev, fs);
 	if (ret < 0)
@@ -1023,7 +1078,6 @@ static const unsigned int feature_table[] = {};
 
 static struct virtio_driver virtio_fs_driver = {
 	.driver.name		= KBUILD_MODNAME,
-	.driver.owner		= THIS_MODULE,
 	.id_table		= id_table,
 	.feature_table		= feature_table,
 	.feature_table_size	= ARRAY_SIZE(feature_table),
@@ -1288,7 +1342,7 @@ out:
 static void virtio_fs_wake_pending_and_unlock(struct fuse_iqueue *fiq)
 __releases(fiq->lock)
 {
-	unsigned int queue_id = VQ_REQUEST; /* TODO multiqueue */
+	unsigned int queue_id;
 	struct virtio_fs *fs;
 	struct fuse_req *req;
 	struct virtio_fs_vq *fsvq;
@@ -1302,11 +1356,13 @@ __releases(fiq->lock)
 	spin_unlock(&fiq->lock);
 
 	fs = fiq->priv;
+	queue_id = VQ_REQUEST + fs->mq_map[raw_smp_processor_id()];
 
-	pr_debug("%s: opcode %u unique %#llx nodeid %#llx in.len %u out.len %u\n",
-		  __func__, req->in.h.opcode, req->in.h.unique,
+	pr_debug("%s: opcode %u unique %#llx nodeid %#llx in.len %u out.len %u queue_id %u\n",
+		 __func__, req->in.h.opcode, req->in.h.unique,
 		 req->in.h.nodeid, req->in.h.len,
-		 fuse_len_args(req->args->out_numargs, req->args->out_args));
+		 fuse_len_args(req->args->out_numargs, req->args->out_args),
+		 queue_id);
 
 	fsvq = &fs->vqs[queue_id];
 	ret = virtio_fs_enqueue_req(fsvq, req, false);

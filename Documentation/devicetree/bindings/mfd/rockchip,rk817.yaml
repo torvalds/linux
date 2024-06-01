@@ -91,7 +91,7 @@ properties:
       "^(LDO_REG[1-9]|DCDC_REG[1-4]|BOOST|OTG_SWITCH)$":
         type: object
         unevaluatedProperties: false
-        $ref: ../regulator/regulator.yaml#
+        $ref: /schemas/regulator/regulator.yaml#
     unevaluatedProperties: false
 
   clocks:

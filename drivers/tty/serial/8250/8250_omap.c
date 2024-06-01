@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
@@ -1094,7 +1093,7 @@ static void omap_8250_dma_tx_complete(void *param)
 {
 	struct uart_8250_port	*p = param;
 	struct uart_8250_dma	*dma = p->dma;
-	struct circ_buf		*xmit = &p->port.state->xmit;
+	struct tty_port		*tport = &p->port.state->port;
 	unsigned long		flags;
 	bool			en_thri = false;
 	struct omap8250_priv	*priv = p->port.private_data;
@@ -1113,10 +1112,10 @@ static void omap_8250_dma_tx_complete(void *param)
 		omap8250_restore_regs(p);
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&p->port);
 
-	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&p->port)) {
+	if (!kfifo_is_empty(&tport->xmit_fifo) && !uart_tx_stopped(&p->port)) {
 		int ret;
 
 		ret = omap_8250_tx_dma(p);
@@ -1138,14 +1137,15 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 {
 	struct uart_8250_dma		*dma = p->dma;
 	struct omap8250_priv		*priv = p->port.private_data;
-	struct circ_buf			*xmit = &p->port.state->xmit;
+	struct tty_port			*tport = &p->port.state->port;
 	struct dma_async_tx_descriptor	*desc;
-	unsigned int	skip_byte = 0;
+	struct scatterlist sg;
+	int skip_byte = -1;
 	int ret;
 
 	if (dma->tx_running)
 		return 0;
-	if (uart_tx_stopped(&p->port) || uart_circ_empty(xmit)) {
+	if (uart_tx_stopped(&p->port) || kfifo_is_empty(&tport->xmit_fifo)) {
 
 		/*
 		 * Even if no data, we need to return an error for the two cases
@@ -1160,8 +1160,18 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 		return 0;
 	}
 
-	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	sg_init_table(&sg, 1);
+	ret = kfifo_dma_out_prepare_mapped(&tport->xmit_fifo, &sg, 1,
+					   UART_XMIT_SIZE, dma->tx_addr);
+	if (ret != 1) {
+		serial8250_clear_THRI(p);
+		return 0;
+	}
+
+	dma->tx_size = sg_dma_len(&sg);
+
 	if (priv->habit & OMAP_DMA_TX_KICK) {
+		unsigned char c;
 		u8 tx_lvl;
 
 		/*
@@ -1188,12 +1198,17 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 			ret = -EINVAL;
 			goto err;
 		}
-		skip_byte = 1;
+		if (!kfifo_get(&tport->xmit_fifo, &c)) {
+			ret = -EINVAL;
+			goto err;
+		}
+		skip_byte = c;
+		/* now we need to recompute due to kfifo_get */
+		kfifo_dma_out_prepare_mapped(&tport->xmit_fifo, &sg, 1,
+				UART_XMIT_SIZE, dma->tx_addr);
 	}
 
-	desc = dmaengine_prep_slave_single(dma->txchan,
-			dma->tx_addr + xmit->tail + skip_byte,
-			dma->tx_size - skip_byte, DMA_MEM_TO_DEV,
+	desc = dmaengine_prep_slave_sg(dma->txchan, &sg, 1, DMA_MEM_TO_DEV,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		ret = -EBUSY;
@@ -1215,11 +1230,13 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 		dma->tx_err = 0;
 
 	serial8250_clear_THRI(p);
-	if (skip_byte)
-		serial_out(p, UART_TX, xmit->buf[xmit->tail]);
-	return 0;
+	ret = 0;
+	goto out_skip;
 err:
 	dma->tx_err = 1;
+out_skip:
+	if (skip_byte >= 0)
+		serial_out(p, UART_TX, skip_byte);
 	return ret;
 }
 
@@ -1308,7 +1325,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 	serial8250_modem_status(up);
 	if (status & UART_LSR_THRE && up->dma->tx_err) {
 		if (uart_tx_stopped(&up->port) ||
-		    uart_circ_empty(&up->port.state->xmit)) {
+		    kfifo_is_empty(&up->port.state->port.xmit_fifo)) {
 			up->dma->tx_err = 0;
 			serial8250_tx_chars(up);
 		} else  {

@@ -230,7 +230,6 @@ struct da7280_haptic {
 	struct i2c_client *client;
 	struct pwm_device *pwm_dev;
 
-	bool legacy;
 	struct work_struct work;
 	int val;
 	u16 gain;

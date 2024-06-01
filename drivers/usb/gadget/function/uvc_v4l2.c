@@ -260,12 +260,26 @@ uvc_v4l2_try_format(struct file *file, void *fh, struct v4l2_format *fmt)
 	if (!uframe)
 		return -EINVAL;
 
-	fmt->fmt.pix.width = uframe->frame.w_width;
-	fmt->fmt.pix.height = uframe->frame.w_height;
+	if (uformat->type == UVCG_UNCOMPRESSED) {
+		struct uvcg_uncompressed *u =
+			to_uvcg_uncompressed(&uformat->group.cg_item);
+		if (!u)
+			return 0;
+
+		v4l2_fill_pixfmt(&fmt->fmt.pix, fmt->fmt.pix.pixelformat,
+				 uframe->frame.w_width, uframe->frame.w_height);
+
+		if (fmt->fmt.pix.sizeimage != (uvc_v4l2_get_bytesperline(uformat, uframe) *
+						uframe->frame.w_height))
+			return -EINVAL;
+	} else {
+		fmt->fmt.pix.width = uframe->frame.w_width;
+		fmt->fmt.pix.height = uframe->frame.w_height;
+		fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(uformat, uframe);
+		fmt->fmt.pix.sizeimage = uvc_get_frame_size(uformat, uframe);
+		fmt->fmt.pix.pixelformat = to_uvc_format(uformat)->fcc;
+	}
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
-	fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(uformat, uframe);
-	fmt->fmt.pix.sizeimage = uvc_get_frame_size(uformat, uframe);
-	fmt->fmt.pix.pixelformat = to_uvc_format(uformat)->fcc;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->fmt.pix.priv = 0;
 

@@ -18,11 +18,11 @@
 extern bool arch_hugetlb_migration_supported(struct hstate *h);
 #endif
 
-static inline void arch_clear_hugepage_flags(struct page *page)
+static inline void arch_clear_hugetlb_flags(struct folio *folio)
 {
-	clear_bit(PG_dcache_clean, &page->flags);
+	clear_bit(PG_dcache_clean, &folio->flags);
 }
-#define arch_clear_hugepage_flags arch_clear_hugepage_flags
+#define arch_clear_hugetlb_flags arch_clear_hugetlb_flags
 
 pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags);
 #define arch_make_huge_pte arch_make_huge_pte

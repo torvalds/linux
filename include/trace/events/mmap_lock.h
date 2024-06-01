@@ -27,7 +27,7 @@ DECLARE_EVENT_CLASS(mmap_lock,
 
 	TP_fast_assign(
 		__entry->mm = mm;
-		__assign_str(memcg_path, memcg_path);
+		__assign_str(memcg_path);
 		__entry->write = write;
 	),
 
@@ -65,7 +65,7 @@ TRACE_EVENT_FN(mmap_lock_acquire_returned,
 
 	TP_fast_assign(
 		__entry->mm = mm;
-		__assign_str(memcg_path, memcg_path);
+		__assign_str(memcg_path);
 		__entry->write = write;
 		__entry->success = success;
 	),

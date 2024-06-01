@@ -1127,15 +1127,15 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 		flags |= MSG_DONTWAIT;
 
 retry_multishot:
+	kmsg->msg.msg_inq = -1;
+	kmsg->msg.msg_flags = 0;
+
 	if (io_do_buffer_select(req)) {
 		ret = io_recv_buf_select(req, kmsg, &len, issue_flags);
 		if (unlikely(ret))
 			goto out_free;
 		sr->buf = NULL;
 	}
-
-	kmsg->msg.msg_inq = -1;
-	kmsg->msg.msg_flags = 0;
 
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
@@ -1528,9 +1528,12 @@ int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_accept *accept = io_kiocb_to_cmd(req, struct io_accept);
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
-	unsigned int file_flags = force_nonblock ? O_NONBLOCK : 0;
 	bool fixed = !!accept->file_slot;
+	struct proto_accept_arg arg = {
+		.flags = force_nonblock ? O_NONBLOCK : 0,
+	};
 	struct file *file;
+	unsigned cflags;
 	int ret, fd;
 
 	if (!(req->flags & REQ_F_POLLED) &&
@@ -1543,7 +1546,9 @@ retry:
 		if (unlikely(fd < 0))
 			return fd;
 	}
-	file = do_accept(req->file, file_flags, accept->addr, accept->addr_len,
+	arg.err = 0;
+	arg.is_empty = -1;
+	file = do_accept(req->file, &arg, accept->addr, accept->addr_len,
 			 accept->flags);
 	if (IS_ERR(file)) {
 		if (!fixed)
@@ -1571,17 +1576,26 @@ retry:
 						accept->file_slot);
 	}
 
+	cflags = 0;
+	if (!arg.is_empty)
+		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
+
 	if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
-		io_req_set_res(req, ret, 0);
+		io_req_set_res(req, ret, cflags);
 		return IOU_OK;
 	}
 
 	if (ret < 0)
 		return ret;
-	if (io_req_post_cqe(req, ret, IORING_CQE_F_MORE))
-		goto retry;
+	if (io_req_post_cqe(req, ret, cflags | IORING_CQE_F_MORE)) {
+		if (cflags & IORING_CQE_F_SOCK_NONEMPTY || arg.is_empty == -1)
+			goto retry;
+		if (issue_flags & IO_URING_F_MULTISHOT)
+			return IOU_ISSUE_SKIP_COMPLETE;
+		return -EAGAIN;
+	}
 
-	io_req_set_res(req, ret, 0);
+	io_req_set_res(req, ret, cflags);
 	return IOU_STOP_MULTISHOT;
 }
 

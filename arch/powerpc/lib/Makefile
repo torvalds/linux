@@ -3,8 +3,6 @@
 # Makefile for ppc-specific library files..
 #
 
-ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
-
 CFLAGS_code-patching.o += -fno-stack-protector
 CFLAGS_feature-fixups.o += -fno-stack-protector
 

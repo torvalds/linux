@@ -274,15 +274,17 @@ struct netlbl_calipso_ops {
  * on success, NULL on failure.
  *
  */
-static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc(gfp_t flags)
+static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc_noprof(gfp_t flags)
 {
 	struct netlbl_lsm_cache *cache;
 
-	cache = kzalloc(sizeof(*cache), flags);
+	cache = kzalloc_noprof(sizeof(*cache), flags);
 	if (cache)
 		refcount_set(&cache->refcount, 1);
 	return cache;
 }
+#define netlbl_secattr_cache_alloc(...)	\
+		alloc_hooks(netlbl_secattr_cache_alloc_noprof(__VA_ARGS__))
 
 /**
  * netlbl_secattr_cache_free - Frees a netlbl_lsm_cache struct
@@ -311,10 +313,11 @@ static inline void netlbl_secattr_cache_free(struct netlbl_lsm_cache *cache)
  * on failure.
  *
  */
-static inline struct netlbl_lsm_catmap *netlbl_catmap_alloc(gfp_t flags)
+static inline struct netlbl_lsm_catmap *netlbl_catmap_alloc_noprof(gfp_t flags)
 {
-	return kzalloc(sizeof(struct netlbl_lsm_catmap), flags);
+	return kzalloc_noprof(sizeof(struct netlbl_lsm_catmap), flags);
 }
+#define netlbl_catmap_alloc(...)	alloc_hooks(netlbl_catmap_alloc_noprof(__VA_ARGS__))
 
 /**
  * netlbl_catmap_free - Free a LSM secattr catmap
@@ -376,10 +379,11 @@ static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr)
  * pointer on success, or NULL on failure.
  *
  */
-static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc(gfp_t flags)
+static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc_noprof(gfp_t flags)
 {
-	return kzalloc(sizeof(struct netlbl_lsm_secattr), flags);
+	return kzalloc_noprof(sizeof(struct netlbl_lsm_secattr), flags);
 }
+#define netlbl_secattr_alloc(...)	alloc_hooks(netlbl_secattr_alloc_noprof(__VA_ARGS__))
 
 /**
  * netlbl_secattr_free - Frees a netlbl_lsm_secattr struct

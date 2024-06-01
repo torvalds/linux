@@ -68,11 +68,6 @@ int ci_ulpi_init(struct ci_hdrc *ci)
 	if (ci->platdata->phy_mode != USBPHY_INTERFACE_MODE_ULPI)
 		return 0;
 
-	/*
-	 * Set PORTSC correctly so we can read/write ULPI registers for
-	 * identification purposes
-	 */
-	hw_phymode_configure(ci);
 
 	ci->ulpi_ops.read = ci_ulpi_read;
 	ci->ulpi_ops.write = ci_ulpi_write;

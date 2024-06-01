@@ -383,7 +383,7 @@ static unsigned int xive_get_irq(void)
  * CPU.
  *
  * If we find that there is indeed more in there, we call
- * force_external_irq_replay() to make Linux synthetize an
+ * force_external_irq_replay() to make Linux synthesize an
  * external interrupt on the next call to local_irq_restore().
  */
 static void xive_do_queue_eoi(struct xive_cpu *xc)
@@ -874,7 +874,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		 *
 		 * This also tells us that it's in flight to a host queue
 		 * or has already been fetched but hasn't been EOIed yet
-		 * by the host. This it's potentially using up a host
+		 * by the host. Thus it's potentially using up a host
 		 * queue slot. This is important to know because as long
 		 * as this is the case, we must not hard-unmask it when
 		 * "returning" that interrupt to the host.

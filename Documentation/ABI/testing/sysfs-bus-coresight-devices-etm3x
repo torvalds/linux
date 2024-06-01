@@ -22,7 +22,7 @@ Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies
 		characteristics about the address comparator being configure,
 		for example the access type, the kind of instruction to trace,
-		processor contect ID to trigger on, etc.  Individual fields in
+		processor context ID to trigger on, etc.  Individual fields in
 		the access type register may vary on the version of the trace
 		entity.
 

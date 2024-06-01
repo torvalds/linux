@@ -12,6 +12,8 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <fcntl.h>
+
 #include "../kselftest.h"
 
 /*
@@ -85,12 +87,72 @@ static int validate_lower_address_hint(void)
 	char *ptr;
 
 	ptr = mmap((void *) (1UL << 45), MAP_CHUNK_SIZE, PROT_READ |
-			PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		   PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	if (ptr == MAP_FAILED)
 		return 0;
 
 	return 1;
+}
+
+static int validate_complete_va_space(void)
+{
+	unsigned long start_addr, end_addr, prev_end_addr;
+	char line[400];
+	char prot[6];
+	FILE *file;
+	int fd;
+
+	fd = open("va_dump", O_CREAT | O_WRONLY, 0600);
+	unlink("va_dump");
+	if (fd < 0) {
+		ksft_test_result_skip("cannot create or open dump file\n");
+		ksft_finished();
+	}
+
+	file = fopen("/proc/self/maps", "r");
+	if (file == NULL)
+		ksft_exit_fail_msg("cannot open /proc/self/maps\n");
+
+	prev_end_addr = 0;
+	while (fgets(line, sizeof(line), file)) {
+		unsigned long hop;
+
+		if (sscanf(line, "%lx-%lx %s[rwxp-]",
+			   &start_addr, &end_addr, prot) != 3)
+			ksft_exit_fail_msg("cannot parse /proc/self/maps\n");
+
+		/* end of userspace mappings; ignore vsyscall mapping */
+		if (start_addr & (1UL << 63))
+			return 0;
+
+		/* /proc/self/maps must have gaps less than MAP_CHUNK_SIZE */
+		if (start_addr - prev_end_addr >= MAP_CHUNK_SIZE)
+			return 1;
+
+		prev_end_addr = end_addr;
+
+		if (prot[0] != 'r')
+			continue;
+
+		/*
+		 * Confirm whether MAP_CHUNK_SIZE chunk can be found or not.
+		 * If write succeeds, no need to check MAP_CHUNK_SIZE - 1
+		 * addresses after that. If the address was not held by this
+		 * process, write would fail with errno set to EFAULT.
+		 * Anyways, if write returns anything apart from 1, exit the
+		 * program since that would mean a bug in /proc/self/maps.
+		 */
+		hop = 0;
+		while (start_addr + hop < end_addr) {
+			if (write(fd, (void *)(start_addr + hop), 1) != 1)
+				return 1;
+			lseek(fd, 0, SEEK_SET);
+
+			hop += MAP_CHUNK_SIZE;
+		}
+	}
+	return 0;
 }
 
 int main(int argc, char *argv[])
@@ -105,13 +167,11 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < NR_CHUNKS_LOW; i++) {
 		ptr[i] = mmap(NULL, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
-					MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 		if (ptr[i] == MAP_FAILED) {
-			if (validate_lower_address_hint()) {
-				ksft_test_result_skip("Memory constraint not fulfilled\n");
-				ksft_finished();
-			}
+			if (validate_lower_address_hint())
+				ksft_exit_fail_msg("mmap unexpectedly succeeded with hint\n");
 			break;
 		}
 
@@ -127,7 +187,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < NR_CHUNKS_HIGH; i++) {
 		hint = hind_addr();
 		hptr[i] = mmap(hint, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
-					MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 		if (hptr[i] == MAP_FAILED)
 			break;
@@ -135,6 +195,10 @@ int main(int argc, char *argv[])
 		validate_addr(hptr[i], 1);
 	}
 	hchunks = i;
+	if (validate_complete_va_space()) {
+		ksft_test_result_fail("BUG in mmap() or /proc/self/maps\n");
+		ksft_finished();
+	}
 
 	for (i = 0; i < lchunks; i++)
 		munmap(ptr[i], MAP_CHUNK_SIZE);
