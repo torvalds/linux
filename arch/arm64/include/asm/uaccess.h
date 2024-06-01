@@ -294,29 +294,28 @@ do {									\
 	} while (0);							\
 } while (0)
 
-#define __put_mem_asm(store, reg, x, addr, err, type)			\
-	asm volatile(							\
-	"1:	" store "	" reg "1, [%2]\n"			\
+#define __put_mem_asm(store, reg, x, addr, label, type)			\
+	asm goto(							\
+	"1:	" store "	" reg "0, [%1]\n"			\
 	"2:\n"								\
-	_ASM_EXTABLE_##type##ACCESS_ERR(1b, 2b, %w0)			\
-	: "+r" (err)							\
-	: "rZ" (x), "r" (addr))
+	_ASM_EXTABLE_##type##ACCESS(1b, %l2)				\
+	: : "rZ" (x), "r" (addr) : : label)
 
-#define __raw_put_mem(str, x, ptr, err, type)					\
+#define __raw_put_mem(str, x, ptr, label, type)					\
 do {										\
 	__typeof__(*(ptr)) __pu_val = (x);					\
 	switch (sizeof(*(ptr))) {						\
 	case 1:									\
-		__put_mem_asm(str "b", "%w", __pu_val, (ptr), (err), type);	\
+		__put_mem_asm(str "b", "%w", __pu_val, (ptr), label, type);	\
 		break;								\
 	case 2:									\
-		__put_mem_asm(str "h", "%w", __pu_val, (ptr), (err), type);	\
+		__put_mem_asm(str "h", "%w", __pu_val, (ptr), label, type);	\
 		break;								\
 	case 4:									\
-		__put_mem_asm(str, "%w", __pu_val, (ptr), (err), type);		\
+		__put_mem_asm(str, "%w", __pu_val, (ptr), label, type);		\
 		break;								\
 	case 8:									\
-		__put_mem_asm(str, "%x", __pu_val, (ptr), (err), type);		\
+		__put_mem_asm(str, "%x", __pu_val, (ptr), label, type);		\
 		break;								\
 	default:								\
 		BUILD_BUG();							\
@@ -328,25 +327,34 @@ do {										\
  * uaccess_ttbr0_disable(). As `x` and `ptr` could contain blocking functions,
  * we must evaluate these outside of the critical section.
  */
-#define __raw_put_user(x, ptr, err)					\
+#define __raw_put_user(x, ptr, label)					\
 do {									\
+	__label__ __rpu_failed;						\
 	__typeof__(*(ptr)) __user *__rpu_ptr = (ptr);			\
 	__typeof__(*(ptr)) __rpu_val = (x);				\
 	__chk_user_ptr(__rpu_ptr);					\
 									\
-	uaccess_ttbr0_enable();						\
-	__raw_put_mem("sttr", __rpu_val, __rpu_ptr, err, U);		\
-	uaccess_ttbr0_disable();					\
+	do {								\
+		uaccess_ttbr0_enable();					\
+		__raw_put_mem("sttr", __rpu_val, __rpu_ptr, __rpu_failed, U);	\
+		uaccess_ttbr0_disable();				\
+		break;							\
+	__rpu_failed:							\
+		uaccess_ttbr0_disable();				\
+		goto label;						\
+	} while (0);							\
 } while (0)
 
 #define __put_user_error(x, ptr, err)					\
 do {									\
+	__label__ __pu_failed;						\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
 	might_fault();							\
 	if (access_ok(__p, sizeof(*__p))) {				\
 		__p = uaccess_mask_ptr(__p);				\
-		__raw_put_user((x), __p, (err));			\
+		__raw_put_user((x), __p, __pu_failed);			\
 	} else	{							\
+	__pu_failed:							\
 		(err) = -EFAULT;					\
 	}								\
 } while (0)
@@ -369,15 +377,18 @@ do {									\
 do {									\
 	__typeof__(dst) __pkn_dst = (dst);				\
 	__typeof__(src) __pkn_src = (src);				\
-	int __pkn_err = 0;						\
 									\
-	__mte_enable_tco_async();					\
-	__raw_put_mem("str", *((type *)(__pkn_src)),			\
-		      (__force type *)(__pkn_dst), __pkn_err, K);	\
-	__mte_disable_tco_async();					\
-									\
-	if (unlikely(__pkn_err))					\
+	do {								\
+		__label__ __pkn_err;					\
+		__mte_enable_tco_async();				\
+		__raw_put_mem("str", *((type *)(__pkn_src)),		\
+			      (__force type *)(__pkn_dst), __pkn_err, K);	\
+		__mte_disable_tco_async();				\
+		break;							\
+	__pkn_err:							\
+		__mte_disable_tco_async();				\
 		goto err_label;						\
+	} while (0);							\
 } while(0)
 
 extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
@@ -411,17 +422,8 @@ static __must_check __always_inline bool user_access_begin(const void __user *pt
 }
 #define user_access_begin(a,b)	user_access_begin(a,b)
 #define user_access_end()	uaccess_ttbr0_disable()
-
-/*
- * The arm64 inline asms should learn abut asm goto, and we should
- * teach user_access_begin() about address masking.
- */
-#define unsafe_put_user(x, ptr, label)	do {				\
-	int __upu_err = 0;						\
-	__raw_put_mem("sttr", x, uaccess_mask_ptr(ptr), __upu_err, U);	\
-	if (__upu_err) goto label;				\
-} while (0)
-
+#define unsafe_put_user(x, ptr, label) \
+	__raw_put_mem("sttr", x, uaccess_mask_ptr(ptr), label, U)
 #define unsafe_get_user(x, ptr, label) \
 	__raw_get_mem("ldtr", x, uaccess_mask_ptr(ptr), label, U)
 

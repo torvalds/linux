@@ -112,6 +112,9 @@
 #define _ASM_EXTABLE_KACCESS_ERR(insn, fixup, err)			\
 	_ASM_EXTABLE_KACCESS_ERR_ZERO(insn, fixup, err, wzr)
 
+#define _ASM_EXTABLE_KACCESS(insn, fixup)				\
+	_ASM_EXTABLE_KACCESS_ERR_ZERO(insn, fixup, wzr, wzr)
+
 #define _ASM_EXTABLE_LOAD_UNALIGNED_ZEROPAD(insn, fixup, data, addr)		\
 	__DEFINE_ASM_GPR_NUMS							\
 	__ASM_EXTABLE_RAW(#insn, #fixup,					\
