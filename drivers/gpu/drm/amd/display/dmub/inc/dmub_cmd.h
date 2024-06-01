@@ -3381,7 +3381,25 @@ enum dmub_cmd_replay_type {
 	 * Set adaptive sync sdp enabled
 	 */
 	DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP = 8,
+	/**
+	 * Set Replay General command.
+	 */
+	DMUB_CMD__REPLAY_SET_GENERAL_CMD = 16,
+};
 
+/**
+ * Replay general command sub-types.
+ */
+enum dmub_cmd_replay_general_subtype {
+	REPLAY_GENERAL_CMD_NOT_SUPPORTED = -1,
+	/**
+	 * TODO: For backward compatible, allow new command only.
+	 * REPLAY_GENERAL_CMD_SET_TIMING_SYNC_SUPPORTED,
+	 * REPLAY_GENERAL_CMD_SET_RESIDENCY_FRAMEUPDATE_TIMER,
+	 * REPLAY_GENERAL_CMD_SET_PSEUDO_VTOTAL,
+	 */
+	REPLAY_GENERAL_CMD_DISABLED_ADAPTIVE_SYNC_SDP,
+	REPLAY_GENERAL_CMD_DISABLED_DESYNC_ERROR_DETECTION,
 };
 
 /**
@@ -3597,6 +3615,26 @@ struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data {
 
 	uint8_t pad[2];
 };
+struct dmub_cmd_replay_set_general_cmd_data {
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * subtype: replay general cmd sub type
+	 */
+	uint8_t subtype;
+
+	uint8_t pad[2];
+	/**
+	 * config data with param1 and param2
+	 */
+	uint32_t param1;
+
+	uint32_t param2;
+};
 
 /**
  * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
@@ -3715,6 +3753,20 @@ struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp {
 };
 
 /**
+ * Definition of a DMUB_CMD__REPLAY_SET_GENERAL_CMD command.
+ */
+struct dmub_rb_cmd_replay_set_general_cmd {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of DMUB_CMD__REPLAY_SET_GENERAL_CMD command.
+	 */
+	struct dmub_cmd_replay_set_general_cmd_data data;
+};
+
+/**
  * Data passed from driver to FW in  DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER command.
  */
 struct dmub_cmd_replay_frameupdate_timer_data {
@@ -3773,7 +3825,10 @@ union dmub_replay_cmd_set {
 	 * Definition of DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command data.
 	 */
 	struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data disabled_adaptive_sync_sdp_data;
-
+	/**
+	 * Definition of DMUB_CMD__REPLAY_SET_GENERAL_CMD command data.
+	 */
+	struct dmub_cmd_replay_set_general_cmd_data set_general_cmd_data;
 };
 
 /**
@@ -5273,6 +5328,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command.
 	 */
 	struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp replay_disabled_adaptive_sync_sdp;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_GENERAL_CMD command.
+	 */
+	struct dmub_rb_cmd_replay_set_general_cmd replay_set_general_cmd;
 	/**
 	 * Definition of a DMUB_CMD__PSP_ASSR_ENABLE command.
 	 */
