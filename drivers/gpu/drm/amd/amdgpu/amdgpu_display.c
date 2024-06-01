@@ -1172,7 +1172,8 @@ static int amdgpu_display_verify_sizes(struct amdgpu_framebuffer *rfb)
 }
 
 static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
-				      uint64_t *tiling_flags, bool *tmz_surface)
+				      uint64_t *tiling_flags, bool *tmz_surface,
+				      bool *gfx12_dcc)
 {
 	struct amdgpu_bo *rbo;
 	int r;
@@ -1180,6 +1181,7 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 	if (!amdgpu_fb) {
 		*tiling_flags = 0;
 		*tmz_surface = false;
+		*gfx12_dcc = false;
 		return 0;
 	}
 
@@ -1193,11 +1195,9 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 		return r;
 	}
 
-	if (tiling_flags)
-		amdgpu_bo_get_tiling_flags(rbo, tiling_flags);
-
-	if (tmz_surface)
-		*tmz_surface = amdgpu_bo_encrypted(rbo);
+	amdgpu_bo_get_tiling_flags(rbo, tiling_flags);
+	*tmz_surface = amdgpu_bo_encrypted(rbo);
+	*gfx12_dcc = rbo->flags & AMDGPU_GEM_CREATE_GFX12_DCC;
 
 	amdgpu_bo_unreserve(rbo);
 
@@ -1266,7 +1266,8 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 		}
 	}
 
-	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface);
+	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface,
+					 &rfb->gfx12_dcc);
 	if (ret)
 		return ret;
 
