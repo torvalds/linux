@@ -871,4 +871,5 @@ kunit_test_suites(&kunit_try_catch_test_suite, &kunit_resource_test_suite,
 		  &kunit_current_test_suite, &kunit_device_test_suite,
 		  &kunit_fault_test_suite);
 
+MODULE_DESCRIPTION("KUnit test for core test infrastructure");
 MODULE_LICENSE("GPL v2");
