@@ -6,6 +6,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
 	aliases {
@@ -227,6 +228,10 @@
 	};
 };
 
+&blsp_i2c6 {
+	status = "okay";
+};
+
 &blsp_uart2 {
 	status = "okay";
 };
@@ -346,6 +351,29 @@
 		bias-disable;
 	};
 
+	nfc_default: nfc-default-state {
+		irq-pins {
+			pins = "gpio21";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+
+		nfc-pins {
+			pins = "gpio20", "gpio49";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	nfc_i2c_default: nfc-i2c-default-state {
+		pins = "gpio0", "gpio1";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	sdc2_cd_default: sdc2-cd-default-state {
 		pins = "gpio38";
 		function = "gpio";
@@ -365,5 +393,15 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
+	};
+};
+
+&pm8916_gpios {
+	nfc_clk_req: nfc-clk-req-state {
+		pins = "gpio2";
+		function = "func1";
+		power-source = <PM8916_GPIO_L2>;
+		bias-disable;
+		input-enable;
 	};
 };
