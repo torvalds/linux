@@ -21,6 +21,12 @@
 	};
 };
 
+&battery {
+	charge-term-current-microamp = <200000>;
+	constant-charge-current-max-microamp = <1000000>;
+	constant-charge-voltage-max-microvolt = <4350000>;
+};
+
 &bosch_accel {
 	status = "okay";
 };
@@ -30,6 +36,9 @@
 };
 
 &blsp_i2c6 {
+	/* pmic@34 is on i2c_nfc instead */
+	/delete-node/ pmic@34;
+
 	nfc@27 {
 		compatible = "samsung,s3fwrn5-i2c";
 		reg = <0x27>;
@@ -48,6 +57,38 @@
 
 &i2c_nfc {
 	/* nfc@27 is on &blsp_i2c6 */
+
+	pmic@34 {
+		compatible = "richtek,rt5033";
+		reg = <0x34>;
+
+		interrupts-extended = <&tlmm 62 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&pmic_int_default>;
+		pinctrl-names = "default";
+
+		regulators {
+			rt5033_reg_safe_ldo: SAFE_LDO {
+				regulator-min-microvolt = <4900000>;
+				regulator-max-microvolt = <4900000>;
+				regulator-always-on;
+			};
+
+			/*
+			 * Needed for camera, but not used yet.
+			 * Define empty nodes to allow disabling the unused
+			 * regulators.
+			 */
+			LDO {};
+			BUCK {};
+		};
+
+		charger: charger {
+			compatible = "richtek,rt5033-charger";
+			monitored-battery = <&battery>;
+			richtek,usb-connector = <&usb_con>;
+		};
+	};
 };
 
 &mpss_mem {

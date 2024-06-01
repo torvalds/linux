@@ -10,6 +10,12 @@
 	chassis-type = "handset";
 };
 
+&battery {
+	charge-term-current-microamp = <200000>;
+	constant-charge-current-max-microamp = <1000000>;
+	constant-charge-voltage-max-microvolt = <4350000>;
+};
+
 &st_accel {
 	status = "okay";
 };
