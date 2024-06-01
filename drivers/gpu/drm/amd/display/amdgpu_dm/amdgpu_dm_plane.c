@@ -1419,8 +1419,6 @@ static bool amdgpu_dm_plane_format_mod_supported(struct drm_plane *plane,
 	const struct drm_format_info *info = drm_format_info(format);
 	int i;
 
-	enum dm_micro_swizzle microtile = amdgpu_dm_plane_modifier_gfx9_swizzle_mode(modifier) & 3;
-
 	if (!info)
 		return false;
 
@@ -1442,29 +1440,34 @@ static bool amdgpu_dm_plane_format_mod_supported(struct drm_plane *plane,
 	if (i == plane->modifier_count)
 		return false;
 
-	/*
-	 * For D swizzle the canonical modifier depends on the bpp, so check
-	 * it here.
-	 */
-	if (AMD_FMT_MOD_GET(TILE_VERSION, modifier) == AMD_FMT_MOD_TILE_VER_GFX9 &&
-	    adev->family >= AMDGPU_FAMILY_NV) {
-		if (microtile == MICRO_SWIZZLE_D && info->cpp[0] == 4)
-			return false;
-	}
+	/* GFX12 doesn't have these limitations. */
+	if (AMD_FMT_MOD_GET(TILE_VERSION, modifier) <= AMD_FMT_MOD_TILE_VER_GFX11) {
+		enum dm_micro_swizzle microtile = amdgpu_dm_plane_modifier_gfx9_swizzle_mode(modifier) & 3;
 
-	if (adev->family >= AMDGPU_FAMILY_RV && microtile == MICRO_SWIZZLE_D &&
-	    info->cpp[0] < 8)
-		return false;
-
-	if (amdgpu_dm_plane_modifier_has_dcc(modifier)) {
-		/* Per radeonsi comments 16/64 bpp are more complicated. */
-		if (info->cpp[0] != 4)
-			return false;
-		/* We support multi-planar formats, but not when combined with
-		 * additional DCC metadata planes.
+		/*
+		 * For D swizzle the canonical modifier depends on the bpp, so check
+		 * it here.
 		 */
-		if (info->num_planes > 1)
+		if (AMD_FMT_MOD_GET(TILE_VERSION, modifier) == AMD_FMT_MOD_TILE_VER_GFX9 &&
+		    adev->family >= AMDGPU_FAMILY_NV) {
+			if (microtile == MICRO_SWIZZLE_D && info->cpp[0] == 4)
+				return false;
+		}
+
+		if (adev->family >= AMDGPU_FAMILY_RV && microtile == MICRO_SWIZZLE_D &&
+		    info->cpp[0] < 8)
 			return false;
+
+		if (amdgpu_dm_plane_modifier_has_dcc(modifier)) {
+			/* Per radeonsi comments 16/64 bpp are more complicated. */
+			if (info->cpp[0] != 4)
+				return false;
+			/* We support multi-planar formats, but not when combined with
+			 * additional DCC metadata planes.
+			 */
+			if (info->num_planes > 1)
+				return false;
+		}
 	}
 
 	return true;
