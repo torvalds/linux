@@ -386,8 +386,8 @@ EXPORT_SYMBOL(vfs_llseek);
 static off_t ksys_lseek(unsigned int fd, off_t offset, unsigned int whence)
 {
 	off_t retval;
-	struct fd f = fdget_pos(fd);
-	if (!fd_file(f))
+	CLASS(fd_pos, f)(fd);
+	if (fd_empty(f))
 		return -EBADF;
 
 	retval = -EINVAL;
@@ -397,7 +397,6 @@ static off_t ksys_lseek(unsigned int fd, off_t offset, unsigned int whence)
 		if (res != (loff_t)retval)
 			retval = -EOVERFLOW;	/* LFS: should only happen on 32 bit platforms */
 	}
-	fdput_pos(f);
 	return retval;
 }
 
@@ -420,15 +419,14 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 		unsigned int, whence)
 {
 	int retval;
-	struct fd f = fdget_pos(fd);
+	CLASS(fd_pos, f)(fd);
 	loff_t offset;
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 
-	retval = -EINVAL;
 	if (whence > SEEK_MAX)
-		goto out_putf;
+		return -EINVAL;
 
 	offset = vfs_llseek(fd_file(f), ((loff_t) offset_high << 32) | offset_low,
 			whence);
@@ -439,8 +437,6 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 		if (!copy_to_user(result, &offset, sizeof(offset)))
 			retval = 0;
 	}
-out_putf:
-	fdput_pos(f);
 	return retval;
 }
 #endif
@@ -700,10 +696,10 @@ static inline loff_t *file_ppos(struct file *file)
 
 ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count)
 {
-	struct fd f = fdget_pos(fd);
+	CLASS(fd_pos, f)(fd);
 	ssize_t ret = -EBADF;
 
-	if (fd_file(f)) {
+	if (!fd_empty(f)) {
 		loff_t pos, *ppos = file_ppos(fd_file(f));
 		if (ppos) {
 			pos = *ppos;
@@ -712,7 +708,6 @@ ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count)
 		ret = vfs_read(fd_file(f), buf, count, ppos);
 		if (ret >= 0 && ppos)
 			fd_file(f)->f_pos = pos;
-		fdput_pos(f);
 	}
 	return ret;
 }
@@ -724,10 +719,10 @@ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 
 ssize_t ksys_write(unsigned int fd, const char __user *buf, size_t count)
 {
-	struct fd f = fdget_pos(fd);
+	CLASS(fd_pos, f)(fd);
 	ssize_t ret = -EBADF;
 
-	if (fd_file(f)) {
+	if (!fd_empty(f)) {
 		loff_t pos, *ppos = file_ppos(fd_file(f));
 		if (ppos) {
 			pos = *ppos;
@@ -736,7 +731,6 @@ ssize_t ksys_write(unsigned int fd, const char __user *buf, size_t count)
 		ret = vfs_write(fd_file(f), buf, count, ppos);
 		if (ret >= 0 && ppos)
 			fd_file(f)->f_pos = pos;
-		fdput_pos(f);
 	}
 
 	return ret;
@@ -1075,10 +1069,10 @@ out:
 static ssize_t do_readv(unsigned long fd, const struct iovec __user *vec,
 			unsigned long vlen, rwf_t flags)
 {
-	struct fd f = fdget_pos(fd);
+	CLASS(fd_pos, f)(fd);
 	ssize_t ret = -EBADF;
 
-	if (fd_file(f)) {
+	if (!fd_empty(f)) {
 		loff_t pos, *ppos = file_ppos(fd_file(f));
 		if (ppos) {
 			pos = *ppos;
@@ -1087,7 +1081,6 @@ static ssize_t do_readv(unsigned long fd, const struct iovec __user *vec,
 		ret = vfs_readv(fd_file(f), vec, vlen, ppos, flags);
 		if (ret >= 0 && ppos)
 			fd_file(f)->f_pos = pos;
-		fdput_pos(f);
 	}
 
 	if (ret > 0)
@@ -1099,10 +1092,10 @@ static ssize_t do_readv(unsigned long fd, const struct iovec __user *vec,
 static ssize_t do_writev(unsigned long fd, const struct iovec __user *vec,
 			 unsigned long vlen, rwf_t flags)
 {
-	struct fd f = fdget_pos(fd);
+	CLASS(fd_pos, f)(fd);
 	ssize_t ret = -EBADF;
 
-	if (fd_file(f)) {
+	if (!fd_empty(f)) {
 		loff_t pos, *ppos = file_ppos(fd_file(f));
 		if (ppos) {
 			pos = *ppos;
@@ -1111,7 +1104,6 @@ static ssize_t do_writev(unsigned long fd, const struct iovec __user *vec,
 		ret = vfs_writev(fd_file(f), vec, vlen, ppos, flags);
 		if (ret >= 0 && ppos)
 			fd_file(f)->f_pos = pos;
-		fdput_pos(f);
 	}
 
 	if (ret > 0)
