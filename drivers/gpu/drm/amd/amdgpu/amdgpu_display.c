@@ -724,32 +724,25 @@ extract_render_dcc_offset(struct amdgpu_device *adev,
 
 static int convert_tiling_flags_to_modifier_gfx12(struct amdgpu_framebuffer *afb)
 {
-	struct amdgpu_device *adev = drm_to_adev(afb->base.dev);
-	const struct drm_format_info *format_info;
 	u64 modifier = 0;
-	int tile = 0;
-	int swizzle = 0;
+	int swizzle_mode = AMDGPU_TILING_GET(afb->tiling_flags, GFX12_SWIZZLE_MODE);
 
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) {
-		tile = AMD_FMT_MOD_TILE_VER_GFX12;
-		swizzle =  AMDGPU_TILING_GET(afb->tiling_flags, GFX12_SWIZZLE_MODE);
+	if (!swizzle_mode) {
+		modifier = DRM_FORMAT_MOD_LINEAR;
+	} else {
+		int max_comp_block =
+			AMDGPU_TILING_GET(afb->tiling_flags, GFX12_DCC_MAX_COMPRESSED_BLOCK);
+
+		modifier =
+			AMD_FMT_MOD |
+			AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX12) |
+			AMD_FMT_MOD_SET(TILE, swizzle_mode) |
+			AMD_FMT_MOD_SET(DCC, afb->gfx12_dcc) |
+			AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, max_comp_block);
 	}
-
-	modifier =
-		AMD_FMT_MOD |
-		AMD_FMT_MOD_SET(TILE, swizzle) |
-		AMD_FMT_MOD_SET(TILE_VERSION,  tile) |
-		AMD_FMT_MOD_SET(DCC, 0) |
-		AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, 0);
-
-	format_info = amdgpu_lookup_format_info(afb->base.format->format,
-						modifier);
-	if (!format_info)
-		return -EINVAL;
 
 	afb->base.modifier = modifier;
 	afb->base.flags |= DRM_MODE_FB_MODIFIERS;
-
 	return 0;
 }
 
@@ -776,12 +769,6 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		int rb = 0;
 		int pipes = ilog2(num_pipes);
 		uint32_t dcc_offset = AMDGPU_TILING_GET(afb->tiling_flags, DCC_OFFSET_256B);
-
-
-		if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) {
-			convert_tiling_flags_to_modifier_gfx12(afb);
-			return 0;
-		}
 
 		switch (swizzle >> 2) {
 		case 0: /* 256B */
@@ -1281,7 +1268,11 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 
 	if (!dev->mode_config.fb_modifiers_not_supported &&
 	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
-		ret = convert_tiling_flags_to_modifier(rfb);
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 0, 0))
+			ret = convert_tiling_flags_to_modifier_gfx12(rfb);
+		else
+			ret = convert_tiling_flags_to_modifier(rfb);
+
 		if (ret) {
 			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
 				    rfb->tiling_flags);
