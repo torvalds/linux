@@ -580,23 +580,18 @@ out:
 
 SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 {
-	struct fd f = fdget_raw(fd);
+	CLASS(fd_raw, f)(fd);
 	int error;
 
-	error = -EBADF;
-	if (!fd_file(f))
-		goto out;
+	if (fd_empty(f))
+		return -EBADF;
 
-	error = -ENOTDIR;
 	if (!d_can_lookup(fd_file(f)->f_path.dentry))
-		goto out_putf;
+		return -ENOTDIR;
 
 	error = file_permission(fd_file(f), MAY_EXEC | MAY_CHDIR);
 	if (!error)
 		set_fs_pwd(current->fs, &fd_file(f)->f_path);
-out_putf:
-	fdput(f);
-out:
 	return error;
 }
 

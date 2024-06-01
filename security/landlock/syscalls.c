@@ -276,15 +276,12 @@ out_fdput:
  */
 static int get_path_from_fd(const s32 fd, struct path *const path)
 {
-	struct fd f;
-	int err = 0;
+	CLASS(fd_raw, f)(fd);
 
 	BUILD_BUG_ON(!__same_type(
 		fd, ((struct landlock_path_beneath_attr *)NULL)->parent_fd));
 
-	/* Handles O_PATH. */
-	f = fdget_raw(fd);
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 	/*
 	 * Forbids ruleset FDs, internal filesystems (e.g. nsfs), including
@@ -295,16 +292,12 @@ static int get_path_from_fd(const s32 fd, struct path *const path)
 	    (fd_file(f)->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
 	    (fd_file(f)->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
 	    d_is_negative(fd_file(f)->f_path.dentry) ||
-	    IS_PRIVATE(d_backing_inode(fd_file(f)->f_path.dentry))) {
-		err = -EBADFD;
-		goto out_fdput;
-	}
+	    IS_PRIVATE(d_backing_inode(fd_file(f)->f_path.dentry)))
+		return -EBADFD;
+
 	*path = fd_file(f)->f_path;
 	path_get(path);
-
-out_fdput:
-	fdput(f);
-	return err;
+	return 0;
 }
 
 static int add_rule_path_beneath(struct landlock_ruleset *const ruleset,

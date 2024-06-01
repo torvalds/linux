@@ -6966,14 +6966,11 @@ EXPORT_SYMBOL_GPL(cgroup_get_from_path);
  */
 struct cgroup *cgroup_v1v2_get_from_fd(int fd)
 {
-	struct cgroup *cgrp;
-	struct fd f = fdget_raw(fd);
-	if (!fd_file(f))
+	CLASS(fd_raw, f)(fd);
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
 
-	cgrp = cgroup_v1v2_get_from_file(fd_file(f));
-	fdput(f);
-	return cgrp;
+	return cgroup_v1v2_get_from_file(fd_file(f));
 }
 
 /**
