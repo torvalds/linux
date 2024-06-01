@@ -352,6 +352,46 @@ static int amdgpu_dm_plane_fill_gfx9_plane_attributes_from_modifiers(struct amdg
 	return ret;
 }
 
+static int amdgpu_dm_plane_fill_gfx12_plane_attributes_from_modifiers(struct amdgpu_device *adev,
+								      const struct amdgpu_framebuffer *afb,
+								      const enum surface_pixel_format format,
+								      const enum dc_rotation_angle rotation,
+								      const struct plane_size *plane_size,
+								      union dc_tiling_info *tiling_info,
+								      struct dc_plane_dcc_param *dcc,
+								      struct dc_plane_address *address,
+								      const bool force_disable_dcc)
+{
+	const uint64_t modifier = afb->base.modifier;
+	int ret = 0;
+
+	/* TODO: Most of this function shouldn't be needed on GFX12. */
+	amdgpu_dm_plane_fill_gfx9_tiling_info_from_device(adev, tiling_info);
+
+	tiling_info->gfx9.swizzle = amdgpu_dm_plane_modifier_gfx9_swizzle_mode(modifier);
+
+	if (amdgpu_dm_plane_modifier_has_dcc(modifier) && !force_disable_dcc) {
+		int max_compressed_block = AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier);
+
+		dcc->enable = 1;
+		dcc->independent_64b_blks = max_compressed_block == 0;
+
+		if (max_compressed_block == 0)
+			dcc->dcc_ind_blk = hubp_ind_block_64b;
+		else if (max_compressed_block == 1)
+			dcc->dcc_ind_blk = hubp_ind_block_128b;
+		else
+			dcc->dcc_ind_blk = hubp_ind_block_unconstrained;
+	}
+
+	/* TODO: This seems wrong because there is no DCC plane on GFX12. */
+	ret = amdgpu_dm_plane_validate_dcc(adev, format, rotation, tiling_info, dcc, address, plane_size);
+	if (ret)
+		drm_dbg_kms(adev_to_drm(adev), "amdgpu_dm_plane_validate_dcc: returned error: %d\n", ret);
+
+	return ret;
+}
+
 static void amdgpu_dm_plane_add_gfx10_1_modifiers(const struct amdgpu_device *adev,
 						  uint64_t **mods,
 						  uint64_t *size,
@@ -835,7 +875,15 @@ int amdgpu_dm_plane_fill_plane_buffer_attributes(struct amdgpu_device *adev,
 			upper_32_bits(chroma_addr);
 	}
 
-	if (adev->family >= AMDGPU_FAMILY_AI) {
+	if (adev->family >= AMDGPU_FAMILY_GC_12_0_0) {
+		ret = amdgpu_dm_plane_fill_gfx12_plane_attributes_from_modifiers(adev, afb, format,
+										 rotation, plane_size,
+										 tiling_info, dcc,
+										 address,
+										 force_disable_dcc);
+		if (ret)
+			return ret;
+	} else if (adev->family >= AMDGPU_FAMILY_AI) {
 		ret = amdgpu_dm_plane_fill_gfx9_plane_attributes_from_modifiers(adev, afb, format,
 										rotation, plane_size,
 										tiling_info, dcc,
