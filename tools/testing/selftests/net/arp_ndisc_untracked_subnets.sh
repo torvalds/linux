@@ -73,25 +73,19 @@ setup_v6() {
 	# namespaces. veth0 is veth-router, veth1 is veth-host.
 	# first, set up the inteface's link to the namespace
 	# then, set the interface "up"
-	ip -6 -netns ${ROUTER_NS_V6} link add name ${ROUTER_INTF} \
-		type veth peer name ${HOST_INTF}
+	ip -n ${ROUTER_NS_V6} link add name ${ROUTER_INTF} \
+		type veth peer name ${HOST_INTF} netns ${HOST_NS_V6}
 
-	ip -6 -netns ${ROUTER_NS_V6} link set dev ${ROUTER_INTF} up
-	ip -6 -netns ${ROUTER_NS_V6} link set dev ${HOST_INTF} netns \
-		${HOST_NS_V6}
-
-	ip -6 -netns ${HOST_NS_V6} link set dev ${HOST_INTF} up
-	ip -6 -netns ${ROUTER_NS_V6} addr add \
-		${ROUTER_ADDR_V6}/${PREFIX_WIDTH_V6} dev ${ROUTER_INTF} nodad
+	# Add tc rule to filter out host na message
+	tc -n ${ROUTER_NS_V6} qdisc add dev ${ROUTER_INTF} clsact
+	tc -n ${ROUTER_NS_V6} filter add dev ${ROUTER_INTF} \
+		ingress protocol ipv6 pref 1 handle 101 \
+		flower src_ip ${HOST_ADDR_V6} ip_proto icmpv6 type 136 skip_hw action pass
 
 	HOST_CONF=net.ipv6.conf.${HOST_INTF}
 	ip netns exec ${HOST_NS_V6} sysctl -qw ${HOST_CONF}.ndisc_notify=1
 	ip netns exec ${HOST_NS_V6} sysctl -qw ${HOST_CONF}.disable_ipv6=0
-	ip -6 -netns ${HOST_NS_V6} addr add ${HOST_ADDR_V6}/${PREFIX_WIDTH_V6} \
-		dev ${HOST_INTF}
-
 	ROUTER_CONF=net.ipv6.conf.${ROUTER_INTF}
-
 	ip netns exec ${ROUTER_NS_V6} sysctl -w \
 		${ROUTER_CONF}.forwarding=1 >/dev/null 2>&1
 	ip netns exec ${ROUTER_NS_V6} sysctl -w \
@@ -99,6 +93,13 @@ setup_v6() {
 	ip netns exec ${ROUTER_NS_V6} sysctl -w \
 		${ROUTER_CONF}.accept_untracked_na=${accept_untracked_na} \
 		>/dev/null 2>&1
+
+	ip -n ${ROUTER_NS_V6} link set dev ${ROUTER_INTF} up
+	ip -n ${HOST_NS_V6} link set dev ${HOST_INTF} up
+	ip -n ${ROUTER_NS_V6} addr add ${ROUTER_ADDR_V6}/${PREFIX_WIDTH_V6} \
+		dev ${ROUTER_INTF} nodad
+	ip -n ${HOST_NS_V6} addr add ${HOST_ADDR_V6}/${PREFIX_WIDTH_V6} \
+		dev ${HOST_INTF}
 	set +e
 }
 
@@ -162,26 +163,6 @@ arp_test_gratuitous_combinations() {
 	arp_test_gratuitous 2 1
 }
 
-cleanup_tcpdump() {
-	set -e
-	[[ ! -z  ${tcpdump_stdout} ]] && rm -f ${tcpdump_stdout}
-	[[ ! -z  ${tcpdump_stderr} ]] && rm -f ${tcpdump_stderr}
-	tcpdump_stdout=
-	tcpdump_stderr=
-	set +e
-}
-
-start_tcpdump() {
-	set -e
-	tcpdump_stdout=`mktemp`
-	tcpdump_stderr=`mktemp`
-	ip netns exec ${ROUTER_NS_V6} timeout 15s \
-		tcpdump --immediate-mode -tpni ${ROUTER_INTF} -c 1 \
-		"icmp6 && icmp6[0] == 136 && src ${HOST_ADDR_V6}" \
-		> ${tcpdump_stdout} 2> /dev/null
-	set +e
-}
-
 verify_ndisc() {
 	local accept_untracked_na=$1
 	local same_subnet=$2
@@ -222,8 +203,9 @@ ndisc_test_untracked_advertisements() {
 			HOST_ADDR_V6=2001:db8:abcd:0012::3
 		fi
 	fi
-	setup_v6 $1 $2
-	start_tcpdump
+	setup_v6 $1
+	slowwait_for_counter 15 1 \
+		tc_rule_handle_stats_get "dev ${ROUTER_INTF} ingress" 101 ".packets" "-n ${ROUTER_NS_V6}"
 
 	if verify_ndisc $1 $2; then
 		printf "    TEST: %-60s  [ OK ]\n" "${test_msg[*]}"
@@ -231,7 +213,6 @@ ndisc_test_untracked_advertisements() {
 		printf "    TEST: %-60s  [FAIL]\n" "${test_msg[*]}"
 	fi
 
-	cleanup_tcpdump
 	cleanup_v6
 	set +e
 }

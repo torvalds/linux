@@ -99,7 +99,6 @@ static int ali1563_transaction(struct i2c_adapter *a, int size)
 		return 0;
 
 	if (!timeout) {
-		dev_err(&a->dev, "Timeout - Trying to KILL transaction!\n");
 		/* Issue 'kill' to host controller */
 		outb_p(HST_CNTL2_KILL, SMB_HST_CNTL2);
 		data = inb_p(SMB_HST_STS);

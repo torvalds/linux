@@ -1398,8 +1398,15 @@ thermal_zone_device_register_with_trips(const char *type,
 	tz->device.class = thermal_class;
 	tz->devdata = devdata;
 	tz->num_trips = num_trips;
-	for_each_trip_desc(tz, td)
+	for_each_trip_desc(tz, td) {
 		td->trip = *trip++;
+		/*
+		 * Mark all thresholds as invalid to start with even though
+		 * this only matters for the trips that start as invalid and
+		 * become valid later.
+		 */
+		td->threshold = INT_MAX;
+	}
 
 	thermal_set_delay_jiffies(&tz->passive_delay_jiffies, passive_delay);
 	thermal_set_delay_jiffies(&tz->polling_delay_jiffies, polling_delay);

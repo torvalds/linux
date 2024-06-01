@@ -2,7 +2,6 @@
 #
 # Building vDSO images for sparc.
 #
-UBSAN_SANITIZE := n
 
 # files to link into the vdso
 vobjs-y := vdso-note.o vclock_gettime.o
@@ -103,7 +102,6 @@ quiet_cmd_vdso = VDSO    $@
       cmd_vdso = $(LD) -nostdlib -o $@ \
 		       $(VDSO_LDFLAGS) $(VDSO_LDFLAGS_$(filter %.lds,$(^F))) \
 		       -T $(filter %.lds,$^) $(filter %.o,$^) && \
-		sh $(srctree)/$(src)/checkundef.sh '$(OBJDUMP)' '$@'
+		sh $(src)/checkundef.sh '$(OBJDUMP)' '$@'
 
 VDSO_LDFLAGS = -shared --hash-style=both --build-id=sha1 -Bsymbolic
-GCOV_PROFILE := n

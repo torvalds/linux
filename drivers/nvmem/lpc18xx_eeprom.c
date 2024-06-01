@@ -249,13 +249,11 @@ err_clk:
 	return ret;
 }
 
-static int lpc18xx_eeprom_remove(struct platform_device *pdev)
+static void lpc18xx_eeprom_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_eeprom_dev *eeprom = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(eeprom->clk);
-
-	return 0;
 }
 
 static const struct of_device_id lpc18xx_eeprom_of_match[] = {
@@ -266,7 +264,7 @@ MODULE_DEVICE_TABLE(of, lpc18xx_eeprom_of_match);
 
 static struct platform_driver lpc18xx_eeprom_driver = {
 	.probe = lpc18xx_eeprom_probe,
-	.remove = lpc18xx_eeprom_remove,
+	.remove_new = lpc18xx_eeprom_remove,
 	.driver = {
 		.name = "lpc18xx-eeprom",
 		.of_match_table = lpc18xx_eeprom_of_match,

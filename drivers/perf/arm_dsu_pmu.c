@@ -85,7 +85,7 @@
 	DSU_EXT_ATTR(_name, dsu_pmu_sysfs_event_show, (unsigned long)_config)
 
 #define DSU_FORMAT_ATTR(_name, _config)		\
-	DSU_EXT_ATTR(_name, dsu_pmu_sysfs_format_show, (char *)_config)
+	DSU_EXT_ATTR(_name, device_show_string, _config)
 
 #define DSU_CPUMASK_ATTR(_name, _config)	\
 	DSU_EXT_ATTR(_name, dsu_pmu_cpumask_show, (unsigned long)_config)
@@ -137,15 +137,6 @@ static ssize_t dsu_pmu_sysfs_event_show(struct device *dev,
 	struct dev_ext_attribute *eattr = container_of(attr,
 					struct dev_ext_attribute, attr);
 	return sysfs_emit(buf, "event=0x%lx\n", (unsigned long)eattr->var);
-}
-
-static ssize_t dsu_pmu_sysfs_format_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	struct dev_ext_attribute *eattr = container_of(attr,
-					struct dev_ext_attribute, attr);
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
 }
 
 static ssize_t dsu_pmu_cpumask_show(struct device *dev,

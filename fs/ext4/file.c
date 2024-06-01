@@ -844,8 +844,7 @@ static int ext4_sample_last_mounted(struct super_block *sb,
 	if (err)
 		goto out_journal;
 	lock_buffer(sbi->s_sbh);
-	strncpy(sbi->s_es->s_last_mounted, cp,
-		sizeof(sbi->s_es->s_last_mounted));
+	strtomem_pad(sbi->s_es->s_last_mounted, cp, 0);
 	ext4_superblock_csum_set(sb);
 	unlock_buffer(sbi->s_sbh);
 	ext4_handle_dirty_metadata(handle, NULL, sbi->s_sbh);
@@ -885,7 +884,7 @@ static int ext4_file_open(struct inode *inode, struct file *filp)
 			return ret;
 	}
 
-	filp->f_mode |= FMODE_NOWAIT;
+	filp->f_mode |= FMODE_NOWAIT | FMODE_CAN_ODIRECT;
 	return dquot_file_open(inode, filp);
 }
 

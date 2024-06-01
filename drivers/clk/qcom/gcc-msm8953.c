@@ -4227,6 +4227,7 @@ static const struct of_device_id gcc_msm8953_match_table[] = {
 	{ .compatible = "qcom,gcc-msm8953" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, gcc_msm8953_match_table);
 
 static struct platform_driver gcc_msm8953_driver = {
 	.probe = gcc_msm8953_probe,

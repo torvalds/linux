@@ -472,7 +472,7 @@ config ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
 config HAVE_MEMBLOCK_PHYS_MAP
 	bool
 
-config HAVE_FAST_GUP
+config HAVE_GUP_FAST
 	depends on MMU
 	bool
 
@@ -847,6 +847,12 @@ config READ_ONLY_THP_FOR_FS
 	  cycles.
 
 endif # TRANSPARENT_HUGEPAGE
+
+#
+# The architecture supports pgtable leaves that is larger than PAGE_SIZE
+#
+config PGTABLE_HAS_HUGE_LEAVES
+	def_bool TRANSPARENT_HUGEPAGE || HUGETLB_PAGE
 
 #
 # UP and nommu archs use km based percpu allocator

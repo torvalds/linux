@@ -787,6 +787,15 @@ static int pac1934_read_raw(struct iio_dev *indio_dev,
 	s64 curr_energy;
 	int ret, channel = chan->channel - 1;
 
+	/*
+	 * For AVG the index should be between 5 to 8.
+	 * To calculate PAC1934_CH_VOLTAGE_AVERAGE,
+	 * respectively PAC1934_CH_CURRENT real index, we need
+	 * to remove the added offset (PAC1934_MAX_NUM_CHANNELS).
+	 */
+	if (channel >= PAC1934_MAX_NUM_CHANNELS)
+		channel = channel - PAC1934_MAX_NUM_CHANNELS;
+
 	ret = pac1934_retrieve_data(info, PAC1934_MIN_UPDATE_WAIT_TIME_US);
 	if (ret < 0)
 		return ret;
@@ -1079,8 +1088,8 @@ static int pac1934_chip_identify(struct pac1934_chip_info *info)
  * documentation related to the ACPI device definition
  * https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ApplicationNotes/ApplicationNotes/PAC1934-Integration-Notes-for-Microsoft-Windows-10-and-Windows-11-Driver-Support-DS00002534.pdf
  */
-static bool pac1934_acpi_parse_channel_config(struct i2c_client *client,
-					      struct pac1934_chip_info *info)
+static int pac1934_acpi_parse_channel_config(struct i2c_client *client,
+					     struct pac1934_chip_info *info)
 {
 	acpi_handle handle;
 	union acpi_object *rez;
@@ -1095,7 +1104,7 @@ static bool pac1934_acpi_parse_channel_config(struct i2c_client *client,
 
 	rez = acpi_evaluate_dsm(handle, &guid, 0, PAC1934_ACPI_GET_NAMES_AND_MOHMS_VALS, NULL);
 	if (!rez)
-		return false;
+		return -EINVAL;
 
 	for (i = 0; i < rez->package.count; i += 2) {
 		idx = i / 2;
@@ -1118,7 +1127,7 @@ static bool pac1934_acpi_parse_channel_config(struct i2c_client *client,
 		 * and assign the default sampling rate
 		 */
 		info->sample_rate_value = PAC1934_DEFAULT_CHIP_SAMP_SPEED_HZ;
-		return true;
+		return 0;
 	}
 
 	for (i = 0; i < rez->package.count; i++) {
@@ -1131,7 +1140,7 @@ static bool pac1934_acpi_parse_channel_config(struct i2c_client *client,
 
 	rez = acpi_evaluate_dsm(handle, &guid, 1, PAC1934_ACPI_GET_BIPOLAR_SETTINGS, NULL);
 	if (!rez)
-		return false;
+		return -EINVAL;
 
 	bi_dir_mask = rez->package.elements[0].integer.value;
 	info->bi_dir[0] = ((bi_dir_mask & (1 << 3)) | (bi_dir_mask & (1 << 7))) != 0;
@@ -1143,19 +1152,18 @@ static bool pac1934_acpi_parse_channel_config(struct i2c_client *client,
 
 	rez = acpi_evaluate_dsm(handle, &guid, 1, PAC1934_ACPI_GET_SAMP, NULL);
 	if (!rez)
-		return false;
+		return -EINVAL;
 
 	info->sample_rate_value = rez->package.elements[0].integer.value;
 
 	ACPI_FREE(rez);
 
-	return true;
+	return 0;
 }
 
-static bool pac1934_of_parse_channel_config(struct i2c_client *client,
-					    struct pac1934_chip_info *info)
+static int pac1934_fw_parse_channel_config(struct i2c_client *client,
+					   struct pac1934_chip_info *info)
 {
-	struct fwnode_handle *node, *fwnode;
 	struct device *dev = &client->dev;
 	unsigned int current_channel;
 	int idx, ret;
@@ -1163,46 +1171,38 @@ static bool pac1934_of_parse_channel_config(struct i2c_client *client,
 	info->sample_rate_value = 1024;
 	current_channel = 1;
 
-	fwnode = dev_fwnode(dev);
-	fwnode_for_each_available_child_node(fwnode, node) {
+	device_for_each_child_node_scoped(dev, node) {
 		ret = fwnode_property_read_u32(node, "reg", &idx);
-		if (ret) {
-			dev_err_probe(dev, ret,
-				      "reading invalid channel index\n");
-			goto err_fwnode;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "reading invalid channel index\n");
+
 		/* adjust idx to match channel index (1 to 4) from the datasheet */
 		idx--;
 
 		if (current_channel >= (info->phys_channels + 1) ||
-		    idx >= info->phys_channels || idx < 0) {
-			dev_err_probe(dev, -EINVAL,
-				      "%s: invalid channel_index %d value\n",
-				      fwnode_get_name(node), idx);
-			goto err_fwnode;
-		}
+		    idx >= info->phys_channels || idx < 0)
+			return dev_err_probe(dev, -EINVAL,
+					     "%s: invalid channel_index %d value\n",
+					     fwnode_get_name(node), idx);
 
 		/* enable channel */
 		info->active_channels[idx] = true;
 
 		ret = fwnode_property_read_u32(node, "shunt-resistor-micro-ohms",
 					       &info->shunts[idx]);
-		if (ret) {
-			dev_err_probe(dev, ret,
-				      "%s: invalid shunt-resistor value: %d\n",
-				      fwnode_get_name(node), info->shunts[idx]);
-			goto err_fwnode;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "%s: invalid shunt-resistor value: %d\n",
+					     fwnode_get_name(node), info->shunts[idx]);
 
 		if (fwnode_property_present(node, "label")) {
 			ret = fwnode_property_read_string(node, "label",
 							  (const char **)&info->labels[idx]);
-			if (ret) {
-				dev_err_probe(dev, ret,
-					      "%s: invalid rail-name value\n",
-					      fwnode_get_name(node));
-				goto err_fwnode;
-			}
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "%s: invalid rail-name value\n",
+						     fwnode_get_name(node));
 		}
 
 		info->bi_dir[idx] = fwnode_property_read_bool(node, "bipolar");
@@ -1210,12 +1210,7 @@ static bool pac1934_of_parse_channel_config(struct i2c_client *client,
 		current_channel++;
 	}
 
-	return true;
-
-err_fwnode:
-	fwnode_handle_put(node);
-
-	return false;
+	return 0;
 }
 
 static void pac1934_cancel_delayed_work(void *dwork)
@@ -1485,7 +1480,6 @@ static int pac1934_probe(struct i2c_client *client)
 	const struct pac1934_features *chip;
 	struct iio_dev *indio_dev;
 	int cnt, ret;
-	bool match = false;
 	struct device *dev = &client->dev;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*info));
@@ -1519,16 +1513,16 @@ static int pac1934_probe(struct i2c_client *client)
 	}
 
 	if (acpi_match_device(dev->driver->acpi_match_table, dev))
-		match = pac1934_acpi_parse_channel_config(client, info);
+		ret = pac1934_acpi_parse_channel_config(client, info);
 	else
 		/*
 		 * This makes it possible to use also ACPI PRP0001 for
 		 * registering the device using device tree properties.
 		 */
-		match = pac1934_of_parse_channel_config(client, info);
+		ret = pac1934_fw_parse_channel_config(client, info);
 
-	if (!match)
-		return dev_err_probe(dev, -EINVAL,
+	if (ret)
+		return dev_err_probe(dev, ret,
 				     "parameter parsing returned an error\n");
 
 	mutex_init(&info->lock);

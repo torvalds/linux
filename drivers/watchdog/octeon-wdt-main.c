@@ -381,11 +381,7 @@ static int octeon_wdt_cpu_online(unsigned int cpu)
 
 	/* Must set the irq affinity here */
 	if (octeon_has_feature(OCTEON_FEATURE_CIU3)) {
-		cpumask_t mask;
-
-		cpumask_clear(&mask);
-		cpumask_set_cpu(cpu, &mask);
-		irq_set_affinity(irq, &mask);
+		irq_set_affinity(irq, cpumask_of(cpu));
 	}
 
 	cpumask_set_cpu(cpu, &irq_enabled_cpus);

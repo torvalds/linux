@@ -301,8 +301,9 @@ Arithmetic instructions
 ``ALU`` uses 32-bit wide operands while ``ALU64`` uses 64-bit wide operands for
 otherwise identical operations. ``ALU64`` instructions belong to the
 base64 conformance group unless noted otherwise.
-The 'code' field encodes the operation as below, where 'src' and 'dst' refer
-to the values of the source and destination registers, respectively.
+The 'code' field encodes the operation as below, where 'src' refers to the
+the source operand and 'dst' refers to the value of the destination
+register.
 
 =====  =====  =======  ==========================================================
 name   code   offset   description

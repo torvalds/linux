@@ -41,17 +41,20 @@ struct child_process {
 	int err;
 	const char *dir;
 	const char *const *env;
+	int finish_result;
 	unsigned no_stdin:1;
 	unsigned no_stdout:1;
 	unsigned no_stderr:1;
 	unsigned exec_cmd:1; /* if this is to be external sub-command */
 	unsigned stdout_to_stderr:1;
+	unsigned finished:1;
 	void (*preexec_cb)(void);
 	 /* If set, call function in child rather than doing an exec. */
 	int (*no_exec_cmd)(struct child_process *process);
 };
 
 int start_command(struct child_process *);
+int check_if_command_finished(struct child_process *);
 int finish_command(struct child_process *);
 int run_command(struct child_process *);
 

@@ -32,8 +32,8 @@ DECLARE_EVENT_CLASS(snd_soc_dapm,
 	),
 
 	TP_fast_assign(
-		__assign_str(card_name, dapm->card->name);
-		__assign_str(comp_name, dapm->component ? dapm->component->name : "(none)");
+		__assign_str(card_name);
+		__assign_str(comp_name);
 		__entry->val = val;
 	),
 
@@ -69,7 +69,7 @@ DECLARE_EVENT_CLASS(snd_soc_dapm_basic,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, card->name);
+		__assign_str(name);
 		__entry->event = event;
 	),
 
@@ -104,7 +104,7 @@ DECLARE_EVENT_CLASS(snd_soc_dapm_widget,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, w->name);
+		__assign_str(name);
 		__entry->val = val;
 	),
 
@@ -150,7 +150,7 @@ TRACE_EVENT(snd_soc_dapm_walk_done,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, card->name);
+		__assign_str(name);
 		__entry->power_checks = card->dapm_stats.power_checks;
 		__entry->path_checks = card->dapm_stats.path_checks;
 		__entry->neighbour_checks = card->dapm_stats.neighbour_checks;
@@ -179,9 +179,9 @@ TRACE_EVENT(snd_soc_dapm_path,
 	),
 
 	TP_fast_assign(
-		__assign_str(wname, widget->name);
-		__assign_str(pname, path->name ? path->name : DAPM_DIRECT);
-		__assign_str(pnname, path->node[dir]->name);
+		__assign_str(wname);
+		__assign_str(pname);
+		__assign_str(pnname);
 		__entry->path_connect = path->connect;
 		__entry->path_node = (long)path->node[dir];
 		__entry->path_dir = dir;
@@ -226,7 +226,7 @@ TRACE_EVENT(snd_soc_jack_irq,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 
 	TP_printk("%s", __get_str(name))
@@ -245,7 +245,7 @@ TRACE_EVENT(snd_soc_jack_report,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, jack->jack->id);
+		__assign_str(name);
 		__entry->mask = mask;
 		__entry->val = val;
 	),
@@ -266,7 +266,7 @@ TRACE_EVENT(snd_soc_jack_notify,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, jack->jack->id);
+		__assign_str(name);
 		__entry->val = val;
 	),
 

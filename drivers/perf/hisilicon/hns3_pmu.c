@@ -363,16 +363,6 @@ HNS3_PMU_FILTER_ATTR(global, config1, 52, 52);
 	HNS3_PMU_EVT_PPS_##_name##_TIME,				\
 	HNS3_PMU_FILTER_INTR_##_name})
 
-static ssize_t hns3_pmu_format_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
-}
-
 static ssize_t hns3_pmu_event_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -421,7 +411,7 @@ static ssize_t hns3_pmu_filter_mode_show(struct device *dev,
 	})[0].attr.attr)
 
 #define HNS3_PMU_FORMAT_ATTR(_name, _format) \
-	HNS3_PMU_ATTR(_name, hns3_pmu_format_show, (void *)_format)
+	HNS3_PMU_ATTR(_name, device_show_string, _format)
 #define HNS3_PMU_EVENT_ATTR(_name, _event) \
 	HNS3_PMU_ATTR(_name, hns3_pmu_event_show, (void *)_event)
 #define HNS3_PMU_FLT_MODE_ATTR(_name, _event) \

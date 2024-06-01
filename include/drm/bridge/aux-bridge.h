@@ -33,7 +33,7 @@ static inline struct auxiliary_device *devm_drm_dp_hpd_bridge_alloc(struct devic
 	return NULL;
 }
 
-static inline int devm_drm_dp_hpd_bridge_add(struct auxiliary_device *adev)
+static inline int devm_drm_dp_hpd_bridge_add(struct device *dev, struct auxiliary_device *adev)
 {
 	return 0;
 }

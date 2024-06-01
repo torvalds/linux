@@ -28,6 +28,13 @@ struct xchk_nlink_ctrs {
 	 * from other writer threads.
 	 */
 	struct xfs_dir_hook	dhook;
+
+	/* Orphanage reparenting request. */
+	struct xrep_adoption	adoption;
+
+	/* Directory entry name, plus the trailing null. */
+	struct xfs_name		xname;
+	char			namebuf[MAXNAMELEN];
 };
 
 /*
