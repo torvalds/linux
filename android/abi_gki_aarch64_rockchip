@@ -2995,3 +2995,10 @@
 
 # required by vl6180.ko
   iio_read_const_attr
+
+# required by aic_btusb.ko
+  usb_disable_autosuspend
+
+# required by wlan_mt7663_usb.ko
+  usb_anchor_empty
+  usb_reset_endpoint

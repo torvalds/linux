@@ -586,6 +586,7 @@ _ROCKPI4_MODULE_OUTS = [
     "drivers/char/hw_random/virtio-rng.ko",
     "drivers/clk/clk-rk808.ko",
     "drivers/cpufreq/cpufreq-dt.ko",
+    "drivers/cpufreq/tegra20-cpufreq.ko",
     "drivers/dma/pl330.ko",
     "drivers/gpu/drm/bridge/analogix/analogix_dp.ko",
     "drivers/gpu/drm/bridge/synopsys/dw-hdmi.ko",

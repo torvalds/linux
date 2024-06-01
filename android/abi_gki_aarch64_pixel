@@ -82,6 +82,7 @@
   __bitmap_or
   bitmap_parse
   bitmap_parselist
+  bitmap_parse_user
   bitmap_print_to_pagebuf
   __bitmap_set
   __bitmap_subset

@@ -1073,7 +1073,7 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 	int rl_size;
 	ssize_t result = 0;
 	bool report_uid;
-	unsigned long page = 0;
+	void *page = 0;
 	struct incfs_pending_read_info *reads_buf = NULL;
 	struct incfs_pending_read_info2 *reads_buf2 = NULL;
 	size_t record_size;
@@ -1086,13 +1086,13 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 	report_uid = mi->mi_options.report_uid;
 	record_size = report_uid ? sizeof(*reads_buf2) : sizeof(*reads_buf);
 	reads_to_collect = len / record_size;
-	reads_per_page = PAGE_SIZE / record_size;
+	reads_per_page = INCFS_DATA_FILE_BLOCK_SIZE / record_size;
 
 	rl_size = READ_ONCE(mi->mi_log.rl_size);
 	if (rl_size == 0)
 		return 0;
 
-	page = __get_free_page(GFP_NOFS);
+	page = kzalloc(INCFS_DATA_FILE_BLOCK_SIZE, GFP_NOFS);
 	if (!page)
 		return -ENOMEM;
 
@@ -1116,7 +1116,7 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 				       reads_collected;
 			goto out;
 		}
-		if (copy_to_user(buf, (void *)page,
+		if (copy_to_user(buf, page,
 				 reads_collected * record_size)) {
 			result = total_reads_collected ?
 				       total_reads_collected * record_size :
@@ -1133,7 +1133,7 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 	result = total_reads_collected * record_size;
 	*ppos = 0;
 out:
-	free_page(page);
+	kfree(page);
 	return result;
 }
 
