@@ -65,7 +65,6 @@ static void display_list(void);
 static void display_tree(struct menu *menu);
 static void display_tree_part(void);
 static void update_tree(struct menu *src, GtkTreeIter * dst);
-static void conf_changed(void);
 
 static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 				GtkStyle *style, gchar *btn_name, gchar **xpm)
@@ -83,6 +82,13 @@ static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 	image = gtk_image_new_from_pixmap(pixmap, mask);
 	gtk_widget_show(image);
 	gtk_tool_button_set_icon_widget(button, image);
+}
+
+static void conf_changed(void)
+{
+	bool changed = conf_get_changed();
+	gtk_widget_set_sensitive(save_btn, changed);
+	gtk_widget_set_sensitive(save_menu_item, changed);
 }
 
 /* Main Window Initialization */
@@ -1444,11 +1450,4 @@ int main(int ac, char *av[])
 	gtk_main();
 
 	return 0;
-}
-
-static void conf_changed(void)
-{
-	bool changed = conf_get_changed();
-	gtk_widget_set_sensitive(save_btn, changed);
-	gtk_widget_set_sensitive(save_menu_item, changed);
 }
