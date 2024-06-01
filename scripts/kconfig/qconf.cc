@@ -1849,10 +1849,10 @@ void ConfigMainWindow::saveSettings(void)
 	configSettings->writeSizes("/split2", split2->sizes());
 }
 
-void ConfigMainWindow::conf_changed(void)
+void ConfigMainWindow::conf_changed(bool dirty)
 {
 	if (saveAction)
-		saveAction->setEnabled(conf_get_changed());
+		saveAction->setEnabled(dirty);
 }
 
 void fixup_rootmenu(struct menu *menu)

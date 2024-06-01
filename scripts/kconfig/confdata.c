@@ -1141,16 +1141,14 @@ int conf_write_autoconf(int overwrite)
 }
 
 static bool conf_changed;
-static void (*conf_changed_callback)(void);
+static void (*conf_changed_callback)(bool);
 
 void conf_set_changed(bool val)
 {
-	bool changed = conf_changed != val;
+	if (conf_changed_callback && conf_changed != val)
+		conf_changed_callback(val);
 
 	conf_changed = val;
-
-	if (conf_changed_callback && changed)
-		conf_changed_callback();
 }
 
 bool conf_get_changed(void)
@@ -1158,7 +1156,7 @@ bool conf_get_changed(void)
 	return conf_changed;
 }
 
-void conf_set_changed_callback(void (*fn)(void))
+void conf_set_changed_callback(void (*fn)(bool))
 {
 	conf_changed_callback = fn;
 }

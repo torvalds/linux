@@ -84,11 +84,10 @@ static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 	gtk_tool_button_set_icon_widget(button, image);
 }
 
-static void conf_changed(void)
+static void conf_changed(bool dirty)
 {
-	bool changed = conf_get_changed();
-	gtk_widget_set_sensitive(save_btn, changed);
-	gtk_widget_set_sensitive(save_menu_item, changed);
+	gtk_widget_set_sensitive(save_btn, dirty);
+	gtk_widget_set_sensitive(save_menu_item, dirty);
 }
 
 /* Main Window Initialization */

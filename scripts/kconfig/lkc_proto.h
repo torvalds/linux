@@ -13,7 +13,7 @@ int conf_write(const char *name);
 int conf_write_autoconf(int overwrite);
 void conf_set_changed(bool val);
 bool conf_get_changed(void);
-void conf_set_changed_callback(void (*fn)(void));
+void conf_set_changed_callback(void (*fn)(bool));
 void conf_set_message_callback(void (*fn)(const char *s));
 bool conf_errors(void);
 
