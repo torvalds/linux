@@ -1407,6 +1407,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 	unsigned int found = 0;
 	unsigned int hash;
 	unsigned int bm_size;
+	struct buffer_head *bh;
 	u64 dblock;
 	u32 extlen = 0;
 	int error;
@@ -1426,7 +1427,6 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 		return error;
 
 	for (x = 0; x < blocks; x++) {
-		struct buffer_head *bh;
 		const struct gfs2_quota_change *qc;
 		unsigned int y;
 
@@ -1440,10 +1440,8 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 		bh = gfs2_meta_ra(ip->i_gl, dblock, extlen);
 		if (!bh)
 			goto fail;
-		if (gfs2_metatype_check(sdp, bh, GFS2_METATYPE_QC)) {
-			brelse(bh);
-			goto fail;
-		}
+		if (gfs2_metatype_check(sdp, bh, GFS2_METATYPE_QC))
+			goto fail_brelse;
 
 		qc = (const struct gfs2_quota_change *)(bh->b_data + sizeof(struct gfs2_meta_header));
 		for (y = 0; y < sdp->sd_qc_per_block && slot < sdp->sd_quota_slots;
@@ -1461,10 +1459,8 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 			hash = gfs2_qd_hash(sdp, qc_id);
 			qd = qd_alloc(hash, sdp, qc_id);
-			if (qd == NULL) {
-				brelse(bh);
-				goto fail;
-			}
+			if (qd == NULL)
+				goto fail_brelse;
 
 			set_bit(QDF_CHANGE, &qd->qd_flags);
 			qd->qd_change = qc_change;
@@ -1494,6 +1490,8 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 	return 0;
 
+fail_brelse:
+	brelse(bh);
 fail:
 	gfs2_quota_cleanup(sdp);
 	return error;
