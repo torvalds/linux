@@ -1397,8 +1397,6 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 	conf_set_changed_callback(conf_changed);
 
-	// Set saveAction's initial state
-	conf_changed();
 	configname = xstrdup(conf_get_configname());
 
 	QAction *saveAsAction = new QAction("Save &As...", this);
@@ -1904,7 +1902,6 @@ int main(int ac, char** av)
 
 	conf_parse(name);
 	fixup_rootmenu(&rootmenu);
-	conf_read(NULL);
 	//zconfdump(stdout);
 
 	configApp = new QApplication(ac, av);
@@ -1916,6 +1913,9 @@ int main(int ac, char** av)
 	//zconfdump(stdout);
 	configApp->connect(configApp, SIGNAL(lastWindowClosed()), SLOT(quit()));
 	configApp->connect(configApp, SIGNAL(aboutToQuit()), v, SLOT(saveSettings()));
+
+	conf_read(NULL);
+
 	v->show();
 	configApp->exec();
 
