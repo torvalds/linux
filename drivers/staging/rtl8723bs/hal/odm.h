@@ -76,7 +76,7 @@
 
 /* Remove DIG by Yuchen */
 
-/* Remoce BB power saving by Yuchn */
+/* Remove BB power saving by Yuchn */
 
 /* Remove DIG by yuchen */
 
@@ -878,7 +878,7 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	struct odm_mac_status_info *pMacInfo;
 	/* MAC_INFO_88E		MacInfo; */
 
-	/*  Different Team independt structure?? */
+	/*  Different Team independent structure?? */
 
 	/*  */
 	/* TX_RTP_CMN		TX_retrpo; */
