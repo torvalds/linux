@@ -232,4 +232,5 @@ module_init(atmel_sha204a_init);
 module_exit(atmel_sha204a_exit);
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
+MODULE_DESCRIPTION("Microchip / Atmel SHA204A (I2C) driver");
 MODULE_LICENSE("GPL v2");
