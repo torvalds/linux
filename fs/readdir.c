@@ -70,7 +70,7 @@ int wrap_directory_iterator(struct file *file,
 EXPORT_SYMBOL(wrap_directory_iterator);
 
 /*
- * Note the "unsafe_put_user() semantics: we goto a
+ * Note the "unsafe_put_user()" semantics: we goto a
  * label for errors.
  */
 #define unsafe_copy_dirent_name(_dst, _src, _len, label) do {	\
