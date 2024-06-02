@@ -3,31 +3,32 @@
  * Input Events LED trigger
  *
  * Copyright (C) 2024 Hans de Goede <hansg@kernel.org>
- * Partially based on Atsushi Nemoto's ledtrig-heartbeat.c.
  */
 
 #include <linux/input.h>
 #include <linux/jiffies.h>
 #include <linux/leds.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include "../leds.h"
 
-#define DEFAULT_LED_OFF_DELAY_MS			5000
+static unsigned long led_off_delay_ms = 5000;
+module_param(led_off_delay_ms, ulong, 0644);
+MODULE_PARM_DESC(led_off_delay_ms,
+	"Specify delay in ms for turning LEDs off after last input event");
 
-struct input_events_data {
-	struct input_handler handler;
+static struct input_events_data {
 	struct delayed_work work;
 	spinlock_t lock;
-	struct led_classdev *led_cdev;
-	int led_cdev_saved_flags;
 	/* To avoid repeatedly setting the brightness while there are events */
 	bool led_on;
 	unsigned long led_off_time;
-	unsigned long led_off_delay;
-};
+} input_events_data;
+
+static struct led_trigger *input_events_led_trigger;
 
 static void led_input_events_work(struct work_struct *work)
 {
@@ -41,62 +42,24 @@ static void led_input_events_work(struct work_struct *work)
 	 * running before a new event pushed led_off_time back.
 	 */
 	if (time_after_eq(jiffies, data->led_off_time)) {
-		led_set_brightness_nosleep(data->led_cdev, LED_OFF);
+		led_trigger_event(input_events_led_trigger, LED_OFF);
 		data->led_on = false;
 	}
 
 	spin_unlock_irq(&data->lock);
 }
 
-static ssize_t delay_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct input_events_data *input_events_data = led_trigger_get_drvdata(dev);
-
-	return sysfs_emit(buf, "%lu\n", input_events_data->led_off_delay);
-}
-
-static ssize_t delay_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t size)
-{
-	struct input_events_data *input_events_data = led_trigger_get_drvdata(dev);
-	unsigned long delay;
-	int ret;
-
-	ret = kstrtoul(buf, 0, &delay);
-	if (ret)
-		return ret;
-
-	/* Clamp between 0.5 and 1000 seconds */
-	delay = clamp_val(delay, 500UL, 1000000UL);
-	input_events_data->led_off_delay = msecs_to_jiffies(delay);
-
-	return size;
-}
-
-static DEVICE_ATTR_RW(delay);
-
-static struct attribute *input_events_led_attrs[] = {
-	&dev_attr_delay.attr,
-	NULL
-};
-ATTRIBUTE_GROUPS(input_events_led);
-
 static void input_events_event(struct input_handle *handle, unsigned int type,
 			       unsigned int code, int val)
 {
-	struct input_events_data *data =
-		container_of(handle->handler, struct input_events_data, handler);
-	unsigned long led_off_delay = READ_ONCE(data->led_off_delay);
-	struct led_classdev *led_cdev = data->led_cdev;
+	struct input_events_data *data = &input_events_data;
+	unsigned long led_off_delay = msecs_to_jiffies(led_off_delay_ms);
 	unsigned long flags;
-
-	if (test_and_clear_bit(LED_BLINK_BRIGHTNESS_CHANGE, &led_cdev->work_flags))
-		led_cdev->blink_brightness = led_cdev->new_blink_brightness;
 
 	spin_lock_irqsave(&data->lock, flags);
 
 	if (!data->led_on) {
-		led_set_brightness_nosleep(led_cdev, led_cdev->blink_brightness);
+		led_trigger_event(input_events_led_trigger, LED_FULL);
 		data->led_on = true;
 	}
 	data->led_off_time = jiffies + led_off_delay;
@@ -118,7 +81,7 @@ static int input_events_connect(struct input_handler *handler, struct input_dev 
 
 	handle->dev = dev;
 	handle->handler = handler;
-	handle->name = "input-events";
+	handle->name = KBUILD_MODNAME;
 
 	ret = input_register_handle(handle);
 	if (ret)
@@ -160,72 +123,41 @@ static const struct input_device_id input_events_ids[] = {
 	{ }
 };
 
-static int input_events_activate(struct led_classdev *led_cdev)
+static struct input_handler input_events_handler = {
+	.name = KBUILD_MODNAME,
+	.event = input_events_event,
+	.connect = input_events_connect,
+	.disconnect = input_events_disconnect,
+	.id_table = input_events_ids,
+};
+
+static int __init input_events_init(void)
 {
-	struct input_events_data *data;
 	int ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	INIT_DELAYED_WORK(&input_events_data.work, led_input_events_work);
+	spin_lock_init(&input_events_data.lock);
 
-	data->handler.name = "input-events";
-	data->handler.event = input_events_event;
-	data->handler.connect = input_events_connect;
-	data->handler.disconnect = input_events_disconnect;
-	data->handler.id_table = input_events_ids;
+	led_trigger_register_simple("input-events", &input_events_led_trigger);
 
-	INIT_DELAYED_WORK(&data->work, led_input_events_work);
-	spin_lock_init(&data->lock);
-
-	data->led_cdev = led_cdev;
-	data->led_cdev_saved_flags = led_cdev->flags;
-	data->led_off_delay = msecs_to_jiffies(DEFAULT_LED_OFF_DELAY_MS);
-
-	/*
-	 * Use led_cdev->blink_brightness + LED_BLINK_SW flag so that sysfs
-	 * brightness writes will change led_cdev->new_blink_brightness for
-	 * configuring the on state brightness (like ledtrig-heartbeat).
-	 */
-	if (!led_cdev->blink_brightness)
-		led_cdev->blink_brightness = led_cdev->max_brightness;
-
-	/* Start with LED off */
-	led_set_brightness_nosleep(data->led_cdev, LED_OFF);
-
-	ret = input_register_handler(&data->handler);
+	ret = input_register_handler(&input_events_handler);
 	if (ret) {
-		kfree(data);
+		led_trigger_unregister_simple(input_events_led_trigger);
 		return ret;
 	}
 
-	set_bit(LED_BLINK_SW, &led_cdev->work_flags);
-
-	/* Turn LED off during suspend, original flags are restored on deactivate() */
-	led_cdev->flags |= LED_CORE_SUSPENDRESUME;
-
-	led_set_trigger_data(led_cdev, data);
 	return 0;
 }
 
-static void input_events_deactivate(struct led_classdev *led_cdev)
+static void __exit input_events_exit(void)
 {
-	struct input_events_data *data = led_get_trigger_data(led_cdev);
-
-	led_cdev->flags = data->led_cdev_saved_flags;
-	clear_bit(LED_BLINK_SW, &led_cdev->work_flags);
-	input_unregister_handler(&data->handler);
-	cancel_delayed_work_sync(&data->work);
-	kfree(data);
+	input_unregister_handler(&input_events_handler);
+	cancel_delayed_work_sync(&input_events_data.work);
+	led_trigger_unregister_simple(input_events_led_trigger);
 }
 
-static struct led_trigger input_events_led_trigger = {
-	.name       = "input-events",
-	.activate   = input_events_activate,
-	.deactivate = input_events_deactivate,
-	.groups     = input_events_led_groups,
-};
-module_led_trigger(input_events_led_trigger);
+module_init(input_events_init);
+module_exit(input_events_exit);
 
 MODULE_AUTHOR("Hans de Goede <hansg@kernel.org>");
 MODULE_DESCRIPTION("Input Events LED trigger");
