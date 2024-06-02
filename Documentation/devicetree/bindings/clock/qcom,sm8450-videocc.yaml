@@ -8,18 +8,22 @@ title: Qualcomm Video Clock & Reset Controller on SM8450
 
 maintainers:
   - Taniya Das <quic_tdas@quicinc.com>
+  - Jagadeesh Kona <quic_jkona@quicinc.com>
 
 description: |
   Qualcomm video clock control module provides the clocks, resets and power
   domains on SM8450.
 
-  See also: include/dt-bindings/clock/qcom,sm8450-videocc.h
+  See also:
+    include/dt-bindings/clock/qcom,sm8450-videocc.h
+    include/dt-bindings/clock/qcom,sm8650-videocc.h
 
 properties:
   compatible:
     enum:
       - qcom,sm8450-videocc
       - qcom,sm8550-videocc
+      - qcom,sm8650-videocc
 
   reg:
     maxItems: 1
