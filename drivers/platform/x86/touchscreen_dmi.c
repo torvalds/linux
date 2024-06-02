@@ -1850,7 +1850,7 @@ static int __init ts_parse_props(char *str)
 	u32 u32val;
 	int i, ret;
 
-	strscpy(orig_str, str, sizeof(orig_str));
+	strscpy(orig_str, str);
 
 	/*
 	 * str is part of the static_command_line from init/main.c and poking
