@@ -218,43 +218,42 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 	}
 
 	for_all_symbols(sym) {
-		if (sym_has_value(sym) || sym->flags & SYMBOL_VALID)
+		tristate val;
+
+		if (sym_has_value(sym) || sym->flags & SYMBOL_VALID ||
+		    (sym->type != S_BOOLEAN && sym->type != S_TRISTATE))
 			continue;
-		switch (sym_get_type(sym)) {
-		case S_BOOLEAN:
-		case S_TRISTATE:
-			has_changed = true;
-			switch (mode) {
-			case def_yes:
-				sym->def[S_DEF_USER].tri = yes;
-				break;
-			case def_mod:
-				sym->def[S_DEF_USER].tri = mod;
-				break;
-			case def_no:
-				sym->def[S_DEF_USER].tri = no;
-				break;
-			case def_random:
-				sym->def[S_DEF_USER].tri = no;
-				cnt = rand() % 100;
-				if (sym->type == S_TRISTATE) {
-					if (cnt < pty)
-						sym->def[S_DEF_USER].tri = yes;
-					else if (cnt < pty + ptm)
-						sym->def[S_DEF_USER].tri = mod;
-				} else if (cnt < pby)
-					sym->def[S_DEF_USER].tri = yes;
-				break;
-			default:
-				continue;
+
+		has_changed = true;
+		switch (mode) {
+		case def_yes:
+			val = yes;
+			break;
+		case def_mod:
+			val = mod;
+			break;
+		case def_no:
+			val = no;
+			break;
+		case def_random:
+			val = no;
+			cnt = rand() % 100;
+			if (sym->type == S_TRISTATE) {
+				if (cnt < pty)
+					val = yes;
+				else if (cnt < pty + ptm)
+					val = mod;
+			} else if (cnt < pby) {
+				val = yes;
 			}
-			if (!(sym_is_choice(sym) && mode == def_random))
-				sym->flags |= SYMBOL_DEF_USER;
 			break;
 		default:
-			break;
+			continue;
 		}
+		sym->def[S_DEF_USER].tri = val;
 
+		if (!(sym_is_choice(sym) && mode == def_random))
+			sym->flags |= SYMBOL_DEF_USER;
 	}
 
 	sym_clear_all_valid();
