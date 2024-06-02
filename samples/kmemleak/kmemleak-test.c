@@ -96,4 +96,5 @@ static void __exit kmemleak_test_exit(void)
 }
 module_exit(kmemleak_test_exit);
 
+MODULE_DESCRIPTION("Sample module to leak memory for kmemleak testing");
 MODULE_LICENSE("GPL");
