@@ -581,8 +581,8 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 	      iio_check_for_dynamic_events(indio_dev)))
 		return 0;
 
-	ev_int = kzalloc(sizeof(struct iio_event_interface), GFP_KERNEL);
-	if (ev_int == NULL)
+	ev_int = kzalloc(sizeof(*ev_int), GFP_KERNEL);
+	if (!ev_int)
 		return -ENOMEM;
 
 	iio_dev_opaque->event_interface = ev_int;
