@@ -1548,7 +1548,7 @@ void shrink_dcache_for_umount(struct super_block *sb)
 {
 	struct dentry *dentry;
 
-	WARN(down_read_trylock(&sb->s_umount), "s_umount should've been locked");
+	rwsem_assert_held_write(&sb->s_umount);
 
 	dentry = sb->s_root;
 	sb->s_root = NULL;
