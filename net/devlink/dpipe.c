@@ -839,7 +839,7 @@ EXPORT_SYMBOL_GPL(devlink_dpipe_table_counter_enabled);
  */
 int devl_dpipe_table_register(struct devlink *devlink,
 			      const char *table_name,
-			      struct devlink_dpipe_table_ops *table_ops,
+			      const struct devlink_dpipe_table_ops *table_ops,
 			      void *priv, bool counter_control_extern)
 {
 	struct devlink_dpipe_table *table;
