@@ -774,34 +774,31 @@ int conf_write_defconfig(const char *filename)
 		struct menu *choice;
 
 		sym = menu->sym;
-		if (sym && !sym_is_choice(sym)) {
-			sym_calc_value(sym);
-			if (!(sym->flags & SYMBOL_WRITE))
-				continue;
-			sym->flags &= ~SYMBOL_WRITE;
-			/* If we cannot change the symbol - skip */
-			if (!sym_is_changeable(sym))
-				continue;
-			/* If symbol equals to default value - skip */
-			if (strcmp(sym_get_string_value(sym), sym_get_string_default(sym)) == 0)
-				continue;
 
-			/*
-			 * If symbol is a choice value and equals to the
-			 * default for a choice - skip.
-			 */
-			choice = sym_get_choice_menu(sym);
-			if (choice) {
-				struct symbol *ds;
+		if (!sym || sym_is_choice(sym))
+			continue;
 
-				ds = sym_choice_default(choice->sym);
-				if (sym == ds) {
-					if (sym_get_tristate_value(sym) == yes)
-						continue;
-				}
-			}
-			print_symbol_for_dotconfig(out, sym);
+		sym_calc_value(sym);
+		if (!(sym->flags & SYMBOL_WRITE))
+			continue;
+		sym->flags &= ~SYMBOL_WRITE;
+		/* Skip unchangeable symbols */
+		if (!sym_is_changeable(sym))
+			continue;
+		/* Skip symbols that are equal to the default */
+		if (!strcmp(sym_get_string_value(sym), sym_get_string_default(sym)))
+			continue;
+
+		/* Skip choice values that are equal to the default */
+		choice = sym_get_choice_menu(sym);
+		if (choice) {
+			struct symbol *ds;
+
+			ds = sym_choice_default(choice->sym);
+			if (sym == ds && sym_get_tristate_value(sym) == yes)
+				continue;
 		}
+		print_symbol_for_dotconfig(out, sym);
 	}
 	fclose(out);
 	return 0;
