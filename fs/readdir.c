@@ -22,8 +22,6 @@
 #include <linux/compat.h>
 #include <linux/uaccess.h>
 
-#include <asm/unaligned.h>
-
 /*
  * Some filesystems were never converted to '->iterate_shared()'
  * and their directory iterators want the inode lock held for
