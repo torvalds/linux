@@ -263,6 +263,37 @@ static int cfg80211_chandef_get_width(const struct cfg80211_chan_def *c)
 	return nl80211_chan_width_to_mhz(c->width);
 }
 
+static bool cfg80211_valid_center_freq(u32 center,
+				       enum nl80211_chan_width width)
+{
+	int bw;
+	int step;
+
+	/* We only do strict verification on 6 GHz */
+	if (center < 5955 || center > 7115)
+		return true;
+
+	bw = nl80211_chan_width_to_mhz(width);
+	if (bw < 0)
+		return false;
+
+	/* Validate that the channels bw is entirely within the 6 GHz band */
+	if (center - bw / 2 < 5945 || center + bw / 2 > 7125)
+		return false;
+
+	/* With 320 MHz the permitted channels overlap */
+	if (bw == 320)
+		step = 160;
+	else
+		step = bw;
+
+	/*
+	 * Valid channels are packed from lowest frequency towards higher ones.
+	 * So test that the lower frequency alignes with one of these steps.
+	 */
+	return (center - bw / 2 - 5945) % step == 0;
+}
+
 bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 {
 	u32 control_freq, oper_freq;
@@ -373,6 +404,13 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	default:
 		return false;
 	}
+
+	if (!cfg80211_valid_center_freq(chandef->center_freq1, chandef->width))
+		return false;
+
+	if (chandef->width == NL80211_CHAN_WIDTH_80P80 &&
+	    !cfg80211_valid_center_freq(chandef->center_freq2, chandef->width))
+		return false;
 
 	/* channel 14 is only for IEEE 802.11b */
 	if (chandef->center_freq1 == 2484 &&
