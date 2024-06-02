@@ -287,12 +287,12 @@ config BT_HCIBCM203X
 
 
 config BT_HCIBCM4377
-	tristate "HCI BCM4377/4378/4387 PCIe driver"
+	tristate "HCI BCM4377/4378/4387/4388 PCIe driver"
 	depends on PCI
 	select FW_LOADER
 	help
-	  Support for Broadcom BCM4377/4378/4387 Bluetooth chipsets attached via
-	  PCIe. These are usually found in Apple machines.
+	  Support for Broadcom BCM4377/4378/4387/4388 Bluetooth chipsets
+	  attached via PCIe. These are usually found in Apple machines.
 
 	  Say Y here to compile support for HCI BCM4377 family devices into the
 	  kernel or say M to compile it as module (hci_bcm4377).
