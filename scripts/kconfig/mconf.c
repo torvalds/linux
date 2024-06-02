@@ -523,28 +523,14 @@ static void build_conf(struct menu *menu)
 				def_menu = child;
 		}
 
-		val = sym_get_tristate_value(sym);
-		if (sym_is_changeable(sym)) {
-			switch (val) {
-			case yes: ch = '*'; break;
-			case mod: ch = 'M'; break;
-			default:  ch = ' '; break;
-			}
-			item_make("<%c>", ch);
-			item_set_tag('t');
-			item_set_data(menu);
-		} else {
-			item_make("   ");
-			item_set_tag(def_menu ? 't' : ':');
-			item_set_data(menu);
-		}
+		item_make("   ");
+		item_set_tag(def_menu ? 't' : ':');
+		item_set_data(menu);
 
 		item_add_str("%*c%s", indent + 1, ' ', menu_get_prompt(menu));
-		if (val == yes) {
-			if (def_menu)
-				item_add_str(" (%s)  --->", menu_get_prompt(def_menu));
-			return;
-		}
+		if (def_menu)
+			item_add_str(" (%s)  --->", menu_get_prompt(def_menu));
+		return;
 	} else {
 		if (menu == current_menu) {
 			item_make("---%*c%s", indent + 1, ' ', menu_get_prompt(menu));
@@ -814,7 +800,7 @@ static void conf(struct menu *menu, struct menu *active_menu)
 					conf(submenu, NULL);
 				break;
 			case 't':
-				if (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes)
+				if (sym_is_choice(sym))
 					conf_choice(submenu);
 				else if (submenu->prompt->type == P_MENU)
 					conf(submenu, NULL);

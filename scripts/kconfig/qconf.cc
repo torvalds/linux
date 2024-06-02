@@ -147,7 +147,7 @@ void ConfigItem::updateMenu(void)
 		expr = sym_get_tristate_value(sym);
 		switch (expr) {
 		case yes:
-			if (sym_is_choice_value(sym) && type == S_BOOLEAN)
+			if (sym_is_choice_value(sym))
 				setIcon(promptColIdx, choiceYesIcon);
 			else
 				setIcon(promptColIdx, symbolYesIcon);

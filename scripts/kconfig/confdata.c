@@ -462,22 +462,12 @@ load:
 
 		if (sym && sym_is_choice_value(sym)) {
 			struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
-			switch (sym->def[def].tri) {
-			case no:
-				break;
-			case mod:
-				if (cs->def[def].tri == yes) {
-					conf_warning("%s creates inconsistent choice state", sym->name);
-					cs->flags &= ~def_flags;
-				}
-				break;
-			case yes:
+			if (sym->def[def].tri == yes) {
 				if (cs->def[def].tri != no)
 					conf_warning("override: %s changes choice state", sym->name);
 				cs->def[def].val = sym;
-				break;
+				cs->def[def].tri = yes;
 			}
-			cs->def[def].tri = EXPR_OR(cs->def[def].tri, sym->def[def].tri);
 		}
 	}
 	free(line);
@@ -806,8 +796,7 @@ int conf_write_defconfig(const char *filename)
 
 				ds = sym_choice_default(choice->sym);
 				if (sym == ds) {
-					if ((sym->type == S_BOOLEAN) &&
-					    sym_get_tristate_value(sym) == yes)
+					if (sym_get_tristate_value(sym) == yes)
 						continue;
 				}
 			}

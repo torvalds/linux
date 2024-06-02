@@ -321,17 +321,6 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 			is_choice = true;
 
 		if (is_choice) {
-			if (sym->type == S_UNKNOWN) {
-				/* find the first choice value to find out choice type */
-				current_entry = parent;
-				for (menu = parent->list; menu; menu = menu->next) {
-					if (menu->sym && menu->sym->type != S_UNKNOWN) {
-						menu_set_type(menu->sym->type);
-						break;
-					}
-				}
-			}
-
 			/*
 			 * Use the choice itself as the parent dependency of
 			 * the contained items. This turns the mode of the
@@ -503,22 +492,6 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 		    menu->sym && !sym_is_choice_value(menu->sym)) {
 			current_entry = menu;
 			menu->sym->flags |= SYMBOL_CHOICEVAL;
-			/* Non-tristate choice values of tristate choices must
-			 * depend on the choice being set to Y. The choice
-			 * values' dependencies were propagated to their
-			 * properties above, so the change here must be re-
-			 * propagated.
-			 */
-			if (sym->type == S_TRISTATE && menu->sym->type != S_TRISTATE) {
-				basedep = expr_alloc_comp(E_EQUAL, sym, &symbol_yes);
-				menu->dep = expr_alloc_and(basedep, menu->dep);
-				for (prop = menu->sym->prop; prop; prop = prop->next) {
-					if (prop->menu != menu)
-						continue;
-					prop->visible.expr = expr_alloc_and(expr_copy(basedep),
-									    prop->visible.expr);
-				}
-			}
 			menu_add_symbol(P_CHOICE, sym, NULL);
 			prop = sym_get_choice_prop(sym);
 			for (ep = &prop->expr; *ep; ep = &(*ep)->left.expr)
@@ -578,13 +551,13 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 
 	/*
 	 * For choices, add a reverse dependency (corresponding to a select) of
-	 * '<visibility> && m'. This prevents the user from setting the choice
+	 * '<visibility> && y'. This prevents the user from setting the choice
 	 * mode to 'n' when the choice is visible.
 	 */
 	if (sym && sym_is_choice(sym) && parent->prompt) {
 		sym->rev_dep.expr = expr_alloc_or(sym->rev_dep.expr,
 				expr_alloc_and(parent->prompt->visible.expr,
-					expr_alloc_symbol(&symbol_mod)));
+					expr_alloc_symbol(&symbol_yes)));
 	}
 }
 

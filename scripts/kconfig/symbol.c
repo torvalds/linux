@@ -44,12 +44,8 @@ enum symbol_type sym_get_type(struct symbol *sym)
 {
 	enum symbol_type type = sym->type;
 
-	if (type == S_TRISTATE) {
-		if (sym_is_choice_value(sym) && sym->visible == yes)
-			type = S_BOOLEAN;
-		else if (modules_val == no)
-			type = S_BOOLEAN;
-	}
+	if (type == S_TRISTATE && modules_val == no)
+		type = S_BOOLEAN;
 	return type;
 }
 
@@ -208,26 +204,12 @@ static void sym_set_all_changed(void)
 static void sym_calc_visibility(struct symbol *sym)
 {
 	struct property *prop;
-	struct symbol *choice_sym = NULL;
 	tristate tri;
 
 	/* any prompt visible? */
 	tri = no;
-
-	if (sym_is_choice_value(sym))
-		choice_sym = prop_get_symbol(sym_get_choice_prop(sym));
-
 	for_all_prompts(sym, prop) {
 		prop->visible.tri = expr_calc_value(prop->visible.expr);
-		/*
-		 * Tristate choice_values with visibility 'mod' are
-		 * not visible if the corresponding choice's value is
-		 * 'yes'.
-		 */
-		if (choice_sym && sym->type == S_TRISTATE &&
-		    prop->visible.tri == mod && choice_sym->curr.tri == yes)
-			prop->visible.tri = no;
-
 		tri = EXPR_OR(tri, prop->visible.tri);
 	}
 	if (tri == mod && (sym->type != S_TRISTATE || modules_val == no))

@@ -1067,10 +1067,8 @@ static gchar **fill_row(struct menu *menu)
 			row[COL_VALUE] =
 			    g_strdup(menu_get_prompt(def_menu));
 
-		if (sym_get_type(sym) == S_BOOLEAN) {
-			row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
-			return row;
-		}
+		row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
+		return row;
 	}
 	if (sym->flags & SYMBOL_CHOICEVAL)
 		row[COL_BTNRAD] = GINT_TO_POINTER(TRUE);

@@ -114,20 +114,12 @@ static void set_randconfig_seed(void)
 	srand(seed);
 }
 
-static bool randomize_choice_values(struct symbol *csym)
+static void randomize_choice_values(struct symbol *csym)
 {
 	struct property *prop;
 	struct symbol *sym;
 	struct expr *e;
 	int cnt, def;
-
-	/*
-	 * If choice is mod then we may have more items selected
-	 * and if no then no-one.
-	 * In both cases stop.
-	 */
-	if (csym->curr.tri != yes)
-		return false;
 
 	prop = sym_get_choice_prop(csym);
 
@@ -157,8 +149,6 @@ static bool randomize_choice_values(struct symbol *csym)
 	csym->flags |= SYMBOL_DEF_USER;
 	/* clear VALID to get value calculated */
 	csym->flags &= ~SYMBOL_VALID;
-
-	return true;
 }
 
 enum conf_def_mode {
@@ -269,15 +259,6 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 
 	sym_clear_all_valid();
 
-	/*
-	 * We have different type of choice blocks.
-	 * If curr.tri equals to mod then we can select several
-	 * choice symbols in one block.
-	 * In this case we do nothing.
-	 * If curr.tri equals yes then only one symbol can be
-	 * selected in a choice block and we set it to yes,
-	 * and the rest to no.
-	 */
 	if (mode != def_random) {
 		for_all_symbols(csym) {
 			if ((sym_is_choice(csym) && !sym_has_value(csym)) ||
@@ -292,11 +273,10 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 
 		sym_calc_value(csym);
 		if (mode == def_random)
-			has_changed |= randomize_choice_values(csym);
-		else {
+			randomize_choice_values(csym);
+		else
 			set_all_choice_values(csym);
-			has_changed = true;
-		}
+		has_changed = true;
 	}
 
 	return has_changed;
@@ -454,27 +434,6 @@ static void conf_choice(struct menu *menu)
 
 	sym = menu->sym;
 	is_new = !sym_has_value(sym);
-	if (sym_is_changeable(sym)) {
-		conf_sym(menu);
-		sym_calc_value(sym);
-		switch (sym_get_tristate_value(sym)) {
-		case no:
-		case mod:
-			return;
-		case yes:
-			break;
-		}
-	} else {
-		switch (sym_get_tristate_value(sym)) {
-		case no:
-			return;
-		case mod:
-			printf("%*s%s\n", indent - 1, "", menu_get_prompt(menu));
-			return;
-		case yes:
-			break;
-		}
-	}
 
 	while (1) {
 		int cnt, def;
@@ -596,9 +555,7 @@ static void conf(struct menu *menu)
 
 	if (sym_is_choice(sym)) {
 		conf_choice(menu);
-		if (sym->curr.tri != mod)
-			return;
-		goto conf_childs;
+		return;
 	}
 
 	switch (sym->type) {
@@ -631,8 +588,7 @@ static void check_conf(struct menu *menu)
 
 	sym = menu->sym;
 	if (sym && !sym_has_value(sym) &&
-	    (sym_is_changeable(sym) ||
-	     (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes))) {
+	    (sym_is_changeable(sym) || sym_is_choice(sym))) {
 
 		switch (input_mode) {
 		case listnewconfig:
