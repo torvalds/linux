@@ -50,4 +50,5 @@ int imx_pcm_dma_init(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(imx_pcm_dma_init);
 
+MODULE_DESCRIPTION("Freescale i.MX PCM DMA interface");
 MODULE_LICENSE("GPL");
