@@ -50,7 +50,7 @@ static void update_string_value(int instance_id, char *attr_value)
 	struct string_data *string_data = &bioscfg_drv.string_data[instance_id];
 
 	/* Write settings to BIOS */
-	strscpy(string_data->current_value, attr_value, sizeof(string_data->current_value));
+	strscpy(string_data->current_value, attr_value);
 }
 
 /*
@@ -178,12 +178,10 @@ static int hp_populate_string_elements_from_package(union acpi_object *string_ob
 		/* Assign appropriate element value to corresponding field*/
 		switch (eloc) {
 		case VALUE:
-			strscpy(string_data->current_value,
-				str_value, sizeof(string_data->current_value));
+			strscpy(string_data->current_value, str_value);
 			break;
 		case PATH:
-			strscpy(string_data->common.path, str_value,
-				sizeof(string_data->common.path));
+			strscpy(string_data->common.path, str_value);
 			break;
 		case IS_READONLY:
 			string_data->common.is_readonly = int_value;
@@ -231,9 +229,7 @@ static int hp_populate_string_elements_from_package(union acpi_object *string_ob
 				if (ret)
 					continue;
 
-				strscpy(string_data->common.prerequisites[reqs],
-					str_value,
-					sizeof(string_data->common.prerequisites[reqs]));
+				strscpy(string_data->common.prerequisites[reqs], str_value);
 				kfree(str_value);
 				str_value = NULL;
 			}
