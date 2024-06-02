@@ -751,7 +751,7 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 	u64 logsize, mapsize, datasize;
 	u64 available = size;
 
-	arena = kzalloc(sizeof(struct arena_info), GFP_KERNEL);
+	arena = kzalloc(sizeof(*arena), GFP_KERNEL);
 	if (!arena)
 		return NULL;
 	arena->nd_btt = btt->nd_btt;
@@ -978,7 +978,7 @@ static int btt_arena_write_layout(struct arena_info *arena)
 	if (ret)
 		return ret;
 
-	super = kzalloc(sizeof(struct btt_sb), GFP_NOIO);
+	super = kzalloc(sizeof(*super), GFP_NOIO);
 	if (!super)
 		return -ENOMEM;
 
