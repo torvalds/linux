@@ -721,9 +721,11 @@ static int at76_set_card_command(struct usb_device *udev, u8 cmd, void *buf,
 				 int buf_size)
 {
 	int ret;
-	struct at76_command *cmd_buf = kmalloc(sizeof(struct at76_command) +
-					       buf_size, GFP_KERNEL);
+	size_t total_size;
+	struct at76_command *cmd_buf;
 
+	total_size = struct_size(cmd_buf, data, buf_size);
+	cmd_buf = kmalloc(total_size, GFP_KERNEL);
 	if (!cmd_buf)
 		return -ENOMEM;
 
@@ -732,15 +734,13 @@ static int at76_set_card_command(struct usb_device *udev, u8 cmd, void *buf,
 	cmd_buf->size = cpu_to_le16(buf_size);
 	memcpy(cmd_buf->data, buf, buf_size);
 
-	at76_dbg_dump(DBG_CMD, cmd_buf, sizeof(struct at76_command) + buf_size,
+	at76_dbg_dump(DBG_CMD, cmd_buf, total_size,
 		      "issuing command %s (0x%02x)",
 		      at76_get_cmd_string(cmd), cmd);
 
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x0e,
 			      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
-			      0, 0, cmd_buf,
-			      sizeof(struct at76_command) + buf_size,
-			      USB_CTRL_GET_TIMEOUT);
+			      0, 0, cmd_buf, total_size, USB_CTRL_GET_TIMEOUT);
 	kfree(cmd_buf);
 	return ret;
 }
