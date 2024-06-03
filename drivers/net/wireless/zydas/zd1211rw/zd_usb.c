@@ -1698,7 +1698,7 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 	int r, i, req_len, actual_req_len, try_count = 0;
 	struct usb_device *udev;
 	struct usb_req_read_regs *req = NULL;
-	unsigned long timeout;
+	unsigned long time_left;
 	bool retry = false;
 
 	if (count < 1) {
@@ -1748,9 +1748,9 @@ retry_read:
 		goto error;
 	}
 
-	timeout = wait_for_completion_timeout(&usb->intr.read_regs.completion,
-					      msecs_to_jiffies(50));
-	if (!timeout) {
+	time_left = wait_for_completion_timeout(&usb->intr.read_regs.completion,
+						msecs_to_jiffies(50));
+	if (!time_left) {
 		disable_read_regs_int(usb);
 		dev_dbg_f(zd_usb_dev(usb), "read timed out\n");
 		r = -ETIMEDOUT;
