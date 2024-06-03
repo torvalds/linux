@@ -129,12 +129,9 @@ static inline bool can_inc_bucket_gen(struct bucket *b)
 
 bool bch_can_invalidate_bucket(struct cache *ca, struct bucket *b)
 {
-	BUG_ON(!ca->set->gc_mark_valid);
-
-	return (!GC_MARK(b) ||
-		GC_MARK(b) == GC_MARK_RECLAIMABLE) &&
-		!atomic_read(&b->pin) &&
-		can_inc_bucket_gen(b);
+	return (ca->set->gc_mark_valid || b->reclaimable_in_gc) &&
+	       ((!GC_MARK(b) || GC_MARK(b) == GC_MARK_RECLAIMABLE) &&
+	       !atomic_read(&b->pin) && can_inc_bucket_gen(b));
 }
 
 void __bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
@@ -148,6 +145,7 @@ void __bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
 	bch_inc_gen(ca, b);
 	b->prio = INITIAL_PRIO;
 	atomic_inc(&b->pin);
+	b->reclaimable_in_gc = 0;
 }
 
 static void bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
@@ -352,8 +350,7 @@ static int bch_allocator_thread(void *arg)
 		 */
 
 retry_invalidate:
-		allocator_wait(ca, ca->set->gc_mark_valid &&
-			       !ca->invalidate_needs_gc);
+		allocator_wait(ca, !ca->invalidate_needs_gc);
 		invalidate_buckets(ca);
 
 		/*
@@ -501,8 +498,8 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,
 
 	ca = c->cache;
 	b = bch_bucket_alloc(ca, reserve, wait);
-	if (b == -1)
-		goto err;
+	if (b < 0)
+		return -1;
 
 	k->ptr[0] = MAKE_PTR(ca->buckets[b].gen,
 			     bucket_to_sector(c, b),
@@ -511,10 +508,6 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,
 	SET_KEY_PTRS(k, 1);
 
 	return 0;
-err:
-	bch_bucket_free(c, k);
-	bkey_put(c, k);
-	return -1;
 }
 
 int bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,

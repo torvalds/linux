@@ -35,6 +35,7 @@
  * See https://sourceware.org/glibc/wiki/Synchronizing_Headers.
  */
 #include <linux/fs.h>
+#include <linux/mount.h>
 
 #include "common.h"
 
@@ -44,6 +45,13 @@ int renameat2(int olddirfd, const char *oldpath, int newdirfd,
 {
 	return syscall(__NR_renameat2, olddirfd, oldpath, newdirfd, newpath,
 		       flags);
+}
+#endif
+
+#ifndef open_tree
+int open_tree(int dfd, const char *filename, unsigned int flags)
+{
+	return syscall(__NR_open_tree, dfd, filename, flags);
 }
 #endif
 
@@ -2398,6 +2406,43 @@ TEST_F_FORK(layout1, refer_denied_by_default4)
 {
 	refer_denied_by_default(_metadata, layer_dir_s2d1_execute, EXDEV,
 				layer_dir_s1d1_refer);
+}
+
+/*
+ * Tests walking through a denied root mount.
+ */
+TEST_F_FORK(layout1, refer_mount_root_deny)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_MAKE_DIR,
+	};
+	int root_fd, ruleset_fd;
+
+	/* Creates a mount object from a non-mount point. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	root_fd =
+		open_tree(AT_FDCWD, dir_s1d1,
+			  AT_EMPTY_PATH | OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_LE(0, root_fd);
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0));
+	EXPECT_EQ(0, close(ruleset_fd));
+
+	/* Link denied by Landlock: EACCES. */
+	EXPECT_EQ(-1, linkat(root_fd, ".", root_fd, "does_not_exist", 0));
+	EXPECT_EQ(EACCES, errno);
+
+	/* renameat2() always returns EBUSY. */
+	EXPECT_EQ(-1, renameat2(root_fd, ".", root_fd, "does_not_exist", 0));
+	EXPECT_EQ(EBUSY, errno);
+
+	EXPECT_EQ(0, close(root_fd));
 }
 
 TEST_F_FORK(layout1, reparent_link)

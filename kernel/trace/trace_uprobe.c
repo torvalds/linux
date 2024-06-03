@@ -970,19 +970,17 @@ static struct uprobe_cpu_buffer *prepare_uprobe_buffer(struct trace_uprobe *tu,
 
 static void __uprobe_trace_func(struct trace_uprobe *tu,
 				unsigned long func, struct pt_regs *regs,
-				struct uprobe_cpu_buffer **ucbp,
+				struct uprobe_cpu_buffer *ucb,
 				struct trace_event_file *trace_file)
 {
 	struct uprobe_trace_entry_head *entry;
 	struct trace_event_buffer fbuffer;
-	struct uprobe_cpu_buffer *ucb;
 	void *data;
 	int size, esize;
 	struct trace_event_call *call = trace_probe_event_call(&tu->tp);
 
 	WARN_ON(call != trace_file->event_call);
 
-	ucb = prepare_uprobe_buffer(tu, regs, ucbp);
 	if (WARN_ON_ONCE(ucb->dsize > PAGE_SIZE))
 		return;
 
@@ -1014,13 +1012,16 @@ static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs,
 			     struct uprobe_cpu_buffer **ucbp)
 {
 	struct event_file_link *link;
+	struct uprobe_cpu_buffer *ucb;
 
 	if (is_ret_probe(tu))
 		return 0;
 
+	ucb = prepare_uprobe_buffer(tu, regs, ucbp);
+
 	rcu_read_lock();
 	trace_probe_for_each_link_rcu(link, &tu->tp)
-		__uprobe_trace_func(tu, 0, regs, ucbp, link->file);
+		__uprobe_trace_func(tu, 0, regs, ucb, link->file);
 	rcu_read_unlock();
 
 	return 0;
@@ -1031,10 +1032,13 @@ static void uretprobe_trace_func(struct trace_uprobe *tu, unsigned long func,
 				 struct uprobe_cpu_buffer **ucbp)
 {
 	struct event_file_link *link;
+	struct uprobe_cpu_buffer *ucb;
+
+	ucb = prepare_uprobe_buffer(tu, regs, ucbp);
 
 	rcu_read_lock();
 	trace_probe_for_each_link_rcu(link, &tu->tp)
-		__uprobe_trace_func(tu, func, regs, ucbp, link->file);
+		__uprobe_trace_func(tu, func, regs, ucb, link->file);
 	rcu_read_unlock();
 }
 
