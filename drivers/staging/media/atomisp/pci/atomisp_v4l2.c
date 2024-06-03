@@ -1099,17 +1099,17 @@ atomisp_load_firmware(struct atomisp_device *isp)
 
 	if ((isp->media_dev.hw_revision >> ATOMISP_HW_REVISION_SHIFT) ==
 	    ATOMISP_HW_REVISION_ISP2401)
-		fw_path = "shisp_2401a0_v21.bin";
+		fw_path = "intel/ipu/shisp_2401a0_v21.bin";
 
 	if (isp->media_dev.hw_revision ==
 	    ((ATOMISP_HW_REVISION_ISP2401_LEGACY << ATOMISP_HW_REVISION_SHIFT) |
 	     ATOMISP_HW_STEPPING_A0))
-		fw_path = "shisp_2401a0_legacy_v21.bin";
+		fw_path = "intel/ipu/shisp_2401a0_legacy_v21.bin";
 
 	if (isp->media_dev.hw_revision ==
 	    ((ATOMISP_HW_REVISION_ISP2400 << ATOMISP_HW_REVISION_SHIFT) |
 	     ATOMISP_HW_STEPPING_B0))
-		fw_path = "shisp_2400b0_v21.bin";
+		fw_path = "intel/ipu/shisp_2400b0_v21.bin";
 
 	if (!fw_path) {
 		dev_err(isp->dev, "Unsupported hw_revision 0x%x\n",
@@ -1118,6 +1118,9 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	}
 
 	rc = request_firmware(&fw, fw_path, isp->dev);
+	/* Fallback to old fw_path without "intel/ipu/" prefix */
+	if (rc)
+		rc = request_firmware(&fw, kbasename(fw_path), isp->dev);
 	if (rc) {
 		dev_err(isp->dev,
 			"atomisp: Error %d while requesting firmware %s\n",
