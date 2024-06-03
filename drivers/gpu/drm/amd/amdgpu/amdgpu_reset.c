@@ -160,3 +160,37 @@ void amdgpu_device_unlock_reset_domain(struct amdgpu_reset_domain *reset_domain)
 	atomic_set(&reset_domain->in_gpu_reset, 0);
 	up_write(&reset_domain->sem);
 }
+
+void amdgpu_reset_get_desc(struct amdgpu_reset_context *rst_ctxt, char *buf,
+			   size_t len)
+{
+	struct amdgpu_ring *ring;
+
+	if (!buf || !len)
+		return;
+
+	switch (rst_ctxt->src) {
+	case AMDGPU_RESET_SRC_JOB:
+		if (rst_ctxt->job) {
+			ring = amdgpu_job_ring(rst_ctxt->job);
+			snprintf(buf, len, "job hang on ring:%s", ring->name);
+		} else {
+			strscpy(buf, "job hang", len);
+		}
+		break;
+	case AMDGPU_RESET_SRC_RAS:
+		strscpy(buf, "RAS error", len);
+		break;
+	case AMDGPU_RESET_SRC_MES:
+		strscpy(buf, "MES hang", len);
+		break;
+	case AMDGPU_RESET_SRC_HWS:
+		strscpy(buf, "HWS hang", len);
+		break;
+	case AMDGPU_RESET_SRC_USER:
+		strscpy(buf, "user trigger", len);
+		break;
+	default:
+		strscpy(buf, "unknown", len);
+	}
+}
