@@ -21,7 +21,8 @@
 #ifdef CONFIG_DYNAMIC_FTRACE
 #define ASSIGN_OPS_HASH(opsname, val) \
 	.func_hash		= val, \
-	.local_hash.regex_lock	= __MUTEX_INITIALIZER(opsname.local_hash.regex_lock),
+	.local_hash.regex_lock	= __MUTEX_INITIALIZER(opsname.local_hash.regex_lock), \
+	.subop_list		= LIST_HEAD_INIT(opsname.subop_list),
 #else
 #define ASSIGN_OPS_HASH(opsname, val)
 #endif
