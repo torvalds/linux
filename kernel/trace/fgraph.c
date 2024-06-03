@@ -783,11 +783,10 @@ static unsigned long __ftrace_return_to_handler(struct fgraph_ret_regs *ret_regs
 #endif
 
 	bitmap = get_bitmap_bits(current, offset);
-	for (i = 0; i < FGRAPH_ARRAY_SIZE; i++) {
+
+	for_each_set_bit(i, &bitmap, sizeof(bitmap) * BITS_PER_BYTE) {
 		struct fgraph_ops *gops = fgraph_array[i];
 
-		if (!(bitmap & BIT(i)))
-			continue;
 		if (gops == &fgraph_stub)
 			continue;
 
