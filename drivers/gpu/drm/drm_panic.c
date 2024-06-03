@@ -247,40 +247,54 @@ static void drm_panic_blit32(struct iosys_map *dmap, unsigned int dpitch,
 				iosys_map_wr(dmap, y * dpitch + x * sizeof(u32), u32, fg32);
 }
 
+static void drm_panic_blit_pixel(struct drm_scanout_buffer *sb, struct drm_rect *clip,
+				 const u8 *sbuf8, unsigned int spitch, u32 fg_color)
+{
+	unsigned int y, x;
+
+	for (y = 0; y < drm_rect_height(clip); y++)
+		for (x = 0; x < drm_rect_width(clip); x++)
+			if (drm_panic_is_pixel_fg(sbuf8, spitch, x, y))
+				sb->set_pixel(sb, clip->x1 + x, clip->y1 + y, fg_color);
+}
+
 /*
  * drm_panic_blit - convert a monochrome image to a linear framebuffer
- * @dmap: destination iosys_map
- * @dpitch: destination pitch in bytes
+ * @sb: destination scanout buffer
+ * @clip: destination rectangle
  * @sbuf8: source buffer, in monochrome format, 8 pixels per byte.
  * @spitch: source pitch in bytes
- * @height: height of the image to copy, in pixels
- * @width: width of the image to copy, in pixels
  * @fg_color: foreground color, in destination format
- * @pixel_width: pixel width in bytes.
  *
  * This can be used to draw a font character, which is a monochrome image, to a
  * framebuffer in other supported format.
  */
-static void drm_panic_blit(struct iosys_map *dmap, unsigned int dpitch,
-			   const u8 *sbuf8, unsigned int spitch,
-			   unsigned int height, unsigned int width,
-			   u32 fg_color, unsigned int pixel_width)
+static void drm_panic_blit(struct drm_scanout_buffer *sb, struct drm_rect *clip,
+			   const u8 *sbuf8, unsigned int spitch, u32 fg_color)
 {
-	switch (pixel_width) {
+	struct iosys_map map;
+
+	if (sb->set_pixel)
+		return drm_panic_blit_pixel(sb, clip, sbuf8, spitch, fg_color);
+
+	map = sb->map[0];
+	iosys_map_incr(&map, clip->y1 * sb->pitch[0] + clip->x1 * sb->format->cpp[0]);
+
+	switch (sb->format->cpp[0]) {
 	case 2:
-		drm_panic_blit16(dmap, dpitch, sbuf8, spitch,
-				 height, width, fg_color);
+		drm_panic_blit16(&map, sb->pitch[0], sbuf8, spitch,
+				 drm_rect_height(clip), drm_rect_width(clip), fg_color);
 	break;
 	case 3:
-		drm_panic_blit24(dmap, dpitch, sbuf8, spitch,
-				 height, width, fg_color);
+		drm_panic_blit24(&map, sb->pitch[0], sbuf8, spitch,
+				 drm_rect_height(clip), drm_rect_width(clip), fg_color);
 	break;
 	case 4:
-		drm_panic_blit32(dmap, dpitch, sbuf8, spitch,
-				 height, width, fg_color);
+		drm_panic_blit32(&map, sb->pitch[0], sbuf8, spitch,
+				 drm_rect_height(clip), drm_rect_width(clip), fg_color);
 	break;
 	default:
-		WARN_ONCE(1, "Can't blit with pixel width %d\n", pixel_width);
+		WARN_ONCE(1, "Can't blit with pixel width %d\n", sb->format->cpp[0]);
 	}
 }
 
@@ -324,33 +338,51 @@ static void drm_panic_fill32(struct iosys_map *dmap, unsigned int dpitch,
 			iosys_map_wr(dmap, y * dpitch + x * sizeof(u32), u32, color);
 }
 
+static void drm_panic_fill_pixel(struct drm_scanout_buffer *sb,
+				 struct drm_rect *clip,
+				 u32 color)
+{
+	unsigned int y, x;
+
+	for (y = 0; y < drm_rect_height(clip); y++)
+		for (x = 0; x < drm_rect_width(clip); x++)
+			sb->set_pixel(sb, clip->x1 + x, clip->y1 + y, color);
+}
+
 /*
  * drm_panic_fill - Fill a rectangle with a color
- * @dmap: destination iosys_map, pointing to the top left corner of the rectangle
- * @dpitch: destination pitch in bytes
- * @height: height of the rectangle, in pixels
- * @width: width of the rectangle, in pixels
- * @color: color to fill the rectangle.
- * @pixel_width: pixel width in bytes
+ * @sb: destination scanout buffer
+ * @clip: destination rectangle
+ * @color: foreground color, in destination format
  *
  * Fill a rectangle with a color, in a linear framebuffer.
  */
-static void drm_panic_fill(struct iosys_map *dmap, unsigned int dpitch,
-			   unsigned int height, unsigned int width,
-			   u32 color, unsigned int pixel_width)
+static void drm_panic_fill(struct drm_scanout_buffer *sb, struct drm_rect *clip,
+			   u32 color)
 {
-	switch (pixel_width) {
+	struct iosys_map map;
+
+	if (sb->set_pixel)
+		return drm_panic_fill_pixel(sb, clip, color);
+
+	map = sb->map[0];
+	iosys_map_incr(&map, clip->y1 * sb->pitch[0] + clip->x1 * sb->format->cpp[0]);
+
+	switch (sb->format->cpp[0]) {
 	case 2:
-		drm_panic_fill16(dmap, dpitch, height, width, color);
+		drm_panic_fill16(&map, sb->pitch[0], drm_rect_height(clip),
+				 drm_rect_width(clip), color);
 	break;
 	case 3:
-		drm_panic_fill24(dmap, dpitch, height, width, color);
+		drm_panic_fill24(&map, sb->pitch[0], drm_rect_height(clip),
+				 drm_rect_width(clip), color);
 	break;
 	case 4:
-		drm_panic_fill32(dmap, dpitch, height, width, color);
+		drm_panic_fill32(&map, sb->pitch[0], drm_rect_height(clip),
+				 drm_rect_width(clip), color);
 	break;
 	default:
-		WARN_ONCE(1, "Can't fill with pixel width %d\n", pixel_width);
+		WARN_ONCE(1, "Can't fill with pixel width %d\n", sb->format->cpp[0]);
 	}
 }
 
@@ -383,25 +415,24 @@ static void draw_txt_rectangle(struct drm_scanout_buffer *sb,
 	int i, j;
 	const u8 *src;
 	size_t font_pitch = DIV_ROUND_UP(font->width, 8);
-	struct iosys_map dst;
-	unsigned int px_width = sb->format->cpp[0];
-	int left = 0;
+	struct drm_rect rec;
 
 	msg_lines = min(msg_lines,  drm_rect_height(clip) / font->height);
 	for (i = 0; i < msg_lines; i++) {
 		size_t line_len = min(msg[i].len, drm_rect_width(clip) / font->width);
 
-		if (centered)
-			left = (drm_rect_width(clip) - (line_len * font->width)) / 2;
+		rec.y1 = clip->y1 +  i * font->height;
+		rec.y2 = rec.y1 + font->height;
+		rec.x1 = clip->x1;
 
-		dst = sb->map[0];
-		iosys_map_incr(&dst, (clip->y1 + i * font->height) * sb->pitch[0] +
-				     (clip->x1 + left) * px_width);
+		if (centered)
+			rec.x1 += (drm_rect_width(clip) - (line_len * font->width)) / 2;
+
 		for (j = 0; j < line_len; j++) {
 			src = get_char_bitmap(font, msg[i].txt[j], font_pitch);
-			drm_panic_blit(&dst, sb->pitch[0], src, font_pitch,
-				       font->height, font->width, color, px_width);
-			iosys_map_incr(&dst, font->width * px_width);
+			rec.x2 = rec.x1 + font->width;
+			drm_panic_blit(sb, &rec, src, font_pitch, color);
+			rec.x1 += font->width;
 		}
 	}
 }
@@ -416,13 +447,15 @@ static void draw_panic_static(struct drm_scanout_buffer *sb)
 	u32 fg_color = CONFIG_DRM_PANIC_FOREGROUND_COLOR;
 	u32 bg_color = CONFIG_DRM_PANIC_BACKGROUND_COLOR;
 	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
-	struct drm_rect r_logo, r_msg;
+	struct drm_rect r_screen, r_logo, r_msg;
 
 	if (!font)
 		return;
 
 	fg_color = convert_from_xrgb8888(fg_color, sb->format->format);
 	bg_color = convert_from_xrgb8888(bg_color, sb->format->format);
+
+	r_screen = DRM_RECT_INIT(0, 0, sb->width, sb->height);
 
 	r_logo = DRM_RECT_INIT(0, 0,
 			       get_max_line_len(logo, logo_lines) * font->width,
@@ -435,8 +468,7 @@ static void draw_panic_static(struct drm_scanout_buffer *sb)
 	drm_rect_translate(&r_msg, (sb->width - r_msg.x2) / 2, (sb->height - r_msg.y2) / 2);
 
 	/* Fill with the background color, and draw text on top */
-	drm_panic_fill(&sb->map[0], sb->pitch[0], sb->height, sb->width,
-		       bg_color, sb->format->cpp[0]);
+	drm_panic_fill(sb, &r_screen, bg_color);
 
 	if ((r_msg.x1 >= drm_rect_width(&r_logo) || r_msg.y1 >= drm_rect_height(&r_logo)) &&
 	    drm_rect_width(&r_logo) < sb->width && drm_rect_height(&r_logo) < sb->height) {
