@@ -152,6 +152,15 @@ setup_hsr_interfaces()
 	ip -net "$ns3" addr add 100.64.0.3/24 dev hsr3
 	ip -net "$ns3" addr add dead:beef:1::3/64 dev hsr3 nodad
 
+	ip -net "$ns1" link set address 00:11:22:00:01:01 dev ns1eth1
+	ip -net "$ns1" link set address 00:11:22:00:01:02 dev ns1eth2
+
+	ip -net "$ns2" link set address 00:11:22:00:02:01 dev ns2eth1
+	ip -net "$ns2" link set address 00:11:22:00:02:02 dev ns2eth2
+
+	ip -net "$ns3" link set address 00:11:22:00:03:01 dev ns3eth1
+	ip -net "$ns3" link set address 00:11:22:00:03:02 dev ns3eth2
+
 	# All Links up
 	ip -net "$ns1" link set ns1eth1 up
 	ip -net "$ns1" link set ns1eth2 up
