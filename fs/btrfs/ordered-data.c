@@ -224,7 +224,7 @@ static void insert_ordered_extent(struct btrfs_ordered_extent *entry)
 	spin_lock_irq(&inode->ordered_tree_lock);
 	node = tree_insert(&inode->ordered_tree, entry->file_offset,
 			   &entry->rb_node);
-	if (node)
+	if (unlikely(node))
 		btrfs_panic(fs_info, -EEXIST,
 				"inconsistency in ordered tree at offset %llu",
 				entry->file_offset);
@@ -1303,7 +1303,7 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	}
 
 	node = tree_insert(&inode->ordered_tree, new->file_offset, &new->rb_node);
-	if (node)
+	if (unlikely(node))
 		btrfs_panic(fs_info, -EEXIST,
 			"zoned: inconsistency in ordered tree at offset %llu",
 			new->file_offset);
