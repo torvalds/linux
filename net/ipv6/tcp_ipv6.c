@@ -1196,9 +1196,9 @@ static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	tcp_v6_send_ack(sk, skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
 			tcp_tw_tsval(tcptw),
-			tcptw->tw_ts_recent, tw->tw_bound_dev_if, &key,
-			tw->tw_tclass, cpu_to_be32(tw->tw_flowlabel), tw->tw_priority,
-			tw->tw_txhash);
+			READ_ONCE(tcptw->tw_ts_recent), tw->tw_bound_dev_if,
+			&key, tw->tw_tclass, cpu_to_be32(tw->tw_flowlabel),
+			tw->tw_priority, tw->tw_txhash);
 
 #ifdef CONFIG_TCP_AO
 out:
