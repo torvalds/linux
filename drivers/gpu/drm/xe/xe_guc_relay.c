@@ -761,7 +761,14 @@ static void relay_process_incoming_action(struct xe_guc_relay *relay)
 
 static bool relay_needs_worker(struct xe_guc_relay *relay)
 {
-	return !list_empty(&relay->incoming_actions);
+	bool is_empty;
+
+	spin_lock(&relay->lock);
+	is_empty = list_empty(&relay->incoming_actions);
+	spin_unlock(&relay->lock);
+
+	return !is_empty;
+
 }
 
 static void relay_kick_worker(struct xe_guc_relay *relay)
