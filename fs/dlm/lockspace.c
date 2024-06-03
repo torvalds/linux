@@ -629,6 +629,9 @@ int dlm_new_user_lockspace(const char *name, const char *cluster,
 			   void *ops_arg, int *ops_result,
 			   dlm_lockspace_t **lockspace)
 {
+	if (flags & DLM_LSFL_SOFTIRQ)
+		return -EINVAL;
+
 	return __dlm_new_lockspace(name, cluster, flags, lvblen, ops,
 				   ops_arg, ops_result, lockspace);
 }
