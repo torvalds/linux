@@ -585,16 +585,17 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 
 		if (fsck_err_on(k.k->version.lo > atomic64_read(&c->key_version), c,
 				bkey_version_in_future,
-				"key version number higher than recorded: %llu > %llu",
-				k.k->version.lo,
-				atomic64_read(&c->key_version)))
+				"key version number higher than recorded %llu\n  %s",
+				atomic64_read(&c->key_version),
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			atomic64_set(&c->key_version, k.k->version.lo);
 	}
 
 	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, k),
 				c, btree_bitmap_not_marked,
 				"btree ptr not marked in member info btree allocated bitmap\n  %s",
-				(bch2_bkey_val_to_text(&buf, c, k),
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k),
 				 buf.buf))) {
 		mutex_lock(&c->sb_lock);
 		bch2_dev_btree_bitmap_mark(c, k);
@@ -673,8 +674,7 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool in
 
 static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 {
-	return  (int) btree_id_to_gc_phase(l) -
-		(int) btree_id_to_gc_phase(r);
+	return cmp_int(gc_btree_order(l), gc_btree_order(r));
 }
 
 static int bch2_gc_btrees(struct bch_fs *c)
@@ -711,7 +711,7 @@ fsck_err:
 static int bch2_mark_superblocks(struct bch_fs *c)
 {
 	mutex_lock(&c->sb_lock);
-	gc_pos_set(c, gc_phase(GC_PHASE_SB));
+	gc_pos_set(c, gc_phase(GC_PHASE_sb));
 
 	int ret = bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_gc);
 	mutex_unlock(&c->sb_lock);
@@ -1209,7 +1209,7 @@ int bch2_check_allocations(struct bch_fs *c)
 	if (ret)
 		goto out;
 
-	gc_pos_set(c, gc_phase(GC_PHASE_START));
+	gc_pos_set(c, gc_phase(GC_PHASE_start));
 
 	ret = bch2_mark_superblocks(c);
 	BUG_ON(ret);
@@ -1231,7 +1231,7 @@ out:
 
 	percpu_down_write(&c->mark_lock);
 	/* Indicates that gc is no longer in progress: */
-	__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
+	__gc_pos_set(c, gc_phase(GC_PHASE_not_running));
 
 	bch2_gc_free(c);
 	percpu_up_write(&c->mark_lock);

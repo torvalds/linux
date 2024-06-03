@@ -73,3 +73,4 @@ int snd_sof_create_page_table(struct device *dev,
 EXPORT_SYMBOL(snd_sof_create_page_table);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF utils");
