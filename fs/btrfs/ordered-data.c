@@ -1266,13 +1266,13 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	 */
 	spin_lock_irq(&root->ordered_extent_lock);
 	spin_lock(&inode->ordered_tree_lock);
-	/* Remove from tree once */
-	node = &ordered->rb_node;
-	rb_erase(node, &inode->ordered_tree);
-	RB_CLEAR_NODE(node);
-	if (inode->ordered_tree_last == node)
-		inode->ordered_tree_last = NULL;
 
+	/*
+	 * We don't have overlapping ordered extents (that would imply double
+	 * allocation of extents) and we checked above that the split length
+	 * does not cross the ordered extent's num_bytes field, so there's
+	 * no need to remove it and re-insert it in the tree.
+	 */
 	ordered->file_offset += len;
 	ordered->disk_bytenr += len;
 	ordered->num_bytes -= len;
@@ -1301,14 +1301,6 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 		list_move_tail(&sum->list, &new->list);
 		offset += sum->len;
 	}
-
-	/* Re-insert the node */
-	node = tree_insert(&inode->ordered_tree, ordered->file_offset,
-			   &ordered->rb_node);
-	if (node)
-		btrfs_panic(fs_info, -EEXIST,
-			"zoned: inconsistency in ordered tree at offset %llu",
-			ordered->file_offset);
 
 	node = tree_insert(&inode->ordered_tree, new->file_offset, &new->rb_node);
 	if (node)
