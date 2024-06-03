@@ -62,6 +62,7 @@ struct dmub_notification;
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
+#define MAX_HOST_ROUTERS_NUM 2
 
 /* Display Core Interfaces */
 struct dc_versions {
@@ -594,6 +595,7 @@ struct dc_clocks {
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
+	int host_router_bw_kbps[MAX_HOST_ROUTERS_NUM];
 
 	/*
 	 * @fw_based_mclk_switching
@@ -1045,6 +1047,7 @@ struct dc_debug_options {
 	unsigned int force_easf;
 	unsigned int force_sharpness;
 	unsigned int force_lls;
+	bool notify_dpia_hr_bw;
 };
 
 
