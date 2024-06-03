@@ -2331,6 +2331,9 @@ static void mlx5e_handle_rx_cqe_mpwrq_shampo(struct mlx5e_rq *rq, struct mlx5_cq
 
 			frag_page = &wi->alloc_units.frag_pages[page_idx];
 			mlx5e_shampo_fill_skb_data(*skb, rq, frag_page, data_bcnt, data_offset);
+		} else {
+			stats->hds_nodata_packets++;
+			stats->hds_nodata_bytes += head_size;
 		}
 	}
 

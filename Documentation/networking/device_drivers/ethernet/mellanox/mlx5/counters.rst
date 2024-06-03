@@ -209,6 +209,15 @@ the software port.
        headers that require additional memory to be allocated.
      - Informative
 
+   * - `rx[i]_hds_nodata_packets`
+     - Number of header only packets in header/data split mode [#accel]_.
+     - Informative
+
+   * - `rx[i]_hds_nodata_bytes`
+     - Number of bytes for header only packets in header/data split mode
+       [#accel]_.
+     - Informative
+
    * - `rx[i]_lro_packets`
      - The number of LRO packets received on ring i [#accel]_.
      - Acceleration
