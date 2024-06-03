@@ -1107,8 +1107,6 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
 		qp->bf.bfreg = &dev->fp_bfreg;
-	else if (qp->flags & MLX5_IB_QP_CREATE_WC_TEST)
-		qp->bf.bfreg = &dev->wc_bfreg;
 	else
 		qp->bf.bfreg = &dev->bfreg;
 
@@ -2959,14 +2957,6 @@ static void process_create_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
 		return;
 	}
 
-	if (flag == MLX5_IB_QP_CREATE_WC_TEST) {
-		/*
-		 * Special case, if condition didn't meet, it won't be error,
-		 * just different in-kernel flow.
-		 */
-		*flags &= ~MLX5_IB_QP_CREATE_WC_TEST;
-		return;
-	}
 	mlx5_ib_dbg(dev, "Verbs create QP flag 0x%X is not supported\n", flag);
 }
 
@@ -3027,8 +3017,6 @@ static int process_create_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			    IB_QP_CREATE_PCI_WRITE_END_PADDING,
 			    MLX5_CAP_GEN(mdev, end_pad), qp);
 
-	process_create_flag(dev, &create_flags, MLX5_IB_QP_CREATE_WC_TEST,
-			    qp_type != MLX5_IB_QPT_REG_UMR, qp);
 	process_create_flag(dev, &create_flags, MLX5_IB_QP_CREATE_SQPN_QP1,
 			    true, qp);
 
@@ -4607,10 +4595,6 @@ static bool mlx5_ib_modify_qp_allowed(struct mlx5_ib_dev *dev,
 		return true;
 
 	if (qp->type == IB_QPT_RAW_PACKET || qp->type == MLX5_IB_QPT_REG_UMR)
-		return true;
-
-	/* Internal QP used for wc testing, with NOPs in wq */
-	if (qp->flags & MLX5_IB_QP_CREATE_WC_TEST)
 		return true;
 
 	return false;
