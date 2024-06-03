@@ -920,7 +920,20 @@ static bool rereplicate_pred(struct bch_fs *c, void *arg,
 		? c->opts.metadata_replicas
 		: io_opts->data_replicas;
 
-	if (!nr_good || nr_good >= replicas)
+	rcu_read_lock();
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	unsigned i = 0;
+	bkey_for_each_ptr(ptrs, ptr) {
+		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+		if (!ptr->cached &&
+		    (!ca || !ca->mi.durability))
+			data_opts->kill_ptrs |= BIT(i);
+		i++;
+	}
+	rcu_read_unlock();
+
+	if (!data_opts->kill_ptrs &&
+	    (!nr_good || nr_good >= replicas))
 		return false;
 
 	data_opts->target		= 0;
