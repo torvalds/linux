@@ -12,6 +12,7 @@
 #include <linux/kmsg_dump.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/printk.h>
 #include <linux/types.h>
 
 #include <drm/drm_drv.h>
@@ -26,6 +27,12 @@
 MODULE_AUTHOR("Jocelyn Falempe");
 MODULE_DESCRIPTION("DRM panic handler");
 MODULE_LICENSE("GPL");
+
+static char drm_panic_screen[16] = CONFIG_DRM_PANIC_SCREEN;
+module_param_string(panic_screen, drm_panic_screen, sizeof(drm_panic_screen), 0644);
+MODULE_PARM_DESC(panic_screen,
+		 "Choose what will be displayed by drm_panic, 'user' or 'kmsg' [default="
+		 CONFIG_DRM_PANIC_SCREEN "]");
 
 /**
  * DOC: overview
@@ -437,23 +444,17 @@ static void draw_txt_rectangle(struct drm_scanout_buffer *sb,
 	}
 }
 
-/*
- * Draw the panic message at the center of the screen
- */
-static void draw_panic_static(struct drm_scanout_buffer *sb)
+static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 {
 	size_t msg_lines = ARRAY_SIZE(panic_msg);
 	size_t logo_lines = ARRAY_SIZE(logo);
-	u32 fg_color = CONFIG_DRM_PANIC_FOREGROUND_COLOR;
-	u32 bg_color = CONFIG_DRM_PANIC_BACKGROUND_COLOR;
+	u32 fg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR, sb->format->format);
+	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
 	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
 	struct drm_rect r_screen, r_logo, r_msg;
 
 	if (!font)
 		return;
-
-	fg_color = convert_from_xrgb8888(fg_color, sb->format->format);
-	bg_color = convert_from_xrgb8888(bg_color, sb->format->format);
 
 	r_screen = DRM_RECT_INIT(0, 0, sb->width, sb->height);
 
@@ -478,6 +479,85 @@ static void draw_panic_static(struct drm_scanout_buffer *sb)
 }
 
 /*
+ * Draw one line of kmsg, and handle wrapping if it won't fit in the screen width.
+ * Return the y-offset of the next line.
+ */
+static int draw_line_with_wrap(struct drm_scanout_buffer *sb, const struct font_desc *font,
+			       struct drm_panic_line *line, int yoffset, u32 fg_color)
+{
+	int chars_per_row = sb->width / font->width;
+	struct drm_rect r_txt = DRM_RECT_INIT(0, yoffset, sb->width, sb->height);
+	struct drm_panic_line line_wrap;
+
+	if (line->len > chars_per_row) {
+		line_wrap.len = line->len % chars_per_row;
+		line_wrap.txt = line->txt + line->len - line_wrap.len;
+		draw_txt_rectangle(sb, font, &line_wrap, 1, false, &r_txt, fg_color);
+		r_txt.y1 -= font->height;
+		if (r_txt.y1 < 0)
+			return r_txt.y1;
+		while (line_wrap.txt > line->txt) {
+			line_wrap.txt -= chars_per_row;
+			line_wrap.len = chars_per_row;
+			draw_txt_rectangle(sb, font, &line_wrap, 1, false, &r_txt, fg_color);
+			r_txt.y1 -= font->height;
+			if (r_txt.y1 < 0)
+				return r_txt.y1;
+		}
+	} else {
+		draw_txt_rectangle(sb, font, line, 1, false, &r_txt, fg_color);
+		r_txt.y1 -= font->height;
+	}
+	return r_txt.y1;
+}
+
+/*
+ * Draw the kmsg buffer to the screen, starting from the youngest message at the bottom,
+ * and going up until reaching the top of the screen.
+ */
+static void draw_panic_static_kmsg(struct drm_scanout_buffer *sb)
+{
+	u32 fg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR, sb->format->format);
+	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
+	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
+	struct drm_rect r_screen = DRM_RECT_INIT(0, 0, sb->width, sb->height);
+	struct kmsg_dump_iter iter;
+	char kmsg_buf[512];
+	size_t kmsg_len;
+	struct drm_panic_line line;
+	int yoffset;
+
+	if (!font)
+		return;
+
+	yoffset = sb->height - font->height - (sb->height % font->height) / 2;
+
+	/* Fill with the background color, and draw text on top */
+	drm_panic_fill(sb, &r_screen, bg_color);
+
+	kmsg_dump_rewind(&iter);
+	while (kmsg_dump_get_buffer(&iter, false, kmsg_buf, sizeof(kmsg_buf), &kmsg_len)) {
+		char *start;
+		char *end;
+
+		/* ignore terminating NUL and newline */
+		start = kmsg_buf + kmsg_len - 2;
+		end = kmsg_buf + kmsg_len - 1;
+		while (start > kmsg_buf && yoffset >= 0) {
+			while (start > kmsg_buf && *start != '\n')
+				start--;
+			/* don't count the newline character */
+			line.txt = start + (start == kmsg_buf ? 0 : 1);
+			line.len = end - line.txt;
+
+			yoffset = draw_line_with_wrap(sb, font, &line, yoffset, fg_color);
+			end = start;
+			start--;
+		}
+	}
+}
+
+/*
  * drm_panic_is_format_supported()
  * @format: a fourcc color code
  * Returns: true if supported, false otherwise.
@@ -489,6 +569,15 @@ static bool drm_panic_is_format_supported(const struct drm_format_info *format)
 	if (format->num_planes != 1)
 		return false;
 	return convert_from_xrgb8888(0xffffff, format->format) != 0;
+}
+
+static void draw_panic_dispatch(struct drm_scanout_buffer *sb)
+{
+	if (!strcmp(drm_panic_screen, "kmsg")) {
+		draw_panic_static_kmsg(sb);
+	} else {
+		draw_panic_static_user(sb);
+	}
 }
 
 static void draw_panic_plane(struct drm_plane *plane)
@@ -503,7 +592,7 @@ static void draw_panic_plane(struct drm_plane *plane)
 	ret = plane->helper_private->get_scanout_buffer(plane, &sb);
 
 	if (!ret && drm_panic_is_format_supported(sb.format)) {
-		draw_panic_static(&sb);
+		draw_panic_dispatch(&sb);
 		if (plane->helper_private->panic_flush)
 			plane->helper_private->panic_flush(plane);
 	}
