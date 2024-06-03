@@ -44,13 +44,18 @@ properties:
 
 required:
   - compatible
-  - enable-gpios
   - select-gpios
   - orientation-switch
   - port
 
 allOf:
   - $ref: usb-switch.yaml#
+  - if:
+      required:
+        - mode-switch
+    then:
+      required:
+        - enable-gpios
 
 additionalProperties: false
 
