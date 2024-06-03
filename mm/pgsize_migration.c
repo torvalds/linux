@@ -116,8 +116,22 @@ void vma_set_pad_pages(struct vm_area_struct *vma,
 	if (!is_pgsize_migration_enabled())
 		return;
 
-	vm_flags_clear(vma, VM_PAD_MASK);
-	vm_flags_set(vma, nr_pages << VM_PAD_SHIFT);
+	/*
+	 * Usually to modify vm_flags we need to take exclusive mmap_lock but here
+	 * only have the lock in read mode, to avoid all DONTNEED/DONTNEED_LOCKED
+	 * calls needing the write lock.
+	 *
+	 * A race to the flags update can only happen with another MADV_DONTNEED on
+	 * the same process and same range (VMA).
+	 *
+	 * In practice, this specific scenario is not possible because the action that
+	 * could cause it is usually performed at most once per VMA and only by the
+	 * dynamic linker.
+	 *
+	 * Forego protection for this case, to avoid penalties in the common cases.
+	 */
+	__vm_flags_mod(vma, 0, VM_PAD_MASK);
+	__vm_flags_mod(vma, nr_pages << VM_PAD_SHIFT, 0);
 }
 
 unsigned long vma_pad_pages(struct vm_area_struct *vma)
