@@ -1596,9 +1596,7 @@ static void mlx5e_shampo_complete_rx_cqe(struct mlx5e_rq *rq,
 	struct mlx5e_rq_stats *stats = rq->stats;
 
 	stats->packets++;
-	stats->gro_packets++;
 	stats->bytes += cqe_bcnt;
-	stats->gro_bytes += cqe_bcnt;
 	if (NAPI_GRO_CB(skb)->count != 1)
 		return;
 	mlx5e_build_rx_skb(cqe, cqe_bcnt, rq, skb);
@@ -2240,14 +2238,19 @@ mlx5e_shampo_flush_skb(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe, bool match)
 {
 	struct sk_buff *skb = rq->hw_gro_data->skb;
 	struct mlx5e_rq_stats *stats = rq->stats;
+	u16 gro_count = NAPI_GRO_CB(skb)->count;
 
-	stats->gro_skbs++;
 	if (likely(skb_shinfo(skb)->nr_frags))
 		mlx5e_shampo_align_fragment(skb, rq->mpwqe.log_stride_sz);
-	if (NAPI_GRO_CB(skb)->count > 1)
+	if (gro_count > 1) {
+		stats->gro_skbs++;
+		stats->gro_packets += gro_count;
+		stats->gro_bytes += skb->data_len + skb_headlen(skb) * gro_count;
+
 		mlx5e_shampo_update_hdr(rq, cqe, match);
-	else
+	} else {
 		skb_shinfo(skb)->gso_size = 0;
+	}
 	napi_gro_receive(rq->cq.napi, skb);
 	rq->hw_gro_data->skb = NULL;
 }
