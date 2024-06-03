@@ -18,15 +18,6 @@
 #include "ftrace_internal.h"
 #include "trace.h"
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-#define ASSIGN_OPS_HASH(opsname, val) \
-	.func_hash		= val, \
-	.local_hash.regex_lock	= __MUTEX_INITIALIZER(opsname.local_hash.regex_lock), \
-	.subop_list		= LIST_HEAD_INIT(opsname.subop_list),
-#else
-#define ASSIGN_OPS_HASH(opsname, val)
-#endif
-
 /*
  * FGRAPH_FRAME_SIZE:	Size in bytes of the meta data on the shadow stack
  * FGRAPH_FRAME_OFFSET:	Size in long words of the meta data frame
@@ -154,6 +145,13 @@ static inline unsigned long
 get_bitmap_bits(struct task_struct *t, int offset)
 {
 	return (t->ret_stack[offset] >> FGRAPH_INDEX_SHIFT) & FGRAPH_INDEX_MASK;
+}
+
+/* For BITMAP type: set the bits in the bitmap bitmask at @offset on ret_stack */
+static inline void
+set_bitmap_bits(struct task_struct *t, int offset, unsigned long bitmap)
+{
+	t->ret_stack[offset] |= (bitmap << FGRAPH_INDEX_SHIFT);
 }
 
 /* Write the bitmap to the ret_stack at @offset (does index, offset and bitmask) */
@@ -382,7 +380,8 @@ int function_graph_enter(unsigned long ret, unsigned long func,
 		if (gops == &fgraph_stub)
 			continue;
 
-		if (gops->entryfunc(&trace, gops))
+		if (ftrace_ops_test(&gops->ops, func, NULL) &&
+		    gops->entryfunc(&trace, gops))
 			bitmap |= BIT(i);
 	}
 
@@ -665,15 +664,27 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 
 static struct ftrace_ops graph_ops = {
 	.func			= ftrace_graph_func,
-	.flags			= FTRACE_OPS_FL_INITIALIZED |
-				   FTRACE_OPS_FL_PID |
-				   FTRACE_OPS_GRAPH_STUB,
+	.flags			= FTRACE_OPS_GRAPH_STUB,
 #ifdef FTRACE_GRAPH_TRAMP_ADDR
 	.trampoline		= FTRACE_GRAPH_TRAMP_ADDR,
 	/* trampoline_size is only needed for dynamically allocated tramps */
 #endif
-	ASSIGN_OPS_HASH(graph_ops, &global_ops.local_hash)
 };
+
+void fgraph_init_ops(struct ftrace_ops *dst_ops,
+		     struct ftrace_ops *src_ops)
+{
+	dst_ops->flags = FTRACE_OPS_FL_PID | FTRACE_OPS_GRAPH_STUB;
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+	if (src_ops) {
+		dst_ops->func_hash = &src_ops->local_hash;
+		mutex_init(&dst_ops->local_hash.regex_lock);
+		INIT_LIST_HEAD(&dst_ops->subop_list);
+		dst_ops->flags |= FTRACE_OPS_FL_INITIALIZED;
+	}
+#endif
+}
 
 void ftrace_graph_sleep_time_control(bool enable)
 {
@@ -877,6 +888,7 @@ static int start_graph_tracing(void)
 
 int register_ftrace_graph(struct fgraph_ops *gops)
 {
+	int command = 0;
 	int ret = 0;
 	int i;
 
@@ -894,7 +906,7 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 			break;
 	}
 	if (i >= FGRAPH_ARRAY_SIZE) {
-		ret = -EBUSY;
+		ret = -ENOSPC;
 		goto out;
 	}
 
@@ -908,18 +920,22 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 	if (ftrace_graph_active == 1) {
 		register_pm_notifier(&ftrace_suspend_notifier);
 		ret = start_graph_tracing();
-		if (ret) {
-			ftrace_graph_active--;
-			goto out;
-		}
+		if (ret)
+			goto error;
 		/*
 		 * Some archs just test to see if these are not
 		 * the default function
 		 */
 		ftrace_graph_return = return_run;
 		ftrace_graph_entry = entry_run;
+		command = FTRACE_START_FUNC_RET;
+	}
 
-		ret = ftrace_startup(&graph_ops, FTRACE_START_FUNC_RET);
+	ret = ftrace_startup_subops(&graph_ops, &gops->ops, command);
+error:
+	if (ret) {
+		fgraph_array[i] = &fgraph_stub;
+		ftrace_graph_active--;
 	}
 out:
 	mutex_unlock(&ftrace_lock);
@@ -928,6 +944,7 @@ out:
 
 void unregister_ftrace_graph(struct fgraph_ops *gops)
 {
+	int command = 0;
 	int i;
 
 	mutex_lock(&ftrace_lock);
@@ -935,25 +952,29 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 	if (unlikely(!ftrace_graph_active))
 		goto out;
 
-	for (i = 0; i < fgraph_array_cnt; i++)
-		if (gops == fgraph_array[i])
-			break;
-	if (i >= fgraph_array_cnt)
+	if (unlikely(gops->idx < 0 || gops->idx >= fgraph_array_cnt))
 		goto out;
 
-	fgraph_array[i] = &fgraph_stub;
-	if (i + 1 == fgraph_array_cnt) {
-		for (; i >= 0; i--)
-			if (fgraph_array[i] != &fgraph_stub)
-				break;
+	WARN_ON_ONCE(fgraph_array[gops->idx] != gops);
+
+	fgraph_array[gops->idx] = &fgraph_stub;
+	if (gops->idx + 1 == fgraph_array_cnt) {
+		i = gops->idx;
+		while (i >= 0 && fgraph_array[i] == &fgraph_stub)
+			i--;
 		fgraph_array_cnt = i + 1;
 	}
 
 	ftrace_graph_active--;
+
+	if (!ftrace_graph_active)
+		command = FTRACE_STOP_FUNC_RET;
+
+	ftrace_shutdown_subops(&graph_ops, &gops->ops, command);
+
 	if (!ftrace_graph_active) {
 		ftrace_graph_return = ftrace_stub_graph;
 		ftrace_graph_entry = ftrace_graph_entry_stub;
-		ftrace_shutdown(&graph_ops, FTRACE_STOP_FUNC_RET);
 		unregister_pm_notifier(&ftrace_suspend_notifier);
 		unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 	}
