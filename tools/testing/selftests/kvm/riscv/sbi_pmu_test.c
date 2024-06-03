@@ -15,6 +15,7 @@
 #include "processor.h"
 #include "sbi.h"
 #include "arch_timer.h"
+#include "ucall_common.h"
 
 /* Maximum counters(firmware + hardware) */
 #define RISCV_MAX_PMU_COUNTERS 64
