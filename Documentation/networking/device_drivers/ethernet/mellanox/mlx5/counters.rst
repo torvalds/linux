@@ -204,11 +204,6 @@ the software port.
        with a GRO count > 1 are counted.
      - Informative
 
-   * - `rx[i]_gro_match_packets`
-     - Number of received packets processed using hardware-accelerated GRO that
-       met the flow table match criteria.
-     - Informative
-
    * - `rx[i]_gro_large_hds`
      - Number of receive packets using hardware-accelerated GRO that have large
        headers that require additional memory to be allocated.

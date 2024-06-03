@@ -2296,8 +2296,6 @@ static void mlx5e_handle_rx_cqe_mpwrq_shampo(struct mlx5e_rq *rq, struct mlx5_cq
 		goto mpwrq_cqe_out;
 	}
 
-	stats->gro_match_packets += match;
-
 	if (*skb && (!match || !(mlx5e_hw_gro_skb_has_enough_space(*skb, data_bcnt)))) {
 		match = false;
 		mlx5e_shampo_flush_skb(rq, cqe, match);

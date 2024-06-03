@@ -153,7 +153,6 @@ struct mlx5e_sw_stats {
 	u64 rx_gro_packets;
 	u64 rx_gro_bytes;
 	u64 rx_gro_skbs;
-	u64 rx_gro_match_packets;
 	u64 rx_gro_large_hds;
 	u64 rx_mcast_packets;
 	u64 rx_ecn_mark;
@@ -352,7 +351,6 @@ struct mlx5e_rq_stats {
 	u64 gro_packets;
 	u64 gro_bytes;
 	u64 gro_skbs;
-	u64 gro_match_packets;
 	u64 gro_large_hds;
 	u64 mcast_packets;
 	u64 ecn_mark;
