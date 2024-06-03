@@ -2212,8 +2212,8 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 	if (likely(frag_size <= BIT(MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE))) {
 		/* build SKB around header */
 		dma_sync_single_range_for_cpu(rq->pdev, head->addr, 0, frag_size, rq->buff.map_dir);
-		prefetchw(hdr);
-		prefetch(data);
+		net_prefetchw(hdr);
+		net_prefetch(data);
 		skb = mlx5e_build_linear_skb(rq, hdr, frag_size, rx_headroom, head_size, 0);
 
 		if (unlikely(!skb))
@@ -2230,7 +2230,7 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 			return NULL;
 		}
 
-		prefetchw(skb->data);
+		net_prefetchw(skb->data);
 		mlx5e_copy_skb_header(rq, skb, head->frag_page->page, head->addr,
 				      head_offset + rx_headroom,
 				      rx_headroom, head_size);
