@@ -63,9 +63,9 @@ static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	ev_fd->eventfd_async = eventfd_async;
 	ctx->has_evfd = true;
-	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
 	atomic_set(&ev_fd->refs, 1);
 	atomic_set(&ev_fd->ops, 0);
+	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
 	return 0;
 }
 
@@ -78,8 +78,8 @@ int io_eventfd_unregister(struct io_ring_ctx *ctx)
 	if (ev_fd) {
 		ctx->has_evfd = false;
 		rcu_assign_pointer(ctx->io_ev_fd, NULL);
-		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_FREE_BIT), &ev_fd->ops))
-			call_rcu(&ev_fd->rcu, io_eventfd_ops);
+		if (atomic_dec_and_test(&ev_fd->refs))
+			call_rcu(&ev_fd->rcu, io_eventfd_free);
 		return 0;
 	}
 

@@ -541,29 +541,33 @@ static __cold void io_queue_deferred(struct io_ring_ctx *ctx)
 	}
 }
 
-void io_eventfd_ops(struct rcu_head *rcu)
+void io_eventfd_free(struct rcu_head *rcu)
 {
 	struct io_ev_fd *ev_fd = container_of(rcu, struct io_ev_fd, rcu);
-	int ops = atomic_xchg(&ev_fd->ops, 0);
 
-	if (ops & BIT(IO_EVENTFD_OP_SIGNAL_BIT))
-		eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
+	eventfd_ctx_put(ev_fd->cq_ev_fd);
+	kfree(ev_fd);
+}
 
-	/* IO_EVENTFD_OP_FREE_BIT may not be set here depending on callback
-	 * ordering in a race but if references are 0 we know we have to free
-	 * it regardless.
-	 */
-	if (atomic_dec_and_test(&ev_fd->refs)) {
-		eventfd_ctx_put(ev_fd->cq_ev_fd);
-		kfree(ev_fd);
-	}
+void io_eventfd_do_signal(struct rcu_head *rcu)
+{
+	struct io_ev_fd *ev_fd = container_of(rcu, struct io_ev_fd, rcu);
+
+	eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
+
+	if (atomic_dec_and_test(&ev_fd->refs))
+		io_eventfd_free(rcu);
 }
 
 static void io_eventfd_signal(struct io_ring_ctx *ctx)
 {
 	struct io_ev_fd *ev_fd = NULL;
 
-	rcu_read_lock();
+	if (READ_ONCE(ctx->rings->cq_flags) & IORING_CQ_EVENTFD_DISABLED)
+		return;
+
+	guard(rcu)();
+
 	/*
 	 * rcu_dereference ctx->io_ev_fd once and use it for both for checking
 	 * and eventfd_signal
@@ -576,24 +580,23 @@ static void io_eventfd_signal(struct io_ring_ctx *ctx)
 	 * the function and rcu_read_lock.
 	 */
 	if (unlikely(!ev_fd))
-		goto out;
-	if (READ_ONCE(ctx->rings->cq_flags) & IORING_CQ_EVENTFD_DISABLED)
-		goto out;
+		return;
+	if (!atomic_inc_not_zero(&ev_fd->refs))
+		return;
 	if (ev_fd->eventfd_async && !io_wq_current_is_worker())
 		goto out;
 
 	if (likely(eventfd_signal_allowed())) {
 		eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
 	} else {
-		atomic_inc(&ev_fd->refs);
-		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_SIGNAL_BIT), &ev_fd->ops))
-			call_rcu_hurry(&ev_fd->rcu, io_eventfd_ops);
-		else
-			atomic_dec(&ev_fd->refs);
+		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_SIGNAL_BIT), &ev_fd->ops)) {
+			call_rcu_hurry(&ev_fd->rcu, io_eventfd_do_signal);
+			return;
+		}
 	}
-
 out:
-	rcu_read_unlock();
+	if (atomic_dec_and_test(&ev_fd->refs))
+		call_rcu(&ev_fd->rcu, io_eventfd_free);
 }
 
 static void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
