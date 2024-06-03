@@ -321,6 +321,17 @@ static inline void __hyp_sve_restore_guest(struct kvm_vcpu *vcpu)
 	write_sysreg_el1(__vcpu_sys_reg(vcpu, ZCR_EL1), SYS_ZCR);
 }
 
+static inline void __hyp_sve_save_host(void)
+{
+	struct cpu_sve_state *sve_state = *host_data_ptr(sve_state);
+
+	sve_state->zcr_el1 = read_sysreg_el1(SYS_ZCR);
+	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
+	__sve_save_state(sve_state->sve_regs + sve_ffr_offset(kvm_host_sve_max_vl),
+			 &sve_state->fpsr,
+			 true);
+}
+
 static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu);
 
 /*
@@ -355,7 +366,7 @@ static bool kvm_hyp_handle_fpsimd(struct kvm_vcpu *vcpu, u64 *exit_code)
 	/* Valid trap.  Switch the context: */
 
 	/* First disable enough traps to allow us to update the registers */
-	if (sve_guest)
+	if (sve_guest || (is_protected_kvm_enabled() && system_supports_sve()))
 		cpacr_clear_set(0, CPACR_ELx_FPEN | CPACR_ELx_ZEN);
 	else
 		cpacr_clear_set(0, CPACR_ELx_FPEN);
