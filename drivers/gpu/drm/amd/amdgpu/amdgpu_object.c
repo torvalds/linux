@@ -1601,36 +1601,39 @@ u64 amdgpu_bo_print_info(int id, struct amdgpu_bo *bo, struct seq_file *m)
 	u64 size;
 
 	if (dma_resv_trylock(bo->tbo.base.resv)) {
-
-		switch (bo->tbo.resource->mem_type) {
-		case TTM_PL_VRAM:
-			if (amdgpu_res_cpu_visible(adev, bo->tbo.resource))
-				placement = "VRAM VISIBLE";
-			else
-				placement = "VRAM";
-			break;
-		case TTM_PL_TT:
-			placement = "GTT";
-			break;
-		case AMDGPU_PL_GDS:
-			placement = "GDS";
-			break;
-		case AMDGPU_PL_GWS:
-			placement = "GWS";
-			break;
-		case AMDGPU_PL_OA:
-			placement = "OA";
-			break;
-		case AMDGPU_PL_PREEMPT:
-			placement = "PREEMPTIBLE";
-			break;
-		case AMDGPU_PL_DOORBELL:
-			placement = "DOORBELL";
-			break;
-		case TTM_PL_SYSTEM:
-		default:
-			placement = "CPU";
-			break;
+		if (!bo->tbo.resource) {
+			placement = "NONE";
+		} else {
+			switch (bo->tbo.resource->mem_type) {
+			case TTM_PL_VRAM:
+				if (amdgpu_res_cpu_visible(adev, bo->tbo.resource))
+					placement = "VRAM VISIBLE";
+				else
+					placement = "VRAM";
+				break;
+			case TTM_PL_TT:
+				placement = "GTT";
+				break;
+			case AMDGPU_PL_GDS:
+				placement = "GDS";
+				break;
+			case AMDGPU_PL_GWS:
+				placement = "GWS";
+				break;
+			case AMDGPU_PL_OA:
+				placement = "OA";
+				break;
+			case AMDGPU_PL_PREEMPT:
+				placement = "PREEMPTIBLE";
+				break;
+			case AMDGPU_PL_DOORBELL:
+				placement = "DOORBELL";
+				break;
+			case TTM_PL_SYSTEM:
+			default:
+				placement = "CPU";
+				break;
+			}
 		}
 		dma_resv_unlock(bo->tbo.base.resv);
 	} else {
