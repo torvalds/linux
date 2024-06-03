@@ -272,6 +272,11 @@ err1:
 	return ret;
 }
 
+static int bch2_ioc_getversion(struct bch_inode_info *inode, u32 __user *arg)
+{
+	return put_user(inode->v.i_generation, arg);
+}
+
 static int bch2_ioc_goingdown(struct bch_fs *c, u32 __user *arg)
 {
 	u32 flags;
@@ -499,7 +504,7 @@ long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		break;
 
 	case FS_IOC_GETVERSION:
-		ret = -ENOTTY;
+		ret = bch2_ioc_getversion(inode, (u32 __user *) arg);
 		break;
 
 	case FS_IOC_SETVERSION:
@@ -546,6 +551,9 @@ long bch2_compat_fs_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		break;
 	case FS_IOC32_SETFLAGS:
 		cmd = FS_IOC_SETFLAGS;
+		break;
+	case FS_IOC32_GETVERSION:
+		cmd = FS_IOC_GETVERSION;
 		break;
 	default:
 		return -ENOIOCTLCMD;
