@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include <linux/fdtable.h>
 #include <linux/anon_inodes.h>
 #include <linux/uio.h>
 #include "internal.h"
