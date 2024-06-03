@@ -80,6 +80,7 @@ struct page_pool;
 				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define MLX5E_RX_MAX_HEAD (256)
+#define MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE (8)
 #define MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE (9)
 #define MLX5E_SHAMPO_WQ_HEADER_PER_PAGE (PAGE_SIZE >> MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE)
 #define MLX5E_SHAMPO_WQ_BASE_HEAD_ENTRY_SIZE (64)
@@ -145,25 +146,6 @@ struct page_pool;
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_TX_XSK_POLL_BUDGET       64
 #define MLX5E_SQ_RECOVER_MIN_INTERVAL  500 /* msecs */
-
-#define MLX5E_KLM_UMR_WQE_SZ(sgl_len)\
-	(sizeof(struct mlx5e_umr_wqe) +\
-	(sizeof(struct mlx5_klm) * (sgl_len)))
-
-#define MLX5E_KLM_UMR_WQEBBS(klm_entries) \
-	(DIV_ROUND_UP(MLX5E_KLM_UMR_WQE_SZ(klm_entries), MLX5_SEND_WQE_BB))
-
-#define MLX5E_KLM_UMR_DS_CNT(klm_entries)\
-	(DIV_ROUND_UP(MLX5E_KLM_UMR_WQE_SZ(klm_entries), MLX5_SEND_WQE_DS))
-
-#define MLX5E_KLM_MAX_ENTRIES_PER_WQE(wqe_size)\
-	(((wqe_size) - sizeof(struct mlx5e_umr_wqe)) / sizeof(struct mlx5_klm))
-
-#define MLX5E_KLM_ENTRIES_PER_WQE(wqe_size)\
-	ALIGN_DOWN(MLX5E_KLM_MAX_ENTRIES_PER_WQE(wqe_size), MLX5_UMR_KLM_NUM_ENTRIES_ALIGNMENT)
-
-#define MLX5E_MAX_KLM_PER_WQE(mdev) \
-	MLX5E_KLM_ENTRIES_PER_WQE(MLX5_SEND_WQE_BB * mlx5e_get_max_sq_aligned_wqebbs(mdev))
 
 #define mlx5e_state_dereference(priv, p) \
 	rcu_dereference_protected((p), lockdep_is_held(&(priv)->state_lock))

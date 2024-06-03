@@ -504,8 +504,8 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 	return err;
 }
 
-static int mlx5e_create_umr_klm_mkey(struct mlx5_core_dev *mdev,
-				     u64 nentries,
+static int mlx5e_create_umr_ksm_mkey(struct mlx5_core_dev *mdev,
+				     u64 nentries, u8 log_entry_size,
 				     u32 *umr_mkey)
 {
 	int inlen;
@@ -525,12 +525,13 @@ static int mlx5e_create_umr_klm_mkey(struct mlx5_core_dev *mdev,
 	MLX5_SET(mkc, mkc, umr_en, 1);
 	MLX5_SET(mkc, mkc, lw, 1);
 	MLX5_SET(mkc, mkc, lr, 1);
-	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_KLMS);
+	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_KSM);
 	mlx5e_mkey_set_relaxed_ordering(mdev, mkc);
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
 	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.hw_objs.pdn);
 	MLX5_SET(mkc, mkc, translations_octword_size, nentries);
-	MLX5_SET(mkc, mkc, length64, 1);
+	MLX5_SET(mkc, mkc, log_page_size, log_entry_size);
+	MLX5_SET64(mkc, mkc, len, nentries << log_entry_size);
 	err = mlx5_core_create_mkey(mdev, umr_mkey, in, inlen);
 
 	kvfree(in);
@@ -565,14 +566,16 @@ static int mlx5e_create_rq_umr_mkey(struct mlx5_core_dev *mdev, struct mlx5e_rq 
 static int mlx5e_create_rq_hd_umr_mkey(struct mlx5_core_dev *mdev,
 				       struct mlx5e_rq *rq)
 {
-	u32 max_klm_size = BIT(MLX5_CAP_GEN(mdev, log_max_klm_list_size));
+	u32 max_ksm_size = BIT(MLX5_CAP_GEN(mdev, log_max_klm_list_size));
 
-	if (max_klm_size < rq->mpwqe.shampo->hd_per_wq) {
-		mlx5_core_err(mdev, "max klm list size 0x%x is smaller than shampo header buffer list size 0x%x\n",
-			      max_klm_size, rq->mpwqe.shampo->hd_per_wq);
+	if (max_ksm_size < rq->mpwqe.shampo->hd_per_wq) {
+		mlx5_core_err(mdev, "max ksm list size 0x%x is smaller than shampo header buffer list size 0x%x\n",
+			      max_ksm_size, rq->mpwqe.shampo->hd_per_wq);
 		return -EINVAL;
 	}
-	return mlx5e_create_umr_klm_mkey(mdev, rq->mpwqe.shampo->hd_per_wq,
+
+	return mlx5e_create_umr_ksm_mkey(mdev, rq->mpwqe.shampo->hd_per_wq,
+					 MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE,
 					 &rq->mpwqe.shampo->mkey);
 }
 

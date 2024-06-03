@@ -619,25 +619,25 @@ static int bitmap_find_window(unsigned long *bitmap, int len,
 	return min(len, count);
 }
 
-static void build_klm_umr(struct mlx5e_icosq *sq, struct mlx5e_umr_wqe *umr_wqe,
-			  __be32 key, u16 offset, u16 klm_len, u16 wqe_bbs)
+static void build_ksm_umr(struct mlx5e_icosq *sq, struct mlx5e_umr_wqe *umr_wqe,
+			  __be32 key, u16 offset, u16 ksm_len)
 {
-	memset(umr_wqe, 0, offsetof(struct mlx5e_umr_wqe, inline_klms));
+	memset(umr_wqe, 0, offsetof(struct mlx5e_umr_wqe, inline_ksms));
 	umr_wqe->ctrl.opmod_idx_opcode =
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			     MLX5_OPCODE_UMR);
 	umr_wqe->ctrl.umr_mkey = key;
 	umr_wqe->ctrl.qpn_ds = cpu_to_be32((sq->sqn << MLX5_WQE_CTRL_QPN_SHIFT)
-					    | MLX5E_KLM_UMR_DS_CNT(klm_len));
+					    | MLX5E_KSM_UMR_DS_CNT(ksm_len));
 	umr_wqe->uctrl.flags = MLX5_UMR_TRANSLATION_OFFSET_EN | MLX5_UMR_INLINE;
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
-	umr_wqe->uctrl.xlt_octowords = cpu_to_be16(klm_len);
+	umr_wqe->uctrl.xlt_octowords = cpu_to_be16(ksm_len);
 	umr_wqe->uctrl.mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
 }
 
 static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 				     struct mlx5e_icosq *sq,
-				     u16 klm_entries, u16 index)
+				     u16 ksm_entries, u16 index)
 {
 	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
 	u16 entries, pi, header_offset, err, wqe_bbs, new_entries;
@@ -650,20 +650,20 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	int headroom, i;
 
 	headroom = rq->buff.headroom;
-	new_entries = klm_entries - (shampo->pi & (MLX5_UMR_KLM_NUM_ENTRIES_ALIGNMENT - 1));
-	entries = ALIGN(klm_entries, MLX5_UMR_KLM_NUM_ENTRIES_ALIGNMENT);
-	wqe_bbs = MLX5E_KLM_UMR_WQEBBS(entries);
+	new_entries = ksm_entries - (shampo->pi & (MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT - 1));
+	entries = ALIGN(ksm_entries, MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT);
+	wqe_bbs = MLX5E_KSM_UMR_WQEBBS(entries);
 	pi = mlx5e_icosq_get_next_pi(sq, wqe_bbs);
 	umr_wqe = mlx5_wq_cyc_get_wqe(&sq->wq, pi);
-	build_klm_umr(sq, umr_wqe, shampo->key, index, entries, wqe_bbs);
+	build_ksm_umr(sq, umr_wqe, shampo->key, index, entries);
 
 	frag_page = &shampo->pages[page_index];
 
 	for (i = 0; i < entries; i++, index++) {
 		dma_info = &shampo->info[index];
-		if (i >= klm_entries || (index < shampo->pi && shampo->pi - index <
-					 MLX5_UMR_KLM_NUM_ENTRIES_ALIGNMENT))
-			goto update_klm;
+		if (i >= ksm_entries || (index < shampo->pi && shampo->pi - index <
+					 MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT))
+			goto update_ksm;
 		header_offset = (index & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) <<
 			MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE;
 		if (!(header_offset & (PAGE_SIZE - 1))) {
@@ -683,12 +683,11 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 			dma_info->frag_page = frag_page;
 		}
 
-update_klm:
-		umr_wqe->inline_klms[i].bcount =
-			cpu_to_be32(MLX5E_RX_MAX_HEAD);
-		umr_wqe->inline_klms[i].key    = cpu_to_be32(lkey);
-		umr_wqe->inline_klms[i].va     =
-			cpu_to_be64(dma_info->addr + headroom);
+update_ksm:
+		umr_wqe->inline_ksms[i] = (struct mlx5_ksm) {
+			.key = cpu_to_be32(lkey),
+			.va  = cpu_to_be64(dma_info->addr + headroom),
+		};
 	}
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
@@ -720,37 +719,37 @@ err_unmap:
 static int mlx5e_alloc_rx_hd_mpwqe(struct mlx5e_rq *rq)
 {
 	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
-	u16 klm_entries, num_wqe, index, entries_before;
+	u16 ksm_entries, num_wqe, index, entries_before;
 	struct mlx5e_icosq *sq = rq->icosq;
-	int i, err, max_klm_entries, len;
+	int i, err, max_ksm_entries, len;
 
-	max_klm_entries = MLX5E_MAX_KLM_PER_WQE(rq->mdev);
-	klm_entries = bitmap_find_window(shampo->bitmap,
+	max_ksm_entries = MLX5E_MAX_KSM_PER_WQE(rq->mdev);
+	ksm_entries = bitmap_find_window(shampo->bitmap,
 					 shampo->hd_per_wqe,
 					 shampo->hd_per_wq, shampo->pi);
-	if (!klm_entries)
+	if (!ksm_entries)
 		return 0;
 
-	klm_entries += (shampo->pi & (MLX5_UMR_KLM_NUM_ENTRIES_ALIGNMENT - 1));
-	index = ALIGN_DOWN(shampo->pi, MLX5_UMR_KLM_NUM_ENTRIES_ALIGNMENT);
+	ksm_entries += (shampo->pi & (MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT - 1));
+	index = ALIGN_DOWN(shampo->pi, MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT);
 	entries_before = shampo->hd_per_wq - index;
 
-	if (unlikely(entries_before < klm_entries))
-		num_wqe = DIV_ROUND_UP(entries_before, max_klm_entries) +
-			  DIV_ROUND_UP(klm_entries - entries_before, max_klm_entries);
+	if (unlikely(entries_before < ksm_entries))
+		num_wqe = DIV_ROUND_UP(entries_before, max_ksm_entries) +
+			  DIV_ROUND_UP(ksm_entries - entries_before, max_ksm_entries);
 	else
-		num_wqe = DIV_ROUND_UP(klm_entries, max_klm_entries);
+		num_wqe = DIV_ROUND_UP(ksm_entries, max_ksm_entries);
 
 	for (i = 0; i < num_wqe; i++) {
-		len = (klm_entries > max_klm_entries) ? max_klm_entries :
-							klm_entries;
+		len = (ksm_entries > max_ksm_entries) ? max_ksm_entries :
+							ksm_entries;
 		if (unlikely(index + len > shampo->hd_per_wq))
 			len = shampo->hd_per_wq - index;
 		err = mlx5e_build_shampo_hd_umr(rq, sq, len, index);
 		if (unlikely(err))
 			return err;
 		index = (index + len) & (rq->mpwqe.shampo->hd_per_wq - 1);
-		klm_entries -= len;
+		ksm_entries -= len;
 	}
 
 	return 0;
