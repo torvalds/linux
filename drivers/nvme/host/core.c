@@ -307,7 +307,7 @@ static void nvme_retry_req(struct request *req)
 	u16 crd;
 
 	/* The mask and shift result must be <= 3 */
-	crd = (nvme_req(req)->status & NVME_SC_CRD) >> 11;
+	crd = (nvme_req(req)->status & NVME_STATUS_CRD) >> 11;
 	if (crd)
 		delay = nvme_req(req)->ctrl->crdt[crd - 1] * 100;
 
@@ -331,8 +331,8 @@ static void nvme_log_error(struct request *req)
 		       nvme_get_error_status_str(nr->status),
 		       NVME_SCT(nr->status),		/* Status Code Type */
 		       nr->status & NVME_SC_MASK,	/* Status Code */
-		       nr->status & NVME_SC_MORE ? "MORE " : "",
-		       nr->status & NVME_SC_DNR  ? "DNR "  : "");
+		       nr->status & NVME_STATUS_MORE ? "MORE " : "",
+		       nr->status & NVME_STATUS_DNR  ? "DNR "  : "");
 		return;
 	}
 
@@ -343,8 +343,8 @@ static void nvme_log_error(struct request *req)
 			   nvme_get_error_status_str(nr->status),
 			   NVME_SCT(nr->status),	/* Status Code Type */
 			   nr->status & NVME_SC_MASK,	/* Status Code */
-			   nr->status & NVME_SC_MORE ? "MORE " : "",
-			   nr->status & NVME_SC_DNR  ? "DNR "  : "");
+			   nr->status & NVME_STATUS_MORE ? "MORE " : "",
+			   nr->status & NVME_STATUS_DNR  ? "DNR "  : "");
 }
 
 static void nvme_log_err_passthru(struct request *req)
@@ -361,8 +361,8 @@ static void nvme_log_err_passthru(struct request *req)
 		nvme_get_error_status_str(nr->status),
 		NVME_SCT(nr->status),		/* Status Code Type */
 		nr->status & NVME_SC_MASK,	/* Status Code */
-		nr->status & NVME_SC_MORE ? "MORE " : "",
-		nr->status & NVME_SC_DNR  ? "DNR "  : "",
+		nr->status & NVME_STATUS_MORE ? "MORE " : "",
+		nr->status & NVME_STATUS_DNR  ? "DNR "  : "",
 		nr->cmd->common.cdw10,
 		nr->cmd->common.cdw11,
 		nr->cmd->common.cdw12,
@@ -384,7 +384,7 @@ static inline enum nvme_disposition nvme_decide_disposition(struct request *req)
 		return COMPLETE;
 
 	if (blk_noretry_request(req) ||
-	    (nvme_req(req)->status & NVME_SC_DNR) ||
+	    (nvme_req(req)->status & NVME_STATUS_DNR) ||
 	    nvme_req(req)->retries >= nvme_max_retries)
 		return COMPLETE;
 
@@ -3940,7 +3940,7 @@ static void nvme_ns_remove_by_nsid(struct nvme_ctrl *ctrl, u32 nsid)
 
 static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_info *info)
 {
-	int ret = NVME_SC_INVALID_NS | NVME_SC_DNR;
+	int ret = NVME_SC_INVALID_NS | NVME_STATUS_DNR;
 
 	if (!nvme_ns_ids_equal(&ns->head->ids, &info->ids)) {
 		dev_err(ns->ctrl->device,
@@ -3956,7 +3956,7 @@ out:
 	 *
 	 * TODO: we should probably schedule a delayed retry here.
 	 */
-	if (ret > 0 && (ret & NVME_SC_DNR))
+	if (ret > 0 && (ret & NVME_STATUS_DNR))
 		nvme_ns_remove(ns);
 }
 
@@ -4147,7 +4147,7 @@ static void nvme_scan_work(struct work_struct *work)
 		 * they report) but don't actually support it.
 		 */
 		ret = nvme_scan_ns_list(ctrl);
-		if (ret > 0 && ret & NVME_SC_DNR)
+		if (ret > 0 && ret & NVME_STATUS_DNR)
 			nvme_scan_ns_sequential(ctrl);
 	}
 	mutex_unlock(&ctrl->scan_lock);

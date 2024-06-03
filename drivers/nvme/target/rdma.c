@@ -852,12 +852,12 @@ static u16 nvmet_rdma_map_sgl_inline(struct nvmet_rdma_rsp *rsp)
 	if (!nvme_is_write(rsp->req.cmd)) {
 		rsp->req.error_loc =
 			offsetof(struct nvme_common_command, opcode);
-		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
 
 	if (off + len > rsp->queue->dev->inline_data_size) {
 		pr_err("invalid inline data offset!\n");
-		return NVME_SC_SGL_INVALID_OFFSET | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_OFFSET | NVME_STATUS_DNR;
 	}
 
 	/* no data command? */
@@ -919,7 +919,7 @@ static u16 nvmet_rdma_map_sgl(struct nvmet_rdma_rsp *rsp)
 			pr_err("invalid SGL subtype: %#x\n", sgl->type);
 			rsp->req.error_loc =
 				offsetof(struct nvme_common_command, dptr);
-			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		}
 	case NVME_KEY_SGL_FMT_DATA_DESC:
 		switch (sgl->type & 0xf) {
@@ -931,12 +931,12 @@ static u16 nvmet_rdma_map_sgl(struct nvmet_rdma_rsp *rsp)
 			pr_err("invalid SGL subtype: %#x\n", sgl->type);
 			rsp->req.error_loc =
 				offsetof(struct nvme_common_command, dptr);
-			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		}
 	default:
 		pr_err("invalid SGL type: %#x\n", sgl->type);
 		rsp->req.error_loc = offsetof(struct nvme_common_command, dptr);
-		return NVME_SC_SGL_INVALID_TYPE | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_TYPE | NVME_STATUS_DNR;
 	}
 }
 

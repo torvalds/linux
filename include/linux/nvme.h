@@ -1994,9 +1994,9 @@ enum {
 	NVME_SCT_MASK			= 0x0700, /* Status Code Type */
 	NVME_SCT_SC_MASK		= NVME_SCT_MASK | NVME_SC_MASK,
 
-	NVME_SC_CRD			= 0x1800, /* Command Retry Delayed */
-	NVME_SC_MORE			= 0x2000,
-	NVME_SC_DNR			= 0x4000, /* Do Not Retry */
+	NVME_STATUS_CRD			= 0x1800, /* Command Retry Delayed */
+	NVME_STATUS_MORE		= 0x2000,
+	NVME_STATUS_DNR			= 0x4000, /* Do Not Retry */
 };
 
 #define NVME_SCT(status) ((status) >> 8 & 7)

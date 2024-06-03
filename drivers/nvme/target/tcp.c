@@ -416,10 +416,10 @@ static int nvmet_tcp_map_data(struct nvmet_tcp_cmd *cmd)
 	if (sgl->type == ((NVME_SGL_FMT_DATA_DESC << 4) |
 			  NVME_SGL_FMT_OFFSET)) {
 		if (!nvme_is_write(cmd->req.cmd))
-			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 
 		if (len > cmd->req.port->inline_data_size)
-			return NVME_SC_SGL_INVALID_OFFSET | NVME_SC_DNR;
+			return NVME_SC_SGL_INVALID_OFFSET | NVME_STATUS_DNR;
 		cmd->pdu_len = len;
 	}
 	cmd->req.transfer_len += len;
