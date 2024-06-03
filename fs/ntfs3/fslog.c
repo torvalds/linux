@@ -4111,7 +4111,7 @@ process_log:
 
 	/* Allocate and Read the Transaction Table. */
 	if (!rst->transact_table_len)
-		goto check_dirty_page_table;
+		goto check_dirty_page_table; /* reduce tab pressure. */
 
 	t64 = le64_to_cpu(rst->transact_table_lsn);
 	err = read_log_rec_lcb(log, t64, lcb_ctx_prev, &lcb);
@@ -4151,7 +4151,7 @@ process_log:
 check_dirty_page_table:
 	/* The next record back should be the Dirty Pages Table. */
 	if (!rst->dirty_pages_len)
-		goto check_attribute_names;
+		goto check_attribute_names; /* reduce tab pressure. */
 
 	t64 = le64_to_cpu(rst->dirty_pages_table_lsn);
 	err = read_log_rec_lcb(log, t64, lcb_ctx_prev, &lcb);
@@ -4187,7 +4187,7 @@ check_dirty_page_table:
 
 	/* Convert Ra version '0' into version '1'. */
 	if (rst->major_ver)
-		goto end_conv_1;
+		goto end_conv_1; /* reduce tab pressure. */
 
 	dp = NULL;
 	while ((dp = enum_rstbl(dptbl, dp))) {
@@ -4207,8 +4207,7 @@ end_conv_1:
 	 * remembering the oldest lsn values.
 	 */
 	if (sbi->cluster_size <= log->page_size)
-		goto trace_dp_table;
-
+		goto trace_dp_table; /* reduce tab pressure. */
 	dp = NULL;
 	while ((dp = enum_rstbl(dptbl, dp))) {
 		struct DIR_PAGE_ENTRY *next = dp;
@@ -4229,7 +4228,7 @@ trace_dp_table:
 check_attribute_names:
 	/* The next record should be the Attribute Names. */
 	if (!rst->attr_names_len)
-		goto check_attr_table;
+		goto check_attr_table; /* reduce tab pressure. */
 
 	t64 = le64_to_cpu(rst->attr_names_lsn);
 	err = read_log_rec_lcb(log, t64, lcb_ctx_prev, &lcb);
@@ -4261,7 +4260,7 @@ check_attribute_names:
 check_attr_table:
 	/* The next record should be the attribute Table. */
 	if (!rst->open_attr_len)
-		goto check_attribute_names2;
+		goto check_attribute_names2; /* reduce tab pressure. */
 
 	t64 = le64_to_cpu(rst->open_attr_table_lsn);
 	err = read_log_rec_lcb(log, t64, lcb_ctx_prev, &lcb);
@@ -4550,7 +4549,6 @@ copy_lcns:
 			}
 		}
 		goto next_log_record_analyze;
-		;
 	}
 
 	case OpenNonresidentAttribute:
