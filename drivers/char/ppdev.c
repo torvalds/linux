@@ -882,5 +882,6 @@ static void __exit ppdev_cleanup(void)
 module_init(ppdev_init);
 module_exit(ppdev_cleanup);
 
+MODULE_DESCRIPTION("Support for user-space parallel port device drivers");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(PP_MAJOR);
