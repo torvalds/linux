@@ -4054,15 +4054,15 @@ void rtw89_core_update_beacon_work(struct work_struct *work)
 int rtw89_wait_for_cond(struct rtw89_wait_info *wait, unsigned int cond)
 {
 	struct completion *cmpl = &wait->completion;
-	unsigned long timeout;
+	unsigned long time_left;
 	unsigned int cur;
 
 	cur = atomic_cmpxchg(&wait->cond, RTW89_WAIT_COND_IDLE, cond);
 	if (cur != RTW89_WAIT_COND_IDLE)
 		return -EBUSY;
 
-	timeout = wait_for_completion_timeout(cmpl, RTW89_WAIT_FOR_COND_TIMEOUT);
-	if (timeout == 0) {
+	time_left = wait_for_completion_timeout(cmpl, RTW89_WAIT_FOR_COND_TIMEOUT);
+	if (time_left == 0) {
 		atomic_set(&wait->cond, RTW89_WAIT_COND_IDLE);
 		return -ETIMEDOUT;
 	}
