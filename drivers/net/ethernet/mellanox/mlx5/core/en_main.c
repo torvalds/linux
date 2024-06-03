@@ -1208,15 +1208,6 @@ void mlx5e_free_rx_missing_descs(struct mlx5e_rq *rq)
 		head = mlx5_wq_ll_get_wqe_next_ix(wq, head);
 	}
 
-	if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state)) {
-		u16 len;
-
-		len = (rq->mpwqe.shampo->pi - rq->mpwqe.shampo->ci) &
-		      (rq->mpwqe.shampo->hd_per_wq - 1);
-		mlx5e_shampo_dealloc_hd(rq, len, rq->mpwqe.shampo->ci, false);
-		rq->mpwqe.shampo->pi = rq->mpwqe.shampo->ci;
-	}
-
 	rq->mpwqe.actual_wq_head = wq->head;
 	rq->mpwqe.umr_in_progress = 0;
 	rq->mpwqe.umr_completed = 0;
@@ -1244,8 +1235,7 @@ void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 		}
 
 		if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
-			mlx5e_shampo_dealloc_hd(rq, rq->mpwqe.shampo->hd_per_wq,
-						0, true);
+			mlx5e_shampo_dealloc_hd(rq);
 	} else {
 		struct mlx5_wq_cyc *wq = &rq->wqe.wq;
 		u16 missing = mlx5_wq_cyc_missing(wq);
