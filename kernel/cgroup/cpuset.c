@@ -964,6 +964,7 @@ static int generate_sched_domains(cpumask_var_t **domains,
 
 	/* Special case for the 99% of systems with one, full, sched domain */
 	if (root_load_balance && !top_cpuset.nr_subparts) {
+single_root_domain:
 		ndoms = 1;
 		doms = alloc_sched_domains(ndoms);
 		if (!doms)
@@ -1021,6 +1022,13 @@ static int generate_sched_domains(cpumask_var_t **domains,
 			pos_css = css_rightmost_descendant(pos_css);
 	}
 	rcu_read_unlock();
+
+	/*
+	 * If there are only isolated partitions underneath the cgroup root,
+	 * we can optimize out unneeded sched domains scanning.
+	 */
+	if (root_load_balance && (csn == 1))
+		goto single_root_domain;
 
 	for (i = 0; i < csn; i++)
 		csa[i]->pn = i;
