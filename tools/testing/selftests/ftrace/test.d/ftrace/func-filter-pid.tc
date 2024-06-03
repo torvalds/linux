@@ -14,6 +14,11 @@ if [ ! -f options/function-fork ]; then
     echo "no option for function-fork found. Option will not be tested."
 fi
 
+if [ ! -f options/funcgraph-proc ]; then
+    do_funcgraph_proc=0
+    echo "no option for function-fork found. Option will not be tested."
+fi
+
 read PID _ < /proc/self/stat
 
 if [ $do_function_fork -eq 1 ]; then
@@ -21,12 +26,18 @@ if [ $do_function_fork -eq 1 ]; then
     orig_value=`grep function-fork trace_options`
 fi
 
+if [ $do_funcgraph_proc -eq 1 ]; then
+    orig_value2=`cat options/funcgraph-proc`
+fi
+
 do_reset() {
-    if [ $do_function_fork -eq 0 ]; then
-	return
+    if [ $do_function_fork -eq 1 ]; then
+	echo $orig_value > trace_options
     fi
 
-    echo $orig_value > trace_options
+    if [ $do_funcgraph_proc -eq 1 ]; then
+	echo $orig_value2 > options/funcgraph-proc
+    fi
 }
 
 fail() { # msg
@@ -36,13 +47,15 @@ fail() { # msg
 }
 
 do_test() {
+    TRACER=$1
+
     disable_tracing
 
     echo do_execve* > set_ftrace_filter
     echo $FUNCTION_FORK >> set_ftrace_filter
 
     echo $PID > set_ftrace_pid
-    echo function > current_tracer
+    echo $TRACER > current_tracer
 
     if [ $do_function_fork -eq 1 ]; then
 	# don't allow children to be traced
@@ -82,7 +95,11 @@ do_test() {
     fi
 }
 
-do_test
+do_test function
+if grep -s function_graph available_tracers; then
+    do_test function_graph
+fi
+
 do_reset
 
 exit 0
