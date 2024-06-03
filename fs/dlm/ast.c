@@ -161,6 +161,9 @@ void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
 
 int dlm_callback_start(struct dlm_ls *ls)
 {
+	if (!test_bit(LSFL_FS, &ls->ls_flags))
+		return 0;
+
 	ls->ls_callback_wq = alloc_ordered_workqueue("dlm_callback",
 						     WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!ls->ls_callback_wq) {
@@ -178,13 +181,15 @@ void dlm_callback_stop(struct dlm_ls *ls)
 
 void dlm_callback_suspend(struct dlm_ls *ls)
 {
-	if (ls->ls_callback_wq) {
-		spin_lock_bh(&ls->ls_cb_lock);
-		set_bit(LSFL_CB_DELAY, &ls->ls_flags);
-		spin_unlock_bh(&ls->ls_cb_lock);
+	if (!test_bit(LSFL_FS, &ls->ls_flags))
+		return;
 
+	spin_lock_bh(&ls->ls_cb_lock);
+	set_bit(LSFL_CB_DELAY, &ls->ls_flags);
+	spin_unlock_bh(&ls->ls_cb_lock);
+
+	if (ls->ls_callback_wq)
 		flush_workqueue(ls->ls_callback_wq);
-	}
 }
 
 #define MAX_CB_QUEUE 25
@@ -195,7 +200,7 @@ void dlm_callback_resume(struct dlm_ls *ls)
 	int count = 0, sum = 0;
 	bool empty;
 
-	if (!ls->ls_callback_wq)
+	if (!test_bit(LSFL_FS, &ls->ls_flags))
 		return;
 
 more:
