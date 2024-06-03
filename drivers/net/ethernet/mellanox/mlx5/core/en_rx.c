@@ -1948,21 +1948,16 @@ const struct mlx5e_rx_handlers mlx5e_rx_handlers_rep = {
 #endif
 
 static void
-mlx5e_fill_skb_data(struct sk_buff *skb, struct mlx5e_rq *rq,
-		    struct mlx5e_frag_page *frag_page,
-		    u32 data_bcnt, u32 data_offset)
+mlx5e_shampo_fill_skb_data(struct sk_buff *skb, struct mlx5e_rq *rq,
+			   struct mlx5e_frag_page *frag_page,
+			   u32 data_bcnt, u32 data_offset)
 {
 	net_prefetchw(skb->data);
 
-	while (data_bcnt) {
+	do {
 		/* Non-linear mode, hence non-XSK, which always uses PAGE_SIZE. */
 		u32 pg_consumed_bytes = min_t(u32, PAGE_SIZE - data_offset, data_bcnt);
-		unsigned int truesize;
-
-		if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
-			truesize = pg_consumed_bytes;
-		else
-			truesize = ALIGN(pg_consumed_bytes, BIT(rq->mpwqe.log_stride_sz));
+		unsigned int truesize = pg_consumed_bytes;
 
 		frag_page->frags++;
 		mlx5e_add_skb_frag(rq, skb, frag_page->page, data_offset,
@@ -1971,7 +1966,7 @@ mlx5e_fill_skb_data(struct sk_buff *skb, struct mlx5e_rq *rq,
 		data_bcnt -= pg_consumed_bytes;
 		data_offset = 0;
 		frag_page++;
-	}
+	} while (data_bcnt);
 }
 
 static struct sk_buff *
@@ -2330,10 +2325,12 @@ static void mlx5e_handle_rx_cqe_mpwrq_shampo(struct mlx5e_rq *rq, struct mlx5_cq
 	}
 
 	if (likely(head_size)) {
-		struct mlx5e_frag_page *frag_page;
+		if (data_bcnt) {
+			struct mlx5e_frag_page *frag_page;
 
-		frag_page = &wi->alloc_units.frag_pages[page_idx];
-		mlx5e_fill_skb_data(*skb, rq, frag_page, data_bcnt, data_offset);
+			frag_page = &wi->alloc_units.frag_pages[page_idx];
+			mlx5e_shampo_fill_skb_data(*skb, rq, frag_page, data_bcnt, data_offset);
+		}
 	}
 
 	mlx5e_shampo_complete_rx_cqe(rq, cqe, cqe_bcnt, *skb);
