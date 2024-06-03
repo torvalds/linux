@@ -829,10 +829,10 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 		done = btrfs_wait_ordered_extents(root, nr, bg);
 		btrfs_put_root(root);
 
-		spin_lock(&fs_info->ordered_root_lock);
-		if (nr != U64_MAX) {
+		if (nr != U64_MAX)
 			nr -= done;
-		}
+
+		spin_lock(&fs_info->ordered_root_lock);
 	}
 	list_splice_tail(&splice, &fs_info->ordered_roots);
 	spin_unlock(&fs_info->ordered_root_lock);
