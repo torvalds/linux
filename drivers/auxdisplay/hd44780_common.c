@@ -366,4 +366,5 @@ struct hd44780_common *hd44780_common_alloc(void)
 }
 EXPORT_SYMBOL_GPL(hd44780_common_alloc);
 
+MODULE_DESCRIPTION("Common functions for HD44780 (and compatibles) LCD displays");
 MODULE_LICENSE("GPL");
