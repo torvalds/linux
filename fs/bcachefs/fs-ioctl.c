@@ -301,6 +301,41 @@ static int bch2_ioc_getlabel(struct bch_fs *c, char __user *user_label)
 	return ret ? -EFAULT : 0;
 }
 
+static int bch2_ioc_setlabel(struct bch_fs *c,
+			     struct file *file,
+			     struct bch_inode_info *inode,
+			     const char __user *user_label)
+{
+	int ret;
+	char label[BCH_SB_LABEL_SIZE];
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (copy_from_user(label, user_label, sizeof(label)))
+		return -EFAULT;
+
+	if (strnlen(label, BCH_SB_LABEL_SIZE) == BCH_SB_LABEL_SIZE) {
+		bch_err(c,
+			"unable to set label with more than %d bytes",
+			BCH_SB_LABEL_SIZE - 1);
+		return -EINVAL;
+	}
+
+	ret = mnt_want_write_file(file);
+	if (ret)
+		return ret;
+
+	mutex_lock(&c->sb_lock);
+	strscpy(c->disk_sb.sb->label, label, BCH_SB_LABEL_SIZE);
+	mutex_unlock(&c->sb_lock);
+
+	ret = bch2_write_super(c);
+
+	mnt_drop_write_file(file);
+	return ret;
+}
+
 static int bch2_ioc_goingdown(struct bch_fs *c, u32 __user *arg)
 {
 	u32 flags;
@@ -539,6 +574,10 @@ long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		ret = bch2_ioc_getlabel(c, (void __user *) arg);
 		break;
 
+	case FS_IOC_SETFSLABEL:
+		ret = bch2_ioc_setlabel(c, file, inode, (const void __user *) arg);
+		break;
+
 	case FS_IOC_GOINGDOWN:
 		ret = bch2_ioc_goingdown(c, (u32 __user *) arg);
 		break;
@@ -584,6 +623,7 @@ long bch2_compat_fs_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		cmd = FS_IOC_GETVERSION;
 		break;
 	case FS_IOC_GETFSLABEL:
+	case FS_IOC_SETFSLABEL:
 		break;
 	default:
 		return -ENOIOCTLCMD;
