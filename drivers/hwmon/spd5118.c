@@ -646,8 +646,8 @@ static struct i2c_driver spd5118_driver = {
 	},
 	.probe		= spd5118_probe,
 	.id_table	= spd5118_id,
-	.detect		= spd5118_detect,
-	.address_list	= normal_i2c,
+	.detect		= IS_ENABLED(CONFIG_SENSORS_SPD5118_DETECT) ? spd5118_detect : NULL,
+	.address_list	= IS_ENABLED(CONFIG_SENSORS_SPD5118_DETECT) ? normal_i2c : NULL,
 };
 
 module_i2c_driver(spd5118_driver);
