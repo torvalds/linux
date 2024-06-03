@@ -248,6 +248,11 @@ struct mes_remove_queue_input {
 	uint64_t	gang_context_addr;
 };
 
+struct mes_reset_queue_input {
+	uint32_t	doorbell_offset;
+	uint64_t	gang_context_addr;
+};
+
 struct mes_map_legacy_queue_input {
 	uint32_t                           queue_type;
 	uint32_t                           doorbell_offset;
@@ -360,6 +365,9 @@ struct amdgpu_mes_funcs {
 
 	int (*reset_legacy_queue)(struct amdgpu_mes *mes,
 				  struct mes_reset_legacy_queue_input *input);
+
+	int (*reset_hw_queue)(struct amdgpu_mes *mes,
+			      struct mes_reset_queue_input *input);
 };
 
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
@@ -387,6 +395,7 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 			    struct amdgpu_mes_queue_properties *qprops,
 			    int *queue_id);
 int amdgpu_mes_remove_hw_queue(struct amdgpu_device *adev, int queue_id);
+int amdgpu_mes_reset_hw_queue(struct amdgpu_device *adev, int queue_id);
 
 int amdgpu_mes_map_legacy_queue(struct amdgpu_device *adev,
 				struct amdgpu_ring *ring);
