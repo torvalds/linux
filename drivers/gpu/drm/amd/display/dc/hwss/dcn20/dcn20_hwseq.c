@@ -2051,11 +2051,14 @@ void dcn20_program_front_end_for_ctx(
 
 			if (tg->funcs->enable_crtc) {
 				if (dc->hwss.blank_phantom) {
-					int main_pipe_width, main_pipe_height;
+					int main_pipe_width = 0, main_pipe_height = 0;
 					struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(dc->current_state, dc->current_state->res_ctx.pipe_ctx[i].stream);
 
-					main_pipe_width = phantom_stream->dst.width;
-					main_pipe_height = phantom_stream->dst.height;
+					if (phantom_stream) {
+						main_pipe_width = phantom_stream->dst.width;
+						main_pipe_height = phantom_stream->dst.height;
+					}
+
 					dc->hwss.blank_phantom(dc, tg, main_pipe_width, main_pipe_height);
 				}
 				tg->funcs->enable_crtc(tg);

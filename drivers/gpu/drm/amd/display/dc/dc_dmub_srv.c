@@ -562,7 +562,7 @@ static void populate_subvp_cmd_drr_info(struct dc *dc,
 {
 	struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(context, subvp_pipe->stream);
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
-	struct dc_crtc_timing *phantom_timing = &phantom_stream->timing;
+	struct dc_crtc_timing *phantom_timing;
 	struct dc_crtc_timing *drr_timing = &vblank_pipe->stream->timing;
 	uint16_t drr_frame_us = 0;
 	uint16_t min_drr_supported_us = 0;
@@ -575,6 +575,11 @@ static void populate_subvp_cmd_drr_info(struct dc *dc,
 	uint16_t drr_active_us = 0;
 	uint16_t min_vtotal_supported = 0;
 	uint16_t max_vtotal_supported = 0;
+
+	if (!phantom_stream)
+		return;
+
+	phantom_timing = &phantom_stream->timing;
 
 	pipe_data->pipe_config.vblank_data.drr_info.drr_in_use = true;
 	pipe_data->pipe_config.vblank_data.drr_info.use_ramping = false; // for now don't use ramping
@@ -699,7 +704,13 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data = NULL;
 
 	phantom_stream0 = dc_state_get_paired_subvp_stream(context, subvp_pipes[0]->stream);
+	if (!phantom_stream0)
+		return;
+
 	phantom_stream1 = dc_state_get_paired_subvp_stream(context, subvp_pipes[1]->stream);
+	if (!phantom_stream1)
+		return;
+
 	phantom_timing0 = &phantom_stream0->timing;
 	phantom_timing1 = &phantom_stream1->timing;
 
@@ -754,8 +765,13 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			&cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[cmd_pipe_index];
 	struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(context, subvp_pipe->stream);
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
-	struct dc_crtc_timing *phantom_timing = &phantom_stream->timing;
+	struct dc_crtc_timing *phantom_timing;
 	uint32_t out_num_stream, out_den_stream, out_num_plane, out_den_plane, out_num, out_den;
+
+	if (!phantom_stream)
+		return;
+
+	phantom_timing = &phantom_stream->timing;
 
 	pipe_data->mode = SUBVP;
 	pipe_data->pipe_config.subvp_data.pix_clk_100hz = subvp_pipe->stream->timing.pix_clk_100hz;

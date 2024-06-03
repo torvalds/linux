@@ -794,11 +794,16 @@ enum dc_status dc_state_add_phantom_stream(const struct dc *dc,
 
 	/* setup subvp meta */
 	main_stream_status = dc_state_get_stream_status(state, main_stream);
+	if (main_stream_status) {
+		main_stream_status->mall_stream_config.type = SUBVP_MAIN;
+		main_stream_status->mall_stream_config.paired_stream = phantom_stream;
+	}
+
 	phantom_stream_status = dc_state_get_stream_status(state, phantom_stream);
-	phantom_stream_status->mall_stream_config.type = SUBVP_PHANTOM;
-	phantom_stream_status->mall_stream_config.paired_stream = main_stream;
-	main_stream_status->mall_stream_config.type = SUBVP_MAIN;
-	main_stream_status->mall_stream_config.paired_stream = phantom_stream;
+	if (phantom_stream_status) {
+		phantom_stream_status->mall_stream_config.type = SUBVP_PHANTOM;
+		phantom_stream_status->mall_stream_config.paired_stream = main_stream;
+	}
 
 	return res;
 }
@@ -807,14 +812,17 @@ enum dc_status dc_state_remove_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream)
 {
-	struct dc_stream_status *main_stream_status;
+	struct dc_stream_status *main_stream_status = NULL;
 	struct dc_stream_status *phantom_stream_status;
 
 	/* reset subvp meta */
 	phantom_stream_status = dc_state_get_stream_status(state, phantom_stream);
-	main_stream_status = dc_state_get_stream_status(state, phantom_stream_status->mall_stream_config.paired_stream);
-	phantom_stream_status->mall_stream_config.type = SUBVP_NONE;
-	phantom_stream_status->mall_stream_config.paired_stream = NULL;
+	if (phantom_stream_status) {
+		main_stream_status = dc_state_get_stream_status(state, phantom_stream_status->mall_stream_config.paired_stream);
+		phantom_stream_status->mall_stream_config.type = SUBVP_NONE;
+		phantom_stream_status->mall_stream_config.paired_stream = NULL;
+	}
+
 	if (main_stream_status) {
 		main_stream_status->mall_stream_config.type = SUBVP_NONE;
 		main_stream_status->mall_stream_config.paired_stream = NULL;
