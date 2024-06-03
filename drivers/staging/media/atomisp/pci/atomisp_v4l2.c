@@ -66,10 +66,6 @@ module_param(dbg_func, int, 0644);
 MODULE_PARM_DESC(dbg_func,
 		 "log function switch non/printk (default:printk)");
 
-static char firmware_name[256];
-module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
-MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the default firmware name.");
-
 /*
  * Set to 16x16 since this is the amount of lines and pixels the sensor
  * exports extra. If these are kept at the 10x8 that they were on, in yuv
@@ -1101,23 +1097,19 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	int rc;
 	char *fw_path = NULL;
 
-	if (firmware_name[0] != '\0') {
-		fw_path = firmware_name;
-	} else {
-		if ((isp->media_dev.hw_revision  >> ATOMISP_HW_REVISION_SHIFT)
-		    == ATOMISP_HW_REVISION_ISP2401)
-			fw_path = "shisp_2401a0_v21.bin";
+	if ((isp->media_dev.hw_revision >> ATOMISP_HW_REVISION_SHIFT) ==
+	    ATOMISP_HW_REVISION_ISP2401)
+		fw_path = "shisp_2401a0_v21.bin";
 
-		if (isp->media_dev.hw_revision ==
-		    ((ATOMISP_HW_REVISION_ISP2401_LEGACY << ATOMISP_HW_REVISION_SHIFT)
-		    | ATOMISP_HW_STEPPING_A0))
-			fw_path = "shisp_2401a0_legacy_v21.bin";
+	if (isp->media_dev.hw_revision ==
+	    ((ATOMISP_HW_REVISION_ISP2401_LEGACY << ATOMISP_HW_REVISION_SHIFT) |
+	     ATOMISP_HW_STEPPING_A0))
+		fw_path = "shisp_2401a0_legacy_v21.bin";
 
-		if (isp->media_dev.hw_revision ==
-		    ((ATOMISP_HW_REVISION_ISP2400 << ATOMISP_HW_REVISION_SHIFT)
-		    | ATOMISP_HW_STEPPING_B0))
-			fw_path = "shisp_2400b0_v21.bin";
-	}
+	if (isp->media_dev.hw_revision ==
+	    ((ATOMISP_HW_REVISION_ISP2400 << ATOMISP_HW_REVISION_SHIFT) |
+	     ATOMISP_HW_STEPPING_B0))
+		fw_path = "shisp_2400b0_v21.bin";
 
 	if (!fw_path) {
 		dev_err(isp->dev, "Unsupported hw_revision 0x%x\n",
