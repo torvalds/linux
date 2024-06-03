@@ -1427,7 +1427,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 		return error;
 
 	for (x = 0; x < blocks; x++) {
-		const struct gfs2_quota_change *qc;
+		struct gfs2_quota_change *qc;
 		unsigned int y;
 
 		if (!extlen) {
@@ -1443,10 +1443,10 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 		if (gfs2_metatype_check(sdp, bh, GFS2_METATYPE_QC))
 			goto fail_brelse;
 
-		qc = (const struct gfs2_quota_change *)(bh->b_data + sizeof(struct gfs2_meta_header));
+		qc = (struct gfs2_quota_change *)(bh->b_data + sizeof(struct gfs2_meta_header));
 		for (y = 0; y < sdp->sd_qc_per_block && slot < sdp->sd_quota_slots;
 		     y++, slot++) {
-			struct gfs2_quota_data *qd;
+			struct gfs2_quota_data *old_qd, *qd;
 			s64 qc_change = be64_to_cpu(qc->qc_change);
 			u32 qc_flags = be32_to_cpu(qc->qc_flags);
 			enum quota_type qtype = (qc_flags & GFS2_QCF_USER) ?
@@ -1468,18 +1468,41 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 			qd->qd_slot_ref = 1;
 
 			spin_lock(&qd_lock);
+			spin_lock_bucket(hash);
+			old_qd = gfs2_qd_search_bucket(hash, sdp, qc_id);
+			if (old_qd) {
+				fs_err(sdp, "Corruption found in quota_change%u"
+					    "file: duplicate identifier in "
+					    "slot %u\n",
+					    sdp->sd_jdesc->jd_jid, slot);
+
+				spin_unlock_bucket(hash);
+				spin_unlock(&qd_lock);
+				qd_put(old_qd);
+
+				gfs2_glock_put(qd->qd_gl);
+				kmem_cache_free(gfs2_quotad_cachep, qd);
+
+				/* zero out the duplicate slot */
+				lock_buffer(bh);
+				memset(qc, 0, sizeof(*qc));
+				mark_buffer_dirty(bh);
+				unlock_buffer(bh);
+
+				continue;
+			}
 			BUG_ON(test_and_set_bit(slot, sdp->sd_quota_bitmap));
 			list_add(&qd->qd_list, &sdp->sd_quota_list);
 			atomic_inc(&sdp->sd_quota_count);
-			spin_unlock(&qd_lock);
-
-			spin_lock_bucket(hash);
 			hlist_bl_add_head_rcu(&qd->qd_hlist, &qd_hash_table[hash]);
 			spin_unlock_bucket(hash);
+			spin_unlock(&qd_lock);
 
 			found++;
 		}
 
+		if (buffer_dirty(bh))
+			sync_dirty_buffer(bh);
 		brelse(bh);
 		dblock++;
 		extlen--;
@@ -1491,6 +1514,8 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 	return 0;
 
 fail_brelse:
+	if (buffer_dirty(bh))
+		sync_dirty_buffer(bh);
 	brelse(bh);
 fail:
 	gfs2_quota_cleanup(sdp);
