@@ -427,4 +427,18 @@ bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
 bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
 					 const struct xe_hw_engine *hwe);
 
+/*
+ * xe_rtp_match_when_media2000 - Match when media GT version 2000
+ *
+ * @gt: GT structure
+ * @hwe: Engine instance
+ *
+ * Its one of the case where we need to apply workaround on primary GT
+ * based on if media GT version 2000 is present. Thus this API will help
+ * us to match media version 2000.
+ *
+ * Returns: true if media GT version 2000, false otherwise.
+ */
+bool xe_rtp_match_when_media2000(const struct xe_gt *gt,
+				 const struct xe_hw_engine *hwe);
 #endif
