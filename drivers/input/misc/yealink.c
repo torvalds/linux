@@ -868,7 +868,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
 
-	yld = kzalloc(sizeof(struct yealink_dev), GFP_KERNEL);
+	yld = kzalloc(sizeof(*yld), GFP_KERNEL);
 	if (!yld)
 		return -ENOMEM;
 

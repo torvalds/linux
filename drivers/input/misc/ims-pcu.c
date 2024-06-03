@@ -287,7 +287,7 @@ static int ims_pcu_setup_gamepad(struct ims_pcu *pcu)
 	struct input_dev *input;
 	int error;
 
-	gamepad = kzalloc(sizeof(struct ims_pcu_gamepad), GFP_KERNEL);
+	gamepad = kzalloc(sizeof(*gamepad), GFP_KERNEL);
 	input = input_allocate_device();
 	if (!gamepad || !input) {
 		dev_err(pcu->dev,
@@ -1993,7 +1993,7 @@ static int ims_pcu_probe(struct usb_interface *intf,
 	struct ims_pcu *pcu;
 	int error;
 
-	pcu = kzalloc(sizeof(struct ims_pcu), GFP_KERNEL);
+	pcu = kzalloc(sizeof(*pcu), GFP_KERNEL);
 	if (!pcu)
 		return -ENOMEM;
 
