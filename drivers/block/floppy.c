@@ -5017,6 +5017,7 @@ module_param(floppy, charp, 0);
 module_param(FLOPPY_IRQ, int, 0);
 module_param(FLOPPY_DMA, int, 0);
 MODULE_AUTHOR("Alain L. Knaff");
+MODULE_DESCRIPTION("Normal floppy disk support");
 MODULE_LICENSE("GPL");
 
 /* This doesn't actually get used other than for module information */
