@@ -1597,6 +1597,15 @@ static int felix_setup(struct dsa_switch *ds)
 		felix_port_qos_map_init(ocelot, dp->index);
 	}
 
+	if (felix->info->request_irq) {
+		err = felix->info->request_irq(ocelot);
+		if (err) {
+			dev_err(ocelot->dev, "Failed to request IRQ: %pe\n",
+				ERR_PTR(err));
+			goto out_deinit_ports;
+		}
+	}
+
 	err = ocelot_devlink_sb_register(ocelot);
 	if (err)
 		goto out_deinit_ports;
@@ -2097,15 +2106,14 @@ static void felix_get_mm_stats(struct dsa_switch *ds, int port,
 	ocelot_port_get_mm_stats(ocelot, port, stats);
 }
 
-const struct phylink_mac_ops felix_phylink_mac_ops = {
+static const struct phylink_mac_ops felix_phylink_mac_ops = {
 	.mac_select_pcs		= felix_phylink_mac_select_pcs,
 	.mac_config		= felix_phylink_mac_config,
 	.mac_link_down		= felix_phylink_mac_link_down,
 	.mac_link_up		= felix_phylink_mac_link_up,
 };
-EXPORT_SYMBOL_GPL(felix_phylink_mac_ops);
 
-const struct dsa_switch_ops felix_switch_ops = {
+static const struct dsa_switch_ops felix_switch_ops = {
 	.get_tag_protocol		= felix_get_tag_protocol,
 	.change_tag_protocol		= felix_change_tag_protocol,
 	.connect_tag_protocol		= felix_connect_tag_protocol,
@@ -2184,7 +2192,53 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.port_set_host_flood		= felix_port_set_host_flood,
 	.port_change_conduit		= felix_port_change_conduit,
 };
-EXPORT_SYMBOL_GPL(felix_switch_ops);
+
+int felix_register_switch(struct device *dev, resource_size_t switch_base,
+			  int num_flooding_pgids, bool ptp,
+			  bool mm_supported,
+			  enum dsa_tag_protocol init_tag_proto,
+			  const struct felix_info *info)
+{
+	struct dsa_switch *ds;
+	struct ocelot *ocelot;
+	struct felix *felix;
+	int err;
+
+	felix = devm_kzalloc(dev, sizeof(*felix), GFP_KERNEL);
+	if (!felix)
+		return -ENOMEM;
+
+	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	if (!ds)
+		return -ENOMEM;
+
+	dev_set_drvdata(dev, felix);
+
+	ocelot = &felix->ocelot;
+	ocelot->dev = dev;
+	ocelot->num_flooding_pgids = num_flooding_pgids;
+	ocelot->ptp = ptp;
+	ocelot->mm_supported = mm_supported;
+
+	felix->info = info;
+	felix->switch_base = switch_base;
+	felix->ds = ds;
+	felix->tag_proto = init_tag_proto;
+
+	ds->dev = dev;
+	ds->num_ports = info->num_ports;
+	ds->num_tx_queues = OCELOT_NUM_TC;
+	ds->ops = &felix_switch_ops;
+	ds->phylink_mac_ops = &felix_phylink_mac_ops;
+	ds->priv = ocelot;
+
+	err = dsa_register_switch(ds);
+	if (err)
+		dev_err_probe(dev, err, "Failed to register DSA switch\n");
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(felix_register_switch);
 
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)
 {
