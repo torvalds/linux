@@ -523,15 +523,23 @@ mlx5e_add_skb_shared_info_frag(struct mlx5e_rq *rq, struct skb_shared_info *sinf
 
 static inline void
 mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
-		   struct page *page, u32 frag_offset, u32 len,
+		   struct mlx5e_frag_page *frag_page,
+		   u32 frag_offset, u32 len,
 		   unsigned int truesize)
 {
-	dma_addr_t addr = page_pool_get_dma_addr(page);
+	dma_addr_t addr = page_pool_get_dma_addr(frag_page->page);
+	u8 next_frag = skb_shinfo(skb)->nr_frags;
 
 	dma_sync_single_for_cpu(rq->pdev, addr + frag_offset, len,
 				rq->buff.map_dir);
-	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-			page, frag_offset, len, truesize);
+
+	if (skb_can_coalesce(skb, next_frag, frag_page->page, frag_offset)) {
+		skb_coalesce_rx_frag(skb, next_frag - 1, len, truesize);
+	} else {
+		frag_page->frags++;
+		skb_add_rx_frag(skb, next_frag, frag_page->page,
+				frag_offset, len, truesize);
+	}
 }
 
 static inline void
@@ -1956,8 +1964,7 @@ mlx5e_shampo_fill_skb_data(struct sk_buff *skb, struct mlx5e_rq *rq,
 		u32 pg_consumed_bytes = min_t(u32, PAGE_SIZE - data_offset, data_bcnt);
 		unsigned int truesize = pg_consumed_bytes;
 
-		frag_page->frags++;
-		mlx5e_add_skb_frag(rq, skb, frag_page->page, data_offset,
+		mlx5e_add_skb_frag(rq, skb, frag_page, data_offset,
 				   pg_consumed_bytes, truesize);
 
 		data_bcnt -= pg_consumed_bytes;
