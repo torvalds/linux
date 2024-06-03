@@ -503,4 +503,6 @@ static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
 	memalloc_noreclaim_restore(mes->saved_flags);
 	mutex_unlock(&mes->mutex_hidden);
 }
+
+bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev);
 #endif /* __AMDGPU_MES_H__ */
