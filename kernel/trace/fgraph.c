@@ -11,6 +11,7 @@
 #include <linux/jump_label.h>
 #include <linux/suspend.h>
 #include <linux/ftrace.h>
+#include <linux/static_call.h>
 #include <linux/slab.h>
 
 #include <trace/events/sched.h>
@@ -511,6 +512,10 @@ static struct fgraph_ops fgraph_stub = {
 	.retfunc = ftrace_graph_ret_stub,
 };
 
+static struct fgraph_ops *fgraph_direct_gops = &fgraph_stub;
+DEFINE_STATIC_CALL(fgraph_func, ftrace_graph_entry_stub);
+DEFINE_STATIC_KEY_TRUE(fgraph_do_direct);
+
 /**
  * ftrace_graph_stop - set to permanently disable function graph tracing
  *
@@ -636,21 +641,34 @@ int function_graph_enter(unsigned long ret, unsigned long func,
 	if (offset < 0)
 		goto out;
 
-	for_each_set_bit(i, &fgraph_array_bitmask,
-			 sizeof(fgraph_array_bitmask) * BITS_PER_BYTE) {
-		struct fgraph_ops *gops = fgraph_array[i];
-		int save_curr_ret_stack;
+#ifdef CONFIG_HAVE_STATIC_CALL
+	if (static_branch_likely(&fgraph_do_direct)) {
+		int save_curr_ret_stack = current->curr_ret_stack;
 
-		if (gops == &fgraph_stub)
-			continue;
-
-		save_curr_ret_stack = current->curr_ret_stack;
-		if (ftrace_ops_test(&gops->ops, func, NULL) &&
-		    gops->entryfunc(&trace, gops))
-			bitmap |= BIT(i);
+		if (static_call(fgraph_func)(&trace, fgraph_direct_gops))
+			bitmap |= BIT(fgraph_direct_gops->idx);
 		else
 			/* Clear out any saved storage */
 			current->curr_ret_stack = save_curr_ret_stack;
+	} else
+#endif
+	{
+		for_each_set_bit(i, &fgraph_array_bitmask,
+					 sizeof(fgraph_array_bitmask) * BITS_PER_BYTE) {
+			struct fgraph_ops *gops = fgraph_array[i];
+			int save_curr_ret_stack;
+
+			if (gops == &fgraph_stub)
+				continue;
+
+			save_curr_ret_stack = current->curr_ret_stack;
+			if (ftrace_ops_test(&gops->ops, func, NULL) &&
+			    gops->entryfunc(&trace, gops))
+				bitmap |= BIT(i);
+			else
+				/* Clear out any saved storage */
+				current->curr_ret_stack = save_curr_ret_stack;
+		}
 	}
 
 	if (!bitmap)
@@ -1155,6 +1173,8 @@ void fgraph_update_pid_func(void)
 			gops = container_of(op, struct fgraph_ops, ops);
 			gops->entryfunc = ftrace_pids_enabled(op) ?
 				fgraph_pid_func : gops->saved_func;
+			if (ftrace_graph_active == 1)
+				static_call_update(fgraph_func, gops->entryfunc);
 		}
 	}
 }
@@ -1209,6 +1229,32 @@ static void init_task_vars(int idx)
 	read_unlock(&tasklist_lock);
 }
 
+static void ftrace_graph_enable_direct(bool enable_branch)
+{
+	trace_func_graph_ent_t func = NULL;
+	int i;
+
+	for_each_set_bit(i, &fgraph_array_bitmask,
+			 sizeof(fgraph_array_bitmask) * BITS_PER_BYTE) {
+		func = fgraph_array[i]->entryfunc;
+		fgraph_direct_gops = fgraph_array[i];
+	 }
+	if (WARN_ON_ONCE(!func))
+		return;
+
+	static_call_update(fgraph_func, func);
+	if (enable_branch)
+		static_branch_disable(&fgraph_do_direct);
+}
+
+static void ftrace_graph_disable_direct(bool disable_branch)
+{
+	if (disable_branch)
+		static_branch_disable(&fgraph_do_direct);
+	static_call_update(fgraph_func, ftrace_graph_entry_stub);
+	fgraph_direct_gops = &fgraph_stub;
+}
+
 int register_ftrace_graph(struct fgraph_ops *gops)
 {
 	int command = 0;
@@ -1235,7 +1281,11 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 
 	ftrace_graph_active++;
 
+	if (ftrace_graph_active == 2)
+		ftrace_graph_disable_direct(true);
+
 	if (ftrace_graph_active == 1) {
+		ftrace_graph_enable_direct(false);
 		register_pm_notifier(&ftrace_suspend_notifier);
 		ret = start_graph_tracing();
 		if (ret)
@@ -1291,6 +1341,11 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 		command = FTRACE_STOP_FUNC_RET;
 
 	ftrace_shutdown_subops(&graph_ops, &gops->ops, command);
+
+	if (ftrace_graph_active == 1)
+		ftrace_graph_enable_direct(true);
+	else if (!ftrace_graph_active)
+		ftrace_graph_disable_direct(false);
 
 	if (!ftrace_graph_active) {
 		ftrace_graph_return = ftrace_stub_graph;
