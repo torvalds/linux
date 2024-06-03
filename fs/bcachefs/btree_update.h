@@ -57,8 +57,9 @@ int bch2_btree_insert_nonextent(struct btree_trans *, enum btree_id,
 
 int bch2_btree_insert_trans(struct btree_trans *, enum btree_id, struct bkey_i *,
 			enum btree_iter_update_trigger_flags);
-int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
-		     struct disk_reservation *, int flags);
+int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *, struct
+		disk_reservation *, int flags, enum
+		btree_iter_update_trigger_flags iter_flags);
 
 int bch2_btree_delete_range_trans(struct btree_trans *, enum btree_id,
 				  struct bpos, struct bpos, unsigned, u64 *);
