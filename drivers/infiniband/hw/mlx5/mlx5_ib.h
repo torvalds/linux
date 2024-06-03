@@ -824,11 +824,13 @@ struct mlx5_ib_port_resources {
 
 struct mlx5_ib_resources {
 	struct ib_cq	*c0;
+	struct mutex cq_lock;
 	u32 xrcdn0;
 	u32 xrcdn1;
 	struct ib_pd	*p0;
 	struct ib_srq	*s0;
 	struct ib_srq	*s1;
+	struct mutex srq_lock;
 	struct mlx5_ib_port_resources ports[2];
 };
 
@@ -1272,6 +1274,8 @@ to_mmmap(struct rdma_user_mmap_entry *rdma_entry)
 		struct mlx5_user_mmap_entry, rdma_entry);
 }
 
+int mlx5_ib_dev_res_cq_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_dev_res_srq_init(struct mlx5_ib_dev *dev);
 int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
 			struct mlx5_db *db);
 void mlx5_ib_db_unmap_user(struct mlx5_ib_ucontext *context, struct mlx5_db *db);

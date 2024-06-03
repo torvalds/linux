@@ -3234,6 +3234,10 @@ int mlx5_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attr,
 	enum ib_qp_type type;
 	int err;
 
+	err = mlx5_ib_dev_res_srq_init(dev);
+	if (err)
+		return err;
+
 	err = check_qp_type(dev, attr, &type);
 	if (err)
 		return err;
