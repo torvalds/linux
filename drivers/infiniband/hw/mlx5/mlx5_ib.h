@@ -751,6 +751,8 @@ struct umr_common {
 	 */
 	struct mutex lock;
 	unsigned int state;
+	/* Protects from repeat UMR QP creation */
+	struct mutex init_lock;
 };
 
 #define NUM_MKEYS_PER_PAGE \

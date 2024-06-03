@@ -4086,6 +4086,7 @@ static void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_mkey_cache_cleanup(dev);
 	mlx5r_umr_resource_cleanup(dev);
+	mlx5r_umr_cleanup(dev);
 }
 
 static void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev)
@@ -4097,7 +4098,7 @@ static int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev)
 {
 	int ret;
 
-	ret = mlx5r_umr_resource_init(dev);
+	ret = mlx5r_umr_init(dev);
 	if (ret)
 		return ret;
 
