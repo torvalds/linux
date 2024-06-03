@@ -74,6 +74,27 @@
 #include "lib/devcom.h"
 #include "lib/sd.h"
 
+static bool mlx5e_hw_gro_supported(struct mlx5_core_dev *mdev)
+{
+	if (!MLX5_CAP_GEN(mdev, shampo))
+		return false;
+
+	/* Our HW-GRO implementation relies on "KSM Mkey" for
+	 * SHAMPO headers buffer mapping
+	 */
+	if (!MLX5_CAP_GEN(mdev, fixed_buffer_size))
+		return false;
+
+	if (!MLX5_CAP_GEN_2(mdev, min_mkey_log_entity_size_fixed_buffer_valid))
+		return false;
+
+	if (MLX5_CAP_GEN_2(mdev, min_mkey_log_entity_size_fixed_buffer) >
+	    MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE)
+		return false;
+
+	return true;
+}
+
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev, u8 page_shift,
 					    enum mlx5e_mpwrq_umr_mode umr_mode)
 {
@@ -5330,6 +5351,11 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_STAG_TX;
+
+	if (mlx5e_hw_gro_supported(mdev) &&
+	    mlx5e_check_fragmented_striding_rq_cap(mdev, PAGE_SHIFT,
+						   MLX5E_MPWRQ_UMR_MODE_ALIGNED))
+		netdev->hw_features    |= NETIF_F_GRO_HW;
 
 	if (mlx5e_tunnel_any_tx_proto_supported(mdev)) {
 		netdev->hw_enc_features |= NETIF_F_HW_CSUM;
