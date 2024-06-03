@@ -1247,6 +1247,23 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	/* One ref for the tree. */
 	refcount_inc(&new->refs);
 
+	/*
+	 * Take the root's ordered_extent_lock to avoid a race with
+	 * btrfs_wait_ordered_extents() when updating the disk_bytenr and
+	 * disk_num_bytes fields of the ordered extent below. And we disable
+	 * IRQs because the inode's ordered_tree_lock is used in IRQ context
+	 * elsewhere.
+	 *
+	 * There's no concern about a previous caller of
+	 * btrfs_wait_ordered_extents() getting the trimmed ordered extent
+	 * before we insert the new one, because even if it gets the ordered
+	 * extent before it's trimmed and the new one inserted, right before it
+	 * uses it or during its use, the ordered extent might have been
+	 * trimmed in the meanwhile, and it missed the new ordered extent.
+	 * There's no way around this and it's harmless for current use cases,
+	 * so we take the root's ordered_extent_lock to fix that race during
+	 * trimming and silence tools like KCSAN.
+	 */
 	spin_lock_irq(&root->ordered_extent_lock);
 	spin_lock(&inode->ordered_tree_lock);
 	/* Remove from tree once */
