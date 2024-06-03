@@ -139,8 +139,6 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 			break;
 		}
 
-		virtio_transport_deliver_tap_pkt(skb);
-
 		if (reply) {
 			struct virtqueue *rx_vq = vsock->vqs[VSOCK_VQ_RX];
 			int val;
