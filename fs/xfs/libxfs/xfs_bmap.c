@@ -6383,6 +6383,7 @@ xfs_bunmapi_range(
 		error = xfs_defer_finish(tpp);
 		if (error)
 			goto out;
+		cond_resched();
 	}
 out:
 	return error;
