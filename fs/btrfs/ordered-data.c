@@ -783,10 +783,10 @@ u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 		btrfs_queue_work(fs_info->flush_workers, &ordered->flush_work);
 
 		cond_resched();
-		spin_lock(&root->ordered_extent_lock);
 		if (nr != U64_MAX)
 			nr--;
 		count++;
+		spin_lock(&root->ordered_extent_lock);
 	}
 	list_splice_tail(&skipped, &root->ordered_extents);
 	list_splice_tail(&splice, &root->ordered_extents);
