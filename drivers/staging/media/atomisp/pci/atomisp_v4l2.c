@@ -66,10 +66,6 @@ module_param(dbg_func, int, 0644);
 MODULE_PARM_DESC(dbg_func,
 		 "log function switch non/printk (default:printk)");
 
-int mipicsi_flag;
-module_param(mipicsi_flag, int, 0644);
-MODULE_PARM_DESC(mipicsi_flag, "mipi csi compression predictor algorithm");
-
 static char firmware_name[256];
 module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
 MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the default firmware name.");
