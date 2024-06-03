@@ -33,7 +33,7 @@
  * SHADOW_STACK_MAX_OFFSET: The max offset of the stack for a new frame to be added
  */
 #define FGRAPH_FRAME_SIZE	sizeof(struct ftrace_ret_stack)
-#define FGRAPH_FRAME_OFFSET	(ALIGN(FGRAPH_FRAME_SIZE, sizeof(long)) / sizeof(long))
+#define FGRAPH_FRAME_OFFSET	DIV_ROUND_UP(FGRAPH_FRAME_SIZE, sizeof(long))
 #define SHADOW_STACK_SIZE (PAGE_SIZE)
 #define SHADOW_STACK_OFFSET			\
 	(ALIGN(SHADOW_STACK_SIZE, sizeof(long)) / sizeof(long))
@@ -102,6 +102,8 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 
 	if (!current->ret_stack)
 		return -EBUSY;
+
+	BUILD_BUG_ON(SHADOW_STACK_SIZE % sizeof(long));
 
 	/*
 	 * We must make sure the ret_stack is tested before we read
@@ -325,6 +327,8 @@ struct ftrace_ret_stack *
 ftrace_graph_get_ret_stack(struct task_struct *task, int idx)
 {
 	int index = task->curr_ret_stack;
+
+	BUILD_BUG_ON(FGRAPH_FRAME_SIZE % sizeof(long));
 
 	index -= FGRAPH_FRAME_OFFSET * (idx + 1);
 	if (index < 0)
