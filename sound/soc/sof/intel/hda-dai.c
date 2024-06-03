@@ -525,6 +525,9 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	if (sdev->dspless_mode_selected)
+		return 0;
+
 	ipc4_copier = widget_to_copier(w);
 	dma_config_tlv = &ipc4_copier->dma_config_tlv[cpu_dai_id];
 	dma_config = &dma_config_tlv->dma_config;
