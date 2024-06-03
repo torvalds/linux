@@ -120,7 +120,8 @@ int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 	} else {
 		/* stream was configured with dummy plane, so get pipes from opp head */
 		struct pipe_ctx *otg_master_pipe = dml_ctx->config.callbacks.get_otg_master_for_stream(&context->res_ctx, dc_main_stream);
-		num_pipes = dml_ctx->config.callbacks.get_opp_heads_for_otg_master(otg_master_pipe, &context->res_ctx, dc_main_pipes);
+		if (otg_master_pipe != NULL)
+			num_pipes = dml_ctx->config.callbacks.get_opp_heads_for_otg_master(otg_master_pipe, &context->res_ctx, dc_main_pipes);
 	}
 
 	/* if phantom exists, find associated pipes */

@@ -905,6 +905,9 @@ static unsigned int get_source_odm_factor(const struct dml2_context *ctx,
 {
 	struct pipe_ctx *otg_master = ctx->config.callbacks.get_otg_master_for_stream(&state->res_ctx, stream);
 
+	if (!otg_master)
+		return 0;
+
 	return ctx->config.callbacks.get_odm_slice_count(otg_master);
 }
 

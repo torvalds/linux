@@ -3127,8 +3127,13 @@ bool resource_update_pipes_for_stream_with_slice_count(
 	int i;
 	struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(
 			&new_ctx->res_ctx, stream);
-	int cur_slice_count = resource_get_odm_slice_count(otg_master);
+	int cur_slice_count;
 	bool result = true;
+
+	if (!otg_master)
+		return false;
+
+	cur_slice_count = resource_get_odm_slice_count(otg_master);
 
 	if (new_slice_count == cur_slice_count)
 		return result;
