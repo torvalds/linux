@@ -321,16 +321,13 @@
 			#size-cells = <1>;
 
 			spl@0 {
-				reg = <0x0 0x80000>;
+				reg = <0x0 0xf0000>;
 			};
 			uboot-env@f0000 {
 				reg = <0xf0000 0x10000>;
 			};
 			uboot@100000 {
-				reg = <0x100000 0x400000>;
-			};
-			reserved-data@600000 {
-				reg = <0x600000 0xa00000>;
+				reg = <0x100000 0xf00000>;
 			};
 		};
 	};
