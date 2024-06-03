@@ -2267,6 +2267,8 @@ mlx5e_shampo_flush_skb(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe, bool match)
 		mlx5e_shampo_align_fragment(skb, rq->mpwqe.log_stride_sz);
 	if (NAPI_GRO_CB(skb)->count > 1)
 		mlx5e_shampo_update_hdr(rq, cqe, match);
+	else
+		skb_shinfo(skb)->gso_size = 0;
 	napi_gro_receive(rq->cq.napi, skb);
 	rq->hw_gro_data->skb = NULL;
 }
