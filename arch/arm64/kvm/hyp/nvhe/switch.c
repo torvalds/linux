@@ -182,6 +182,11 @@ static bool kvm_handle_pvm_sys64(struct kvm_vcpu *vcpu, u64 *exit_code)
 		kvm_handle_pvm_sysreg(vcpu, exit_code));
 }
 
+static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu)
+{
+	__fpsimd_save_state(*host_data_ptr(fpsimd_state));
+}
+
 static const exit_handler_fn hyp_exit_handlers[] = {
 	[0 ... ESR_ELx_EC_MAX]		= NULL,
 	[ESR_ELx_EC_CP15_32]		= kvm_hyp_handle_cp15_32,
