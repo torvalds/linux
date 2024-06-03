@@ -877,22 +877,37 @@ static bool iomap_write_end(struct iomap_iter *iter, loff_t pos, size_t len,
 		size_t copied, struct folio *folio)
 {
 	const struct iomap *srcmap = iomap_iter_srcmap(iter);
+	loff_t old_size = iter->inode->i_size;
+	size_t written;
 
 	if (srcmap->type == IOMAP_INLINE) {
 		iomap_write_end_inline(iter, folio, pos, copied);
-		return true;
-	}
-
-	if (srcmap->flags & IOMAP_F_BUFFER_HEAD) {
-		size_t bh_written;
-
-		bh_written = block_write_end(NULL, iter->inode->i_mapping, pos,
+		written = copied;
+	} else if (srcmap->flags & IOMAP_F_BUFFER_HEAD) {
+		written = block_write_end(NULL, iter->inode->i_mapping, pos,
 					len, copied, &folio->page, NULL);
-		WARN_ON_ONCE(bh_written != copied && bh_written != 0);
-		return bh_written == copied;
+		WARN_ON_ONCE(written != copied && written != 0);
+	} else {
+		written = __iomap_write_end(iter->inode, pos, len, copied,
+					    folio) ? copied : 0;
 	}
 
-	return __iomap_write_end(iter->inode, pos, len, copied, folio);
+	/*
+	 * Update the in-memory inode size after copying the data into the page
+	 * cache.  It's up to the file system to write the updated size to disk,
+	 * preferably after I/O completion so that no stale data is exposed.
+	 * Only once that's done can we unlock and release the folio.
+	 */
+	if (pos + written > old_size) {
+		i_size_write(iter->inode, pos + written);
+		iter->iomap.flags |= IOMAP_F_SIZE_CHANGED;
+	}
+	__iomap_put_folio(iter, pos, written, folio);
+
+	if (old_size < pos)
+		pagecache_isize_extended(iter->inode, old_size, pos);
+
+	return written == copied;
 }
 
 static loff_t iomap_write_iter(struct iomap_iter *iter, struct iov_iter *i)
@@ -907,7 +922,6 @@ static loff_t iomap_write_iter(struct iomap_iter *iter, struct iov_iter *i)
 
 	do {
 		struct folio *folio;
-		loff_t old_size;
 		size_t offset;		/* Offset into folio */
 		size_t bytes;		/* Bytes to write to folio */
 		size_t copied;		/* Bytes copied from user */
@@ -958,23 +972,6 @@ retry:
 		copied = copy_folio_from_iter_atomic(folio, offset, bytes, i);
 		written = iomap_write_end(iter, pos, bytes, copied, folio) ?
 			  copied : 0;
-
-		/*
-		 * Update the in-memory inode size after copying the data into
-		 * the page cache.  It's up to the file system to write the
-		 * updated size to disk, preferably after I/O completion so that
-		 * no stale data is exposed.  Only once that's done can we
-		 * unlock and release the folio.
-		 */
-		old_size = iter->inode->i_size;
-		if (pos + written > old_size) {
-			i_size_write(iter->inode, pos + written);
-			iter->iomap.flags |= IOMAP_F_SIZE_CHANGED;
-		}
-		__iomap_put_folio(iter, pos, written, folio);
-
-		if (old_size < pos)
-			pagecache_isize_extended(iter->inode, old_size, pos);
 
 		cond_resched();
 		if (unlikely(written == 0)) {
@@ -1346,7 +1343,6 @@ static loff_t iomap_unshare_iter(struct iomap_iter *iter)
 			bytes = folio_size(folio) - offset;
 
 		ret = iomap_write_end(iter, pos, bytes, bytes, folio);
-		__iomap_put_folio(iter, pos, bytes, folio);
 		if (WARN_ON_ONCE(!ret))
 			return -EIO;
 
@@ -1412,7 +1408,6 @@ static loff_t iomap_zero_iter(struct iomap_iter *iter, bool *did_zero)
 		folio_mark_accessed(folio);
 
 		ret = iomap_write_end(iter, pos, bytes, bytes, folio);
-		__iomap_put_folio(iter, pos, bytes, folio);
 		if (WARN_ON_ONCE(!ret))
 			return -EIO;
 
