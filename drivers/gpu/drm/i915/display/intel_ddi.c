@@ -3516,11 +3516,10 @@ intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 	bool is_tc_port = intel_encoder_is_tc(encoder);
 
 	if (is_tc_port) {
-		struct intel_crtc *master_crtc =
-			to_intel_crtc(crtc_state->uapi.crtc);
+		struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 		intel_tc_port_get_link(dig_port, crtc_state->lane_count);
-		intel_ddi_update_active_dpll(state, encoder, master_crtc);
+		intel_ddi_update_active_dpll(state, encoder, crtc);
 	}
 
 	main_link_aux_power_domain_get(dig_port, crtc_state);
