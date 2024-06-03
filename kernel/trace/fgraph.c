@@ -514,6 +514,7 @@ static struct fgraph_ops fgraph_stub = {
 
 static struct fgraph_ops *fgraph_direct_gops = &fgraph_stub;
 DEFINE_STATIC_CALL(fgraph_func, ftrace_graph_entry_stub);
+DEFINE_STATIC_CALL(fgraph_retfunc, ftrace_graph_ret_stub);
 DEFINE_STATIC_KEY_TRUE(fgraph_do_direct);
 
 /**
@@ -808,13 +809,21 @@ static unsigned long __ftrace_return_to_handler(struct fgraph_ret_regs *ret_regs
 
 	bitmap = get_bitmap_bits(current, offset);
 
-	for_each_set_bit(i, &bitmap, sizeof(bitmap) * BITS_PER_BYTE) {
-		struct fgraph_ops *gops = fgraph_array[i];
+#ifdef CONFIG_HAVE_STATIC_CALL
+	if (static_branch_likely(&fgraph_do_direct)) {
+		if (test_bit(fgraph_direct_gops->idx, &bitmap))
+			static_call(fgraph_retfunc)(&trace, fgraph_direct_gops);
+	} else
+#endif
+	{
+		for_each_set_bit(i, &bitmap, sizeof(bitmap) * BITS_PER_BYTE) {
+			struct fgraph_ops *gops = fgraph_array[i];
 
-		if (gops == &fgraph_stub)
-			continue;
+			if (gops == &fgraph_stub)
+				continue;
 
-		gops->retfunc(&trace, gops);
+			gops->retfunc(&trace, gops);
+		}
 	}
 
 	/*
@@ -1232,17 +1241,20 @@ static void init_task_vars(int idx)
 static void ftrace_graph_enable_direct(bool enable_branch)
 {
 	trace_func_graph_ent_t func = NULL;
+	trace_func_graph_ret_t retfunc = NULL;
 	int i;
 
 	for_each_set_bit(i, &fgraph_array_bitmask,
 			 sizeof(fgraph_array_bitmask) * BITS_PER_BYTE) {
 		func = fgraph_array[i]->entryfunc;
+		retfunc = fgraph_array[i]->retfunc;
 		fgraph_direct_gops = fgraph_array[i];
 	 }
 	if (WARN_ON_ONCE(!func))
 		return;
 
 	static_call_update(fgraph_func, func);
+	static_call_update(fgraph_retfunc, retfunc);
 	if (enable_branch)
 		static_branch_disable(&fgraph_do_direct);
 }
@@ -1252,6 +1264,7 @@ static void ftrace_graph_disable_direct(bool disable_branch)
 	if (disable_branch)
 		static_branch_disable(&fgraph_do_direct);
 	static_call_update(fgraph_func, ftrace_graph_entry_stub);
+	static_call_update(fgraph_retfunc, ftrace_graph_ret_stub);
 	fgraph_direct_gops = &fgraph_stub;
 }
 
