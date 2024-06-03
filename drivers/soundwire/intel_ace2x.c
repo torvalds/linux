@@ -27,6 +27,11 @@ static void intel_shim_vs_init(struct sdw_intel *sdw)
 	void __iomem *shim_vs = sdw->link_res->shim_vs;
 	struct sdw_bus *bus = &sdw->cdns.bus;
 	struct sdw_intel_prop *intel_prop;
+	u16 clde;
+	u16 doaise2;
+	u16 dodse2;
+	u16 clds;
+	u16 clss;
 	u16 doaise;
 	u16 doais;
 	u16 dodse;
@@ -34,12 +39,22 @@ static void intel_shim_vs_init(struct sdw_intel *sdw)
 	u16 act;
 
 	intel_prop = bus->vendor_specific_prop;
+	clde = intel_prop->clde;
+	doaise2 = intel_prop->doaise2;
+	dodse2 = intel_prop->dodse2;
+	clds = intel_prop->clds;
+	clss = intel_prop->clss;
 	doaise = intel_prop->doaise;
 	doais = intel_prop->doais;
 	dodse = intel_prop->dodse;
 	dods = intel_prop->dods;
 
 	act = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL);
+	u16p_replace_bits(&act, clde, SDW_SHIM3_INTEL_VS_ACTMCTL_CLDE);
+	u16p_replace_bits(&act, doaise2, SDW_SHIM3_INTEL_VS_ACTMCTL_DOAISE2);
+	u16p_replace_bits(&act, dodse2, SDW_SHIM3_INTEL_VS_ACTMCTL_DODSE2);
+	u16p_replace_bits(&act, clds, SDW_SHIM3_INTEL_VS_ACTMCTL_CLDS);
+	u16p_replace_bits(&act, clss, SDW_SHIM3_INTEL_VS_ACTMCTL_CLSS);
 	u16p_replace_bits(&act, doaise, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAISE);
 	u16p_replace_bits(&act, doais, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
 	u16p_replace_bits(&act, dodse, SDW_SHIM2_INTEL_VS_ACTMCTL_DODSE);
