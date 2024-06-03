@@ -550,8 +550,14 @@ struct cpu_sve_state {
 struct kvm_host_data {
 	struct kvm_cpu_context host_ctxt;
 
-	struct user_fpsimd_state *fpsimd_state;	/* hyp VA */
-	struct cpu_sve_state *sve_state;	/* hyp VA */
+	/*
+	 * All pointers in this union are hyp VA.
+	 * sve_state is only used in pKVM and if system_supports_sve().
+	 */
+	union {
+		struct user_fpsimd_state *fpsimd_state;
+		struct cpu_sve_state *sve_state;
+	};
 
 	/* Ownership of the FP regs */
 	enum {

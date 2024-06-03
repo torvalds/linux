@@ -2444,14 +2444,22 @@ static void finalize_init_hyp_mode(void)
 {
 	int cpu;
 
-	if (!is_protected_kvm_enabled() || !system_supports_sve())
-		return;
+	if (system_supports_sve() && is_protected_kvm_enabled()) {
+		for_each_possible_cpu(cpu) {
+			struct cpu_sve_state *sve_state;
 
-	for_each_possible_cpu(cpu) {
-		struct cpu_sve_state *sve_state;
+			sve_state = per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_state;
+			per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_state =
+				kern_hyp_va(sve_state);
+		}
+	} else {
+		for_each_possible_cpu(cpu) {
+			struct user_fpsimd_state *fpsimd_state;
 
-		sve_state = per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_state;
-		per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_state = kern_hyp_va(sve_state);
+			fpsimd_state = &per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->host_ctxt.fp_regs;
+			per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->fpsimd_state =
+				kern_hyp_va(fpsimd_state);
+		}
 	}
 }
 
