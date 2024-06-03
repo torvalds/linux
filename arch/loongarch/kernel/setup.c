@@ -282,7 +282,7 @@ static void __init fdt_setup(void)
 		return;
 
 	/* Prefer to use built-in dtb, checking its legality first. */
-	if (!fdt_check_header(__dtb_start))
+	if (IS_ENABLED(CONFIG_BUILTIN_DTB) && !fdt_check_header(__dtb_start))
 		fdt_pointer = __dtb_start;
 	else
 		fdt_pointer = efi_fdt_pointer(); /* Fallback to firmware dtb */
