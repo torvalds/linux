@@ -1,0 +1,201 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/amlogic,axg-audio-clkc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amlogic AXG Audio Clock Controller
+
+maintainers:
+  - Neil Armstrong <neil.armstrong@linaro.org>
+  - Jerome Brunet <jbrunet@baylibre.com>
+
+description:
+  The Amlogic AXG audio clock controller generates and supplies clock to the
+  other elements of the audio subsystem, such as fifos, i2s, spdif and pdm
+  devices.
+
+properties:
+  compatible:
+    enum:
+      - amlogic,axg-audio-clkc
+      - amlogic,g12a-audio-clkc
+      - amlogic,sm1-audio-clkc
+
+  '#clock-cells':
+    const: 1
+
+  '#reset-cells':
+    const: 1
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: main peripheral bus clock
+      - description: input plls to generate clock signals N0
+      - description: input plls to generate clock signals N1
+      - description: input plls to generate clock signals N2
+      - description: input plls to generate clock signals N3
+      - description: input plls to generate clock signals N4
+      - description: input plls to generate clock signals N5
+      - description: input plls to generate clock signals N6
+      - description: input plls to generate clock signals N7
+      - description: slave bit clock N0 provided by external components
+      - description: slave bit clock N1 provided by external components
+      - description: slave bit clock N2 provided by external components
+      - description: slave bit clock N3 provided by external components
+      - description: slave bit clock N4 provided by external components
+      - description: slave bit clock N5 provided by external components
+      - description: slave bit clock N6 provided by external components
+      - description: slave bit clock N7 provided by external components
+      - description: slave bit clock N8 provided by external components
+      - description: slave bit clock N9 provided by external components
+      - description: slave sample clock N0 provided by external components
+      - description: slave sample clock N1 provided by external components
+      - description: slave sample clock N2 provided by external components
+      - description: slave sample clock N3 provided by external components
+      - description: slave sample clock N4 provided by external components
+      - description: slave sample clock N5 provided by external components
+      - description: slave sample clock N6 provided by external components
+      - description: slave sample clock N7 provided by external components
+      - description: slave sample clock N8 provided by external components
+      - description: slave sample clock N9 provided by external components
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: pclk
+      - const: mst_in0
+      - const: mst_in1
+      - const: mst_in2
+      - const: mst_in3
+      - const: mst_in4
+      - const: mst_in5
+      - const: mst_in6
+      - const: mst_in7
+      - const: slv_sclk0
+      - const: slv_sclk1
+      - const: slv_sclk2
+      - const: slv_sclk3
+      - const: slv_sclk4
+      - const: slv_sclk5
+      - const: slv_sclk6
+      - const: slv_sclk7
+      - const: slv_sclk8
+      - const: slv_sclk9
+      - const: slv_lrclk0
+      - const: slv_lrclk1
+      - const: slv_lrclk2
+      - const: slv_lrclk3
+      - const: slv_lrclk4
+      - const: slv_lrclk5
+      - const: slv_lrclk6
+      - const: slv_lrclk7
+      - const: slv_lrclk8
+      - const: slv_lrclk9
+
+  resets:
+    description: internal reset line
+
+required:
+  - compatible
+  - '#clock-cells'
+  - reg
+  - clocks
+  - clock-names
+  - resets
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - amlogic,g12a-audio-clkc
+              - amlogic,sm1-audio-clkc
+    then:
+      required:
+        - '#reset-cells'
+    else:
+      properties:
+        '#reset-cells': false
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/axg-clkc.h>
+    #include <dt-bindings/reset/amlogic,meson-axg-reset.h>
+    apb {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        clkc_audio: clock-controller@0 {
+            compatible = "amlogic,axg-audio-clkc";
+            reg = <0x0 0x0 0x0 0xb4>;
+            #clock-cells = <1>;
+
+            clocks = <&clkc CLKID_AUDIO>,
+                     <&clkc CLKID_MPLL0>,
+                     <&clkc CLKID_MPLL1>,
+                     <&clkc CLKID_MPLL2>,
+                     <&clkc CLKID_MPLL3>,
+                     <&clkc CLKID_HIFI_PLL>,
+                     <&clkc CLKID_FCLK_DIV3>,
+                     <&clkc CLKID_FCLK_DIV4>,
+                     <&clkc CLKID_GP0_PLL>,
+                     <&slv_sclk0>,
+                     <&slv_sclk1>,
+                     <&slv_sclk2>,
+                     <&slv_sclk3>,
+                     <&slv_sclk4>,
+                     <&slv_sclk5>,
+                     <&slv_sclk6>,
+                     <&slv_sclk7>,
+                     <&slv_sclk8>,
+                     <&slv_sclk9>,
+                     <&slv_lrclk0>,
+                     <&slv_lrclk1>,
+                     <&slv_lrclk2>,
+                     <&slv_lrclk3>,
+                     <&slv_lrclk4>,
+                     <&slv_lrclk5>,
+                     <&slv_lrclk6>,
+                     <&slv_lrclk7>,
+                     <&slv_lrclk8>,
+                     <&slv_lrclk9>;
+            clock-names = "pclk",
+                          "mst_in0",
+                          "mst_in1",
+                          "mst_in2",
+                          "mst_in3",
+                          "mst_in4",
+                          "mst_in5",
+                          "mst_in6",
+                          "mst_in7",
+                          "slv_sclk0",
+                          "slv_sclk1",
+                          "slv_sclk2",
+                          "slv_sclk3",
+                          "slv_sclk4",
+                          "slv_sclk5",
+                          "slv_sclk6",
+                          "slv_sclk7",
+                          "slv_sclk8",
+                          "slv_sclk9",
+                          "slv_lrclk0",
+                          "slv_lrclk1",
+                          "slv_lrclk2",
+                          "slv_lrclk3",
+                          "slv_lrclk4",
+                          "slv_lrclk5",
+                          "slv_lrclk6",
+                          "slv_lrclk7",
+                          "slv_lrclk8",
+                          "slv_lrclk9";
+            resets = <&reset RESET_AUDIO>;
+        };
+    };
