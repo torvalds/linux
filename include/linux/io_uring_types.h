@@ -211,14 +211,6 @@ struct io_submit_state {
 	struct blk_plug		plug;
 };
 
-struct io_ev_fd {
-	struct eventfd_ctx	*cq_ev_fd;
-	unsigned int		eventfd_async: 1;
-	struct rcu_head		rcu;
-	atomic_t		refs;
-	atomic_t		ops;
-};
-
 struct io_alloc_cache {
 	void			**entries;
 	unsigned int		nr_cached;

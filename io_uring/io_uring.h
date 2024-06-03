@@ -104,12 +104,6 @@ bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 			bool cancel_all);
 
-enum {
-	IO_EVENTFD_OP_SIGNAL_BIT,
-};
-
-void io_eventfd_do_signal(struct rcu_head *rcu);
-void io_eventfd_free(struct rcu_head *rcu);
 void io_activate_pollwq(struct io_ring_ctx *ctx);
 
 static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
