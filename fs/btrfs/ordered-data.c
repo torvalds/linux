@@ -1305,7 +1305,7 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	node = tree_insert(&inode->ordered_tree, new->file_offset, &new->rb_node);
 	if (unlikely(node))
 		btrfs_panic(fs_info, -EEXIST,
-			"zoned: inconsistency in ordered tree at offset %llu",
+			"inconsistency in ordered tree at offset %llu after split",
 			new->file_offset);
 	spin_unlock(&inode->ordered_tree_lock);
 
