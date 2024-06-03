@@ -18,34 +18,51 @@
 #include "user.h"
 #include "ast.h"
 
+static void dlm_run_callback(uint32_t ls_id, uint32_t lkb_id, int8_t mode,
+			     uint32_t flags, uint8_t sb_flags, int sb_status,
+			     struct dlm_lksb *lksb,
+			     void (*astfn)(void *astparam),
+			     void (*bastfn)(void *astparam, int mode),
+			     void *astparam, const char *res_name,
+			     size_t res_length)
+{
+	if (flags & DLM_CB_BAST) {
+		trace_dlm_bast(ls_id, lkb_id, mode, res_name, res_length);
+		bastfn(astparam, mode);
+	} else if (flags & DLM_CB_CAST) {
+		trace_dlm_ast(ls_id, lkb_id, sb_status, sb_flags, res_name,
+			      res_length);
+		lksb->sb_status = sb_status;
+		lksb->sb_flags = sb_flags;
+		astfn(astparam);
+	}
+}
+
+static void dlm_do_callback(struct dlm_callback *cb)
+{
+	dlm_run_callback(cb->ls_id, cb->lkb_id, cb->mode, cb->flags,
+			 cb->sb_flags, cb->sb_status, cb->lkb_lksb,
+			 cb->astfn, cb->bastfn, cb->astparam,
+			 cb->res_name, cb->res_length);
+	dlm_free_cb(cb);
+}
+
 static void dlm_callback_work(struct work_struct *work)
 {
 	struct dlm_callback *cb = container_of(work, struct dlm_callback, work);
 
-	if (cb->flags & DLM_CB_BAST) {
-		trace_dlm_bast(cb->ls_id, cb->lkb_id, cb->mode, cb->res_name,
-			       cb->res_length);
-		cb->bastfn(cb->astparam, cb->mode);
-	} else if (cb->flags & DLM_CB_CAST) {
-		trace_dlm_ast(cb->ls_id, cb->lkb_id, cb->sb_status,
-			      cb->sb_flags, cb->res_name, cb->res_length);
-		cb->lkb_lksb->sb_status = cb->sb_status;
-		cb->lkb_lksb->sb_flags = cb->sb_flags;
-		cb->astfn(cb->astparam);
-	}
-
-	dlm_free_cb(cb);
+	dlm_do_callback(cb);
 }
 
-int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
-			   int status, uint32_t sbflags,
-			   struct dlm_callback **cb)
+bool dlm_may_skip_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
+			   int status, uint32_t sbflags, int *copy_lvb)
 {
 	struct dlm_rsb *rsb = lkb->lkb_resource;
-	int rv = DLM_ENQUEUE_CALLBACK_SUCCESS;
 	struct dlm_ls *ls = rsb->res_ls;
-	int copy_lvb = 0;
 	int prev_mode;
+
+	if (copy_lvb)
+		*copy_lvb = 0;
 
 	if (flags & DLM_CB_BAST) {
 		/* if cb is a bast, it should be skipped if the blocking mode is
@@ -56,7 +73,7 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 				log_debug(ls, "skip %x bast mode %d for cast mode %d",
 					  lkb->lkb_id, mode,
 					  lkb->lkb_last_cast_cb_mode);
-				goto out;
+				return true;
 			}
 		}
 
@@ -74,7 +91,7 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 			    (prev_mode > mode && prev_mode > DLM_LOCK_PR)) {
 				log_debug(ls, "skip %x add bast mode %d for bast mode %d",
 					  lkb->lkb_id, mode, prev_mode);
-				goto out;
+				return true;
 			}
 		}
 
@@ -85,8 +102,10 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 			prev_mode = lkb->lkb_last_cast_cb_mode;
 
 			if (!status && lkb->lkb_lksb->sb_lvbptr &&
-			    dlm_lvb_operations[prev_mode + 1][mode + 1])
-				copy_lvb = 1;
+			    dlm_lvb_operations[prev_mode + 1][mode + 1]) {
+				if (copy_lvb)
+					*copy_lvb = 1;
+			}
 		}
 
 		lkb->lkb_last_cast_cb_mode = mode;
@@ -96,11 +115,19 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	lkb->lkb_last_cb_mode = mode;
 	lkb->lkb_last_cb_flags = flags;
 
+	return false;
+}
+
+int dlm_get_cb(struct dlm_lkb *lkb, uint32_t flags, int mode,
+	       int status, uint32_t sbflags,
+	       struct dlm_callback **cb)
+{
+	struct dlm_rsb *rsb = lkb->lkb_resource;
+	struct dlm_ls *ls = rsb->res_ls;
+
 	*cb = dlm_allocate_cb();
-	if (!*cb) {
-		rv = DLM_ENQUEUE_CALLBACK_FAILURE;
-		goto out;
-	}
+	if (WARN_ON_ONCE(!*cb))
+		return -ENOMEM;
 
 	/* for tracing */
 	(*cb)->lkb_id = lkb->lkb_id;
@@ -112,19 +139,34 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	(*cb)->mode = mode;
 	(*cb)->sb_status = status;
 	(*cb)->sb_flags = (sbflags & 0x000000FF);
-	(*cb)->copy_lvb = copy_lvb;
 	(*cb)->lkb_lksb = lkb->lkb_lksb;
 
-	rv = DLM_ENQUEUE_CALLBACK_NEED_SCHED;
+	return 0;
+}
 
-out:
-	return rv;
+static int dlm_get_queue_cb(struct dlm_lkb *lkb, uint32_t flags, int mode,
+			    int status, uint32_t sbflags,
+			    struct dlm_callback **cb)
+{
+	int rv;
+
+	rv = dlm_get_cb(lkb, flags, mode, status, sbflags, cb);
+	if (rv)
+		return rv;
+
+	(*cb)->astfn = lkb->lkb_astfn;
+	(*cb)->bastfn = lkb->lkb_bastfn;
+	(*cb)->astparam = lkb->lkb_astparam;
+	INIT_WORK(&(*cb)->work, dlm_callback_work);
+
+	return 0;
 }
 
 void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
-		  uint32_t sbflags)
+		uint32_t sbflags)
 {
-	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
+	struct dlm_rsb *rsb = lkb->lkb_resource;
+	struct dlm_ls *ls = rsb->res_ls;
 	struct dlm_callback *cb;
 	int rv;
 
@@ -133,35 +175,34 @@ void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
 		return;
 	}
 
-	rv = dlm_queue_lkb_callback(lkb, flags, mode, status, sbflags,
-				    &cb);
-	switch (rv) {
-	case DLM_ENQUEUE_CALLBACK_NEED_SCHED:
-		cb->astfn = lkb->lkb_astfn;
-		cb->bastfn = lkb->lkb_bastfn;
-		cb->astparam = lkb->lkb_astparam;
-		INIT_WORK(&cb->work, dlm_callback_work);
+	if (dlm_may_skip_callback(lkb, flags, mode, status, sbflags, NULL))
+		return;
 
-		spin_lock_bh(&ls->ls_cb_lock);
-		if (test_bit(LSFL_CB_DELAY, &ls->ls_flags))
+	spin_lock_bh(&ls->ls_cb_lock);
+	if (test_bit(LSFL_CB_DELAY, &ls->ls_flags)) {
+		rv = dlm_get_queue_cb(lkb, flags, mode, status, sbflags, &cb);
+		if (!rv)
 			list_add(&cb->list, &ls->ls_cb_delay);
-		else
-			queue_work(ls->ls_callback_wq, &cb->work);
-		spin_unlock_bh(&ls->ls_cb_lock);
-		break;
-	case DLM_ENQUEUE_CALLBACK_SUCCESS:
-		break;
-	case DLM_ENQUEUE_CALLBACK_FAILURE:
-		fallthrough;
-	default:
-		WARN_ON_ONCE(1);
-		break;
+	} else {
+		if (test_bit(LSFL_SOFTIRQ, &ls->ls_flags)) {
+			dlm_run_callback(ls->ls_global_id, lkb->lkb_id, mode, flags,
+					 sbflags, status, lkb->lkb_lksb,
+					 lkb->lkb_astfn, lkb->lkb_bastfn,
+					 lkb->lkb_astparam, rsb->res_name,
+					 rsb->res_length);
+		} else {
+			rv = dlm_get_queue_cb(lkb, flags, mode, status, sbflags, &cb);
+			if (!rv)
+				queue_work(ls->ls_callback_wq, &cb->work);
+		}
 	}
+	spin_unlock_bh(&ls->ls_cb_lock);
 }
 
 int dlm_callback_start(struct dlm_ls *ls)
 {
-	if (!test_bit(LSFL_FS, &ls->ls_flags))
+	if (!test_bit(LSFL_FS, &ls->ls_flags) ||
+	    test_bit(LSFL_SOFTIRQ, &ls->ls_flags))
 		return 0;
 
 	ls->ls_callback_wq = alloc_ordered_workqueue("dlm_callback",
@@ -207,7 +248,11 @@ more:
 	spin_lock_bh(&ls->ls_cb_lock);
 	list_for_each_entry_safe(cb, safe, &ls->ls_cb_delay, list) {
 		list_del(&cb->list);
-		queue_work(ls->ls_callback_wq, &cb->work);
+		if (test_bit(LSFL_SOFTIRQ, &ls->ls_flags))
+			dlm_do_callback(cb);
+		else
+			queue_work(ls->ls_callback_wq, &cb->work);
+
 		count++;
 		if (count == MAX_CB_QUEUE)
 			break;

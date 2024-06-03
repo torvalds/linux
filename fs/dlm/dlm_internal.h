@@ -699,6 +699,7 @@ struct dlm_ls {
 #define LSFL_NODIR		10
 #define LSFL_RECV_MSG_BLOCKED	11
 #define LSFL_FS			12
+#define LSFL_SOFTIRQ		13
 
 #define DLM_PROC_FLAGS_CLOSING 1
 #define DLM_PROC_FLAGS_COMPAT  2

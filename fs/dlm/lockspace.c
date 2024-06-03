@@ -407,6 +407,9 @@ static int new_lockspace(const char *name, const char *cluster,
 		ls->ls_ops_arg = ops_arg;
 	}
 
+	if (flags & DLM_LSFL_SOFTIRQ)
+		set_bit(LSFL_SOFTIRQ, &ls->ls_flags);
+
 	/* ls_exflags are forced to match among nodes, and we don't
 	 * need to require all nodes to have some flags set
 	 */
