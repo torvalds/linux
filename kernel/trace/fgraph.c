@@ -854,6 +854,41 @@ void ftrace_graph_exit_task(struct task_struct *t)
 	kfree(ret_stack);
 }
 
+static int fgraph_pid_func(struct ftrace_graph_ent *trace,
+			   struct fgraph_ops *gops)
+{
+	struct trace_array *tr = gops->ops.private;
+	int pid;
+
+	if (tr) {
+		pid = this_cpu_read(tr->array_buffer.data->ftrace_ignore_pid);
+		if (pid == FTRACE_PID_IGNORE)
+			return 0;
+		if (pid != FTRACE_PID_TRACE &&
+		    pid != current->pid)
+			return 0;
+	}
+
+	return gops->saved_func(trace, gops);
+}
+
+void fgraph_update_pid_func(void)
+{
+	struct fgraph_ops *gops;
+	struct ftrace_ops *op;
+
+	if (!(graph_ops.flags & FTRACE_OPS_FL_INITIALIZED))
+		return;
+
+	list_for_each_entry(op, &graph_ops.subop_list, list) {
+		if (op->flags & FTRACE_OPS_FL_PID) {
+			gops = container_of(op, struct fgraph_ops, ops);
+			gops->entryfunc = ftrace_pids_enabled(op) ?
+				fgraph_pid_func : gops->saved_func;
+		}
+	}
+}
+
 /* Allocate a return stack for each task */
 static int start_graph_tracing(void)
 {
@@ -931,11 +966,15 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 		command = FTRACE_START_FUNC_RET;
 	}
 
+	/* Always save the function, and reset at unregistering */
+	gops->saved_func = gops->entryfunc;
+
 	ret = ftrace_startup_subops(&graph_ops, &gops->ops, command);
 error:
 	if (ret) {
 		fgraph_array[i] = &fgraph_stub;
 		ftrace_graph_active--;
+		gops->saved_func = NULL;
 	}
 out:
 	mutex_unlock(&ftrace_lock);
@@ -979,5 +1018,6 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 		unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 	}
  out:
+	gops->saved_func = NULL;
 	mutex_unlock(&ftrace_lock);
 }
