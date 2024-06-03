@@ -1038,6 +1038,7 @@ extern int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace);
 struct fgraph_ops {
 	trace_func_graph_ent_t		entryfunc;
 	trace_func_graph_ret_t		retfunc;
+	int				idx;
 };
 
 /*
@@ -1072,7 +1073,7 @@ function_graph_enter(unsigned long ret, unsigned long func,
 		     unsigned long frame_pointer, unsigned long *retp);
 
 struct ftrace_ret_stack *
-ftrace_graph_get_ret_stack(struct task_struct *task, int idx);
+ftrace_graph_get_ret_stack(struct task_struct *task, int skip);
 
 unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 				    unsigned long ret, unsigned long *retp);
