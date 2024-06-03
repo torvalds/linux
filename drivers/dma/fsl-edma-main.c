@@ -544,7 +544,6 @@ static int fsl_edma_probe(struct platform_device *pdev)
 		fsl_chan->edma = fsl_edma;
 		fsl_chan->pm_state = RUNNING;
 		fsl_chan->srcid = 0;
-		fsl_chan->idle = true;
 		fsl_chan->dma_dir = DMA_NONE;
 		fsl_chan->vchan.desc_free = fsl_edma_free_desc;
 
@@ -669,7 +668,7 @@ static int fsl_edma_suspend_late(struct device *dev)
 			continue;
 		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
 		/* Make sure chan is idle or will force disable. */
-		if (unlikely(!fsl_chan->idle)) {
+		if (unlikely(fsl_chan->status == DMA_IN_PROGRESS)) {
 			dev_warn(dev, "WARN: There is non-idle channel.");
 			fsl_edma_disable_request(fsl_chan);
 			fsl_edma_chan_mux(fsl_chan, 0, false);
