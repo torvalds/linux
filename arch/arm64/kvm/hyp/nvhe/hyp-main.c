@@ -140,6 +140,17 @@ static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 		struct pkvm_hyp_vcpu *hyp_vcpu;
 		struct kvm *host_kvm;
 
+		/*
+		 * KVM (and pKVM) doesn't support SME guests for now, and
+		 * ensures that SME features aren't enabled in pstate when
+		 * loading a vcpu. Therefore, if SME features enabled the host
+		 * is misbehaving.
+		 */
+		if (unlikely(system_supports_sme() && read_sysreg_s(SYS_SVCR))) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		host_kvm = kern_hyp_va(host_vcpu->kvm);
 		hyp_vcpu = pkvm_load_hyp_vcpu(host_kvm->arch.pkvm.handle,
 					      host_vcpu->vcpu_idx);
