@@ -708,7 +708,7 @@ static void synaptics_pt_create(struct psmouse *psmouse)
 {
 	struct serio *serio;
 
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!serio) {
 		psmouse_err(psmouse,
 			    "not enough memory for pass-through port\n");
@@ -1563,7 +1563,7 @@ static int synaptics_init_ps2(struct psmouse *psmouse,
 
 	synaptics_apply_quirks(psmouse, info);
 
-	psmouse->private = priv = kzalloc(sizeof(struct synaptics_data), GFP_KERNEL);
+	psmouse->private = priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

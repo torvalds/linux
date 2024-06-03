@@ -659,7 +659,7 @@ int cypress_init(struct psmouse *psmouse)
 {
 	struct cytp_data *cytp;
 
-	cytp = kzalloc(sizeof(struct cytp_data), GFP_KERNEL);
+	cytp = kzalloc(sizeof(*cytp), GFP_KERNEL);
 	if (!cytp)
 		return -ENOMEM;
 
