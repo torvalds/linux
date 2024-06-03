@@ -4247,9 +4247,9 @@ check_attribute_names:
 	}
 
 	t32 = lrh_length(lrh);
-	rec_len -= t32;
+	attr_names_bytes = rec_len - t32;
 
-	attr_names = kmemdup(Add2Ptr(lrh, t32), rec_len, GFP_NOFS);
+	attr_names = kmemdup(Add2Ptr(lrh, t32), attr_names_bytes, GFP_NOFS);
 	if (!attr_names) {
 		err = -ENOMEM;
 		goto out;
@@ -4281,14 +4281,14 @@ check_attr_table:
 	t16 = le16_to_cpu(lrh->redo_off);
 
 	rt = Add2Ptr(lrh, t16);
-	t32 = rec_len - t16;
+	oatbl_bytes = rec_len - t16;
 
-	if (!check_rstbl(rt, t32)) {
+	if (!check_rstbl(rt, oatbl_bytes)) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	oatbl = kmemdup(rt, t32, GFP_NOFS);
+	oatbl = kmemdup(rt, oatbl_bytes, GFP_NOFS);
 	if (!oatbl) {
 		err = -ENOMEM;
 		goto out;
