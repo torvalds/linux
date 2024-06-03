@@ -594,16 +594,26 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 				    unsigned long ret, unsigned long *retp)
 {
 	struct ftrace_ret_stack *ret_stack;
+	unsigned long return_handler = (unsigned long)dereference_kernel_function_descriptor(return_to_handler);
 	int i = task->curr_ret_stack;
 
-	if (ret != (unsigned long)dereference_kernel_function_descriptor(return_to_handler))
+	if (ret != return_handler)
 		return ret;
 
 	while (i > 0) {
 		ret_stack = get_ret_stack(current, i, &i);
 		if (!ret_stack)
 			break;
-		if (ret_stack->retp == retp)
+		/*
+		 * For the tail-call, there would be 2 or more ftrace_ret_stacks on
+		 * the ret_stack, which records "return_to_handler" as the return
+		 * address except for the last one.
+		 * But on the real stack, there should be 1 entry because tail-call
+		 * reuses the return address on the stack and jump to the next function.
+		 * Thus we will continue to find real return address.
+		 */
+		if (ret_stack->retp == retp &&
+		    ret_stack->ret != return_handler)
 			return ret_stack->ret;
 	}
 
@@ -614,10 +624,11 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 				    unsigned long ret, unsigned long *retp)
 {
 	struct ftrace_ret_stack *ret_stack;
+	unsigned long return_handler = (unsigned long)dereference_kernel_function_descriptor(return_to_handler);
 	int offset = task->curr_ret_stack;
 	int i;
 
-	if (ret != (unsigned long)dereference_kernel_function_descriptor(return_to_handler))
+	if (ret != return_handler)
 		return ret;
 
 	if (!idx)
@@ -626,6 +637,8 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 	i = *idx;
 	do {
 		ret_stack = get_ret_stack(task, offset, &offset);
+		if (ret_stack && ret_stack->ret == return_handler)
+			continue;
 		i--;
 	} while (i >= 0 && ret_stack);
 
