@@ -37,6 +37,7 @@ struct amdgpu_userq_obj {
 
 struct amdgpu_usermode_queue {
 	int			queue_type;
+	uint8_t			queue_active;
 	uint64_t		doorbell_handle;
 	uint64_t		doorbell_index;
 	uint64_t		flags;
@@ -57,6 +58,10 @@ struct amdgpu_userq_funcs {
 			  struct amdgpu_usermode_queue *queue);
 	void (*mqd_destroy)(struct amdgpu_userq_mgr *uq_mgr,
 			    struct amdgpu_usermode_queue *uq);
+	int (*suspend)(struct amdgpu_userq_mgr *uq_mgr,
+		       struct amdgpu_usermode_queue *queue);
+	int (*resume)(struct amdgpu_userq_mgr *uq_mgr,
+		      struct amdgpu_usermode_queue *queue);
 };
 
 /* Usermode queues for gfx */

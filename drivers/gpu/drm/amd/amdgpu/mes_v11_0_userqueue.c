@@ -331,6 +331,7 @@ static int mes_v11_0_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 		goto free_ctx;
 	}
 
+	queue->queue_active = true;
 	return 0;
 
 free_ctx:
@@ -354,9 +355,41 @@ mes_v11_0_userq_mqd_destroy(struct amdgpu_userq_mgr *uq_mgr,
 	amdgpu_userqueue_destroy_object(uq_mgr, &queue->fw_obj);
 	kfree(queue->userq_prop);
 	amdgpu_userqueue_destroy_object(uq_mgr, &queue->mqd);
+	queue->queue_active = false;
+}
+
+static int mes_v11_0_userq_suspend(struct amdgpu_userq_mgr *uq_mgr,
+				   struct amdgpu_usermode_queue *queue)
+{
+	if (queue->queue_active) {
+		mes_v11_0_userq_unmap(uq_mgr, queue);
+		queue->queue_active = false;
+	}
+
+	return 0;
+}
+
+static int mes_v11_0_userq_resume(struct amdgpu_userq_mgr *uq_mgr,
+				  struct amdgpu_usermode_queue *queue)
+{
+	int ret;
+
+	if (queue->queue_active)
+		return 0;
+
+	ret = mes_v11_0_userq_map(uq_mgr, queue, queue->userq_prop);
+	if (ret) {
+		DRM_ERROR("Failed to resume queue\n");
+		return ret;
+	}
+
+	queue->queue_active = true;
+	return 0;
 }
 
 const struct amdgpu_userq_funcs userq_mes_v11_0_funcs = {
 	.mqd_create = mes_v11_0_userq_mqd_create,
 	.mqd_destroy = mes_v11_0_userq_mqd_destroy,
+	.suspend = mes_v11_0_userq_suspend,
+	.resume = mes_v11_0_userq_resume,
 };
