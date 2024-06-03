@@ -331,4 +331,5 @@ static struct platform_driver hidma_mgmt_driver = {
 };
 
 module_platform_driver(hidma_mgmt_driver);
+MODULE_DESCRIPTION("Qualcomm Technologies HIDMA DMA engine interface");
 MODULE_LICENSE("GPL v2");
