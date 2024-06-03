@@ -48,15 +48,14 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 	val |= has_hvhe() ? CPACR_EL1_TTA : CPTR_EL2_TTA;
 	if (cpus_have_final_cap(ARM64_SME)) {
 		if (has_hvhe())
-			val &= ~(CPACR_EL1_SMEN_EL1EN | CPACR_EL1_SMEN_EL0EN);
+			val &= ~CPACR_ELx_SMEN;
 		else
 			val |= CPTR_EL2_TSM;
 	}
 
 	if (!guest_owns_fp_regs()) {
 		if (has_hvhe())
-			val &= ~(CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN |
-				 CPACR_EL1_ZEN_EL0EN | CPACR_EL1_ZEN_EL1EN);
+			val &= ~(CPACR_ELx_FPEN | CPACR_ELx_ZEN);
 		else
 			val |= CPTR_EL2_TFP | CPTR_EL2_TZ;
 
