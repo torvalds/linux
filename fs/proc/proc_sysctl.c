@@ -1166,18 +1166,16 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table_
 	struct ctl_table_header *links;
 	struct ctl_node *node;
 	char *link_name;
-	int nr_entries, name_bytes;
+	int name_bytes;
 
 	name_bytes = 0;
-	nr_entries = 0;
 	list_for_each_table_entry(entry, head) {
-		nr_entries++;
 		name_bytes += strlen(entry->procname) + 1;
 	}
 
 	links = kzalloc(sizeof(struct ctl_table_header) +
-			sizeof(struct ctl_node)*nr_entries +
-			sizeof(struct ctl_table)*(nr_entries + 1) +
+			sizeof(struct ctl_node)*head->ctl_table_size +
+			sizeof(struct ctl_table)*(head->ctl_table_size + 1) +
 			name_bytes,
 			GFP_KERNEL);
 
@@ -1185,8 +1183,8 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table_
 		return NULL;
 
 	node = (struct ctl_node *)(links + 1);
-	link_table = (struct ctl_table *)(node + nr_entries);
-	link_name = (char *)&link_table[nr_entries + 1];
+	link_table = (struct ctl_table *)(node + head->ctl_table_size);
+	link_name = (char *)&link_table[head->ctl_table_size + 1];
 	link = link_table;
 
 	list_for_each_table_entry(entry, head) {
@@ -1200,7 +1198,7 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table_
 	}
 	init_header(links, dir->header.root, dir->header.set, node, link_table,
 		    head->ctl_table_size);
-	links->nreg = nr_entries;
+	links->nreg = head->ctl_table_size;
 
 	return links;
 }
