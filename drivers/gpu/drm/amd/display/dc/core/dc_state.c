@@ -192,15 +192,14 @@ static void init_state(struct dc *dc, struct dc_state *state)
 /* Public dc_state functions */
 struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *params)
 {
+	struct dc_state *state;
 #ifdef CONFIG_DRM_AMD_DC_FP
-	struct dml2_configuration_options *dml2_opt;
+	struct dml2_configuration_options *dml2_opt = &dc->dml2_tmp;
 
-	dml2_opt = kmemdup(&dc->dml2_options, sizeof(*dml2_opt), GFP_KERNEL);
-	if (!dml2_opt)
-		return NULL;
+	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
 #endif
-	struct dc_state *state = kvzalloc(sizeof(struct dc_state),
-			GFP_KERNEL);
+
+	state = kvzalloc(sizeof(struct dc_state), GFP_KERNEL);
 
 	if (!state)
 		return NULL;
@@ -217,8 +216,6 @@ struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *p
 		dml2_opt->use_clock_dc_limits = true;
 		dml2_create(dc, dml2_opt, &state->bw_ctx.dml2_dc_power_source);
 	}
-
-	kfree(dml2_opt);
 #endif
 
 	kref_init(&state->refcount);
