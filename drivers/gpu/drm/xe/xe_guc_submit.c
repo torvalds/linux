@@ -61,6 +61,7 @@ exec_queue_to_guc(struct xe_exec_queue *q)
 #define EXEC_QUEUE_STATE_RESET			(1 << 6)
 #define EXEC_QUEUE_STATE_KILLED			(1 << 7)
 #define EXEC_QUEUE_STATE_WEDGED			(1 << 8)
+#define EXEC_QUEUE_STATE_BANNED			(1 << 9)
 
 static bool exec_queue_registered(struct xe_exec_queue *q)
 {
@@ -134,12 +135,12 @@ static void set_exec_queue_destroyed(struct xe_exec_queue *q)
 
 static bool exec_queue_banned(struct xe_exec_queue *q)
 {
-	return (q->flags & EXEC_QUEUE_FLAG_BANNED);
+	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_BANNED;
 }
 
 static void set_exec_queue_banned(struct xe_exec_queue *q)
 {
-	q->flags |= EXEC_QUEUE_FLAG_BANNED;
+	atomic_or(EXEC_QUEUE_STATE_BANNED, &q->guc->state);
 }
 
 static bool exec_queue_suspended(struct xe_exec_queue *q)
@@ -189,8 +190,9 @@ static void set_exec_queue_wedged(struct xe_exec_queue *q)
 
 static bool exec_queue_killed_or_banned_or_wedged(struct xe_exec_queue *q)
 {
-	return exec_queue_banned(q) || (atomic_read(&q->guc->state) &
-		(EXEC_QUEUE_STATE_WEDGED | EXEC_QUEUE_STATE_KILLED));
+	return (atomic_read(&q->guc->state) &
+		(EXEC_QUEUE_STATE_WEDGED | EXEC_QUEUE_STATE_KILLED |
+		 EXEC_QUEUE_STATE_BANNED));
 }
 
 #ifdef CONFIG_PROVE_LOCKING

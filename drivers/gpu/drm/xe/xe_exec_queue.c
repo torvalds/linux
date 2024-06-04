@@ -677,7 +677,7 @@ int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->property) {
 	case DRM_XE_EXEC_QUEUE_GET_PROPERTY_BAN:
-		args->value = !!(q->flags & EXEC_QUEUE_FLAG_BANNED);
+		args->value = q->ops->reset_status(q);
 		ret = 0;
 		break;
 	default:
