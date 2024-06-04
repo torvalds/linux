@@ -21,7 +21,7 @@
 
 #define list_for_each_table_entry(entry, header)	\
 	entry = header->ctl_table;			\
-	for (size_t i = 0 ; i < header->ctl_table_size && entry->procname; ++i, entry++)
+	for (size_t i = 0 ; i < header->ctl_table_size; ++i, entry++)
 
 static const struct dentry_operations proc_sys_dentry_operations;
 static const struct file_operations proc_sys_file_operations;
