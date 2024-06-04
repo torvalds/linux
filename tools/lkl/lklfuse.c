@@ -492,6 +492,11 @@ static int lklfuse_fallocate(const char *path, int mode, off_t offset,
 static void *lklfuse_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 {
 	cfg->nullpath_ok = 1;
+	/* disable fuse lookup and attr caches */
+	cfg->entry_timeout = 0;
+	cfg->attr_timeout = 0;
+	cfg->negative_timeout = 0;
+
 	return NULL;
 }
 
