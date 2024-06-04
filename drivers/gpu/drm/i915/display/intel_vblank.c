@@ -248,7 +248,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 	vtotal = intel_mode_vtotal(mode);
 
-	position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & PIPEDSL_LINE_MASK;
+	position = intel_de_read_fw(dev_priv, PIPEDSL(dev_priv, pipe)) & PIPEDSL_LINE_MASK;
 
 	/*
 	 * On HSW, the DSL reg (0x70000) appears to return 0 if we
@@ -267,7 +267,8 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 		for (i = 0; i < 100; i++) {
 			udelay(1);
-			temp = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & PIPEDSL_LINE_MASK;
+			temp = intel_de_read_fw(dev_priv,
+						PIPEDSL(dev_priv, pipe)) & PIPEDSL_LINE_MASK;
 			if (temp != position) {
 				position = temp;
 				break;
@@ -474,7 +475,7 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 static bool pipe_scanline_is_moving(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
-	i915_reg_t reg = PIPEDSL(pipe);
+	i915_reg_t reg = PIPEDSL(dev_priv, pipe);
 	u32 line1, line2;
 
 	line1 = intel_de_read(dev_priv, reg) & PIPEDSL_LINE_MASK;

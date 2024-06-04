@@ -126,10 +126,10 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(_MMIO(0x650b4));
 	MMIO_D(_MMIO(0xc4040));
 	MMIO_D(DERRMR);
-	MMIO_D(PIPEDSL(PIPE_A));
-	MMIO_D(PIPEDSL(PIPE_B));
-	MMIO_D(PIPEDSL(PIPE_C));
-	MMIO_D(PIPEDSL(_PIPE_EDP));
+	MMIO_D(PIPEDSL(dev_priv, PIPE_A));
+	MMIO_D(PIPEDSL(dev_priv, PIPE_B));
+	MMIO_D(PIPEDSL(dev_priv, PIPE_C));
+	MMIO_D(PIPEDSL(dev_priv, _PIPE_EDP));
 	MMIO_D(TRANSCONF(dev_priv, TRANSCODER_A));
 	MMIO_D(TRANSCONF(dev_priv, TRANSCODER_B));
 	MMIO_D(TRANSCONF(dev_priv, TRANSCODER_C));

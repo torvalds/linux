@@ -771,9 +771,9 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 		/*
 		 * Wait for the border to be displayed
 		 */
-		while (intel_de_read(dev_priv, PIPEDSL(pipe)) >= vactive)
+		while (intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe)) >= vactive)
 			;
-		while ((dsl = intel_de_read(dev_priv, PIPEDSL(pipe))) <= vsample)
+		while ((dsl = intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe))) <= vsample)
 			;
 		/*
 		 * Watch ST00 for an entire scanline
@@ -786,7 +786,7 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			st00 = intel_de_read8(dev_priv, _VGA_MSR_WRITE);
 			if (st00 & (1 << 4))
 				detect++;
-		} while ((intel_de_read(dev_priv, PIPEDSL(pipe)) == dsl));
+		} while ((intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe)) == dsl));
 
 		/* restore vblank if necessary */
 		if (restore_vblank)

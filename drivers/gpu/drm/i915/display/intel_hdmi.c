@@ -1476,7 +1476,8 @@ static int kbl_repositioning_enc_en_signal(struct intel_connector *connector,
 	int ret;
 
 	for (;;) {
-		scanline = intel_de_read(dev_priv, PIPEDSL(crtc->pipe));
+		scanline = intel_de_read(dev_priv,
+					 PIPEDSL(dev_priv, crtc->pipe));
 		if (scanline > 100 && scanline < 200)
 			break;
 		usleep_range(25, 50);
