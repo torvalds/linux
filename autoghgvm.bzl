@@ -1,6 +1,6 @@
-load(":target_variants.bzl", "la_variants")
-load(":msm_kernel_la.bzl", "define_msm_la")
 load(":image_opts.bzl", "boot_image_opts")
+load(":msm_kernel_la.bzl", "define_msm_la")
+load(":target_variants.bzl", "la_variants")
 
 target_name = "autoghgvm"
 
@@ -24,6 +24,7 @@ def define_autoghgvm():
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/net/net_failover.ko",
         "drivers/net/virtio_net.ko",
+        "drivers/pci/controller/pcie-qcom-ecam.ko",
         "drivers/pinctrl/qcom/pinctrl-lemans.ko",
         "drivers/pinctrl/qcom/pinctrl-monaco_auto.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
