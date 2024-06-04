@@ -46,7 +46,8 @@ static void intel_save_swf(struct drm_i915_private *dev_priv)
 								      SWF1(dev_priv, i));
 		}
 		for (i = 0; i < 3; i++)
-			dev_priv->regfile.saveSWF3[i] = intel_de_read(dev_priv, SWF3(i));
+			dev_priv->regfile.saveSWF3[i] = intel_de_read(dev_priv,
+								      SWF3(dev_priv, i));
 	} else if (GRAPHICS_VER(dev_priv) == 2) {
 		for (i = 0; i < 7; i++)
 			dev_priv->regfile.saveSWF1[i] = intel_de_read(dev_priv,
@@ -59,7 +60,8 @@ static void intel_save_swf(struct drm_i915_private *dev_priv)
 								      SWF1(dev_priv, i));
 		}
 		for (i = 0; i < 3; i++)
-			dev_priv->regfile.saveSWF3[i] = intel_de_read(dev_priv, SWF3(i));
+			dev_priv->regfile.saveSWF3[i] = intel_de_read(dev_priv,
+								      SWF3(dev_priv, i));
 	}
 }
 
@@ -76,7 +78,8 @@ static void intel_restore_swf(struct drm_i915_private *dev_priv)
 				       dev_priv->regfile.saveSWF1[i]);
 		}
 		for (i = 0; i < 3; i++)
-			intel_de_write(dev_priv, SWF3(i), dev_priv->regfile.saveSWF3[i]);
+			intel_de_write(dev_priv, SWF3(dev_priv, i),
+				       dev_priv->regfile.saveSWF3[i]);
 	} else if (GRAPHICS_VER(dev_priv) == 2) {
 		for (i = 0; i < 7; i++)
 			intel_de_write(dev_priv, SWF1(dev_priv, i),
@@ -89,7 +92,8 @@ static void intel_restore_swf(struct drm_i915_private *dev_priv)
 				       dev_priv->regfile.saveSWF1[i]);
 		}
 		for (i = 0; i < 3; i++)
-			intel_de_write(dev_priv, SWF3(i), dev_priv->regfile.saveSWF3[i]);
+			intel_de_write(dev_priv, SWF3(dev_priv, i),
+				       dev_priv->regfile.saveSWF3[i]);
 	}
 }
 
