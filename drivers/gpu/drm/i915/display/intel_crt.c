@@ -603,7 +603,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
-		if (intel_de_wait_for_clear(dev_priv, PORT_HOTPLUG_EN,
+		if (intel_de_wait_for_clear(dev_priv, PORT_HOTPLUG_EN(dev_priv),
 					    CRT_HOTPLUG_FORCE_DETECT, 1000))
 			drm_dbg_kms(&dev_priv->drm,
 				    "timed out waiting for FORCE_DETECT to go off");
