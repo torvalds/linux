@@ -1716,7 +1716,8 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		if (!intel_dp->psr.panel_replay_enabled &&
 		    IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv,
-				     MTL_CLKGATE_DIS_TRANS(cpu_transcoder), 0,
+				     MTL_CLKGATE_DIS_TRANS(dev_priv, cpu_transcoder),
+				     0,
 				     MTL_CLKGATE_DIS_TRANS_DMASC_GATING_DIS);
 		else if (IS_ALDERLAKE_P(dev_priv))
 			intel_de_rmw(dev_priv, CLKGATE_DIS_MISC, 0,
@@ -1897,7 +1898,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 		if (!intel_dp->psr.panel_replay_enabled &&
 		    IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv,
-				     MTL_CLKGATE_DIS_TRANS(cpu_transcoder),
+				     MTL_CLKGATE_DIS_TRANS(dev_priv, cpu_transcoder),
 				     MTL_CLKGATE_DIS_TRANS_DMASC_GATING_DIS, 0);
 		else if (IS_ALDERLAKE_P(dev_priv))
 			intel_de_rmw(dev_priv, CLKGATE_DIS_MISC,
