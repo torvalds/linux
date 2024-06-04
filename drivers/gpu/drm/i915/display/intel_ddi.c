@@ -2196,7 +2196,8 @@ i915_reg_t dp_tp_status_reg(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (DISPLAY_VER(dev_priv) >= 12)
-		return TGL_DP_TP_STATUS(tgl_dp_tp_transcoder(crtc_state));
+		return TGL_DP_TP_STATUS(dev_priv,
+					tgl_dp_tp_transcoder(crtc_state));
 	else
 		return DP_TP_STATUS(encoder->port);
 }
