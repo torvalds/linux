@@ -620,10 +620,8 @@ void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	int r;
 
 	if (!hub->sdma_invalidation_workaround || vmid ||
-	    !adev->mman.buffer_funcs_enabled ||
-	    !adev->ib_pool_ready || amdgpu_in_reset(adev) ||
+	    !adev->mman.buffer_funcs_enabled || !adev->ib_pool_ready ||
 	    !ring->sched.ready) {
-
 		/*
 		 * A GPU reset should flush all TLBs anyway, so no need to do
 		 * this while one is ongoing.
