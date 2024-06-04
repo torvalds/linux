@@ -656,7 +656,7 @@ static void vgpu_update_refresh_rate(struct intel_vgpu *vgpu)
 	u32 dp_br, link_m, link_n, htotal, vtotal;
 
 	/* Find DDI/PORT assigned to TRANSCODER_A, expect B or D */
-	port = (vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &
+	port = (vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(dev_priv, TRANSCODER_A)) &
 		TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 	if (port != PORT_B && port != PORT_D) {
 		gvt_dbg_dpy("vgpu-%d unsupported PORT_%c\n", vgpu->id, port_name(port));

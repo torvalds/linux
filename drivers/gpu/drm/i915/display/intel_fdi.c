@@ -34,7 +34,8 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 		 * so pipe->transcoder cast is fine here.
 		 */
 		enum transcoder cpu_transcoder = (enum transcoder)pipe;
-		cur_state = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
+		cur_state = intel_de_read(dev_priv,
+					  TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
 	} else {
 		cur_state = intel_de_read(dev_priv, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
 	}

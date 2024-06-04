@@ -1009,7 +1009,8 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	clear_act_sent(encoder, old_crtc_state);
 
-	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder),
+	intel_de_rmw(dev_priv,
+		     TRANS_DDI_FUNC_CTL(dev_priv, old_crtc_state->cpu_transcoder),
 		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC, 0);
 
 	wait_for_act_sent(encoder, old_crtc_state);
@@ -1230,7 +1231,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	clear_act_sent(encoder, pipe_config);
 
-	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(trans), 0,
+	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, trans), 0,
 		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
 
 	drm_dbg_kms(&dev_priv->drm, "active links %d\n",

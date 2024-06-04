@@ -83,7 +83,7 @@ assert_hdmi_transcoder_func_disabled(struct drm_i915_private *dev_priv,
 				     enum transcoder cpu_transcoder)
 {
 	drm_WARN(&dev_priv->drm,
-		 intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder)) &
+		 intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder)) &
 		 TRANS_DDI_FUNC_ENABLE,
 		 "HDMI transcoder function enabled, expecting disabled\n");
 }

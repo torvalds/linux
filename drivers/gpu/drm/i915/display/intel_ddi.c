@@ -606,7 +606,7 @@ void intel_ddi_enable_transcoder_func(struct intel_encoder *encoder,
 			       TRANS_DDI_FUNC_CTL2(cpu_transcoder), ctl2);
 	}
 
-	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
 		       intel_ddi_transcoder_func_reg_val_get(encoder,
 							     crtc_state));
 }
@@ -626,7 +626,8 @@ intel_ddi_config_transcoder_func(struct intel_encoder *encoder,
 
 	ctl = intel_ddi_transcoder_func_reg_val_get(encoder, crtc_state);
 	ctl &= ~TRANS_DDI_FUNC_ENABLE;
-	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), ctl);
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
+		       ctl);
 }
 
 void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state)
@@ -641,7 +642,8 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 		intel_de_write(dev_priv,
 			       TRANS_DDI_FUNC_CTL2(cpu_transcoder), 0);
 
-	ctl = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+	ctl = intel_de_read(dev_priv,
+			    TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
 
 	drm_WARN_ON(crtc->base.dev, ctl & TRANS_DDI_HDCP_SIGNALLING);
 
@@ -660,7 +662,8 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 		ctl &= ~(TRANS_DDI_PORT_MASK | TRANS_DDI_MODE_SELECT_MASK);
 	}
 
-	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), ctl);
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
+		       ctl);
 
 	if (intel_has_quirk(display, QUIRK_INCREASE_DDI_DISABLED_TIME) &&
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
@@ -684,7 +687,7 @@ int intel_ddi_toggle_hdcp_bits(struct intel_encoder *intel_encoder,
 	if (drm_WARN_ON(dev, !wakeref))
 		return -ENXIO;
 
-	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder),
+	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
 		     hdcp_mask, enable ? hdcp_mask : 0);
 	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
 	return ret;
@@ -718,7 +721,8 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	else
 		cpu_transcoder = (enum transcoder) pipe;
 
-	tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+	tmp = intel_de_read(dev_priv,
+			    TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
 
 	switch (tmp & TRANS_DDI_MODE_SELECT_MASK) {
 	case TRANS_DDI_MODE_SELECT_HDMI:
@@ -782,7 +786,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 
 	if (HAS_TRANSCODER(dev_priv, TRANSCODER_EDP) && port == PORT_A) {
 		tmp = intel_de_read(dev_priv,
-				    TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
+				    TRANS_DDI_FUNC_CTL(dev_priv, TRANSCODER_EDP));
 
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		default:
@@ -823,7 +827,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 		}
 
 		tmp = intel_de_read(dev_priv,
-				    TRANS_DDI_FUNC_CTL(cpu_transcoder));
+				    TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
 		intel_display_power_put(dev_priv, POWER_DOMAIN_TRANSCODER(cpu_transcoder),
 					trans_wakeref);
 
@@ -3025,7 +3029,8 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 		if (is_mst) {
 			enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
-			intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder),
+			intel_de_rmw(dev_priv,
+				     TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
 				     TGL_TRANS_DDI_PORT_MASK | TRANS_DDI_MODE_SELECT_MASK,
 				     0);
 		}
@@ -3759,7 +3764,8 @@ static enum transcoder bdw_transcoder_master_readout(struct drm_i915_private *de
 
 		master_select = REG_FIELD_GET(PORT_SYNC_MODE_MASTER_SELECT_MASK, ctl2);
 	} else {
-		u32 ctl = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+		u32 ctl = intel_de_read(dev_priv,
+					TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
 
 		if ((ctl & TRANS_DDI_PORT_SYNC_ENABLE) == 0)
 			return INVALID_TRANSCODER;
@@ -3815,7 +3821,8 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	u32 temp, flags = 0;
 
-	temp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+	temp = intel_de_read(dev_priv,
+			     TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)
 		flags |= DRM_MODE_FLAG_PHSYNC;
 	else

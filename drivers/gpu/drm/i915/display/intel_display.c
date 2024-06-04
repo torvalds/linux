@@ -3507,7 +3507,8 @@ static bool transcoder_ddi_func_is_enabled(struct drm_i915_private *dev_priv,
 	power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 
 	with_intel_display_power_if_enabled(dev_priv, power_domain, wakeref)
-		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+		tmp = intel_de_read(dev_priv,
+				    TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
 
 	return tmp & TRANS_DDI_FUNC_ENABLE;
 }
@@ -3622,7 +3623,8 @@ static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 
 		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 		with_intel_display_power_if_enabled(dev_priv, power_domain, wakeref)
-			tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+			tmp = intel_de_read(dev_priv,
+					    TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
 
 		if (!(tmp & TRANS_DDI_FUNC_ENABLE))
 			continue;
@@ -3729,7 +3731,8 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 		return false;
 
 	if (hsw_panel_transcoders(dev_priv) & BIT(pipe_config->cpu_transcoder)) {
-		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
+		tmp = intel_de_read(dev_priv,
+				    TRANS_DDI_FUNC_CTL(dev_priv, pipe_config->cpu_transcoder));
 
 		if ((tmp & TRANS_DDI_EDP_INPUT_MASK) == TRANS_DDI_EDP_INPUT_A_ONOFF)
 			pipe_config->pch_pfit.force_thru = true;

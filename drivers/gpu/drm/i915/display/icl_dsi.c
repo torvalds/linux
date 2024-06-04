@@ -796,7 +796,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 
 		/* select data lane width */
-		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans));
+		tmp = intel_de_read(dev_priv,
+				    TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans));
 		tmp &= ~DDI_PORT_WIDTH_MASK;
 		tmp |= DDI_PORT_WIDTH(intel_dsi->lane_count);
 
@@ -822,7 +823,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 
 		/* enable DDI buffer */
 		tmp |= TRANS_DDI_FUNC_ENABLE;
-		intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans), tmp);
+		intel_de_write(dev_priv,
+			       TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans), tmp);
 	}
 
 	/* wait for link ready */
@@ -1333,7 +1335,8 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	/* disable ddi function */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans),
+		intel_de_rmw(dev_priv,
+			     TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans),
 			     TRANS_DDI_FUNC_ENABLE, 0);
 	}
 
@@ -1697,7 +1700,8 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans));
+		tmp = intel_de_read(dev_priv,
+				    TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans));
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		case TRANS_DDI_EDP_INPUT_A_ON:
 			*pipe = PIPE_A;
