@@ -513,7 +513,7 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 
 		if (ptp && ptp->tx_tstamp_en && !skb_is_gso(skb)) {
-			if (!atomic_dec_if_positive(&ptp->tx_avail)) {
+			if (atomic_dec_if_positive(&ptp->tx_avail) < 0) {
 				atomic64_inc(&ptp->stats.ts_err);
 				goto tx_no_ts;
 			}
