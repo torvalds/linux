@@ -193,7 +193,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 		adpa |= ADPA_PIPE_SEL(crtc->pipe);
 
 	if (!HAS_PCH_SPLIT(dev_priv))
-		intel_de_write(dev_priv, BCLRPAT(crtc->pipe), 0);
+		intel_de_write(dev_priv, BCLRPAT(dev_priv, crtc->pipe), 0);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -707,7 +707,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 
 	drm_dbg_kms(&dev_priv->drm, "starting load-detect on CRT\n");
 
-	save_bclrpat = intel_de_read(dev_priv, BCLRPAT(cpu_transcoder));
+	save_bclrpat = intel_de_read(dev_priv,
+				     BCLRPAT(dev_priv, cpu_transcoder));
 	save_vtotal = intel_de_read(dev_priv,
 				    TRANS_VTOTAL(dev_priv, cpu_transcoder));
 	vblank = intel_de_read(dev_priv,
@@ -720,7 +721,7 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	vblank_end = REG_FIELD_GET(VBLANK_END_MASK, vblank) + 1;
 
 	/* Set the border color to purple. */
-	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), 0x500050);
+	intel_de_write(dev_priv, BCLRPAT(dev_priv, cpu_transcoder), 0x500050);
 
 	if (DISPLAY_VER(dev_priv) != 2) {
 		u32 transconf = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
@@ -800,7 +801,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	}
 
 	/* Restore previous settings */
-	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), save_bclrpat);
+	intel_de_write(dev_priv, BCLRPAT(dev_priv, cpu_transcoder),
+		       save_bclrpat);
 
 	return status;
 }

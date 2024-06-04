@@ -1870,7 +1870,7 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 
 	/* Border color in case we don't scale up to the full screen. Black by
 	 * default, change to something else for debugging. */
-	intel_de_write(dev_priv, BCLRPAT(crtc->pipe), 0);
+	intel_de_write(dev_priv, BCLRPAT(dev_priv, crtc->pipe), 0);
 }
 
 /* Prefer intel_encoder_is_combo() */
