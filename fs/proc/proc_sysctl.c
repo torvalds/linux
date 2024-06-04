@@ -1131,6 +1131,8 @@ static int sysctl_check_table(const char *path, struct ctl_table_header *header)
 	struct ctl_table *entry;
 	int err = 0;
 	list_for_each_table_entry(entry, header) {
+		if (!entry->procname)
+			err |= sysctl_err(path, entry, "procname is null");
 		if ((entry->proc_handler == proc_dostring) ||
 		    (entry->proc_handler == proc_dobool) ||
 		    (entry->proc_handler == proc_dointvec) ||
