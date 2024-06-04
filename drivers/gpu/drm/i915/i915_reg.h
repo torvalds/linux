@@ -4148,7 +4148,7 @@ enum skl_power_gate {
 #define _TRANSB_MSA_MISC		0x61410
 #define _TRANSC_MSA_MISC		0x62410
 #define _TRANS_EDP_MSA_MISC		0x6f410
-#define TRANS_MSA_MISC(tran) _MMIO_TRANS2(dev_priv, tran, _TRANSA_MSA_MISC)
+#define TRANS_MSA_MISC(dev_priv, tran) _MMIO_TRANS2(dev_priv, tran, _TRANSA_MSA_MISC)
 /* See DP_MSA_MISC_* for the bit definitions */
 
 #define _TRANS_A_SET_CONTEXT_LATENCY		0x6007C

@@ -440,7 +440,8 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 	if (intel_dp_needs_vsc_sdp(crtc_state, conn_state))
 		temp |= DP_MSA_MISC_COLOR_VSC_SDP;
 
-	intel_de_write(dev_priv, TRANS_MSA_MISC(cpu_transcoder), temp);
+	intel_de_write(dev_priv, TRANS_MSA_MISC(dev_priv, cpu_transcoder),
+		       temp);
 }
 
 static u32 bdw_trans_port_sync_master_select(enum transcoder master_transcoder)
