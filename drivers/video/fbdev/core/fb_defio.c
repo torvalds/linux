@@ -244,10 +244,11 @@ static void fb_deferred_io_work(struct work_struct *work)
 	/* here we mkclean the pages, then do all deferred IO */
 	mutex_lock(&fbdefio->lock);
 	list_for_each_entry(pageref, &fbdefio->pagereflist, list) {
-		struct page *cur = pageref->page;
-		lock_page(cur);
-		page_mkclean(cur);
-		unlock_page(cur);
+		struct folio *folio = page_folio(pageref->page);
+
+		folio_lock(folio);
+		folio_mkclean(folio);
+		folio_unlock(folio);
 	}
 
 	/* driver's callback with pagereflist */
