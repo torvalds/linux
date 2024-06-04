@@ -2487,6 +2487,7 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 
 		reset_context.method = AMD_RESET_METHOD_NONE;
 		reset_context.reset_req_dev = adev;
+		reset_context.src = AMDGPU_RESET_SRC_RAS;
 
 		/* Perform full reset in fatal error mode */
 		if (!amdgpu_ras_is_poison_mode_supported(ras->adev))
