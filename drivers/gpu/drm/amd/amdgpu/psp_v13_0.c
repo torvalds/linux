@@ -57,6 +57,8 @@ MODULE_FIRMWARE("amdgpu/psp_14_0_0_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_0_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_1_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_1_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_4_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_4_ta.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
