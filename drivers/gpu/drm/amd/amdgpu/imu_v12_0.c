@@ -119,7 +119,8 @@ static int imu_v12_0_load_microcode(struct amdgpu_device *adev)
 
 static int imu_v12_0_wait_for_reset_status(struct amdgpu_device *adev)
 {
-	int i, imu_reg_val = 0;
+	u32 imu_reg_val = 0;
+	int i;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_GFX_RESET_CTRL);
@@ -138,7 +139,7 @@ static int imu_v12_0_wait_for_reset_status(struct amdgpu_device *adev)
 
 static void imu_v12_0_setup(struct amdgpu_device *adev)
 {
-	int imu_reg_val;
+	u32 imu_reg_val;
 
 	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL0, 0xffffff);
 	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL1, 0xffff);
@@ -157,7 +158,7 @@ static void imu_v12_0_setup(struct amdgpu_device *adev)
 
 static int imu_v12_0_start(struct amdgpu_device *adev)
 {
-	int imu_reg_val;
+	u32 imu_reg_val;
 
 	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_CORE_CTRL);
 	imu_reg_val &= 0xfffffffe;
