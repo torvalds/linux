@@ -1911,6 +1911,23 @@ static void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 			    obj, &amdgpu_ras_debugfs_ops);
 }
 
+static bool amdgpu_ras_aca_is_supported(struct amdgpu_device *adev)
+{
+	bool ret;
+
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
+	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 14):
+		ret = true;
+		break;
+	default:
+		ret = false;
+		break;
+	}
+
+	return ret;
+}
+
 void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1937,10 +1954,12 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 		}
 	}
 
-	if (amdgpu_aca_is_enabled(adev))
-		amdgpu_aca_smu_debugfs_init(adev, dir);
-	else
-		amdgpu_mca_smu_debugfs_init(adev, dir);
+	if (amdgpu_ras_aca_is_supported(adev)) {
+		if (amdgpu_aca_is_enabled(adev))
+			amdgpu_aca_smu_debugfs_init(adev, dir);
+		else
+			amdgpu_mca_smu_debugfs_init(adev, dir);
+	}
 }
 
 /* debugfs end */
@@ -3428,6 +3447,15 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 		goto release_con;
 	}
 
+	if (amdgpu_ras_aca_is_supported(adev)) {
+		if (amdgpu_aca_is_enabled(adev))
+			r = amdgpu_aca_init(adev);
+		else
+			r = amdgpu_mca_init(adev);
+		if (r)
+			goto release_con;
+	}
+
 	dev_info(adev->dev, "RAS INFO: ras initialized successfully, "
 		 "hardware ability[%x] ras_mask[%x]\n",
 		 adev->ras_hw_enabled, adev->ras_enabled);
@@ -3636,25 +3664,22 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_event_mgr_init(adev);
 
-	if (amdgpu_aca_is_enabled(adev)) {
-		if (!amdgpu_in_reset(adev)) {
-			r = amdgpu_aca_init(adev);
+	if (amdgpu_ras_aca_is_supported(adev)) {
+		if (amdgpu_in_reset(adev)) {
+			if (amdgpu_aca_is_enabled(adev))
+				r = amdgpu_aca_reset(adev);
+			else
+				r = amdgpu_mca_reset(adev);
 			if (r)
 				return r;
 		}
 
-		if (!amdgpu_sriov_vf(adev))
-			amdgpu_ras_set_aca_debug_mode(adev, false);
-	} else {
-		if (amdgpu_in_reset(adev))
-			r = amdgpu_mca_reset(adev);
-		else
-			r = amdgpu_mca_init(adev);
-		if (r)
-			return r;
-
-		if (!amdgpu_sriov_vf(adev))
-			amdgpu_ras_set_mca_debug_mode(adev, false);
+		if (!amdgpu_sriov_vf(adev)) {
+			if (amdgpu_aca_is_enabled(adev))
+				amdgpu_ras_set_aca_debug_mode(adev, false);
+			else
+				amdgpu_ras_set_mca_debug_mode(adev, false);
+		}
 	}
 
 	/* Guest side doesn't need init ras feature */
@@ -3728,10 +3753,12 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 	amdgpu_ras_fs_fini(adev);
 	amdgpu_ras_interrupt_remove_all(adev);
 
-	if (amdgpu_aca_is_enabled(adev))
-		amdgpu_aca_fini(adev);
-	else
-		amdgpu_mca_fini(adev);
+	if (amdgpu_ras_aca_is_supported(adev)) {
+		if (amdgpu_aca_is_enabled(adev))
+			amdgpu_aca_fini(adev);
+		else
+			amdgpu_mca_fini(adev);
+	}
 
 	WARN(AMDGPU_RAS_GET_FEATURES(con->features), "Feature mask is not cleared");
 

@@ -193,27 +193,26 @@ static int amdgpu_mca_bank_set_merge(struct mca_bank_set *mca_set, struct mca_ba
 	return 0;
 }
 
-static int amdgpu_mca_bank_set_remove_node(struct mca_bank_set *mca_set, struct mca_bank_node *node)
+static void amdgpu_mca_bank_set_remove_node(struct mca_bank_set *mca_set, struct mca_bank_node *node)
 {
 	if (!node)
-		return -EINVAL;
+		return;
 
 	list_del(&node->node);
 	kvfree(node);
 
 	mca_set->nr_entries--;
-
-	return 0;
 }
 
 static void amdgpu_mca_bank_set_release(struct mca_bank_set *mca_set)
 {
 	struct mca_bank_node *node, *tmp;
 
-	list_for_each_entry_safe(node, tmp, &mca_set->list, node) {
-		list_del(&node->node);
-		kvfree(node);
-	}
+	if (list_empty(&mca_set->list))
+		return;
+
+	list_for_each_entry_safe(node, tmp, &mca_set->list, node)
+		amdgpu_mca_bank_set_remove_node(mca_set, node);
 }
 
 void amdgpu_mca_smu_init_funcs(struct amdgpu_device *adev, const struct amdgpu_mca_smu_funcs *mca_funcs)
@@ -608,9 +607,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(mca_debug_mode_fops, NULL, amdgpu_mca_smu_debug_mode_se
 void amdgpu_mca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root)
 {
 #if defined(CONFIG_DEBUG_FS)
-	if (!root ||
-	    (amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(13, 0, 6) &&
-	     amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(13, 0, 14)))
+	if (!root)
 		return;
 
 	debugfs_create_file("mca_debug_mode", 0200, root, adev, &mca_debug_mode_fops);
