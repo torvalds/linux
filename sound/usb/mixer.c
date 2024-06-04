@@ -1168,6 +1168,14 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 		}
 		break;
 
+	case USB_ID(0x05ac, 0x110a): /* Apple USB C to 3.5mm adapter */
+		if(!strcmp(kctl->id.name, "PCM Playback Volume")){
+			/* Set PCM Playback Volume for channel 1 and 2 to maximum supported volume */
+			snd_usb_set_cur_mix_value(cval, 1, 0, cval->max);
+			snd_usb_set_cur_mix_value(cval, 2, 1, cval->max);
+		}
+		break;
+
 	case USB_ID(0x046d, 0x0807): /* Logitech Webcam C500 */
 	case USB_ID(0x046d, 0x0808):
 	case USB_ID(0x046d, 0x0809):
