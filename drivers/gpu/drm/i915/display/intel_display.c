@@ -1861,12 +1861,13 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 	 * according to register description and PRM.
 	 */
 	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, PFIT_CONTROL) & PFIT_ENABLE);
+		    intel_de_read(dev_priv, PFIT_CONTROL(dev_priv)) & PFIT_ENABLE);
 	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	intel_de_write(dev_priv, PFIT_PGM_RATIOS,
 		       crtc_state->gmch_pfit.pgm_ratios);
-	intel_de_write(dev_priv, PFIT_CONTROL, crtc_state->gmch_pfit.control);
+	intel_de_write(dev_priv, PFIT_CONTROL(dev_priv),
+		       crtc_state->gmch_pfit.control);
 
 	/* Border color in case we don't scale up to the full screen. Black by
 	 * default, change to something else for debugging. */
@@ -2195,8 +2196,8 @@ static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 	assert_transcoder_disabled(dev_priv, old_crtc_state->cpu_transcoder);
 
 	drm_dbg_kms(&dev_priv->drm, "disabling pfit, current: 0x%08x\n",
-		    intel_de_read(dev_priv, PFIT_CONTROL));
-	intel_de_write(dev_priv, PFIT_CONTROL, 0);
+		    intel_de_read(dev_priv, PFIT_CONTROL(dev_priv)));
+	intel_de_write(dev_priv, PFIT_CONTROL(dev_priv), 0);
 }
 
 static void i9xx_crtc_disable(struct intel_atomic_state *state,
@@ -2974,7 +2975,7 @@ static void i9xx_get_pfit_config(struct intel_crtc_state *crtc_state)
 	if (!i9xx_has_pfit(dev_priv))
 		return;
 
-	tmp = intel_de_read(dev_priv, PFIT_CONTROL);
+	tmp = intel_de_read(dev_priv, PFIT_CONTROL(dev_priv));
 	if (!(tmp & PFIT_ENABLE))
 		return;
 

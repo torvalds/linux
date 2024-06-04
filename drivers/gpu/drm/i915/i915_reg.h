@@ -1507,7 +1507,7 @@
 #define   VIDEO_DIP_ENABLE_AS_ADL	REG_BIT(23)
 
 /* Panel fitting */
-#define PFIT_CONTROL	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61230)
+#define PFIT_CONTROL(dev_priv)	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61230)
 #define   PFIT_ENABLE			REG_BIT(31)
 #define   PFIT_PIPE_MASK		REG_GENMASK(30, 29) /* 965+ */
 #define   PFIT_PIPE(pipe)		REG_FIELD_PREP(PFIT_PIPE_MASK, (pipe))

@@ -148,7 +148,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 
 	/* gen2/3 store dither state in pfit control, needs to match */
 	if (DISPLAY_VER(dev_priv) < 4) {
-		tmp = intel_de_read(dev_priv, PFIT_CONTROL);
+		tmp = intel_de_read(dev_priv, PFIT_CONTROL(dev_priv));
 
 		crtc_state->gmch_pfit.control |= tmp & PFIT_PANEL_8TO6_DITHER_ENABLE;
 	}
