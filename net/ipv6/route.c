@@ -368,7 +368,7 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 		in6_dev_put(idev);
 	}
 
-	from = xchg((__force struct fib6_info **)&rt->from, NULL);
+	from = unrcu_pointer(xchg(&rt->from, NULL));
 	fib6_info_release(from);
 }
 
@@ -1437,7 +1437,7 @@ static struct rt6_info *rt6_make_pcpu_route(struct net *net,
 	if (res->f6i->fib6_destroying) {
 		struct fib6_info *from;
 
-		from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
+		from = unrcu_pointer(xchg(&pcpu_rt->from, NULL));
 		fib6_info_release(from);
 	}
 
@@ -1466,7 +1466,7 @@ static void rt6_remove_exception(struct rt6_exception_bucket *bucket,
 	/* purge completely the exception to allow releasing the held resources:
 	 * some [sk] cache may keep the dst around for unlimited time
 	 */
-	from = xchg((__force struct fib6_info **)&rt6_ex->rt6i->from, NULL);
+	from = unrcu_pointer(xchg(&rt6_ex->rt6i->from, NULL));
 	fib6_info_release(from);
 	dst_dev_put(&rt6_ex->rt6i->dst);
 

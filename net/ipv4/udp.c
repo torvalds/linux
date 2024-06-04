@@ -2230,7 +2230,7 @@ bool udp_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst)
 	struct dst_entry *old;
 
 	if (dst_hold_safe(dst)) {
-		old = xchg((__force struct dst_entry **)&sk->sk_rx_dst, dst);
+		old = unrcu_pointer(xchg(&sk->sk_rx_dst, RCU_INITIALIZER(dst)));
 		dst_release(old);
 		return old != dst;
 	}
