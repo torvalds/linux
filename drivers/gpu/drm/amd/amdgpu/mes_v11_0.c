@@ -51,6 +51,8 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_0_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_1_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_1_mes1.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_2_mes_2.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_2_mes1.bin");
 
 static int mes_v11_0_hw_init(void *handle);
 static int mes_v11_0_hw_fini(void *handle);

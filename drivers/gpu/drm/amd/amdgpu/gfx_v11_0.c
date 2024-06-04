@@ -93,6 +93,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_1_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_1_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_1_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_1_rlc.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_2_pfp.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_2_me.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_2_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_2_rlc.bin");
 
 static const struct amdgpu_hwip_reg_entry gc_reg_list_11_0[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS),
