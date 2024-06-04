@@ -126,7 +126,7 @@ u32 g4x_get_vblank_counter(struct drm_crtc *crtc)
 	if (!vblank->max_vblank_count)
 		return 0;
 
-	return intel_de_read(dev_priv, PIPE_FRMCOUNT_G4X(pipe));
+	return intel_de_read(dev_priv, PIPE_FRMCOUNT_G4X(dev_priv, pipe));
 }
 
 static u32 intel_crtc_scanlines_since_frame_timestamp(struct intel_crtc *crtc)
