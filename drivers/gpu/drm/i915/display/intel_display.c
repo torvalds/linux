@@ -2110,7 +2110,7 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
 		intel_de_write(dev_priv, CHV_BLEND(dev_priv, pipe),
 			       CHV_BLEND_LEGACY);
-		intel_de_write(dev_priv, CHV_CANVAS(pipe), 0);
+		intel_de_write(dev_priv, CHV_CANVAS(dev_priv, pipe), 0);
 	}
 
 	crtc->active = true;
