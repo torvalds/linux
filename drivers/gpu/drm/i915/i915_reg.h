@@ -768,7 +768,7 @@
 #define _DPLL_A_MD		0x601c
 #define _DPLL_B_MD		0x6020
 #define _CHV_DPLL_C_MD		0x603c
-#define DPLL_MD(pipe)		_MMIO_BASE_PIPE3(DISPLAY_MMIO_BASE(dev_priv), \
+#define DPLL_MD(dev_priv, pipe)		_MMIO_BASE_PIPE3(DISPLAY_MMIO_BASE(dev_priv), \
 						 (pipe), _DPLL_A_MD, _DPLL_B_MD, _CHV_DPLL_C_MD)
 
 /*

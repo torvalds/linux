@@ -398,7 +398,8 @@ void i9xx_dpll_get_hw_state(struct intel_crtc *crtc,
 		if (IS_CHERRYVIEW(dev_priv) && crtc->pipe != PIPE_A)
 			tmp = dev_priv->display.state.chv_dpll_md[crtc->pipe];
 		else
-			tmp = intel_de_read(dev_priv, DPLL_MD(crtc->pipe));
+			tmp = intel_de_read(dev_priv,
+					    DPLL_MD(dev_priv, crtc->pipe));
 
 		hw_state->dpll_md = tmp;
 	}
@@ -1851,7 +1852,8 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 	udelay(150);
 
 	if (DISPLAY_VER(dev_priv) >= 4) {
-		intel_de_write(dev_priv, DPLL_MD(pipe), hw_state->dpll_md);
+		intel_de_write(dev_priv, DPLL_MD(dev_priv, pipe),
+			       hw_state->dpll_md);
 	} else {
 		/* The pixel multiplier can only be updated once the
 		 * DPLL is enabled and the clocks are stable.
@@ -2021,8 +2023,8 @@ void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 		_vlv_enable_pll(crtc_state);
 	}
 
-	intel_de_write(dev_priv, DPLL_MD(pipe), hw_state->dpll_md);
-	intel_de_posting_read(dev_priv, DPLL_MD(pipe));
+	intel_de_write(dev_priv, DPLL_MD(dev_priv, pipe), hw_state->dpll_md);
+	intel_de_posting_read(dev_priv, DPLL_MD(dev_priv, pipe));
 }
 
 static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
@@ -2175,7 +2177,8 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 		 * the value from DPLLBMD to either pipe B or C.
 		 */
 		intel_de_write(dev_priv, CBR4_VLV, CBR_DPLLBMD_PIPE(pipe));
-		intel_de_write(dev_priv, DPLL_MD(PIPE_B), hw_state->dpll_md);
+		intel_de_write(dev_priv, DPLL_MD(dev_priv, PIPE_B),
+			       hw_state->dpll_md);
 		intel_de_write(dev_priv, CBR4_VLV, 0);
 		dev_priv->display.state.chv_dpll_md[pipe] = hw_state->dpll_md;
 
@@ -2187,8 +2190,9 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 			    (intel_de_read(dev_priv, DPLL(dev_priv, PIPE_B)) &
 			     DPLL_VGA_MODE_DIS) == 0);
 	} else {
-		intel_de_write(dev_priv, DPLL_MD(pipe), hw_state->dpll_md);
-		intel_de_posting_read(dev_priv, DPLL_MD(pipe));
+		intel_de_write(dev_priv, DPLL_MD(dev_priv, pipe),
+			       hw_state->dpll_md);
+		intel_de_posting_read(dev_priv, DPLL_MD(dev_priv, pipe));
 	}
 }
 
