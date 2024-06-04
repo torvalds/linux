@@ -85,7 +85,7 @@ intel_drrs_set_refresh_rate_pipeconf(struct intel_crtc *crtc,
 	else
 		bit = TRANSCONF_REFRESH_RATE_ALT_ILK;
 
-	intel_de_rmw(dev_priv, TRANSCONF(cpu_transcoder),
+	intel_de_rmw(dev_priv, TRANSCONF(dev_priv, cpu_transcoder),
 		     bit, refresh_rate == DRRS_REFRESH_RATE_LOW ? bit : 0);
 }
 
