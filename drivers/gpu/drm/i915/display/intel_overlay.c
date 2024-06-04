@@ -951,7 +951,8 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 		u32 tmp;
 
 		if (intel_de_read(dev_priv, PFIT_CONTROL(dev_priv)) & PFIT_VERT_AUTO_SCALE)
-			tmp = intel_de_read(dev_priv, PFIT_AUTO_RATIOS);
+			tmp = intel_de_read(dev_priv,
+					    PFIT_AUTO_RATIOS(dev_priv));
 		else
 			tmp = intel_de_read(dev_priv,
 					    PFIT_PGM_RATIOS(dev_priv));
