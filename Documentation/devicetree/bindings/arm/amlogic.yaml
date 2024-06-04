@@ -107,6 +107,13 @@ properties:
           - const: amlogic,s905d
           - const: amlogic,meson-gxl
 
+      - description: Boards with the Amlogic Meson GXLX S905L SoC
+        items:
+          - enum:
+              - amlogic,p271
+          - const: amlogic,s905l
+          - const: amlogic,meson-gxlx
+
       - description: Boards with the Amlogic Meson GXM S912 SoC
         items:
           - enum:
