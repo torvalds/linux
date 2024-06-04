@@ -1497,11 +1497,6 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	bch2_iget5_set(&inode->v, &inum);
 	bch2_inode_update_after_write(trans, inode, bi, ~0);
 
-	if (BCH_SUBVOLUME_SNAP(subvol))
-		set_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
-	else
-		clear_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
-
 	inode->v.i_blocks	= bi->bi_sectors;
 	inode->v.i_ino		= bi->bi_inum;
 	inode->v.i_rdev		= bi->bi_dev;
@@ -1512,6 +1507,9 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	inode->ei_quota_reserved = 0;
 	inode->ei_qid		= bch_qid(bi);
 	inode->ei_subvol	= inum.subvol;
+
+	if (BCH_SUBVOLUME_SNAP(subvol))
+		set_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
 
 	inode->v.i_mapping->a_ops = &bch_address_space_operations;
 
