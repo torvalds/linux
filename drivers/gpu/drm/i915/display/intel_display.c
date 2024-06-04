@@ -2703,7 +2703,8 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 	 * TRANS_SET_CONTEXT_LATENCY to configure the pipe vblank start.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 13) {
-		intel_de_write(dev_priv, TRANS_SET_CONTEXT_LATENCY(cpu_transcoder),
+		intel_de_write(dev_priv,
+			       TRANS_SET_CONTEXT_LATENCY(dev_priv, cpu_transcoder),
 			       crtc_vblank_start - crtc_vdisplay);
 
 		/*
@@ -2860,7 +2861,8 @@ static void intel_get_transcoder_timings(struct intel_crtc *crtc,
 	if (DISPLAY_VER(dev_priv) >= 13 && !transcoder_is_dsi(cpu_transcoder))
 		adjusted_mode->crtc_vblank_start =
 			adjusted_mode->crtc_vdisplay +
-			intel_de_read(dev_priv, TRANS_SET_CONTEXT_LATENCY(cpu_transcoder));
+			intel_de_read(dev_priv,
+				      TRANS_SET_CONTEXT_LATENCY(dev_priv, cpu_transcoder));
 }
 
 static void intel_bigjoiner_adjust_pipe_src(struct intel_crtc_state *crtc_state)
