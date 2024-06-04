@@ -4,13 +4,17 @@
 $id: http://devicetree.org/schemas/hwmon/gmt,g762.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: GMT G762/G763 PWM Fan controller
+title: GMT G761/G762/G763 PWM Fan controller
 
 maintainers:
   - Christian Marangi <ansuelsmth@gmail.com>
 
 description: |
-  GMT G762/G763 PWM Fan controller.
+  GMT G761/G762/G763 PWM Fan controller.
+
+  G761 supports an internal-clock hence the clocks property is optional.
+  If not defined, internal-clock will be used. (31KHz is the clock of
+  the internal crystal oscillator)
 
   If an optional property is not set in DT, then current value is kept
   unmodified (e.g. bootloader installed value).
@@ -22,6 +26,7 @@ description: |
 properties:
   compatible:
     enum:
+      - gmt,g761
       - gmt,g762
       - gmt,g763
 
@@ -51,7 +56,17 @@ properties:
 required:
   - compatible
   - reg
-  - clocks
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - gmt,g762
+          - gmt,g763
+then:
+  required:
+    - clocks
 
 additionalProperties: false
 
@@ -65,6 +80,14 @@ examples:
             compatible = "gmt,g762";
             reg = <0x3e>;
             clocks = <&g762_clk>;
+            fan_gear_mode = <0>;
+            fan_startv = <1>;
+            pwm_polarity = <0>;
+        };
+
+        g761@1e {
+            compatible = "gmt,g761";
+            reg = <0x1e>;
             fan_gear_mode = <0>;
             fan_startv = <1>;
             pwm_polarity = <0>;
