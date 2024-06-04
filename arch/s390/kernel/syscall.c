@@ -38,33 +38,6 @@
 
 #include "entry.h"
 
-/*
- * Perform the mmap() system call. Linux for S/390 isn't able to handle more
- * than 5 system call parameters, so this system call uses a memory block
- * for parameter passing.
- */
-
-struct s390_mmap_arg_struct {
-	unsigned long addr;
-	unsigned long len;
-	unsigned long prot;
-	unsigned long flags;
-	unsigned long fd;
-	unsigned long offset;
-};
-
-SYSCALL_DEFINE1(mmap2, struct s390_mmap_arg_struct __user *, arg)
-{
-	struct s390_mmap_arg_struct a;
-	int error = -EFAULT;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-	error = ksys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
-out:
-	return error;
-}
-
 #ifdef CONFIG_SYSVIPC
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls.
