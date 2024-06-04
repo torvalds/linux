@@ -708,7 +708,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	drm_dbg_kms(&dev_priv->drm, "starting load-detect on CRT\n");
 
 	save_bclrpat = intel_de_read(dev_priv, BCLRPAT(cpu_transcoder));
-	save_vtotal = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
+	save_vtotal = intel_de_read(dev_priv,
+				    TRANS_VTOTAL(dev_priv, cpu_transcoder));
 	vblank = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
 
 	vtotal = REG_FIELD_GET(VTOTAL_MASK, save_vtotal) + 1;

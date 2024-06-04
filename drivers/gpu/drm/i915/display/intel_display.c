@@ -2720,7 +2720,7 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 		       HSYNC_START(adjusted_mode->crtc_hsync_start - 1) |
 		       HSYNC_END(adjusted_mode->crtc_hsync_end - 1));
 
-	intel_de_write(dev_priv, TRANS_VTOTAL(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_VTOTAL(dev_priv, cpu_transcoder),
 		       VACTIVE(crtc_vdisplay - 1) |
 		       VTOTAL(crtc_vtotal - 1));
 	intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
@@ -2736,7 +2736,7 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 	 * bits. */
 	if (IS_HASWELL(dev_priv) && cpu_transcoder == TRANSCODER_EDP &&
 	    (pipe == PIPE_B || pipe == PIPE_C))
-		intel_de_write(dev_priv, TRANS_VTOTAL(pipe),
+		intel_de_write(dev_priv, TRANS_VTOTAL(dev_priv, pipe),
 			       VACTIVE(crtc_vdisplay - 1) |
 			       VTOTAL(crtc_vtotal - 1));
 }
@@ -2767,7 +2767,7 @@ static void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc
 	 * The double buffer latch point for TRANS_VTOTAL
 	 * is the transcoder's undelayed vblank.
 	 */
-	intel_de_write(dev_priv, TRANS_VTOTAL(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_VTOTAL(dev_priv, cpu_transcoder),
 		       VACTIVE(crtc_vdisplay - 1) |
 		       VTOTAL(crtc_vtotal - 1));
 }
@@ -2826,7 +2826,7 @@ static void intel_get_transcoder_timings(struct intel_crtc *crtc,
 	adjusted_mode->crtc_hsync_start = REG_FIELD_GET(HSYNC_START_MASK, tmp) + 1;
 	adjusted_mode->crtc_hsync_end = REG_FIELD_GET(HSYNC_END_MASK, tmp) + 1;
 
-	tmp = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, TRANS_VTOTAL(dev_priv, cpu_transcoder));
 	adjusted_mode->crtc_vdisplay = REG_FIELD_GET(VACTIVE_MASK, tmp) + 1;
 	adjusted_mode->crtc_vtotal = REG_FIELD_GET(VTOTAL_MASK, tmp) + 1;
 
@@ -8196,7 +8196,7 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 		       HBLANK_START(640 - 1) | HBLANK_END(800 - 1));
 	intel_de_write(dev_priv, TRANS_HSYNC(dev_priv, cpu_transcoder),
 		       HSYNC_START(656 - 1) | HSYNC_END(752 - 1));
-	intel_de_write(dev_priv, TRANS_VTOTAL(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_VTOTAL(dev_priv, cpu_transcoder),
 		       VACTIVE(480 - 1) | VTOTAL(525 - 1));
 	intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
 		       VBLANK_START(480 - 1) | VBLANK_END(525 - 1));
