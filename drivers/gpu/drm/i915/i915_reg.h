@@ -2190,7 +2190,7 @@
 #define   CHV_CANVAS_GREEN_MASK	REG_GENMASK(19, 10)
 #define   CHV_CANVAS_BLUE_MASK	REG_GENMASK(9, 0)
 
-#define CHV_BLEND(pipe)		_MMIO_TRANS2(dev_priv, pipe, _CHV_BLEND_A)
+#define CHV_BLEND(dev_priv, pipe)		_MMIO_TRANS2(dev_priv, pipe, _CHV_BLEND_A)
 #define CHV_CANVAS(pipe)	_MMIO_TRANS2(dev_priv, pipe, _CHV_CANVAS_A)
 
 /* Display/Sprite base address macros */
