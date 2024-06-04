@@ -1228,7 +1228,7 @@ static bool g4x_digital_port_connected(struct intel_encoder *encoder)
 		return false;
 	}
 
-	return intel_de_read(dev_priv, PORT_HOTPLUG_STAT) & bit;
+	return intel_de_read(dev_priv, PORT_HOTPLUG_STAT(dev_priv)) & bit;
 }
 
 static bool ilk_digital_port_connected(struct intel_encoder *encoder)
