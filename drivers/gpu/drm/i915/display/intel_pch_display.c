@@ -233,7 +233,7 @@ static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_s
 	intel_de_write(dev_priv, PCH_TRANS_VTOTAL(pch_transcoder),
 		       intel_de_read(dev_priv, TRANS_VTOTAL(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VBLANK(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNC(pch_transcoder),
 		       intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNCSHIFT(pch_transcoder),

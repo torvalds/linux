@@ -710,7 +710,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	save_bclrpat = intel_de_read(dev_priv, BCLRPAT(cpu_transcoder));
 	save_vtotal = intel_de_read(dev_priv,
 				    TRANS_VTOTAL(dev_priv, cpu_transcoder));
-	vblank = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
+	vblank = intel_de_read(dev_priv,
+			       TRANS_VBLANK(dev_priv, cpu_transcoder));
 
 	vtotal = REG_FIELD_GET(VTOTAL_MASK, save_vtotal) + 1;
 	vactive = REG_FIELD_GET(VACTIVE_MASK, save_vtotal) + 1;
@@ -749,7 +750,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			u32 vsync_start = REG_FIELD_GET(VSYNC_START_MASK, vsync) + 1;
 
 			vblank_start = vsync_start;
-			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
+			intel_de_write(dev_priv,
+				       TRANS_VBLANK(dev_priv, cpu_transcoder),
 				       VBLANK_START(vblank_start - 1) |
 				       VBLANK_END(vblank_end - 1));
 			restore_vblank = true;
@@ -782,7 +784,9 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 
 		/* restore vblank if necessary */
 		if (restore_vblank)
-			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder), vblank);
+			intel_de_write(dev_priv,
+				       TRANS_VBLANK(dev_priv, cpu_transcoder),
+				       vblank);
 		/*
 		 * If more than 3/4 of the scanline detected a monitor,
 		 * then it is assumed to be present. This works even on i830,
