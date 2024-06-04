@@ -2641,7 +2641,8 @@ void intel_cpu_transcoder_set_m1_n1(struct intel_crtc *crtc,
 
 	if (DISPLAY_VER(dev_priv) >= 5)
 		intel_set_m_n(dev_priv, m_n,
-			      PIPE_DATA_M1(transcoder), PIPE_DATA_N1(transcoder),
+			      PIPE_DATA_M1(dev_priv, transcoder),
+			      PIPE_DATA_N1(transcoder),
 			      PIPE_LINK_M1(transcoder), PIPE_LINK_N1(transcoder));
 	else
 		intel_set_m_n(dev_priv, m_n,
@@ -3337,7 +3338,8 @@ void intel_cpu_transcoder_get_m1_n1(struct intel_crtc *crtc,
 
 	if (DISPLAY_VER(dev_priv) >= 5)
 		intel_get_m_n(dev_priv, m_n,
-			      PIPE_DATA_M1(transcoder), PIPE_DATA_N1(transcoder),
+			      PIPE_DATA_M1(dev_priv, transcoder),
+			      PIPE_DATA_N1(transcoder),
 			      PIPE_LINK_M1(transcoder), PIPE_LINK_N1(transcoder));
 	else
 		intel_get_m_n(dev_priv, m_n,
