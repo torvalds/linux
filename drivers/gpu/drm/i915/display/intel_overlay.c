@@ -943,7 +943,7 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 	 * line with the intel documentation for the i965
 	 */
 	if (DISPLAY_VER(dev_priv) >= 4) {
-		u32 tmp = intel_de_read(dev_priv, PFIT_PGM_RATIOS);
+		u32 tmp = intel_de_read(dev_priv, PFIT_PGM_RATIOS(dev_priv));
 
 		/* on i965 use the PGM reg to read out the autoscaler values */
 		ratio = REG_FIELD_GET(PFIT_VERT_SCALE_MASK_965, tmp);
@@ -953,7 +953,8 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 		if (intel_de_read(dev_priv, PFIT_CONTROL(dev_priv)) & PFIT_VERT_AUTO_SCALE)
 			tmp = intel_de_read(dev_priv, PFIT_AUTO_RATIOS);
 		else
-			tmp = intel_de_read(dev_priv, PFIT_PGM_RATIOS);
+			tmp = intel_de_read(dev_priv,
+					    PFIT_PGM_RATIOS(dev_priv));
 
 		ratio = REG_FIELD_GET(PFIT_VERT_SCALE_MASK, tmp);
 	}

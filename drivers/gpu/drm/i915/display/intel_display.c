@@ -1864,7 +1864,7 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 		    intel_de_read(dev_priv, PFIT_CONTROL(dev_priv)) & PFIT_ENABLE);
 	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
-	intel_de_write(dev_priv, PFIT_PGM_RATIOS,
+	intel_de_write(dev_priv, PFIT_PGM_RATIOS(dev_priv),
 		       crtc_state->gmch_pfit.pgm_ratios);
 	intel_de_write(dev_priv, PFIT_CONTROL(dev_priv),
 		       crtc_state->gmch_pfit.control);
@@ -2990,7 +2990,7 @@ static void i9xx_get_pfit_config(struct intel_crtc_state *crtc_state)
 
 	crtc_state->gmch_pfit.control = tmp;
 	crtc_state->gmch_pfit.pgm_ratios =
-		intel_de_read(dev_priv, PFIT_PGM_RATIOS);
+		intel_de_read(dev_priv, PFIT_PGM_RATIOS(dev_priv));
 }
 
 static enum intel_output_format
