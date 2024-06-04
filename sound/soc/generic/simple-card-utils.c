@@ -60,6 +60,9 @@ void simple_util_parse_convert(struct device_node *np,
 {
 	char prop[128];
 
+	if (!np)
+		return;
+
 	if (!prefix)
 		prefix = "";
 
@@ -1140,22 +1143,16 @@ parse_dai_end:
 }
 EXPORT_SYMBOL_GPL(graph_util_parse_dai);
 
-int graph_util_parse_link_direction(struct device_node *np,
+void graph_util_parse_link_direction(struct device_node *np,
 				    bool *playback_only, bool *capture_only)
 {
-	bool is_playback_only = false;
-	bool is_capture_only = false;
+	bool is_playback_only = of_property_read_bool(np, "playback-only");
+	bool is_capture_only  = of_property_read_bool(np, "capture-only");
 
-	is_playback_only = of_property_read_bool(np, "playback-only");
-	is_capture_only = of_property_read_bool(np, "capture-only");
-
-	if (is_playback_only && is_capture_only)
-		return -EINVAL;
-
-	*playback_only = is_playback_only;
-	*capture_only = is_capture_only;
-
-	return 0;
+	if (is_playback_only)
+		*playback_only = is_playback_only;
+	if (is_capture_only)
+		*capture_only = is_capture_only;
 }
 EXPORT_SYMBOL_GPL(graph_util_parse_link_direction);
 
