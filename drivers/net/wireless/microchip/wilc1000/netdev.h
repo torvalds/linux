@@ -32,8 +32,8 @@
 
 #define wilc_for_each_vif(w, v) \
 	struct wilc *_w = w; \
-	list_for_each_entry_rcu(v, &_w->vif_list, list, \
-				 rcu_read_lock_held())
+	list_for_each_entry_srcu(v, &_w->vif_list, list, \
+				 srcu_read_lock_held(&_w->srcu))
 
 struct wilc_wfi_stats {
 	unsigned long rx_packets;
@@ -220,6 +220,14 @@ struct wilc {
 
 	/* protect vif list */
 	struct mutex vif_mutex;
+	/* Sleepable RCU struct to manipulate vif list. Sleepable version is
+	 * needed over the classic RCU version because the driver's current
+	 * design involves some sleeping code while manipulating a vif
+	 * retrieved from vif list (so in a SRCU critical section), like:
+	 * - sending commands to the chip, using info from retrieved vif
+	 * - registering a new monitoring net device
+	 */
+	struct srcu_struct srcu;
 	u8 open_ifcs;
 
 	/* protect head of transmit queue */
