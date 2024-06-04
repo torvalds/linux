@@ -1110,6 +1110,10 @@ static const struct platform_desc lnl_desc = {
 	PLATFORM(LUNARLAKE),
 };
 
+static const struct platform_desc bmg_desc = {
+	PLATFORM(BATTLEMAGE),
+};
+
 __diag_pop();
 
 /*
@@ -1178,6 +1182,7 @@ static const struct {
 	INTEL_DG2_IDS(INTEL_DISPLAY_DEVICE, &dg2_desc),
 	INTEL_MTL_IDS(INTEL_DISPLAY_DEVICE, &mtl_desc),
 	INTEL_LNL_IDS(INTEL_DISPLAY_DEVICE, &lnl_desc),
+	INTEL_BMG_IDS(INTEL_DISPLAY_DEVICE, &bmg_desc),
 };
 
 static const struct {

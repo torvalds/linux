@@ -68,6 +68,8 @@ enum intel_display_platform {
 	INTEL_DISPLAY_METEORLAKE,
 	/* Display ver 20 (based on GMD ID) */
 	INTEL_DISPLAY_LUNARLAKE,
+	/* Display ver 14.1 (based on GMD ID) */
+	INTEL_DISPLAY_BATTLEMAGE,
 };
 
 enum intel_display_subplatform {
