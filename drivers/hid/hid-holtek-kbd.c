@@ -180,4 +180,5 @@ static struct hid_driver holtek_kbd_driver = {
 };
 module_hid_driver(holtek_kbd_driver);
 
+MODULE_DESCRIPTION("HID driver for Holtek keyboard");
 MODULE_LICENSE("GPL");

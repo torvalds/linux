@@ -68,4 +68,5 @@ static struct hid_driver ch_driver = {
 };
 module_hid_driver(ch_driver);
 
+MODULE_DESCRIPTION("HID driver for some cherry \"special\" devices");
 MODULE_LICENSE("GPL");

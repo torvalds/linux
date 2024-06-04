@@ -316,4 +316,5 @@ static struct hid_driver dr_driver = {
 };
 module_hid_driver(dr_driver);
 
+MODULE_DESCRIPTION("Force feedback support for DragonRise Inc. game controllers");
 MODULE_LICENSE("GPL");

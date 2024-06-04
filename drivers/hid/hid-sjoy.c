@@ -168,6 +168,7 @@ static struct hid_driver sjoy_driver = {
 };
 module_hid_driver(sjoy_driver);
 
+MODULE_DESCRIPTION("Force feedback support for SmartJoy PLUS PS2->USB adapter");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jussi Kivilinna");
 

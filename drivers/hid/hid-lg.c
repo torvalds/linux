@@ -942,4 +942,5 @@ module_param_named(lg4ff_no_autoswitch, lg4ff_no_autoswitch, int, S_IRUGO);
 MODULE_PARM_DESC(lg4ff_no_autoswitch, "Do not switch multimode wheels to their native mode automatically");
 #endif
 
+MODULE_DESCRIPTION("HID driver for some logitech \"special\" devices");
 MODULE_LICENSE("GPL");

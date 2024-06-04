@@ -51,4 +51,5 @@ static struct hid_driver ortek_driver = {
 };
 module_hid_driver(ortek_driver);
 
+MODULE_DESCRIPTION("HID driver for Ortek PKB-1700/WKB-2000/Skycable wireless keyboard and mouse trackpad");
 MODULE_LICENSE("GPL");

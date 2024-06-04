@@ -87,4 +87,5 @@ static struct hid_driver gyration_driver = {
 };
 module_hid_driver(gyration_driver);
 
+MODULE_DESCRIPTION("HID driver for some gyration \"special\" devices");
 MODULE_LICENSE("GPL");
