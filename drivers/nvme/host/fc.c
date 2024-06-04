@@ -3444,12 +3444,11 @@ nvme_fc_existing_controller(struct nvme_fc_rport *rport,
 	return found;
 }
 
-static struct nvme_ctrl *
-nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
+static struct nvme_fc_ctrl *
+nvme_fc_alloc_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	struct nvme_fc_lport *lport, struct nvme_fc_rport *rport)
 {
 	struct nvme_fc_ctrl *ctrl;
-	unsigned long flags;
 	int ret, idx, ctrl_loss_tmo;
 
 	if (!(rport->remoteport.port_role &
@@ -3538,7 +3537,31 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	if (lport->dev)
 		ctrl->ctrl.numa_node = dev_to_node(lport->dev);
 
-	/* at this point, teardown path changes to ref counting on nvme ctrl */
+	return ctrl;
+
+out_free_queues:
+	kfree(ctrl->queues);
+out_free_ida:
+	put_device(ctrl->dev);
+	ida_free(&nvme_fc_ctrl_cnt, ctrl->cnum);
+out_free_ctrl:
+	kfree(ctrl);
+out_fail:
+	/* exit via here doesn't follow ctlr ref points */
+	return ERR_PTR(ret);
+}
+
+static struct nvme_ctrl *
+nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
+	struct nvme_fc_lport *lport, struct nvme_fc_rport *rport)
+{
+	struct nvme_fc_ctrl *ctrl;
+	unsigned long flags;
+	int ret;
+
+	ctrl = nvme_fc_alloc_ctrl(dev, opts, lport, rport);
+	if (IS_ERR(ctrl))
+		return ERR_CAST(ctrl);
 
 	ret = nvme_alloc_admin_tag_set(&ctrl->ctrl, &ctrl->admin_tag_set,
 			&nvme_fc_admin_mq_ops,
@@ -3597,19 +3620,7 @@ fail_ctrl:
 	nvme_fc_rport_get(rport);
 
 	return ERR_PTR(-EIO);
-
-out_free_queues:
-	kfree(ctrl->queues);
-out_free_ida:
-	put_device(ctrl->dev);
-	ida_free(&nvme_fc_ctrl_cnt, ctrl->cnum);
-out_free_ctrl:
-	kfree(ctrl);
-out_fail:
-	/* exit via here doesn't follow ctlr ref points */
-	return ERR_PTR(ret);
 }
-
 
 struct nvmet_fc_traddr {
 	u64	nn;
