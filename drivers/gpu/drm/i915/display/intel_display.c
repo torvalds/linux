@@ -2707,7 +2707,8 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 4)
-		intel_de_write(dev_priv, TRANS_VSYNCSHIFT(cpu_transcoder),
+		intel_de_write(dev_priv,
+			       TRANS_VSYNCSHIFT(dev_priv, cpu_transcoder),
 			       vsyncshift);
 
 	intel_de_write(dev_priv, TRANS_HTOTAL(dev_priv, cpu_transcoder),

@@ -982,7 +982,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_VSYNCSHIFT(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_VSYNCSHIFT(dev_priv, dsi_trans),
 				       vsync_shift);
 		}
 	}
