@@ -60,6 +60,11 @@ static int virtio_add_region(const struct md_region *entry)
 	unsigned int len;
 	int ret = 0;
 
+	if (!pfn_is_map_memory(virt_to_pfn(entry->virt_addr))) {
+		pr_err("%s: Invalid Phy address %llu\n", entry->name, entry->phys_addr);
+		return -EINVAL;
+	}
+
 	req = kzalloc(sizeof(struct virtio_minidump_msg), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
