@@ -269,13 +269,15 @@ static void vlv_get_fifo_size(struct intel_crtc_state *crtc_state)
 
 	switch (pipe) {
 	case PIPE_A:
-		dsparb = intel_uncore_read(&dev_priv->uncore, DSPARB);
+		dsparb = intel_uncore_read(&dev_priv->uncore,
+					   DSPARB(dev_priv));
 		dsparb2 = intel_uncore_read(&dev_priv->uncore, DSPARB2);
 		sprite0_start = VLV_FIFO_START(dsparb, dsparb2, 0, 0);
 		sprite1_start = VLV_FIFO_START(dsparb, dsparb2, 8, 4);
 		break;
 	case PIPE_B:
-		dsparb = intel_uncore_read(&dev_priv->uncore, DSPARB);
+		dsparb = intel_uncore_read(&dev_priv->uncore,
+					   DSPARB(dev_priv));
 		dsparb2 = intel_uncore_read(&dev_priv->uncore, DSPARB2);
 		sprite0_start = VLV_FIFO_START(dsparb, dsparb2, 16, 8);
 		sprite1_start = VLV_FIFO_START(dsparb, dsparb2, 24, 12);
@@ -300,7 +302,7 @@ static void vlv_get_fifo_size(struct intel_crtc_state *crtc_state)
 static int i9xx_get_fifo_size(struct drm_i915_private *dev_priv,
 			      enum i9xx_plane_id i9xx_plane)
 {
-	u32 dsparb = intel_uncore_read(&dev_priv->uncore, DSPARB);
+	u32 dsparb = intel_uncore_read(&dev_priv->uncore, DSPARB(dev_priv));
 	int size;
 
 	size = dsparb & 0x7f;
@@ -316,7 +318,7 @@ static int i9xx_get_fifo_size(struct drm_i915_private *dev_priv,
 static int i830_get_fifo_size(struct drm_i915_private *dev_priv,
 			      enum i9xx_plane_id i9xx_plane)
 {
-	u32 dsparb = intel_uncore_read(&dev_priv->uncore, DSPARB);
+	u32 dsparb = intel_uncore_read(&dev_priv->uncore, DSPARB(dev_priv));
 	int size;
 
 	size = dsparb & 0x1ff;
@@ -333,7 +335,7 @@ static int i830_get_fifo_size(struct drm_i915_private *dev_priv,
 static int i845_get_fifo_size(struct drm_i915_private *dev_priv,
 			      enum i9xx_plane_id i9xx_plane)
 {
-	u32 dsparb = intel_uncore_read(&dev_priv->uncore, DSPARB);
+	u32 dsparb = intel_uncore_read(&dev_priv->uncore, DSPARB(dev_priv));
 	int size;
 
 	size = dsparb & 0x7f;
@@ -1787,7 +1789,7 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 
 	switch (crtc->pipe) {
 	case PIPE_A:
-		dsparb = intel_uncore_read_fw(uncore, DSPARB);
+		dsparb = intel_uncore_read_fw(uncore, DSPARB(dev_priv));
 		dsparb2 = intel_uncore_read_fw(uncore, DSPARB2);
 
 		dsparb &= ~(VLV_FIFO(SPRITEA, 0xff) |
@@ -1800,11 +1802,11 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		dsparb2 |= (VLV_FIFO(SPRITEA_HI, sprite0_start >> 8) |
 			   VLV_FIFO(SPRITEB_HI, sprite1_start >> 8));
 
-		intel_uncore_write_fw(uncore, DSPARB, dsparb);
+		intel_uncore_write_fw(uncore, DSPARB(dev_priv), dsparb);
 		intel_uncore_write_fw(uncore, DSPARB2, dsparb2);
 		break;
 	case PIPE_B:
-		dsparb = intel_uncore_read_fw(uncore, DSPARB);
+		dsparb = intel_uncore_read_fw(uncore, DSPARB(dev_priv));
 		dsparb2 = intel_uncore_read_fw(uncore, DSPARB2);
 
 		dsparb &= ~(VLV_FIFO(SPRITEC, 0xff) |
@@ -1817,7 +1819,7 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		dsparb2 |= (VLV_FIFO(SPRITEC_HI, sprite0_start >> 8) |
 			   VLV_FIFO(SPRITED_HI, sprite1_start >> 8));
 
-		intel_uncore_write_fw(uncore, DSPARB, dsparb);
+		intel_uncore_write_fw(uncore, DSPARB(dev_priv), dsparb);
 		intel_uncore_write_fw(uncore, DSPARB2, dsparb2);
 		break;
 	case PIPE_C:
@@ -1841,7 +1843,7 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		break;
 	}
 
-	intel_uncore_posting_read_fw(uncore, DSPARB);
+	intel_uncore_posting_read_fw(uncore, DSPARB(dev_priv));
 
 	spin_unlock(&uncore->lock);
 }

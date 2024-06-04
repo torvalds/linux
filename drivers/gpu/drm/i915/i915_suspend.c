@@ -92,7 +92,8 @@ void i915_save_display(struct drm_i915_private *dev_priv)
 
 	/* Display arbitration control */
 	if (GRAPHICS_VER(dev_priv) <= 4)
-		dev_priv->regfile.saveDSPARB = intel_de_read(dev_priv, DSPARB);
+		dev_priv->regfile.saveDSPARB = intel_de_read(dev_priv,
+							     DSPARB(dev_priv));
 
 	if (GRAPHICS_VER(dev_priv) == 4)
 		pci_read_config_word(pdev, GCDGMBUS,
@@ -116,7 +117,8 @@ void i915_restore_display(struct drm_i915_private *dev_priv)
 
 	/* Display arbitration */
 	if (GRAPHICS_VER(dev_priv) <= 4)
-		intel_de_write(dev_priv, DSPARB, dev_priv->regfile.saveDSPARB);
+		intel_de_write(dev_priv, DSPARB(dev_priv),
+			       dev_priv->regfile.saveDSPARB);
 
 	intel_vga_redisable(dev_priv);
 

@@ -1903,7 +1903,7 @@
 #define   SPRITEA_INVALID_GTT_STATUS			REG_BIT(1)
 #define   PLANEA_INVALID_GTT_STATUS			REG_BIT(0)
 
-#define DSPARB			_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x70030)
+#define DSPARB(dev_priv)			_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x70030)
 #define   DSPARB_CSTART_MASK	(0x7f << 7)
 #define   DSPARB_CSTART_SHIFT	7
 #define   DSPARB_BSTART_MASK	(0x7f)
