@@ -23,6 +23,13 @@ static const struct wiphy_wowlan_support ath12k_wowlan_support = {
 	.max_pkt_offset = WOW_MAX_PKT_OFFSET,
 };
 
+static inline bool ath12k_wow_is_p2p_vdev(struct ath12k_vif *arvif)
+{
+	return (arvif->vdev_subtype == WMI_VDEV_SUBTYPE_P2P_DEVICE ||
+		arvif->vdev_subtype == WMI_VDEV_SUBTYPE_P2P_CLIENT ||
+		arvif->vdev_subtype == WMI_VDEV_SUBTYPE_P2P_GO);
+}
+
 int ath12k_wow_enable(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
@@ -247,7 +254,101 @@ ath12k_wow_convert_8023_to_80211(struct ath12k *ar,
 	i80211_pattern->pkt_offset = pkt_ofs;
 }
 
-static int ath12k_vif_wow_set_wakeups(struct ath12k_vif *arvif,
+static int
+ath12k_wow_pno_check_and_convert(struct ath12k *ar, u32 vdev_id,
+				 const struct cfg80211_sched_scan_request *nd_config,
+				 struct wmi_pno_scan_req_arg *pno)
+{
+	int i, j;
+	u8 ssid_len;
+
+	pno->enable = 1;
+	pno->vdev_id = vdev_id;
+	pno->uc_networks_count = nd_config->n_match_sets;
+
+	if (!pno->uc_networks_count ||
+	    pno->uc_networks_count > WMI_PNO_MAX_SUPP_NETWORKS)
+		return -EINVAL;
+
+	if (nd_config->n_channels > WMI_PNO_MAX_NETW_CHANNELS_EX)
+		return -EINVAL;
+
+	/* Filling per profile params */
+	for (i = 0; i < pno->uc_networks_count; i++) {
+		ssid_len = nd_config->match_sets[i].ssid.ssid_len;
+
+		if (ssid_len == 0 || ssid_len > 32)
+			return -EINVAL;
+
+		pno->a_networks[i].ssid.ssid_len = ssid_len;
+
+		memcpy(pno->a_networks[i].ssid.ssid,
+		       nd_config->match_sets[i].ssid.ssid,
+		       ssid_len);
+		pno->a_networks[i].authentication = 0;
+		pno->a_networks[i].encryption     = 0;
+		pno->a_networks[i].bcast_nw_type  = 0;
+
+		/* Copying list of valid channel into request */
+		pno->a_networks[i].channel_count = nd_config->n_channels;
+		pno->a_networks[i].rssi_threshold = nd_config->match_sets[i].rssi_thold;
+
+		for (j = 0; j < nd_config->n_channels; j++) {
+			pno->a_networks[i].channels[j] =
+					nd_config->channels[j]->center_freq;
+		}
+	}
+
+	/* set scan to passive if no SSIDs are specified in the request */
+	if (nd_config->n_ssids == 0)
+		pno->do_passive_scan = true;
+	else
+		pno->do_passive_scan = false;
+
+	for (i = 0; i < nd_config->n_ssids; i++) {
+		for (j = 0; j < pno->uc_networks_count; j++) {
+			if (pno->a_networks[j].ssid.ssid_len ==
+				nd_config->ssids[i].ssid_len &&
+			    !memcmp(pno->a_networks[j].ssid.ssid,
+				    nd_config->ssids[i].ssid,
+				    pno->a_networks[j].ssid.ssid_len)) {
+				pno->a_networks[j].bcast_nw_type = BCAST_HIDDEN;
+				break;
+			}
+		}
+	}
+
+	if (nd_config->n_scan_plans == 2) {
+		pno->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+		pno->fast_scan_max_cycles = nd_config->scan_plans[0].iterations;
+		pno->slow_scan_period =
+			nd_config->scan_plans[1].interval * MSEC_PER_SEC;
+	} else if (nd_config->n_scan_plans == 1) {
+		pno->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+		pno->fast_scan_max_cycles = 1;
+		pno->slow_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+	} else {
+		ath12k_warn(ar->ab, "Invalid number of PNO scan plans: %d",
+			    nd_config->n_scan_plans);
+	}
+
+	if (nd_config->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		/* enable mac randomization */
+		pno->enable_pno_scan_randomization = 1;
+		memcpy(pno->mac_addr, nd_config->mac_addr, ETH_ALEN);
+		memcpy(pno->mac_addr_mask, nd_config->mac_addr_mask, ETH_ALEN);
+	}
+
+	pno->delay_start_time = nd_config->delay;
+
+	/* Current FW does not support min-max range for dwell time */
+	pno->active_max_time = WMI_ACTIVE_MAX_CHANNEL_TIME;
+	pno->passive_max_time = WMI_PASSIVE_MAX_CHANNEL_TIME;
+
+	return 0;
+}
+
+static int ath12k_wow_vif_set_wakeups(struct ath12k_vif *arvif,
 				      struct cfg80211_wowlan *wowlan)
 {
 	const struct cfg80211_pkt_pattern *patterns = wowlan->patterns;
@@ -280,6 +381,26 @@ static int ath12k_vif_wow_set_wakeups(struct ath12k_vif *arvif,
 
 		if (wowlan->magic_pkt)
 			__set_bit(WOW_MAGIC_PKT_RECVD_EVENT, &wow_mask);
+
+		if (wowlan->nd_config) {
+			struct wmi_pno_scan_req_arg *pno;
+			int ret;
+
+			pno = kzalloc(sizeof(*pno), GFP_KERNEL);
+			if (!pno)
+				return -ENOMEM;
+
+			ar->nlo_enabled = true;
+
+			ret = ath12k_wow_pno_check_and_convert(ar, arvif->vdev_id,
+							       wowlan->nd_config, pno);
+			if (!ret) {
+				ath12k_wmi_wow_config_pno(ar, arvif->vdev_id, pno);
+				__set_bit(WOW_NLO_DETECTED_EVENT, &wow_mask);
+			}
+
+			kfree(pno);
+		}
 		break;
 	default:
 		break;
@@ -352,9 +473,71 @@ static int ath12k_wow_set_wakeups(struct ath12k *ar,
 	lockdep_assert_held(&ar->conf_mutex);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
-		ret = ath12k_vif_wow_set_wakeups(arvif, wowlan);
+		if (ath12k_wow_is_p2p_vdev(arvif))
+			continue;
+		ret = ath12k_wow_vif_set_wakeups(arvif, wowlan);
 		if (ret) {
 			ath12k_warn(ar->ab, "failed to set wow wakeups on vdev %i: %d\n",
+				    arvif->vdev_id, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int ath12k_wow_vdev_clean_nlo(struct ath12k *ar, u32 vdev_id)
+{
+	struct wmi_pno_scan_req_arg *pno;
+	int ret;
+
+	if (!ar->nlo_enabled)
+		return 0;
+
+	pno = kzalloc(sizeof(*pno), GFP_KERNEL);
+	if (!pno)
+		return -ENOMEM;
+
+	pno->enable = 0;
+	ret = ath12k_wmi_wow_config_pno(ar, vdev_id, pno);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to disable PNO: %d", ret);
+		goto out;
+	}
+
+	ar->nlo_enabled = false;
+
+out:
+	kfree(pno);
+	return ret;
+}
+
+static int ath12k_wow_vif_clean_nlo(struct ath12k_vif *arvif)
+{
+	struct ath12k *ar = arvif->ar;
+
+	switch (arvif->vdev_type) {
+	case WMI_VDEV_TYPE_STA:
+		return ath12k_wow_vdev_clean_nlo(ar, arvif->vdev_id);
+	default:
+		return 0;
+	}
+}
+
+static int ath12k_wow_nlo_cleanup(struct ath12k *ar)
+{
+	struct ath12k_vif *arvif;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (ath12k_wow_is_p2p_vdev(arvif))
+			continue;
+
+		ret = ath12k_wow_vif_clean_nlo(arvif);
+		if (ret) {
+			ath12k_warn(ar->ab, "failed to clean nlo settings on vdev %i: %d\n",
 				    arvif->vdev_id, ret);
 			return ret;
 		}
@@ -448,8 +631,16 @@ int ath12k_wow_op_resume(struct ieee80211_hw *hw)
 	ath12k_hif_irq_enable(ar->ab);
 
 	ret = ath12k_wow_wakeup(ar);
-	if (ret)
+	if (ret) {
 		ath12k_warn(ar->ab, "failed to wakeup from wow: %d\n", ret);
+		goto exit;
+	}
+
+	ret = ath12k_wow_nlo_cleanup(ar);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to cleanup nlo: %d\n", ret);
+		goto exit;
+	}
 
 exit:
 	if (ret) {
@@ -483,6 +674,11 @@ int ath12k_wow_init(struct ath12k *ar)
 	if (ar->ab->wow.wmi_conf_rx_decap_mode == ATH12K_HW_TXRX_NATIVE_WIFI) {
 		ar->wow.wowlan_support.pattern_max_len -= WOW_MAX_REDUCE;
 		ar->wow.wowlan_support.max_pkt_offset -= WOW_MAX_REDUCE;
+	}
+
+	if (test_bit(WMI_TLV_SERVICE_NLO, ar->wmi->wmi_ab->svc_map)) {
+		ar->wow.wowlan_support.flags |= WIPHY_WOWLAN_NET_DETECT;
+		ar->wow.wowlan_support.max_nd_match_sets = WMI_PNO_MAX_SUPP_NETWORKS;
 	}
 
 	ar->wow.max_num_patterns = ATH12K_WOW_PATTERNS;

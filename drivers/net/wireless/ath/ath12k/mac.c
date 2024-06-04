@@ -9108,6 +9108,18 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 		ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 	}
 
+	if (test_bit(WMI_TLV_SERVICE_NLO, ar->wmi->wmi_ab->svc_map)) {
+		wiphy->max_sched_scan_ssids = WMI_PNO_MAX_SUPP_NETWORKS;
+		wiphy->max_match_sets = WMI_PNO_MAX_SUPP_NETWORKS;
+		wiphy->max_sched_scan_ie_len = WMI_PNO_MAX_IE_LENGTH;
+		wiphy->max_sched_scan_plans = WMI_PNO_MAX_SCHED_SCAN_PLANS;
+		wiphy->max_sched_scan_plan_interval =
+					WMI_PNO_MAX_SCHED_SCAN_PLAN_INT;
+		wiphy->max_sched_scan_plan_iterations =
+					WMI_PNO_MAX_SCHED_SCAN_PLAN_ITRNS;
+		wiphy->features |= NL80211_FEATURE_ND_RANDOM_MAC_ADDR;
+	}
+
 	ret = ath12k_wow_init(ar);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to init wow: %d\n", ret);
