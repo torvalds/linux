@@ -463,12 +463,6 @@ static const struct comp_coeff_val comp_coeff_table[HPH_MODE_MAX][COMP_MAX_COEFF
 	},
 };
 
-struct rx_macro_reg_mask_val {
-	u16 reg;
-	u8 mask;
-	u8 val;
-};
-
 enum {
 	INTERP_HPHL,
 	INTERP_HPHR,
