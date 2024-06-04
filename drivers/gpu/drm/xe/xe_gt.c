@@ -611,11 +611,33 @@ static int do_gt_reset(struct xe_gt *gt)
 	return err;
 }
 
+static int vf_gt_restart(struct xe_gt *gt)
+{
+	int err;
+
+	err = xe_uc_sanitize_reset(&gt->uc);
+	if (err)
+		return err;
+
+	err = xe_uc_init_hw(&gt->uc);
+	if (err)
+		return err;
+
+	err = xe_uc_start(&gt->uc);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int do_gt_restart(struct xe_gt *gt)
 {
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 	int err;
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return vf_gt_restart(gt);
 
 	xe_pat_init(gt);
 
