@@ -365,18 +365,13 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 	return array_sectors;
 }
 
-static void free_conf(struct mddev *mddev, struct r0conf *conf)
-{
-	kfree(conf->strip_zone);
-	kfree(conf->devlist);
-	kfree(conf);
-}
-
 static void raid0_free(struct mddev *mddev, void *priv)
 {
 	struct r0conf *conf = priv;
 
-	free_conf(mddev, conf);
+	kfree(conf->strip_zone);
+	kfree(conf->devlist);
+	kfree(conf);
 }
 
 static int raid0_set_limits(struct mddev *mddev)
@@ -415,7 +410,7 @@ static int raid0_run(struct mddev *mddev)
 	if (!mddev_is_dm(mddev)) {
 		ret = raid0_set_limits(mddev);
 		if (ret)
-			goto out_free_conf;
+			return ret;
 	}
 
 	/* calculate array device size */
@@ -427,13 +422,7 @@ static int raid0_run(struct mddev *mddev)
 
 	dump_zones(mddev);
 
-	ret = md_integrity_register(mddev);
-	if (ret)
-		goto out_free_conf;
-	return 0;
-out_free_conf:
-	free_conf(mddev, conf);
-	return ret;
+	return md_integrity_register(mddev);
 }
 
 /*
