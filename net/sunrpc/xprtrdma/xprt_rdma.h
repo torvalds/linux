@@ -56,6 +56,7 @@
 #include <linux/sunrpc/rpc_rdma_cid.h> 	/* completion IDs */
 #include <linux/sunrpc/rpc_rdma.h> 	/* RPC/RDMA protocol */
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
+#include <linux/sunrpc/rdma_rn.h>	/* removal notifications */
 
 #define RDMA_RESOLVE_TIMEOUT	(5000)	/* 5 seconds */
 #define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
@@ -92,6 +93,7 @@ struct rpcrdma_ep {
 	struct rpcrdma_connect_private
 				re_cm_private;
 	struct rdma_conn_param	re_remote_cma;
+	struct rpcrdma_notification	re_rn;
 	int			re_receive_count;
 	unsigned int		re_max_requests; /* depends on device */
 	unsigned int		re_inline_send;	/* negotiated */

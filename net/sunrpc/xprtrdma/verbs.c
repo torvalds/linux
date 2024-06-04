@@ -222,7 +222,6 @@ static void rpcrdma_update_cm_private(struct rpcrdma_ep *ep,
 static int
 rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
-	struct sockaddr *sap = (struct sockaddr *)&id->route.addr.dst_addr;
 	struct rpcrdma_ep *ep = id->context;
 
 	might_sleep();
@@ -240,14 +239,6 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_ROUTE_ERROR:
 		ep->re_async_rc = -ENETUNREACH;
 		complete(&ep->re_done);
-		return 0;
-	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-		pr_info("rpcrdma: removing device %s for %pISpc\n",
-			ep->re_id->device->name, sap);
-		switch (xchg(&ep->re_connect_status, -ENODEV)) {
-		case 0: goto wake_connect_worker;
-		case 1: goto disconnected;
-		}
 		return 0;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
 		ep->re_connect_status = -ENODEV;
@@ -282,6 +273,14 @@ disconnected:
 	}
 
 	return 0;
+}
+
+static void rpcrdma_ep_removal_done(struct rpcrdma_notification *rn)
+{
+	struct rpcrdma_ep *ep = container_of(rn, struct rpcrdma_ep, re_rn);
+
+	trace_xprtrdma_device_removal(ep->re_id);
+	xprt_force_disconnect(ep->re_xprt);
 }
 
 static struct rdma_cm_id *rpcrdma_create_id(struct rpcrdma_xprt *r_xprt,
@@ -323,6 +322,10 @@ static struct rdma_cm_id *rpcrdma_create_id(struct rpcrdma_xprt *r_xprt,
 	if (rc)
 		goto out;
 
+	rc = rpcrdma_rn_register(id->device, &ep->re_rn, rpcrdma_ep_removal_done);
+	if (rc)
+		goto out;
+
 	return id;
 
 out:
@@ -349,6 +352,8 @@ static void rpcrdma_ep_destroy(struct kref *kref)
 	if (ep->re_pd)
 		ib_dealloc_pd(ep->re_pd);
 	ep->re_pd = NULL;
+
+	rpcrdma_rn_unregister(ep->re_id->device, &ep->re_rn);
 
 	kfree(ep);
 	module_put(THIS_MODULE);

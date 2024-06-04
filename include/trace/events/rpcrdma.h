@@ -669,6 +669,29 @@ TRACE_EVENT(xprtrdma_inline_thresh,
 DEFINE_CONN_EVENT(connect);
 DEFINE_CONN_EVENT(disconnect);
 
+TRACE_EVENT(xprtrdma_device_removal,
+	TP_PROTO(
+		const struct rdma_cm_id *id
+	),
+
+	TP_ARGS(id),
+
+	TP_STRUCT__entry(
+		__string(name, id->device->name)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+
+	TP_fast_assign(
+		__assign_str(name);
+		memcpy(__entry->addr, &id->route.addr.dst_addr,
+		       sizeof(struct sockaddr_in6));
+	),
+
+	TP_printk("device %s to be removed, disconnecting %pISpc\n",
+		__get_str(name), __entry->addr
+	)
+);
+
 DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
 
 TRACE_EVENT(xprtrdma_op_connect,
