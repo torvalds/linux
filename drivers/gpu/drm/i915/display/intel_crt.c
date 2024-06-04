@@ -746,7 +746,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 		* Yes, this will flicker
 		*/
 		if (vblank_start <= vactive && vblank_end >= vtotal) {
-			u32 vsync = intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder));
+			u32 vsync = intel_de_read(dev_priv,
+						  TRANS_VSYNC(dev_priv, cpu_transcoder));
 			u32 vsync_start = REG_FIELD_GET(VSYNC_START_MASK, vsync) + 1;
 
 			vblank_start = vsync_start;
