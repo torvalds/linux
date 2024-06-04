@@ -102,6 +102,11 @@ struct mipi_dbi_dev {
 	struct drm_display_mode mode;
 
 	/**
+	 * @pixel_format: Native pixel format (DRM_FORMAT\_\*)
+	 */
+	u32 pixel_format;
+
+	/**
 	 * @tx_buf: Buffer used for transfer (copy clip rect area)
 	 */
 	u16 *tx_buf;
