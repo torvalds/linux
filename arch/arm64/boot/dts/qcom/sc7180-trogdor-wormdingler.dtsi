@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "sc7180-trogdor.dtsi"
+#include "sc7180-trogdor-detachable.dtsi"
 
 / {
 	avdd_lcd: avdd-lcd-regulator {
@@ -103,10 +104,6 @@
 &cros_ec {
 	base_detection: cbas {
 		compatible = "google,cros-cbas";
-	};
-
-	keyboard-controller {
-		compatible = "google,cros-ec-keyb-switches";
 	};
 };
 
