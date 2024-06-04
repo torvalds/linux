@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 
 static int nr_pics;
-
 struct pch_msi_data {
 	struct mutex	msi_map_lock;
 	phys_addr_t	doorbell;
@@ -98,6 +97,17 @@ static struct irq_chip middle_irq_chip = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.irq_compose_msi_msg	= pch_msi_compose_msi_msg,
+};
+
+static struct irq_chip pch_msi_irq_chip_v2 = {
+	.name			= "MSI",
+	.irq_ack		= irq_chip_ack_parent,
+};
+
+static struct msi_domain_info pch_msi_domain_info_v2 = {
+	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+			MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX,
+	.chip	= &pch_msi_irq_chip_v2,
 };
 
 static int pch_msi_parent_domain_alloc(struct irq_domain *domain,
@@ -268,6 +278,9 @@ struct fwnode_handle *get_pch_msi_handle(int pci_segment)
 {
 	int i;
 
+	if (cpu_has_avecint)
+		return pch_msi_handle[0];
+
 	for (i = 0; i < MAX_IO_PICS; i++) {
 		if (msi_group[i].pci_segment == pci_segment)
 			return pch_msi_handle[i];
@@ -288,5 +301,33 @@ int __init pch_msi_acpi_init(struct irq_domain *parent,
 		irq_domain_free_fwnode(domain_handle);
 
 	return ret;
+}
+
+int __init pch_msi_acpi_init_v2(struct irq_domain *parent,
+		struct acpi_madt_msi_pic *msi_entry)
+{
+	struct irq_domain *msi_domain;
+
+	if (pch_msi_handle[0])
+		return 0;
+
+	pch_msi_handle[0] = irq_domain_alloc_named_fwnode("msipic-v2");
+	if (!pch_msi_handle[0]) {
+		pr_err("Unable to allocate domain handle\n");
+		kfree(pch_msi_handle[0]);
+		return -ENOMEM;
+	}
+
+	msi_domain = pci_msi_create_irq_domain(pch_msi_handle[0],
+			&pch_msi_domain_info_v2,
+			parent);
+	if (!msi_domain) {
+		pr_err("Failed to create PCI MSI domain\n");
+		kfree(pch_msi_handle[0]);
+		return -ENOMEM;
+	}
+
+	pr_info("IRQ domain MSIPIC-V2 init done.\n");
+	return 0;
 }
 #endif
