@@ -261,8 +261,10 @@ static int thermal_init(void)
 
 	/* Clean up if failed */
 	ret = platform_profile_register(thermal_handler);
-	if (ret)
+	if (ret) {
 		kfree(thermal_handler);
+		thermal_handler = NULL;
+	}
 
 	return ret;
 }
