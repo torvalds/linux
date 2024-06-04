@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "bcachefs_ioctl.h"
+#include "btree_journal_iter.h"
 #include "btree_update.h"
 #include "btree_write_buffer.h"
 #include "buckets.h"
@@ -344,7 +345,9 @@ int bch2_accounting_read(struct bch_fs *c)
 		goto err;
 
 	struct journal_keys *keys = &c->journal_keys;
+	struct journal_key *dst = keys->data;
 	move_gap(keys, keys->nr);
+
 	darray_for_each(*keys, i) {
 		if (i->k->k.type == KEY_TYPE_accounting) {
 			struct bkey_s_c k = bkey_i_to_s_c(i->k);
@@ -358,11 +361,26 @@ int bch2_accounting_read(struct bch_fs *c)
 			if (applied)
 				continue;
 
+			if (i + 1 < &darray_top(*keys) &&
+			    i[1].k->k.type == KEY_TYPE_accounting &&
+			    !journal_key_cmp(i, i + 1)) {
+				BUG_ON(bversion_cmp(i[0].k->k.version, i[1].k->k.version) >= 0);
+
+				i[1].journal_seq = i[0].journal_seq;
+
+				bch2_accounting_accumulate(bkey_i_to_accounting(i[1].k),
+							   bkey_s_c_to_accounting(k));
+				continue;
+			}
+
 			ret = accounting_read_key(c, k);
 			if (ret)
 				goto err;
 		}
+
+		*dst++ = *i;
 	}
+	keys->gap = keys->nr = dst - keys->data;
 
 	percpu_down_read(&c->mark_lock);
 	preempt_disable();
