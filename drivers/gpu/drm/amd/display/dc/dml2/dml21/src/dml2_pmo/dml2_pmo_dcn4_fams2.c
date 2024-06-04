@@ -1082,12 +1082,17 @@ static bool is_timing_group_schedulable(
 
 	/* init allow start and end lines for timing group */
 	stream_method_fams2_meta = get_per_method_common_meta(pmo, per_stream_pstate_strategy[base_stream_idx], base_stream_idx);
+	if (!stream_method_fams2_meta)
+		return false;
+
 	group_fams2_meta->allow_start_otg_vline = stream_method_fams2_meta->allow_start_otg_vline;
 	group_fams2_meta->allow_end_otg_vline = stream_method_fams2_meta->allow_end_otg_vline;
 	group_fams2_meta->period_us = stream_method_fams2_meta->period_us;
 	for (i = base_stream_idx + 1; i < display_cfg->display_config.num_streams; i++) {
 		if (is_bit_set_in_bitfield(pmo->scratch.pmo_dcn4.synchronized_timing_group_masks[timing_group_idx], i)) {
 			stream_method_fams2_meta = get_per_method_common_meta(pmo, per_stream_pstate_strategy[i], i);
+			if (!stream_method_fams2_meta)
+				continue;
 
 			if (group_fams2_meta->allow_start_otg_vline < stream_method_fams2_meta->allow_start_otg_vline) {
 				/* set group allow start to larger otg vline */

@@ -360,6 +360,8 @@ static struct dc_plane_state *dml21_add_phantom_plane(struct dml2_context *dml_c
 	struct dc_plane_state *phantom_plane;
 
 	phantom_plane = dml_ctx->config.svp_pstate.callbacks.create_phantom_plane(dc, context, main_plane);
+	if (!phantom_plane)
+		return NULL;
 
 	phantom_plane->format = main_plane->format;
 	phantom_plane->rotation = main_plane->rotation;

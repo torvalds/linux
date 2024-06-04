@@ -2628,7 +2628,7 @@ static bool dcn20_resource_construct(
 		ranges.writer_wm_sets[0].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 
 		/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
-		if (pool->base.pp_smu->nv_funcs.set_wm_ranges)
+		if (pool->base.pp_smu && pool->base.pp_smu->nv_funcs.set_wm_ranges)
 			pool->base.pp_smu->nv_funcs.set_wm_ranges(&pool->base.pp_smu->nv_funcs.pp_smu, &ranges);
 	}
 
