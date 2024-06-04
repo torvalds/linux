@@ -11,9 +11,11 @@
 #include "xe_gsc_proxy.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
 #include "xe_guc_pc.h"
 #include "xe_huc.h"
+#include "xe_sriov.h"
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
@@ -51,6 +53,9 @@ int xe_uc_init(struct xe_uc *uc)
 		goto err;
 
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
+		return 0;
+
+	if (IS_SRIOV_VF(uc_to_xe(uc)))
 		return 0;
 
 	ret = xe_wopcm_init(&uc->wopcm);
@@ -141,6 +146,31 @@ int xe_uc_init_hwconfig(struct xe_uc *uc)
 	return 0;
 }
 
+static int vf_uc_init_hw(struct xe_uc *uc)
+{
+	int err;
+
+	err = xe_uc_sanitize_reset(uc);
+	if (err)
+		return err;
+
+	err = xe_guc_enable_communication(&uc->guc);
+	if (err)
+		return err;
+
+	err = xe_gt_sriov_vf_connect(uc_to_gt(uc));
+	if (err)
+		return err;
+
+	uc->guc.submission_state.enabled = true;
+
+	err = xe_gt_record_default_lrcs(uc_to_gt(uc));
+	if (err)
+		return err;
+
+	return 0;
+}
+
 /*
  * Should be called during driver load, after every GT reset, and after every
  * suspend to reload / auth the firmwares.
@@ -152,6 +182,9 @@ int xe_uc_init_hw(struct xe_uc *uc)
 	/* GuC submission not enabled, nothing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
+
+	if (IS_SRIOV_VF(uc_to_xe(uc)))
+		return vf_uc_init_hw(uc);
 
 	ret = xe_huc_upload(&uc->huc);
 	if (ret)
