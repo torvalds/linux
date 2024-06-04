@@ -2045,6 +2045,7 @@ static struct hid_driver logi_djreceiver_driver = {
 
 module_hid_driver(logi_djreceiver_driver);
 
+MODULE_DESCRIPTION("HID driver for Logitech receivers");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Logitech");
 MODULE_AUTHOR("Nestor Lopez Casado");
