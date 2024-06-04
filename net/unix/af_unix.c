@@ -1710,7 +1710,7 @@ static int unix_accept(struct socket *sock, struct socket *newsock,
 		goto out;
 
 	arg->err = -EINVAL;
-	if (sk->sk_state != TCP_LISTEN)
+	if (READ_ONCE(sk->sk_state) != TCP_LISTEN)
 		goto out;
 
 	/* If socket state is TCP_LISTEN it cannot change (for now...),
