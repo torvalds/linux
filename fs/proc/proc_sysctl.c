@@ -1318,7 +1318,7 @@ static struct ctl_dir *sysctl_mkdir_p(struct ctl_dir *dir, const char *path)
  * @table_size : The number of elements in table
  *
  * Register a sysctl table hierarchy. @table should be a filled in ctl_table
- * array. A completely 0 filled entry terminates the table.
+ * array.
  *
  * The members of the &struct ctl_table structure are used as follows:
  * procname - the name of the sysctl file under /proc/sys. Set to %NULL to not
