@@ -1310,28 +1310,23 @@ static struct ctl_dir *sysctl_mkdir_p(struct ctl_dir *dir, const char *path)
  * __register_sysctl_table - register a leaf sysctl table
  * @set: Sysctl tree to register on
  * @path: The path to the directory the sysctl table is in.
- * @table: the top-level table structure without any child. This table
- * 	 should not be free'd after registration. So it should not be
- * 	 used on stack. It can either be a global or dynamically allocated
- * 	 by the caller and free'd later after sysctl unregistration.
+ *
+ * @table: the top-level table structure. This table should not be free'd
+ *         after registration. So it should not be used on stack. It can either
+ *         be a global or dynamically allocated by the caller and free'd later
+ *         after sysctl unregistration.
  * @table_size : The number of elements in table
  *
  * Register a sysctl table hierarchy. @table should be a filled in ctl_table
  * array. A completely 0 filled entry terminates the table.
  *
  * The members of the &struct ctl_table structure are used as follows:
- *
  * procname - the name of the sysctl file under /proc/sys. Set to %NULL to not
  *            enter a sysctl file
- *
- * data - a pointer to data for use by proc_handler
- *
- * maxlen - the maximum size in bytes of the data
- *
- * mode - the file permissions for the /proc/sys file
- *
- * child - must be %NULL.
- *
+ * data     - a pointer to data for use by proc_handler
+ * maxlen   - the maximum size in bytes of the data
+ * mode     - the file permissions for the /proc/sys file
+ * type     - Defines the target type (described in struct definition)
  * proc_handler - the text handler routine (described below)
  *
  * extra1, extra2 - extra pointers usable by the proc handler routines
@@ -1339,8 +1334,7 @@ static struct ctl_dir *sysctl_mkdir_p(struct ctl_dir *dir, const char *path)
  * [0] https://lkml.kernel.org/87zgpte9o4.fsf@email.froward.int.ebiederm.org
  *
  * Leaf nodes in the sysctl tree will be represented by a single file
- * under /proc; non-leaf nodes (where child is not NULL) are not allowed,
- * sysctl_check_table() verifies this.
+ * under /proc; non-leaf nodes are not allowed.
  *
  * There must be a proc_handler routine for any terminal nodes.
  * Several default handlers are available to cover common cases -
