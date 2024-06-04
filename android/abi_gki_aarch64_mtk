@@ -985,6 +985,7 @@
   fsg_config_from_params
   fwnode_device_is_available
   fwnode_get_name
+  fwnode_get_next_available_child_node
   fwnode_graph_get_next_endpoint
   fwnode_graph_get_port_parent
   fwnode_graph_get_remote_endpoint
@@ -1009,7 +1010,11 @@
   genlmsg_put
   genl_register_family
   genl_unregister_family
+  genphy_c45_aneg_done
+  genphy_c45_pma_read_abilities
+  genphy_c45_read_lpa
   __genphy_config_aneg
+  genphy_read_master_slave
   genphy_read_status
   genphy_resume
   genphy_soft_reset
@@ -1448,6 +1453,8 @@
   led_trigger_unregister
   led_update_brightness
   led_update_flash_brightness
+  linear_range_get_max_value
+  linear_range_get_selector_high
   linear_range_get_selector_within
   linear_range_get_value
   linkwatch_fire_event
@@ -1904,6 +1911,7 @@
   phy_exit
   phy_find_first
   phy_get
+  phy_get_c45_ids
   phy_get_pause
   phy_init
   phy_init_eee
@@ -2184,6 +2192,7 @@
   regulator_enable
   regulator_enable_regmap
   regulator_get
+  regulator_get_bypass_regmap
   regulator_get_current_limit_regmap
   regulator_get_mode
   regulator_get_optional
@@ -2201,6 +2210,7 @@
   regulator_notifier_call_chain
   regulator_put
   regulator_set_active_discharge_regmap
+  regulator_set_bypass_regmap
   regulator_set_current_limit
   regulator_set_current_limit_regmap
   regulator_set_load
@@ -3107,6 +3117,7 @@
   usb_debug_root
   usb_del_gadget_udc
   usb_deregister
+  usb_deregister_device_driver
   usb_disabled
   usb_driver_claim_interface
   usb_driver_release_interface
@@ -3173,6 +3184,7 @@
   usb_put_hcd
   usb_put_intf
   usb_queue_reset_device
+  usb_register_device_driver
   usb_register_driver
   usb_remove_function
   usb_remove_hcd
