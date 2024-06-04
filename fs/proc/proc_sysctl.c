@@ -949,14 +949,14 @@ static struct ctl_dir *new_dir(struct ctl_table_set *set,
 	char *new_name;
 
 	new = kzalloc(sizeof(*new) + sizeof(struct ctl_node) +
-		      sizeof(struct ctl_table)*2 +  namelen + 1,
+		      sizeof(struct ctl_table) +  namelen + 1,
 		      GFP_KERNEL);
 	if (!new)
 		return NULL;
 
 	node = (struct ctl_node *)(new + 1);
 	table = (struct ctl_table *)(node + 1);
-	new_name = (char *)(table + 2);
+	new_name = (char *)(table + 1);
 	memcpy(new_name, name, namelen);
 	table[0].procname = new_name;
 	table[0].mode = S_IFDIR|S_IRUGO|S_IXUGO;
@@ -1175,7 +1175,7 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table_
 
 	links = kzalloc(sizeof(struct ctl_table_header) +
 			sizeof(struct ctl_node)*head->ctl_table_size +
-			sizeof(struct ctl_table)*(head->ctl_table_size + 1) +
+			sizeof(struct ctl_table)*head->ctl_table_size +
 			name_bytes,
 			GFP_KERNEL);
 
@@ -1184,7 +1184,7 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table_
 
 	node = (struct ctl_node *)(links + 1);
 	link_table = (struct ctl_table *)(node + head->ctl_table_size);
-	link_name = (char *)&link_table[head->ctl_table_size + 1];
+	link_name = (char *)(link_table + head->ctl_table_size);
 	link = link_table;
 
 	list_for_each_table_entry(entry, head) {
