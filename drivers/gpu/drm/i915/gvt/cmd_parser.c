@@ -1437,7 +1437,7 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 	}
 
 	if (info->plane == PLANE_PRIMARY)
-		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(info->pipe))++;
+		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(dev_priv, info->pipe))++;
 
 	if (info->async_flip)
 		intel_vgpu_trigger_virtual_event(vgpu, info->event);
