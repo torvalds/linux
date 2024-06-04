@@ -657,10 +657,10 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 					&pnv_display_wm,
 					pnv_display_wm.fifo_size,
 					cpp, latency->display_sr);
-		reg = intel_uncore_read(&dev_priv->uncore, DSPFW1);
+		reg = intel_uncore_read(&dev_priv->uncore, DSPFW1(dev_priv));
 		reg &= ~DSPFW_SR_MASK;
 		reg |= FW_WM(wm, SR);
-		intel_uncore_write(&dev_priv->uncore, DSPFW1, reg);
+		intel_uncore_write(&dev_priv->uncore, DSPFW1(dev_priv), reg);
 		drm_dbg_kms(&dev_priv->drm, "DSPFW1 register is %x\n", reg);
 
 		/* cursor SR */
@@ -720,7 +720,7 @@ static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
 	for_each_pipe(dev_priv, pipe)
 		trace_g4x_wm(intel_crtc_for_pipe(dev_priv, pipe), wm);
 
-	intel_uncore_write(&dev_priv->uncore, DSPFW1,
+	intel_uncore_write(&dev_priv->uncore, DSPFW1(dev_priv),
 			   FW_WM(wm->sr.plane, SR) |
 			   FW_WM(wm->pipe[PIPE_B].plane[PLANE_CURSOR], CURSORB) |
 			   FW_WM(wm->pipe[PIPE_B].plane[PLANE_PRIMARY], PLANEB) |
@@ -738,7 +738,7 @@ static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
 			   FW_WM(wm->hpll.cursor, HPLL_CURSOR) |
 			   FW_WM(wm->hpll.plane, HPLL_SR));
 
-	intel_uncore_posting_read(&dev_priv->uncore, DSPFW1);
+	intel_uncore_posting_read(&dev_priv->uncore, DSPFW1(dev_priv));
 }
 
 #define FW_WM_VLV(value, plane) \
@@ -770,7 +770,7 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 	intel_uncore_write(&dev_priv->uncore, DSPFW5, 0);
 	intel_uncore_write(&dev_priv->uncore, DSPFW6, 0);
 
-	intel_uncore_write(&dev_priv->uncore, DSPFW1,
+	intel_uncore_write(&dev_priv->uncore, DSPFW1(dev_priv),
 			   FW_WM(wm->sr.plane, SR) |
 			   FW_WM(wm->pipe[PIPE_B].plane[PLANE_CURSOR], CURSORB) |
 			   FW_WM_VLV(wm->pipe[PIPE_B].plane[PLANE_PRIMARY], PLANEB) |
@@ -817,7 +817,7 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 				   FW_WM(wm->pipe[PIPE_A].plane[PLANE_PRIMARY] >> 8, PLANEA_HI));
 	}
 
-	intel_uncore_posting_read(&dev_priv->uncore, DSPFW1);
+	intel_uncore_posting_read(&dev_priv->uncore, DSPFW1(dev_priv));
 }
 
 #undef FW_WM_VLV
@@ -2067,10 +2067,11 @@ static void i965_update_wm(struct drm_i915_private *dev_priv)
 		    srwm);
 
 	/* 965 has limitations... */
-	intel_uncore_write(&dev_priv->uncore, DSPFW1, FW_WM(srwm, SR) |
-		   FW_WM(8, CURSORB) |
-		   FW_WM(8, PLANEB) |
-		   FW_WM(8, PLANEA));
+	intel_uncore_write(&dev_priv->uncore, DSPFW1(dev_priv),
+			   FW_WM(srwm, SR) |
+			   FW_WM(8, CURSORB) |
+			   FW_WM(8, PLANEB) |
+			   FW_WM(8, PLANEA));
 	intel_uncore_write(&dev_priv->uncore, DSPFW2, FW_WM(8, CURSORA) |
 		   FW_WM(8, PLANEC_OLD));
 	/* update cursor SR watermark */
@@ -3521,7 +3522,7 @@ static void g4x_read_wm_values(struct drm_i915_private *dev_priv,
 {
 	u32 tmp;
 
-	tmp = intel_uncore_read(&dev_priv->uncore, DSPFW1);
+	tmp = intel_uncore_read(&dev_priv->uncore, DSPFW1(dev_priv));
 	wm->sr.plane = _FW_WM(tmp, SR);
 	wm->pipe[PIPE_B].plane[PLANE_CURSOR] = _FW_WM(tmp, CURSORB);
 	wm->pipe[PIPE_B].plane[PLANE_PRIMARY] = _FW_WM(tmp, PLANEB);
@@ -3561,7 +3562,7 @@ static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
 			(tmp >> DDL_SPRITE_SHIFT(1)) & (DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK);
 	}
 
-	tmp = intel_uncore_read(&dev_priv->uncore, DSPFW1);
+	tmp = intel_uncore_read(&dev_priv->uncore, DSPFW1(dev_priv));
 	wm->sr.plane = _FW_WM(tmp, SR);
 	wm->pipe[PIPE_B].plane[PLANE_CURSOR] = _FW_WM(tmp, CURSORB);
 	wm->pipe[PIPE_B].plane[PLANE_PRIMARY] = _FW_WM_VLV(tmp, PLANEB);
