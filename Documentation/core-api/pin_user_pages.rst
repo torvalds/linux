@@ -132,7 +132,7 @@ CASE 1: Direct IO (DIO)
 -----------------------
 There are GUP references to pages that are serving
 as DIO buffers. These buffers are needed for a relatively short time (so they
-are not "long term"). No special synchronization with page_mkclean() or
+are not "long term"). No special synchronization with folio_mkclean() or
 munmap() is provided. Therefore, flags to set at the call site are: ::
 
     FOLL_PIN
@@ -144,7 +144,7 @@ CASE 2: RDMA
 ------------
 There are GUP references to pages that are serving as DMA
 buffers. These buffers are needed for a long time ("long term"). No special
-synchronization with page_mkclean() or munmap() is provided. Therefore, flags
+synchronization with folio_mkclean() or munmap() is provided. Therefore, flags
 to set at the call site are: ::
 
     FOLL_PIN | FOLL_LONGTERM
@@ -170,7 +170,7 @@ callback, simply remove the range from the device's page tables.
 
 Either way, as long as the driver unpins the pages upon mmu notifier callback,
 then there is proper synchronization with both filesystem and mm
-(page_mkclean(), munmap(), etc). Therefore, neither flag needs to be set.
+(folio_mkclean(), munmap(), etc). Therefore, neither flag needs to be set.
 
 CASE 4: Pinning for struct page manipulation only
 -------------------------------------------------
@@ -200,7 +200,7 @@ folio_maybe_dma_pinned(): the whole point of pinning
 ====================================================
 
 The whole point of marking folios as "DMA-pinned" or "gup-pinned" is to be able
-to query, "is this folio DMA-pinned?" That allows code such as page_mkclean()
+to query, "is this folio DMA-pinned?" That allows code such as folio_mkclean()
 (and file system writeback code in general) to make informed decisions about
 what to do when a folio cannot be unmapped due to such pins.
 
