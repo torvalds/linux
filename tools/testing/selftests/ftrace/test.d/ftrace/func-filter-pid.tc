@@ -8,6 +8,7 @@
 # Also test it on an instance directory
 
 do_function_fork=1
+do_funcgraph_proc=1
 
 if [ ! -f options/function-fork ]; then
     do_function_fork=0
@@ -28,6 +29,7 @@ fi
 
 if [ $do_funcgraph_proc -eq 1 ]; then
     orig_value2=`cat options/funcgraph-proc`
+    echo 1 > options/funcgraph-proc
 fi
 
 do_reset() {
