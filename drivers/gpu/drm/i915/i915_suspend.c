@@ -40,7 +40,8 @@ static void intel_save_swf(struct drm_i915_private *dev_priv)
 	/* Scratch space */
 	if (GRAPHICS_VER(dev_priv) == 2 && IS_MOBILE(dev_priv)) {
 		for (i = 0; i < 7; i++) {
-			dev_priv->regfile.saveSWF0[i] = intel_de_read(dev_priv, SWF0(i));
+			dev_priv->regfile.saveSWF0[i] = intel_de_read(dev_priv,
+								      SWF0(dev_priv, i));
 			dev_priv->regfile.saveSWF1[i] = intel_de_read(dev_priv, SWF1(i));
 		}
 		for (i = 0; i < 3; i++)
@@ -50,7 +51,8 @@ static void intel_save_swf(struct drm_i915_private *dev_priv)
 			dev_priv->regfile.saveSWF1[i] = intel_de_read(dev_priv, SWF1(i));
 	} else if (HAS_GMCH(dev_priv)) {
 		for (i = 0; i < 16; i++) {
-			dev_priv->regfile.saveSWF0[i] = intel_de_read(dev_priv, SWF0(i));
+			dev_priv->regfile.saveSWF0[i] = intel_de_read(dev_priv,
+								      SWF0(dev_priv, i));
 			dev_priv->regfile.saveSWF1[i] = intel_de_read(dev_priv, SWF1(i));
 		}
 		for (i = 0; i < 3; i++)
@@ -65,7 +67,8 @@ static void intel_restore_swf(struct drm_i915_private *dev_priv)
 	/* Scratch space */
 	if (GRAPHICS_VER(dev_priv) == 2 && IS_MOBILE(dev_priv)) {
 		for (i = 0; i < 7; i++) {
-			intel_de_write(dev_priv, SWF0(i), dev_priv->regfile.saveSWF0[i]);
+			intel_de_write(dev_priv, SWF0(dev_priv, i),
+				       dev_priv->regfile.saveSWF0[i]);
 			intel_de_write(dev_priv, SWF1(i), dev_priv->regfile.saveSWF1[i]);
 		}
 		for (i = 0; i < 3; i++)
@@ -75,7 +78,8 @@ static void intel_restore_swf(struct drm_i915_private *dev_priv)
 			intel_de_write(dev_priv, SWF1(i), dev_priv->regfile.saveSWF1[i]);
 	} else if (HAS_GMCH(dev_priv)) {
 		for (i = 0; i < 16; i++) {
-			intel_de_write(dev_priv, SWF0(i), dev_priv->regfile.saveSWF0[i]);
+			intel_de_write(dev_priv, SWF0(dev_priv, i),
+				       dev_priv->regfile.saveSWF0[i]);
 			intel_de_write(dev_priv, SWF1(i), dev_priv->regfile.saveSWF1[i]);
 		}
 		for (i = 0; i < 3; i++)
