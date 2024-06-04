@@ -297,9 +297,6 @@ static void handle_det_buf_split(
 
 		if (swath_height_c > 0)
 			log2_swath_height_c = dml_log2(swath_height_c);
-
-		if (req128_c && log2_swath_height_c > 0)
-			log2_swath_height_c -= 1;
 	}
 
 	rq_param->dlg.rq_l.swath_height = 1 << log2_swath_height_l;
