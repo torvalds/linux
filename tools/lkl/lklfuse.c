@@ -496,6 +496,8 @@ static void *lklfuse_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 	cfg->entry_timeout = 0;
 	cfg->attr_timeout = 0;
 	cfg->negative_timeout = 0;
+	/* lkl provides valid st_ino values */
+	cfg->use_ino = 1;
 
 	return NULL;
 }
