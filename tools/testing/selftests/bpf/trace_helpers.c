@@ -211,7 +211,7 @@ long ksym_get_addr(const char *name)
  */
 int kallsyms_find(const char *sym, unsigned long long *addr)
 {
-	char type, name[500];
+	char type, name[500], *match;
 	unsigned long long value;
 	int err = 0;
 	FILE *f;
@@ -221,6 +221,17 @@ int kallsyms_find(const char *sym, unsigned long long *addr)
 		return -EINVAL;
 
 	while (fscanf(f, "%llx %c %499s%*[^\n]\n", &value, &type, name) > 0) {
+		/* If CONFIG_LTO_CLANG_THIN is enabled, static variable/function
+		 * symbols could be promoted to global due to cross-file inlining.
+		 * For such cases, clang compiler will add .llvm.<hash> suffix
+		 * to those symbols to avoid potential naming conflict.
+		 * Let us ignore .llvm.<hash> suffix during symbol comparison.
+		 */
+		if (type == 'd') {
+			match = strstr(name, ".llvm.");
+			if (match)
+				*match = '\0';
+		}
 		if (strcmp(name, sym) == 0) {
 			*addr = value;
 			goto out;
