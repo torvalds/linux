@@ -382,11 +382,11 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		fallthrough;
 	case PORT_B:
 		port_mask = DPLL_PORTB_READY_MASK;
-		dpll_reg = DPLL(0);
+		dpll_reg = DPLL(dev_priv, 0);
 		break;
 	case PORT_C:
 		port_mask = DPLL_PORTC_READY_MASK;
-		dpll_reg = DPLL(0);
+		dpll_reg = DPLL(dev_priv, 0);
 		expected_mask <<= 4;
 		break;
 	case PORT_D:
@@ -8212,11 +8212,12 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
 	 * dividers, even though the register value does change.
 	 */
-	intel_de_write(dev_priv, DPLL(pipe), dpll & ~DPLL_VGA_MODE_DIS);
-	intel_de_write(dev_priv, DPLL(pipe), dpll);
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe),
+		       dpll & ~DPLL_VGA_MODE_DIS);
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), dpll);
 
 	/* Wait for the clocks to stabilize. */
-	intel_de_posting_read(dev_priv, DPLL(pipe));
+	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 	udelay(150);
 
 	/* The pixel multiplier can only be updated once the
@@ -8224,12 +8225,12 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	 *
 	 * So write it again.
 	 */
-	intel_de_write(dev_priv, DPLL(pipe), dpll);
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), dpll);
 
 	/* We do this three times for luck */
 	for (i = 0; i < 3 ; i++) {
-		intel_de_write(dev_priv, DPLL(pipe), dpll);
-		intel_de_posting_read(dev_priv, DPLL(pipe));
+		intel_de_write(dev_priv, DPLL(dev_priv, pipe), dpll);
+		intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 		udelay(150); /* wait for warmup */
 	}
 
@@ -8262,8 +8263,8 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 	intel_wait_for_pipe_scanline_stopped(crtc);
 
-	intel_de_write(dev_priv, DPLL(pipe), DPLL_VGA_MODE_DIS);
-	intel_de_posting_read(dev_priv, DPLL(pipe));
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), DPLL_VGA_MODE_DIS);
+	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 }
 
 void intel_hpd_poll_fini(struct drm_i915_private *i915)

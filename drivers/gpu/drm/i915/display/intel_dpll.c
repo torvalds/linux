@@ -403,7 +403,7 @@ void i9xx_dpll_get_hw_state(struct intel_crtc *crtc,
 		hw_state->dpll_md = tmp;
 	}
 
-	hw_state->dpll = intel_de_read(dev_priv, DPLL(crtc->pipe));
+	hw_state->dpll = intel_de_read(dev_priv, DPLL(dev_priv, crtc->pipe));
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
 		hw_state->fp0 = intel_de_read(dev_priv, FP0(crtc->pipe));
@@ -1842,11 +1842,12 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
 	 * dividers, even though the register value does change.
 	 */
-	intel_de_write(dev_priv, DPLL(pipe), hw_state->dpll & ~DPLL_VGA_MODE_DIS);
-	intel_de_write(dev_priv, DPLL(pipe), hw_state->dpll);
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe),
+		       hw_state->dpll & ~DPLL_VGA_MODE_DIS);
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), hw_state->dpll);
 
 	/* Wait for the clocks to stabilize. */
-	intel_de_posting_read(dev_priv, DPLL(pipe));
+	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 	udelay(150);
 
 	if (DISPLAY_VER(dev_priv) >= 4) {
@@ -1857,13 +1858,13 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 		 *
 		 * So write it again.
 		 */
-		intel_de_write(dev_priv, DPLL(pipe), hw_state->dpll);
+		intel_de_write(dev_priv, DPLL(dev_priv, pipe), hw_state->dpll);
 	}
 
 	/* We do this three times for luck */
 	for (i = 0; i < 3; i++) {
-		intel_de_write(dev_priv, DPLL(pipe), hw_state->dpll);
-		intel_de_posting_read(dev_priv, DPLL(pipe));
+		intel_de_write(dev_priv, DPLL(dev_priv, pipe), hw_state->dpll);
+		intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 		udelay(150); /* wait for warmup */
 	}
 }
@@ -1991,11 +1992,11 @@ static void _vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write(dev_priv, DPLL(pipe), hw_state->dpll);
-	intel_de_posting_read(dev_priv, DPLL(pipe));
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), hw_state->dpll);
+	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 	udelay(150);
 
-	if (intel_de_wait_for_set(dev_priv, DPLL(pipe), DPLL_LOCK_VLV, 1))
+	if (intel_de_wait_for_set(dev_priv, DPLL(dev_priv, pipe), DPLL_LOCK_VLV, 1))
 		drm_err(&dev_priv->drm, "DPLL %d failed to lock\n", pipe);
 }
 
@@ -2012,7 +2013,7 @@ void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 	assert_pps_unlocked(dev_priv, pipe);
 
 	/* Enable Refclk */
-	intel_de_write(dev_priv, DPLL(pipe),
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe),
 		       hw_state->dpll & ~(DPLL_VCO_ENABLE | DPLL_EXT_BUFFER_ENABLE_VLV));
 
 	if (hw_state->dpll & DPLL_VCO_ENABLE) {
@@ -2138,10 +2139,10 @@ static void _chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	udelay(1);
 
 	/* Enable PLL */
-	intel_de_write(dev_priv, DPLL(pipe), hw_state->dpll);
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), hw_state->dpll);
 
 	/* Check PLL is locked */
-	if (intel_de_wait_for_set(dev_priv, DPLL(pipe), DPLL_LOCK_VLV, 1))
+	if (intel_de_wait_for_set(dev_priv, DPLL(dev_priv, pipe), DPLL_LOCK_VLV, 1))
 		drm_err(&dev_priv->drm, "PLL %d failed to lock\n", pipe);
 }
 
@@ -2158,7 +2159,7 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	assert_pps_unlocked(dev_priv, pipe);
 
 	/* Enable Refclk and SSC */
-	intel_de_write(dev_priv, DPLL(pipe),
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe),
 		       hw_state->dpll & ~DPLL_VCO_ENABLE);
 
 	if (hw_state->dpll & DPLL_VCO_ENABLE) {
@@ -2183,7 +2184,7 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 		 * We should always have it disabled.
 		 */
 		drm_WARN_ON(&dev_priv->drm,
-			    (intel_de_read(dev_priv, DPLL(PIPE_B)) &
+			    (intel_de_read(dev_priv, DPLL(dev_priv, PIPE_B)) &
 			     DPLL_VGA_MODE_DIS) == 0);
 	} else {
 		intel_de_write(dev_priv, DPLL_MD(pipe), hw_state->dpll_md);
@@ -2241,8 +2242,8 @@ void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (pipe != PIPE_A)
 		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
-	intel_de_write(dev_priv, DPLL(pipe), val);
-	intel_de_posting_read(dev_priv, DPLL(pipe));
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), val);
+	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 }
 
 void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
@@ -2259,8 +2260,8 @@ void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (pipe != PIPE_A)
 		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
-	intel_de_write(dev_priv, DPLL(pipe), val);
-	intel_de_posting_read(dev_priv, DPLL(pipe));
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), val);
+	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 
 	vlv_dpio_get(dev_priv);
 
@@ -2285,8 +2286,8 @@ void i9xx_disable_pll(const struct intel_crtc_state *crtc_state)
 	/* Make sure the pipe isn't still relying on us */
 	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
-	intel_de_write(dev_priv, DPLL(pipe), DPLL_VGA_MODE_DIS);
-	intel_de_posting_read(dev_priv, DPLL(pipe));
+	intel_de_write(dev_priv, DPLL(dev_priv, pipe), DPLL_VGA_MODE_DIS);
+	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
 }
 
 
@@ -2312,7 +2313,7 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 {
 	bool cur_state;
 
-	cur_state = intel_de_read(dev_priv, DPLL(pipe)) & DPLL_VCO_ENABLE;
+	cur_state = intel_de_read(dev_priv, DPLL(dev_priv, pipe)) & DPLL_VCO_ENABLE;
 	I915_STATE_WARN(dev_priv, cur_state != state,
 			"PLL state assertion failure (expected %s, current %s)\n",
 			str_on_off(state), str_on_off(cur_state));

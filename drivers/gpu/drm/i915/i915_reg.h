@@ -668,7 +668,7 @@
 #define _DPLL_A			0x6014
 #define _DPLL_B			0x6018
 #define _CHV_DPLL_C		0x6030
-#define DPLL(pipe)		_MMIO_BASE_PIPE3(DISPLAY_MMIO_BASE(dev_priv), \
+#define DPLL(dev_priv, pipe)		_MMIO_BASE_PIPE3(DISPLAY_MMIO_BASE(dev_priv), \
 						 (pipe), _DPLL_A, _DPLL_B, _CHV_DPLL_C)
 
 #define VGA0	_MMIO(0x6000)
