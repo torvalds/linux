@@ -238,7 +238,6 @@ static struct ctl_table memory_allocation_profiling_sysctls[] = {
 #endif
 		.proc_handler	= proc_do_static_key,
 	},
-	{ }
 };
 
 static int __init alloc_tag_init(void)
