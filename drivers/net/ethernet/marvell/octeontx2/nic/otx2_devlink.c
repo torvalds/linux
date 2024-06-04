@@ -113,7 +113,6 @@ err_dl:
 	devlink_free(dl);
 	return err;
 }
-EXPORT_SYMBOL_GPL(otx2_register_dl);
 
 void otx2_unregister_dl(struct otx2_nic *pfvf)
 {
@@ -125,8 +124,3 @@ void otx2_unregister_dl(struct otx2_nic *pfvf)
 				  ARRAY_SIZE(otx2_dl_params));
 	devlink_free(dl);
 }
-EXPORT_SYMBOL_GPL(otx2_unregister_dl);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Marvell RVU PF/VF Netdev Devlink");
-MODULE_AUTHOR("Sunil Goutham <sgoutham@marvell.com>");
