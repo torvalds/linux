@@ -784,7 +784,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 	if (intel_dsi->dual_link) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL2(dsi_trans),
+			intel_de_rmw(dev_priv,
+				     TRANS_DDI_FUNC_CTL2(dev_priv, dsi_trans),
 				     0, PORT_SYNC_MODE_ENABLE);
 		}
 
@@ -1344,7 +1345,8 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	if (intel_dsi->dual_link) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL2(dsi_trans),
+			intel_de_rmw(dev_priv,
+				     TRANS_DDI_FUNC_CTL2(dev_priv, dsi_trans),
 				     PORT_SYNC_MODE_ENABLE, 0);
 		}
 	}

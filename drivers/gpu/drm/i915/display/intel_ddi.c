@@ -603,7 +603,8 @@ void intel_ddi_enable_transcoder_func(struct intel_encoder *encoder,
 		}
 
 		intel_de_write(dev_priv,
-			       TRANS_DDI_FUNC_CTL2(cpu_transcoder), ctl2);
+			       TRANS_DDI_FUNC_CTL2(dev_priv, cpu_transcoder),
+			       ctl2);
 	}
 
 	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
@@ -640,7 +641,8 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 
 	if (DISPLAY_VER(dev_priv) >= 11)
 		intel_de_write(dev_priv,
-			       TRANS_DDI_FUNC_CTL2(cpu_transcoder), 0);
+			       TRANS_DDI_FUNC_CTL2(dev_priv, cpu_transcoder),
+			       0);
 
 	ctl = intel_de_read(dev_priv,
 			    TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
@@ -3757,7 +3759,8 @@ static enum transcoder bdw_transcoder_master_readout(struct drm_i915_private *de
 	u32 master_select;
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
-		u32 ctl2 = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL2(cpu_transcoder));
+		u32 ctl2 = intel_de_read(dev_priv,
+					 TRANS_DDI_FUNC_CTL2(dev_priv, cpu_transcoder));
 
 		if ((ctl2 & PORT_SYNC_MODE_ENABLE) == 0)
 			return INVALID_TRANSCODER;
