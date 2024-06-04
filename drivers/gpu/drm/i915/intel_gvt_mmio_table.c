@@ -273,7 +273,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(PIPE_LINK_M1(dev_priv, TRANSCODER_A));
 	MMIO_D(PIPE_LINK_N1(dev_priv, TRANSCODER_A));
 	MMIO_D(PIPE_LINK_M2(dev_priv, TRANSCODER_A));
-	MMIO_D(PIPE_LINK_N2(TRANSCODER_A));
+	MMIO_D(PIPE_LINK_N2(dev_priv, TRANSCODER_A));
 	MMIO_D(PIPE_DATA_M1(dev_priv, TRANSCODER_B));
 	MMIO_D(PIPE_DATA_N1(dev_priv, TRANSCODER_B));
 	MMIO_D(PIPE_DATA_M2(dev_priv, TRANSCODER_B));
@@ -281,7 +281,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(PIPE_LINK_M1(dev_priv, TRANSCODER_B));
 	MMIO_D(PIPE_LINK_N1(dev_priv, TRANSCODER_B));
 	MMIO_D(PIPE_LINK_M2(dev_priv, TRANSCODER_B));
-	MMIO_D(PIPE_LINK_N2(TRANSCODER_B));
+	MMIO_D(PIPE_LINK_N2(dev_priv, TRANSCODER_B));
 	MMIO_D(PIPE_DATA_M1(dev_priv, TRANSCODER_C));
 	MMIO_D(PIPE_DATA_N1(dev_priv, TRANSCODER_C));
 	MMIO_D(PIPE_DATA_M2(dev_priv, TRANSCODER_C));
@@ -289,7 +289,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(PIPE_LINK_M1(dev_priv, TRANSCODER_C));
 	MMIO_D(PIPE_LINK_N1(dev_priv, TRANSCODER_C));
 	MMIO_D(PIPE_LINK_M2(dev_priv, TRANSCODER_C));
-	MMIO_D(PIPE_LINK_N2(TRANSCODER_C));
+	MMIO_D(PIPE_LINK_N2(dev_priv, TRANSCODER_C));
 	MMIO_D(PIPE_DATA_M1(dev_priv, TRANSCODER_EDP));
 	MMIO_D(PIPE_DATA_N1(dev_priv, TRANSCODER_EDP));
 	MMIO_D(PIPE_DATA_M2(dev_priv, TRANSCODER_EDP));
@@ -297,7 +297,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(PIPE_LINK_M1(dev_priv, TRANSCODER_EDP));
 	MMIO_D(PIPE_LINK_N1(dev_priv, TRANSCODER_EDP));
 	MMIO_D(PIPE_LINK_M2(dev_priv, TRANSCODER_EDP));
-	MMIO_D(PIPE_LINK_N2(TRANSCODER_EDP));
+	MMIO_D(PIPE_LINK_N2(dev_priv, TRANSCODER_EDP));
 	MMIO_D(PF_CTL(PIPE_A));
 	MMIO_D(PF_WIN_SZ(PIPE_A));
 	MMIO_D(PF_WIN_POS(PIPE_A));
