@@ -2667,6 +2667,7 @@ static const struct ravb_hw_info gbeth_hw_info = {
 	.rx_max_desc_use = 4080,
 	.rx_desc_size = sizeof(struct ravb_rx_desc),
 	.aligned_tx = 1,
+	.coalesce_irqs = 1,
 	.tx_counters = 1,
 	.carrier_counters = 1,
 	.half_duplex = 1,
@@ -2942,6 +2943,9 @@ static int ravb_probe(struct platform_device *pdev)
 	netif_napi_add(ndev, &priv->napi[RAVB_BE], ravb_poll);
 	if (info->nc_queues)
 		netif_napi_add(ndev, &priv->napi[RAVB_NC], ravb_poll);
+
+	if (info->coalesce_irqs)
+		netdev_sw_irq_coalesce_default_on(ndev);
 
 	/* Network device register */
 	error = register_netdev(ndev);
