@@ -457,14 +457,14 @@ static int wait_op_done(struct mxc_nand_host *host, int useirq)
 		return 0;
 
 	if (useirq) {
-		unsigned long timeout;
+		unsigned long time_left;
 
 		reinit_completion(&host->op_completion);
 
 		irq_control(host, 1);
 
-		timeout = wait_for_completion_timeout(&host->op_completion, HZ);
-		if (!timeout && !host->devtype_data->check_int(host)) {
+		time_left = wait_for_completion_timeout(&host->op_completion, HZ);
+		if (!time_left && !host->devtype_data->check_int(host)) {
 			dev_dbg(host->dev, "timeout waiting for irq\n");
 			ret = -ETIMEDOUT;
 		}
