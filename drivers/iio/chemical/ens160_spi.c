@@ -29,7 +29,7 @@ static int ens160_spi_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, PTR_ERR(regmap),
 				     "Failed to register spi regmap\n");
 
-	return devm_ens160_core_probe(&spi->dev, regmap, "ens160");
+	return devm_ens160_core_probe(&spi->dev, regmap, spi->irq, "ens160");
 }
 
 static const struct of_device_id ens160_spi_of_match[] = {

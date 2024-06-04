@@ -2,6 +2,6 @@
 #ifndef ENS160_H_
 #define ENS160_H_
 
-int devm_ens160_core_probe(struct device *dev, struct regmap *regmap,
+int devm_ens160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 			   const char *name);
 #endif

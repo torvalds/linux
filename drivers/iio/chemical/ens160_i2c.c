@@ -29,7 +29,8 @@ static int ens160_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, PTR_ERR(regmap),
 				     "Failed to register i2c regmap\n");
 
-	return devm_ens160_core_probe(&client->dev, regmap, "ens160");
+	return devm_ens160_core_probe(&client->dev, regmap, client->irq,
+				      "ens160");
 }
 
 static const struct i2c_device_id ens160_i2c_id[] = {
