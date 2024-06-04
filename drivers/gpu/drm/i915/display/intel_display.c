@@ -2661,7 +2661,7 @@ void intel_cpu_transcoder_set_m2_n2(struct intel_crtc *crtc,
 
 	intel_set_m_n(dev_priv, m_n,
 		      PIPE_DATA_M2(dev_priv, transcoder),
-		      PIPE_DATA_N2(transcoder),
+		      PIPE_DATA_N2(dev_priv, transcoder),
 		      PIPE_LINK_M2(transcoder), PIPE_LINK_N2(transcoder));
 }
 
@@ -3359,7 +3359,7 @@ void intel_cpu_transcoder_get_m2_n2(struct intel_crtc *crtc,
 
 	intel_get_m_n(dev_priv, m_n,
 		      PIPE_DATA_M2(dev_priv, transcoder),
-		      PIPE_DATA_N2(transcoder),
+		      PIPE_DATA_N2(dev_priv, transcoder),
 		      PIPE_LINK_M2(transcoder), PIPE_LINK_N2(transcoder));
 }
 
