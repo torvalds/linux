@@ -220,6 +220,29 @@ static const struct iio_info ens160_info = {
 	.read_raw = ens160_read_raw,
 };
 
+static int ens160_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ens160_data *data = iio_priv(indio_dev);
+
+	return ens160_set_mode(data, ENS160_REG_MODE_DEEP_SLEEP);
+}
+
+static int ens160_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ens160_data *data = iio_priv(indio_dev);
+	int ret;
+
+	ret = ens160_set_mode(data, ENS160_REG_MODE_IDLE);
+	if (ret)
+		return ret;
+
+	return ens160_set_mode(data, ENS160_REG_MODE_STANDARD);
+}
+EXPORT_NS_SIMPLE_DEV_PM_OPS(ens160_pm_ops, ens160_suspend, ens160_resume,
+			    IIO_ENS160);
+
 static irqreturn_t ens160_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;

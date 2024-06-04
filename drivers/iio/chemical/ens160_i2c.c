@@ -49,6 +49,7 @@ static struct i2c_driver ens160_i2c_driver = {
 	.driver = {
 		.name		= "ens160",
 		.of_match_table	= ens160_of_i2c_match,
+		.pm		= pm_sleep_ptr(&ens160_pm_ops),
 	},
 	.probe = ens160_i2c_probe,
 	.id_table = ens160_i2c_id,
