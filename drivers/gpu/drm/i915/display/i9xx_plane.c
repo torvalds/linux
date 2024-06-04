@@ -1053,7 +1053,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	drm_WARN_ON(&dev_priv->drm, offset != 0);
 
-	val = intel_de_read(dev_priv, PIPESRC(pipe));
+	val = intel_de_read(dev_priv, PIPESRC(dev_priv, pipe));
 	fb->width = REG_FIELD_GET(PIPESRC_WIDTH_MASK, val) + 1;
 	fb->height = REG_FIELD_GET(PIPESRC_HEIGHT_MASK, val) + 1;
 

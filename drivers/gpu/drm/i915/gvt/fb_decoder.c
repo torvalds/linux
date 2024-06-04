@@ -267,11 +267,11 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		(_PRI_PLANE_STRIDE_MASK >> 6) :
 		_PRI_PLANE_STRIDE_MASK, plane->bpp);
 
-	plane->width = (vgpu_vreg_t(vgpu, PIPESRC(pipe)) & _PIPE_H_SRCSZ_MASK) >>
+	plane->width = (vgpu_vreg_t(vgpu, PIPESRC(dev_priv, pipe)) & _PIPE_H_SRCSZ_MASK) >>
 		_PIPE_H_SRCSZ_SHIFT;
 	plane->width += 1;
-	plane->height = (vgpu_vreg_t(vgpu, PIPESRC(pipe)) &
-			_PIPE_V_SRCSZ_MASK) >> _PIPE_V_SRCSZ_SHIFT;
+	plane->height = (vgpu_vreg_t(vgpu, PIPESRC(dev_priv, pipe)) &
+			 _PIPE_V_SRCSZ_MASK) >> _PIPE_V_SRCSZ_SHIFT;
 	plane->height += 1;	/* raw height is one minus the real value */
 
 	val = vgpu_vreg_t(vgpu, DSPTILEOFF(dev_priv, pipe));

@@ -239,7 +239,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(TRANS_VSYNC(dev_priv, TRANSCODER_A));
 	MMIO_D(BCLRPAT(dev_priv, TRANSCODER_A));
 	MMIO_D(TRANS_VSYNCSHIFT(dev_priv, TRANSCODER_A));
-	MMIO_D(PIPESRC(TRANSCODER_A));
+	MMIO_D(PIPESRC(dev_priv, TRANSCODER_A));
 	MMIO_D(TRANS_HTOTAL(dev_priv, TRANSCODER_B));
 	MMIO_D(TRANS_HBLANK(dev_priv, TRANSCODER_B));
 	MMIO_D(TRANS_HSYNC(dev_priv, TRANSCODER_B));
@@ -248,7 +248,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(TRANS_VSYNC(dev_priv, TRANSCODER_B));
 	MMIO_D(BCLRPAT(dev_priv, TRANSCODER_B));
 	MMIO_D(TRANS_VSYNCSHIFT(dev_priv, TRANSCODER_B));
-	MMIO_D(PIPESRC(TRANSCODER_B));
+	MMIO_D(PIPESRC(dev_priv, TRANSCODER_B));
 	MMIO_D(TRANS_HTOTAL(dev_priv, TRANSCODER_C));
 	MMIO_D(TRANS_HBLANK(dev_priv, TRANSCODER_C));
 	MMIO_D(TRANS_HSYNC(dev_priv, TRANSCODER_C));
@@ -257,7 +257,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(TRANS_VSYNC(dev_priv, TRANSCODER_C));
 	MMIO_D(BCLRPAT(dev_priv, TRANSCODER_C));
 	MMIO_D(TRANS_VSYNCSHIFT(dev_priv, TRANSCODER_C));
-	MMIO_D(PIPESRC(TRANSCODER_C));
+	MMIO_D(PIPESRC(dev_priv, TRANSCODER_C));
 	MMIO_D(TRANS_HTOTAL(dev_priv, TRANSCODER_EDP));
 	MMIO_D(TRANS_HBLANK(dev_priv, TRANSCODER_EDP));
 	MMIO_D(TRANS_HSYNC(dev_priv, TRANSCODER_EDP));

@@ -2784,7 +2784,7 @@ static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state)
 	/* pipesrc controls the size that is scaled from, which should
 	 * always be the user's requested size.
 	 */
-	intel_de_write(dev_priv, PIPESRC(pipe),
+	intel_de_write(dev_priv, PIPESRC(dev_priv, pipe),
 		       PIPESRC_WIDTH(width - 1) | PIPESRC_HEIGHT(height - 1));
 }
 
@@ -2878,7 +2878,7 @@ static void intel_get_pipe_src_size(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tmp;
 
-	tmp = intel_de_read(dev_priv, PIPESRC(crtc->pipe));
+	tmp = intel_de_read(dev_priv, PIPESRC(dev_priv, crtc->pipe));
 
 	drm_rect_init(&pipe_config->pipe_src, 0, 0,
 		      REG_FIELD_GET(PIPESRC_WIDTH_MASK, tmp) + 1,
@@ -8204,7 +8204,7 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 		       VBLANK_START(480 - 1) | VBLANK_END(525 - 1));
 	intel_de_write(dev_priv, TRANS_VSYNC(dev_priv, cpu_transcoder),
 		       VSYNC_START(490 - 1) | VSYNC_END(492 - 1));
-	intel_de_write(dev_priv, PIPESRC(pipe),
+	intel_de_write(dev_priv, PIPESRC(dev_priv, pipe),
 		       PIPESRC_WIDTH(640 - 1) | PIPESRC_HEIGHT(480 - 1));
 
 	intel_de_write(dev_priv, FP0(pipe), fp);
