@@ -57,17 +57,17 @@ properties:
           - const: allwinner,sun8i-v3s
 
       - description: Anbernic RG35XX (2024)
-      - items:
+        items:
           - const: anbernic,rg35xx-2024
           - const: allwinner,sun50i-h700
 
       - description: Anbernic RG35XX Plus
-      - items:
+        items:
           - const: anbernic,rg35xx-plus
           - const: allwinner,sun50i-h700
 
       - description: Anbernic RG35XX H
-      - items:
+        items:
           - const: anbernic,rg35xx-h
           - const: allwinner,sun50i-h700
 
