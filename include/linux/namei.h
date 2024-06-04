@@ -50,13 +50,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
 
 extern int path_pts(struct path *path);
 
-extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
-
-static inline int user_path_at(int dfd, const char __user *name, unsigned flags,
-		 struct path *path)
-{
-	return user_path_at_empty(dfd, name, flags, path, NULL);
-}
+extern int user_path_at(int, const char __user *, unsigned, struct path *);
 
 struct dentry *lookup_one_qstr_excl(const struct qstr *name,
 				    struct dentry *base,

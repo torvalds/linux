@@ -300,7 +300,7 @@ int vfs_fstatat(int dfd, const char __user *filename,
 			return vfs_fstat(dfd, stat);
 	}
 
-	name = getname_flags(filename, getname_statx_lookup_flags(statx_flags), NULL);
+	name = getname_flags(filename, getname_statx_lookup_flags(statx_flags));
 	ret = vfs_statx(dfd, name, statx_flags, stat, STATX_BASIC_STATS);
 	putname(name);
 
@@ -496,7 +496,7 @@ static int do_readlinkat(int dfd, const char __user *pathname,
 		return -EINVAL;
 
 retry:
-	name = getname_flags(pathname, lookup_flags, NULL);
+	name = getname_flags(pathname, lookup_flags);
 	error = filename_lookup(dfd, name, lookup_flags, &path, NULL);
 	if (unlikely(error)) {
 		putname(name);
@@ -710,7 +710,7 @@ SYSCALL_DEFINE5(statx,
 	int ret;
 	struct filename *name;
 
-	name = getname_flags(filename, getname_statx_lookup_flags(flags), NULL);
+	name = getname_flags(filename, getname_statx_lookup_flags(flags));
 	ret = do_statx(dfd, name, flags, mask, buffer);
 	putname(name);
 
