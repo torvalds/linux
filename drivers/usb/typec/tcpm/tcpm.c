@@ -944,7 +944,7 @@ static int tcpm_pd_transmit(struct tcpm_port *port,
 			    enum tcpm_transmit_type tx_sop_type,
 			    const struct pd_message *msg)
 {
-	unsigned long timeout;
+	unsigned long time_left;
 	int ret;
 	unsigned int negotiated_rev;
 
@@ -969,10 +969,10 @@ static int tcpm_pd_transmit(struct tcpm_port *port,
 		return ret;
 
 	mutex_unlock(&port->lock);
-	timeout = wait_for_completion_timeout(&port->tx_complete,
-				msecs_to_jiffies(PD_T_TCPC_TX_TIMEOUT));
+	time_left = wait_for_completion_timeout(&port->tx_complete,
+						msecs_to_jiffies(PD_T_TCPC_TX_TIMEOUT));
 	mutex_lock(&port->lock);
-	if (!timeout)
+	if (!time_left)
 		return -ETIMEDOUT;
 
 	switch (port->tx_status) {
