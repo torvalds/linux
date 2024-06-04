@@ -225,7 +225,7 @@ out:
 void i915_enable_pipestat(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, u32 status_mask)
 {
-	i915_reg_t reg = PIPESTAT(pipe);
+	i915_reg_t reg = PIPESTAT(dev_priv, pipe);
 	u32 enable_mask;
 
 	drm_WARN_ONCE(&dev_priv->drm, status_mask & ~PIPESTAT_INT_STATUS_MASK,
@@ -248,7 +248,7 @@ void i915_enable_pipestat(struct drm_i915_private *dev_priv,
 void i915_disable_pipestat(struct drm_i915_private *dev_priv,
 			   enum pipe pipe, u32 status_mask)
 {
-	i915_reg_t reg = PIPESTAT(pipe);
+	i915_reg_t reg = PIPESTAT(dev_priv, pipe);
 	u32 enable_mask;
 
 	drm_WARN_ONCE(&dev_priv->drm, status_mask & ~PIPESTAT_INT_STATUS_MASK,
@@ -401,7 +401,8 @@ void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
-		intel_uncore_write(&dev_priv->uncore, PIPESTAT(pipe),
+		intel_uncore_write(&dev_priv->uncore,
+				   PIPESTAT(dev_priv, pipe),
 				   PIPESTAT_INT_STATUS_MASK |
 				   PIPE_FIFO_UNDERRUN_STATUS);
 
@@ -454,7 +455,7 @@ void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 		if (!status_mask)
 			continue;
 
-		reg = PIPESTAT(pipe);
+		reg = PIPESTAT(dev_priv, pipe);
 		pipe_stats[pipe] = intel_uncore_read(&dev_priv->uncore, reg) & status_mask;
 		enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
 
