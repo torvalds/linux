@@ -196,20 +196,20 @@ INCORRECT (uses FOLL_GET calls):
     write to the data within the pages
     put_page()
 
-page_maybe_dma_pinned(): the whole point of pinning
-===================================================
+folio_maybe_dma_pinned(): the whole point of pinning
+====================================================
 
-The whole point of marking pages as "DMA-pinned" or "gup-pinned" is to be able
-to query, "is this page DMA-pinned?" That allows code such as page_mkclean()
+The whole point of marking folios as "DMA-pinned" or "gup-pinned" is to be able
+to query, "is this folio DMA-pinned?" That allows code such as page_mkclean()
 (and file system writeback code in general) to make informed decisions about
-what to do when a page cannot be unmapped due to such pins.
+what to do when a folio cannot be unmapped due to such pins.
 
 What to do in those cases is the subject of a years-long series of discussions
 and debates (see the References at the end of this document). It's a TODO item
 here: fill in the details once that's worked out. Meanwhile, it's safe to say
 that having this available: ::
 
-        static inline bool page_maybe_dma_pinned(struct page *page)
+        static inline bool folio_maybe_dma_pinned(struct folio *folio)
 
 ...is a prerequisite to solving the long-running gup+DMA problem.
 
