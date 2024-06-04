@@ -275,4 +275,5 @@ static struct i2c_driver pm8008_mfd_driver = {
 };
 module_i2c_driver(pm8008_mfd_driver);
 
+MODULE_DESCRIPTION("QCOM PM8008 Power Management IC driver");
 MODULE_LICENSE("GPL v2");
