@@ -3563,6 +3563,10 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	if (IS_ERR(ctrl))
 		return ERR_CAST(ctrl);
 
+	ret = nvme_add_ctrl(&ctrl->ctrl);
+	if (ret)
+		goto out_put_ctrl;
+
 	ret = nvme_alloc_admin_tag_set(&ctrl->ctrl, &ctrl->admin_tag_set,
 			&nvme_fc_admin_mq_ops,
 			struct_size_t(struct nvme_fcp_op_w_sgl, priv,
@@ -3607,6 +3611,7 @@ fail_ctrl:
 	/* initiate nvme ctrl ref counting teardown */
 	nvme_uninit_ctrl(&ctrl->ctrl);
 
+out_put_ctrl:
 	/* Remove core ctrl ref. */
 	nvme_put_ctrl(&ctrl->ctrl);
 

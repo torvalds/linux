@@ -2323,6 +2323,10 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	if (IS_ERR(ctrl))
 		return ERR_CAST(ctrl);
 
+	ret = nvme_add_ctrl(&ctrl->ctrl);
+	if (ret)
+		goto out_put_ctrl;
+
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING);
 	WARN_ON_ONCE(!changed);
 
@@ -2341,6 +2345,7 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 
 out_uninit_ctrl:
 	nvme_uninit_ctrl(&ctrl->ctrl);
+out_put_ctrl:
 	nvme_put_ctrl(&ctrl->ctrl);
 	if (ret > 0)
 		ret = -EIO;

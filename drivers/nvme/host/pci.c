@@ -3015,6 +3015,10 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
+	result = nvme_add_ctrl(&dev->ctrl);
+	if (result)
+		goto out_put_ctrl;
+
 	result = nvme_dev_map(dev);
 	if (result)
 		goto out_uninit_ctrl;
@@ -3101,6 +3105,7 @@ out_dev_unmap:
 	nvme_dev_unmap(dev);
 out_uninit_ctrl:
 	nvme_uninit_ctrl(&dev->ctrl);
+out_put_ctrl:
 	nvme_put_ctrl(&dev->ctrl);
 	return result;
 }

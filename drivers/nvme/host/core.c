@@ -4667,6 +4667,9 @@ static void nvme_free_ctrl(struct device *dev)
  * Initialize a NVMe controller structures.  This needs to be called during
  * earliest initialization so that we have the initialized structured around
  * during probing.
+ *
+ * On success, the caller must use the nvme_put_ctrl() to release this when
+ * needed, which also invokes the ops->free_ctrl() callback.
  */
 int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		const struct nvme_ctrl_ops *ops, unsigned long quirks)
@@ -4715,6 +4718,12 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		goto out;
 	ctrl->instance = ret;
 
+	ret = nvme_auth_init_ctrl(ctrl);
+	if (ret)
+		goto out_release_instance;
+
+	nvme_mpath_init_ctrl(ctrl);
+
 	device_initialize(&ctrl->ctrl_device);
 	ctrl->device = &ctrl->ctrl_device;
 	ctrl->device->devt = MKDEV(MAJOR(nvme_ctrl_base_chr_devt),
@@ -4727,16 +4736,36 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		ctrl->device->groups = nvme_dev_attr_groups;
 	ctrl->device->release = nvme_free_ctrl;
 	dev_set_drvdata(ctrl->device, ctrl);
+
+	return ret;
+
+out_release_instance:
+	ida_free(&nvme_instance_ida, ctrl->instance);
+out:
+	if (ctrl->discard_page)
+		__free_page(ctrl->discard_page);
+	cleanup_srcu_struct(&ctrl->srcu);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nvme_init_ctrl);
+
+/*
+ * On success, returns with an elevated controller reference and caller must
+ * use nvme_uninit_ctrl() to properly free resources associated with the ctrl.
+ */
+int nvme_add_ctrl(struct nvme_ctrl *ctrl)
+{
+	int ret;
+
 	ret = dev_set_name(ctrl->device, "nvme%d", ctrl->instance);
 	if (ret)
-		goto out_release_instance;
+		return ret;
 
-	nvme_get_ctrl(ctrl);
 	cdev_init(&ctrl->cdev, &nvme_dev_fops);
-	ctrl->cdev.owner = ops->module;
+	ctrl->cdev.owner = ctrl->ops->module;
 	ret = cdev_device_add(&ctrl->cdev, ctrl->device);
 	if (ret)
-		goto out_free_name;
+		return ret;
 
 	/*
 	 * Initialize latency tolerance controls.  The sysfs files won't
@@ -4747,28 +4776,11 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		min(default_ps_max_latency_us, (unsigned long)S32_MAX));
 
 	nvme_fault_inject_init(&ctrl->fault_inject, dev_name(ctrl->device));
-	nvme_mpath_init_ctrl(ctrl);
-	ret = nvme_auth_init_ctrl(ctrl);
-	if (ret)
-		goto out_free_cdev;
+	nvme_get_ctrl(ctrl);
 
 	return 0;
-out_free_cdev:
-	nvme_fault_inject_fini(&ctrl->fault_inject);
-	dev_pm_qos_hide_latency_tolerance(ctrl->device);
-	cdev_device_del(&ctrl->cdev, ctrl->device);
-out_free_name:
-	nvme_put_ctrl(ctrl);
-	kfree_const(ctrl->device->kobj.name);
-out_release_instance:
-	ida_free(&nvme_instance_ida, ctrl->instance);
-out:
-	if (ctrl->discard_page)
-		__free_page(ctrl->discard_page);
-	cleanup_srcu_struct(&ctrl->srcu);
-	return ret;
 }
-EXPORT_SYMBOL_GPL(nvme_init_ctrl);
+EXPORT_SYMBOL_GPL(nvme_add_ctrl);
 
 /* let I/O to all namespaces fail in preparation for surprise removal */
 void nvme_mark_namespaces_dead(struct nvme_ctrl *ctrl)

@@ -1531,6 +1531,10 @@ static int apple_nvme_probe(struct platform_device *pdev)
 	if (IS_ERR(anv))
 		return PTR_ERR(anv);
 
+	ret = nvme_add_ctrl(&anv->ctrl);
+	if (ret)
+		goto out_put_ctrl;
+
 	anv->ctrl.admin_q = blk_mq_alloc_queue(&anv->admin_tagset, NULL, NULL);
 	if (IS_ERR(anv->ctrl.admin_q)) {
 		ret = -ENOMEM;
@@ -1545,6 +1549,7 @@ static int apple_nvme_probe(struct platform_device *pdev)
 
 out_uninit_ctrl:
 	nvme_uninit_ctrl(&anv->ctrl);
+out_put_ctrl:
 	nvme_put_ctrl(&anv->ctrl);
 	return ret;
 }
