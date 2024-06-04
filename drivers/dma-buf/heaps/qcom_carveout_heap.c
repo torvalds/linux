@@ -58,6 +58,7 @@ struct carveout_heap {
 
 struct secure_carveout_heap {
 	u32 token;
+	bool is_unmapped;
 	struct carveout_heap carveout_heap;
 	struct list_head list;
 	atomic_long_t total_allocated;
@@ -255,14 +256,17 @@ static int carveout_pages_zero(struct page *page, size_t size)
 }
 
 static int carveout_init_heap_memory(struct carveout_heap *co_heap,
-				     phys_addr_t base, ssize_t size)
+				     phys_addr_t base, ssize_t size,
+				     bool is_unmapped)
 {
 	struct page *page = pfn_to_page(PFN_DOWN(base));
 	int ret = 0;
 
-	ret = carveout_pages_zero(page, size);
-	if (ret)
-		return ret;
+	if (!is_unmapped) {
+		ret = carveout_pages_zero(page, size);
+		if (ret)
+			return ret;
+	}
 
 	co_heap->pool = gen_pool_create(PAGE_SHIFT, -1);
 	if (!co_heap->pool)
@@ -276,7 +280,8 @@ static int carveout_init_heap_memory(struct carveout_heap *co_heap,
 }
 
 static int __carveout_heap_init(struct platform_heap *heap_data,
-				struct carveout_heap *carveout_heap)
+				struct carveout_heap *carveout_heap,
+				bool is_unmapped)
 {
 	struct device *dev = heap_data->dev;
 	int ret = 0;
@@ -284,7 +289,7 @@ static int __carveout_heap_init(struct platform_heap *heap_data,
 	carveout_heap->dev = dev;
 	ret = carveout_init_heap_memory(carveout_heap,
 					heap_data->base,
-					heap_data->size);
+					heap_data->size, is_unmapped);
 
 	init_rwsem(&carveout_heap->mem_sem);
 
@@ -312,7 +317,7 @@ int qcom_carveout_heap_create(struct platform_heap *heap_data)
 	if (!carveout_heap)
 		return -ENOMEM;
 
-	ret = __carveout_heap_init(heap_data, carveout_heap);
+	ret = __carveout_heap_init(heap_data, carveout_heap, false);
 	if (ret)
 		goto err;
 
@@ -423,6 +428,22 @@ static struct dma_heap_ops sc_heap_ops = {
 	.allocate = sc_heap_allocate,
 };
 
+static bool qcom_secure_carveout_is_unmapped(struct device *dev)
+{
+	struct device_node *mem_region;
+	bool val = false;
+
+	mem_region = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!mem_region)
+		goto err;
+
+	val = of_property_read_bool(mem_region, "qcom,unmapped");
+err:
+	of_node_put(mem_region);
+	return val;
+}
+
+
 int qcom_secure_carveout_heap_create(struct platform_heap *heap_data)
 {
 	struct dma_heap_export_info exp_info;
@@ -438,16 +459,20 @@ int qcom_secure_carveout_heap_create(struct platform_heap *heap_data)
 	if (!sc_heap)
 		return -ENOMEM;
 
-	ret = __carveout_heap_init(heap_data, &sc_heap->carveout_heap);
+	sc_heap->is_unmapped = qcom_secure_carveout_is_unmapped(heap_data->dev);
+
+	ret = __carveout_heap_init(heap_data, &sc_heap->carveout_heap, sc_heap->is_unmapped);
 	if (ret)
 		goto err;
 
-	ret = hyp_assign_from_flags(heap_data->base, heap_data->size,
+	if (!sc_heap->is_unmapped) {
+		ret = hyp_assign_from_flags(heap_data->base, heap_data->size,
 				    heap_data->token);
-	if (ret) {
-		pr_err("secure_carveout_heap: Assign token 0x%x failed\n",
-		       heap_data->token);
-		goto destroy_heap;
+		if (ret) {
+			pr_err("secure_carveout_heap: Assign token 0x%x failed\n",
+				heap_data->token);
+			goto destroy_heap;
+		}
 	}
 
 	sc_heap->token = heap_data->token;
