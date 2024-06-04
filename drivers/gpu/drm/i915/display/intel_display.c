@@ -439,7 +439,7 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 
 	/* Wa_22012358565:adl-p */
 	if (DISPLAY_VER(dev_priv) == 13)
-		intel_de_rmw(dev_priv, PIPE_ARB_CTL(pipe),
+		intel_de_rmw(dev_priv, PIPE_ARB_CTL(dev_priv, pipe),
 			     0, PIPE_ARB_USE_PROG_SLOTS);
 
 	if (DISPLAY_VER(dev_priv) >= 14) {

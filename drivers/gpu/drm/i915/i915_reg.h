@@ -1802,7 +1802,7 @@
 #define PIPESTAT(dev_priv, pipe)		_MMIO_PIPE2(dev_priv, pipe, _PIPEASTAT)
 
 #define _PIPE_ARB_CTL_A			0x70028 /* icl+ */
-#define PIPE_ARB_CTL(pipe)		_MMIO_PIPE2(dev_priv, pipe, _PIPE_ARB_CTL_A)
+#define PIPE_ARB_CTL(dev_priv, pipe)		_MMIO_PIPE2(dev_priv, pipe, _PIPE_ARB_CTL_A)
 #define   PIPE_ARB_USE_PROG_SLOTS	REG_BIT(13)
 
 #define _PIPE_MISC_A			0x70030
