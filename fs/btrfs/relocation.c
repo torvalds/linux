@@ -2947,10 +2947,12 @@ static u64 get_cluster_boundary_end(const struct file_extent_cluster *cluster,
 	return cluster->boundary[cluster_nr + 1] - 1;
 }
 
-static int relocate_one_folio(struct inode *inode, struct file_ra_state *ra,
-			      const struct file_extent_cluster *cluster,
+static int relocate_one_folio(struct reloc_control *rc,
+			      struct file_ra_state *ra,
 			      int *cluster_nr, unsigned long index)
 {
+	const struct file_extent_cluster *cluster = &rc->cluster;
+	struct inode *inode = rc->data_inode;
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	u64 offset = BTRFS_I(inode)->reloc_block_group_start;
 	const unsigned long last_index = (cluster->end - offset) >> PAGE_SHIFT;
@@ -3116,7 +3118,7 @@ static int relocate_file_extent_cluster(struct reloc_control *rc)
 	last_index = (cluster->end - offset) >> PAGE_SHIFT;
 	for (index = (cluster->start - offset) >> PAGE_SHIFT;
 	     index <= last_index && !ret; index++)
-		ret = relocate_one_folio(inode, ra, cluster, &cluster_nr, index);
+		ret = relocate_one_folio(rc, ra, &cluster_nr, index);
 	if (ret == 0)
 		WARN_ON(cluster_nr != cluster->nr);
 out:
