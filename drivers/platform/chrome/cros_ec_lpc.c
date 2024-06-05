@@ -636,6 +636,12 @@ static const struct lpc_driver_data framework_laptop_amd_lpc_driver_data __initc
 	.quirk_mmio_memory_base = 0xE00,
 };
 
+static const struct lpc_driver_data framework_laptop_11_lpc_driver_data __initconst = {
+	.quirks = CROS_EC_LPC_QUIRK_ACPI_ID|CROS_EC_LPC_QUIRK_AML_MUTEX,
+	.quirk_acpi_id = "PNP0C09",
+	.quirk_aml_mutex_name = "ECMT",
+};
+
 static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	{
 		/*
@@ -704,6 +710,7 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop"),
 		},
+		.driver_data = (void *)&framework_laptop_11_lpc_driver_data,
 	},
 	{ /* sentinel */ }
 };
