@@ -2385,7 +2385,11 @@ static int iwl_trans_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n", cmd_str);
 
-	cmd_idx = trans->ops->send_cmd(trans, cmd);
+	if (trans->trans_cfg->gen2)
+		cmd_idx = iwl_pcie_gen2_enqueue_hcmd(trans, cmd);
+	else
+		cmd_idx = iwl_pcie_enqueue_hcmd(trans, cmd);
+
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
@@ -2485,7 +2489,11 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 		if (WARN_ON(cmd->flags & CMD_WANT_SKB))
 			return -EINVAL;
 
-		ret = trans->ops->send_cmd(trans, cmd);
+		if (trans->trans_cfg->gen2)
+			ret = iwl_pcie_gen2_enqueue_hcmd(trans, cmd);
+		else
+			ret = iwl_pcie_enqueue_hcmd(trans, cmd);
+
 		if (ret < 0) {
 			IWL_ERR(trans,
 				"Error sending %s: enqueue_hcmd failed: %d\n",

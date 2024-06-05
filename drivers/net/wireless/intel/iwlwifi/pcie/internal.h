@@ -761,6 +761,8 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 void iwl_pcie_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
 void iwl_pcie_freeze_txq_timer(struct iwl_trans *trans,
 			       unsigned long txqs, bool freeze);
+int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, int txq_idx);
+int iwl_trans_pcie_wait_txqs_empty(struct iwl_trans *trans, u32 txq_bm);
 
 /*****************************************************
 * Error handling
@@ -1027,11 +1029,50 @@ void iwl_trans_pcie_dump_regs(struct iwl_trans *trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
+void iwl_trans_pcie_debugfs_cleanup(struct iwl_trans *trans);
 #else
 static inline void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans) { }
 #endif
 
 void iwl_pcie_rx_allocator_work(struct work_struct *data);
+
+/* common trans ops for all generations transports */
+void iwl_trans_pcie_configure(struct iwl_trans *trans,
+			      const struct iwl_trans_config *trans_cfg);
+int iwl_trans_pcie_start_hw(struct iwl_trans *trans);
+void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans);
+void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val);
+void iwl_trans_pcie_write32(struct iwl_trans *trans, u32 ofs, u32 val);
+u32 iwl_trans_pcie_read32(struct iwl_trans *trans, u32 ofs);
+u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg);
+void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr, u32 val);
+int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
+			    void *buf, int dwords);
+int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
+			     const void *buf, int dwords);
+int iwl_trans_pcie_sw_reset(struct iwl_trans *trans, bool retake_ownership);
+struct iwl_trans_dump_data *
+iwl_trans_pcie_dump_data(struct iwl_trans *trans, u32 dump_mask,
+			 const struct iwl_dump_sanitize_ops *sanitize_ops,
+			 void *sanitize_ctx);
+int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
+			     enum iwl_d3_status *status,
+			     bool test,  bool reset);
+int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test, bool reset);
+void iwl_trans_pci_interrupts(struct iwl_trans *trans, bool enable);
+void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans);
+void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
+				  u32 mask, u32 value);
+int iwl_trans_pcie_read_config32(struct iwl_trans *trans, u32 ofs,
+				 u32 *val);
+bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans);
+void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans);
+
+/* transport gen 1 exported functions */
+void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr);
+int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
+			    const struct fw_img *fw, bool run_in_rfkill);
+void iwl_trans_pcie_stop_device(struct iwl_trans *trans);
 
 /* common functions that are used by gen2 transport */
 int iwl_pcie_gen2_apm_init(struct iwl_trans *trans);
@@ -1069,5 +1110,7 @@ void iwl_trans_pcie_copy_imr_fh(struct iwl_trans *trans,
 				u32 dst_addr, u64 src_addr, u32 byte_cnt);
 int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
 			    u32 dst_addr, u64 src_addr, u32 byte_cnt);
+int iwl_trans_pcie_rxq_dma_data(struct iwl_trans *trans, int queue,
+				struct iwl_trans_rxq_dma_data *data);
 
 #endif /* __iwl_trans_int_pcie_h__ */

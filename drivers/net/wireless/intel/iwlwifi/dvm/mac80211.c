@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright(C) 2018 - 2019, 2022 - 2023 Intel Corporation
+ * Copyright(C) 2018 - 2019, 2022 - 2024 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -145,8 +145,6 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].num_sec &&
-	    priv->trans->ops->d3_suspend &&
-	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
 		priv->wowlan_support.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					     WIPHY_WOWLAN_DISCONNECT |
@@ -730,8 +728,6 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!priv->trans->ops->txq_enable)
-			break;
 		if (!iwl_enable_tx_ampdu())
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
