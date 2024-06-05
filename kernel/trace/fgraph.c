@@ -515,7 +515,7 @@ static struct fgraph_ops fgraph_stub = {
 static struct fgraph_ops *fgraph_direct_gops = &fgraph_stub;
 DEFINE_STATIC_CALL(fgraph_func, ftrace_graph_entry_stub);
 DEFINE_STATIC_CALL(fgraph_retfunc, ftrace_graph_ret_stub);
-DEFINE_STATIC_KEY_TRUE(fgraph_do_direct);
+static DEFINE_STATIC_KEY_TRUE(fgraph_do_direct);
 
 /**
  * ftrace_graph_stop - set to permanently disable function graph tracing
