@@ -437,22 +437,21 @@ static void log_irqs(struct fw_ohci *ohci, u32 evt)
 						? " ?"			: "");
 }
 
-static const char *speed[] = {
-	[0] = "S100", [1] = "S200", [2] = "S400",    [3] = "beta",
-};
-static const char *power[] = {
-	[0] = "+0W",  [1] = "+15W", [2] = "+30W",    [3] = "+45W",
-	[4] = "-3W",  [5] = " ?W",  [6] = "-3..-6W", [7] = "-3..-10W",
-};
-static const char port[] = { '.', '-', 'p', 'c', };
-
-static char _p(u32 *s, int shift)
+static unsigned int _p(u32 *s, int shift)
 {
-	return port[*s >> shift & 3];
+	return *s >> shift & 3;
 }
 
 static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 {
+	static const char *const speed[] = {
+		[0] = "S100", [1] = "S200", [2] = "S400",    [3] = "beta",
+	};
+	static const char *const power[] = {
+		[0] = "+0W",  [1] = "+15W", [2] = "+30W",    [3] = "+45W",
+		[4] = "-3W",  [5] = " ?W",  [6] = "-3..-6W", [7] = "-3..-10W",
+	};
+	static const char port[] = { '.', '-', 'p', 'c', };
 	u32 *s;
 
 	if (likely(!(param_debug & OHCI_PARAM_DEBUG_SELFIDS)))
@@ -465,7 +464,10 @@ static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 		if ((*s & 1 << 23) == 0)
 			ohci_notice(ohci,
 			    "selfID 0: %08x, phy %d [%c%c%c] %s gc=%d %s %s%s%s\n",
-			    *s, *s >> 24 & 63, _p(s, 6), _p(s, 4), _p(s, 2),
+			    *s, *s >> 24 & 63,
+			    port[_p(s, 6)],
+			    port[_p(s, 4)],
+			    port[_p(s, 2)],
 			    speed[*s >> 14 & 3], *s >> 16 & 63,
 			    power[*s >> 8 & 7], *s >> 22 & 1 ? "L" : "",
 			    *s >> 11 & 1 ? "c" : "", *s & 2 ? "i" : "");
@@ -473,8 +475,14 @@ static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 			ohci_notice(ohci,
 			    "selfID n: %08x, phy %d [%c%c%c%c%c%c%c%c]\n",
 			    *s, *s >> 24 & 63,
-			    _p(s, 16), _p(s, 14), _p(s, 12), _p(s, 10),
-			    _p(s,  8), _p(s,  6), _p(s,  4), _p(s,  2));
+			    port[_p(s, 16)],
+			    port[_p(s, 14)],
+			    port[_p(s, 12)],
+			    port[_p(s, 10)],
+			    port[_p(s,  8)],
+			    port[_p(s,  6)],
+			    port[_p(s,  4)],
+			    port[_p(s,  2)]);
 }
 
 static const char *evts[] = {
