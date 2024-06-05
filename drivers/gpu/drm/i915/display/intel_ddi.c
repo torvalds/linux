@@ -2072,9 +2072,9 @@ void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 	    !encoder->is_clock_enabled(encoder))
 		return;
 
-	drm_notice(&i915->drm,
-		   "[ENCODER:%d:%s] is disabled/in DSI mode with an ungated DDI clock, gate it\n",
-		   encoder->base.base.id, encoder->base.name);
+	drm_dbg_kms(&i915->drm,
+		    "[ENCODER:%d:%s] is disabled/in DSI mode with an ungated DDI clock, gate it\n",
+		    encoder->base.base.id, encoder->base.name);
 
 	encoder->disable_clock(encoder);
 }
