@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/mfd/core.h>
 #include <linux/regmap.h>
@@ -225,14 +225,12 @@ static int lm3533_set_lvled_config(struct lm3533 *lm3533, u8 lvled, u8 led)
 
 static void lm3533_enable(struct lm3533 *lm3533)
 {
-	if (gpio_is_valid(lm3533->gpio_hwen))
-		gpio_set_value(lm3533->gpio_hwen, 1);
+	gpiod_set_value(lm3533->hwen, 1);
 }
 
 static void lm3533_disable(struct lm3533 *lm3533)
 {
-	if (gpio_is_valid(lm3533->gpio_hwen))
-		gpio_set_value(lm3533->gpio_hwen, 0);
+	gpiod_set_value(lm3533->hwen, 0);
 }
 
 enum lm3533_attribute_type {
@@ -483,18 +481,10 @@ static int lm3533_device_init(struct lm3533 *lm3533)
 		return -EINVAL;
 	}
 
-	lm3533->gpio_hwen = pdata->gpio_hwen;
-
-	if (gpio_is_valid(lm3533->gpio_hwen)) {
-		ret = devm_gpio_request_one(lm3533->dev, lm3533->gpio_hwen,
-					GPIOF_OUT_INIT_LOW, "lm3533-hwen");
-		if (ret < 0) {
-			dev_err(lm3533->dev,
-				"failed to request HWEN GPIO %d\n",
-				lm3533->gpio_hwen);
-			return ret;
-		}
-	}
+	lm3533->hwen = devm_gpiod_get(lm3533->dev, NULL, GPIOD_OUT_LOW);
+	if (IS_ERR(lm3533->hwen))
+		return dev_err_probe(lm3533->dev, PTR_ERR(lm3533->hwen), "failed to request HWEN GPIO\n");
+	gpiod_set_consumer_name(lm3533->hwen, "lm3533-hwen");
 
 	lm3533_enable(lm3533);
 
