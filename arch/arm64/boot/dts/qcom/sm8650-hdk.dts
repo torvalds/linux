@@ -991,6 +991,8 @@
 };
 
 &qupv3_id_0 {
+	iommus = <&apps_smmu 0xa3 0x3>;
+
 	status = "okay";
 };
 
