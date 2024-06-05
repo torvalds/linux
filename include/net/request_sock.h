@@ -172,14 +172,14 @@ static inline void __reqsk_free(struct request_sock *req)
 
 static inline void reqsk_free(struct request_sock *req)
 {
-	WARN_ON_ONCE(refcount_read(&req->rsk_refcnt) != 0);
+	DEBUG_NET_WARN_ON_ONCE(refcount_read(&req->rsk_refcnt) != 0);
 	__reqsk_free(req);
 }
 
 static inline void reqsk_put(struct request_sock *req)
 {
 	if (refcount_dec_and_test(&req->rsk_refcnt))
-		reqsk_free(req);
+		__reqsk_free(req);
 }
 
 /*
