@@ -23,13 +23,6 @@
 #include "phy-packet-definitions.h"
 #include <trace/events/firewire.h>
 
-#define SELF_ID_PHY_ID(q)		(((q) >> 24) & 0x3f)
-#define SELF_ID_LINK_ON(q)		(((q) >> 22) & 0x01)
-#define SELF_ID_GAP_COUNT(q)		(((q) >> 16) & 0x3f)
-#define SELF_ID_PHY_SPEED(q)		(((q) >> 14) & 0x03)
-#define SELF_ID_CONTENDER(q)		(((q) >> 11) & 0x01)
-#define SELF_ID_PHY_INITIATOR(q)	(((q) >>  1) & 0x01)
-
 static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 {
 	struct fw_node *node;
@@ -39,10 +32,11 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 		return NULL;
 
 	node->color = color;
-	node->node_id = LOCAL_BUS | SELF_ID_PHY_ID(sid);
-	node->link_on = SELF_ID_LINK_ON(sid);
-	node->phy_speed = SELF_ID_PHY_SPEED(sid);
-	node->initiated_reset = SELF_ID_PHY_INITIATOR(sid);
+	node->node_id = LOCAL_BUS | phy_packet_self_id_get_phy_id(sid);
+	node->link_on = phy_packet_self_id_zero_get_link_active(sid);
+	// NOTE: Only two bits, thus only for SCODE_100, SCODE_200, SCODE_400, and SCODE_BETA.
+	node->phy_speed = phy_packet_self_id_zero_get_scode(sid);
+	node->initiated_reset = phy_packet_self_id_zero_get_initiated_reset(sid);
 	node->port_count = port_count;
 
 	refcount_set(&node->ref_count, 1);
@@ -119,7 +113,7 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 	stack_depth = 0;
 	phy_id = 0;
 	irm_node = NULL;
-	gap_count = SELF_ID_GAP_COUNT(*sid);
+	gap_count = phy_packet_self_id_zero_get_gap_count(*sid);
 	beta_repeaters_present = false;
 
 	while (enumerator.quadlet_count > 0) {
@@ -162,9 +156,9 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 			}
 		}
 
-		if (phy_id != SELF_ID_PHY_ID(self_id_sequence[0])) {
+		if (phy_id != phy_packet_self_id_get_phy_id(self_id_sequence[0])) {
 			fw_err(card, "PHY ID mismatch in self ID: %d != %d\n",
-			       phy_id, SELF_ID_PHY_ID(self_id_sequence[0]));
+			       phy_id, phy_packet_self_id_get_phy_id(self_id_sequence[0]));
 			return NULL;
 		}
 
@@ -194,7 +188,7 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 		if (phy_id == (card->node_id & 0x3f))
 			local_node = node;
 
-		if (SELF_ID_CONTENDER(self_id_sequence[0]))
+		if (phy_packet_self_id_zero_get_contender(self_id_sequence[0]))
 			irm_node = node;
 
 		for (port_index = 0; port_index < total_port_count; ++port_index) {
@@ -243,7 +237,7 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 
 		// If PHYs report different gap counts, set an invalid count which will force a gap
 		// count reconfiguration and a reset.
-		if (SELF_ID_GAP_COUNT(self_id_sequence[0]) != gap_count)
+		if (phy_packet_self_id_zero_get_gap_count(self_id_sequence[0]) != gap_count)
 			gap_count = 0;
 
 		update_hop_count(node);
