@@ -154,4 +154,5 @@ module_init(memconsole_x86_init);
 module_exit(memconsole_x86_exit);
 
 MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("EBDA specific parts of the memory based BIOS console.");
 MODULE_LICENSE("GPL");
