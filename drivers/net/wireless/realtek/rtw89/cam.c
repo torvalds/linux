@@ -211,6 +211,46 @@ static int rtw89_cam_get_addr_cam_key_idx(struct rtw89_addr_cam_entry *addr_cam,
 	return 0;
 }
 
+static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta,
+				    const struct rtw89_sec_cam_entry *sec_cam,
+				    bool inform_fw)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_vif *rtwvif;
+	struct rtw89_addr_cam_entry *addr_cam;
+	unsigned int i;
+	int ret = 0;
+
+	if (!vif) {
+		rtw89_err(rtwdev, "No iface for deleting sec cam\n");
+		return -EINVAL;
+	}
+
+	rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+
+	for_each_set_bit(i, addr_cam->sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM) {
+		if (addr_cam->sec_ent[i] != sec_cam->sec_cam_idx)
+			continue;
+
+		clear_bit(i, addr_cam->sec_cam_map);
+	}
+
+	if (inform_fw) {
+		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif, rtwsta);
+		if (ret)
+			rtw89_err(rtwdev,
+				  "failed to update dctl cam del key: %d\n", ret);
+		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
+		if (ret)
+			rtw89_err(rtwdev, "failed to update cam del key: %d\n", ret);
+	}
+
+	return ret;
+}
+
 static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_sta *sta,
@@ -242,10 +282,8 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	key->hw_key_idx = key_idx;
 	addr_cam->sec_ent_keyid[key_idx] = key->keyidx;
 	addr_cam->sec_ent[key_idx] = sec_cam->sec_cam_idx;
-	addr_cam->sec_entries[key_idx] = sec_cam;
 	set_bit(key_idx, addr_cam->sec_cam_map);
 	ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif, rtwsta);
 	if (ret) {
@@ -258,7 +296,6 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 		rtw89_err(rtwdev, "failed to update addr cam sec entry: %d\n",
 			  ret);
 		clear_bit(key_idx, addr_cam->sec_cam_map);
-		addr_cam->sec_entries[key_idx] = NULL;
 		return ret;
 	}
 
@@ -295,6 +332,9 @@ static int rtw89_cam_sec_key_install(struct rtw89_dev *rtwdev,
 		goto err_release_cam;
 	}
 
+	key->hw_key_idx = sec_cam_idx;
+	cam_info->sec_entries[sec_cam_idx] = sec_cam;
+
 	sec_cam->sec_cam_idx = sec_cam_idx;
 	sec_cam->type = hw_key_type;
 	sec_cam->len = RTW89_SEC_CAM_LEN;
@@ -316,6 +356,7 @@ static int rtw89_cam_sec_key_install(struct rtw89_dev *rtwdev,
 	return 0;
 
 err_release_cam:
+	cam_info->sec_entries[sec_cam_idx] = NULL;
 	kfree(sec_cam);
 	clear_bit(sec_cam_idx, cam_info->sec_cam_map);
 	if (ext_key)
@@ -386,42 +427,22 @@ int rtw89_cam_sec_key_del(struct rtw89_dev *rtwdev,
 			  struct ieee80211_key_conf *key,
 			  bool inform_fw)
 {
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
 	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
-	struct rtw89_vif *rtwvif;
-	struct rtw89_addr_cam_entry *addr_cam;
-	struct rtw89_sec_cam_entry *sec_cam;
-	u8 key_idx = key->hw_key_idx;
+	const struct rtw89_sec_cam_entry *sec_cam;
 	u8 sec_cam_idx;
-	int ret = 0;
+	int ret;
 
-	if (!vif) {
-		rtw89_err(rtwdev, "No iface for deleting sec cam\n");
-		return -EINVAL;
-	}
-
-	rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
-	sec_cam = addr_cam->sec_entries[key_idx];
+	sec_cam_idx = key->hw_key_idx;
+	sec_cam = cam_info->sec_entries[sec_cam_idx];
 	if (!sec_cam)
 		return -EINVAL;
 
-	/* detach sec cam from addr cam */
-	clear_bit(key_idx, addr_cam->sec_cam_map);
-	addr_cam->sec_entries[key_idx] = NULL;
-	if (inform_fw) {
-		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif, rtwsta);
-		if (ret)
-			rtw89_err(rtwdev, "failed to update dctl cam del key: %d\n", ret);
-		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
-		if (ret)
-			rtw89_err(rtwdev, "failed to update cam del key: %d\n", ret);
-	}
+	ret = rtw89_cam_detach_sec_cam(rtwdev, vif, sta, sec_cam, inform_fw);
 
 	/* clear valid bit in addr cam will disable sec cam,
 	 * so we don't need to send H2C command again
 	 */
-	sec_cam_idx = sec_cam->sec_cam_idx;
+	cam_info->sec_entries[sec_cam_idx] = NULL;
 	clear_bit(sec_cam_idx, cam_info->sec_cam_map);
 	if (sec_cam->ext_key)
 		clear_bit(sec_cam_idx + 1, cam_info->sec_cam_map);

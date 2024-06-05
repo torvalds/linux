@@ -273,6 +273,8 @@ static void rtw_usb_write_port_tx_complete(struct urb *urb)
 		info = IEEE80211_SKB_CB(skb);
 		tx_data = rtw_usb_get_tx_data(skb);
 
+		skb_pull(skb, rtwdev->chip->tx_pkt_desc_sz);
+
 		/* enqueue to wait for tx report */
 		if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
 			rtw_tx_report_enqueue(rtwdev, skb, tx_data->sn);
@@ -433,23 +435,21 @@ static int rtw_usb_write_data(struct rtw_dev *rtwdev,
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb;
-	unsigned int desclen, headsize, size;
+	unsigned int size;
 	u8 qsel;
 	int ret = 0;
 
 	size = pkt_info->tx_pkt_size;
 	qsel = pkt_info->qsel;
-	desclen = chip->tx_pkt_desc_sz;
-	headsize = pkt_info->offset ? pkt_info->offset : desclen;
 
-	skb = dev_alloc_skb(headsize + size);
+	skb = dev_alloc_skb(chip->tx_pkt_desc_sz + size);
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	skb_reserve(skb, headsize);
+	skb_reserve(skb, chip->tx_pkt_desc_sz);
 	skb_put_data(skb, buf, size);
-	skb_push(skb, headsize);
-	memset(skb->data, 0, headsize);
+	skb_push(skb, chip->tx_pkt_desc_sz);
+	memset(skb->data, 0, chip->tx_pkt_desc_sz);
 	rtw_tx_fill_tx_desc(pkt_info, skb);
 	rtw_tx_fill_txdesc_checksum(rtwdev, pkt_info, skb->data);
 

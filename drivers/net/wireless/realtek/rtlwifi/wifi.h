@@ -2356,9 +2356,9 @@ struct rtl_hal_cfg {
 	bool write_readback;
 	char *name;
 	char *alt_fw_name;
-	struct rtl_hal_ops *ops;
+	const struct rtl_hal_ops *ops;
 	struct rtl_mod_params *mod_params;
-	struct rtl_hal_usbint_cfg *usb_interface_cfg;
+	const struct rtl_hal_usbint_cfg *usb_interface_cfg;
 	enum rtl_spec_ver spec_ver;
 
 	/*this map used for some registers or vars
@@ -2707,7 +2707,7 @@ struct rtl_priv {
 	/* hal_cfg : for diff cards
 	 * intf_ops : for diff interrface usb/pcie
 	 */
-	struct rtl_hal_cfg *cfg;
+	const struct rtl_hal_cfg *cfg;
 	const struct rtl_intf_ops *intf_ops;
 
 	/* this var will be set by set_bit,
@@ -2745,6 +2745,12 @@ struct rtl_priv {
 	 * 92ee use new trx flow.
 	 */
 	bool use_new_trx_flow;
+
+	/* For dual MAC RTL8192DU, things shared by the 2 USB interfaces */
+	u32 *curveindex_2g;
+	u32 *curveindex_5g;
+	struct mutex *mutex_for_power_on_off; /* for power on/off */
+	struct mutex *mutex_for_hw_init; /* for hardware init */
 
 #ifdef CONFIG_PM
 	struct wiphy_wowlan_support wowlan;
