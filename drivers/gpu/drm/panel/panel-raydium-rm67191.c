@@ -612,14 +612,6 @@ static void rad_panel_remove(struct mipi_dsi_device *dsi)
 	drm_panel_remove(&rad->panel);
 }
 
-static void rad_panel_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct rad_panel *rad = mipi_dsi_get_drvdata(dsi);
-
-	drm_panel_disable(&rad->panel);
-	drm_panel_unprepare(&rad->panel);
-}
-
 static const struct of_device_id rad_of_match[] = {
 	{ .compatible = "raydium,rm67191", },
 	{ /* sentinel */ }
@@ -633,7 +625,6 @@ static struct mipi_dsi_driver rad_panel_driver = {
 	},
 	.probe = rad_panel_probe,
 	.remove = rad_panel_remove,
-	.shutdown = rad_panel_shutdown,
 };
 module_mipi_dsi_driver(rad_panel_driver);
 
