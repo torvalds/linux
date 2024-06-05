@@ -566,4 +566,5 @@ static void rpmsg_chrdev_exit(void)
 module_exit(rpmsg_chrdev_exit);
 
 MODULE_ALIAS("rpmsg:rpmsg_chrdev");
+MODULE_DESCRIPTION("RPMSG device interface");
 MODULE_LICENSE("GPL v2");
