@@ -1237,11 +1237,29 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 	};
 	int ret;
 
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_BZ &&
-	    trans->hw_rev_step == SILICON_A_STEP)
-		size = 4096;
+	/* take the min with bytecount table entries allowed */
+	size = min_t(u32, size, trans->txqs.bc_tbl_size / sizeof(u16));
+	/* but must be power of 2 values for calculating read/write pointers */
+	size = rounddown_pow_of_two(size);
 
-	txq = iwl_txq_dyn_alloc_dma(trans, size, timeout);
+	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_BZ &&
+	    trans->hw_rev_step == SILICON_A_STEP) {
+		size = 4096;
+		txq = iwl_txq_dyn_alloc_dma(trans, size, timeout);
+	} else {
+		do {
+			txq = iwl_txq_dyn_alloc_dma(trans, size, timeout);
+			if (!IS_ERR(txq))
+				break;
+
+			IWL_DEBUG_TX_QUEUES(trans,
+					    "Failed allocating TXQ of size %d for sta mask %x tid %d, ret: %ld\n",
+					    size, sta_mask, tid,
+					    PTR_ERR(txq));
+			size /= 2;
+		} while (size >= 16);
+	}
+
 	if (IS_ERR(txq))
 		return PTR_ERR(txq);
 

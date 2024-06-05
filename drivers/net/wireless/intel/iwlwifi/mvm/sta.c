@@ -857,12 +857,6 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 		size = iwl_mvm_get_queue_size(sta);
 	}
 
-	/* take the min with bc tbl entries allowed */
-	size = min_t(u32, size, mvm->trans->txqs.bc_tbl_size / sizeof(u16));
-
-	/* size needs to be power of 2 values for calculating read/write pointers */
-	size = rounddown_pow_of_two(size);
-
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		struct ieee80211_link_sta *link_sta;
@@ -887,22 +881,13 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 	if (!sta_mask)
 		return -EINVAL;
 
-	do {
-		queue = iwl_trans_txq_alloc(mvm->trans, 0, sta_mask,
-					    tid, size, timeout);
+	queue = iwl_trans_txq_alloc(mvm->trans, 0, sta_mask,
+				    tid, size, timeout);
 
-		if (queue < 0)
-			IWL_DEBUG_TX_QUEUES(mvm,
-					    "Failed allocating TXQ of size %d for sta mask %x tid %d, ret: %d\n",
-					    size, sta_mask, tid, queue);
-		size /= 2;
-	} while (queue < 0 && size >= 16);
-
-	if (queue < 0)
-		return queue;
-
-	IWL_DEBUG_TX_QUEUES(mvm, "Enabling TXQ #%d for sta mask 0x%x tid %d\n",
-			    queue, sta_mask, tid);
+	if (queue >= 0)
+		IWL_DEBUG_TX_QUEUES(mvm,
+				    "Enabling TXQ #%d for sta mask 0x%x tid %d\n",
+				    queue, sta_mask, tid);
 
 	return queue;
 }
