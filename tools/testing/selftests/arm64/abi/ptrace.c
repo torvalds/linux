@@ -47,7 +47,7 @@ static void test_tpidr(pid_t child)
 
 	/* ...write a new value.. */
 	write_iov.iov_len = sizeof(uint64_t);
-	write_val[0] = read_val[0]++;
+	write_val[0] = read_val[0] + 1;
 	ret = ptrace(PTRACE_SETREGSET, child, NT_ARM_TLS, &write_iov);
 	ksft_test_result(ret == 0, "write_tpidr_one\n");
 
