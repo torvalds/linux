@@ -1093,11 +1093,8 @@ static int cm_event_handler(struct iw_cm_id *cm_id,
 	}
 
 	refcount_inc(&cm_id_priv->refcount);
-	if (list_empty(&cm_id_priv->work_list)) {
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-		queue_work(iwcm_wq, &work->work);
-	} else
-		list_add_tail(&work->list, &cm_id_priv->work_list);
+	list_add_tail(&work->list, &cm_id_priv->work_list);
+	queue_work(iwcm_wq, &work->work);
 out:
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	return ret;
