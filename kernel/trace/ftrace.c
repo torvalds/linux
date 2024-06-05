@@ -1384,10 +1384,8 @@ alloc_and_copy_ftrace_hash(int size_bits, struct ftrace_hash *hash)
 	return NULL;
 }
 
-static void
-ftrace_hash_rec_disable_modify(struct ftrace_ops *ops, int filter_hash);
-static void
-ftrace_hash_rec_enable_modify(struct ftrace_ops *ops, int filter_hash);
+static void ftrace_hash_rec_disable_modify(struct ftrace_ops *ops);
+static void ftrace_hash_rec_enable_modify(struct ftrace_ops *ops);
 
 static int ftrace_hash_ipmodify_update(struct ftrace_ops *ops,
 				       struct ftrace_hash *new_hash);
@@ -1475,11 +1473,11 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 	 * Remove the current set, update the hash and add
 	 * them back.
 	 */
-	ftrace_hash_rec_disable_modify(ops, enable);
+	ftrace_hash_rec_disable_modify(ops);
 
 	rcu_assign_pointer(*dst, new_hash);
 
-	ftrace_hash_rec_enable_modify(ops, enable);
+	ftrace_hash_rec_enable_modify(ops);
 
 	return 0;
 }
@@ -1702,12 +1700,21 @@ static bool skip_record(struct dyn_ftrace *rec)
 		!(rec->flags & FTRACE_FL_ENABLED);
 }
 
+/*
+ * This is the main engine to the ftrace updates to the dyn_ftrace records.
+ *
+ * It will iterate through all the available ftrace functions
+ * (the ones that ftrace can have callbacks to) and set the flags
+ * in the associated dyn_ftrace records.
+ *
+ * @inc: If true, the functions associated to @ops are added to
+ *       the dyn_ftrace records, otherwise they are removed.
+ */
 static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
-				     int filter_hash,
 				     bool inc)
 {
 	struct ftrace_hash *hash;
-	struct ftrace_hash *other_hash;
+	struct ftrace_hash *notrace_hash;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	bool update = false;
@@ -1719,35 +1726,16 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 		return false;
 
 	/*
-	 * In the filter_hash case:
 	 *   If the count is zero, we update all records.
 	 *   Otherwise we just update the items in the hash.
-	 *
-	 * In the notrace_hash case:
-	 *   We enable the update in the hash.
-	 *   As disabling notrace means enabling the tracing,
-	 *   and enabling notrace means disabling, the inc variable
-	 *   gets inversed.
 	 */
-	if (filter_hash) {
-		hash = ops->func_hash->filter_hash;
-		other_hash = ops->func_hash->notrace_hash;
-		if (ftrace_hash_empty(hash))
-			all = true;
-	} else {
-		inc = !inc;
-		hash = ops->func_hash->notrace_hash;
-		other_hash = ops->func_hash->filter_hash;
-		/*
-		 * If the notrace hash has no items,
-		 * then there's nothing to do.
-		 */
-		if (ftrace_hash_empty(hash))
-			return false;
-	}
+	hash = ops->func_hash->filter_hash;
+	notrace_hash = ops->func_hash->notrace_hash;
+	if (ftrace_hash_empty(hash))
+		all = true;
 
 	do_for_each_ftrace_rec(pg, rec) {
-		int in_other_hash = 0;
+		int in_notrace_hash = 0;
 		int in_hash = 0;
 		int match = 0;
 
@@ -1759,26 +1747,17 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			 * Only the filter_hash affects all records.
 			 * Update if the record is not in the notrace hash.
 			 */
-			if (!other_hash || !ftrace_lookup_ip(other_hash, rec->ip))
+			if (!notrace_hash || !ftrace_lookup_ip(notrace_hash, rec->ip))
 				match = 1;
 		} else {
 			in_hash = !!ftrace_lookup_ip(hash, rec->ip);
-			in_other_hash = !!ftrace_lookup_ip(other_hash, rec->ip);
+			in_notrace_hash = !!ftrace_lookup_ip(notrace_hash, rec->ip);
 
 			/*
-			 * If filter_hash is set, we want to match all functions
-			 * that are in the hash but not in the other hash.
-			 *
-			 * If filter_hash is not set, then we are decrementing.
-			 * That means we match anything that is in the hash
-			 * and also in the other_hash. That is, we need to turn
-			 * off functions in the other hash because they are disabled
-			 * by this hash.
+			 * We want to match all functions that are in the hash but
+			 * not in the other hash.
 			 */
-			if (filter_hash && in_hash && !in_other_hash)
-				match = 1;
-			else if (!filter_hash && in_hash &&
-				 (in_other_hash || ftrace_hash_empty(other_hash)))
+			if (in_hash && !in_notrace_hash)
 				match = 1;
 		}
 		if (!match)
@@ -1884,24 +1863,21 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 	return update;
 }
 
-static bool ftrace_hash_rec_disable(struct ftrace_ops *ops,
-				    int filter_hash)
+static bool ftrace_hash_rec_disable(struct ftrace_ops *ops)
 {
-	return __ftrace_hash_rec_update(ops, filter_hash, 0);
+	return __ftrace_hash_rec_update(ops, 0);
 }
 
-static bool ftrace_hash_rec_enable(struct ftrace_ops *ops,
-				   int filter_hash)
+static bool ftrace_hash_rec_enable(struct ftrace_ops *ops)
 {
-	return __ftrace_hash_rec_update(ops, filter_hash, 1);
+	return __ftrace_hash_rec_update(ops, 1);
 }
 
-static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops,
-					  int filter_hash, int inc)
+static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops, int inc)
 {
 	struct ftrace_ops *op;
 
-	__ftrace_hash_rec_update(ops, filter_hash, inc);
+	__ftrace_hash_rec_update(ops, inc);
 
 	if (ops->func_hash != &global_ops.local_hash)
 		return;
@@ -1915,20 +1891,18 @@ static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops,
 		if (op == ops)
 			continue;
 		if (op->func_hash == &global_ops.local_hash)
-			__ftrace_hash_rec_update(op, filter_hash, inc);
+			__ftrace_hash_rec_update(op, inc);
 	} while_for_each_ftrace_op(op);
 }
 
-static void ftrace_hash_rec_disable_modify(struct ftrace_ops *ops,
-					   int filter_hash)
+static void ftrace_hash_rec_disable_modify(struct ftrace_ops *ops)
 {
-	ftrace_hash_rec_update_modify(ops, filter_hash, 0);
+	ftrace_hash_rec_update_modify(ops, 0);
 }
 
-static void ftrace_hash_rec_enable_modify(struct ftrace_ops *ops,
-					  int filter_hash)
+static void ftrace_hash_rec_enable_modify(struct ftrace_ops *ops)
 {
-	ftrace_hash_rec_update_modify(ops, filter_hash, 1);
+	ftrace_hash_rec_update_modify(ops, 1);
 }
 
 /*
@@ -3051,7 +3025,7 @@ int ftrace_startup(struct ftrace_ops *ops, int command)
 		return ret;
 	}
 
-	if (ftrace_hash_rec_enable(ops, 1))
+	if (ftrace_hash_rec_enable(ops))
 		command |= FTRACE_UPDATE_CALLS;
 
 	ftrace_startup_enable(command);
@@ -3093,7 +3067,7 @@ int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	/* Disabling ipmodify never fails */
 	ftrace_hash_ipmodify_disable(ops);
 
-	if (ftrace_hash_rec_disable(ops, 1))
+	if (ftrace_hash_rec_disable(ops))
 		command |= FTRACE_UPDATE_CALLS;
 
 	ops->flags &= ~FTRACE_OPS_FL_ENABLED;
