@@ -270,7 +270,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			   __entry->guc_state =
 			   atomic_read(&job->q->guc->state);
 			   __entry->flags = job->q->flags;
-			   __entry->error = job->fence->error;
+			   __entry->error = job->fence ? job->fence->error : 0;
 			   __entry->fence = job->fence;
 			   __entry->batch_addr = (u64)job->ptrs[0].batch_addr;
 			   ),
