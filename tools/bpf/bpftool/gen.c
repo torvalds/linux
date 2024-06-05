@@ -2379,15 +2379,6 @@ out:
 	return err;
 }
 
-static int btfgen_remap_id(__u32 *type_id, void *ctx)
-{
-	unsigned int *ids = ctx;
-
-	*type_id = ids[*type_id];
-
-	return 0;
-}
-
 /* Generate BTF from relocation information previously recorded */
 static struct btf *btfgen_get_btf(struct btfgen_info *info)
 {
@@ -2467,10 +2458,15 @@ static struct btf *btfgen_get_btf(struct btfgen_info *info)
 	/* second pass: fix up type ids */
 	for (i = 1; i < btf__type_cnt(btf_new); i++) {
 		struct btf_type *btf_type = (struct btf_type *) btf__type_by_id(btf_new, i);
+		struct btf_field_iter it;
+		__u32 *type_id;
 
-		err = btf_type_visit_type_ids(btf_type, btfgen_remap_id, ids);
+		err = btf_field_iter_init(&it, btf_type, BTF_FIELD_ITER_IDS);
 		if (err)
 			goto err_out;
+
+		while ((type_id = btf_field_iter_next(&it)))
+			*type_id = ids[*type_id];
 	}
 
 	free(ids);
