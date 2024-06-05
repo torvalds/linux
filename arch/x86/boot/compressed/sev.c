@@ -463,6 +463,13 @@ static bool early_snp_init(struct boot_params *bp)
 	setup_cpuid_table(cc_info);
 
 	/*
+	 * Record the SVSM Calling Area (CA) address if the guest is not
+	 * running at VMPL0. The CA will be used to communicate with the
+	 * SVSM and request its services.
+	 */
+	svsm_setup_ca(cc_info);
+
+	/*
 	 * Pass run-time kernel a pointer to CC info via boot_params so EFI
 	 * config table doesn't need to be searched again during early startup
 	 * phase.
@@ -571,14 +578,12 @@ void sev_enable(struct boot_params *bp)
 		/*
 		 * Enforce running at VMPL0.
 		 *
-		 * RMPADJUST modifies RMP permissions of a lesser-privileged (numerically
-		 * higher) privilege level. Here, clear the VMPL1 permission mask of the
-		 * GHCB page. If the guest is not running at VMPL0, this will fail.
-		 *
-		 * If the guest is running at VMPL0, it will succeed. Even if that operation
-		 * modifies permission bits, it is still ok to do so currently because Linux
-		 * SNP guests running at VMPL0 only run at VMPL0, so VMPL1 or higher
-		 * permission mask changes are a don't-care.
+		 * Use RMPADJUST (see the rmpadjust() function for a description of
+		 * what the instruction does) to update the VMPL1 permissions of a
+		 * page. If the guest is running at VMPL0, this will succeed. If the
+		 * guest is running at any other VMPL, this will fail. Linux SNP guests
+		 * only ever run at a single VMPL level so permission mask changes of a
+		 * lesser-privileged VMPL are a don't-care.
 		 */
 		if (rmpadjust((unsigned long)&boot_ghcb_page, RMP_PG_SIZE_4K, 1))
 			sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_NOT_VMPL0);

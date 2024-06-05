@@ -130,4 +130,31 @@ SNP feature support.
 
 More details in AMD64 APM[1] Vol 2: 15.34.10 SEV_STATUS MSR
 
-[1] https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24593.pdf
+Secure VM Service Module (SVSM)
+===============================
+SNP provides a feature called Virtual Machine Privilege Levels (VMPL) which
+defines four privilege levels at which guest software can run. The most
+privileged level is 0 and numerically higher numbers have lesser privileges.
+More details in the AMD64 APM Vol 2, section "15.35.7 Virtual Machine
+Privilege Levels", docID: 24593.
+
+When using that feature, different services can run at different protection
+levels, apart from the guest OS but still within the secure SNP environment.
+They can provide services to the guest, like a vTPM, for example.
+
+When a guest is not running at VMPL0, it needs to communicate with the software
+running at VMPL0 to perform privileged operations or to interact with secure
+services. An example fur such a privileged operation is PVALIDATE which is
+*required* to be executed at VMPL0.
+
+In this scenario, the software running at VMPL0 is usually called a Secure VM
+Service Module (SVSM). Discovery of an SVSM and the API used to communicate
+with it is documented in "Secure VM Service Module for SEV-SNP Guests", docID:
+58019.
+
+(Latest versions of the above-mentioned documents can be found by using
+a search engine like duckduckgo.com and typing in:
+
+  site:amd.com "Secure VM Service Module for SEV-SNP Guests", docID: 58019
+
+for example.)
