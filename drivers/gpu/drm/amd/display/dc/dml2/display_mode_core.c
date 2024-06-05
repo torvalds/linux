@@ -2733,7 +2733,7 @@ static dml_float_t TruncToValidBPP(
 		NonDSCBPP1 = 15;
 		NonDSCBPP2 = 18;
 		MinDSCBPP = 6;
-		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1 / 16;
+		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1.0 / 16;
 	} else if (Format == dml_444) {
 		NonDSCBPP0 = 24;
 		NonDSCBPP1 = 30;
@@ -5404,10 +5404,10 @@ static void CalculateOutputLink(
 			}
 			if (Output == dml_dp2p0) {
 				*OutBpp = 0;
-				if ((OutputLinkDPRate == dml_dp_rate_na || OutputLinkDPRate == dml_dp_rate_uhbr10) && PHYCLKD32PerState >= 10000 / 32) {
+				if ((OutputLinkDPRate == dml_dp_rate_na || OutputLinkDPRate == dml_dp_rate_uhbr10) && PHYCLKD32PerState >= 10000 / 32.0) {
 					*OutBpp = TruncToValidBPP((1 - Downspreading / 100) * 10000, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
 												OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
-					if (*OutBpp == 0 && PHYCLKD32PerState < 13500 / 32 && DSCEnable == dml_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
+					if (*OutBpp == 0 && PHYCLKD32PerState < 13500 / 32.0 && DSCEnable == dml_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
 						*RequiresDSC = true;
 						LinkDSCEnable = true;
 						*OutBpp = TruncToValidBPP((1 - Downspreading / 100) * 10000, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
@@ -5417,7 +5417,7 @@ static void CalculateOutputLink(
 					*OutputType = dml_output_type_dp2p0;
 					*OutputRate = dml_output_rate_dp_rate_uhbr10;
 				}
-				if ((OutputLinkDPRate == dml_dp_rate_na || OutputLinkDPRate == dml_dp_rate_uhbr13p5) && *OutBpp == 0 && PHYCLKD32PerState >= 13500 / 32) {
+				if ((OutputLinkDPRate == dml_dp_rate_na || OutputLinkDPRate == dml_dp_rate_uhbr13p5) && *OutBpp == 0 && PHYCLKD32PerState >= 13500 / 32.0) {
 					*OutBpp = TruncToValidBPP((1 - Downspreading / 100) * 13500, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
 												OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
 
@@ -9701,7 +9701,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 											+ dml_max(1.0, dml_ceil((dml_float_t) locals->WritebackDelay[k] / ((dml_float_t) mode_lib->ms.cache_display_cfg.timing.HTotal[k] / mode_lib->ms.cache_display_cfg.timing.PixelClock[k]), 1.0))
 											+ dml_floor(4.0 * locals->TSetup[k] / ((dml_float_t) mode_lib->ms.cache_display_cfg.timing.HTotal[k] / mode_lib->ms.cache_display_cfg.timing.PixelClock[k]), 1.0) / 4.0;
 
-		if (((locals->VUpdateOffsetPix[k] + locals->VUpdateWidthPix[k] + locals->VReadyOffsetPix[k]) / mode_lib->ms.cache_display_cfg.timing.HTotal[k]) <=
+		if (((locals->VUpdateOffsetPix[k] + locals->VUpdateWidthPix[k] + locals->VReadyOffsetPix[k]) / (double) mode_lib->ms.cache_display_cfg.timing.HTotal[k]) <=
 			(isInterlaceTiming ?
 				dml_floor((mode_lib->ms.cache_display_cfg.timing.VTotal[k] - mode_lib->ms.cache_display_cfg.timing.VActive[k] - mode_lib->ms.cache_display_cfg.timing.VFrontPorch[k] - locals->VStartup[k]) / 2.0, 1.0) :
 				(int) (mode_lib->ms.cache_display_cfg.timing.VTotal[k] - mode_lib->ms.cache_display_cfg.timing.VActive[k] - mode_lib->ms.cache_display_cfg.timing.VFrontPorch[k] - locals->VStartup[k]))) {

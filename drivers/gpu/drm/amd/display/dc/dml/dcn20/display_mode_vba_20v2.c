@@ -1077,7 +1077,7 @@ static unsigned int CalculateVMAndRowBytes(
 			if (ScanDirection == dm_horz)
 				FractionOfPTEReturnDrop = 0;
 			else
-				FractionOfPTEReturnDrop = 7 / 8;
+				FractionOfPTEReturnDrop = 7.0 / 8;
 		} else if (VMMPageSize == 4096 && MacroTileSizeBytes > 4096) {
 			PixelPTEReqHeight = 16 * BlockHeight256Bytes;
 			PixelPTEReqWidth = 16 * BlockWidth256Bytes;
@@ -4443,7 +4443,7 @@ void dml20v2_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode
 					locals->RoundedUpMaxSwathSizeBytesC = 0;
 				}
 
-				if (locals->RoundedUpMaxSwathSizeBytesY + locals->RoundedUpMaxSwathSizeBytesC <= locals->DETBufferSizeInKByte[0] * 1024 / 2) {
+				if (locals->RoundedUpMaxSwathSizeBytesY + locals->RoundedUpMaxSwathSizeBytesC <= locals->DETBufferSizeInKByte[0] * 1024.0 / 2) {
 					locals->SwathHeightYPerState[i][j][k] = locals->MaxSwathHeightY[k];
 					locals->SwathHeightCPerState[i][j][k] = locals->MaxSwathHeightC[k];
 				} else {

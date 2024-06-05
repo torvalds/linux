@@ -4202,10 +4202,10 @@ static void CalculateOutputLink(
 			}
 			if (Output == dml2_dp2p0) {
 				*OutBpp = 0;
-				if ((OutputLinkDPRate == dml2_dp_rate_na || OutputLinkDPRate == dml2_dp_rate_uhbr10) && PHYCLKD32 >= 10000 / 32) {
+				if ((OutputLinkDPRate == dml2_dp_rate_na || OutputLinkDPRate == dml2_dp_rate_uhbr10) && PHYCLKD32 >= 10000.0 / 32) {
 					*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, (1 - Downspreading / 100) * 10000, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
 						OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
-					if (*OutBpp == 0 && PHYCLKD32 < 13500 / 32 && DSCEnable == dml2_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
+					if (*OutBpp == 0 && PHYCLKD32 < 13500.0 / 32 && DSCEnable == dml2_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
 						*RequiresDSC = true;
 						LinkDSCEnable = true;
 						*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, (1 - Downspreading / 100) * 10000, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
@@ -4215,11 +4215,11 @@ static void CalculateOutputLink(
 					*OutputType = dml2_core_internal_output_type_dp2p0;
 					*OutputRate = dml2_core_internal_output_rate_dp_rate_uhbr10;
 				}
-				if ((OutputLinkDPRate == dml2_dp_rate_na || OutputLinkDPRate == dml2_dp_rate_uhbr13p5) && *OutBpp == 0 && PHYCLKD32 >= 13500 / 32) {
+				if ((OutputLinkDPRate == dml2_dp_rate_na || OutputLinkDPRate == dml2_dp_rate_uhbr13p5) && *OutBpp == 0 && PHYCLKD32 >= 13500.0 / 32) {
 					*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, (1 - Downspreading / 100) * 13500, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
 						OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
 
-					if (*OutBpp == 0 && PHYCLKD32 < 20000 / 32 && DSCEnable == dml2_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
+					if (*OutBpp == 0 && PHYCLKD32 < 20000.0 / 32 && DSCEnable == dml2_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
 						*RequiresDSC = true;
 						LinkDSCEnable = true;
 						*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, (1 - Downspreading / 100) * 13500, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
@@ -4229,7 +4229,7 @@ static void CalculateOutputLink(
 					*OutputType = dml2_core_internal_output_type_dp2p0;
 					*OutputRate = dml2_core_internal_output_rate_dp_rate_uhbr13p5;
 				}
-				if ((OutputLinkDPRate == dml2_dp_rate_na || OutputLinkDPRate == dml2_dp_rate_uhbr20) && *OutBpp == 0 && PHYCLKD32 >= 20000 / 32) {
+				if ((OutputLinkDPRate == dml2_dp_rate_na || OutputLinkDPRate == dml2_dp_rate_uhbr20) && *OutBpp == 0 && PHYCLKD32 >= 20000.0 / 32) {
 					*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, (1 - Downspreading / 100) * 20000, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
 						OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
 					if (*OutBpp == 0 && DSCEnable == dml2_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
@@ -4306,33 +4306,33 @@ static void CalculateOutputLink(
 				*RequiresFEC = false;
 			}
 			*OutBpp = 0;
-			if (PHYCLKD18 >= 3000 / 18) {
+			if (PHYCLKD18 >= 3000.0 / 18) {
 				*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, 3000, 3, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
 				//OutputTypeAndRate = Output & "3x3";
 				*OutputType = dml2_core_internal_output_type_hdmifrl;
 				*OutputRate = dml2_core_internal_output_rate_hdmi_rate_3x3;
 			}
-			if (*OutBpp == 0 && PHYCLKD18 >= 6000 / 18) {
+			if (*OutBpp == 0 && PHYCLKD18 >= 6000.0 / 18) {
 				*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, 6000, 3, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
 				//OutputTypeAndRate = Output & "6x3";
 				*OutputType = dml2_core_internal_output_type_hdmifrl;
 				*OutputRate = dml2_core_internal_output_rate_hdmi_rate_6x3;
 			}
-			if (*OutBpp == 0 && PHYCLKD18 >= 6000 / 18) {
+			if (*OutBpp == 0 && PHYCLKD18 >= 6000.0 / 18) {
 				*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, 6000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
 				//OutputTypeAndRate = Output & "6x4";
 				*OutputType = dml2_core_internal_output_type_hdmifrl;
 				*OutputRate = dml2_core_internal_output_rate_hdmi_rate_6x4;
 			}
-			if (*OutBpp == 0 && PHYCLKD18 >= 8000 / 18) {
+			if (*OutBpp == 0 && PHYCLKD18 >= 8000.0 / 18) {
 				*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, 8000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
 				//OutputTypeAndRate = Output & "8x4";
 				*OutputType = dml2_core_internal_output_type_hdmifrl;
 				*OutputRate = dml2_core_internal_output_rate_hdmi_rate_8x4;
 			}
-			if (*OutBpp == 0 && PHYCLKD18 >= 10000 / 18) {
+			if (*OutBpp == 0 && PHYCLKD18 >= 10000.0 / 18) {
 				*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, 10000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
-				if (*OutBpp == 0 && DSCEnable == dml2_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0 && PHYCLKD18 < 12000 / 18) {
+				if (*OutBpp == 0 && DSCEnable == dml2_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0 && PHYCLKD18 < 12000.0 / 18) {
 					*RequiresDSC = true;
 					LinkDSCEnable = true;
 					*RequiresFEC = true;
@@ -4342,7 +4342,7 @@ static void CalculateOutputLink(
 				*OutputType = dml2_core_internal_output_type_hdmifrl;
 				*OutputRate = dml2_core_internal_output_rate_hdmi_rate_10x4;
 			}
-			if (*OutBpp == 0 && PHYCLKD18 >= 12000 / 18) {
+			if (*OutBpp == 0 && PHYCLKD18 >= 12000.0 / 18) {
 				*OutBpp = TruncToValidBPP(&s->TruncToValidBPP_locals, 12000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (unsigned int)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
 				if (*OutBpp == 0 && DSCEnable == dml2_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
 					*RequiresDSC = true;
@@ -7126,7 +7126,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	mode_lib->ms.support.WritebackLatencySupport = true;
 	for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
 		if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.enable == true &&
-			(mode_lib->ms.WriteBandwidth[k] > mode_lib->ip.writeback_interface_buffer_size_kbytes * 1024 / mode_lib->soc.qos_parameters.writeback.base_latency_us)) {
+			(mode_lib->ms.WriteBandwidth[k] > mode_lib->ip.writeback_interface_buffer_size_kbytes * 1024.0 / mode_lib->soc.qos_parameters.writeback.base_latency_us)) {
 			mode_lib->ms.support.WritebackLatencySupport = false;
 		}
 	}
@@ -11350,7 +11350,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			mode_lib->mp.MIN_DST_Y_NEXT_START[k] = s->dlg_vblank_start + s->blank_lines_remaining + s->LSetup;
 
 			// debug only
-			if (((mode_lib->mp.VUpdateOffsetPix[k] + mode_lib->mp.VUpdateWidthPix[k] + mode_lib->mp.VReadyOffsetPix[k]) / display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total) <=
+			if (((mode_lib->mp.VUpdateOffsetPix[k] + mode_lib->mp.VUpdateWidthPix[k] + mode_lib->mp.VReadyOffsetPix[k]) / (double) display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total) <=
 				(isInterlaceTiming ?
 					math_floor2((display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.v_total - display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.v_active - display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.v_front_porch - mode_lib->mp.VStartup[k]) / 2.0, 1.0) :
 					(int)(display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.v_total - display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.v_active - display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.v_front_porch - mode_lib->mp.VStartup[k]))) {
