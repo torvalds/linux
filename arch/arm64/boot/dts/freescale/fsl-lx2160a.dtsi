@@ -928,7 +928,7 @@
 		esdhc0: esdhc@2140000 {
 			compatible = "fsl,esdhc";
 			reg = <0x0 0x2140000 0x0 0x10000>;
-			interrupts = <0 28 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			dma-coherent;
@@ -942,7 +942,7 @@
 		esdhc1: esdhc@2150000 {
 			compatible = "fsl,esdhc";
 			reg = <0x0 0x2150000 0x0 0x10000>;
-			interrupts = <0 63 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			dma-coherent;

@@ -859,8 +859,8 @@
 		malidp0: display@f080000 {
 			compatible = "arm,mali-dp500";
 			reg = <0x0 0xf080000 0x0 0x10000>;
-			interrupts = <0 222 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 223 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "DE", "SE";
 			clocks = <&dpclk>,
 				 <&clockgen QORIQ_CLK_HWACCEL 2>,
@@ -1024,7 +1024,7 @@
 		tmu: tmu@1f80000 {
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f80000 0x0 0x10000>;
-			interrupts = <0 23 0x4>;
+			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,tmu-range = <0xb0000 0xa0026 0x80048 0x70061>;
 			fsl,tmu-calibration =
 					<0x00000000 0x00000024>,
