@@ -1395,8 +1395,20 @@ struct chromaticity {
 	u8 white_y_hi;
 } __packed;
 
+struct luminance_and_gamma {
+	u8 luminance_enable:1;						/* 211+ */
+	u8 gamma_enable:1;						/* 211+ */
+	u8 rsvd:6;
+
+	u16 min_luminance;						/* 211+ */
+	u16 max_luminance;						/* 211+ */
+	u16 one_percent_max_luminance;					/* 211+ */
+	u8 gamma;							/* 211+ */
+} __packed;
+
 struct bdb_chromaticity {
 	struct chromaticity chromaticity[16];
+	struct luminance_and_gamma luminance_and_gamma[16];		/* 211+ */
 } __packed;
 
 /*
