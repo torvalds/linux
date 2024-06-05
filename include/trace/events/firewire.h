@@ -11,7 +11,7 @@
 
 #include <linux/firewire-constants.h>
 
-#include "../../../drivers/firewire/packet-header-definitions.h"
+// Some macros are defined in 'drivers/firewire/packet-header-definitions.h'.
 
 // The content of TP_printk field is preprocessed, then put to the module binary.
 #define ASYNC_HEADER_GET_DESTINATION(header)	\
