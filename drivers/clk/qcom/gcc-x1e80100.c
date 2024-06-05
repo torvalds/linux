@@ -6781,7 +6781,7 @@ static int gcc_x1e80100_probe(struct platform_device *pdev)
 	/* Clear GDSC_SLEEP_ENA_VOTE to stop votes being auto-removed in sleep. */
 	regmap_write(regmap, 0x52224, 0x0);
 
-	return qcom_cc_really_probe(pdev, &gcc_x1e80100_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gcc_x1e80100_desc, regmap);
 }
 
 static struct platform_driver gcc_x1e80100_driver = {

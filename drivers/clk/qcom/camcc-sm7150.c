@@ -2044,7 +2044,7 @@ static int camcc_sm7150_probe(struct platform_device *pdev)
 	/* Keep some clocks always-on */
 	qcom_branch_set_clk_en(regmap, 0xc1a0); /* CAMCC_GDSC_CLK */
 
-	return qcom_cc_really_probe(pdev, &camcc_sm7150_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &camcc_sm7150_desc, regmap);
 }
 
 static struct platform_driver camcc_sm7150_driver = {

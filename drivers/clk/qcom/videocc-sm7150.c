@@ -341,7 +341,7 @@ static int videocc_sm7150_probe(struct platform_device *pdev)
 	/* Keep some clocks always-on */
 	qcom_branch_set_clk_en(regmap, 0x984); /* VIDEOCC_XO_CLK */
 
-	return qcom_cc_really_probe(pdev, &videocc_sm7150_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &videocc_sm7150_desc, regmap);
 }
 
 static struct platform_driver videocc_sm7150_driver = {
