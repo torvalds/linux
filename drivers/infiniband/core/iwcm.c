@@ -1017,16 +1017,13 @@ static void cm_work_handler(struct work_struct *_work)
 	struct iw_cm_event levent;
 	struct iwcm_id_private *cm_id_priv = work->cm_id;
 	unsigned long flags;
-	int empty;
 	int ret = 0;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
-	empty = list_empty(&cm_id_priv->work_list);
-	while (!empty) {
+	while (!list_empty(&cm_id_priv->work_list)) {
 		work = list_first_entry(&cm_id_priv->work_list,
 					struct iwcm_work, list);
 		list_del_init(&work->list);
-		empty = list_empty(&cm_id_priv->work_list);
 		levent = work->event;
 		put_work(work);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
@@ -1038,8 +1035,6 @@ static void cm_work_handler(struct work_struct *_work)
 		} else
 			pr_debug("dropping event %d\n", levent.event);
 		if (iwcm_deref_id(cm_id_priv))
-			return;
-		if (empty)
 			return;
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 	}
