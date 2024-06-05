@@ -1739,9 +1739,8 @@ struct btf_pipe {
 	struct hashmap *str_off_map; /* map string offsets from src to dst */
 };
 
-static int btf_rewrite_str(__u32 *str_off, void *ctx)
+static int btf_rewrite_str(struct btf_pipe *p, __u32 *str_off)
 {
-	struct btf_pipe *p = ctx;
 	long mapped_off;
 	int off, err;
 
@@ -1774,7 +1773,9 @@ static int btf_rewrite_str(__u32 *str_off, void *ctx)
 int btf__add_type(struct btf *btf, const struct btf *src_btf, const struct btf_type *src_type)
 {
 	struct btf_pipe p = { .src = src_btf, .dst = btf };
+	struct btf_field_iter it;
 	struct btf_type *t;
+	__u32 *str_off;
 	int sz, err;
 
 	sz = btf_type_size(src_type);
@@ -1791,26 +1792,17 @@ int btf__add_type(struct btf *btf, const struct btf *src_btf, const struct btf_t
 
 	memcpy(t, src_type, sz);
 
-	err = btf_type_visit_str_offs(t, btf_rewrite_str, &p);
+	err = btf_field_iter_init(&it, t, BTF_FIELD_ITER_STRS);
 	if (err)
 		return libbpf_err(err);
 
+	while ((str_off = btf_field_iter_next(&it))) {
+		err = btf_rewrite_str(&p, str_off);
+		if (err)
+			return libbpf_err(err);
+	}
+
 	return btf_commit_type(btf, sz);
-}
-
-static int btf_rewrite_type_ids(__u32 *type_id, void *ctx)
-{
-	struct btf *btf = ctx;
-
-	if (!*type_id) /* nothing to do for VOID references */
-		return 0;
-
-	/* we haven't updated btf's type count yet, so
-	 * btf->start_id + btf->nr_types - 1 is the type ID offset we should
-	 * add to all newly added BTF types
-	 */
-	*type_id += btf->start_id + btf->nr_types - 1;
-	return 0;
 }
 
 static size_t btf_dedup_identity_hash_fn(long key, void *ctx);
@@ -1858,6 +1850,9 @@ int btf__add_btf(struct btf *btf, const struct btf *src_btf)
 	memcpy(t, src_btf->types_data, data_sz);
 
 	for (i = 0; i < cnt; i++) {
+		struct btf_field_iter it;
+		__u32 *type_id, *str_off;
+
 		sz = btf_type_size(t);
 		if (sz < 0) {
 			/* unlikely, has to be corrupted src_btf */
@@ -1869,14 +1864,30 @@ int btf__add_btf(struct btf *btf, const struct btf *src_btf)
 		*off = t - btf->types_data;
 
 		/* add, dedup, and remap strings referenced by this BTF type */
-		err = btf_type_visit_str_offs(t, btf_rewrite_str, &p);
+		err = btf_field_iter_init(&it, t, BTF_FIELD_ITER_STRS);
+		if (err)
+			goto err_out;
+		while ((str_off = btf_field_iter_next(&it))) {
+			err = btf_rewrite_str(&p, str_off);
+			if (err)
+				goto err_out;
+		}
+
+		/* remap all type IDs referenced from this BTF type */
+		err = btf_field_iter_init(&it, t, BTF_FIELD_ITER_IDS);
 		if (err)
 			goto err_out;
 
-		/* remap all type IDs referenced from this BTF type */
-		err = btf_type_visit_type_ids(t, btf_rewrite_type_ids, btf);
-		if (err)
-			goto err_out;
+		while ((type_id = btf_field_iter_next(&it))) {
+			if (!*type_id) /* nothing to do for VOID references */
+				continue;
+
+			/* we haven't updated btf's type count yet, so
+			 * btf->start_id + btf->nr_types - 1 is the type ID offset we should
+			 * add to all newly added BTF types
+			 */
+			*type_id += btf->start_id + btf->nr_types - 1;
+		}
 
 		/* go to next type data and type offset index entry */
 		t += sz;
@@ -3453,11 +3464,19 @@ static int btf_for_each_str_off(struct btf_dedup *d, str_off_visit_fn fn, void *
 	int i, r;
 
 	for (i = 0; i < d->btf->nr_types; i++) {
+		struct btf_field_iter it;
 		struct btf_type *t = btf_type_by_id(d->btf, d->btf->start_id + i);
+		__u32 *str_off;
 
-		r = btf_type_visit_str_offs(t, fn, ctx);
+		r = btf_field_iter_init(&it, t, BTF_FIELD_ITER_STRS);
 		if (r)
 			return r;
+
+		while ((str_off = btf_field_iter_next(&it))) {
+			r = fn(str_off, ctx);
+			if (r)
+				return r;
+		}
 	}
 
 	if (!d->btf_ext)
@@ -4919,10 +4938,23 @@ static int btf_dedup_remap_types(struct btf_dedup *d)
 
 	for (i = 0; i < d->btf->nr_types; i++) {
 		struct btf_type *t = btf_type_by_id(d->btf, d->btf->start_id + i);
+		struct btf_field_iter it;
+		__u32 *type_id;
 
-		r = btf_type_visit_type_ids(t, btf_dedup_remap_type_id, d);
+		r = btf_field_iter_init(&it, t, BTF_FIELD_ITER_IDS);
 		if (r)
 			return r;
+
+		while ((type_id = btf_field_iter_next(&it))) {
+			__u32 resolved_id, new_id;
+
+			resolved_id = resolve_type_id(d, *type_id);
+			new_id = d->hypot_map[resolved_id];
+			if (new_id > BTF_MAX_NR_TYPES)
+				return -EINVAL;
+
+			*type_id = new_id;
+		}
 	}
 
 	if (!d->btf_ext)
