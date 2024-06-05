@@ -1196,6 +1196,19 @@ tcp_pingpong_thresh - INTEGER
 
 	Default: 1
 
+tcp_rto_min_us - INTEGER
+	Minimal TCP retransmission timeout (in microseconds). Note that the
+	rto_min route option has the highest precedence for configuring this
+	setting, followed by the TCP_BPF_RTO_MIN socket option, followed by
+	this tcp_rto_min_us sysctl.
+
+	The recommended practice is to use a value less or equal to 200000
+	microseconds.
+
+	Possible Values: 1 - INT_MAX
+
+	Default: 200000
+
 UDP variables
 =============
 
