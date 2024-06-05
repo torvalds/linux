@@ -41,6 +41,7 @@
 #include "core.h"
 #include "ohci.h"
 #include "packet-header-definitions.h"
+#include "phy-packet-definitions.h"
 
 #define ohci_info(ohci, f, args...)	dev_info(ohci->card.device, f, ##args)
 #define ohci_notice(ohci, f, args...)	dev_notice(ohci->card.device, f, ##args)
@@ -437,11 +438,6 @@ static void log_irqs(struct fw_ohci *ohci, u32 evt)
 						? " ?"			: "");
 }
 
-static unsigned int _p(u32 *s, int shift)
-{
-	return *s >> shift & 3;
-}
-
 static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 {
 	static const char *const speed[] = {
@@ -451,8 +447,16 @@ static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 		[0] = "+0W",  [1] = "+15W", [2] = "+30W",    [3] = "+45W",
 		[4] = "-3W",  [5] = " ?W",  [6] = "-3..-6W", [7] = "-3..-10W",
 	};
-	static const char port[] = { '.', '-', 'p', 'c', };
-	u32 *s;
+	static const char port[] = {
+		[PHY_PACKET_SELF_ID_PORT_STATUS_NONE] = '.',
+		[PHY_PACKET_SELF_ID_PORT_STATUS_NCONN] = '-',
+		[PHY_PACKET_SELF_ID_PORT_STATUS_PARENT] = 'p',
+		[PHY_PACKET_SELF_ID_PORT_STATUS_CHILD] = 'c',
+	};
+	struct self_id_sequence_enumerator enumerator = {
+		.cursor = ohci->self_id_buffer,
+		.quadlet_count = self_id_count,
+	};
 
 	if (likely(!(param_debug & OHCI_PARAM_DEBUG_SELFIDS)))
 		return;
@@ -460,29 +464,46 @@ static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 	ohci_notice(ohci, "%d selfIDs, generation %d, local node ID %04x\n",
 		    self_id_count, generation, ohci->node_id);
 
-	for (s = ohci->self_id_buffer; self_id_count--; ++s)
-		if ((*s & 1 << 23) == 0)
-			ohci_notice(ohci,
-			    "selfID 0: %08x, phy %d [%c%c%c] %s gc=%d %s %s%s%s\n",
-			    *s, *s >> 24 & 63,
-			    port[_p(s, 6)],
-			    port[_p(s, 4)],
-			    port[_p(s, 2)],
-			    speed[*s >> 14 & 3], *s >> 16 & 63,
-			    power[*s >> 8 & 7], *s >> 22 & 1 ? "L" : "",
-			    *s >> 11 & 1 ? "c" : "", *s & 2 ? "i" : "");
-		else
+	while (enumerator.quadlet_count > 0) {
+		unsigned int quadlet_count;
+		unsigned int port_index;
+		const u32 *s;
+		int i;
+
+		s = self_id_sequence_enumerator_next(&enumerator, &quadlet_count);
+		if (IS_ERR(s))
+			break;
+
+		ohci_notice(ohci,
+		    "selfID 0: %08x, phy %d [%c%c%c] %s gc=%d %s %s%s%s\n",
+		    *s,
+		    *s >> 24 & 63,
+		    port[self_id_sequence_get_port_status(s, quadlet_count, 0)],
+		    port[self_id_sequence_get_port_status(s, quadlet_count, 1)],
+		    port[self_id_sequence_get_port_status(s, quadlet_count, 2)],
+		    speed[*s >> 14 & 3], *s >> 16 & 63,
+		    power[*s >> 8 & 7], *s >> 22 & 1 ? "L" : "",
+		    *s >> 11 & 1 ? "c" : "", *s & 2 ? "i" : "");
+
+		port_index = 3;
+		for (i = 1; i < quadlet_count; ++i) {
 			ohci_notice(ohci,
 			    "selfID n: %08x, phy %d [%c%c%c%c%c%c%c%c]\n",
-			    *s, *s >> 24 & 63,
-			    port[_p(s, 16)],
-			    port[_p(s, 14)],
-			    port[_p(s, 12)],
-			    port[_p(s, 10)],
-			    port[_p(s,  8)],
-			    port[_p(s,  6)],
-			    port[_p(s,  4)],
-			    port[_p(s,  2)]);
+			    s[i],
+			    s[i] >> 24 & 63,
+			    port[self_id_sequence_get_port_status(s, quadlet_count, port_index)],
+			    port[self_id_sequence_get_port_status(s, quadlet_count, port_index + 1)],
+			    port[self_id_sequence_get_port_status(s, quadlet_count, port_index + 2)],
+			    port[self_id_sequence_get_port_status(s, quadlet_count, port_index + 3)],
+			    port[self_id_sequence_get_port_status(s, quadlet_count, port_index + 4)],
+			    port[self_id_sequence_get_port_status(s, quadlet_count, port_index + 5)],
+			    port[self_id_sequence_get_port_status(s, quadlet_count, port_index + 6)],
+			    port[self_id_sequence_get_port_status(s, quadlet_count, port_index + 7)]
+			);
+
+			port_index += 8;
+		}
+	}
 }
 
 static const char *evts[] = {
