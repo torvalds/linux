@@ -44,6 +44,11 @@ static bool cros_ec_lpc_acpi_device_found;
  * the ACPI device.
  */
 #define CROS_EC_LPC_QUIRK_ACPI_ID                   BIT(1)
+/*
+ * Indicates that lpc_driver_data.quirk_aml_mutex_name should be used
+ * to find an AML mutex to protect access to Microchip EC.
+ */
+#define CROS_EC_LPC_QUIRK_AML_MUTEX                 BIT(2)
 
 /**
  * struct lpc_driver_data - driver data attached to a DMI device ID to indicate
@@ -52,11 +57,14 @@ static bool cros_ec_lpc_acpi_device_found;
  * @quirk_mmio_memory_base: The first I/O port addressing EC mapped memory (used
  *                          when quirk ...REMAP_MEMORY is set.)
  * @quirk_acpi_id: An ACPI HID to be used to find the ACPI device.
+ * @quirk_aml_mutex_name: The name of an AML mutex to be used to protect access
+ *                        to Microchip EC.
  */
 struct lpc_driver_data {
 	u32 quirks;
 	u16 quirk_mmio_memory_base;
 	const char *quirk_acpi_id;
+	const char *quirk_aml_mutex_name;
 };
 
 /**
@@ -481,6 +489,17 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 				return -ENODEV;
 			}
 			ACPI_COMPANION_SET(dev, adev);
+		}
+
+		if (quirks & CROS_EC_LPC_QUIRK_AML_MUTEX) {
+			const char *name
+				= driver_data->quirk_aml_mutex_name;
+			ret = cros_ec_lpc_mec_acpi_mutex(ACPI_COMPANION(dev), name);
+			if (ret) {
+				dev_err(dev, "failed to get AML mutex '%s'", name);
+				return ret;
+			}
+			dev_info(dev, "got AML mutex '%s'", name);
 		}
 	}
 
