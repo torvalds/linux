@@ -292,6 +292,23 @@ int inv_icm42600_set_accel_conf(struct inv_icm42600_state *st,
 	if (conf->filter < 0)
 		conf->filter = oldconf->filter;
 
+	/* force power mode against ODR when sensor is on */
+	switch (conf->mode) {
+	case INV_ICM42600_SENSOR_MODE_LOW_POWER:
+	case INV_ICM42600_SENSOR_MODE_LOW_NOISE:
+		if (conf->odr <= INV_ICM42600_ODR_1KHZ_LN) {
+			conf->mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+			conf->filter = INV_ICM42600_FILTER_BW_ODR_DIV_2;
+		} else if (conf->odr >= INV_ICM42600_ODR_6_25HZ_LP &&
+			   conf->odr <= INV_ICM42600_ODR_1_5625HZ_LP) {
+			conf->mode = INV_ICM42600_SENSOR_MODE_LOW_POWER;
+			conf->filter = INV_ICM42600_FILTER_AVG_16X;
+		}
+		break;
+	default:
+		break;
+	}
+
 	/* set ACCEL_CONFIG0 register (accel fullscale & odr) */
 	if (conf->fs != oldconf->fs || conf->odr != oldconf->odr) {
 		val = INV_ICM42600_ACCEL_CONFIG0_FS(conf->fs) |
@@ -482,6 +499,16 @@ static int inv_icm42600_setup(struct inv_icm42600_state *st,
 	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INTF_CONFIG0,
 				 INV_ICM42600_INTF_CONFIG0_SENSOR_DATA_ENDIAN,
 				 INV_ICM42600_INTF_CONFIG0_SENSOR_DATA_ENDIAN);
+	if (ret)
+		return ret;
+
+	/*
+	 * Use RC clock for accel low-power to fix glitches when switching
+	 * gyro on/off while accel low-power is on.
+	 */
+	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INTF_CONFIG1,
+				 INV_ICM42600_INTF_CONFIG1_ACCEL_LP_CLK_RC,
+				 INV_ICM42600_INTF_CONFIG1_ACCEL_LP_CLK_RC);
 	if (ret)
 		return ret;
 

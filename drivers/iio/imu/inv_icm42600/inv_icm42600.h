@@ -177,11 +177,15 @@ struct inv_icm42600_state {
  * struct inv_icm42600_sensor_state - sensor state variables
  * @scales:		table of scales.
  * @scales_len:		length (nb of items) of the scales table.
+ * @power_mode:		sensor requested power mode (for common frequencies)
+ * @filter:		sensor filter.
  * @ts:			timestamp module states.
  */
 struct inv_icm42600_sensor_state {
 	const int *scales;
 	size_t scales_len;
+	enum inv_icm42600_sensor_mode power_mode;
+	enum inv_icm42600_filter filter;
 	struct inv_sensors_timestamp ts;
 };
 
