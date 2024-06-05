@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>
@@ -66,8 +67,10 @@
 
 #define HDC3020_CRC8_POLYNOMIAL		0x31
 
-#define HDC3020_MIN_TEMP		-40
-#define HDC3020_MAX_TEMP		125
+#define HDC3020_MIN_TEMP_MICRO		-39872968
+#define HDC3020_MAX_TEMP_MICRO		124875639
+#define HDC3020_MAX_TEMP_HYST_MICRO	164748607
+#define HDC3020_MAX_HUM_MICRO		99220264
 
 struct hdc3020_data {
 	struct i2c_client *client;
@@ -368,6 +371,105 @@ static int hdc3020_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int hdc3020_thresh_get_temp(u16 thresh)
+{
+	int temp;
+
+	/*
+	 * Get the temperature threshold from 9 LSBs, shift them to get
+	 * the truncated temperature threshold representation and
+	 * calculate the threshold according to the formula in the
+	 * datasheet. Result is degree celsius scaled by 65535.
+	 */
+	temp = FIELD_GET(HDC3020_THRESH_TEMP_MASK, thresh) <<
+	       HDC3020_THRESH_TEMP_TRUNC_SHIFT;
+
+	return -2949075 + (175 * temp);
+}
+
+static int hdc3020_thresh_get_hum(u16 thresh)
+{
+	int hum;
+
+	/*
+	 * Get the humidity threshold from 7 MSBs, shift them to get the
+	 * truncated humidity threshold representation and calculate the
+	 * threshold according to the formula in the datasheet. Result is
+	 * percent scaled by 65535.
+	 */
+	hum = FIELD_GET(HDC3020_THRESH_HUM_MASK, thresh) <<
+	      HDC3020_THRESH_HUM_TRUNC_SHIFT;
+
+	return hum * 100;
+}
+
+static u16 hdc3020_thresh_set_temp(int s_temp, u16 curr_thresh)
+{
+	u64 temp;
+	u16 thresh;
+
+	/*
+	 * Calculate temperature threshold, shift it down to get the
+	 * truncated threshold representation in the 9LSBs while keeping
+	 * the current humidity threshold in the 7 MSBs.
+	 */
+	temp = (u64)(s_temp + 45000000) * 65535ULL;
+	temp = div_u64(temp, 1000000 * 175) >> HDC3020_THRESH_TEMP_TRUNC_SHIFT;
+	thresh = FIELD_PREP(HDC3020_THRESH_TEMP_MASK, temp);
+	thresh |= (FIELD_GET(HDC3020_THRESH_HUM_MASK, curr_thresh) <<
+		  HDC3020_THRESH_HUM_TRUNC_SHIFT);
+
+	return thresh;
+}
+
+static u16 hdc3020_thresh_set_hum(int s_hum, u16 curr_thresh)
+{
+	u64 hum;
+	u16 thresh;
+
+	/*
+	 * Calculate humidity threshold, shift it down and up to get the
+	 * truncated threshold representation in the 7MSBs while keeping
+	 * the current temperature threshold in the 9 LSBs.
+	 */
+	hum = (u64)(s_hum) * 65535ULL;
+	hum = div_u64(hum, 1000000 * 100) >> HDC3020_THRESH_HUM_TRUNC_SHIFT;
+	thresh = FIELD_PREP(HDC3020_THRESH_HUM_MASK, hum);
+	thresh |= FIELD_GET(HDC3020_THRESH_TEMP_MASK, curr_thresh);
+
+	return thresh;
+}
+
+static
+int hdc3020_thresh_clr(s64 s_thresh, s64 s_hyst, enum iio_event_direction dir)
+{
+	s64 s_clr;
+
+	/*
+	 * Include directions when calculation the clear value,
+	 * since hysteresis is unsigned by definition and the
+	 * clear value is an absolute value which is signed.
+	 */
+	if (dir == IIO_EV_DIR_RISING)
+		s_clr = s_thresh - s_hyst;
+	else
+		s_clr = s_thresh + s_hyst;
+
+	/* Divide by 65535 to get units of micro */
+	return div_s64(s_clr, 65535);
+}
+
+static int _hdc3020_write_thresh(struct hdc3020_data *data, u16 reg, u16 val)
+{
+	u8 buf[5];
+
+	put_unaligned_be16(reg, buf);
+	put_unaligned_be16(val, buf + 2);
+	buf[4] = crc8(hdc3020_crc8_table, buf + 2, 2, CRC8_INIT_VALUE);
+
+	return hdc3020_write_bytes(data, buf, 5);
+}
+
 static int hdc3020_write_thresh(struct iio_dev *indio_dev,
 				const struct iio_chan_spec *chan,
 				enum iio_event_type type,
@@ -376,67 +478,126 @@ static int hdc3020_write_thresh(struct iio_dev *indio_dev,
 				int val, int val2)
 {
 	struct hdc3020_data *data = iio_priv(indio_dev);
-	u8 buf[5];
-	u64 tmp;
-	u16 reg;
-	int ret;
+	u16 reg, reg_val, reg_thresh_rd, reg_clr_rd, reg_thresh_wr, reg_clr_wr;
+	s64 s_thresh, s_hyst, s_clr;
+	int s_val, thresh, clr, ret;
 
-	/* Supported temperature range is from –40 to 125 degree celsius */
-	if (val < HDC3020_MIN_TEMP || val > HDC3020_MAX_TEMP)
-		return -EINVAL;
-
-	/* Select threshold register */
-	if (info == IIO_EV_INFO_VALUE) {
-		if (dir == IIO_EV_DIR_RISING)
-			reg = HDC3020_S_T_RH_THRESH_HIGH;
-		else
-			reg = HDC3020_S_T_RH_THRESH_LOW;
+	/* Select threshold registers */
+	if (dir == IIO_EV_DIR_RISING) {
+		reg_thresh_rd = HDC3020_R_T_RH_THRESH_HIGH;
+		reg_thresh_wr = HDC3020_S_T_RH_THRESH_HIGH;
+		reg_clr_rd = HDC3020_R_T_RH_THRESH_HIGH_CLR;
+		reg_clr_wr = HDC3020_S_T_RH_THRESH_HIGH_CLR;
 	} else {
-		if (dir == IIO_EV_DIR_RISING)
-			reg = HDC3020_S_T_RH_THRESH_HIGH_CLR;
-		else
-			reg = HDC3020_S_T_RH_THRESH_LOW_CLR;
+		reg_thresh_rd = HDC3020_R_T_RH_THRESH_LOW;
+		reg_thresh_wr = HDC3020_S_T_RH_THRESH_LOW;
+		reg_clr_rd = HDC3020_R_T_RH_THRESH_LOW_CLR;
+		reg_clr_wr = HDC3020_S_T_RH_THRESH_LOW_CLR;
 	}
 
 	guard(mutex)(&data->lock);
-	ret = hdc3020_read_be16(data, reg);
+	ret = hdc3020_read_be16(data, reg_thresh_rd);
 	if (ret < 0)
 		return ret;
 
+	thresh = ret;
+	ret = hdc3020_read_be16(data, reg_clr_rd);
+	if (ret < 0)
+		return ret;
+
+	clr = ret;
+	/* Scale value to include decimal part into calculations */
+	s_val = (val < 0) ? (val * 1000000 - val2) : (val * 1000000 + val2);
 	switch (chan->type) {
 	case IIO_TEMP:
-		/*
-		 * Calculate temperature threshold, shift it down to get the
-		 * truncated threshold representation in the 9LSBs while keeping
-		 * the current humidity threshold in the 7 MSBs.
-		 */
-		tmp = ((u64)(((val + 45) * MICRO) + val2)) * 65535ULL;
-		tmp = div_u64(tmp, MICRO * 175);
-		val = tmp >> HDC3020_THRESH_TEMP_TRUNC_SHIFT;
-		val = FIELD_PREP(HDC3020_THRESH_TEMP_MASK, val);
-		val |= (FIELD_GET(HDC3020_THRESH_HUM_MASK, ret) <<
-			HDC3020_THRESH_HUM_TRUNC_SHIFT);
+		switch (info) {
+		case IIO_EV_INFO_VALUE:
+			s_val = max(s_val, HDC3020_MIN_TEMP_MICRO);
+			s_val = min(s_val, HDC3020_MAX_TEMP_MICRO);
+			reg = reg_thresh_wr;
+			reg_val = hdc3020_thresh_set_temp(s_val, thresh);
+			ret = _hdc3020_write_thresh(data, reg, reg_val);
+			if (ret < 0)
+				return ret;
+
+			/* Calculate old hysteresis */
+			s_thresh = (s64)hdc3020_thresh_get_temp(thresh) * 1000000;
+			s_clr = (s64)hdc3020_thresh_get_temp(clr) * 1000000;
+			s_hyst = div_s64(abs(s_thresh - s_clr), 65535);
+			/* Set new threshold */
+			thresh = reg_val;
+			/* Set old hysteresis */
+			s_val = s_hyst;
+			fallthrough;
+		case IIO_EV_INFO_HYSTERESIS:
+			/*
+			 * Function hdc3020_thresh_get_temp returns temperature
+			 * in degree celsius scaled by 65535. Scale by 1000000
+			 * to be able to subtract scaled hysteresis value.
+			 */
+			s_thresh = (s64)hdc3020_thresh_get_temp(thresh) * 1000000;
+			/*
+			 * Units of s_val are in micro degree celsius, scale by
+			 * 65535 to get same units as s_thresh.
+			 */
+			s_val = min(abs(s_val), HDC3020_MAX_TEMP_HYST_MICRO);
+			s_hyst = (s64)s_val * 65535;
+			s_clr = hdc3020_thresh_clr(s_thresh, s_hyst, dir);
+			s_clr = max(s_clr, HDC3020_MIN_TEMP_MICRO);
+			s_clr = min(s_clr, HDC3020_MAX_TEMP_MICRO);
+			reg = reg_clr_wr;
+			reg_val = hdc3020_thresh_set_temp(s_clr, clr);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
 		break;
 	case IIO_HUMIDITYRELATIVE:
-		/*
-		 * Calculate humidity threshold, shift it down and up to get the
-		 * truncated threshold representation in the 7MSBs while keeping
-		 * the current temperature threshold in the 9 LSBs.
-		 */
-		tmp = ((u64)((val * MICRO) + val2)) * 65535ULL;
-		tmp = div_u64(tmp, MICRO * 100);
-		val = tmp >> HDC3020_THRESH_HUM_TRUNC_SHIFT;
-		val = FIELD_PREP(HDC3020_THRESH_HUM_MASK, val);
-		val |= FIELD_GET(HDC3020_THRESH_TEMP_MASK, ret);
+		s_val = (s_val < 0) ? 0 : min(s_val, HDC3020_MAX_HUM_MICRO);
+		switch (info) {
+		case IIO_EV_INFO_VALUE:
+			reg = reg_thresh_wr;
+			reg_val = hdc3020_thresh_set_hum(s_val, thresh);
+			ret = _hdc3020_write_thresh(data, reg, reg_val);
+			if (ret < 0)
+				return ret;
+
+			/* Calculate old hysteresis */
+			s_thresh = (s64)hdc3020_thresh_get_hum(thresh) * 1000000;
+			s_clr = (s64)hdc3020_thresh_get_hum(clr) * 1000000;
+			s_hyst = div_s64(abs(s_thresh - s_clr), 65535);
+			/* Set new threshold */
+			thresh = reg_val;
+			/* Try to set old hysteresis */
+			s_val = min(abs(s_hyst), HDC3020_MAX_HUM_MICRO);
+			fallthrough;
+		case IIO_EV_INFO_HYSTERESIS:
+			/*
+			 * Function hdc3020_thresh_get_hum returns relative
+			 * humidity in percent scaled by 65535. Scale by 1000000
+			 * to be able to subtract scaled hysteresis value.
+			 */
+			s_thresh = (s64)hdc3020_thresh_get_hum(thresh) * 1000000;
+			/*
+			 * Units of s_val are in micro percent, scale by 65535
+			 * to get same units as s_thresh.
+			 */
+			s_hyst = (s64)s_val * 65535;
+			s_clr = hdc3020_thresh_clr(s_thresh, s_hyst, dir);
+			s_clr = max(s_clr, 0);
+			s_clr = min(s_clr, HDC3020_MAX_HUM_MICRO);
+			reg = reg_clr_wr;
+			reg_val = hdc3020_thresh_set_hum(s_clr, clr);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	put_unaligned_be16(reg, buf);
-	put_unaligned_be16(val, buf + 2);
-	buf[4] = crc8(hdc3020_crc8_table, buf + 2, 2, CRC8_INIT_VALUE);
-	return hdc3020_write_bytes(data, buf, 5);
+	return _hdc3020_write_thresh(data, reg, reg_val);
 }
 
 static int hdc3020_read_thresh(struct iio_dev *indio_dev,
@@ -447,48 +608,60 @@ static int hdc3020_read_thresh(struct iio_dev *indio_dev,
 			       int *val, int *val2)
 {
 	struct hdc3020_data *data = iio_priv(indio_dev);
-	u16 reg;
-	int ret;
+	u16 reg_thresh, reg_clr;
+	int thresh, clr, ret;
 
-	/* Select threshold register */
-	if (info == IIO_EV_INFO_VALUE) {
-		if (dir == IIO_EV_DIR_RISING)
-			reg = HDC3020_R_T_RH_THRESH_HIGH;
-		else
-			reg = HDC3020_R_T_RH_THRESH_LOW;
+	/* Select threshold registers */
+	if (dir == IIO_EV_DIR_RISING) {
+		reg_thresh = HDC3020_R_T_RH_THRESH_HIGH;
+		reg_clr = HDC3020_R_T_RH_THRESH_HIGH_CLR;
 	} else {
-		if (dir == IIO_EV_DIR_RISING)
-			reg = HDC3020_R_T_RH_THRESH_HIGH_CLR;
-		else
-			reg = HDC3020_R_T_RH_THRESH_LOW_CLR;
+		reg_thresh = HDC3020_R_T_RH_THRESH_LOW;
+		reg_clr = HDC3020_R_T_RH_THRESH_LOW_CLR;
 	}
 
 	guard(mutex)(&data->lock);
-	ret = hdc3020_read_be16(data, reg);
+	ret = hdc3020_read_be16(data, reg_thresh);
 	if (ret < 0)
 		return ret;
 
 	switch (chan->type) {
 	case IIO_TEMP:
-		/*
-		 * Get the temperature threshold from 9 LSBs, shift them to get
-		 * the truncated temperature threshold representation and
-		 * calculate the threshold according to the formula in the
-		 * datasheet.
-		 */
-		*val = FIELD_GET(HDC3020_THRESH_TEMP_MASK, ret);
-		*val = *val << HDC3020_THRESH_TEMP_TRUNC_SHIFT;
-		*val = -2949075 + (175 * (*val));
+		thresh = hdc3020_thresh_get_temp(ret);
+		switch (info) {
+		case IIO_EV_INFO_VALUE:
+			*val = thresh;
+			break;
+		case IIO_EV_INFO_HYSTERESIS:
+			ret = hdc3020_read_be16(data, reg_clr);
+			if (ret < 0)
+				return ret;
+
+			clr = hdc3020_thresh_get_temp(ret);
+			*val = abs(thresh - clr);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
 		*val2 = 65535;
 		return IIO_VAL_FRACTIONAL;
 	case IIO_HUMIDITYRELATIVE:
-		/*
-		 * Get the humidity threshold from 7 MSBs, shift them to get the
-		 * truncated humidity threshold representation and calculate the
-		 * threshold according to the formula in the datasheet.
-		 */
-		*val = FIELD_GET(HDC3020_THRESH_HUM_MASK, ret);
-		*val = (*val << HDC3020_THRESH_HUM_TRUNC_SHIFT) * 100;
+		thresh = hdc3020_thresh_get_hum(ret);
+		switch (info) {
+		case IIO_EV_INFO_VALUE:
+			*val = thresh;
+			break;
+		case IIO_EV_INFO_HYSTERESIS:
+			ret = hdc3020_read_be16(data, reg_clr);
+			if (ret < 0)
+				return ret;
+
+			clr = hdc3020_thresh_get_hum(ret);
+			*val = abs(thresh - clr);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
 		*val2 = 65535;
 		return IIO_VAL_FRACTIONAL;
 	default:
