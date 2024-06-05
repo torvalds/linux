@@ -2041,7 +2041,7 @@ static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 	req->mlo_capable_valid = 1;
 	req->mlo_capable = 1;
 	req->mlo_chip_id_valid = 1;
-	req->mlo_chip_id = 0;
+	req->mlo_chip_id = ab->device_id;
 	req->mlo_group_id_valid = 1;
 	req->mlo_group_id = 0;
 	req->max_mlo_peer_valid = 1;
@@ -2053,7 +2053,7 @@ static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 	req->mlo_num_chips = 1;
 
 	info = &req->mlo_chip_info[0];
-	info->chip_id = 0;
+	info->chip_id = ab->device_id;
 	info->num_local_links = ab->qmi.num_radios;
 
 	for (i = 0; i < info->num_local_links; i++) {
@@ -2503,7 +2503,7 @@ static int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 			ab->qmi.dev_mem[i].size =
 				resp.dev_mem[i].size;
 			ath12k_dbg(ab, ATH12K_DBG_QMI,
-				   "devmem [%d] start ox%llx size %llu\n", i,
+				   "devmem [%d] start 0x%llx size %llu\n", i,
 				   ab->qmi.dev_mem[i].start,
 				   ab->qmi.dev_mem[i].size);
 		}
@@ -2538,7 +2538,7 @@ static int ath12k_qmi_load_file_target_mem(struct ath12k_base *ab,
 	struct qmi_wlanfw_bdf_download_resp_msg_v01 resp = {};
 	struct qmi_txn txn;
 	const u8 *temp = data;
-	int ret;
+	int ret = 0;
 	u32 remaining = len;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);

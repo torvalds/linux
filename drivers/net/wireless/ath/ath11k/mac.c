@@ -6108,7 +6108,7 @@ static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 			tlv_filter.rx_filter = ath11k_debugfs_rx_filter(ar);
 	}
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
 						       ar->dp.mac_id + i,
@@ -8790,12 +8790,8 @@ ath11k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
 		ieee80211_wake_queues(ar->hw);
 
 		if (ar->ab->hw_params.current_cc_support &&
-		    ar->alpha2[0] != 0 && ar->alpha2[1] != 0) {
-			struct wmi_set_current_country_params set_current_param = {};
-
-			memcpy(&set_current_param.alpha2, ar->alpha2, 2);
-			ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
-		}
+		    ar->alpha2[0] != 0 && ar->alpha2[1] != 0)
+			ath11k_reg_set_cc(ar);
 
 		if (ab->is_reset) {
 			recovery_count = atomic_inc_return(&ab->recovery_count);
@@ -9030,7 +9026,6 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct inet6_ifaddr *ifa6;
 	struct ifacaddr6 *ifaca6;
-	struct list_head *p;
 	u32 count, scope;
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "op ipv6 changed\n");
@@ -9046,11 +9041,10 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 	memcpy(offload->mac_addr, vif->addr, ETH_ALEN);
 
 	/* get unicast address */
-	list_for_each(p, &idev->addr_list) {
+	list_for_each_entry(ifa6, &idev->addr_list, if_list) {
 		if (count >= ATH11K_IPV6_MAX_COUNT)
 			goto generate;
 
-		ifa6 = list_entry(p, struct inet6_ifaddr, if_list);
 		if (ifa6->flags & IFA_F_DADFAILED)
 			continue;
 		scope = ipv6_addr_src_scope(&ifa6->addr);
@@ -10239,11 +10233,8 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	}
 
 	if (ab->hw_params.current_cc_support && ab->new_alpha2[0]) {
-		struct wmi_set_current_country_params set_current_param = {};
-
-		memcpy(&set_current_param.alpha2, ab->new_alpha2, 2);
 		memcpy(&ar->alpha2, ab->new_alpha2, 2);
-		ret = ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
+		ret = ath11k_reg_set_cc(ar);
 		if (ret)
 			ath11k_warn(ar->ab,
 				    "failed set cc code for mac register: %d\n", ret);

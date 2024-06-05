@@ -2154,6 +2154,7 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_PER_PEER_HTT_STATS_RESET = 213,
 	WMI_TLV_SERVICE_FREQINFO_IN_METADATA = 219,
 	WMI_TLV_SERVICE_EXT2_MSG = 220,
+	WMI_TLV_SERVICE_MBSS_PARAM_IN_VDEV_START_SUPPORT = 253,
 
 	WMI_MAX_EXT_SERVICE = 256,
 
@@ -2356,6 +2357,8 @@ struct ath12k_wmi_resource_config_arg {
 	u32 twt_ap_sta_count;
 	bool is_reg_cc_ext_event_supported;
 	u8  dp_peer_meta_data_ver;
+	u32 ema_max_vap_cnt;
+	u32 ema_max_profile_period;
 };
 
 struct ath12k_wmi_init_cmd_arg {
@@ -2410,6 +2413,7 @@ struct wmi_init_cmd {
 #define WMI_RSRC_CFG_HOST_SVC_FLAG_REG_CC_EXT_SUPPORT_BIT 4
 #define WMI_RSRC_CFG_FLAGS2_RX_PEER_METADATA_VERSION		GENMASK(5, 4)
 #define WMI_RSRC_CFG_FLAG1_BSS_CHANNEL_INFO_64	BIT(5)
+#define WMI_RSRC_CFG_FLAGS2_CALC_NEXT_DTIM_COUNT_SET      BIT(9)
 
 struct ath12k_wmi_resource_config_params {
 	__le32 tlv_header;
@@ -2726,6 +2730,8 @@ struct ath12k_wmi_vdev_create_arg {
 	} chains[NUM_NL80211_BANDS];
 	u32 pdev_id;
 	u8 if_stats_id;
+	u32 mbssid_flags;
+	u32 mbssid_tx_vdev_id;
 };
 
 #define ATH12K_MAX_VDEV_STATS_ID	0x30
@@ -2757,14 +2763,23 @@ struct wmi_vdev_delete_cmd {
 	__le32 vdev_id;
 } __packed;
 
+struct ath12k_wmi_vdev_up_params {
+	u32 vdev_id;
+	u32 aid;
+	const u8 *bssid;
+	const u8 *tx_bssid;
+	u32 nontx_profile_idx;
+	u32 nontx_profile_cnt;
+};
+
 struct wmi_vdev_up_cmd {
 	__le32 tlv_header;
 	__le32 vdev_id;
 	__le32 vdev_assoc_id;
 	struct ath12k_wmi_mac_addr_params vdev_bssid;
-	struct ath12k_wmi_mac_addr_params trans_bssid;
-	__le32 profile_idx;
-	__le32 profile_num;
+	struct ath12k_wmi_mac_addr_params tx_vdev_bssid;
+	__le32 nontx_profile_idx;
+	__le32 nontx_profile_cnt;
 } __packed;
 
 struct wmi_vdev_stop_cmd {
@@ -2792,6 +2807,10 @@ struct ath12k_wmi_ssid_params {
 
 enum wmi_vdev_mbssid_flags {
 	WMI_VDEV_MBSSID_FLAGS_NON_MBSSID_AP	= BIT(0),
+	WMI_VDEV_MBSSID_FLAGS_TRANSMIT_AP	= BIT(1),
+	WMI_VDEV_MBSSID_FLAGS_NON_TRANSMIT_AP	= BIT(2),
+	WMI_VDEV_MBSSID_FLAGS_EMA_MODE		= BIT(3),
+	WMI_VDEV_MBSSID_FLAGS_SCAN_MODE_VAP	= BIT(4),
 };
 
 struct wmi_vdev_start_request_cmd {
@@ -3514,6 +3533,16 @@ struct ath12k_wmi_p2p_noa_info {
 
 #define WMI_BEACON_TX_BUFFER_SIZE	512
 
+#define WMI_EMA_BEACON_CNT      GENMASK(7, 0)
+#define WMI_EMA_BEACON_IDX      GENMASK(15, 8)
+#define WMI_EMA_BEACON_FIRST    GENMASK(23, 16)
+#define WMI_EMA_BEACON_LAST     GENMASK(31, 24)
+
+struct ath12k_wmi_bcn_tmpl_ema_arg {
+	u8 bcn_cnt;
+	u8 bcn_index;
+};
+
 struct wmi_bcn_tmpl_cmd {
 	__le32 tlv_header;
 	__le32 vdev_id;
@@ -3524,6 +3553,11 @@ struct wmi_bcn_tmpl_cmd {
 	__le32 csa_event_bitmap;
 	__le32 mbssid_ie_offset;
 	__le32 esp_ie_offset;
+	__le32 csc_switch_count_offset;
+	__le32 csc_event_bitmap;
+	__le32 mu_edca_ie_offset;
+	__le32 feature_enable_bitmap;
+	__le32 ema_params;
 } __packed;
 
 struct wmi_p2p_go_set_beacon_ie_cmd {
@@ -4770,7 +4804,7 @@ struct wmi_probe_tmpl_cmd {
 	__le32 buf_len;
 } __packed;
 
-#define MAX_RADIOS 3
+#define MAX_RADIOS 2
 
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5 * HZ)
 #define WMI_SEND_TIMEOUT_HZ (3 * HZ)
@@ -4881,10 +4915,10 @@ int ath12k_wmi_p2p_go_bcn_ie(struct ath12k *ar, u32 vdev_id,
 			     const u8 *p2p_ie);
 int ath12k_wmi_bcn_tmpl(struct ath12k *ar, u32 vdev_id,
 			struct ieee80211_mutable_offsets *offs,
-			struct sk_buff *bcn);
+			struct sk_buff *bcn,
+			struct ath12k_wmi_bcn_tmpl_ema_arg *ema_args);
 int ath12k_wmi_vdev_down(struct ath12k *ar, u8 vdev_id);
-int ath12k_wmi_vdev_up(struct ath12k *ar, u32 vdev_id, u32 aid,
-		       const u8 *bssid);
+int ath12k_wmi_vdev_up(struct ath12k *ar, struct ath12k_wmi_vdev_up_params *params);
 int ath12k_wmi_vdev_stop(struct ath12k *ar, u8 vdev_id);
 int ath12k_wmi_vdev_start(struct ath12k *ar, struct wmi_vdev_start_req_arg *arg,
 			  bool restart);

@@ -668,7 +668,7 @@ static ssize_t ath11k_write_extd_rx_stats(struct file *file,
 
 	ar->debug.rx_filter = tlv_filter.rx_filter;
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
 						       HAL_RXDMA_MONITOR_STATUS,
@@ -1112,7 +1112,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 	}
 
 	/* Clear rx filter set for monitor mode and rx status */
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
 						       HAL_RXDMA_MONITOR_STATUS,
@@ -1171,7 +1171,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 					       HTT_RX_FP_DATA_FILTER_FLASG3;
 	}
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ab, ring_id,
 						       ar->dp.mac_id + i,
