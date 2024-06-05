@@ -520,7 +520,7 @@
 		compatible = "samsung,s6sy761";
 		reg = <0x48>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <39 0x2008>;
+		interrupts = <39 IRQ_TYPE_LEVEL_LOW>;
 		/* It's "vddio" downstream but it works anyway! */
 		vdd-supply = <&vreg_l1c_1p8>;
 		avdd-supply = <&vreg_l10c_3p3>;
