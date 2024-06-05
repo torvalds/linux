@@ -95,7 +95,8 @@ static inline struct fw_node *fw_node(struct list_head *l)
  * internally consistent.  On success this function returns the
  * fw_node corresponding to the local card otherwise NULL.
  */
-static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self_id_count)
+static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self_id_count,
+				  unsigned int generation)
 {
 	struct self_id_sequence_enumerator enumerator = {
 		.cursor = sid,
@@ -139,6 +140,8 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 		}
 
 		port_capacity = self_id_sequence_get_port_capacity(quadlet_count);
+		trace_self_id_sequence(self_id_sequence, quadlet_count, generation);
+
 		for (port_index = 0; port_index < port_capacity; ++port_index) {
 			port_status = self_id_sequence_get_port_status(self_id_sequence, quadlet_count,
 								       port_index);
@@ -482,7 +485,7 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 	card->bm_abdicate = bm_abdicate;
 	fw_schedule_bm_work(card, 0);
 
-	local_node = build_tree(card, self_ids, self_id_count);
+	local_node = build_tree(card, self_ids, self_id_count, generation);
 
 	update_topology_map(card, self_ids, self_id_count);
 

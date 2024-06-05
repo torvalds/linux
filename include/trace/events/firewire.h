@@ -366,6 +366,65 @@ TRACE_EVENT(bus_reset_handle,
 	)
 );
 
+// Some macros are defined in 'drivers/firewire/phy-packet-definitions.h'.
+
+// The content of TP_printk field is preprocessed, then put to the module binary.
+
+#define PHY_PACKET_SELF_ID_GET_PHY_ID(quads)		\
+	((((const u32 *)quads)[0] & SELF_ID_PHY_ID_MASK) >> SELF_ID_PHY_ID_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_LINK_ACTIVE(quads)	\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_LINK_ACTIVE_MASK) >> SELF_ID_ZERO_LINK_ACTIVE_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_GAP_COUNT(quads)		\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_GAP_COUNT_MASK) >> SELF_ID_ZERO_GAP_COUNT_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_SCODE(quads)		\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_SCODE_MASK) >> SELF_ID_ZERO_SCODE_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_CONTENDER(quads)		\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_CONTENDER_MASK) >> SELF_ID_ZERO_CONTENDER_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_POWER_CLASS(quads)	\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_POWER_CLASS_MASK) >> SELF_ID_ZERO_POWER_CLASS_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_INITIATED_RESET(quads)	\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_INITIATED_RESET_MASK) >> SELF_ID_ZERO_INITIATED_RESET_SHIFT)
+
+void copy_port_status(u8 *port_status, unsigned int port_capacity, const u32 *self_id_sequence,
+		      unsigned int quadlet_count);
+
+TRACE_EVENT(self_id_sequence,
+	TP_PROTO(const u32 *self_id_sequence, unsigned int quadlet_count, unsigned int generation),
+	TP_ARGS(self_id_sequence, quadlet_count, generation),
+	TP_STRUCT__entry(
+		__field(u8, generation)
+		__dynamic_array(u8, port_status, self_id_sequence_get_port_capacity(quadlet_count))
+		__dynamic_array(u32, self_id_sequence, quadlet_count)
+	),
+	TP_fast_assign(
+		__entry->generation = generation;
+		copy_port_status(__get_dynamic_array(port_status), __get_dynamic_array_len(port_status),
+				 self_id_sequence, quadlet_count);
+		memcpy(__get_dynamic_array(self_id_sequence), self_id_sequence,
+					   __get_dynamic_array_len(self_id_sequence));
+	),
+	TP_printk(
+		"generation=%u phy_id=0x%02x link_active=%s gap_count=%u scode=%u contender=%s power_class=%u initiated_reset=%s port_status=%s self_id_sequence=%s",
+		__entry->generation,
+		PHY_PACKET_SELF_ID_GET_PHY_ID(__get_dynamic_array(self_id_sequence)),
+		PHY_PACKET_SELF_ID_GET_LINK_ACTIVE(__get_dynamic_array(self_id_sequence)) ? "true" : "false",
+		PHY_PACKET_SELF_ID_GET_GAP_COUNT(__get_dynamic_array(self_id_sequence)),
+		PHY_PACKET_SELF_ID_GET_SCODE(__get_dynamic_array(self_id_sequence)),
+		PHY_PACKET_SELF_ID_GET_CONTENDER(__get_dynamic_array(self_id_sequence)) ? "true" : "false",
+		PHY_PACKET_SELF_ID_GET_POWER_CLASS(__get_dynamic_array(self_id_sequence)),
+		PHY_PACKET_SELF_ID_GET_INITIATED_RESET(__get_dynamic_array(self_id_sequence)) ? "true" : "false",
+		__print_array(__get_dynamic_array(port_status), __get_dynamic_array_len(port_status), 1),
+		__print_array(__get_dynamic_array(self_id_sequence),
+			      __get_dynamic_array_len(self_id_sequence) / QUADLET_SIZE, QUADLET_SIZE)
+	)
+);
+
 #undef QUADLET_SIZE
 
 #endif // _FIREWIRE_TRACE_EVENT_H
