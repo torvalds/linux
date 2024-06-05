@@ -26,11 +26,9 @@
  * DOC: Transport layer - what is it ?
  *
  * The transport layer is the layer that deals with the HW directly. It provides
- * an abstraction of the underlying HW to the upper layer. The transport layer
- * doesn't provide any policy, algorithm or anything of this kind, but only
- * mechanisms to make the HW do something. It is not completely stateless but
- * close to it.
- * We will have an implementation for each different supported bus.
+ * the PCIe access to the underlying hardwarwe. The transport layer doesn't
+ * provide any policy, algorithm or anything of this kind, but only mechanisms
+ * to make the HW do something. It is not completely stateless but close to it.
  */
 
 /**
@@ -166,12 +164,6 @@ struct iwl_device_tx_cmd {
  * this is just the driver's idea, the hardware supports 20
  */
 #define IWL_MAX_CMD_TBS_PER_TFD	2
-
-/* We need 2 entries for the TX command and header, and another one might
- * be needed for potential data in the SKB's head. The remaining ones can
- * be used for frags.
- */
-#define IWL_TRANS_MAX_FRAGS(trans) ((trans)->txqs.tfd.max_tbs - 3)
 
 /**
  * enum iwl_hcmd_dataflag - flag for each one of the chunks of the command
@@ -999,54 +991,6 @@ struct iwl_txq {
 };
 
 /**
- * struct iwl_trans_txqs - transport tx queues data
- *
- * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
- * @page_offs: offset from skb->cb to mac header page pointer
- * @dev_cmd_offs: offset from skb->cb to iwl_device_tx_cmd pointer
- * @queue_used: bit mask of used queues
- * @queue_stopped: bit mask of stopped queues
- * @txq: array of TXQ data structures representing the TXQs
- * @scd_bc_tbls: gen1 pointer to the byte count table of the scheduler
- * @queue_alloc_cmd_ver: queue allocation command version
- * @bc_pool: bytecount DMA allocations pool
- * @bc_tbl_size: bytecount table size
- * @tso_hdr_page: page allocated (per CPU) for A-MSDU headers when doing TSO
- *	(and similar usage)
- * @tfd: TFD data
- * @tfd.max_tbs: max number of buffers per TFD
- * @tfd.size: TFD size
- * @tfd.addr_size: TFD/TB address size
- */
-struct iwl_trans_txqs {
-	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
-	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
-	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
-	struct dma_pool *bc_pool;
-	size_t bc_tbl_size;
-	bool bc_table_dword;
-	u8 page_offs;
-	u8 dev_cmd_offs;
-	struct iwl_tso_hdr_page __percpu *tso_hdr_page;
-
-	struct {
-		u8 fifo;
-		u8 q_id;
-		unsigned int wdg_timeout;
-	} cmd;
-
-	struct {
-		u8 max_tbs;
-		u16 size;
-		u8 addr_size;
-	} tfd;
-
-	struct iwl_dma_ptr scd_bc_tbls;
-
-	u8 queue_alloc_cmd_ver;
-};
-
-/**
  * struct iwl_trans - transport common data
  *
  * @csme_own: true if we couldn't get ownership on the device
@@ -1099,7 +1043,6 @@ struct iwl_trans_txqs {
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
  * @name: the device name
- * @txqs: transport tx queues data.
  * @mbx_addr_0_step: step address data 0
  * @mbx_addr_1_step: step address data 1
  * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
@@ -1169,7 +1112,6 @@ struct iwl_trans {
 	enum iwl_plat_pm_mode system_pm_mode;
 
 	const char *name;
-	struct iwl_trans_txqs txqs;
 	u32 mbx_addr_0_step;
 	u32 mbx_addr_1_step;
 
@@ -1656,10 +1598,13 @@ static inline bool iwl_trans_is_hw_error_value(u32 val)
 }
 
 /*****************************************************
-* driver (transport) register/unregister functions
-******************************************************/
+ * PCIe handling
+ *****************************************************/
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
 void iwl_trans_pcie_remove(struct iwl_trans *trans, bool rescan);
+
+int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
+			     struct iwl_host_cmd *cmd);
 
 #endif /* __iwl_trans_h__ */

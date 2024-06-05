@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-prph.h"
@@ -247,7 +247,7 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 		return -ENOMEM;
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (iwl_txq_gen2_init(trans, trans->txqs.cmd.q_id, queue_size))
+	if (iwl_txq_gen2_init(trans, trans_pcie->txqs.cmd.q_id, queue_size))
 		return -ENOMEM;
 
 	/* enable shadow regs in HW */
@@ -346,9 +346,10 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	iwl_pcie_reset_ict(trans);
 
 	/* make sure all queue are not stopped/used */
-	memset(trans->txqs.queue_stopped, 0,
-	       sizeof(trans->txqs.queue_stopped));
-	memset(trans->txqs.queue_used, 0, sizeof(trans->txqs.queue_used));
+	memset(trans_pcie->txqs.queue_stopped, 0,
+	       sizeof(trans_pcie->txqs.queue_stopped));
+	memset(trans_pcie->txqs.queue_used, 0,
+	       sizeof(trans_pcie->txqs.queue_used));
 
 	/* now that we got alive we can free the fw image & the context info.
 	 * paging memory cannot be freed included since FW will still use it

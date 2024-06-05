@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2021, 2023 Intel Corporation
+ * Copyright (C) 2019-2021, 2023-2024 Intel Corporation
  */
 #include <linux/kernel.h>
 #include <linux/bsearch.h>
@@ -11,7 +11,6 @@
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "iwl-fh.h"
-#include "queue/tx.h"
 #include <linux/dmapool.h>
 #include "fw/api/commands.h"
 
@@ -42,17 +41,6 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 
 	WARN_ON(!ops->wait_txq_empty && !ops->wait_tx_queues_empty);
 
-	if (trans->trans_cfg->gen2) {
-		trans->txqs.tfd.addr_size = 64;
-		trans->txqs.tfd.max_tbs = IWL_TFH_NUM_TBS;
-		trans->txqs.tfd.size = sizeof(struct iwl_tfh_tfd);
-	} else {
-		trans->txqs.tfd.addr_size = 36;
-		trans->txqs.tfd.max_tbs = IWL_NUM_OF_TBS;
-		trans->txqs.tfd.size = sizeof(struct iwl_tfd);
-	}
-	trans->max_skb_frags = IWL_TRANS_MAX_FRAGS(trans);
-
 	return trans;
 }
 
@@ -78,31 +66,6 @@ int iwl_trans_init(struct iwl_trans *trans)
 	if (WARN_ON(trans->trans_cfg->gen2 && txcmd_size >= txcmd_align))
 		return -EINVAL;
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		trans->txqs.bc_tbl_size =
-			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_GEN3_BZ;
-	else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		trans->txqs.bc_tbl_size =
-			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_GEN3_AX210;
-	else
-		trans->txqs.bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
-	/*
-	 * For gen2 devices, we use a single allocation for each byte-count
-	 * table, but they're pretty small (1k) so use a DMA pool that we
-	 * allocate here.
-	 */
-	if (trans->trans_cfg->gen2) {
-		trans->txqs.bc_pool = dmam_pool_create("iwlwifi:bc", trans->dev,
-						       trans->txqs.bc_tbl_size,
-						       256, 0);
-		if (!trans->txqs.bc_pool)
-			return -ENOMEM;
-	}
-
-	/* Some things must not change even if the config does */
-	WARN_ON(trans->txqs.tfd.addr_size !=
-		(trans->trans_cfg->gen2 ? 64 : 36));
-
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
 		 "iwl_cmd_pool:%s", dev_name(trans->dev));
 	trans->dev_cmd_pool =
@@ -112,12 +75,6 @@ int iwl_trans_init(struct iwl_trans *trans)
 	if (!trans->dev_cmd_pool)
 		return -ENOMEM;
 
-	trans->txqs.tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);
-	if (!trans->txqs.tso_hdr_page) {
-		kmem_cache_destroy(trans->dev_cmd_pool);
-		return -ENOMEM;
-	}
-
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans->wait_command_queue);
 
@@ -126,20 +83,6 @@ int iwl_trans_init(struct iwl_trans *trans)
 
 void iwl_trans_free(struct iwl_trans *trans)
 {
-	int i;
-
-	if (trans->txqs.tso_hdr_page) {
-		for_each_possible_cpu(i) {
-			struct iwl_tso_hdr_page *p =
-				per_cpu_ptr(trans->txqs.tso_hdr_page, i);
-
-			if (p && p->page)
-				__free_page(p->page);
-		}
-
-		free_percpu(trans->txqs.tso_hdr_page);
-	}
-
 	kmem_cache_destroy(trans->dev_cmd_pool);
 }
 
@@ -180,7 +123,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			cmd->id = DEF_ID(cmd->id);
 	}
 
-	ret = iwl_trans_txq_send_hcmd(trans, cmd);
+	ret = iwl_trans_pcie_send_hcmd(trans, cmd);
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_release(&trans->sync_cmd_lockdep_map);
