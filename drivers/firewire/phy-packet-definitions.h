@@ -7,10 +7,41 @@
 #ifndef _FIREWIRE_PHY_PACKET_DEFINITIONS_H
 #define _FIREWIRE_PHY_PACKET_DEFINITIONS_H
 
+#define PACKET_IDENTIFIER_MASK				0xc0000000
+#define PACKET_IDENTIFIER_SHIFT				30
+
+static inline unsigned int phy_packet_get_packet_identifier(u32 quadlet)
+{
+	return (quadlet & PACKET_IDENTIFIER_MASK) >> PACKET_IDENTIFIER_SHIFT;
+}
+
+static inline void phy_packet_set_packet_identifier(u32 *quadlet, unsigned int packet_identifier)
+{
+	*quadlet &= ~PACKET_IDENTIFIER_MASK;
+	*quadlet |= (packet_identifier << PACKET_IDENTIFIER_SHIFT) & PACKET_IDENTIFIER_MASK;
+}
+
+#define PHY_PACKET_PACKET_IDENTIFIER_SELF_ID		2
+
+#define SELF_ID_PHY_ID_MASK				0x3f000000
+#define SELF_ID_PHY_ID_SHIFT				24
 #define SELF_ID_EXTENDED_MASK				0x00800000
 #define SELF_ID_EXTENDED_SHIFT				23
 #define SELF_ID_MORE_PACKETS_MASK			0x00000001
 #define SELF_ID_MORE_PACKETS_SHIFT			0
+
+#define SELF_ID_ZERO_LINK_ACTIVE_MASK			0x00400000
+#define SELF_ID_ZERO_LINK_ACTIVE_SHIFT			22
+#define SELF_ID_ZERO_GAP_COUNT_MASK			0x003f0000
+#define SELF_ID_ZERO_GAP_COUNT_SHIFT			16
+#define SELF_ID_ZERO_SCODE_MASK				0x0000c000
+#define SELF_ID_ZERO_SCODE_SHIFT			14
+#define SELF_ID_ZERO_CONTENDER_MASK			0x00000800
+#define SELF_ID_ZERO_CONTENDER_SHIFT			11
+#define SELF_ID_ZERO_POWER_CLASS_MASK			0x00000700
+#define SELF_ID_ZERO_POWER_CLASS_SHIFT			8
+#define SELF_ID_ZERO_INITIATED_RESET_MASK		0x00000002
+#define SELF_ID_ZERO_INITIATED_RESET_SHIFT		1
 
 #define SELF_ID_EXTENDED_SEQUENCE_MASK			0x00700000
 #define SELF_ID_EXTENDED_SEQUENCE_SHIFT			20
@@ -19,9 +50,92 @@
 
 #define SELF_ID_SEQUENCE_MAXIMUM_QUADLET_COUNT		4
 
+static inline unsigned int phy_packet_self_id_get_phy_id(u32 quadlet)
+{
+	return (quadlet & SELF_ID_PHY_ID_MASK)  >> SELF_ID_PHY_ID_SHIFT;
+}
+
+static inline void phy_packet_self_id_set_phy_id(u32 *quadlet, unsigned int phy_id)
+{
+	*quadlet &= ~SELF_ID_PHY_ID_MASK;
+	*quadlet |= (phy_id << SELF_ID_PHY_ID_SHIFT) & SELF_ID_PHY_ID_MASK;
+}
+
 static inline bool phy_packet_self_id_get_extended(u32 quadlet)
 {
 	return (quadlet & SELF_ID_EXTENDED_MASK) >> SELF_ID_EXTENDED_SHIFT;
+}
+
+static inline void phy_packet_self_id_set_extended(u32 *quadlet, bool extended)
+{
+	*quadlet &= ~SELF_ID_EXTENDED_MASK;
+	*quadlet |= (extended << SELF_ID_EXTENDED_SHIFT) & SELF_ID_EXTENDED_MASK;
+}
+
+static inline bool phy_packet_self_id_zero_get_link_active(u32 quadlet)
+{
+	return (quadlet & SELF_ID_ZERO_LINK_ACTIVE_MASK) >> SELF_ID_ZERO_LINK_ACTIVE_SHIFT;
+}
+
+static inline void phy_packet_self_id_zero_set_link_active(u32 *quadlet, bool is_active)
+{
+	*quadlet &= ~SELF_ID_ZERO_LINK_ACTIVE_MASK;
+	*quadlet |= (is_active << SELF_ID_ZERO_LINK_ACTIVE_SHIFT) & SELF_ID_ZERO_LINK_ACTIVE_MASK;
+}
+
+static inline unsigned int phy_packet_self_id_zero_get_gap_count(u32 quadlet)
+{
+	return (quadlet & SELF_ID_ZERO_GAP_COUNT_MASK) >> SELF_ID_ZERO_GAP_COUNT_SHIFT;
+}
+
+static inline void phy_packet_self_id_zero_set_gap_count(u32 *quadlet, unsigned int gap_count)
+{
+	*quadlet &= ~SELF_ID_ZERO_GAP_COUNT_MASK;
+	*quadlet |= (gap_count << SELF_ID_ZERO_GAP_COUNT_SHIFT) & SELF_ID_ZERO_GAP_COUNT_MASK;
+}
+
+static inline unsigned int phy_packet_self_id_zero_get_scode(u32 quadlet)
+{
+	return (quadlet & SELF_ID_ZERO_SCODE_MASK) >> SELF_ID_ZERO_SCODE_SHIFT;
+}
+
+static inline void phy_packet_self_id_zero_set_scode(u32 *quadlet, unsigned int speed)
+{
+	*quadlet &= ~SELF_ID_ZERO_SCODE_MASK;
+	*quadlet |= (speed << SELF_ID_ZERO_SCODE_SHIFT) & SELF_ID_ZERO_SCODE_MASK;
+}
+
+static inline bool phy_packet_self_id_zero_get_contender(u32 quadlet)
+{
+	return (quadlet & SELF_ID_ZERO_CONTENDER_MASK) >> SELF_ID_ZERO_CONTENDER_SHIFT;
+}
+
+static inline void phy_packet_self_id_zero_set_contender(u32 *quadlet, bool is_contender)
+{
+	*quadlet &= ~SELF_ID_ZERO_CONTENDER_MASK;
+	*quadlet |= (is_contender << SELF_ID_ZERO_CONTENDER_SHIFT) & SELF_ID_ZERO_CONTENDER_MASK;
+}
+
+static inline unsigned int phy_packet_self_id_zero_get_power_class(u32 quadlet)
+{
+	return (quadlet & SELF_ID_ZERO_POWER_CLASS_MASK) >> SELF_ID_ZERO_POWER_CLASS_SHIFT;
+}
+
+static inline void phy_packet_self_id_zero_set_power_class(u32 *quadlet, unsigned int power_class)
+{
+	*quadlet &= ~SELF_ID_ZERO_POWER_CLASS_MASK;
+	*quadlet |= (power_class << SELF_ID_ZERO_POWER_CLASS_SHIFT) & SELF_ID_ZERO_POWER_CLASS_MASK;
+}
+
+static inline bool phy_packet_self_id_zero_get_initiated_reset(u32 quadlet)
+{
+	return (quadlet & SELF_ID_ZERO_INITIATED_RESET_MASK) >> SELF_ID_ZERO_INITIATED_RESET_SHIFT;
+}
+
+static inline void phy_packet_self_id_zero_set_initiated_reset(u32 *quadlet, bool is_initiated_reset)
+{
+	*quadlet &= ~SELF_ID_ZERO_INITIATED_RESET_MASK;
+	*quadlet |= (is_initiated_reset << SELF_ID_ZERO_INITIATED_RESET_SHIFT) & SELF_ID_ZERO_INITIATED_RESET_MASK;
 }
 
 static inline bool phy_packet_self_id_get_more_packets(u32 quadlet)
@@ -29,9 +143,21 @@ static inline bool phy_packet_self_id_get_more_packets(u32 quadlet)
 	return (quadlet & SELF_ID_MORE_PACKETS_MASK) >> SELF_ID_MORE_PACKETS_SHIFT;
 }
 
+static inline void phy_packet_self_id_set_more_packets(u32 *quadlet, bool is_more_packets)
+{
+	*quadlet &= ~SELF_ID_MORE_PACKETS_MASK;
+	*quadlet |= (is_more_packets << SELF_ID_MORE_PACKETS_SHIFT) & SELF_ID_MORE_PACKETS_MASK;
+}
+
 static inline unsigned int phy_packet_self_id_extended_get_sequence(u32 quadlet)
 {
 	return (quadlet & SELF_ID_EXTENDED_SEQUENCE_MASK) >> SELF_ID_EXTENDED_SEQUENCE_SHIFT;
+}
+
+static inline void phy_packet_self_id_extended_set_sequence(u32 *quadlet, unsigned int sequence)
+{
+	*quadlet &= ~SELF_ID_EXTENDED_SEQUENCE_MASK;
+	*quadlet |= (sequence << SELF_ID_EXTENDED_SHIFT) & SELF_ID_EXTENDED_SEQUENCE_MASK;
 }
 
 struct self_id_sequence_enumerator {
