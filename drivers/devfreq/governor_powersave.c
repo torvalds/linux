@@ -58,4 +58,5 @@ static void __exit devfreq_powersave_exit(void)
 	return;
 }
 module_exit(devfreq_powersave_exit);
+MODULE_DESCRIPTION("DEVFREQ Powersave governor");
 MODULE_LICENSE("GPL");
