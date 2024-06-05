@@ -1392,7 +1392,11 @@ ftrace_hash_rec_enable_modify(struct ftrace_ops *ops, int filter_hash);
 static int ftrace_hash_ipmodify_update(struct ftrace_ops *ops,
 				       struct ftrace_hash *new_hash);
 
-static struct ftrace_hash *dup_hash(struct ftrace_hash *src, int size)
+/*
+ * Allocate a new hash and remove entries from @src and move them to the new hash.
+ * On success, the @src hash will be empty and should be freed.
+ */
+static struct ftrace_hash *__move_hash(struct ftrace_hash *src, int size)
 {
 	struct ftrace_func_entry *entry;
 	struct ftrace_hash *new_hash;
@@ -1439,7 +1443,7 @@ __ftrace_hash_move(struct ftrace_hash *src)
 	if (ftrace_hash_empty(src))
 		return EMPTY_HASH;
 
-	return dup_hash(src, size);
+	return __move_hash(src, size);
 }
 
 static int
