@@ -249,6 +249,15 @@ config IPQ_GCC_9574
 	  i2c, USB, SD/eMMC, etc. Select this for the root clock
 	  of ipq9574.
 
+config IPQ_NSSCC_QCA8K
+	tristate "QCA8K(QCA8386 or QCA8084) NSS Clock Controller"
+	depends on MDIO_BUS || COMPILE_TEST
+	help
+	  Support for NSS(Network SubSystem) clock controller on
+	  qca8386/qca8084 chip.
+	  Say Y or M if you want to use network features of switch or
+	  PHY device. Select this for the root clock of qca8k.
+
 config MSM_GCC_8660
 	tristate "MSM8660 Global Clock Controller"
 	depends on ARM || COMPILE_TEST
