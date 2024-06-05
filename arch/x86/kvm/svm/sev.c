@@ -2402,6 +2402,14 @@ static int snp_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		}
 
 		svm->vcpu.arch.guest_state_protected = true;
+		/*
+		 * SEV-ES (and thus SNP) guest mandates LBR Virtualization to
+		 * be _always_ ON. Enable it only after setting
+		 * guest_state_protected because KVM_SET_MSRS allows dynamic
+		 * toggling of LBRV (for performance reason) on write access to
+		 * MSR_IA32_DEBUGCTLMSR when guest_state_protected is not set.
+		 */
+		svm_enable_lbrv(vcpu);
 	}
 
 	return 0;
