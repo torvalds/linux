@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2013, 2015-2017, 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -19,8 +19,10 @@
 #include "coresight-priv.h"
 #include "coresight-common.h"
 
-#define csr_writel(drvdata, val, off)	__raw_writel((val), drvdata->base + off)
-#define csr_readl(drvdata, off)		__raw_readl(drvdata->base + off)
+#define csr_writel(drvdata, val, off)					\
+	__raw_writel((val), drvdata->base + csr_offset_conv(drvdata, off))
+#define csr_readl(drvdata, off)						\
+	__raw_readl(drvdata->base + csr_offset_conv(drvdata, off))
 
 #define CSR_LOCK(drvdata)						\
 do {									\
@@ -101,6 +103,13 @@ do {									\
 #define CSR_MAX_ATID	128
 #define CSR_ATID_REG_SIZE	0xc
 
+#define AODBG_CSR_MAP_LEVEL1	(0x34)
+#define AODBG_CSR_MAP_LEVEL2	(0x58)
+#define AODBG_CSR_MAP_LEVEL3	(0x80)
+#define AODBG_CSR_MAP_LEVEL4	(0xa4)
+#define AODBG_CSR_MAP_OFFSET1	(0x14)
+#define AODBG_CSR_MAP_OFFSET2	(0x44)
+
 struct csr_drvdata {
 	void __iomem		*base;
 	phys_addr_t		pbase;
@@ -126,6 +135,7 @@ struct csr_drvdata {
 	bool			timestamp_support;
 	bool			enable_flush;
 	bool			msr_support;
+	bool			aodbg_csr_support;
 };
 
 DEFINE_CORESIGHT_DEVLIST(csr_devs, "csr");
@@ -134,6 +144,17 @@ static LIST_HEAD(csr_list);
 static DEFINE_SPINLOCK(csr_spinlock);
 
 #define to_csr_drvdata(c) container_of(c, struct csr_drvdata, csr)
+
+static u32 csr_offset_conv(struct csr_drvdata *drvdata, u32 off)
+{
+	if (drvdata->aodbg_csr_support) {
+		if (off > AODBG_CSR_MAP_LEVEL1 && off < AODBG_CSR_MAP_LEVEL2)
+			return (off - AODBG_CSR_MAP_OFFSET1);
+		else if (off > AODBG_CSR_MAP_LEVEL3 && off < AODBG_CSR_MAP_LEVEL4)
+			return (off - AODBG_CSR_MAP_OFFSET2);
+	}
+	return off;
+}
 
 static void msm_qdss_csr_config_flush_period(struct csr_drvdata *drvdata)
 {
@@ -491,11 +512,56 @@ static ssize_t timestamp_show(struct device *dev,
 	time_tick |= (uint64_t)time_val1 << 32;
 	time_tick |= (uint64_t)time_val0;
 	size = scnprintf(buf, PAGE_SIZE, "%llu\n", time_tick);
-	dev_dbg(dev, "timestamp : %s\n", buf);
 	return size;
 }
-
 static DEVICE_ATTR_RO(timestamp);
+
+static ssize_t aotime_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	ssize_t size = 0;
+	uint64_t time_tick = 0;
+	uint32_t val, time_val0, time_val1;
+	int ret;
+	unsigned long flags;
+
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support) {
+		dev_err(dev, "Invalid param\n");
+		return 0;
+	}
+
+	ret = clk_prepare_enable(drvdata->clk);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&drvdata->spin_lock, flags);
+	CSR_UNLOCK(drvdata);
+
+	val = csr_readl(drvdata, CSR_TIMESTAMPCTRL);
+
+	val  = val & ~BIT(0);
+	csr_writel(drvdata, val, CSR_TIMESTAMPCTRL);
+
+	val  = val | BIT(0);
+	csr_writel(drvdata, val, CSR_TIMESTAMPCTRL);
+
+	time_val0 = csr_readl(drvdata, CSR_AOTIMEVAL0);
+	time_val1 = csr_readl(drvdata, CSR_AOTIMEVAL1);
+
+	CSR_LOCK(drvdata);
+	spin_unlock_irqrestore(&drvdata->spin_lock, flags);
+
+	clk_disable_unprepare(drvdata->clk);
+
+	time_tick |= (uint64_t)time_val1 << 32;
+	time_tick |= (uint64_t)time_val0;
+	size = scnprintf(buf, PAGE_SIZE, "%llu\n", time_tick);
+	return size;
+}
+static DEVICE_ATTR_RO(aotime);
 
 static ssize_t msr_show(struct device *dev,
 				struct device_attribute *attr,
@@ -807,6 +873,7 @@ static DEVICE_ATTR_RW(hbeat_mask1);
 
 static struct attribute *swao_csr_attrs[] = {
 	&dev_attr_timestamp.attr,
+	&dev_attr_aotime.attr,
 	&dev_attr_msr.attr,
 	&dev_attr_msr_reset.attr,
 	&dev_attr_hbeat_val0.attr,
@@ -914,6 +981,13 @@ static int csr_probe(struct platform_device *pdev)
 		dev_dbg(dev, "perflsheot_set_support handled by other subsystem\n");
 	else
 		dev_dbg(dev, "perflsheot_set_support operation supported\n");
+
+	drvdata->aodbg_csr_support = of_property_read_bool(pdev->dev.of_node,
+						"qcom,aodbg-csr-support");
+	if (!drvdata->aodbg_csr_support)
+		dev_dbg(dev, "aodbg_csr_support operation not supported\n");
+	else
+		dev_dbg(dev, "aodbg_csr_support operation supported\n");
 
 	if (drvdata->usb_bam_support)
 		drvdata->flushperiod = FLUSHPERIOD_1;
