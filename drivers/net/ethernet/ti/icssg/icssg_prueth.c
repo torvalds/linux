@@ -439,6 +439,37 @@ const struct icss_iep_clockops prueth_iep_clockops = {
 	.perout_enable = prueth_perout_enable,
 };
 
+static int icssg_prueth_add_mcast(struct net_device *ndev, const u8 *addr)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	int port_mask = BIT(emac->port_id);
+
+	port_mask |= icssg_fdb_lookup(emac, addr, 0);
+	icssg_fdb_add_del(emac, addr, 0, port_mask, true);
+	icssg_vtbl_modify(emac, 0, port_mask, port_mask, true);
+
+	return 0;
+}
+
+static int icssg_prueth_del_mcast(struct net_device *ndev, const u8 *addr)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	int port_mask = BIT(emac->port_id);
+	int other_port_mask;
+
+	other_port_mask = port_mask ^ icssg_fdb_lookup(emac, addr, 0);
+
+	icssg_fdb_add_del(emac, addr, 0, port_mask, false);
+	icssg_vtbl_modify(emac, 0, port_mask, port_mask, false);
+
+	if (other_port_mask) {
+		icssg_fdb_add_del(emac, addr, 0, other_port_mask, true);
+		icssg_vtbl_modify(emac, 0, other_port_mask, other_port_mask, true);
+	}
+
+	return 0;
+}
+
 /**
  * emac_ndo_open - EMAC device open
  * @ndev: network adapter device
@@ -599,6 +630,8 @@ static int emac_ndo_stop(struct net_device *ndev)
 
 	icssg_class_disable(prueth->miig_rt, prueth_emac_slice(emac));
 
+	__dev_mc_unsync(ndev, icssg_prueth_del_mcast);
+
 	atomic_set(&emac->tdown_cnt, emac->tx_ch_num);
 	/* ensure new tdown_cnt value is visible */
 	smp_mb__after_atomic();
@@ -675,10 +708,7 @@ static void emac_ndo_set_rx_mode_work(struct work_struct *work)
 		return;
 	}
 
-	if (!netdev_mc_empty(ndev)) {
-		emac_set_port_state(emac, ICSSG_EMAC_PORT_MC_FLOODING_ENABLE);
-		return;
-	}
+	__dev_mc_sync(ndev, icssg_prueth_add_mcast, icssg_prueth_del_mcast);
 }
 
 /**
