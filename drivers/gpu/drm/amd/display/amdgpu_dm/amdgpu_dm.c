@@ -977,8 +977,8 @@ static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 
 
 	list_for_each_entry(mode, &connector->modes, head) {
-		if (max_size < mode->htotal * mode->vtotal)
-			max_size = mode->htotal * mode->vtotal;
+		if (max_size < (unsigned long) mode->htotal * mode->vtotal)
+			max_size = (unsigned long) mode->htotal * mode->vtotal;
 	}
 
 	if (max_size) {
