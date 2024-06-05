@@ -2352,23 +2352,27 @@ static void dump_cpuid_table(void)
  * expected, but that initialization happens too early in boot to print any
  * sort of indicator, and there's not really any other good place to do it,
  * so do it here.
+ *
+ * If running as an SNP guest, report the current VM privilege level (VMPL).
  */
-static int __init report_cpuid_table(void)
+static int __init report_snp_info(void)
 {
 	const struct snp_cpuid_table *cpuid_table = snp_cpuid_get_table();
 
-	if (!cpuid_table->count)
-		return 0;
+	if (cpuid_table->count) {
+		pr_info("Using SNP CPUID table, %d entries present.\n",
+			cpuid_table->count);
 
-	pr_info("Using SNP CPUID table, %d entries present.\n",
-		cpuid_table->count);
+		if (sev_cfg.debug)
+			dump_cpuid_table();
+	}
 
-	if (sev_cfg.debug)
-		dump_cpuid_table();
+	if (cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
+		pr_info("SNP running at VMPL%u.\n", snp_vmpl);
 
 	return 0;
 }
-arch_initcall(report_cpuid_table);
+arch_initcall(report_snp_info);
 
 static int __init init_sev_config(char *str)
 {
