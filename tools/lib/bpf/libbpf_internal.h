@@ -515,11 +515,11 @@ enum btf_field_iter_kind {
 
 struct btf_field_desc {
 	/* once-per-type offsets */
-	int t_cnt, t_offs[2];
+	int t_off_cnt, t_offs[2];
 	/* member struct size, or zero, if no members */
 	int m_sz;
 	/* repeated per-member offsets */
-	int m_cnt, m_offs[1];
+	int m_off_cnt, m_offs[1];
 };
 
 struct btf_field_iter {

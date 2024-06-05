@@ -5267,7 +5267,7 @@ __u32 *btf_field_iter_next(struct btf_field_iter *it)
 		return NULL;
 
 	if (it->m_idx < 0) {
-		if (it->off_idx < it->desc.t_cnt)
+		if (it->off_idx < it->desc.t_off_cnt)
 			return it->p + it->desc.t_offs[it->off_idx++];
 		/* move to per-member iteration */
 		it->m_idx = 0;
@@ -5281,7 +5281,7 @@ __u32 *btf_field_iter_next(struct btf_field_iter *it)
 		return NULL;
 	}
 
-	if (it->off_idx >= it->desc.m_cnt) {
+	if (it->off_idx >= it->desc.m_off_cnt) {
 		/* exhausted this member's fields, go to the next member */
 		it->m_idx++;
 		it->p += it->desc.m_sz;
