@@ -45,17 +45,17 @@ struct ynl_policy_attr {
 	enum ynl_policy_type type;
 	unsigned int len;
 	const char *name;
-	struct ynl_policy_nest *nest;
+	const struct ynl_policy_nest *nest;
 };
 
 struct ynl_policy_nest {
 	unsigned int max_attr;
-	struct ynl_policy_attr *table;
+	const struct ynl_policy_attr *table;
 };
 
 struct ynl_parse_arg {
 	struct ynl_sock *ys;
-	struct ynl_policy_nest *rsp_policy;
+	const struct ynl_policy_nest *rsp_policy;
 	void *data;
 };
 
@@ -119,7 +119,7 @@ struct ynl_dump_state {
 };
 
 struct ynl_ntf_info {
-	struct ynl_policy_nest *policy;
+	const struct ynl_policy_nest *policy;
 	ynl_parse_cb_t cb;
 	size_t alloc_sz;
 	void (*free)(struct ynl_ntf_base_type *ntf);

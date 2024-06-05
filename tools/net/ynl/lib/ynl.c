@@ -46,7 +46,7 @@
 
 /* -- Netlink boiler plate */
 static int
-ynl_err_walk_report_one(struct ynl_policy_nest *policy, unsigned int type,
+ynl_err_walk_report_one(const struct ynl_policy_nest *policy, unsigned int type,
 			char *str, int str_sz, int *n)
 {
 	if (!policy) {
@@ -75,8 +75,8 @@ ynl_err_walk_report_one(struct ynl_policy_nest *policy, unsigned int type,
 
 static int
 ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
-	     struct ynl_policy_nest *policy, char *str, int str_sz,
-	     struct ynl_policy_nest **nest_pol)
+	     const struct ynl_policy_nest *policy, char *str, int str_sz,
+	     const struct ynl_policy_nest **nest_pol)
 {
 	unsigned int astart_off, aend_off;
 	const struct nlattr *attr;
@@ -206,7 +206,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		bad_attr[n] = '\0';
 	}
 	if (tb[NLMSGERR_ATTR_MISS_TYPE]) {
-		struct ynl_policy_nest *nest_pol = NULL;
+		const struct ynl_policy_nest *nest_pol = NULL;
 		unsigned int n, off, type;
 		void *start, *end;
 		int n2;
@@ -296,7 +296,7 @@ static int ynl_cb_done(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 
 int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 {
-	struct ynl_policy_attr *policy;
+	const struct ynl_policy_attr *policy;
 	unsigned int type, len;
 	unsigned char *data;
 

@@ -1507,12 +1507,12 @@ def print_dump_prototype(ri):
 
 
 def put_typol_fwd(cw, struct):
-    cw.p(f'extern struct ynl_policy_nest {struct.render_name}_nest;')
+    cw.p(f'extern const struct ynl_policy_nest {struct.render_name}_nest;')
 
 
 def put_typol(cw, struct):
     type_max = struct.attr_set.max_name
-    cw.block_start(line=f'struct ynl_policy_attr {struct.render_name}_policy[{type_max} + 1] =')
+    cw.block_start(line=f'const struct ynl_policy_attr {struct.render_name}_policy[{type_max} + 1] =')
 
     for _, arg in struct.member_list():
         arg.attr_typol(cw)
@@ -1520,7 +1520,7 @@ def put_typol(cw, struct):
     cw.block_end(line=';')
     cw.nl()
 
-    cw.block_start(line=f'struct ynl_policy_nest {struct.render_name}_nest =')
+    cw.block_start(line=f'const struct ynl_policy_nest {struct.render_name}_nest =')
     cw.p(f'.max_attr = {type_max},')
     cw.p(f'.table = {struct.render_name}_policy,')
     cw.block_end(line=';')
