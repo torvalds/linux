@@ -1115,6 +1115,7 @@
   snd_soc_daifmt_parse_clock_provider_raw
   snd_soc_daifmt_parse_format
   snd_soc_dai_set_sysclk
+  snd_soc_dai_set_tdm_slot
   snd_soc_dapm_add_routes
   snd_soc_dapm_disable_pin_unlocked
   snd_soc_dapm_force_enable_pin_unlocked
@@ -1138,6 +1139,7 @@
   snd_soc_pm_ops
   snd_soc_put_enum_double
   snd_soc_put_volsw
+  snd_soc_set_runtime_hwparams
   snd_soc_unregister_component
   snprintf
   sort
@@ -2708,6 +2710,19 @@
 # required by snd-soc-rockchip-hdmi.ko
   snd_soc_dapm_new_widgets
 
+# required by snd-soc-rockchip-multi-dais.ko
+  dma_get_slave_caps
+  snd_hwparams_to_dma_slave_config
+  snd_pcm_lib_free_pages
+  snd_pcm_lib_ioctl
+  snd_pcm_lib_malloc_pages
+  snd_pcm_lib_preallocate_pages
+  snd_pcm_stream_lock_irq
+  snd_pcm_stream_unlock_irq
+  snd_soc_dai_set_fmt
+  snd_soc_find_dai_with_mutex
+  snd_soc_rtdcom_lookup
+
 # required by snd-soc-rockchip-multicodecs.ko
   snd_soc_dapm_get_pin_switch
   snd_soc_dapm_info_pin_switch
@@ -2745,7 +2760,6 @@
   snd_pcm_hw_constraint_minmax
   snd_soc_component_set_sysclk
   snd_soc_dai_active
-  snd_soc_dai_set_tdm_slot
   snd_soc_of_parse_audio_simple_widgets
   snd_soc_of_parse_pin_switches
   snd_soc_runtime_calc_hw
