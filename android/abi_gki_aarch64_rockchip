@@ -1248,9 +1248,12 @@
   usb_hcd_resume_root_hub
   usb_hcd_unlink_urb_from_ep
   usb_hid_driver
+  usbnet_cdc_unbind
+  usbnet_cdc_zte_rx_fixup
   usbnet_change_mtu
   usbnet_defer_kevent
   usbnet_disconnect
+  usbnet_generic_cdc_bind
   usbnet_get_drvinfo
   usbnet_get_endpoints
   usbnet_get_link
