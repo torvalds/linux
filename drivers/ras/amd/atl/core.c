@@ -222,4 +222,5 @@ static void __exit amd_atl_exit(void)
 module_init(amd_atl_init);
 module_exit(amd_atl_exit);
 
+MODULE_DESCRIPTION("AMD Address Translation Library");
 MODULE_LICENSE("GPL");
