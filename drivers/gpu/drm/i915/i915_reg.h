@@ -2508,6 +2508,9 @@
 #define  GEN11_PIPE_PLANE6_FAULT	REG_BIT(21) /* icl/tgl */
 #define  GEN11_PIPE_PLANE5_FAULT	REG_BIT(20) /* icl+ */
 #define  GEN12_PIPE_VBLANK_UNMOD	REG_BIT(19) /* tgl+ */
+#define  GEN11_PIPE_PLANE7_FLIP_DONE	REG_BIT(18) /* icl/tgl */
+#define  GEN11_PIPE_PLANE6_FLIP_DONE	REG_BIT(17) /* icl/tgl */
+#define  GEN11_PIPE_PLANE5_FLIP_DONE	REG_BIT(16) /* icl+ */
 #define  GEN9_PIPE_CURSOR_FAULT		REG_BIT(11) /* skl+ */
 #define  GEN9_PIPE_PLANE4_FAULT		REG_BIT(10) /* skl+ */
 #define  GEN8_PIPE_CURSOR_FAULT		REG_BIT(10) /* bdw */
@@ -2522,7 +2525,8 @@
 #define  GEN9_PIPE_PLANE2_FLIP_DONE	REG_BIT(4) /* skl+ */
 #define  GEN8_PIPE_PRIMARY_FLIP_DONE	REG_BIT(4) /* bdw */
 #define  GEN9_PIPE_PLANE1_FLIP_DONE	REG_BIT(3) /* skl+ */
-#define  GEN9_PIPE_PLANE_FLIP_DONE(p)	REG_BIT(3 + (p)) /* skl+ */
+#define  GEN9_PIPE_PLANE_FLIP_DONE(plane_id) \
+	REG_BIT(((plane_id) >= PLANE_5 ? 16 - PLANE_5 : 3 - PLANE_1) + (plane_id)) /* skl+ */
 #define  GEN8_PIPE_SCAN_LINE_EVENT	REG_BIT(2)
 #define  GEN8_PIPE_VSYNC		REG_BIT(1)
 #define  GEN8_PIPE_VBLANK		REG_BIT(0)
