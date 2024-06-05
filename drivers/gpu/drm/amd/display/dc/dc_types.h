@@ -923,6 +923,12 @@ struct display_endpoint_id {
 	enum display_endpoint_type ep_type;
 };
 
+enum backlight_control_type {
+	BACKLIGHT_CONTROL_PWM = 0,
+	BACKLIGHT_CONTROL_VESA_AUX = 1,
+	BACKLIGHT_CONTROL_AMD_AUX = 2,
+};
+
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 struct otg_phy_mux {
 	uint8_t phy_output_num;

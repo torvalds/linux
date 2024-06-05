@@ -1786,6 +1786,7 @@ struct dc_link {
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 	bool skip_implict_edp_power_control;
+	enum backlight_control_type backlight_control_type;
 };
 
 /* Return an enumerated dc_link.
