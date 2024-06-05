@@ -176,15 +176,6 @@ static inline void set_page_memtype(struct page *pg,
 }
 #endif
 
-enum {
-	PAT_UC = 0,		/* uncached */
-	PAT_WC = 1,		/* Write combining */
-	PAT_WT = 4,		/* Write Through */
-	PAT_WP = 5,		/* Write Protected */
-	PAT_WB = 6,		/* Write Back (default) */
-	PAT_UC_MINUS = 7,	/* UC, but can be overridden by MTRR */
-};
-
 #define CM(c) (_PAGE_CACHE_MODE_ ## c)
 
 static enum page_cache_mode __init pat_get_cache_mode(unsigned int pat_val,
@@ -194,13 +185,13 @@ static enum page_cache_mode __init pat_get_cache_mode(unsigned int pat_val,
 	char *cache_mode;
 
 	switch (pat_val) {
-	case PAT_UC:       cache = CM(UC);       cache_mode = "UC  "; break;
-	case PAT_WC:       cache = CM(WC);       cache_mode = "WC  "; break;
-	case PAT_WT:       cache = CM(WT);       cache_mode = "WT  "; break;
-	case PAT_WP:       cache = CM(WP);       cache_mode = "WP  "; break;
-	case PAT_WB:       cache = CM(WB);       cache_mode = "WB  "; break;
-	case PAT_UC_MINUS: cache = CM(UC_MINUS); cache_mode = "UC- "; break;
-	default:           cache = CM(WB);       cache_mode = "WB  "; break;
+	case X86_MEMTYPE_UC:       cache = CM(UC);       cache_mode = "UC  "; break;
+	case X86_MEMTYPE_WC:       cache = CM(WC);       cache_mode = "WC  "; break;
+	case X86_MEMTYPE_WT:       cache = CM(WT);       cache_mode = "WT  "; break;
+	case X86_MEMTYPE_WP:       cache = CM(WP);       cache_mode = "WP  "; break;
+	case X86_MEMTYPE_WB:       cache = CM(WB);       cache_mode = "WB  "; break;
+	case X86_MEMTYPE_UC_MINUS: cache = CM(UC_MINUS); cache_mode = "UC- "; break;
+	default:                   cache = CM(WB);       cache_mode = "WB  "; break;
 	}
 
 	memcpy(msg, cache_mode, 4);
@@ -257,11 +248,11 @@ void pat_cpu_init(void)
 void __init pat_bp_init(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-#define PAT(p0, p1, p2, p3, p4, p5, p6, p7)			\
-	(((u64)PAT_ ## p0) | ((u64)PAT_ ## p1 << 8) |		\
-	((u64)PAT_ ## p2 << 16) | ((u64)PAT_ ## p3 << 24) |	\
-	((u64)PAT_ ## p4 << 32) | ((u64)PAT_ ## p5 << 40) |	\
-	((u64)PAT_ ## p6 << 48) | ((u64)PAT_ ## p7 << 56))
+#define PAT(p0, p1, p2, p3, p4, p5, p6, p7)				\
+	((X86_MEMTYPE_ ## p0)      | (X86_MEMTYPE_ ## p1 << 8)  |	\
+	(X86_MEMTYPE_ ## p2 << 16) | (X86_MEMTYPE_ ## p3 << 24) |	\
+	(X86_MEMTYPE_ ## p4 << 32) | (X86_MEMTYPE_ ## p5 << 40) |	\
+	(X86_MEMTYPE_ ## p6 << 48) | (X86_MEMTYPE_ ## p7 << 56))
 
 
 	if (!IS_ENABLED(CONFIG_X86_PAT))

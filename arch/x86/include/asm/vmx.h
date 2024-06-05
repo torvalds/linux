@@ -508,9 +508,10 @@ enum vmcs_field {
 #define VMX_EPTP_PWL_4				0x18ull
 #define VMX_EPTP_PWL_5				0x20ull
 #define VMX_EPTP_AD_ENABLE_BIT			(1ull << 6)
+/* The EPTP memtype is encoded in bits 2:0, i.e. doesn't need to be shifted. */
 #define VMX_EPTP_MT_MASK			0x7ull
-#define VMX_EPTP_MT_WB				0x6ull
-#define VMX_EPTP_MT_UC				0x0ull
+#define VMX_EPTP_MT_WB				X86_MEMTYPE_WB
+#define VMX_EPTP_MT_UC				X86_MEMTYPE_UC
 #define VMX_EPT_READABLE_MASK			0x1ull
 #define VMX_EPT_WRITABLE_MASK			0x2ull
 #define VMX_EPT_EXECUTABLE_MASK			0x4ull

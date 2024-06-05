@@ -2747,7 +2747,7 @@ static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 #endif
 
 	/* Require Write-Back (WB) memory type for VMCS accesses. */
-	if (((vmx_msr_high >> 18) & 15) != 6)
+	if (((vmx_msr_high >> 18) & 15) != X86_MEMTYPE_WB)
 		return -EIO;
 
 	rdmsrl(MSR_IA32_VMX_MISC, misc_msr);
