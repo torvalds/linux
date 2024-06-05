@@ -4824,6 +4824,7 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       const struct iwl_mvm_roc_ops *ops)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
 	u32 lmac_id;
 	int ret;
 
@@ -4836,9 +4837,12 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	 */
 	flush_work(&mvm->roc_done_wk);
 
-	ret = iwl_mvm_esr_non_bss_link(mvm, vif, 0, true);
-	if (ret)
-		return ret;
+	if (!IS_ERR_OR_NULL(bss_vif)) {
+		ret = iwl_mvm_block_esr_sync(mvm, bss_vif,
+					     IWL_MVM_ESR_BLOCKED_ROC);
+		if (ret)
+			return ret;
+	}
 
 	guard(mvm)(mvm);
 
