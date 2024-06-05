@@ -1863,14 +1863,24 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 	return update;
 }
 
+/*
+ * This is called when an ops is removed from tracing. It will decrement
+ * the counters of the dyn_ftrace records for all the functions that
+ * the @ops attached to.
+ */
 static bool ftrace_hash_rec_disable(struct ftrace_ops *ops)
 {
-	return __ftrace_hash_rec_update(ops, 0);
+	return __ftrace_hash_rec_update(ops, false);
 }
 
+/*
+ * This is called when an ops is added to tracing. It will increment
+ * the counters of the dyn_ftrace records for all the functions that
+ * the @ops attached to.
+ */
 static bool ftrace_hash_rec_enable(struct ftrace_ops *ops)
 {
-	return __ftrace_hash_rec_update(ops, 1);
+	return __ftrace_hash_rec_update(ops, true);
 }
 
 static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops, int inc)
