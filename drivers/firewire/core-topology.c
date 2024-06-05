@@ -38,13 +38,10 @@
 #define SELFID_PORT_NCONN	0x1
 #define SELFID_PORT_NONE	0x0
 
-static u32 *count_ports(u32 *sid, int *total_port_count, int *child_port_count)
+static const u32 *count_ports(const u32 *sid, int *total_port_count, int *child_port_count)
 {
 	u32 q;
 	int port_type, shift, seq;
-
-	*total_port_count = 0;
-	*child_port_count = 0;
 
 	shift = 6;
 	q = *sid;
@@ -89,7 +86,7 @@ static u32 *count_ports(u32 *sid, int *total_port_count, int *child_port_count)
 	}
 }
 
-static int get_port_type(u32 *sid, int port_index)
+static int get_port_type(const u32 *sid, int port_index)
 {
 	int index, shift;
 
@@ -169,13 +166,12 @@ static inline struct fw_node *fw_node(struct list_head *l)
  * internally consistent.  On success this function returns the
  * fw_node corresponding to the local card otherwise NULL.
  */
-static struct fw_node *build_tree(struct fw_card *card,
-				  u32 *sid, int self_id_count)
+static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self_id_count)
 {
 	struct fw_node *node, *child, *local_node, *irm_node;
-	struct list_head stack, *h;
-	u32 *next_sid, *end, q;
-	int i, port_count, child_port_count, phy_id, parent_count, stack_depth;
+	struct list_head stack;
+	const u32 *end;
+	int phy_id, stack_depth;
 	int gap_count;
 	bool beta_repeaters_present;
 
@@ -190,8 +186,15 @@ static struct fw_node *build_tree(struct fw_card *card,
 	beta_repeaters_present = false;
 
 	while (sid < end) {
-		next_sid = count_ports(sid, &port_count, &child_port_count);
+		int port_count = 0;
+		int child_port_count = 0;
+		int parent_count = 0;
+		const u32 *next_sid;
+		u32 q;
+		struct list_head *h;
+		int i;
 
+		next_sid = count_ports(sid, &port_count, &child_port_count);
 		if (next_sid == NULL) {
 			fw_err(card, "inconsistent extended self IDs\n");
 			return NULL;
