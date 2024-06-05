@@ -104,15 +104,19 @@ static inline int accounting_pos_cmp(const void *_l, const void *_r)
 	return bpos_cmp(*l, *r);
 }
 
-int bch2_accounting_mem_mod_slowpath(struct bch_fs *, struct bkey_s_c_accounting, bool);
+int bch2_accounting_mem_insert(struct bch_fs *, struct bkey_s_c_accounting, bool);
 
 static inline int __bch2_accounting_mem_mod(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
 {
 	struct bch_accounting_mem *acc = &c->accounting[gc];
-	unsigned idx = eytzinger0_find(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
-				       accounting_pos_cmp, &a.k->p);
-	if (unlikely(idx >= acc->k.nr))
-		return bch2_accounting_mem_mod_slowpath(c, a, gc);
+	unsigned idx;
+
+	while ((idx = eytzinger0_find(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
+				      accounting_pos_cmp, &a.k->p)) >= acc->k.nr) {
+		int ret = bch2_accounting_mem_insert(c, a, gc);
+		if (ret)
+			return ret;
+	}
 
 	unsigned offset = acc->k.data[idx].offset;
 

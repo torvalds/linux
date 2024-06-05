@@ -218,7 +218,7 @@ int bch2_accounting_update_sb(struct btree_trans *trans)
 	return 0;
 }
 
-static int __bch2_accounting_mem_mod_slowpath(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
+static int __bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
 {
 	struct bch_replicas_padded r;
 
@@ -226,7 +226,12 @@ static int __bch2_accounting_mem_mod_slowpath(struct bch_fs *c, struct bkey_s_c_
 	    !bch2_replicas_marked_locked(c, &r.e))
 		return -BCH_ERR_btree_insert_need_mark_replicas;
 
+	/* raced with another insert, already present: */
 	struct bch_accounting_mem *acc = &c->accounting[gc];
+	if (eytzinger0_find(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
+			    accounting_pos_cmp, &a.k->p) < acc->k.nr)
+		return 0;
+
 	unsigned new_nr_counters = acc->nr_counters + bch2_accounting_counters(a.k);
 
 	u64 __percpu *new_counters = __alloc_percpu_gfp(new_nr_counters * sizeof(u64),
@@ -256,17 +261,14 @@ static int __bch2_accounting_mem_mod_slowpath(struct bch_fs *c, struct bkey_s_c_
 	free_percpu(acc->v);
 	acc->v = new_counters;
 	acc->nr_counters = new_nr_counters;
-
-	for (unsigned i = 0; i < n.nr_counters; i++)
-		this_cpu_add(acc->v[n.offset + i], a.v->d[i]);
 	return 0;
 }
 
-int bch2_accounting_mem_mod_slowpath(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
+int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
 {
 	percpu_up_read(&c->mark_lock);
 	percpu_down_write(&c->mark_lock);
-	int ret = __bch2_accounting_mem_mod_slowpath(c, a, gc);
+	int ret = __bch2_accounting_mem_insert(c, a, gc);
 	percpu_up_write(&c->mark_lock);
 	percpu_down_read(&c->mark_lock);
 	return ret;
