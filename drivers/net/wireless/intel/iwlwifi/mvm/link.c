@@ -1086,8 +1086,10 @@ static void iwl_mvm_esr_unblocked(struct iwl_mvm *mvm,
 
 	IWL_DEBUG_INFO(mvm, "EMLSR is unblocked\n");
 
-	/* We exited due to an EXIT reason, so MLO scan was scheduled already */
-	if (mvmvif->last_esr_exit.reason &&
+	/* If we exited due to an EXIT reason, and the exit was in less than
+	 * 30 seconds, then a MLO scan was scheduled already.
+	 */
+	if (!need_new_sel &&
 	    !(mvmvif->last_esr_exit.reason & IWL_MVM_BLOCK_ESR_REASONS)) {
 		IWL_DEBUG_INFO(mvm, "Wait for MLO scan\n");
 		return;
