@@ -702,32 +702,40 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 	mutex_lock(&sdp->sd_quota_mutex);
 	gfs2_trans_add_meta(ip->i_gl, qd->qd_bh);
 
-	if (!test_bit(QDF_CHANGE, &qd->qd_flags)) {
-		qc->qc_change = 0;
-		qc->qc_flags = 0;
-		if (qd->qd_id.type == USRQUOTA)
-			qc->qc_flags = cpu_to_be32(GFS2_QCF_USER);
-		qc->qc_id = cpu_to_be32(from_kqid(&init_user_ns, qd->qd_id));
-	}
+	/*
+	 * The QDF_CHANGE flag indicates that the slot in the quota change file
+	 * is used.  Here, we use the value of qc->qc_change when the slot is
+	 * used, and we assume a value of 0 otherwise.
+	 */
 
-	x = be64_to_cpu(qc->qc_change) + change;
-	qc->qc_change = cpu_to_be64(x);
+	x = 0;
+	if (test_bit(QDF_CHANGE, &qd->qd_flags))
+		x = be64_to_cpu(qc->qc_change);
+	x += change;
 
 	spin_lock(&qd_lock);
-	qd->qd_change = x;
+	qd->qd_change += change;
 	spin_unlock(&qd_lock);
 
-	if (!x) {
-		gfs2_assert_warn(sdp, test_bit(QDF_CHANGE, &qd->qd_flags));
+	if (!x && test_bit(QDF_CHANGE, &qd->qd_flags)) {
+		/* The slot in the quota change file becomes unused. */
 		clear_bit(QDF_CHANGE, &qd->qd_flags);
 		qc->qc_flags = 0;
 		qc->qc_id = 0;
 		slot_put(qd);
 		qd_put(qd);
-	} else if (!test_and_set_bit(QDF_CHANGE, &qd->qd_flags)) {
+	} else if (x && !test_bit(QDF_CHANGE, &qd->qd_flags)) {
+		/* The slot in the quota change file becomes used. */
+		set_bit(QDF_CHANGE, &qd->qd_flags);
 		qd_hold(qd);
 		slot_hold(qd);
+
+		qc->qc_flags = 0;
+		if (qd->qd_id.type == USRQUOTA)
+			qc->qc_flags = cpu_to_be32(GFS2_QCF_USER);
+		qc->qc_id = cpu_to_be32(from_kqid(&init_user_ns, qd->qd_id));
 	}
+	qc->qc_change = cpu_to_be64(x);
 
 	if (change < 0) /* Reset quiet flag if we freed some blocks */
 		clear_bit(QDF_QMSG_QUIET, &qd->qd_flags);
