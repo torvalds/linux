@@ -6986,31 +6986,6 @@ static void tcp_openreq_init(struct request_sock *req,
 #endif
 }
 
-struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
-				      struct sock *sk_listener,
-				      bool attach_listener)
-{
-	struct request_sock *req = reqsk_alloc(ops, sk_listener,
-					       attach_listener);
-
-	if (req) {
-		struct inet_request_sock *ireq = inet_rsk(req);
-
-		ireq->ireq_opt = NULL;
-#if IS_ENABLED(CONFIG_IPV6)
-		ireq->pktopts = NULL;
-#endif
-		atomic64_set(&ireq->ir_cookie, 0);
-		ireq->ireq_state = TCP_NEW_SYN_RECV;
-		write_pnet(&ireq->ireq_net, sock_net(sk_listener));
-		ireq->ireq_family = sk_listener->sk_family;
-		req->timeout = TCP_TIMEOUT_INIT;
-	}
-
-	return req;
-}
-EXPORT_SYMBOL(inet_reqsk_alloc);
-
 /*
  * Return true if a syncookie should be sent
  */
