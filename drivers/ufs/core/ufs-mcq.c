@@ -18,6 +18,7 @@
 #include <linux/iopoll.h>
 
 #define MAX_QUEUE_SUP GENMASK(7, 0)
+#define QCFGPTR GENMASK(23, 16)
 #define UFS_MCQ_MIN_RW_QUEUES 2
 #define UFS_MCQ_MIN_READ_QUEUES 0
 #define UFS_MCQ_MIN_POLL_QUEUES 0
@@ -117,6 +118,19 @@ struct ufs_hw_queue *ufshcd_mcq_req_to_hwq(struct ufs_hba *hba,
 }
 
 /**
+ * ufshcd_mcq_queue_cfg_addr - get an start address of the MCQ Queue Config
+ * Registers.
+ * @hba: per adapter instance
+ *
+ * Return: Start address of MCQ Queue Config Registers in HCI
+ */
+unsigned int ufshcd_mcq_queue_cfg_addr(struct ufs_hba *hba)
+{
+	return FIELD_GET(QCFGPTR, hba->mcq_capabilities) * 0x200;
+}
+EXPORT_SYMBOL_GPL(ufshcd_mcq_queue_cfg_addr);
+
+/**
  * ufshcd_mcq_decide_queue_depth - decide the queue depth
  * @hba: per adapter instance
  *
@@ -162,6 +176,15 @@ static int ufshcd_mcq_config_nr_queues(struct ufs_hba *hba)
 	if (hba_maxq < tot_queues) {
 		dev_err(hba->dev, "Total queues (%d) exceeds HC capacity (%d)\n",
 			tot_queues, hba_maxq);
+		return -EOPNOTSUPP;
+	}
+
+	/*
+	 * Device should support at least one I/O queue to handle device
+	 * commands via hba->dev_cmd_queue.
+	 */
+	if (hba_maxq == poll_queues) {
+		dev_err(hba->dev, "At least one non-poll queue required\n");
 		return -EOPNOTSUPP;
 	}
 
