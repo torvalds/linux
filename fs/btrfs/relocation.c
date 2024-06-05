@@ -4005,15 +4005,13 @@ static void free_reloc_control(struct reloc_control *rc)
 /*
  * Print the block group being relocated
  */
-static void describe_relocation(struct btrfs_fs_info *fs_info,
-				struct btrfs_block_group *block_group)
+static void describe_relocation(struct btrfs_block_group *block_group)
 {
 	char buf[128] = {'\0'};
 
 	btrfs_describe_block_groups(block_group->flags, buf, sizeof(buf));
 
-	btrfs_info(fs_info,
-		   "relocating block group %llu flags %s",
+	btrfs_info(block_group->fs_info, "relocating block group %llu flags %s",
 		   block_group->start, buf);
 }
 
@@ -4121,7 +4119,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 		goto out;
 	}
 
-	describe_relocation(fs_info, rc->block_group);
+	describe_relocation(rc->block_group);
 
 	btrfs_wait_block_group_reservations(rc->block_group);
 	btrfs_wait_nocow_writers(rc->block_group);
