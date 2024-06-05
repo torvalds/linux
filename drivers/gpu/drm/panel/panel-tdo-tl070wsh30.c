@@ -24,8 +24,6 @@ struct tdo_tl070wsh30_panel {
 
 	struct regulator *supply;
 	struct gpio_desc *reset_gpio;
-
-	bool prepared;
 };
 
 static inline
@@ -38,9 +36,6 @@ static int tdo_tl070wsh30_panel_prepare(struct drm_panel *panel)
 {
 	struct tdo_tl070wsh30_panel *tdo_tl070wsh30 = to_tdo_tl070wsh30_panel(panel);
 	int err;
-
-	if (tdo_tl070wsh30->prepared)
-		return 0;
 
 	err = regulator_enable(tdo_tl070wsh30->supply);
 	if (err < 0)
@@ -74,8 +69,6 @@ static int tdo_tl070wsh30_panel_prepare(struct drm_panel *panel)
 
 	msleep(20);
 
-	tdo_tl070wsh30->prepared = true;
-
 	return 0;
 }
 
@@ -83,9 +76,6 @@ static int tdo_tl070wsh30_panel_unprepare(struct drm_panel *panel)
 {
 	struct tdo_tl070wsh30_panel *tdo_tl070wsh30 = to_tdo_tl070wsh30_panel(panel);
 	int err;
-
-	if (!tdo_tl070wsh30->prepared)
-		return 0;
 
 	err = mipi_dsi_dcs_set_display_off(tdo_tl070wsh30->link);
 	if (err < 0)
@@ -102,8 +92,6 @@ static int tdo_tl070wsh30_panel_unprepare(struct drm_panel *panel)
 	usleep_range(10000, 11000);
 
 	regulator_disable(tdo_tl070wsh30->supply);
-
-	tdo_tl070wsh30->prepared = false;
 
 	return 0;
 }
