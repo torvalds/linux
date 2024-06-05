@@ -2790,10 +2790,10 @@ out_free_blocks:
 	return ret;
 }
 
-static noinline_for_stack int prealloc_file_extent_cluster(
-				struct btrfs_inode *inode,
-				const struct file_extent_cluster *cluster)
+static noinline_for_stack int prealloc_file_extent_cluster(struct reloc_control *rc)
 {
+	const struct file_extent_cluster *cluster = &rc->cluster;
+	struct btrfs_inode *inode = BTRFS_I(rc->data_inode);
 	u64 alloc_hint = 0;
 	u64 start;
 	u64 end;
@@ -3104,7 +3104,7 @@ static int relocate_file_extent_cluster(struct reloc_control *rc)
 	if (!ra)
 		return -ENOMEM;
 
-	ret = prealloc_file_extent_cluster(BTRFS_I(inode), cluster);
+	ret = prealloc_file_extent_cluster(rc);
 	if (ret)
 		goto out;
 
