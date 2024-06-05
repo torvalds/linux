@@ -296,6 +296,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	INIT_LIST_HEAD(&mvmvif->time_event_data.list);
 	mvmvif->time_event_data.id = TE_MAX;
+	mvmvif->roc_activity = ROC_NUM_ACTIVITIES;
 
 	mvmvif->deflink.bcast_sta.sta_id = IWL_MVM_INVALID_STA;
 	mvmvif->deflink.mcast_sta.sta_id = IWL_MVM_INVALID_STA;

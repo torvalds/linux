@@ -471,7 +471,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       iwl_mvm_time_sync_msmt_confirm_event, RX_HANDLER_SYNC,
 		       struct iwl_time_msmt_cfm_notify),
 	RX_HANDLER_GRP(MAC_CONF_GROUP, ROC_NOTIF,
-		       iwl_mvm_rx_roc_notif, RX_HANDLER_SYNC,
+		       iwl_mvm_rx_roc_notif, RX_HANDLER_ASYNC_LOCKED,
 		       struct iwl_roc_notif),
 	RX_HANDLER_GRP(SCAN_GROUP, CHANNEL_SURVEY_NOTIF,
 		       iwl_mvm_rx_channel_survey_notif, RX_HANDLER_ASYNC_LOCKED,
