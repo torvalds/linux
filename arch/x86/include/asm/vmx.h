@@ -135,10 +135,8 @@
 #define VMX_VMFUNC_EPTP_SWITCHING               VMFUNC_CONTROL_BIT(EPTP_SWITCHING)
 #define VMFUNC_EPTP_ENTRIES  512
 
-#define VMX_BASIC_VMCS_SIZE_SHIFT		32
 #define VMX_BASIC_32BIT_PHYS_ADDR_ONLY		BIT_ULL(48)
 #define VMX_BASIC_DUAL_MONITOR_TREATMENT	BIT_ULL(49)
-#define VMX_BASIC_MEM_TYPE_SHIFT		50
 #define VMX_BASIC_INOUT				BIT_ULL(54)
 #define VMX_BASIC_TRUE_CTLS			BIT_ULL(55)
 
@@ -155,6 +153,11 @@ static inline u32 vmx_basic_vmcs_size(u64 vmx_basic)
 static inline u32 vmx_basic_vmcs_mem_type(u64 vmx_basic)
 {
 	return (vmx_basic & GENMASK_ULL(53, 50)) >> 50;
+}
+
+static inline u64 vmx_basic_encode_vmcs_info(u32 revision, u16 size, u8 memtype)
+{
+	return revision | ((u64)size << 32) | ((u64)memtype << 50);
 }
 
 static inline int vmx_misc_preemption_timer_rate(u64 vmx_misc)
