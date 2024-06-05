@@ -143,8 +143,8 @@ static struct iwcm_work *get_work(struct iwcm_id_private *cm_id_priv)
 
 	if (list_empty(&cm_id_priv->work_free_list))
 		return NULL;
-	work = list_entry(cm_id_priv->work_free_list.next, struct iwcm_work,
-			  free_list);
+	work = list_first_entry(&cm_id_priv->work_free_list, struct iwcm_work,
+				free_list);
 	list_del_init(&work->free_list);
 	return work;
 }
@@ -1023,8 +1023,8 @@ static void cm_work_handler(struct work_struct *_work)
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	empty = list_empty(&cm_id_priv->work_list);
 	while (!empty) {
-		work = list_entry(cm_id_priv->work_list.next,
-				  struct iwcm_work, list);
+		work = list_first_entry(&cm_id_priv->work_list,
+					struct iwcm_work, list);
 		list_del_init(&work->list);
 		empty = list_empty(&cm_id_priv->work_list);
 		levent = work->event;
