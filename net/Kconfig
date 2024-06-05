@@ -290,15 +290,21 @@ config MAX_SKB_FRAGS
 	  If unsure, say 17.
 
 config RPS
-	bool
+	bool "Receive packet steering"
 	depends on SMP && SYSFS
 	default y
+	help
+	  Software receive side packet steering (RPS) distributes the
+	  load of received packet processing across multiple CPUs.
 
 config RFS_ACCEL
-	bool
+	bool "Hardware acceleration of RFS"
 	depends on RPS
 	select CPU_RMAP
 	default y
+	help
+	  Allowing drivers for multiqueue hardware with flow filter tables to
+	  accelerate RFS.
 
 config SOCK_RX_QUEUE_MAPPING
 	bool
@@ -351,7 +357,7 @@ config BPF_STREAM_PARSER
 	  BPF_MAP_TYPE_SOCKMAP.
 
 config NET_FLOW_LIMIT
-	bool
+	bool "Net flow limit"
 	depends on RPS
 	default y
 	help
