@@ -1186,7 +1186,6 @@ extern int ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
 			     int len, int reset);
 extern int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
 			      int len, int reset);
-extern int ftrace_startup_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, int command);
 #else
 struct ftrace_func_command;
 
