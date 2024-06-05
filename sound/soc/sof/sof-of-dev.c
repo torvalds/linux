@@ -93,3 +93,4 @@ void sof_of_shutdown(struct platform_device *pdev)
 EXPORT_SYMBOL(sof_of_shutdown);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for OF/DT platforms");
