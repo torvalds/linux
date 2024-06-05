@@ -3119,6 +3119,8 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	u32 id;
 	bool cttw_reg, cttw_fw = smmu->features & ARM_SMMU_FEAT_COHERENT_WALK;
 	int i, ret;
+	unsigned int num_mapping_groups_override = 0;
+	unsigned int num_context_banks_override = 0;
 
 	dev_notice(smmu->dev, "probing hardware configuration...\n");
 	dev_notice(smmu->dev, "SMMUv%d with:\n",
@@ -3208,6 +3210,15 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	for (i = 0; i < size; i++)
 		smmu->s2crs[i] = s2cr_init_val;
 
+	ret = of_property_read_u32(smmu->dev->of_node, "qcom,num-smr-override",
+		&num_mapping_groups_override);
+	if (!ret && size > num_mapping_groups_override) {
+		dev_dbg(smmu->dev, "%d mapping groups overridden to %d\n",
+			size, num_mapping_groups_override);
+
+		size = min(size, num_mapping_groups_override);
+	}
+
 	smmu->num_mapping_groups = size;
 	mutex_init(&smmu->stream_map_mutex);
 	spin_lock_init(&smmu->global_sync_lock);
@@ -3237,6 +3248,20 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 
 	smmu->num_s2_context_banks = FIELD_GET(ARM_SMMU_ID1_NUMS2CB, id);
 	smmu->num_context_banks = FIELD_GET(ARM_SMMU_ID1_NUMCB, id);
+
+	ret = of_property_read_u32(smmu->dev->of_node,
+		"qcom,num-context-banks-override",
+		&num_context_banks_override);
+
+	if (!ret && smmu->num_context_banks > num_context_banks_override) {
+		dev_dbg(smmu->dev, "%d context banks overridden to %d\n",
+			smmu->num_context_banks,
+			num_context_banks_override);
+
+		smmu->num_context_banks = min(smmu->num_context_banks,
+					num_context_banks_override);
+	}
+
 	if (smmu->num_s2_context_banks > smmu->num_context_banks) {
 		dev_err(smmu->dev, "impossible number of S2 context banks!\n");
 		return -ENODEV;
