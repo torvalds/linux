@@ -74,6 +74,12 @@
 
 #include "../workqueue_internal.h"
 
+struct rq;
+struct cfs_rq;
+struct rt_rq;
+struct sched_group;
+struct cpuidle_state;
+
 #ifdef CONFIG_PARAVIRT
 # include <asm/paravirt.h>
 # include <asm/paravirt_api_clock.h>
@@ -89,9 +95,6 @@
 #else
 # define SCHED_WARN_ON(x)      ({ (void)(x), 0; })
 #endif
-
-struct rq;
-struct cpuidle_state;
 
 /* task_struct::on_rq states: */
 #define TASK_ON_RQ_QUEUED	1
@@ -361,9 +364,6 @@ extern void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
 		    dl_server_pick_f pick);
 
 #ifdef CONFIG_CGROUP_SCHED
-
-struct cfs_rq;
-struct rt_rq;
 
 extern struct list_head task_groups;
 
@@ -996,8 +996,6 @@ struct uclamp_rq {
 DECLARE_STATIC_KEY_FALSE(sched_uclamp_used);
 #endif /* CONFIG_UCLAMP_TASK */
 
-struct rq;
-
 struct balance_callback {
 	struct balance_callback *next;
 	void (*func)(struct rq *rq);
@@ -1254,8 +1252,6 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 #define task_rq(p)		cpu_rq(task_cpu(p))
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define raw_rq()		raw_cpu_ptr(&runqueues)
-
-struct sched_group;
 
 #ifdef CONFIG_SCHED_CORE
 static inline struct cpumask *sched_group_span(struct sched_group *sg);
