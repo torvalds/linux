@@ -848,7 +848,7 @@ out:
 }
 
 static void
-codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped)
+codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped, bool populate_links)
 {
 	struct bpf_map *map;
 	char ident[256];
@@ -886,6 +886,14 @@ codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped)
 		/* memory-mapped internal maps */
 		if (mmaped && is_mmapable_map(map, ident, sizeof(ident))) {
 			printf("\ts->maps[%zu].mmaped = (void **)&obj->%s;\n",
+				i, ident);
+		}
+
+		if (populate_links && bpf_map__type(map) == BPF_MAP_TYPE_STRUCT_OPS) {
+			codegen("\
+				\n\
+					s->maps[%zu].link = &obj->links.%s;\n\
+				",
 				i, ident);
 		}
 		i++;
@@ -1141,7 +1149,7 @@ static void gen_st_ops_shadow_init(struct btf *btf, struct bpf_object *obj)
 static int do_skeleton(int argc, char **argv)
 {
 	char header_guard[MAX_OBJ_NAME_LEN + sizeof("__SKEL_H__")];
-	size_t map_cnt = 0, prog_cnt = 0, file_sz, mmap_sz;
+	size_t map_cnt = 0, prog_cnt = 0, attach_map_cnt = 0, file_sz, mmap_sz;
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts);
 	char obj_name[MAX_OBJ_NAME_LEN] = "", *obj_data;
 	struct bpf_object *obj = NULL;
@@ -1225,6 +1233,10 @@ static int do_skeleton(int argc, char **argv)
 			      bpf_map__name(map));
 			continue;
 		}
+
+		if (bpf_map__type(map) == BPF_MAP_TYPE_STRUCT_OPS)
+			attach_map_cnt++;
+
 		map_cnt++;
 	}
 	bpf_object__for_each_program(prog, obj) {
@@ -1297,6 +1309,9 @@ static int do_skeleton(int argc, char **argv)
 				       bpf_program__name(prog));
 		}
 		printf("\t} progs;\n");
+	}
+
+	if (prog_cnt + attach_map_cnt) {
 		printf("\tstruct {\n");
 		bpf_object__for_each_program(prog, obj) {
 			if (use_loader)
@@ -1306,6 +1321,19 @@ static int do_skeleton(int argc, char **argv)
 				printf("\t\tstruct bpf_link *%s;\n",
 				       bpf_program__name(prog));
 		}
+
+		bpf_object__for_each_map(map, obj) {
+			if (!get_map_ident(map, ident, sizeof(ident)))
+				continue;
+			if (bpf_map__type(map) != BPF_MAP_TYPE_STRUCT_OPS)
+				continue;
+
+			if (use_loader)
+				printf("t\tint %s_fd;\n", ident);
+			else
+				printf("\t\tstruct bpf_link *%s;\n", ident);
+		}
+
 		printf("\t} links;\n");
 	}
 
@@ -1448,7 +1476,7 @@ static int do_skeleton(int argc, char **argv)
 		obj_name
 	);
 
-	codegen_maps_skeleton(obj, map_cnt, true /*mmaped*/);
+	codegen_maps_skeleton(obj, map_cnt, true /*mmaped*/, true /*links*/);
 	codegen_progs_skeleton(obj, prog_cnt, true /*populate_links*/);
 
 	codegen("\
@@ -1786,7 +1814,7 @@ static int do_subskeleton(int argc, char **argv)
 		}
 	}
 
-	codegen_maps_skeleton(obj, map_cnt, false /*mmaped*/);
+	codegen_maps_skeleton(obj, map_cnt, false /*mmaped*/, false /*links*/);
 	codegen_progs_skeleton(obj, prog_cnt, false /*links*/);
 
 	codegen("\

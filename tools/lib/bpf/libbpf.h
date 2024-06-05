@@ -979,6 +979,23 @@ LIBBPF_API int bpf_map__set_autocreate(struct bpf_map *map, bool autocreate);
 LIBBPF_API bool bpf_map__autocreate(const struct bpf_map *map);
 
 /**
+ * @brief **bpf_map__set_autoattach()** sets whether libbpf has to auto-attach
+ * map during BPF skeleton attach phase.
+ * @param map the BPF map instance
+ * @param autoattach whether to attach map during BPF skeleton attach phase
+ * @return 0 on success; negative error code, otherwise
+ */
+LIBBPF_API int bpf_map__set_autoattach(struct bpf_map *map, bool autoattach);
+
+/**
+ * @brief **bpf_map__autoattach()** returns whether BPF map is configured to
+ * auto-attach during BPF skeleton attach phase.
+ * @param map the BPF map instance
+ * @return true if map is set to auto-attach during skeleton attach phase; false, otherwise
+ */
+LIBBPF_API bool bpf_map__autoattach(const struct bpf_map *map);
+
+/**
  * @brief **bpf_map__fd()** gets the file descriptor of the passed
  * BPF map
  * @param map the BPF map instance
@@ -1672,6 +1689,7 @@ struct bpf_map_skeleton {
 	const char *name;
 	struct bpf_map **map;
 	void **mmaped;
+	struct bpf_link **link;
 };
 
 struct bpf_prog_skeleton {

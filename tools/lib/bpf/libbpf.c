@@ -572,6 +572,7 @@ struct bpf_map {
 	bool pinned;
 	bool reused;
 	bool autocreate;
+	bool autoattach;
 	__u64 map_extra;
 };
 
@@ -1400,6 +1401,7 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 		map->def.value_size = type->size;
 		map->def.max_entries = 1;
 		map->def.map_flags = strcmp(sec_name, STRUCT_OPS_LINK_SEC) == 0 ? BPF_F_LINK : 0;
+		map->autoattach = true;
 
 		map->st_ops = calloc(1, sizeof(*map->st_ops));
 		if (!map->st_ops)
@@ -4817,6 +4819,20 @@ int bpf_map__set_autocreate(struct bpf_map *map, bool autocreate)
 
 	map->autocreate = autocreate;
 	return 0;
+}
+
+int bpf_map__set_autoattach(struct bpf_map *map, bool autoattach)
+{
+	if (!bpf_map__is_struct_ops(map))
+		return libbpf_err(-EINVAL);
+
+	map->autoattach = autoattach;
+	return 0;
+}
+
+bool bpf_map__autoattach(const struct bpf_map *map)
+{
+	return map->autoattach;
 }
 
 int bpf_map__reuse_fd(struct bpf_map *map, int fd)
@@ -12900,8 +12916,10 @@ struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map)
 	__u32 zero = 0;
 	int err, fd;
 
-	if (!bpf_map__is_struct_ops(map))
+	if (!bpf_map__is_struct_ops(map)) {
+		pr_warn("map '%s': can't attach non-struct_ops map\n", map->name);
 		return libbpf_err_ptr(-EINVAL);
+	}
 
 	if (map->fd < 0) {
 		pr_warn("map '%s': can't attach BPF map without FD (was it created?)\n", map->name);
@@ -13945,6 +13963,35 @@ int bpf_object__attach_skeleton(struct bpf_object_skeleton *s)
 		 */
 	}
 
+	/* Skeleton is created with earlier version of bpftool
+	 * which does not support auto-attachment
+	 */
+	if (s->map_skel_sz < sizeof(struct bpf_map_skeleton))
+		return 0;
+
+	for (i = 0; i < s->map_cnt; i++) {
+		struct bpf_map *map = *s->maps[i].map;
+		struct bpf_link **link = s->maps[i].link;
+
+		if (!map->autocreate || !map->autoattach)
+			continue;
+
+		if (*link)
+			continue;
+
+		/* only struct_ops maps can be attached */
+		if (!bpf_map__is_struct_ops(map))
+			continue;
+		*link = bpf_map__attach_struct_ops(map);
+
+		if (!*link) {
+			err = -errno;
+			pr_warn("map '%s': failed to auto-attach: %d\n",
+				bpf_map__name(map), err);
+			return libbpf_err(err);
+		}
+	}
+
 	return 0;
 }
 
@@ -13958,6 +14005,18 @@ void bpf_object__detach_skeleton(struct bpf_object_skeleton *s)
 		bpf_link__destroy(*link);
 		*link = NULL;
 	}
+
+	if (s->map_skel_sz < sizeof(struct bpf_map_skeleton))
+		return;
+
+	for (i = 0; i < s->map_cnt; i++) {
+		struct bpf_link **link = s->maps[i].link;
+
+		if (link) {
+			bpf_link__destroy(*link);
+			*link = NULL;
+		}
+	}
 }
 
 void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s)
@@ -13965,8 +14024,7 @@ void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s)
 	if (!s)
 		return;
 
-	if (s->progs)
-		bpf_object__detach_skeleton(s);
+	bpf_object__detach_skeleton(s);
 	if (s->obj)
 		bpf_object__close(*s->obj);
 	free(s->maps);
