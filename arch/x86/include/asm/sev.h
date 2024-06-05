@@ -214,6 +214,27 @@ struct svsm_pvalidate_call {
 					 sizeof(struct svsm_pvalidate_entry))
 
 /*
+ * The SVSM Attestation related structures
+ */
+struct svsm_loc_entry {
+	u64 pa;
+	u32 len;
+	u8 rsvd[4];
+};
+
+struct svsm_attest_call {
+	struct svsm_loc_entry report_buf;
+	struct svsm_loc_entry nonce;
+	struct svsm_loc_entry manifest_buf;
+	struct svsm_loc_entry certificates_buf;
+
+	/* For attesting a single service */
+	u8 service_guid[16];
+	u32 service_manifest_ver;
+	u8 rsvd[4];
+};
+
+/*
  * SVSM protocol structure
  */
 struct svsm_call {
@@ -235,6 +256,10 @@ struct svsm_call {
 #define SVSM_CORE_PVALIDATE		1
 #define SVSM_CORE_CREATE_VCPU		2
 #define SVSM_CORE_DELETE_VCPU		3
+
+#define SVSM_ATTEST_CALL(x)		((1ULL << 32) | (x))
+#define SVSM_ATTEST_SERVICES		0
+#define SVSM_ATTEST_SINGLE_SERVICE	1
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 
@@ -317,6 +342,7 @@ bool snp_init(struct boot_params *bp);
 void __noreturn snp_abort(void);
 void snp_dmi_setup(void);
 int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, struct snp_guest_request_ioctl *rio);
+int snp_issue_svsm_attest_req(u64 call_id, struct svsm_call *call, struct svsm_attest_call *input);
 void snp_accept_memory(phys_addr_t start, phys_addr_t end);
 u64 snp_get_unsupported_features(u64 status);
 u64 sev_get_status(void);
@@ -349,7 +375,10 @@ static inline int snp_issue_guest_request(u64 exit_code, struct snp_req_data *in
 {
 	return -ENOTTY;
 }
-
+static inline int snp_issue_svsm_attest_req(u64 call_id, struct svsm_call *call, struct svsm_attest_call *input)
+{
+	return -ENOTTY;
+}
 static inline void snp_accept_memory(phys_addr_t start, phys_addr_t end) { }
 static inline u64 snp_get_unsupported_features(u64 status) { return 0; }
 static inline u64 sev_get_status(void) { return 0; }
