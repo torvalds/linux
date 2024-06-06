@@ -448,18 +448,26 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 	struct bch_accounting_mem *acc = &c->accounting;
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct printbuf buf = PRINTBUF;
+	struct bpos pos = POS_MIN;
 	int ret = 0;
 
-	percpu_down_read(&c->mark_lock);
+	percpu_down_write(&c->mark_lock);
+	while (1) {
+		unsigned idx = eytzinger0_find_ge(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
+						  accounting_pos_cmp, &pos);
 
-	darray_for_each(acc->k, e) {
+		if (idx >= acc->k.nr)
+			break;
+
+		struct accounting_mem_entry *e = acc->k.data + idx;
+		pos = bpos_successor(e->pos);
+
 		struct disk_accounting_pos acc_k;
 		bpos_to_disk_accounting_pos(&acc_k, e->pos);
 
 		u64 src_v[BCH_ACCOUNTING_MAX_COUNTERS];
 		u64 dst_v[BCH_ACCOUNTING_MAX_COUNTERS];
 
-		unsigned idx = e - acc->k.data;
 		unsigned nr = e->nr_counters;
 		bch2_accounting_mem_read_counters(acc, idx, dst_v, nr, false);
 		bch2_accounting_mem_read_counters(acc, idx, src_v, nr, true);
@@ -481,8 +489,10 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 				src_v[j] -= dst_v[j];
 
 			if (fsck_err(trans, accounting_mismatch, "%s", buf.buf)) {
+				percpu_up_write(&c->mark_lock);
 				ret = commit_do(trans, NULL, NULL, 0,
 						bch2_disk_accounting_mod(trans, &acc_k, src_v, nr, false));
+				percpu_down_write(&c->mark_lock);
 				if (ret)
 					goto err;
 
@@ -504,7 +514,7 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 	}
 err:
 fsck_err:
-	percpu_up_read(&c->mark_lock);
+	percpu_up_write(&c->mark_lock);
 	printbuf_exit(&buf);
 	bch2_trans_put(trans);
 	bch_err_fn(c, ret);
