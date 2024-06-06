@@ -420,10 +420,10 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 int bch2_replicas_gc2(struct bch_fs *c)
 {
 	struct bch_replicas_cpu new = { 0 };
-	unsigned i, nr;
+	unsigned nr;
 	int ret = 0;
 
-	bch2_journal_meta(&c->journal);
+	bch2_accounting_mem_gc(c);
 retry:
 	nr		= READ_ONCE(c->replicas.nr);
 	new.entry_size	= READ_ONCE(c->replicas.entry_size);
@@ -444,7 +444,7 @@ retry:
 		goto retry;
 	}
 
-	for (i = 0; i < c->replicas.nr; i++) {
+	for (unsigned i = 0; i < c->replicas.nr; i++) {
 		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(&c->replicas, i);
 
@@ -454,10 +454,13 @@ retry:
 
 		memcpy(&k.replicas, e, replicas_entry_bytes(e));
 
-		u64 v = 0;
-		bch2_accounting_mem_read(c, disk_accounting_pos_to_bpos(&k), &v, 1);
+		struct bpos p = disk_accounting_pos_to_bpos(&k);
 
-		if (e->data_type == BCH_DATA_journal || v)
+		struct bch_accounting_mem *acc = &c->accounting;
+		bool kill = eytzinger0_find(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
+					    accounting_pos_cmp, &p) >= acc->k.nr;
+
+		if (e->data_type == BCH_DATA_journal || !kill)
 			memcpy(cpu_replicas_entry(&new, new.nr++),
 			       e, new.entry_size);
 	}

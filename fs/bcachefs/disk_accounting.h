@@ -105,6 +105,7 @@ static inline int accounting_pos_cmp(const void *_l, const void *_r)
 }
 
 int bch2_accounting_mem_insert(struct bch_fs *, struct bkey_s_c_accounting, bool);
+void bch2_accounting_mem_gc(struct bch_fs *);
 
 static inline int __bch2_accounting_mem_mod(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
 {

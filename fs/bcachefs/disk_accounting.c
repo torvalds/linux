@@ -273,6 +273,38 @@ int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a, b
 	return ret;
 }
 
+static bool accounting_mem_entry_is_zero(struct accounting_mem_entry *e)
+{
+	for (unsigned i = 0; i < e->nr_counters; i++)
+		if (percpu_u64_get(e->v[0] + i) ||
+		    (e->v[1] &&
+		     percpu_u64_get(e->v[1] + i)))
+			return false;
+	return true;
+}
+
+void bch2_accounting_mem_gc(struct bch_fs *c)
+{
+	struct bch_accounting_mem *acc = &c->accounting;
+
+	percpu_down_write(&c->mark_lock);
+	struct accounting_mem_entry *dst = acc->k.data;
+
+	darray_for_each(acc->k, src) {
+		if (accounting_mem_entry_is_zero(src)) {
+			free_percpu(src->v[0]);
+			free_percpu(src->v[1]);
+		} else {
+			*dst++ = *src;
+		}
+	}
+
+	acc->k.nr = dst - acc->k.data;
+	eytzinger0_sort(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
+			accounting_pos_cmp, NULL);
+	percpu_up_write(&c->mark_lock);
+}
+
 /*
  * Read out accounting keys for replicas entries, as an array of
  * bch_replicas_usage entries.
