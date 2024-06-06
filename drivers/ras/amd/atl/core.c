@@ -51,22 +51,11 @@ static bool legacy_hole_en(struct addr_ctx *ctx)
 
 static int add_legacy_hole(struct addr_ctx *ctx)
 {
-	u32 dram_hole_base;
-	u8 func = 0;
-
 	if (!legacy_hole_en(ctx))
 		return 0;
 
-	if (df_cfg.rev >= DF4)
-		func = 7;
-
-	if (df_indirect_read_broadcast(ctx->node_id, func, 0x104, &dram_hole_base))
-		return -EINVAL;
-
-	dram_hole_base &= DF_DRAM_HOLE_BASE_MASK;
-
-	if (ctx->ret_addr >= dram_hole_base)
-		ctx->ret_addr += (BIT_ULL(32) - dram_hole_base);
+	if (ctx->ret_addr >= df_cfg.dram_hole_base)
+		ctx->ret_addr += (BIT_ULL(32) - df_cfg.dram_hole_base);
 
 	return 0;
 }
@@ -124,6 +113,9 @@ unsigned long norm_to_sys_addr(u8 socket_id, u8 die_id, u8 coh_st_inst_id, unsig
 	ctx.inputs.socket_id = socket_id;
 	ctx.inputs.die_id = die_id;
 	ctx.inputs.coh_st_inst_id = coh_st_inst_id;
+
+	if (legacy_hole_en(&ctx) && !df_cfg.dram_hole_base)
+		return -EINVAL;
 
 	if (determine_node_id(&ctx, socket_id, die_id))
 		return -EINVAL;
