@@ -21,6 +21,9 @@
 
 #include "reg_fields.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "amd_atl: " fmt
+
 /* Maximum possible number of Coherent Stations within a single Data Fabric. */
 #define MAX_COH_ST_CHANNELS		32
 
