@@ -160,6 +160,7 @@ show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, highest_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_nonlinear_perf);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, guaranteed_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_freq);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_freq);
 
@@ -196,6 +197,7 @@ static struct attribute *cppc_attrs[] = {
 	&highest_perf.attr,
 	&lowest_perf.attr,
 	&lowest_nonlinear_perf.attr,
+	&guaranteed_perf.attr,
 	&nominal_perf.attr,
 	&nominal_freq.attr,
 	&lowest_freq.attr,
