@@ -1561,16 +1561,28 @@ static void update_dsc_for_odm_change(struct dc *dc, struct dc_state *context,
 	struct pipe_ctx *new_pipe;
 	struct pipe_ctx *old_opp_heads[MAX_PIPES];
 	struct dccg *dccg = dc->res_pool->dccg;
-	struct pipe_ctx *old_otg_master =
-			&dc->current_state->res_ctx.pipe_ctx[otg_master->pipe_idx];
-	int old_opp_head_count = resource_get_opp_heads_for_otg_master(
-			old_otg_master, &dc->current_state->res_ctx,
-			old_opp_heads);
+	struct pipe_ctx *old_otg_master;
+	int old_opp_head_count = 0;
+
+	old_otg_master = &dc->current_state->res_ctx.pipe_ctx[otg_master->pipe_idx];
+
+	if (resource_is_pipe_type(old_otg_master, OTG_MASTER)) {
+		old_opp_head_count = resource_get_opp_heads_for_otg_master(old_otg_master,
+									   &dc->current_state->res_ctx,
+									   old_opp_heads);
+	} else {
+		// DC cannot assume that the current state and the new state
+		// share the same OTG pipe since this is not true when called
+		// in the context of a commit stream not checked. Hence, set
+		// old_otg_master to NULL to skip the DSC configuration.
+		old_otg_master = NULL;
+	}
+
 
 	if (otg_master->stream_res.dsc)
 		dcn32_update_dsc_on_stream(otg_master,
 				otg_master->stream->timing.flags.DSC);
-	if (old_otg_master->stream_res.dsc) {
+	if (old_otg_master && old_otg_master->stream_res.dsc) {
 		for (i = 0; i < old_opp_head_count; i++) {
 			old_pipe = old_opp_heads[i];
 			new_pipe = &context->res_ctx.pipe_ctx[old_pipe->pipe_idx];
