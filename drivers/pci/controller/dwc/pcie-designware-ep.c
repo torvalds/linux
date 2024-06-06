@@ -16,18 +16,6 @@
 #include <linux/pci-epf.h>
 
 /**
- * dw_pcie_ep_init_notify - Notify EPF drivers about EPC initialization complete
- * @ep: DWC EP device
- */
-void dw_pcie_ep_init_notify(struct dw_pcie_ep *ep)
-{
-	struct pci_epc *epc = ep->epc;
-
-	pci_epc_init_notify(epc);
-}
-EXPORT_SYMBOL_GPL(dw_pcie_ep_init_notify);
-
-/**
  * dw_pcie_ep_get_func_from_ep - Get the struct dw_pcie_ep_func corresponding to
  *				 the endpoint function
  * @ep: DWC EP device

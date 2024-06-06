@@ -1131,7 +1131,7 @@ static int imx6_add_pcie_ep(struct imx6_pcie *imx6_pcie,
 		return ret;
 	}
 
-	dw_pcie_ep_init_notify(ep);
+	pci_epc_init_notify(ep->epc);
 
 	/* Start LTSSM. */
 	imx6_pcie_ltssm_enable(dev);
