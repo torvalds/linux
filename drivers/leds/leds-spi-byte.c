@@ -56,13 +56,6 @@ static const struct spi_byte_chipdef ubnt_acb_spi_led_cdef = {
 	.max_value = 0x3F,
 };
 
-static const struct of_device_id spi_byte_dt_ids[] = {
-	{ .compatible = "ubnt,acb-spi-led", .data = &ubnt_acb_spi_led_cdef },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, spi_byte_dt_ids);
-
 static int spi_byte_brightness_set_blocking(struct led_classdev *dev,
 					    enum led_brightness brightness)
 {
@@ -121,6 +114,12 @@ static int spi_byte_probe(struct spi_device *spi)
 
 	return devm_led_classdev_register_ext(dev, &led->ldev, &init_data);
 }
+
+static const struct of_device_id spi_byte_dt_ids[] = {
+	{ .compatible = "ubnt,acb-spi-led", .data = &ubnt_acb_spi_led_cdef },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spi_byte_dt_ids);
 
 static struct spi_driver spi_byte_driver = {
 	.probe		= spi_byte_probe,
