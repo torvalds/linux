@@ -2347,7 +2347,7 @@ out:
 	} else {
 		void *wval;
 
-		wval = kmemdup(val, val_count * val_bytes, map->alloc_flags);
+		wval = kmemdup_array(val, val_count, val_bytes, map->alloc_flags);
 		if (!wval)
 			return -ENOMEM;
 
