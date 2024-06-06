@@ -8,12 +8,16 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
 #include <linux/init.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/platform_device.h>
+#include <asm/byteorder.h>
 #include "intel_pmic.h"
 
 /* registers stored in 16bit BE (high:low, total 10bit) */
+#define PMIC_REG_MASK		GENMASK(9, 0)
+
 #define CHTDC_TI_VBAT		0x54
 #define CHTDC_TI_DIETEMP	0x56
 #define CHTDC_TI_BPTHERM	0x58
@@ -73,7 +77,7 @@ static int chtdc_ti_pmic_get_power(struct regmap *regmap, int reg, int bit,
 	if (regmap_read(regmap, reg, &data))
 		return -EIO;
 
-	*value = data & 1;
+	*value = data & BIT(0);
 	return 0;
 }
 
@@ -85,13 +89,12 @@ static int chtdc_ti_pmic_update_power(struct regmap *regmap, int reg, int bit,
 
 static int chtdc_ti_pmic_get_raw_temp(struct regmap *regmap, int reg)
 {
-	u8 buf[2];
+	__be16 buf;
 
-	if (regmap_bulk_read(regmap, reg, buf, sizeof(buf)))
+	if (regmap_bulk_read(regmap, reg, &buf, sizeof(buf)))
 		return -EIO;
 
-	/* stored in big-endian */
-	return ((buf[0] & 0x03) << 8) | buf[1];
+	return be16_to_cpu(buf) & PMIC_REG_MASK;
 }
 
 static const struct intel_pmic_opregion_data chtdc_ti_pmic_opregion_data = {
