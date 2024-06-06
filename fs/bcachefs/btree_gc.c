@@ -735,7 +735,7 @@ static int bch2_mark_superblocks(struct bch_fs *c)
 
 static void bch2_gc_free(struct bch_fs *c)
 {
-	bch2_accounting_free(&c->accounting[1]);
+	bch2_accounting_gc_free(c);
 
 	genradix_free(&c->reflink_gc_table);
 	genradix_free(&c->gc_stripes);
@@ -1105,7 +1105,8 @@ int bch2_check_allocations(struct bch_fs *c)
 
 	bch2_btree_interior_updates_flush(c);
 
-	ret   = bch2_gc_start(c) ?:
+	ret   = bch2_gc_accounting_start(c) ?:
+		bch2_gc_start(c) ?:
 		bch2_gc_alloc_start(c) ?:
 		bch2_gc_reflink_start(c);
 	if (ret)
@@ -1125,7 +1126,7 @@ int bch2_check_allocations(struct bch_fs *c)
 	c->gc_count++;
 
 	ret   = bch2_gc_alloc_done(c) ?:
-		bch2_accounting_gc_done(c) ?:
+		bch2_gc_accounting_done(c) ?:
 		bch2_gc_stripes_done(c) ?:
 		bch2_gc_reflink_done(c);
 out:

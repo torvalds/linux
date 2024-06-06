@@ -4,17 +4,16 @@
 
 #include "darray.h"
 
-struct accounting_pos_offset {
+struct accounting_mem_entry {
 	struct bpos				pos;
 	struct bversion				version;
-	u32					offset:24,
-						nr_counters:8;
+	unsigned				nr_counters;
+	u64 __percpu				*v[2];
 };
 
 struct bch_accounting_mem {
-	DARRAY(struct accounting_pos_offset)	k;
-	u64 __percpu				*v;
-	unsigned				nr_counters;
+	DARRAY(struct accounting_mem_entry)	k;
+	bool					gc_running;
 };
 
 #endif /* _BCACHEFS_DISK_ACCOUNTING_TYPES_H */
