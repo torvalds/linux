@@ -103,23 +103,19 @@ static int mtk_padding_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get clk\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk),
+				     "failed to get clk\n");
 
 	priv->reg = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(priv->reg)) {
-		dev_err(dev, "failed to do ioremap\n");
-		return PTR_ERR(priv->reg);
-	}
+	if (IS_ERR(priv->reg))
+		return dev_err_probe(dev, PTR_ERR(priv->reg),
+				     "failed to do ioremap\n");
 
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	ret = cmdq_dev_get_client_reg(dev, &priv->cmdq_reg, 0);
-	if (ret) {
-		dev_err(dev, "failed to get gce client reg\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get gce client reg\n");
 #endif
 
 	platform_set_drvdata(pdev, priv);

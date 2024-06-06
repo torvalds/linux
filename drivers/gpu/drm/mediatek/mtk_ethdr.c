@@ -340,25 +340,24 @@ static int mtk_ethdr_probe(struct platform_device *pdev)
 	if (priv->irq) {
 		ret = devm_request_irq(dev, priv->irq, mtk_ethdr_irq_handler,
 				       IRQF_TRIGGER_NONE, dev_name(dev), priv);
-		if (ret < 0) {
-			dev_err(dev, "Failed to request irq %d: %d\n", priv->irq, ret);
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(dev, ret,
+					     "Failed to request irq %d\n",
+					     priv->irq);
 	}
 
 	priv->reset_ctl = devm_reset_control_array_get_optional_exclusive(dev);
-	if (IS_ERR(priv->reset_ctl)) {
-		dev_err_probe(dev, PTR_ERR(priv->reset_ctl), "cannot get ethdr reset control\n");
-		return PTR_ERR(priv->reset_ctl);
-	}
+	if (IS_ERR(priv->reset_ctl))
+		return dev_err_probe(dev, PTR_ERR(priv->reset_ctl),
+				     "cannot get ethdr reset control\n");
 
 	platform_set_drvdata(pdev, priv);
 
 	ret = component_add(dev, &mtk_ethdr_component_ops);
 	if (ret)
-		dev_notice(dev, "Failed to add component: %d\n", ret);
+		return dev_err_probe(dev, ret, "Failed to add component\n");
 
-	return ret;
+	return 0;
 }
 
 static void mtk_ethdr_remove(struct platform_device *pdev)

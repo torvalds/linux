@@ -2655,11 +2655,9 @@ static int mtk_dp_probe(struct platform_device *pdev)
 		mutex_init(&mtk_dp->update_plugged_status_lock);
 
 		ret = mtk_dp_register_audio_driver(dev);
-		if (ret) {
-			dev_err(dev, "Failed to register audio driver: %d\n",
-				ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to register audio driver\n");
 	}
 
 	ret = mtk_dp_register_phy(mtk_dp);
