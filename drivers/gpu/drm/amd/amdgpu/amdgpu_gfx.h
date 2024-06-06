@@ -446,6 +446,14 @@ struct amdgpu_gfx {
 	uint32_t			*ip_dump_gfx_queues;
 
 	struct mutex			reset_sem_mutex;
+
+	/* cleaner shader */
+	struct amdgpu_bo		*cleaner_shader_obj;
+	unsigned int                    cleaner_shader_size;
+	u64				cleaner_shader_gpu_addr;
+	void				*cleaner_shader_cpu_ptr;
+	const void			*cleaner_shader_ptr;
+	bool				enable_cleaner_shader;
 };
 
 struct amdgpu_gfx_ras_reg_entry {
@@ -547,6 +555,12 @@ void amdgpu_gfx_ras_error_func(struct amdgpu_device *adev,
 		void *ras_error_status,
 		void (*func)(struct amdgpu_device *adev, void *ras_error_status,
 				int xcc_id));
+int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,
+				      unsigned int cleaner_shader_size);
+void amdgpu_gfx_cleaner_shader_sw_fini(struct amdgpu_device *adev);
+void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
+				    unsigned int cleaner_shader_size,
+				    const void *cleaner_shader_ptr);
 
 static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 {

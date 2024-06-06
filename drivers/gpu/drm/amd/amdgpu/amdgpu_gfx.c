@@ -1416,3 +1416,38 @@ void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_current_compute_partition);
 	device_remove_file(adev->dev, &dev_attr_available_compute_partition);
 }
+
+int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,
+				      unsigned int cleaner_shader_size)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return -EOPNOTSUPP;
+
+	return amdgpu_bo_create_kernel(adev, cleaner_shader_size, PAGE_SIZE,
+				       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT,
+				       &adev->gfx.cleaner_shader_obj,
+				       &adev->gfx.cleaner_shader_gpu_addr,
+				       (void **)&adev->gfx.cleaner_shader_cpu_ptr);
+}
+
+void amdgpu_gfx_cleaner_shader_sw_fini(struct amdgpu_device *adev)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	amdgpu_bo_free_kernel(&adev->gfx.cleaner_shader_obj,
+			      &adev->gfx.cleaner_shader_gpu_addr,
+			      (void **)&adev->gfx.cleaner_shader_cpu_ptr);
+}
+
+void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
+				    unsigned int cleaner_shader_size,
+				    const void *cleaner_shader_ptr)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (adev->gfx.cleaner_shader_cpu_ptr && cleaner_shader_ptr)
+		memcpy_toio(adev->gfx.cleaner_shader_cpu_ptr, cleaner_shader_ptr,
+			    cleaner_shader_size);
+}
