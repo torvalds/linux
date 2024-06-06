@@ -407,7 +407,7 @@ out:
 	 * have gone out of sync, force writes of all the paging
 	 * registers.
 	 */
-	rb_for_each(node, 0, &map->range_tree, rbtree_all) {
+	rb_for_each(node, NULL, &map->range_tree, rbtree_all) {
 		struct regmap_range_node *this =
 			rb_entry(node, struct regmap_range_node, node);
 
