@@ -84,7 +84,7 @@ static int spi_byte_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct spi_byte_led *led;
 	struct led_init_data init_data = {};
-	const char *state;
+	enum led_default_state state;
 	int ret;
 
 	if (of_get_available_child_count(dev_of_node(dev)) != 1) {
@@ -104,17 +104,10 @@ static int spi_byte_probe(struct spi_device *spi)
 	led->ldev.brightness_set_blocking = spi_byte_brightness_set_blocking;
 
 	child = of_get_next_available_child(dev_of_node(dev), NULL);
-	state = of_get_property(child, "default-state", NULL);
-	if (state) {
-		if (!strcmp(state, "on")) {
-			led->ldev.brightness = led->ldev.max_brightness;
-		} else if (strcmp(state, "off")) {
-			of_node_put(child);
-			/* all other cases except "off" */
-			dev_err(dev, "default-state can only be 'on' or 'off'");
-			return -EINVAL;
-		}
-	}
+
+	state = led_init_default_state_get(of_fwnode_handle(child));
+	if (state == LEDS_DEFSTATE_ON)
+		led->ldev.brightness = led->ldev.max_brightness;
 	spi_byte_brightness_set_blocking(&led->ldev,
 					 led->ldev.brightness);
 
