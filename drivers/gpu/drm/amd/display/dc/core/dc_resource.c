@@ -1917,9 +1917,15 @@ int resource_get_opp_heads_for_otg_master(const struct pipe_ctx *otg_master,
 		struct pipe_ctx *opp_heads[MAX_PIPES])
 {
 	struct pipe_ctx *opp_head = &res_ctx->pipe_ctx[otg_master->pipe_idx];
+	struct dc *dc = otg_master->stream->ctx->dc;
 	int i = 0;
 
+	DC_LOGGER_INIT(dc->ctx->logger);
+
 	if (!resource_is_pipe_type(otg_master, OTG_MASTER)) {
+		DC_LOG_WARNING("%s called from a non OTG master, something "
+			       "is wrong in the pipe configuration",
+			       __func__);
 		ASSERT(0);
 		return 0;
 	}
