@@ -1260,9 +1260,8 @@ static int dequeue_one_g2h(struct xe_guc_ct *ct)
 	return 1;
 }
 
-static void g2h_worker_func(struct work_struct *w)
+static void receive_g2h(struct xe_guc_ct *ct)
 {
-	struct xe_guc_ct *ct = container_of(w, struct xe_guc_ct, g2h_worker);
 	struct xe_gt *gt = ct_to_gt(ct);
 	bool ongoing;
 	int ret;
@@ -1309,6 +1308,13 @@ static void g2h_worker_func(struct work_struct *w)
 
 	if (ongoing)
 		xe_pm_runtime_put(ct_to_xe(ct));
+}
+
+static void g2h_worker_func(struct work_struct *w)
+{
+	struct xe_guc_ct *ct = container_of(w, struct xe_guc_ct, g2h_worker);
+
+	receive_g2h(ct);
 }
 
 static void guc_ctb_snapshot_capture(struct xe_device *xe, struct guc_ctb *ctb,
