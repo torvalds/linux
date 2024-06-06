@@ -114,9 +114,10 @@ lm3509_backlight_register(struct device *dev, const char *name_suffix,
 	}
 
 	bd = devm_backlight_device_register(dev, label, dev, data, ops, &props);
-	if (bd)
-		backlight_update_status(bd);
+	if (IS_ERR(bd))
+		return bd;
 
+	backlight_update_status(bd);
 	return bd;
 }
 
