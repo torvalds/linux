@@ -758,7 +758,7 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-#define BYTE_NUMBER 123
+#define CHAR_NUMBER 123
 #define SHORT_NUMBER 12345
 #define WORD_NUMBER 1234567890
 #define LONG_NUMBER 1234567890123456789LL
@@ -789,7 +789,7 @@ static __init int store_entry(struct ftrace_graph_ent *trace,
 
 	switch (size) {
 	case 1:
-		*(char *)p = BYTE_NUMBER;
+		*(char *)p = CHAR_NUMBER;
 		break;
 	case 2:
 		*(short *)p = SHORT_NUMBER;
@@ -830,7 +830,7 @@ static __init void store_return(struct ftrace_graph_ret *trace,
 
 	switch (fixture->store_size) {
 	case 1:
-		expect = BYTE_NUMBER;
+		expect = CHAR_NUMBER;
 		found = *(char *)p;
 		break;
 	case 2:
