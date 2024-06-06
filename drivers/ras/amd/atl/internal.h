@@ -37,6 +37,8 @@
 #define DF_DRAM_BASE_LIMIT_LSB		28
 #define MI300_DRAM_LIMIT_LSB		20
 
+#define INVALID_SPA ~0ULL
+
 enum df_revisions {
 	UNKNOWN,
 	DF2,
@@ -91,6 +93,44 @@ enum intlv_modes {
 	DF4p5_NPS0_24CHAN_2K_HASH	= 0x47,
 	DF4p5_NPS2_5CHAN_2K_HASH	= 0x48,
 	DF4p5_NPS1_10CHAN_2K_HASH	= 0x49,
+};
+
+struct df4p5_denorm_ctx {
+	/* Indicates the number of "lost" bits. This will be 1, 2, or 3. */
+	u8 perm_shift;
+
+	/* A mask indicating the bits that need to be rehashed. */
+	u16 rehash_vector;
+
+	/*
+	 * Represents the value that the high bits of the normalized address
+	 * are divided by during normalization. This value will be 3 for
+	 * interleave modes with a number of channels divisible by 3 or the
+	 * value will be 5 for interleave modes with a number of channels
+	 * divisible by 5. Power-of-two interleave modes are handled
+	 * separately.
+	 */
+	u8 mod_value;
+
+	/*
+	 * Represents the bits that can be directly pulled from the normalized
+	 * address. In each case, pass through bits [7:0] of the normalized
+	 * address. The other bits depend on the interleave bit position which
+	 * will be bit 10 for 1K interleave stripe cases and bit 11 for 2K
+	 * interleave stripe cases.
+	 */
+	u64 base_denorm_addr;
+
+	/*
+	 * Represents the high bits of the physical address that have been
+	 * divided by the mod_value.
+	 */
+	u64 div_addr;
+
+	u64 current_spa;
+	u64 resolved_spa;
+
+	u16 coh_st_fabric_id;
 };
 
 struct df_flags {
