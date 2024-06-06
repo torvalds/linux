@@ -1117,34 +1117,32 @@ static bool need_sync(struct gfs2_quota_data *qd)
 {
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 	struct gfs2_tune *gt = &sdp->sd_tune;
-	s64 value;
+	s64 value, change, limit;
 	unsigned int num, den;
 
 	if (!qd->qd_qb.qb_limit)
 		return false;
 
 	spin_lock(&qd_lock);
-	value = qd->qd_change;
+	change = qd->qd_change;
 	spin_unlock(&qd_lock);
+
+	if (change <= 0)
+		return false;
+	value = (s64)be64_to_cpu(qd->qd_qb.qb_value);
+	limit = (s64)be64_to_cpu(qd->qd_qb.qb_limit);
+	if (value >= limit)
+		return false;
 
 	spin_lock(&gt->gt_spin);
 	num = gt->gt_quota_scale_num;
 	den = gt->gt_quota_scale_den;
 	spin_unlock(&gt->gt_spin);
 
-	if (value <= 0)
+	change *= gfs2_jindex_size(sdp) * num;
+	change = div_s64(change, den);
+	if (value + change < limit)
 		return false;
-	else if ((s64)be64_to_cpu(qd->qd_qb.qb_value) >=
-		 (s64)be64_to_cpu(qd->qd_qb.qb_limit))
-		return false;
-	else {
-		value *= gfs2_jindex_size(sdp) * num;
-		value = div_s64(value, den);
-		value += (s64)be64_to_cpu(qd->qd_qb.qb_value);
-		if (value < (s64)be64_to_cpu(qd->qd_qb.qb_limit))
-			return false;
-	}
-
 	return true;
 }
 
