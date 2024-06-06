@@ -221,11 +221,8 @@ static void bch2_btree_path_verify(struct btree_trans *trans,
 				   struct btree_path *path)
 {
 	struct bch_fs *c = trans->c;
-	unsigned i;
 
-	EBUG_ON(path->btree_id >= BTREE_ID_NR);
-
-	for (i = 0; i < (!path->cached ? BTREE_MAX_DEPTH : 1); i++) {
+	for (unsigned i = 0; i < (!path->cached ? BTREE_MAX_DEPTH : 1); i++) {
 		if (!path->l[i].b) {
 			BUG_ON(!path->cached &&
 			       bch2_btree_id_root(c, path->btree_id)->b->c.level > i);
@@ -250,8 +247,6 @@ void bch2_trans_verify_paths(struct btree_trans *trans)
 static void bch2_btree_iter_verify(struct btree_iter *iter)
 {
 	struct btree_trans *trans = iter->trans;
-
-	BUG_ON(iter->btree_id >= BTREE_ID_NR);
 
 	BUG_ON(!!(iter->flags & BTREE_ITER_cached) != btree_iter_path(trans, iter)->cached);
 
