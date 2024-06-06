@@ -1564,21 +1564,6 @@ static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 	return ret;
 }
 
-static int vmsplice_type(struct fd f, int *type)
-{
-	if (!fd_file(f))
-		return -EBADF;
-	if (fd_file(f)->f_mode & FMODE_WRITE) {
-		*type = ITER_SOURCE;
-	} else if (fd_file(f)->f_mode & FMODE_READ) {
-		*type = ITER_DEST;
-	} else {
-		fdput(f);
-		return -EBADF;
-	}
-	return 0;
-}
-
 /*
  * Note that vmsplice only really supports true splicing _from_ user memory
  * to a pipe, not the other way around. Splicing from user memory is a simple
@@ -1602,21 +1587,25 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, uiov,
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
 	ssize_t error;
-	struct fd f;
 	int type;
 
 	if (unlikely(flags & ~SPLICE_F_ALL))
 		return -EINVAL;
 
-	f = fdget(fd);
-	error = vmsplice_type(f, &type);
-	if (error)
-		return error;
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
+		return -EBADF;
+	if (fd_file(f)->f_mode & FMODE_WRITE)
+		type = ITER_SOURCE;
+	else if (fd_file(f)->f_mode & FMODE_READ)
+		type = ITER_DEST;
+	else
+		return -EBADF;
 
 	error = import_iovec(type, uiov, nr_segs,
 			     ARRAY_SIZE(iovstack), &iov, &iter);
 	if (error < 0)
-		goto out_fdput;
+		return error;
 
 	if (!iov_iter_count(&iter))
 		error = 0;
@@ -1626,8 +1615,6 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, uiov,
 		error = vmsplice_to_user(fd_file(f), &iter, flags);
 
 	kfree(iov);
-out_fdput:
-	fdput(f);
 	return error;
 }
 
