@@ -1026,9 +1026,10 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 	if (!shrink)
 		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
 	bc->shrink = shrink;
-	shrink->seeks		= 0;
 	shrink->count_objects	= bch2_btree_key_cache_count;
 	shrink->scan_objects	= bch2_btree_key_cache_scan;
+	shrink->batch		= 1 << 14;
+	shrink->seeks		= 0;
 	shrink->private_data	= c;
 	shrinker_register(shrink);
 	return 0;
