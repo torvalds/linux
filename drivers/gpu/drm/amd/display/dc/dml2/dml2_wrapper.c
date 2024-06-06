@@ -687,11 +687,13 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 
 static bool dml2_validate_only(struct dc_state *context)
 {
-	struct dml2_context *dml2 = context->bw_ctx.dml2;
+	struct dml2_context *dml2;
 	unsigned int result = 0;
 
 	if (!context || context->stream_count == 0)
 		return true;
+
+	dml2 = context->bw_ctx.dml2;
 
 	/* Zero out before each call before proceeding */
 	memset(&dml2->v20.scratch, 0, sizeof(struct dml2_wrapper_scratch));

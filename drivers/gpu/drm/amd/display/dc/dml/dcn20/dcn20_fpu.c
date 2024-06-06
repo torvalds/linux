@@ -1084,7 +1084,7 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 		struct dc_stream_status *stream_status = &context->stream_status[0];
 		int minmum_z8_residency = dc->debug.minimum_z8_residency_time > 0 ? dc->debug.minimum_z8_residency_time : 1000;
 		bool allow_z8 = context->bw_ctx.dml.vba.StutterPeriod > (double)minmum_z8_residency;
-		bool is_pwrseq0 = link->link_index == 0;
+		bool is_pwrseq0 = (link && link->link_index == 0);
 		bool is_psr = (link && (link->psr_settings.psr_version == DC_PSR_VERSION_1 ||
 						link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) && !link->panel_config.psr.disable_psr);
 		bool is_replay = link && link->replay_settings.replay_feature_enabled;

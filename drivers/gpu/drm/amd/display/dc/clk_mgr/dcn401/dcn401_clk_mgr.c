@@ -207,8 +207,13 @@ static void dcn401_build_wm_range_table(struct clk_mgr *clk_mgr)
 void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
-	struct clk_limit_num_entries *num_entries_per_clk = &clk_mgr_base->bw_params->clk_table.num_entries_per_clk;
+	struct clk_limit_num_entries *num_entries_per_clk;
 	unsigned int i;
+
+	if (!clk_mgr_base->bw_params)
+		return;
+
+	num_entries_per_clk = &clk_mgr_base->bw_params->clk_table.num_entries_per_clk;
 
 	memset(&(clk_mgr_base->clks), 0, sizeof(struct dc_clocks));
 	clk_mgr_base->clks.p_state_change_support = true;
@@ -216,9 +221,6 @@ void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 	clk_mgr_base->clks.fclk_prev_p_state_change_support = true;
 	clk_mgr->smu_present = false;
 	clk_mgr->dpm_present = false;
-
-	if (!clk_mgr_base->bw_params)
-		return;
 
 	if (!clk_mgr_base->force_smu_not_present && dcn30_smu_get_smu_version(clk_mgr, &clk_mgr->smu_ver))
 		clk_mgr->smu_present = true;
