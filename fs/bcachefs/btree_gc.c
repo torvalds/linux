@@ -990,6 +990,8 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 
 		buckets->first_bucket	= ca->mi.first_bucket;
 		buckets->nbuckets	= ca->mi.nbuckets;
+		buckets->nbuckets_minus_first =
+			buckets->nbuckets - buckets->first_bucket;
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 

@@ -93,7 +93,8 @@ static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
 	struct bucket_array *buckets = gc_bucket_array(ca);
 
-	BUG_ON(!bucket_valid(ca, b));
+	if (b - buckets->first_bucket >= buckets->nbuckets_minus_first)
+		return NULL;
 	return buckets->b + b;
 }
 
@@ -110,7 +111,8 @@ static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
 {
 	struct bucket_gens *gens = bucket_gens(ca);
 
-	BUG_ON(!bucket_valid(ca, b));
+	if (b - gens->first_bucket >= gens->nbuckets_minus_first)
+		return NULL;
 	return gens->b + b;
 }
 
