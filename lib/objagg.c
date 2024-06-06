@@ -421,7 +421,7 @@ static struct objagg_obj *__objagg_obj_get(struct objagg *objagg, void *obj)
  *
  * There are 3 main options this function wraps:
  * 1) The object according to "obj" already exist. In that case
- *    the reference counter is incrementes and the object is returned.
+ *    the reference counter is incremented and the object is returned.
  * 2) The object does not exist, but it can be aggregated within
  *    another object. In that case, user ops->delta_create() is called
  *    to obtain delta data and a new object is created with returned
