@@ -26,12 +26,13 @@ struct cros_ec_hwmon_priv {
 static int cros_ec_hwmon_read_fan_speed(struct cros_ec_device *cros_ec, u8 index, u16 *speed)
 {
 	int ret;
+	__le16 __speed;
 
-	ret = cros_ec_cmd_readmem(cros_ec, EC_MEMMAP_FAN + index * 2, 2, speed);
+	ret = cros_ec_cmd_readmem(cros_ec, EC_MEMMAP_FAN + index * 2, 2, &__speed);
 	if (ret < 0)
 		return ret;
 
-	*speed = le16_to_cpu(*speed);
+	*speed = le16_to_cpu(__speed);
 	return 0;
 }
 
