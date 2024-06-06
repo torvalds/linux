@@ -2037,6 +2037,7 @@
 			mediatek,gce-client-reg = <&gce1 SUBSYS_1400XXXX 0x1000 0x1000>;
 			mediatek,gce-events = <CMDQ_EVENT_VPP0_MDP_RDMA_SOF>,
 					      <CMDQ_EVENT_VPP0_MDP_RDMA_FRAME_DONE>;
+			mediatek,scp = <&scp>;
 			power-domains = <&spm MT8195_POWER_DOMAIN_VPPSYS0>;
 			iommus = <&iommu_vpp M4U_PORT_L4_MDP_RDMA>;
 			clocks = <&vppsys0 CLK_VPP0_MDP_RDMA>;
