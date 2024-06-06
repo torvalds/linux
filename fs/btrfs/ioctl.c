@@ -658,9 +658,6 @@ static noinline int create_subvol(struct mnt_idmap *idmap,
 		ret = PTR_ERR(trans);
 		goto out_release_rsv;
 	}
-	ret = btrfs_record_root_in_trans(trans, BTRFS_I(dir)->root);
-	if (ret)
-		goto out;
 	btrfs_qgroup_convert_reserved_meta(root, qgroup_reserved);
 	qgroup_reserved = 0;
 	trans->block_rsv = &block_rsv;
