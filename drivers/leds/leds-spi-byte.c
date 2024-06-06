@@ -29,8 +29,9 @@
  */
 
 #include <linux/leds.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/mutex.h>
 #include <uapi/linux/uleds.h>
@@ -80,14 +81,14 @@ static int spi_byte_brightness_set_blocking(struct led_classdev *dev,
 
 static int spi_byte_probe(struct spi_device *spi)
 {
-	struct device_node *child;
+	struct fwnode_handle *child __free(fwnode_handle) = NULL;
 	struct device *dev = &spi->dev;
 	struct spi_byte_led *led;
 	struct led_init_data init_data = {};
 	enum led_default_state state;
 	int ret;
 
-	if (of_get_available_child_count(dev_of_node(dev)) != 1) {
+	if (device_get_child_node_count(dev) != 1) {
 		dev_err(dev, "Device must have exactly one LED sub-node.");
 		return -EINVAL;
 	}
@@ -103,26 +104,24 @@ static int spi_byte_probe(struct spi_device *spi)
 	led->ldev.max_brightness = led->cdef->max_value - led->cdef->off_value;
 	led->ldev.brightness_set_blocking = spi_byte_brightness_set_blocking;
 
-	child = of_get_next_available_child(dev_of_node(dev), NULL);
+	child = device_get_next_child_node(dev, NULL);
 
-	state = led_init_default_state_get(of_fwnode_handle(child));
+	state = led_init_default_state_get(child);
 	if (state == LEDS_DEFSTATE_ON)
 		led->ldev.brightness = led->ldev.max_brightness;
 	spi_byte_brightness_set_blocking(&led->ldev,
 					 led->ldev.brightness);
 
-	init_data.fwnode = of_fwnode_handle(child);
+	init_data.fwnode = child;
 	init_data.devicename = "leds-spi-byte";
 	init_data.default_label = ":";
 
 	ret = devm_led_classdev_register_ext(&spi->dev, &led->ldev, &init_data);
 	if (ret) {
-		of_node_put(child);
 		mutex_destroy(&led->mutex);
 		return ret;
 	}
 
-	of_node_put(child);
 	spi_set_drvdata(spi, led);
 
 	return 0;

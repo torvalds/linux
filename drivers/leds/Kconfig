@@ -884,7 +884,6 @@ config LEDS_SPI_BYTE
 	tristate "LED support for SPI LED controller with a single byte"
 	depends on LEDS_CLASS
 	depends on SPI
-	depends on OF
 	help
 	  This option enables support for LED controller which use a single byte
 	  for controlling the brightness. Currently the following controller is
