@@ -16,8 +16,8 @@
 void c8sectpfe_debugfs_init(struct c8sectpfei *);
 void c8sectpfe_debugfs_exit(struct c8sectpfei *);
 #else
-static inline void c8sectpfe_debugfs_init(struct c8sectpfei *) {};
-static inline void c8sectpfe_debugfs_exit(struct c8sectpfei *) {};
+static inline void c8sectpfe_debugfs_init(struct c8sectpfei *fei) {};
+static inline void c8sectpfe_debugfs_exit(struct c8sectpfei *fei) {};
 #endif
 
 #endif /* __C8SECTPFE_DEBUG_H */
