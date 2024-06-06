@@ -1629,11 +1629,16 @@ static int igc_ethtool_get_eee(struct net_device *netdev,
 	struct igc_hw *hw = &adapter->hw;
 	u32 eeer;
 
+	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 edata->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 edata->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+			 edata->supported);
+
 	if (hw->dev_spec._base.eee_enable)
 		mii_eee_cap1_mod_linkmode_t(edata->advertised,
 					    adapter->eee_advert);
-
-	*edata = adapter->eee;
 
 	eeer = rd32(IGC_EEER);
 
