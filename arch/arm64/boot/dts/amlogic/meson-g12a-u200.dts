@@ -373,6 +373,7 @@
 };
 
 &acodec {
+	AVDD-supply = <&vddao_1v8>;
 	status = "okay";
 };
 
