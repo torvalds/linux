@@ -1876,7 +1876,7 @@ static int aldebaran_mode1_reset(struct smu_context *smu)
 		/* fatal error triggered by ras, PMFW supports the flag
 		   from 68.44.0 */
 		if ((smu->smc_fw_version >= 0x00442c00) &&
-		    amdgpu_ras_in_recovery(adev))
+		    amdgpu_ras_get_fed_status(adev))
 			fatal_err = 1;
 
 		param |= (fatal_err << 16);

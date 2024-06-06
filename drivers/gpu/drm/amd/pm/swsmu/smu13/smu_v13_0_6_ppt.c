@@ -2581,7 +2581,7 @@ static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 	param = SMU_RESET_MODE_1;
 
 	/* fatal error triggered by ras, PMFW supports the flag */
-	if (amdgpu_ras_in_recovery(adev))
+	if (amdgpu_ras_get_fed_status(adev))
 		fatal_err = 1;
 
 	param |= (fatal_err << 16);

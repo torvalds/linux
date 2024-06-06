@@ -2788,7 +2788,7 @@ static void smu_v13_0_0_set_mode1_reset_param(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 
 	if ((smu->smc_fw_version >= supported_version) &&
-	    amdgpu_ras_in_recovery(adev))
+	    amdgpu_ras_get_fed_status(adev))
 		/* Set RAS fatal error reset flag */
 		*param = 1 << 16;
 	else
