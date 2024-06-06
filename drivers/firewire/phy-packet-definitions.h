@@ -21,6 +21,61 @@ static inline void phy_packet_set_packet_identifier(u32 *quadlet, unsigned int p
 	*quadlet |= (packet_identifier << PACKET_IDENTIFIER_SHIFT) & PACKET_IDENTIFIER_MASK;
 }
 
+#define PHY_PACKET_PACKET_IDENTIFIER_PHY_CONFIG		0
+
+#define PHY_CONFIG_ROOT_ID_MASK				0x3f000000
+#define PHY_CONFIG_ROOT_ID_SHIFT			24
+#define PHY_CONFIG_FORCE_ROOT_NODE_MASK			0x00800000
+#define PHY_CONFIG_FORCE_ROOT_NODE_SHIFT		23
+#define PHY_CONFIG_GAP_COUNT_OPTIMIZATION_MASK		0x00400000
+#define PHY_CONFIG_GAP_COUNT_OPTIMIZATION_SHIFT		22
+#define PHY_CONFIG_GAP_COUNT_MASK			0x003f0000
+#define PHY_CONFIG_GAP_COUNT_SHIFT			16
+
+static inline unsigned int phy_packet_phy_config_get_root_id(u32 quadlet)
+{
+	return (quadlet & PHY_CONFIG_ROOT_ID_MASK) >> PHY_CONFIG_ROOT_ID_SHIFT;
+}
+
+static inline void phy_packet_phy_config_set_root_id(u32 *quadlet, unsigned int root_id)
+{
+	*quadlet &= ~PHY_CONFIG_ROOT_ID_MASK;
+	*quadlet |= (root_id << PHY_CONFIG_ROOT_ID_SHIFT) & PHY_CONFIG_ROOT_ID_MASK;
+}
+
+static inline bool phy_packet_phy_config_get_force_root_node(u32 quadlet)
+{
+	return (quadlet & PHY_CONFIG_FORCE_ROOT_NODE_MASK) >> PHY_CONFIG_FORCE_ROOT_NODE_SHIFT;
+}
+
+static inline void phy_packet_phy_config_set_force_root_node(u32 *quadlet, bool has_force_root_node)
+{
+	*quadlet &= ~PHY_CONFIG_FORCE_ROOT_NODE_MASK;
+	*quadlet |= (has_force_root_node << PHY_CONFIG_FORCE_ROOT_NODE_SHIFT) & PHY_CONFIG_FORCE_ROOT_NODE_MASK;
+}
+
+static inline bool phy_packet_phy_config_get_gap_count_optimization(u32 quadlet)
+{
+	return (quadlet & PHY_CONFIG_GAP_COUNT_OPTIMIZATION_MASK) >> PHY_CONFIG_GAP_COUNT_OPTIMIZATION_SHIFT;
+}
+
+static inline void phy_packet_phy_config_set_gap_count_optimization(u32 *quadlet, bool has_gap_count_optimization)
+{
+	*quadlet &= ~PHY_CONFIG_GAP_COUNT_OPTIMIZATION_MASK;
+	*quadlet |= (has_gap_count_optimization << PHY_CONFIG_GAP_COUNT_OPTIMIZATION_SHIFT) & PHY_CONFIG_GAP_COUNT_OPTIMIZATION_MASK;
+}
+
+static inline unsigned int phy_packet_phy_config_get_gap_count(u32 quadlet)
+{
+	return (quadlet & PHY_CONFIG_GAP_COUNT_MASK) >> PHY_CONFIG_GAP_COUNT_SHIFT;
+}
+
+static inline void phy_packet_phy_config_set_gap_count(u32 *quadlet, unsigned int gap_count)
+{
+	*quadlet &= ~PHY_CONFIG_GAP_COUNT_MASK;
+	*quadlet |= (gap_count << PHY_CONFIG_GAP_COUNT_SHIFT) & PHY_CONFIG_GAP_COUNT_MASK;
+}
+
 #define PHY_PACKET_PACKET_IDENTIFIER_SELF_ID		2
 
 #define SELF_ID_PHY_ID_MASK				0x3f000000

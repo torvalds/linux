@@ -248,6 +248,29 @@ static void deserialize_phy_packet_self_id_extended(u32 quadlet, unsigned int *p
 	*has_more_packets = phy_packet_self_id_get_more_packets(quadlet);
 }
 
+static void serialize_phy_packet_phy_config(u32 *quadlet, unsigned int packet_identifier,
+					    unsigned int root_id, bool has_force_root_node,
+					    bool has_gap_count_optimization, unsigned int gap_count)
+{
+	phy_packet_set_packet_identifier(quadlet, packet_identifier);
+	phy_packet_phy_config_set_root_id(quadlet, root_id);
+	phy_packet_phy_config_set_force_root_node(quadlet, has_force_root_node);
+	phy_packet_phy_config_set_gap_count_optimization(quadlet, has_gap_count_optimization);
+	phy_packet_phy_config_set_gap_count(quadlet, gap_count);
+}
+
+static void deserialize_phy_packet_phy_config(u32 quadlet, unsigned int *packet_identifier,
+					      unsigned int *root_id, bool *has_force_root_node,
+					      bool *has_gap_count_optimization,
+					      unsigned int *gap_count)
+{
+	*packet_identifier = phy_packet_get_packet_identifier(quadlet);
+	*root_id = phy_packet_phy_config_get_root_id(quadlet);
+	*has_force_root_node = phy_packet_phy_config_get_force_root_node(quadlet);
+	*has_gap_count_optimization = phy_packet_phy_config_get_gap_count_optimization(quadlet);
+	*gap_count = phy_packet_phy_config_get_gap_count(quadlet);
+}
+
 static void test_async_header_write_quadlet_request(struct kunit *test)
 {
 	static const u32 expected[ASYNC_HEADER_QUADLET_COUNT] = {
@@ -811,6 +834,60 @@ static void test_phy_packet_self_id_zero_and_one(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, quadlets, expected, sizeof(expected));
 }
 
+static void test_phy_packet_phy_config_force_root_node(struct kunit *test)
+{
+	const u32 expected = 0x02800000;
+	u32 quadlet = 0;
+
+	unsigned int packet_identifier;
+	unsigned int root_id;
+	bool has_force_root_node;
+	bool has_gap_count_optimization;
+	unsigned int gap_count;
+
+	deserialize_phy_packet_phy_config(expected, &packet_identifier, &root_id,
+					  &has_force_root_node, &has_gap_count_optimization,
+					  &gap_count);
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_PACKET_IDENTIFIER_PHY_CONFIG, packet_identifier);
+	KUNIT_EXPECT_EQ(test, 0x02, root_id);
+	KUNIT_EXPECT_TRUE(test, has_force_root_node);
+	KUNIT_EXPECT_FALSE(test, has_gap_count_optimization);
+	KUNIT_EXPECT_EQ(test, 0, gap_count);
+
+	serialize_phy_packet_phy_config(&quadlet, packet_identifier, root_id, has_force_root_node,
+					has_gap_count_optimization, gap_count);
+
+	KUNIT_EXPECT_EQ(test, quadlet, expected);
+}
+
+static void test_phy_packet_phy_config_gap_count_optimization(struct kunit *test)
+{
+	const u32 expected = 0x034f0000;
+	u32 quadlet = 0;
+
+	unsigned int packet_identifier;
+	unsigned int root_id;
+	bool has_force_root_node;
+	bool has_gap_count_optimization;
+	unsigned int gap_count;
+
+	deserialize_phy_packet_phy_config(expected, &packet_identifier, &root_id,
+					  &has_force_root_node, &has_gap_count_optimization,
+					  &gap_count);
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_PACKET_IDENTIFIER_PHY_CONFIG, packet_identifier);
+	KUNIT_EXPECT_EQ(test, 0x03, root_id);
+	KUNIT_EXPECT_FALSE(test, has_force_root_node);
+	KUNIT_EXPECT_TRUE(test, has_gap_count_optimization);
+	KUNIT_EXPECT_EQ(test, 0x0f, gap_count);
+
+	serialize_phy_packet_phy_config(&quadlet, packet_identifier, root_id, has_force_root_node,
+					has_gap_count_optimization, gap_count);
+
+	KUNIT_EXPECT_EQ(test, quadlet, expected);
+}
+
 static struct kunit_case packet_serdes_test_cases[] = {
 	KUNIT_CASE(test_async_header_write_quadlet_request),
 	KUNIT_CASE(test_async_header_write_block_request),
@@ -825,6 +902,8 @@ static struct kunit_case packet_serdes_test_cases[] = {
 	KUNIT_CASE(test_phy_packet_self_id_zero_case0),
 	KUNIT_CASE(test_phy_packet_self_id_zero_case1),
 	KUNIT_CASE(test_phy_packet_self_id_zero_and_one),
+	KUNIT_CASE(test_phy_packet_phy_config_force_root_node),
+	KUNIT_CASE(test_phy_packet_phy_config_gap_count_optimization),
 	{}
 };
 
