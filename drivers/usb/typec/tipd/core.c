@@ -1195,6 +1195,10 @@ static int tps6598x_apply_patch(struct tps6598x *tps)
 
 release_fw:
 	release_firmware(fw);
+	if (ret) {
+		dev_err(tps->dev, "Failed to write patch %s of %zu bytes\n",
+			firmware_name, fw->size);
+	}
 
 	return ret;
 };
