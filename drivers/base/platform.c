@@ -608,7 +608,7 @@ int platform_device_add_resources(struct platform_device *pdev,
 	struct resource *r = NULL;
 
 	if (res) {
-		r = kmemdup(res, sizeof(struct resource) * num, GFP_KERNEL);
+		r = kmemdup_array(res, num, sizeof(*r), GFP_KERNEL);
 		if (!r)
 			return -ENOMEM;
 	}
