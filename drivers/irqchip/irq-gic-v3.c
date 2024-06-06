@@ -2349,6 +2349,11 @@ gic_acpi_parse_madt_redist(union acpi_subtable_headers *header,
 		pr_err("Couldn't map GICR region @%llx\n", redist->base_address);
 		return -ENOMEM;
 	}
+
+	if (acpi_get_madt_revision() >= 7 &&
+	    (redist->flags & ACPI_MADT_GICR_NON_COHERENT))
+		gic_data.rdists.flags |= RDIST_FLAGS_FORCE_NON_SHAREABLE;
+
 	gic_request_region(redist->base_address, redist->length, "GICR");
 
 	gic_acpi_register_redist(redist->base_address, redist_base);
@@ -2372,6 +2377,10 @@ gic_acpi_parse_madt_gicc(union acpi_subtable_headers *header,
 	if (!redist_base)
 		return -ENOMEM;
 	gic_request_region(gicc->gicr_base_address, size, "GICR");
+
+	if (acpi_get_madt_revision() >= 7 &&
+	    (gicc->flags & ACPI_MADT_GICC_NON_COHERENT))
+		gic_data.rdists.flags |= RDIST_FLAGS_FORCE_NON_SHAREABLE;
 
 	gic_acpi_register_redist(gicc->gicr_base_address, redist_base);
 	return 0;
