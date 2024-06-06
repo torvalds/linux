@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/sound/linux,spdif-dit.yaml#
+$id: http://devicetree.org/schemas/sound/linux,spdif.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Dummy SPDIF Transmitter
+title: Dummy SPDIF Transmitter/Receiver
 
 maintainers:
   - Mark Brown <broonie@kernel.org>
@@ -14,7 +14,9 @@ allOf:
 
 properties:
   compatible:
-    const: linux,spdif-dit
+    enum:
+      - linux,spdif-dit
+      - linux,spdif-dir
 
   "#sound-dai-cells":
     const: 0
