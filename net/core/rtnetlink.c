@@ -6486,6 +6486,7 @@ static int rtnl_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 static int rtnl_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const bool needs_lock = !(cb->flags & RTNL_FLAG_DUMP_UNLOCKED);
 	rtnl_dumpit_func dumpit = cb->data;
 	int err;
 
@@ -6495,7 +6496,11 @@ static int rtnl_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!dumpit)
 		return 0;
 
+	if (needs_lock)
+		rtnl_lock();
 	err = dumpit(skb, cb);
+	if (needs_lock)
+		rtnl_unlock();
 
 	/* Old dump handlers used to send NLM_DONE as in a separate recvmsg().
 	 * Some applications which parse netlink manually depend on this.
@@ -6515,7 +6520,8 @@ static int rtnetlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 				const struct nlmsghdr *nlh,
 				struct netlink_dump_control *control)
 {
-	if (control->flags & RTNL_FLAG_DUMP_SPLIT_NLM_DONE) {
+	if (control->flags & RTNL_FLAG_DUMP_SPLIT_NLM_DONE ||
+	    !(control->flags & RTNL_FLAG_DUMP_UNLOCKED)) {
 		WARN_ON(control->data);
 		control->data = control->dump;
 		control->dump = rtnl_dumpit;
@@ -6703,7 +6709,6 @@ static int __net_init rtnetlink_net_init(struct net *net)
 	struct netlink_kernel_cfg cfg = {
 		.groups		= RTNLGRP_MAX,
 		.input		= rtnetlink_rcv,
-		.cb_mutex	= &rtnl_mutex,
 		.flags		= NL_CFG_F_NONROOT_RECV,
 		.bind		= rtnetlink_bind,
 	};

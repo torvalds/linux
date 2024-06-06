@@ -2330,8 +2330,6 @@ static int netlink_dump(struct sock *sk, bool lock_taken)
 
 		cb->extack = &extack;
 
-		if (cb->flags & RTNL_FLAG_DUMP_UNLOCKED)
-			extra_mutex = NULL;
 		if (extra_mutex)
 			mutex_lock(extra_mutex);
 		nlk->dump_done_errno = cb->dump(skb, cb);
