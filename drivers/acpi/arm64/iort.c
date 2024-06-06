@@ -822,7 +822,7 @@ static struct iommu_iort_rmr_data *iort_rmr_alloc(
 		return NULL;
 
 	/* Create a copy of SIDs array to associate with this rmr_data */
-	sids_copy = kmemdup(sids, num_sids * sizeof(*sids), GFP_KERNEL);
+	sids_copy = kmemdup_array(sids, num_sids, sizeof(*sids), GFP_KERNEL);
 	if (!sids_copy) {
 		kfree(rmr_data);
 		return NULL;
