@@ -33,6 +33,14 @@ properties:
       specifier of the column in the subscription matrix representing the local
       processor.
 
+  mboxes:
+    minItems: 1
+    maxItems: 5
+    description:
+      Reference to the mailbox representing the outgoing doorbell in APCS for
+      this client. Each entry represents the N:th remote processor by index
+      (0-indexed).
+
   '#size-cells':
     const: 0
 
@@ -47,6 +55,7 @@ patternProperties:
     description:
       Three entries specifying the outgoing ipc bit used for signaling the N:th
       remote processor.
+    deprecated: true
 
   "@[0-9a-f]$":
     type: object
@@ -98,15 +107,18 @@ required:
   - '#address-cells'
   - '#size-cells'
 
-anyOf:
+oneOf:
   - required:
-      - qcom,ipc-1
-  - required:
-      - qcom,ipc-2
-  - required:
-      - qcom,ipc-3
-  - required:
-      - qcom,ipc-4
+      - mboxes
+  - anyOf:
+      - required:
+          - qcom,ipc-1
+      - required:
+          - qcom,ipc-2
+      - required:
+          - qcom,ipc-3
+      - required:
+          - qcom,ipc-4
 
 additionalProperties: false
 
@@ -122,7 +134,7 @@ examples:
         compatible = "qcom,smsm";
         #address-cells = <1>;
         #size-cells = <0>;
-        qcom,ipc-3 = <&apcs 8 19>;
+        mboxes = <0>, <0>, <0>, <&apcs 19>;
 
         apps_smsm: apps@0 {
             reg = <0>;
