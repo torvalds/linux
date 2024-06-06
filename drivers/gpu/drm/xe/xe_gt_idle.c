@@ -147,6 +147,13 @@ static const struct attribute *gt_idle_attrs[] = {
 static void gt_idle_sysfs_fini(struct drm_device *drm, void *arg)
 {
 	struct kobject *kobj = arg;
+	struct xe_gt *gt = kobj_to_gt(kobj->parent);
+
+	if (gt_to_xe(gt)->info.skip_guc_pc) {
+		XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
+		xe_gt_idle_disable_c6(gt);
+		xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+	}
 
 	sysfs_remove_files(kobj, gt_idle_attrs);
 	kobject_put(kobj);
