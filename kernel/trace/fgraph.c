@@ -255,24 +255,11 @@ static inline int get_frame_offset(struct task_struct *t, int offset)
 	return __get_offset(t->ret_stack[offset]);
 }
 
-/* Get FGRAPH_TYPE from the word from the @offset at ret_stack */
-static inline int get_fgraph_type(struct task_struct *t, int offset)
-{
-	return __get_type(t->ret_stack[offset]);
-}
-
 /* For BITMAP type: get the bitmask from the @offset at ret_stack */
 static inline unsigned long
 get_bitmap_bits(struct task_struct *t, int offset)
 {
 	return (t->ret_stack[offset] >> FGRAPH_INDEX_SHIFT) & FGRAPH_INDEX_MASK;
-}
-
-/* For BITMAP type: set the bits in the bitmap bitmask at @offset on ret_stack */
-static inline void
-set_bitmap_bits(struct task_struct *t, int offset, unsigned long bitmap)
-{
-	t->ret_stack[offset] |= (bitmap << FGRAPH_INDEX_SHIFT);
 }
 
 /* Write the bitmap to the ret_stack at @offset (does index, offset and bitmask) */
