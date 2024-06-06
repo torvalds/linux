@@ -34,6 +34,7 @@
 #include "soc15.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_ring_mux.h"
+#include "amdgpu_xcp.h"
 
 /* GFX current status */
 #define AMDGPU_GFX_NORMAL_MODE			0x00000000L
@@ -343,6 +344,12 @@ struct amdgpu_me {
 	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
 };
 
+struct amdgpu_isolation_work {
+	struct amdgpu_device		*adev;
+	u32				xcp_id;
+	struct delayed_work		work;
+};
+
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
 	struct amdgpu_gfx_config	config;
@@ -454,6 +461,11 @@ struct amdgpu_gfx {
 	void				*cleaner_shader_cpu_ptr;
 	const void			*cleaner_shader_ptr;
 	bool				enable_cleaner_shader;
+	struct amdgpu_isolation_work	enforce_isolation[MAX_XCP];
+	/* Mutex for synchronizing KFD scheduler operations */
+	struct mutex                    kfd_sch_mutex;
+	u64				kfd_sch_req_count[MAX_XCP];
+	bool				kfd_sch_inactive[MAX_XCP];
 };
 
 struct amdgpu_gfx_ras_reg_entry {
@@ -563,6 +575,9 @@ void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
 				    const void *cleaner_shader_ptr);
 int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev);
 void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev);
+void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work);
+void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring);
+void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring);
 
 static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 {

@@ -1686,3 +1686,170 @@ void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
 		memcpy_toio(adev->gfx.cleaner_shader_cpu_ptr, cleaner_shader_ptr,
 			    cleaner_shader_size);
 }
+
+/**
+ * amdgpu_gfx_kfd_sch_ctrl - Control the KFD scheduler from the KGD (Graphics Driver)
+ * @adev: amdgpu_device pointer
+ * @idx: Index of the scheduler to control
+ * @enable: Whether to enable or disable the KFD scheduler
+ *
+ * This function is used to control the KFD (Kernel Fusion Driver) scheduler
+ * from the KGD. It is part of the cleaner shader feature. This function plays
+ * a key role in enforcing process isolation on the GPU.
+ *
+ * The function uses a reference count mechanism (kfd_sch_req_count) to keep
+ * track of the number of requests to enable the KFD scheduler. When a request
+ * to enable the KFD scheduler is made, the reference count is decremented.
+ * When the reference count reaches zero, a delayed work is scheduled to
+ * enforce isolation after a delay of GFX_SLICE_PERIOD.
+ *
+ * When a request to disable the KFD scheduler is made, the function first
+ * checks if the reference count is zero. If it is, it cancels the delayed work
+ * for enforcing isolation and checks if the KFD scheduler is active. If the
+ * KFD scheduler is active, it sends a request to stop the KFD scheduler and
+ * sets the KFD scheduler state to inactive. Then, it increments the reference
+ * count.
+ *
+ * The function is synchronized using the kfd_sch_mutex to ensure that the KFD
+ * scheduler state and reference count are updated atomically.
+ *
+ * Note: If the reference count is already zero when a request to enable the
+ * KFD scheduler is made, it means there's an imbalance bug somewhere. The
+ * function triggers a warning in this case.
+ */
+static void amdgpu_gfx_kfd_sch_ctrl(struct amdgpu_device *adev, u32 idx,
+				    bool enable)
+{
+	mutex_lock(&adev->gfx.kfd_sch_mutex);
+
+	if (enable) {
+		/* If the count is already 0, it means there's an imbalance bug somewhere.
+		 * Note that the bug may be in a different caller than the one which triggers the
+		 * WARN_ON_ONCE.
+		 */
+		if (WARN_ON_ONCE(adev->gfx.kfd_sch_req_count[idx] == 0)) {
+			dev_err(adev->dev, "Attempted to enable KFD scheduler when reference count is already zero\n");
+			goto unlock;
+		}
+
+		adev->gfx.kfd_sch_req_count[idx]--;
+
+		if (adev->gfx.kfd_sch_req_count[idx] == 0 &&
+		    adev->gfx.kfd_sch_inactive[idx]) {
+			schedule_delayed_work(&adev->gfx.enforce_isolation[idx].work,
+					      GFX_SLICE_PERIOD);
+		}
+	} else {
+		if (adev->gfx.kfd_sch_req_count[idx] == 0) {
+			cancel_delayed_work_sync(&adev->gfx.enforce_isolation[idx].work);
+			if (!adev->gfx.kfd_sch_inactive[idx]) {
+				amdgpu_amdkfd_stop_sched(adev, idx);
+				adev->gfx.kfd_sch_inactive[idx] = true;
+			}
+		}
+
+		adev->gfx.kfd_sch_req_count[idx]++;
+	}
+
+unlock:
+	mutex_unlock(&adev->gfx.kfd_sch_mutex);
+}
+
+/**
+ * amdgpu_gfx_enforce_isolation_handler - work handler for enforcing shader isolation
+ *
+ * @work: work_struct.
+ *
+ * This function is the work handler for enforcing shader isolation on AMD GPUs.
+ * It counts the number of emitted fences for each GFX and compute ring. If there
+ * are any fences, it schedules the `enforce_isolation_work` to be run after a
+ * delay of `GFX_SLICE_PERIOD`. If there are no fences, it signals the Kernel Fusion
+ * Driver (KFD) to resume the runqueue. The function is synchronized using the
+ * `enforce_isolation_mutex`.
+ */
+void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
+{
+	struct amdgpu_isolation_work *isolation_work =
+		container_of(work, struct amdgpu_isolation_work, work.work);
+	struct amdgpu_device *adev = isolation_work->adev;
+	u32 i, idx, fences = 0;
+
+	if (isolation_work->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = isolation_work->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	for (i = 0; i < AMDGPU_MAX_GFX_RINGS; ++i) {
+		if (isolation_work->xcp_id == adev->gfx.gfx_ring[i].xcp_id)
+			fences += amdgpu_fence_count_emitted(&adev->gfx.gfx_ring[i]);
+	}
+	for (i = 0; i < (AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES); ++i) {
+		if (isolation_work->xcp_id == adev->gfx.compute_ring[i].xcp_id)
+			fences += amdgpu_fence_count_emitted(&adev->gfx.compute_ring[i]);
+	}
+	if (fences) {
+		schedule_delayed_work(&adev->gfx.enforce_isolation[idx].work,
+				      GFX_SLICE_PERIOD);
+	} else {
+		/* Tell KFD to resume the runqueue */
+		if (adev->kfd.init_complete) {
+			WARN_ON_ONCE(!adev->gfx.kfd_sch_inactive[idx]);
+			WARN_ON_ONCE(adev->gfx.kfd_sch_req_count[idx]);
+				amdgpu_amdkfd_start_sched(adev, idx);
+				adev->gfx.kfd_sch_inactive[idx] = false;
+		}
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+}
+
+void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	u32 idx;
+
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (ring->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = ring->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	if (adev->enforce_isolation[idx]) {
+		if (adev->kfd.init_complete)
+			amdgpu_gfx_kfd_sch_ctrl(adev, idx, false);
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+}
+
+void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	u32 idx;
+
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (ring->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = ring->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	if (adev->enforce_isolation[idx]) {
+		if (adev->kfd.init_complete)
+			amdgpu_gfx_kfd_sch_ctrl(adev, idx, true);
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+}
