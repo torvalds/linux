@@ -76,8 +76,6 @@ struct hwseq_private_funcs {
 	void (*enable_stream_gating)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 	void (*init_pipes)(struct dc *dc, struct dc_state *context);
 	void (*reset_hw_ctx_wrap)(struct dc *dc, struct dc_state *context);
-	void (*update_plane_addr)(const struct dc *dc,
-			struct pipe_ctx *pipe_ctx);
 	void (*plane_atomic_disconnect)(struct dc *dc,
 			struct dc_state *state,
 			struct pipe_ctx *pipe_ctx);

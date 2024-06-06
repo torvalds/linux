@@ -3319,7 +3319,6 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 
 static const struct hwseq_private_funcs dce110_private_funcs = {
 	.init_pipes = init_pipes,
-	.update_plane_addr = update_plane_addr,
 	.set_input_transfer_func = dce110_set_input_transfer_func,
 	.set_output_transfer_func = dce110_set_output_transfer_func,
 	.power_down = dce110_power_down,
