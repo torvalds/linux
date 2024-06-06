@@ -156,7 +156,7 @@ static int axi_pwmgen_setup(struct regmap *regmap, struct device *dev)
 	}
 
 	/* Enable the core */
-	ret = regmap_update_bits(regmap, AXI_PWMGEN_REG_CONFIG, AXI_PWMGEN_REG_CONFIG_RESET, 0);
+	ret = regmap_clear_bits(regmap, AXI_PWMGEN_REG_CONFIG, AXI_PWMGEN_REG_CONFIG_RESET);
 	if (ret)
 		return ret;
 
