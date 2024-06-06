@@ -731,7 +731,7 @@ void vg_clk_mgr_construct(
 	clk_mgr->base.base.bw_params = &vg_bw_params;
 
 	vg_get_dpm_table_from_smu(&clk_mgr->base, &smu_dpm_clks);
-	if (ctx->dc_bios && ctx->dc_bios->integrated_info) {
+	if (ctx->dc_bios->integrated_info) {
 		vg_clk_mgr_helper_populate_bw_params(
 				&clk_mgr->base,
 				ctx->dc_bios->integrated_info,

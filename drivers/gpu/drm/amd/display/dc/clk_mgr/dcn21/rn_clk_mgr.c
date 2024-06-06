@@ -772,7 +772,7 @@ void rn_clk_mgr_construct(
 		status = pp_smu->rn_funcs.get_dpm_clock_table(&pp_smu->rn_funcs.pp_smu, &clock_table);
 
 		if (status == PP_SMU_RESULT_OK &&
-		    ctx->dc_bios && ctx->dc_bios->integrated_info) {
+		    ctx->dc_bios->integrated_info) {
 			rn_clk_mgr_helper_populate_bw_params (clk_mgr->base.bw_params, &clock_table, ctx->dc_bios->integrated_info);
 			/* treat memory config as single channel if memory is asymmetrics. */
 			if (ctx->dc->config.is_asymmetric_memory)
