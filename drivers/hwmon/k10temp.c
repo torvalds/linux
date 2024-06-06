@@ -269,11 +269,11 @@ static int k10temp_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static umode_t k10temp_is_visible(const void *_data,
+static umode_t k10temp_is_visible(const void *drvdata,
 				  enum hwmon_sensor_types type,
 				  u32 attr, int channel)
 {
-	const struct k10temp_data *data = _data;
+	const struct k10temp_data *data = drvdata;
 	struct pci_dev *pdev = data->pdev;
 	u32 reg;
 
