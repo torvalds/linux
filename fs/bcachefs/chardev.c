@@ -517,7 +517,7 @@ static long bch2_ioctl_data(struct bch_fs *c,
 static long bch2_ioctl_fs_usage(struct bch_fs *c,
 				struct bch_ioctl_fs_usage __user *user_arg)
 {
-	struct bch_ioctl_fs_usage arg;
+	struct bch_ioctl_fs_usage arg = {};
 	darray_char replicas = {};
 	u32 replica_entries_bytes;
 	int ret = 0;
