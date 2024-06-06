@@ -21,7 +21,6 @@
 #include "xfs_attr.h"
 #include "xfs_ioctl.h"
 #include "xfs_parent.h"
-#include "xfs_da_btree.h"
 #include "xfs_handle.h"
 #include "xfs_health.h"
 #include "xfs_icache.h"
