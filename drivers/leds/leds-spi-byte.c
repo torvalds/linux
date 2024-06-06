@@ -31,9 +31,9 @@
 #include <linux/leds.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>
-#include <linux/mutex.h>
 #include <uapi/linux/uleds.h>
 
 struct spi_byte_chipdef {
@@ -97,8 +97,11 @@ static int spi_byte_probe(struct spi_device *spi)
 	if (!led)
 		return -ENOMEM;
 
+	ret = devm_mutex_init(dev, &led->mutex);
+	if (ret)
+		return ret;
+
 	led->spi = spi;
-	mutex_init(&led->mutex);
 	led->cdef = device_get_match_data(dev);
 	led->ldev.brightness = LED_OFF;
 	led->ldev.max_brightness = led->cdef->max_value - led->cdef->off_value;
@@ -116,33 +119,16 @@ static int spi_byte_probe(struct spi_device *spi)
 	init_data.devicename = "leds-spi-byte";
 	init_data.default_label = ":";
 
-	ret = devm_led_classdev_register_ext(dev, &led->ldev, &init_data);
-	if (ret) {
-		mutex_destroy(&led->mutex);
-		return ret;
-	}
-
-	spi_set_drvdata(spi, led);
-
-	return 0;
-}
-
-static void spi_byte_remove(struct spi_device *spi)
-{
-	struct spi_byte_led	*led = spi_get_drvdata(spi);
-
-	mutex_destroy(&led->mutex);
+	return devm_led_classdev_register_ext(dev, &led->ldev, &init_data);
 }
 
 static struct spi_driver spi_byte_driver = {
 	.probe		= spi_byte_probe,
-	.remove		= spi_byte_remove,
 	.driver = {
 		.name		= KBUILD_MODNAME,
 		.of_match_table	= spi_byte_dt_ids,
 	},
 };
-
 module_spi_driver(spi_byte_driver);
 
 MODULE_AUTHOR("Christian Mauderer <oss@c-mauderer.de>");
