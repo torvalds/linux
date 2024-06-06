@@ -62,7 +62,7 @@ properties:
 
   '#reset-cells':
     description:
-      The single reset specifier cell must be the module number, as defined in
+      The single reset specifier cell must be the reset number, as defined in
       <dt-bindings/clock/r9a0*-cpg.h>.
     const: 1
 
