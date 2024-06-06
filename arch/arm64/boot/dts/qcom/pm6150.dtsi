@@ -166,5 +166,11 @@
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pm6150_vib: vibrator@5300 {
+			compatible = "qcom,pm6150-vib", "qcom,pmi632-vib";
+			reg = <0x5300>;
+			status = "disabled";
+		};
 	};
 };
