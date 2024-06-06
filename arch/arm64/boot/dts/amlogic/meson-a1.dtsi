@@ -432,7 +432,7 @@
 				clock-names = "fixpll_in", "hifipll_in";
 			};
 
-			sd_emmc: sd@10000 {
+			sd_emmc: mmc@10000 {
 				compatible = "amlogic,meson-axg-mmc";
 				reg = <0x0 0x10000 0x0 0x800>;
 				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
