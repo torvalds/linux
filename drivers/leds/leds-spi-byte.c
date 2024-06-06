@@ -116,7 +116,7 @@ static int spi_byte_probe(struct spi_device *spi)
 	init_data.devicename = "leds-spi-byte";
 	init_data.default_label = ":";
 
-	ret = devm_led_classdev_register_ext(&spi->dev, &led->ldev, &init_data);
+	ret = devm_led_classdev_register_ext(dev, &led->ldev, &init_data);
 	if (ret) {
 		mutex_destroy(&led->mutex);
 		return ret;
