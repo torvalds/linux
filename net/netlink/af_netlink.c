@@ -636,8 +636,7 @@ static struct proto netlink_proto = {
 };
 
 static int __netlink_create(struct net *net, struct socket *sock,
-			    struct mutex *dump_cb_mutex, int protocol,
-			    int kern)
+			    int protocol, int kern)
 {
 	struct sock *sk;
 	struct netlink_sock *nlk;
@@ -655,7 +654,6 @@ static int __netlink_create(struct net *net, struct socket *sock,
 	lockdep_set_class_and_name(&nlk->nl_cb_mutex,
 					   nlk_cb_mutex_keys + protocol,
 					   nlk_cb_mutex_key_strings[protocol]);
-	nlk->dump_cb_mutex = dump_cb_mutex;
 	init_waitqueue_head(&nlk->wait);
 
 	sk->sk_destruct = netlink_sock_destruct;
@@ -667,7 +665,6 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 			  int kern)
 {
 	struct module *module = NULL;
-	struct mutex *cb_mutex;
 	struct netlink_sock *nlk;
 	int (*bind)(struct net *net, int group);
 	void (*unbind)(struct net *net, int group);
@@ -696,7 +693,6 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 		module = nl_table[protocol].module;
 	else
 		err = -EPROTONOSUPPORT;
-	cb_mutex = nl_table[protocol].cb_mutex;
 	bind = nl_table[protocol].bind;
 	unbind = nl_table[protocol].unbind;
 	release = nl_table[protocol].release;
@@ -705,7 +701,7 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 	if (err < 0)
 		goto out;
 
-	err = __netlink_create(net, sock, cb_mutex, protocol, kern);
+	err = __netlink_create(net, sock, protocol, kern);
 	if (err < 0)
 		goto out_module;
 
@@ -2016,7 +2012,6 @@ __netlink_kernel_create(struct net *net, int unit, struct module *module,
 	struct sock *sk;
 	struct netlink_sock *nlk;
 	struct listeners *listeners = NULL;
-	struct mutex *cb_mutex = cfg ? cfg->cb_mutex : NULL;
 	unsigned int groups;
 
 	BUG_ON(!nl_table);
@@ -2027,7 +2022,7 @@ __netlink_kernel_create(struct net *net, int unit, struct module *module,
 	if (sock_create_lite(PF_NETLINK, SOCK_DGRAM, unit, &sock))
 		return NULL;
 
-	if (__netlink_create(net, sock, cb_mutex, unit, 1) < 0)
+	if (__netlink_create(net, sock, unit, 1) < 0)
 		goto out_sock_release_nosk;
 
 	sk = sock->sk;
@@ -2055,7 +2050,6 @@ __netlink_kernel_create(struct net *net, int unit, struct module *module,
 	if (!nl_table[unit].registered) {
 		nl_table[unit].groups = groups;
 		rcu_assign_pointer(nl_table[unit].listeners, listeners);
-		nl_table[unit].cb_mutex = cb_mutex;
 		nl_table[unit].module = module;
 		if (cfg) {
 			nl_table[unit].bind = cfg->bind;
@@ -2326,15 +2320,9 @@ static int netlink_dump(struct sock *sk, bool lock_taken)
 	netlink_skb_set_owner_r(skb, sk);
 
 	if (nlk->dump_done_errno > 0) {
-		struct mutex *extra_mutex = nlk->dump_cb_mutex;
-
 		cb->extack = &extack;
 
-		if (extra_mutex)
-			mutex_lock(extra_mutex);
 		nlk->dump_done_errno = cb->dump(skb, cb);
-		if (extra_mutex)
-			mutex_unlock(extra_mutex);
 
 		/* EMSGSIZE plus something already in the skb means
 		 * that there's more to dump but current skb has filled up.
