@@ -313,10 +313,6 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 			if (!sanity_check_compress_inode(inode, ri))
 				return false;
 		}
-	} else if (f2fs_sb_has_flexible_inline_xattr(sbi)) {
-		f2fs_warn(sbi, "%s: corrupted inode ino=%lx, run fsck to fix.",
-			  __func__, inode->i_ino);
-		return false;
 	}
 
 	if (!f2fs_sb_has_extra_attr(sbi)) {
