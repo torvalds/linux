@@ -236,11 +236,12 @@ static int intel_cht_wc_exec_mipi_pmic_seq_element(struct regmap *regmap,
 						   u32 reg_address,
 						   u32 value, u32 mask)
 {
+	struct device *dev = regmap_get_device(regmap);
 	u32 address;
 
 	if (i2c_client_address > 0xff || reg_address > 0xff) {
-		pr_warn("%s warning addresses too big client 0x%x reg 0x%x\n",
-			__func__, i2c_client_address, reg_address);
+		dev_warn(dev, "warning addresses too big client 0x%x reg 0x%x\n",
+			 i2c_client_address, reg_address);
 		return -ERANGE;
 	}
 

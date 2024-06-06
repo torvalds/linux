@@ -274,11 +274,12 @@ static int intel_xpower_exec_mipi_pmic_seq_element(struct regmap *regmap,
 						   u16 i2c_address, u32 reg_address,
 						   u32 value, u32 mask)
 {
+	struct device *dev = regmap_get_device(regmap);
 	int ret;
 
 	if (i2c_address != 0x34) {
-		pr_err("%s: Unexpected i2c-addr: 0x%02x (reg-addr 0x%x value 0x%x mask 0x%x)\n",
-		       __func__, i2c_address, reg_address, value, mask);
+		dev_err(dev, "Unexpected i2c-addr: 0x%02x (reg-addr 0x%x value 0x%x mask 0x%x)\n",
+			i2c_address, reg_address, value, mask);
 		return -ENXIO;
 	}
 
