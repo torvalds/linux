@@ -649,7 +649,7 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	}
 
 	if (!err_touch) {
-		snprintf(w8001->pen_name, sizeof(w8001->pen_name),
+		snprintf(w8001->touch_name, sizeof(w8001->touch_name),
 			 "%s Finger", basename);
 		input_dev_touch->name = w8001->touch_name;
 
