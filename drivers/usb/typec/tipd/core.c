@@ -892,19 +892,19 @@ tps6598x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 	return 0;
 }
 
-static int tps_request_firmware(struct tps6598x *tps, const struct firmware **fw)
+static int tps_request_firmware(struct tps6598x *tps, const struct firmware **fw,
+				const char **firmware_name)
 {
-	const char *firmware_name;
 	int ret;
 
 	ret = device_property_read_string(tps->dev, "firmware-name",
-					  &firmware_name);
+					  firmware_name);
 	if (ret)
 		return ret;
 
-	ret = request_firmware(fw, firmware_name, tps->dev);
+	ret = request_firmware(fw, *firmware_name, tps->dev);
 	if (ret) {
-		dev_err(tps->dev, "failed to retrieve \"%s\"\n", firmware_name);
+		dev_err(tps->dev, "failed to retrieve \"%s\"\n", *firmware_name);
 		return ret;
 	}
 
@@ -999,12 +999,7 @@ static int tps25750_start_patch_burst_mode(struct tps6598x *tps)
 	u32 addr;
 	struct device_node *np = tps->dev->of_node;
 
-	ret = device_property_read_string(tps->dev, "firmware-name",
-					  &firmware_name);
-	if (ret)
-		return ret;
-
-	ret = tps_request_firmware(tps, &fw);
+	ret = tps_request_firmware(tps, &fw, &firmware_name);
 	if (ret)
 		return ret;
 
@@ -1155,12 +1150,7 @@ static int tps6598x_apply_patch(struct tps6598x *tps)
 	const char *firmware_name;
 	int ret;
 
-	ret = device_property_read_string(tps->dev, "firmware-name",
-					  &firmware_name);
-	if (ret)
-		return ret;
-
-	ret = tps_request_firmware(tps, &fw);
+	ret = tps_request_firmware(tps, &fw, &firmware_name);
 	if (ret)
 		return ret;
 
