@@ -28,13 +28,13 @@ fw_to_xe(struct xe_force_wake *fw)
 
 static void domain_init(struct xe_force_wake_domain *domain,
 			enum xe_force_wake_domain_id id,
-			struct xe_reg reg, struct xe_reg ack, u32 val, u32 mask)
+			struct xe_reg reg, struct xe_reg ack)
 {
 	domain->id = id;
 	domain->reg_ctl = reg;
 	domain->reg_ack = ack;
-	domain->val = val;
-	domain->mask = mask;
+	domain->val = FORCEWAKE_MT(FORCEWAKE_KERNEL);
+	domain->mask = FORCEWAKE_MT_MASK(FORCEWAKE_KERNEL);
 }
 
 void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
@@ -51,14 +51,12 @@ void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GT],
 			    XE_FW_DOMAIN_ID_GT,
 			    FORCEWAKE_GT,
-			    FORCEWAKE_ACK_GT_MTL,
-			    BIT(0), BIT(16));
+			    FORCEWAKE_ACK_GT_MTL);
 	} else {
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GT],
 			    XE_FW_DOMAIN_ID_GT,
 			    FORCEWAKE_GT,
-			    FORCEWAKE_ACK_GT,
-			    BIT(0), BIT(16));
+			    FORCEWAKE_ACK_GT);
 	}
 }
 
@@ -73,8 +71,7 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_RENDER],
 			    XE_FW_DOMAIN_ID_RENDER,
 			    FORCEWAKE_RENDER,
-			    FORCEWAKE_ACK_RENDER,
-			    BIT(0), BIT(16));
+			    FORCEWAKE_ACK_RENDER);
 
 	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
 		if (!(gt->info.engine_mask & BIT(i)))
@@ -83,8 +80,7 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_MEDIA_VDBOX0 + j],
 			    XE_FW_DOMAIN_ID_MEDIA_VDBOX0 + j,
 			    FORCEWAKE_MEDIA_VDBOX(j),
-			    FORCEWAKE_ACK_MEDIA_VDBOX(j),
-			    BIT(0), BIT(16));
+			    FORCEWAKE_ACK_MEDIA_VDBOX(j));
 	}
 
 	for (i = XE_HW_ENGINE_VECS0, j = 0; i <= XE_HW_ENGINE_VECS3; ++i, ++j) {
@@ -94,16 +90,14 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_MEDIA_VEBOX0 + j],
 			    XE_FW_DOMAIN_ID_MEDIA_VEBOX0 + j,
 			    FORCEWAKE_MEDIA_VEBOX(j),
-			    FORCEWAKE_ACK_MEDIA_VEBOX(j),
-			    BIT(0), BIT(16));
+			    FORCEWAKE_ACK_MEDIA_VEBOX(j));
 	}
 
 	if (gt->info.engine_mask & BIT(XE_HW_ENGINE_GSCCS0))
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GSC],
 			    XE_FW_DOMAIN_ID_GSC,
 			    FORCEWAKE_GSC,
-			    FORCEWAKE_ACK_GSC,
-			    BIT(0), BIT(16));
+			    FORCEWAKE_ACK_GSC);
 }
 
 static void domain_wake(struct xe_gt *gt, struct xe_force_wake_domain *domain)

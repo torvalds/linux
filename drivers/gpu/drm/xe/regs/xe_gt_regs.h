@@ -487,9 +487,11 @@
 	((ccs) << ((cslice) * CCS_MODE_CSLICE_WIDTH))
 
 #define FORCEWAKE_ACK_GT			XE_REG(0x130044)
-#define   FORCEWAKE_KERNEL			BIT(0)
-#define   FORCEWAKE_USER			BIT(1)
-#define   FORCEWAKE_KERNEL_FALLBACK		BIT(15)
+
+/* Applicable for all FORCEWAKE_DOMAIN and FORCEWAKE_ACK_DOMAIN regs */
+#define   FORCEWAKE_KERNEL			0
+#define   FORCEWAKE_MT(bit)			BIT(bit)
+#define   FORCEWAKE_MT_MASK(bit)		BIT((bit) + 16)
 
 #define MTL_MEDIA_PERF_LIMIT_REASONS		XE_REG(0x138030)
 #define MTL_MEDIA_MC6				XE_REG(0x138048)
