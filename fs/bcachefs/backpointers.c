@@ -690,7 +690,7 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 
 	ptrs = bch2_bkey_ptrs_c(k);
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		struct bpos bucket_pos;
+		struct bpos bucket_pos = POS_MIN;
 		struct bch_backpointer bp;
 
 		if (p.ptr.cached)
