@@ -738,11 +738,6 @@ free_irq_handler:
 	return err;
 }
 
-void xe_irq_shutdown(struct xe_device *xe)
-{
-	irq_uninstall(xe);
-}
-
 void xe_irq_suspend(struct xe_device *xe)
 {
 	int irq = to_pci_dev(xe->drm.dev)->irq;
