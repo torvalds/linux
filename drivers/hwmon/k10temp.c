@@ -101,7 +101,6 @@ struct k10temp_data {
 #define TCCD_BIT(x)	((x) + 2)
 
 #define HAVE_TEMP(d, channel)	((d)->show_temp & BIT(channel))
-#define HAVE_TDIE(d)		HAVE_TEMP(d, TDIE_BIT)
 
 struct tctl_offset {
 	u8 model;
