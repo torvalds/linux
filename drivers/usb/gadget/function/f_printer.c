@@ -1507,6 +1507,7 @@ static struct usb_function *gprinter_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(printer, gprinter_alloc_inst, gprinter_alloc);
+MODULE_DESCRIPTION("USB printer function driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Craig Nadler");
 

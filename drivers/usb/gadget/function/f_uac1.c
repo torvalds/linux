@@ -1823,5 +1823,6 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(uac1, f_audio_alloc_inst, f_audio_alloc);
+MODULE_DESCRIPTION("USB Audio Class 1.0 Function (using u_audio API)");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ruslan Bilovol");

@@ -1536,4 +1536,5 @@ static void __exit userial_cleanup(void)
 }
 module_exit(userial_cleanup);
 
+MODULE_DESCRIPTION("utilities for USB gadget \"serial port\"/TTY support");
 MODULE_LICENSE("GPL");

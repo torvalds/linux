@@ -2868,4 +2868,5 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 
 DECLARE_USB_FUNCTION_INIT(midi2, f_midi2_alloc_inst, f_midi2_alloc);
 
+MODULE_DESCRIPTION("USB MIDI 2.0 class function driver");
 MODULE_LICENSE("GPL");
