@@ -106,6 +106,10 @@ VDSO_LDFLAGS += -z max-page-size=4096 -z common-page-size=4096
 VDSO_LDFLAGS += -shared --hash-style=sysv --build-id=sha1
 VDSO_LDFLAGS += --orphan-handling=warn
 
+# Add user-supplied KCPPFLAGS_COMPAT as the last assignments
+VDSO_CFLAGS += $(KCPPFLAGS_COMPAT)
+VDSO_AFLAGS += $(KCPPFLAGS_COMPAT)
+
 
 # Borrow vdsomunge.c from the arm vDSO
 # We have to use a relative path because scripts/Makefile.host prefixes
