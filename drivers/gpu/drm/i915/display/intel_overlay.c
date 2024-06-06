@@ -1485,15 +1485,14 @@ intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
 }
 
 void
-intel_overlay_print_error_state(struct drm_i915_error_state_buf *m,
+intel_overlay_print_error_state(struct drm_printer *p,
 				struct intel_overlay_error_state *error)
 {
-	i915_error_printf(m, "Overlay, status: 0x%08x, interrupt: 0x%08x\n",
-			  error->dovsta, error->isr);
-	i915_error_printf(m, "  Register file at 0x%08lx:\n",
-			  error->base);
+	drm_printf(p, "Overlay, status: 0x%08x, interrupt: 0x%08x\n",
+		   error->dovsta, error->isr);
+	drm_printf(p, "  Register file at 0x%08lx:\n", error->base);
 
-#define P(x) i915_error_printf(m, "    " #x ":	0x%08x\n", error->regs.x)
+#define P(x) drm_printf(p, "    " #x ": 0x%08x\n", error->regs.x)
 	P(OBUF_0Y);
 	P(OBUF_1Y);
 	P(OBUF_0U);

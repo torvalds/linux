@@ -905,7 +905,7 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	}
 
 	if (error->overlay)
-		intel_overlay_print_error_state(m, error->overlay);
+		intel_overlay_print_error_state(&p, error->overlay);
 
 	err_print_capabilities(m, error);
 	err_print_params(m, &error->params);
