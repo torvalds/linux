@@ -23,6 +23,7 @@
 #include "../dmaengine.h"
 
 MODULE_VERSION(IOAT_DMA_VERSION);
+MODULE_DESCRIPTION("Intel I/OAT DMA Linux driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel Corporation");
 

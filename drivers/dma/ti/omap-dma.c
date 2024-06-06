@@ -1950,4 +1950,5 @@ static void __exit omap_dma_exit(void)
 module_exit(omap_dma_exit);
 
 MODULE_AUTHOR("Russell King");
+MODULE_DESCRIPTION("Texas Instruments sDMA DMAengine support");
 MODULE_LICENSE("GPL");
