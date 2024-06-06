@@ -183,6 +183,12 @@ void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
 	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
 	struct dmcu *dmcu = pipe_ctx->stream->ctx->dc->res_pool->dmcu;
 
+	// make a short term w/a for an issue that backlight ramping unexpectedly paused in the middle,
+	// will decouple backlight from ABM and redefine DMUB interface, then this w/a could be removed
+	if (pipe_ctx->stream->abm_level == 0 || pipe_ctx->stream->abm_level == ABM_LEVEL_IMMEDIATE_DISABLE) {
+		return;
+	}
+
 	if (dmcu) {
 		dce110_set_abm_immediate_disable(pipe_ctx);
 		return;
