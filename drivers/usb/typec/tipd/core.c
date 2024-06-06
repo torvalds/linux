@@ -1165,10 +1165,7 @@ static int tps6598x_apply_patch(struct tps6598x *tps)
 
 	bytes_left = fw->size;
 	while (bytes_left) {
-		if (bytes_left < TPS_MAX_LEN)
-			in_len = bytes_left;
-		else
-			in_len = TPS_MAX_LEN;
+		in_len = min(bytes_left, TPS_MAX_LEN);
 		ret = tps6598x_exec_cmd(tps, "PTCd", in_len,
 					fw->data + copied_bytes,
 					TPS_PTCD_OUT_BYTES, out);
