@@ -163,7 +163,7 @@ static struct regmap *gen_regmap(struct kunit *test,
 			config->max_register += (BLOCK_TEST_SIZE * config->reg_stride);
 	}
 
-	size = (config->max_register + 1) * sizeof(unsigned int);
+	size = array_size(config->max_register + 1, sizeof(*buf));
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
@@ -768,10 +768,9 @@ static void stress_insert(struct kunit *test)
 	if (IS_ERR(map))
 		return;
 
-	vals = kunit_kcalloc(test, sizeof(unsigned long), config.max_register,
-			     GFP_KERNEL);
+	buf_sz = array_size(sizeof(*vals), config.max_register);
+	vals = kunit_kmalloc(test, buf_sz, GFP_KERNEL);
 	KUNIT_ASSERT_FALSE(test, vals == NULL);
-	buf_sz = sizeof(unsigned long) * config.max_register;
 
 	get_random_bytes(vals, buf_sz);
 
@@ -1507,15 +1506,16 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 	const struct regmap_test_param *param = test->param_value;
 	u16 *buf;
 	struct regmap *ret = ERR_PTR(-ENOMEM);
-	size_t size = (config->max_register + 1) * config->reg_bits / 8;
 	int i, error;
 	struct reg_default *defaults;
+	size_t size;
 
 	config->cache_type = param->cache;
 	config->val_format_endian = param->val_endian;
 	config->disable_locking = config->cache_type == REGCACHE_RBTREE ||
 					config->cache_type == REGCACHE_MAPLE;
 
+	size = array_size(config->max_register + 1, BITS_TO_BYTES(config->reg_bits));
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
@@ -1615,7 +1615,7 @@ static void raw_read_defaults(struct kunit *test)
 	if (IS_ERR(map))
 		return;
 
-	val_len = sizeof(*rval) * (config.max_register + 1);
+	val_len = array_size(sizeof(*rval), config.max_register + 1);
 	rval = kunit_kmalloc(test, val_len, GFP_KERNEL);
 	KUNIT_ASSERT_TRUE(test, rval != NULL);
 	if (!rval)
