@@ -15,15 +15,11 @@
 
 /* Notes made in the collector */
 #define HIT_PENDING		0x01	/* A front op was still pending */
-#define SOME_EMPTY		0x02	/* One of more streams are empty */
-#define ALL_EMPTY		0x04	/* All streams are empty */
-#define MAYBE_DISCONTIG		0x08	/* A front op may be discontiguous (rounded to PAGE_SIZE) */
-#define NEED_REASSESS		0x10	/* Need to loop round and reassess */
-#define REASSESS_DISCONTIG	0x20	/* Reassess discontiguity if contiguity advances */
-#define MADE_PROGRESS		0x40	/* Made progress cleaning up a stream or the folio set */
-#define BUFFERED		0x80	/* The pagecache needs cleaning up */
-#define NEED_RETRY		0x100	/* A front op requests retrying */
-#define SAW_FAILURE		0x200	/* One stream or hit a permanent failure */
+#define NEED_REASSESS		0x02	/* Need to loop round and reassess */
+#define MADE_PROGRESS		0x04	/* Made progress cleaning up a stream or the folio set */
+#define BUFFERED		0x08	/* The pagecache needs cleaning up */
+#define NEED_RETRY		0x10	/* A front op requests retrying */
+#define SAW_FAILURE		0x20	/* One stream or hit a permanent failure */
 
 /*
  * Successful completion of write of a folio to the server and/or cache.  Note
@@ -85,10 +81,10 @@ end_wb:
  * Unlock any folios we've finished with.
  */
 static void netfs_writeback_unlock_folios(struct netfs_io_request *wreq,
-					  unsigned long long collected_to,
 					  unsigned int *notes)
 {
 	struct folio_queue *folioq = wreq->buffer;
+	unsigned long long collected_to = wreq->collected_to;
 	unsigned int slot = wreq->buffer_head_slot;
 
 	if (slot >= folioq_nr_slots(folioq)) {
@@ -116,12 +112,6 @@ static void netfs_writeback_unlock_folios(struct netfs_io_request *wreq,
 		fend = min_t(unsigned long long, fpos + flen, wreq->i_size);
 
 		trace_netfs_collect_folio(wreq, folio, fend, collected_to);
-
-		if (fpos + fsize > wreq->contiguity) {
-			trace_netfs_collect_contig(wreq, fpos + fsize,
-						   netfs_contig_trace_unlock);
-			wreq->contiguity = fpos + fsize;
-		}
 
 		/* Unlock any folio we've transferred all of. */
 		if (collected_to < fend)
@@ -380,7 +370,7 @@ static void netfs_collect_write_results(struct netfs_io_request *wreq)
 {
 	struct netfs_io_subrequest *front, *remove;
 	struct netfs_io_stream *stream;
-	unsigned long long collected_to;
+	unsigned long long collected_to, issued_to;
 	unsigned int notes;
 	int s;
 
@@ -389,28 +379,21 @@ static void netfs_collect_write_results(struct netfs_io_request *wreq)
 	trace_netfs_rreq(wreq, netfs_rreq_trace_collect);
 
 reassess_streams:
+	issued_to = atomic64_read(&wreq->issued_to);
 	smp_rmb();
 	collected_to = ULLONG_MAX;
-	if (wreq->origin == NETFS_WRITEBACK)
-		notes = ALL_EMPTY | BUFFERED | MAYBE_DISCONTIG;
-	else if (wreq->origin == NETFS_WRITETHROUGH)
-		notes = ALL_EMPTY | BUFFERED;
+	if (wreq->origin == NETFS_WRITEBACK ||
+	    wreq->origin == NETFS_WRITETHROUGH)
+		notes = BUFFERED;
 	else
-		notes = ALL_EMPTY;
+		notes = 0;
 
 	/* Remove completed subrequests from the front of the streams and
 	 * advance the completion point on each stream.  We stop when we hit
 	 * something that's in progress.  The issuer thread may be adding stuff
 	 * to the tail whilst we're doing this.
-	 *
-	 * We must not, however, merge in discontiguities that span whole
-	 * folios that aren't under writeback.  This is made more complicated
-	 * by the folios in the gap being of unpredictable sizes - if they even
-	 * exist - but we don't want to look them up.
 	 */
 	for (s = 0; s < NR_IO_STREAMS; s++) {
-		loff_t rstart, rend;
-
 		stream = &wreq->io_streams[s];
 		/* Read active flag before list pointers */
 		if (!smp_load_acquire(&stream->active))
@@ -422,26 +405,10 @@ reassess_streams:
 			//_debug("sreq [%x] %llx %zx/%zx",
 			//       front->debug_index, front->start, front->transferred, front->len);
 
-			/* Stall if there may be a discontinuity. */
-			rstart = round_down(front->start, PAGE_SIZE);
-			if (rstart > wreq->contiguity) {
-				if (wreq->contiguity > stream->collected_to) {
-					trace_netfs_collect_gap(wreq, stream,
-								wreq->contiguity, 'D');
-					stream->collected_to = wreq->contiguity;
-				}
-				notes |= REASSESS_DISCONTIG;
-				break;
+			if (stream->collected_to < front->start) {
+				trace_netfs_collect_gap(wreq, stream, issued_to, 'F');
+				stream->collected_to = front->start;
 			}
-			rend = round_up(front->start + front->len, PAGE_SIZE);
-			if (rend > wreq->contiguity) {
-				trace_netfs_collect_contig(wreq, rend,
-							   netfs_contig_trace_collect);
-				wreq->contiguity = rend;
-				if (notes & REASSESS_DISCONTIG)
-					notes |= NEED_REASSESS;
-			}
-			notes &= ~MAYBE_DISCONTIG;
 
 			/* Stall if the front is still undergoing I/O. */
 			if (test_bit(NETFS_SREQ_IN_PROGRESS, &front->flags)) {
@@ -483,15 +450,6 @@ reassess_streams:
 			front = list_first_entry_or_null(&stream->subrequests,
 							 struct netfs_io_subrequest, rreq_link);
 			stream->front = front;
-			if (!front) {
-				unsigned long long jump_to = atomic64_read(&wreq->issued_to);
-
-				if (stream->collected_to < jump_to) {
-					trace_netfs_collect_gap(wreq, stream, jump_to, 'A');
-					stream->collected_to = jump_to;
-				}
-			}
-
 			spin_unlock_bh(&wreq->lock);
 			netfs_put_subrequest(remove, false,
 					     notes & SAW_FAILURE ?
@@ -499,10 +457,13 @@ reassess_streams:
 					     netfs_sreq_trace_put_done);
 		}
 
-		if (front)
-			notes &= ~ALL_EMPTY;
-		else
-			notes |= SOME_EMPTY;
+		/* If we have an empty stream, we need to jump it forward
+		 * otherwise the collection point will never advance.
+		 */
+		if (!front && issued_to > stream->collected_to) {
+			trace_netfs_collect_gap(wreq, stream, issued_to, 'E');
+			stream->collected_to = issued_to;
+		}
 
 		if (stream->collected_to < collected_to)
 			collected_to = stream->collected_to;
@@ -510,36 +471,6 @@ reassess_streams:
 
 	if (collected_to != ULLONG_MAX && collected_to > wreq->collected_to)
 		wreq->collected_to = collected_to;
-
-	/* If we have an empty stream, we need to jump it forward over any gap
-	 * otherwise the collection point will never advance.
-	 *
-	 * Note that the issuer always adds to the stream with the lowest
-	 * so-far submitted start, so if we see two consecutive subreqs in one
-	 * stream with nothing between then in another stream, then the second
-	 * stream has a gap that can be jumped.
-	 */
-	if (notes & SOME_EMPTY) {
-		unsigned long long jump_to = wreq->start + READ_ONCE(wreq->submitted);
-
-		for (s = 0; s < NR_IO_STREAMS; s++) {
-			stream = &wreq->io_streams[s];
-			if (stream->active &&
-			    stream->front &&
-			    stream->front->start < jump_to)
-				jump_to = stream->front->start;
-		}
-
-		for (s = 0; s < NR_IO_STREAMS; s++) {
-			stream = &wreq->io_streams[s];
-			if (stream->active &&
-			    !stream->front &&
-			    stream->collected_to < jump_to) {
-				trace_netfs_collect_gap(wreq, stream, jump_to, 'B');
-				stream->collected_to = jump_to;
-			}
-		}
-	}
 
 	for (s = 0; s < NR_IO_STREAMS; s++) {
 		stream = &wreq->io_streams[s];
@@ -551,42 +482,13 @@ reassess_streams:
 
 	/* Unlock any folios that we have now finished with. */
 	if (notes & BUFFERED) {
-		unsigned long long clean_to = min(wreq->collected_to, wreq->contiguity);
-
-		if (wreq->cleaned_to < clean_to)
-			netfs_writeback_unlock_folios(wreq, clean_to, &notes);
+		if (wreq->cleaned_to < wreq->collected_to)
+			netfs_writeback_unlock_folios(wreq, &notes);
 	} else {
 		wreq->cleaned_to = wreq->collected_to;
 	}
 
 	// TODO: Discard encryption buffers
-
-	/* If all streams are discontiguous with the last folio we cleared, we
-	 * may need to skip a set of folios.
-	 */
-	if ((notes & (MAYBE_DISCONTIG | ALL_EMPTY)) == MAYBE_DISCONTIG) {
-		unsigned long long jump_to = ULLONG_MAX;
-
-		for (s = 0; s < NR_IO_STREAMS; s++) {
-			stream = &wreq->io_streams[s];
-			if (stream->active && stream->front &&
-			    stream->front->start < jump_to)
-				jump_to = stream->front->start;
-		}
-
-		trace_netfs_collect_contig(wreq, jump_to, netfs_contig_trace_jump);
-		wreq->contiguity = jump_to;
-		wreq->cleaned_to = jump_to;
-		wreq->collected_to = jump_to;
-		for (s = 0; s < NR_IO_STREAMS; s++) {
-			stream = &wreq->io_streams[s];
-			if (stream->collected_to < jump_to)
-				stream->collected_to = jump_to;
-		}
-		//cond_resched();
-		notes |= MADE_PROGRESS;
-		goto reassess_streams;
-	}
 
 	if (notes & NEED_RETRY)
 		goto need_retry;

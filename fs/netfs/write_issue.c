@@ -107,7 +107,6 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 	if (is_buffered && netfs_is_cache_enabled(ictx))
 		fscache_begin_write_operation(&wreq->cache_resources, netfs_i_cookie(ictx));
 
-	wreq->contiguity = wreq->start;
 	wreq->cleaned_to = wreq->start;
 
 	wreq->io_streams[0].stream_nr		= 0;
@@ -158,6 +157,7 @@ static void netfs_prepare_write(struct netfs_io_request *wreq,
 	subreq->source		= stream->source;
 	subreq->start		= start;
 	subreq->stream_nr	= stream->stream_nr;
+	subreq->io_iter		= wreq->io_iter;
 
 	_enter("R=%x[%x]", wreq->debug_id, subreq->debug_index);
 
@@ -213,21 +213,14 @@ static void netfs_prepare_write(struct netfs_io_request *wreq,
  * netfs_write_subrequest_terminated() when complete.
  */
 static void netfs_do_issue_write(struct netfs_io_stream *stream,
-				 struct netfs_io_subrequest *subreq,
-				 struct iov_iter *source)
+				 struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *wreq = subreq->rreq;
-	size_t size = subreq->len - subreq->transferred;
 
 	_enter("R=%x[%x],%zx", wreq->debug_id, subreq->debug_index, subreq->len);
 
 	if (test_bit(NETFS_SREQ_FAILED, &subreq->flags))
 		return netfs_write_subrequest_terminated(subreq, subreq->error, false);
-
-	// TODO: Use encrypted buffer
-	subreq->io_iter = *source;
-	iov_iter_advance(source, size);
-	iov_iter_truncate(&subreq->io_iter, size);
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
 	stream->issue_write(subreq);
@@ -237,8 +230,15 @@ void netfs_reissue_write(struct netfs_io_stream *stream,
 			 struct netfs_io_subrequest *subreq,
 			 struct iov_iter *source)
 {
+	size_t size = subreq->len - subreq->transferred;
+
+	// TODO: Use encrypted buffer
+	subreq->io_iter = *source;
+	iov_iter_advance(source, size);
+	iov_iter_truncate(&subreq->io_iter, size);
+
 	__set_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
-	netfs_do_issue_write(stream, subreq, source);
+	netfs_do_issue_write(stream, subreq);
 }
 
 static void netfs_issue_write(struct netfs_io_request *wreq,
@@ -249,10 +249,8 @@ static void netfs_issue_write(struct netfs_io_request *wreq,
 	if (!subreq)
 		return;
 	stream->construct = NULL;
-
-	if (subreq->start + subreq->len > wreq->start + wreq->submitted)
-		WRITE_ONCE(wreq->submitted, subreq->start + subreq->len - wreq->start);
-	netfs_do_issue_write(stream, subreq, &wreq->io_iter);
+	subreq->io_iter.count = subreq->len;
+	netfs_do_issue_write(stream, subreq);
 }
 
 /*
@@ -464,10 +462,11 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 		if (choose_s < 0)
 			break;
 		stream = &wreq->io_streams[choose_s];
+		wreq->io_iter.iov_offset = stream->submit_off;
 
+		atomic64_set(&wreq->issued_to, fpos + stream->submit_off);
 		part = netfs_advance_write(wreq, stream, fpos + stream->submit_off,
 					   stream->submit_len, to_eof);
-		atomic64_set(&wreq->issued_to, fpos + stream->submit_off);
 		stream->submit_off += part;
 		stream->submit_max_len -= part;
 		if (part > stream->submit_len)
@@ -478,6 +477,8 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 			debug = true;
 	}
 
+	wreq->io_iter.iov_offset = 0;
+	iov_iter_advance(&wreq->io_iter, fsize);
 	atomic64_set(&wreq->issued_to, fpos + fsize);
 
 	if (!debug)
@@ -526,10 +527,10 @@ int netfs_writepages(struct address_space *mapping,
 	netfs_stat(&netfs_n_wh_writepages);
 
 	do {
-		_debug("wbiter %lx %llx", folio->index, wreq->start + wreq->submitted);
+		_debug("wbiter %lx %llx", folio->index, atomic64_read(&wreq->issued_to));
 
 		/* It appears we don't have to handle cyclic writeback wrapping. */
-		WARN_ON_ONCE(wreq && folio_pos(folio) < wreq->start + wreq->submitted);
+		WARN_ON_ONCE(wreq && folio_pos(folio) < atomic64_read(&wreq->issued_to));
 
 		if (netfs_folio_group(folio) != NETFS_FOLIO_COPY_TO_CACHE &&
 		    unlikely(!test_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags))) {
@@ -673,6 +674,7 @@ int netfs_unbuffered_write(struct netfs_io_request *wreq, bool may_wait, size_t 
 		part = netfs_advance_write(wreq, upload, start, len, false);
 		start += part;
 		len -= part;
+		iov_iter_advance(&wreq->io_iter, part);
 		if (test_bit(NETFS_RREQ_PAUSE, &wreq->flags)) {
 			trace_netfs_rreq(wreq, netfs_rreq_trace_wait_pause);
 			wait_on_bit(&wreq->flags, NETFS_RREQ_PAUSE, TASK_UNINTERRUPTIBLE);

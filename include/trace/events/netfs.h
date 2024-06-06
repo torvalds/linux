@@ -512,33 +512,6 @@ TRACE_EVENT(netfs_collect,
 		      __entry->start + __entry->len)
 	    );
 
-TRACE_EVENT(netfs_collect_contig,
-	    TP_PROTO(const struct netfs_io_request *wreq, unsigned long long to,
-		     enum netfs_collect_contig_trace type),
-
-	    TP_ARGS(wreq, to, type),
-
-	    TP_STRUCT__entry(
-		    __field(unsigned int,		wreq)
-		    __field(enum netfs_collect_contig_trace, type)
-		    __field(unsigned long long,		contiguity)
-		    __field(unsigned long long,		to)
-			     ),
-
-	    TP_fast_assign(
-		    __entry->wreq	= wreq->debug_id;
-		    __entry->type	= type;
-		    __entry->contiguity	= wreq->contiguity;
-		    __entry->to		= to;
-			   ),
-
-	    TP_printk("R=%08x %llx -> %llx %s",
-		      __entry->wreq,
-		      __entry->contiguity,
-		      __entry->to,
-		      __print_symbolic(__entry->type, netfs_collect_contig_traces))
-	    );
-
 TRACE_EVENT(netfs_collect_sreq,
 	    TP_PROTO(const struct netfs_io_request *wreq,
 		     const struct netfs_io_subrequest *subreq),
@@ -610,7 +583,6 @@ TRACE_EVENT(netfs_collect_state,
 		    __field(unsigned int,	notes		)
 		    __field(unsigned long long,	collected_to	)
 		    __field(unsigned long long,	cleaned_to	)
-		    __field(unsigned long long,	contiguity	)
 			     ),
 
 	    TP_fast_assign(
@@ -618,12 +590,11 @@ TRACE_EVENT(netfs_collect_state,
 		    __entry->notes	= notes;
 		    __entry->collected_to = collected_to;
 		    __entry->cleaned_to	= wreq->cleaned_to;
-		    __entry->contiguity = wreq->contiguity;
 			   ),
 
-	    TP_printk("R=%08x cto=%llx fto=%llx ctg=%llx n=%x",
+	    TP_printk("R=%08x col=%llx cln=%llx n=%x",
 		      __entry->wreq, __entry->collected_to,
-		      __entry->cleaned_to, __entry->contiguity,
+		      __entry->cleaned_to,
 		      __entry->notes)
 	    );
 
