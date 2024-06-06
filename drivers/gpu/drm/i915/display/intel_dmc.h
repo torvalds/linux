@@ -8,9 +8,9 @@
 
 #include <linux/types.h>
 
-struct drm_i915_error_state_buf;
-struct drm_i915_private;
 enum pipe;
+struct drm_i915_private;
+struct drm_printer;
 
 void intel_dmc_init(struct drm_i915_private *i915);
 void intel_dmc_load_program(struct drm_i915_private *i915);
@@ -22,7 +22,7 @@ void intel_dmc_suspend(struct drm_i915_private *i915);
 void intel_dmc_resume(struct drm_i915_private *i915);
 bool intel_dmc_has_payload(struct drm_i915_private *i915);
 void intel_dmc_debugfs_register(struct drm_i915_private *i915);
-void intel_dmc_print_error_state(struct drm_i915_error_state_buf *m,
+void intel_dmc_print_error_state(struct drm_printer *p,
 				 struct drm_i915_private *i915);
 
 void assert_dmc_loaded(struct drm_i915_private *i915);

@@ -26,7 +26,6 @@
 #include <linux/firmware.h>
 
 #include "i915_drv.h"
-#include "i915_gpu_error.h"
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_dmc.h"
@@ -1185,7 +1184,7 @@ void intel_dmc_fini(struct drm_i915_private *i915)
 	}
 }
 
-void intel_dmc_print_error_state(struct drm_i915_error_state_buf *m,
+void intel_dmc_print_error_state(struct drm_printer *p,
 				 struct drm_i915_private *i915)
 {
 	struct intel_dmc *dmc = i915_to_dmc(i915);
@@ -1193,13 +1192,13 @@ void intel_dmc_print_error_state(struct drm_i915_error_state_buf *m,
 	if (!HAS_DMC(i915))
 		return;
 
-	i915_error_printf(m, "DMC initialized: %s\n", str_yes_no(dmc));
-	i915_error_printf(m, "DMC loaded: %s\n",
-			  str_yes_no(intel_dmc_has_payload(i915)));
+	drm_printf(p, "DMC initialized: %s\n", str_yes_no(dmc));
+	drm_printf(p, "DMC loaded: %s\n",
+		   str_yes_no(intel_dmc_has_payload(i915)));
 	if (dmc)
-		i915_error_printf(m, "DMC fw version: %d.%d\n",
-				  DMC_VERSION_MAJOR(dmc->version),
-				  DMC_VERSION_MINOR(dmc->version));
+		drm_printf(p, "DMC fw version: %d.%d\n",
+			   DMC_VERSION_MAJOR(dmc->version),
+			   DMC_VERSION_MINOR(dmc->version));
 }
 
 static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
