@@ -27,6 +27,9 @@
   freq_qos_add_notifier
   freq_qos_remove_notifier
   get_wchan
+  gnet_stats_add_queue
+  gnet_stats_copy_basic
+  gnet_stats_copy_queue
   gov_attr_set_get
   gpiod_to_chip
   have_governor_per_policy
@@ -55,24 +58,37 @@
   __mod_zone_page_state
   neigh_xmit
   netif_receive_skb_core
+  __netif_schedule
   nf_ct_attach
   nf_ct_delete
   nf_register_net_hook
   nf_register_net_hooks
   nf_unregister_net_hook
   nf_unregister_net_hooks
+  noop_qdisc
   nr_running
   of_css
   osq_lock
   osq_unlock
   __page_file_index
   __page_mapcount
+  pfifo_qdisc_ops
   pm_get_active_wakeup_sources
   __printk_ratelimit
   prepare_to_wait_exclusive
   proc_symlink
+  psched_ratecfg_precompute
   public_key_verify_signature
   put_pages_list
+  __qdisc_calculate_pkt_len
+  qdisc_create_dflt
+  qdisc_hash_add
+  qdisc_put
+  qdisc_reset
+  qdisc_tree_reduce_backlog
+  qdisc_watchdog_cancel
+  qdisc_watchdog_init
+  qdisc_watchdog_schedule_range_ns
   radix_tree_lookup_slot
   radix_tree_replace_slot
   _raw_write_trylock
@@ -102,6 +118,9 @@
   stpcpy
   task_rq_lock
   tcf_action_exec
+  tcf_block_get
+  tcf_block_put
+  tcf_classify
   tcf_exts_destroy
   tcf_exts_dump
   tcf_exts_dump_stats
