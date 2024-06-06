@@ -491,7 +491,7 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	       sizeof(aentry->enc_key));
 
 	/* Compute all needed delta information and clear the delta bits
-	 * from the encrypted key.
+	 * from the encoded key.
 	 */
 	delta = mlxsw_sp_acl_erp_delta(aentry->erp_mask);
 	aentry->delta_info.start = mlxsw_sp_acl_erp_delta_start(delta);
