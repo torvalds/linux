@@ -84,9 +84,10 @@ struct promote_op {
 };
 
 static const struct rhashtable_params bch_promote_params = {
-	.head_offset	= offsetof(struct promote_op, hash),
-	.key_offset	= offsetof(struct promote_op, pos),
-	.key_len	= sizeof(struct bpos),
+	.head_offset		= offsetof(struct promote_op, hash),
+	.key_offset		= offsetof(struct promote_op, pos),
+	.key_len		= sizeof(struct bpos),
+	.automatic_shrinking	= true,
 };
 
 static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,

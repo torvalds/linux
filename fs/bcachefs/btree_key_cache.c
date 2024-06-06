@@ -32,10 +32,11 @@ static int bch2_btree_key_cache_cmp_fn(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params bch2_btree_key_cache_params = {
-	.head_offset	= offsetof(struct bkey_cached, hash),
-	.key_offset	= offsetof(struct bkey_cached, key),
-	.key_len	= sizeof(struct bkey_cached_key),
-	.obj_cmpfn	= bch2_btree_key_cache_cmp_fn,
+	.head_offset		= offsetof(struct bkey_cached, hash),
+	.key_offset		= offsetof(struct bkey_cached, key),
+	.key_len		= sizeof(struct bkey_cached_key),
+	.obj_cmpfn		= bch2_btree_key_cache_cmp_fn,
+	.automatic_shrinking	= true,
 };
 
 __flatten
