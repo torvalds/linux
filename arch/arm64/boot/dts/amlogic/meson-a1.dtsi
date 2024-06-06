@@ -466,7 +466,6 @@
 			assigned-clocks = <&clkc_periphs CLKID_USB_BUS>;
 			assigned-clock-rates = <64000000>;
 			resets = <&reset RESET_USBCTRL>;
-			reset-name = "usb_ctrl";
 
 			dr_mode = "otg";
 
