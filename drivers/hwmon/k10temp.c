@@ -158,6 +158,13 @@ static void read_tempreg_nb_zen(struct pci_dev *pdev, u32 *regval)
 		*regval = 0;
 }
 
+static int read_ccd_temp_reg(struct k10temp_data *data, int ccd, u32 *regval)
+{
+	u16 node_id = amd_pci_dev_to_node_id(data->pdev);
+
+	return amd_smn_read(node_id, ZEN_CCD_TEMP(data->ccd_offset, ccd), regval);
+}
+
 static long get_raw_temp(struct k10temp_data *data)
 {
 	u32 regval;
@@ -223,9 +230,7 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 				*val = 0;
 			break;
 		case 2 ... 13:		/* Tccd{1-12} */
-			ret = amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
-					   ZEN_CCD_TEMP(data->ccd_offset, channel - 2),
-					   &regval);
+			ret = read_ccd_temp_reg(data, channel - 2, &regval);
 
 			if (ret)
 				return ret;
@@ -397,8 +402,7 @@ static void k10temp_get_ccd_support(struct pci_dev *pdev,
 		 * the register value. And this will incorrectly pass the TEMP_VALID
 		 * bit check.
 		 */
-		if (amd_smn_read(amd_pci_dev_to_node_id(pdev),
-				 ZEN_CCD_TEMP(data->ccd_offset, i), &regval))
+		if (read_ccd_temp_reg(data, i, &regval))
 			continue;
 
 		if (regval & ZEN_CCD_TEMP_VALID)
