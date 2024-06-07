@@ -2558,9 +2558,9 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 	drm_WARN_ON(dev, pipe != crtc->pipe);
 
-	if (crtc_state->bigjoiner_pipes) {
+	if (crtc_state->joiner_pipes) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Unsupported bigjoiner configuration for initial FB\n");
+			    "Unsupported joiner configuration for initial FB\n");
 		return;
 	}
 

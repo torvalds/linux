@@ -4277,10 +4277,10 @@ static bool crtcs_port_sync_compatible(const struct intel_crtc_state *crtc_state
 {
 	/*
 	 * FIXME the modeset sequence is currently wrong and
-	 * can't deal with bigjoiner + port sync at the same time.
+	 * can't deal with joiner + port sync at the same time.
 	 */
 	return crtc_state1->hw.active && crtc_state2->hw.active &&
-		!crtc_state1->bigjoiner_pipes && !crtc_state2->bigjoiner_pipes &&
+		!crtc_state1->joiner_pipes && !crtc_state2->joiner_pipes &&
 		crtc_state1->output_types == crtc_state2->output_types &&
 		crtc_state1->output_format == crtc_state2->output_format &&
 		crtc_state1->lane_count == crtc_state2->lane_count &&

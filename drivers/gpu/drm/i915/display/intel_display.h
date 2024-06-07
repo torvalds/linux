@@ -415,7 +415,7 @@ u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 enum drm_mode_status
 intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 				const struct drm_display_mode *mode,
-				bool bigjoiner);
+				bool joiner);
 enum drm_mode_status
 intel_cpu_transcoder_mode_valid(struct drm_i915_private *i915,
 				const struct drm_display_mode *mode);
@@ -423,9 +423,9 @@ enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 bool is_trans_port_sync_master(const struct intel_crtc_state *state);
 u8 intel_crtc_joined_pipe_mask(const struct intel_crtc_state *crtc_state);
-bool intel_crtc_is_bigjoiner_slave(const struct intel_crtc_state *crtc_state);
-bool intel_crtc_is_bigjoiner_master(const struct intel_crtc_state *crtc_state);
-u8 intel_crtc_bigjoiner_slave_pipes(const struct intel_crtc_state *crtc_state);
+bool intel_crtc_is_joiner_slave(const struct intel_crtc_state *crtc_state);
+bool intel_crtc_is_joiner_master(const struct intel_crtc_state *crtc_state);
+u8 intel_crtc_joiner_slave_pipes(const struct intel_crtc_state *crtc_state);
 struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state);
 bool intel_crtc_get_pipe_config(struct intel_crtc_state *crtc_state);
 bool intel_pipe_config_compare(const struct intel_crtc_state *current_config,

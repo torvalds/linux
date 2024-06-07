@@ -761,12 +761,12 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 * PSR2 plane and transcoder registers can only be updated during
 	 * vblank.
 	 *
-	 * FIXME bigjoiner fastpath would be good
+	 * FIXME joiner fastpath would be good
 	 */
 	if (!crtc_state->hw.active ||
 	    intel_crtc_needs_modeset(crtc_state) ||
 	    intel_crtc_needs_fastset(crtc_state) ||
-	    crtc_state->bigjoiner_pipes)
+	    crtc_state->joiner_pipes)
 		goto slow;
 
 	/*

@@ -2732,7 +2732,7 @@ static int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state)
 	min_cdclk = max_t(int, min_cdclk,
 			  DIV_ROUND_UP(crtc_state->pixel_rate, num_vdsc_instances));
 
-	if (crtc_state->bigjoiner_pipes) {
+	if (crtc_state->joiner_pipes) {
 		int pixel_clock = intel_dp_mode_to_fec_clock(crtc_state->hw.adjusted_mode.clock);
 
 		/*

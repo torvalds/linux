@@ -174,7 +174,7 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	 * FIXME all joined pipes share the same transcoder.
 	 * Need to account for that during VRR toggle/push/etc.
 	 */
-	if (crtc_state->bigjoiner_pipes)
+	if (crtc_state->joiner_pipes)
 		return;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)

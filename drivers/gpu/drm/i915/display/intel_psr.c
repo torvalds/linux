@@ -1480,13 +1480,13 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	}
 
 	/*
-	 * FIXME figure out what is wrong with PSR+bigjoiner and
+	 * FIXME figure out what is wrong with PSR+joiner and
 	 * fix it. Presumably something related to the fact that
 	 * PSR is a transcoder level feature.
 	 */
-	if (crtc_state->bigjoiner_pipes) {
+	if (crtc_state->joiner_pipes) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR disabled due to bigjoiner\n");
+			    "PSR disabled due to joiner\n");
 		return;
 	}
 

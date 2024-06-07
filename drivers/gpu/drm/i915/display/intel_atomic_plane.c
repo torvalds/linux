@@ -336,7 +336,7 @@ void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 	intel_plane_clear_hw_state(plane_state);
 
 	/*
-	 * For the bigjoiner slave uapi.crtc will point at
+	 * For the joiner slave uapi.crtc will point at
 	 * the master crtc. So we explicitly assign the right
 	 * slave crtc to hw.crtc. uapi.crtc!=NULL simply indicates
 	 * the plane is logically enabled on the uapi level.
@@ -721,7 +721,7 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	if (new_crtc_state && intel_crtc_is_bigjoiner_slave(new_crtc_state)) {
+	if (new_crtc_state && intel_crtc_is_joiner_slave(new_crtc_state)) {
 		struct intel_crtc *master_crtc =
 			intel_master_crtc(new_crtc_state);
 		struct intel_plane *master_plane =

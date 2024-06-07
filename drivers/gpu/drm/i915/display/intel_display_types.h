@@ -1048,7 +1048,7 @@ struct intel_crtc_state {
 	 *
 	 * During initial hw readout, they need to be copied to uapi.
 	 *
-	 * Bigjoiner will allow a transcoder mode that spans 2 pipes;
+	 * Joiner will allow a transcoder mode that spans 2 pipes;
 	 * Use the pipe_mode for calculations like watermarks, pipe
 	 * scaler, and bandwidth.
 	 *
@@ -1344,8 +1344,8 @@ struct intel_crtc_state {
 	/* enable vlv/chv wgc csc? */
 	bool wgc_enable;
 
-	/* big joiner pipe bitmask */
-	u8 bigjoiner_pipes;
+	/* joiner pipe bitmask */
+	u8 joiner_pipes;
 
 	/* Display Stream compression state */
 	struct {

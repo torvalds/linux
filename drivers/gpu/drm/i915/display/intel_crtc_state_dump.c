@@ -222,10 +222,10 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		   transcoder_name(pipe_config->master_transcoder),
 		   pipe_config->sync_mode_slaves_mask);
 
-	drm_printf(&p, "bigjoiner: %s, pipes: 0x%x\n",
-		   intel_crtc_is_bigjoiner_slave(pipe_config) ? "slave" :
-		   intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "no",
-		   pipe_config->bigjoiner_pipes);
+	drm_printf(&p, "joiner: %s, pipes: 0x%x\n",
+		   intel_crtc_is_joiner_slave(pipe_config) ? "slave" :
+		   intel_crtc_is_joiner_master(pipe_config) ? "master" : "no",
+		   pipe_config->joiner_pipes);
 
 	drm_printf(&p, "splitter: %s, link count %d, overlap %d\n",
 		   str_enabled_disabled(pipe_config->splitter.enable),
