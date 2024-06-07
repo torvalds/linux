@@ -189,16 +189,11 @@ static unsigned long convert_dram_to_norm_addr_mi300(unsigned long addr)
 
 	/* Calculate hash for PC bit. */
 	if (addr_hash.pc.xor_enable) {
-		/* Bits SID[1:0] act as Bank[6:5] for PC hash, so apply them here. */
-		bank |= sid << 5;
-
 		temp  = bitwise_xor_bits(col  & addr_hash.pc.col_xor);
 		temp ^= bitwise_xor_bits(row  & addr_hash.pc.row_xor);
-		temp ^= bitwise_xor_bits(bank & addr_hash.bank_xor);
+		/* Bits SID[1:0] act as Bank[5:4] for PC hash, so apply them here. */
+		temp ^= bitwise_xor_bits((bank | sid << NUM_BANK_BITS) & addr_hash.bank_xor);
 		pc   ^= temp;
-
-		/* Drop SID bits for the sake of debug printing later. */
-		bank &= 0x1F;
 	}
 
 	/* Reconstruct the normalized address starting with NA[4:0] = 0 */
