@@ -126,8 +126,8 @@ static void vrf_rx_stats(struct net_device *dev, int len)
 	struct pcpu_dstats *dstats = this_cpu_ptr(dev->dstats);
 
 	u64_stats_update_begin(&dstats->syncp);
-	dstats->rx_packets++;
-	dstats->rx_bytes += len;
+	u64_stats_inc(&dstats->rx_packets);
+	u64_stats_add(&dstats->rx_bytes, len);
 	u64_stats_update_end(&dstats->syncp);
 }
 
@@ -150,11 +150,11 @@ static void vrf_get_stats64(struct net_device *dev,
 		dstats = per_cpu_ptr(dev->dstats, i);
 		do {
 			start = u64_stats_fetch_begin(&dstats->syncp);
-			tbytes = dstats->tx_bytes;
-			tpkts = dstats->tx_packets;
-			tdrops = dstats->tx_drops;
-			rbytes = dstats->rx_bytes;
-			rpkts = dstats->rx_packets;
+			tbytes = u64_stats_read(&dstats->tx_bytes);
+			tpkts = u64_stats_read(&dstats->tx_packets);
+			tdrops = u64_stats_read(&dstats->tx_drops);
+			rbytes = u64_stats_read(&dstats->rx_bytes);
+			rpkts = u64_stats_read(&dstats->rx_packets);
 		} while (u64_stats_fetch_retry(&dstats->syncp, start));
 		stats->tx_bytes += tbytes;
 		stats->tx_packets += tpkts;
@@ -408,10 +408,15 @@ static int vrf_local_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	skb->protocol = eth_type_trans(skb, dev);
 
-	if (likely(__netif_rx(skb) == NET_RX_SUCCESS))
+	if (likely(__netif_rx(skb) == NET_RX_SUCCESS)) {
 		vrf_rx_stats(dev, len);
-	else
-		this_cpu_inc(dev->dstats->rx_drops);
+	} else {
+		struct pcpu_dstats *dstats = this_cpu_ptr(dev->dstats);
+
+		u64_stats_update_begin(&dstats->syncp);
+		u64_stats_inc(&dstats->rx_drops);
+		u64_stats_update_end(&dstats->syncp);
+	}
 
 	return NETDEV_TX_OK;
 }
@@ -599,19 +604,20 @@ static netdev_tx_t is_ip_tx_frame(struct sk_buff *skb, struct net_device *dev)
 
 static netdev_tx_t vrf_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	struct pcpu_dstats *dstats = this_cpu_ptr(dev->dstats);
+
 	int len = skb->len;
 	netdev_tx_t ret = is_ip_tx_frame(skb, dev);
 
+	u64_stats_update_begin(&dstats->syncp);
 	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
-		struct pcpu_dstats *dstats = this_cpu_ptr(dev->dstats);
 
-		u64_stats_update_begin(&dstats->syncp);
-		dstats->tx_packets++;
-		dstats->tx_bytes += len;
-		u64_stats_update_end(&dstats->syncp);
+		u64_stats_inc(&dstats->tx_packets);
+		u64_stats_add(&dstats->tx_bytes, len);
 	} else {
-		this_cpu_inc(dev->dstats->tx_drops);
+		u64_stats_inc(&dstats->tx_drops);
 	}
+	u64_stats_update_end(&dstats->syncp);
 
 	return ret;
 }
