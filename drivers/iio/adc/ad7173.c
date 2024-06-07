@@ -569,10 +569,16 @@ static int ad7173_disable_all(struct ad_sigma_delta *sd)
 	return 0;
 }
 
+static int ad7173_disable_one(struct ad_sigma_delta *sd, unsigned int chan)
+{
+	return ad_sd_write_reg(sd, AD7173_REG_CH(chan), 2, 0);
+}
+
 static struct ad_sigma_delta_info ad7173_sigma_delta_info = {
 	.set_channel = ad7173_set_channel,
 	.append_status = ad7173_append_status,
 	.disable_all = ad7173_disable_all,
+	.disable_one = ad7173_disable_one,
 	.set_mode = ad7173_set_mode,
 	.has_registers = true,
 	.addr_shift = 0,
@@ -665,11 +671,6 @@ static int ad7173_read_raw(struct iio_dev *indio_dev,
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
 		ret = ad_sigma_delta_single_conversion(indio_dev, chan, val);
-		if (ret < 0)
-			return ret;
-
-		/* disable channel after single conversion */
-		ret = ad_sd_write_reg(&st->sd, AD7173_REG_CH(chan->address), 2, 0);
 		if (ret < 0)
 			return ret;
 
