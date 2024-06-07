@@ -915,6 +915,14 @@ static unsigned long bch2_btree_key_cache_count(struct shrinker *shrink,
 	long nr = atomic_long_read(&bc->nr_keys) -
 		atomic_long_read(&bc->nr_dirty);
 
+	/*
+	 * Avoid hammering our shrinker too much if it's nearly empty - the
+	 * shrinker code doesn't take into account how big our cache is, if it's
+	 * mostly empty but the system is under memory pressure it causes nasty
+	 * lock contention:
+	 */
+	nr -= 128;
+
 	return max(0L, nr);
 }
 
