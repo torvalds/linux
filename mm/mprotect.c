@@ -53,7 +53,7 @@ bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
 		return false;
 
 	/* Do we need write faults for softdirty tracking? */
-	if (vma_soft_dirty_enabled(vma) && !pte_soft_dirty(pte))
+	if (pte_needs_soft_dirty_wp(vma, pte))
 		return false;
 
 	/* Do we need write faults for uffd-wp tracking? */
