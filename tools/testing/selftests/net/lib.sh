@@ -125,6 +125,20 @@ slowwait_for_counter()
 	slowwait "$timeout" until_counter_is ">= $((base + delta))" "$@"
 }
 
+remove_ns_list()
+{
+	local item=$1
+	local ns
+	local ns_list=("${NS_LIST[@]}")
+	NS_LIST=()
+
+	for ns in "${ns_list[@]}"; do
+		if [ "${ns}" != "${item}" ]; then
+			NS_LIST+=("${ns}")
+		fi
+	done
+}
+
 cleanup_ns()
 {
 	local ns=""
@@ -136,6 +150,8 @@ cleanup_ns()
 		if ! busywait $BUSYWAIT_TIMEOUT ip netns list \| grep -vq "^$ns$" &> /dev/null; then
 			echo "Warn: Failed to remove namespace $ns"
 			ret=1
+		else
+			remove_ns_list "${ns}"
 		fi
 	done
 
@@ -154,17 +170,14 @@ setup_ns()
 	local ns=""
 	local ns_name=""
 	local ns_list=()
-	local ns_exist=
 	for ns_name in "$@"; do
 		# Some test may setup/remove same netns multi times
 		if unset ${ns_name} 2> /dev/null; then
 			ns="${ns_name,,}-$(mktemp -u XXXXXX)"
 			eval readonly ${ns_name}="$ns"
-			ns_exist=false
 		else
 			eval ns='$'${ns_name}
 			cleanup_ns "$ns"
-			ns_exist=true
 		fi
 
 		if ! ip netns add "$ns"; then
@@ -173,7 +186,7 @@ setup_ns()
 			return $ksft_skip
 		fi
 		ip -n "$ns" link set lo up
-		! $ns_exist && ns_list+=("$ns")
+		ns_list+=("$ns")
 	done
 	NS_LIST+=("${ns_list[@]}")
 }
