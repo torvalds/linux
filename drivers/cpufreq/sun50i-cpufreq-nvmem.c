@@ -91,6 +91,9 @@ static u32 sun50i_h616_efuse_xlate(u32 speedbin)
 	case 0x5d00:
 		value = 0;
 		break;
+	case 0x6c00:
+		value = 5;
+		break;
 	default:
 		pr_warn("sun50i-cpufreq-nvmem: unknown speed bin 0x%x, using default bin 0\n",
 			speedbin & 0xffff);
