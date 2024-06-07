@@ -52,7 +52,11 @@ static inline int ftrace_shutdown_subops(struct ftrace_ops *ops, struct ftrace_o
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 extern int ftrace_graph_active;
+# ifdef CONFIG_DYNAMIC_FTRACE
 extern void fgraph_update_pid_func(void);
+# else
+static inline void fgraph_update_pid_func(void) {}
+# endif
 #else /* !CONFIG_FUNCTION_GRAPH_TRACER */
 # define ftrace_graph_active 0
 static inline void fgraph_update_pid_func(void) {}
