@@ -1250,6 +1250,9 @@ static bool wake_lines_fit_into_vblank(struct intel_dp *intel_dp,
 		crtc_state->hw.adjusted_mode.crtc_vblank_start;
 	int wake_lines = psr2_block_count_lines(intel_dp);
 
+	if (crtc_state->req_psr2_sdp_prior_scanline)
+		vblank -= 1;
+
 	/* Vblank >= PSR2_CTL Block Count Number maximum line count */
 	if (vblank < wake_lines)
 		return false;
