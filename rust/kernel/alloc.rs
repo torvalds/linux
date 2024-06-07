@@ -52,6 +52,14 @@ pub mod flags {
     /// This is normally or'd with other flags.
     pub const __GFP_ZERO: Flags = Flags(bindings::__GFP_ZERO);
 
+    /// Allow the allocation to be in high memory.
+    ///
+    /// Allocations in high memory may not be mapped into the kernel's address space, so this can't
+    /// be used with `kmalloc` and other similar methods.
+    ///
+    /// This is normally or'd with other flags.
+    pub const __GFP_HIGHMEM: Flags = Flags(bindings::__GFP_HIGHMEM);
+
     /// Users can not sleep and need the allocation to succeed.
     ///
     /// A lower watermark is applied to allow access to "atomic reserves". The current
