@@ -132,7 +132,7 @@ static inline void __kunmap_atomic(const void *addr)
 }
 
 unsigned int __nr_free_highpages(void);
-extern atomic_long_t _totalhigh_pages;
+unsigned long __totalhigh_pages(void);
 
 static inline unsigned int nr_free_highpages(void)
 {
@@ -141,12 +141,7 @@ static inline unsigned int nr_free_highpages(void)
 
 static inline unsigned long totalhigh_pages(void)
 {
-	return (unsigned long)atomic_long_read(&_totalhigh_pages);
-}
-
-static inline void totalhigh_pages_add(long count)
-{
-	atomic_long_add(count, &_totalhigh_pages);
+	return __totalhigh_pages();
 }
 
 static inline bool is_kmap_addr(const void *x)
