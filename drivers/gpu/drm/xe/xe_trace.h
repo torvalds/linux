@@ -346,6 +346,34 @@ DEFINE_EVENT(xe_hw_fence, xe_hw_fence_free,
 	     TP_ARGS(fence)
 );
 
+TRACE_EVENT(xe_reg_rw,
+	TP_PROTO(struct xe_gt *gt, bool write, u32 reg, u64 val, int len),
+
+	TP_ARGS(gt, write, reg, val, len),
+
+	TP_STRUCT__entry(
+		__string(dev, __dev_name_gt(gt))
+		__field(u64, val)
+		__field(u32, reg)
+		__field(u16, write)
+		__field(u16, len)
+		),
+
+	TP_fast_assign(
+		__assign_str(dev);
+		__entry->val = val;
+		__entry->reg = reg;
+		__entry->write = write;
+		__entry->len = len;
+		),
+
+	TP_printk("dev=%s, %s reg=0x%x, len=%d, val=(0x%x, 0x%x)",
+		  __get_str(dev), __entry->write ? "write" : "read",
+		  __entry->reg, __entry->len,
+		  (u32)(__entry->val & 0xffffffff),
+		  (u32)(__entry->val >> 32))
+);
+
 #endif
 
 /* This part must be outside protection */
