@@ -670,6 +670,7 @@ static struct hid_driver ccp_driver = {
 };
 
 MODULE_DEVICE_TABLE(hid, ccp_devices);
+MODULE_DESCRIPTION("Corsair Commander Pro controller driver");
 MODULE_LICENSE("GPL");
 
 static int __init ccp_init(void)
