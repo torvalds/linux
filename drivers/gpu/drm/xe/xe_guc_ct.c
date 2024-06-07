@@ -29,7 +29,7 @@
 #include "xe_guc_submit.h"
 #include "xe_map.h"
 #include "xe_pm.h"
-#include "xe_trace.h"
+#include "xe_trace_guc.h"
 
 /* Used when a CT send wants to block and / or receive data */
 struct g2h_fence {
