@@ -5167,10 +5167,9 @@ static int calculate_sizes(struct kmem_cache *s)
 	 */
 	s->inuse = size;
 
-	if (slub_debug_orig_size(s) ||
-	    (flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON)) ||
-	    ((flags & SLAB_RED_ZONE) && s->object_size < sizeof(void *)) ||
-	    s->ctor) {
+	if ((flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON)) || s->ctor ||
+	    ((flags & SLAB_RED_ZONE) &&
+	     (s->object_size < sizeof(void *) || slub_debug_orig_size(s)))) {
 		/*
 		 * Relocate free pointer after the object if it is not
 		 * permitted to overwrite the first word of the object on
@@ -5178,7 +5177,9 @@ static int calculate_sizes(struct kmem_cache *s)
 		 *
 		 * This is the case if we do RCU, have a constructor or
 		 * destructor, are poisoning the objects, or are
-		 * redzoning an object smaller than sizeof(void *).
+		 * redzoning an object smaller than sizeof(void *) or are
+		 * redzoning an object with slub_debug_orig_size() enabled,
+		 * in which case the right redzone may be extended.
 		 *
 		 * The assumption that s->offset >= s->inuse means free
 		 * pointer is outside of the object is used in the
