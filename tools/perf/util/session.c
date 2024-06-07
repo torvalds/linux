@@ -2696,8 +2696,7 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp
 	return machines__fprintf_dsos_buildid(&session->machines, fp, skip, parm);
 }
 
-size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp,
-				       bool skip_empty)
+size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 {
 	size_t ret;
 	const char *msg = "";
@@ -2707,7 +2706,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp,
 
 	ret = fprintf(fp, "\nAggregated stats:%s\n", msg);
 
-	ret += events_stats__fprintf(&session->evlist->stats, fp, skip_empty);
+	ret += events_stats__fprintf(&session->evlist->stats, fp);
 	return ret;
 }
 

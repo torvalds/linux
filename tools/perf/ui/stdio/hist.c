@@ -897,8 +897,7 @@ out:
 	return ret;
 }
 
-size_t events_stats__fprintf(struct events_stats *stats, FILE *fp,
-			     bool skip_empty)
+size_t events_stats__fprintf(struct events_stats *stats, FILE *fp)
 {
 	int i;
 	size_t ret = 0;
@@ -910,7 +909,7 @@ size_t events_stats__fprintf(struct events_stats *stats, FILE *fp,
 		name = perf_event__name(i);
 		if (!strcmp(name, "UNKNOWN"))
 			continue;
-		if (skip_empty && !stats->nr_events[i])
+		if (symbol_conf.skip_empty && !stats->nr_events[i])
 			continue;
 
 		if (i && total) {
