@@ -4,8 +4,11 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+
+MODULE_IMPORT_NS(PWM);
 
 struct pwm_chip;
 
