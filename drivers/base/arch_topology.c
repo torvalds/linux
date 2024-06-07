@@ -543,23 +543,24 @@ static int __init parse_core(struct device_node *core, int package_id,
 	do {
 		snprintf(name, sizeof(name), "thread%d", i);
 		t = of_get_child_by_name(core, name);
-		if (t) {
-			leaf = false;
-			cpu = get_cpu_for_node(t);
-			if (cpu >= 0) {
-				cpu_topology[cpu].package_id = package_id;
-				cpu_topology[cpu].cluster_id = cluster_id;
-				cpu_topology[cpu].core_id = core_id;
-				cpu_topology[cpu].thread_id = i;
-			} else if (cpu != -ENODEV) {
-				pr_err("%pOF: Can't get CPU for thread\n", t);
-				of_node_put(t);
-				return -EINVAL;
-			}
+		if (!t)
+			break;
+
+		leaf = false;
+		cpu = get_cpu_for_node(t);
+		if (cpu >= 0) {
+			cpu_topology[cpu].package_id = package_id;
+			cpu_topology[cpu].cluster_id = cluster_id;
+			cpu_topology[cpu].core_id = core_id;
+			cpu_topology[cpu].thread_id = i;
+		} else if (cpu != -ENODEV) {
+			pr_err("%pOF: Can't get CPU for thread\n", t);
 			of_node_put(t);
+			return -EINVAL;
 		}
+		of_node_put(t);
 		i++;
-	} while (t);
+	} while (1);
 
 	cpu = get_cpu_for_node(core);
 	if (cpu >= 0) {
@@ -599,48 +600,48 @@ static int __init parse_cluster(struct device_node *cluster, int package_id,
 	do {
 		snprintf(name, sizeof(name), "cluster%d", i);
 		c = of_get_child_by_name(cluster, name);
-		if (c) {
-			leaf = false;
-			ret = parse_cluster(c, package_id, i, depth + 1);
-			if (depth > 0)
-				pr_warn("Topology for clusters of clusters not yet supported\n");
-			of_node_put(c);
-			if (ret != 0)
-				return ret;
-		}
+		if (!c)
+			break;
+
+		leaf = false;
+		ret = parse_cluster(c, package_id, i, depth + 1);
+		if (depth > 0)
+			pr_warn("Topology for clusters of clusters not yet supported\n");
+		of_node_put(c);
+		if (ret != 0)
+			return ret;
 		i++;
-	} while (c);
+	} while (1);
 
 	/* Now check for cores */
 	i = 0;
 	do {
 		snprintf(name, sizeof(name), "core%d", i);
 		c = of_get_child_by_name(cluster, name);
-		if (c) {
-			has_cores = true;
+		if (!c)
+			break;
 
-			if (depth == 0) {
-				pr_err("%pOF: cpu-map children should be clusters\n",
-				       c);
-				of_node_put(c);
-				return -EINVAL;
-			}
+		has_cores = true;
 
-			if (leaf) {
-				ret = parse_core(c, package_id, cluster_id,
-						 core_id++);
-			} else {
-				pr_err("%pOF: Non-leaf cluster with core %s\n",
-				       cluster, name);
-				ret = -EINVAL;
-			}
-
+		if (depth == 0) {
+			pr_err("%pOF: cpu-map children should be clusters\n", c);
 			of_node_put(c);
-			if (ret != 0)
-				return ret;
+			return -EINVAL;
 		}
+
+		if (leaf) {
+			ret = parse_core(c, package_id, cluster_id, core_id++);
+		} else {
+			pr_err("%pOF: Non-leaf cluster with core %s\n",
+			       cluster, name);
+			ret = -EINVAL;
+		}
+
+		of_node_put(c);
+		if (ret != 0)
+			return ret;
 		i++;
-	} while (c);
+	} while (1);
 
 	if (leaf && !has_cores)
 		pr_warn("%pOF: empty cluster\n", cluster);
@@ -658,15 +659,17 @@ static int __init parse_socket(struct device_node *socket)
 	do {
 		snprintf(name, sizeof(name), "socket%d", package_id);
 		c = of_get_child_by_name(socket, name);
-		if (c) {
-			has_socket = true;
-			ret = parse_cluster(c, package_id, -1, 0);
-			of_node_put(c);
-			if (ret != 0)
-				return ret;
-		}
+		if (!c)
+			break;
+
+		has_socket = true;
+		ret = parse_cluster(c, package_id, -1, 0);
+		of_node_put(c);
+		if (ret != 0)
+			return ret;
+
 		package_id++;
-	} while (c);
+	} while (1);
 
 	if (!has_socket)
 		ret = parse_cluster(socket, 0, -1, 0);
