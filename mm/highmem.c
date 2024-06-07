@@ -111,10 +111,10 @@ static inline wait_queue_head_t *get_pkmap_wait_queue_head(unsigned int color)
 }
 #endif
 
-unsigned int __nr_free_highpages(void)
+unsigned long __nr_free_highpages(void)
 {
+	unsigned long pages = 0;
 	struct zone *zone;
-	unsigned int pages = 0;
 
 	for_each_populated_zone(zone) {
 		if (is_highmem(zone))
