@@ -898,12 +898,14 @@ int rproc_set_state(struct rproc *rproc, bool state)
 {
 	int ret = 0;
 	int users;
-	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	struct qcom_adsp *adsp;
 
-	if (!rproc || !adsp) {
+	if (!rproc || !rproc->priv) {
 		pr_err("no rproc or adsp\n");
 		return -EINVAL;
 	}
+
+	adsp = (struct qcom_adsp *)rproc->priv;
 	if (!adsp->q6v5.running) {
 		dev_err(adsp->dev, "rproc is not running\n");
 		return -EINVAL;
