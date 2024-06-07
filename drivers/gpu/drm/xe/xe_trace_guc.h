@@ -12,13 +12,17 @@
 #include <linux/tracepoint.h>
 #include <linux/types.h>
 
+#include "xe_device_types.h"
 #include "xe_guc_exec_queue_types.h"
 
+#define __dev_name_xe(xe)	dev_name((xe)->drm.dev)
+
 DECLARE_EVENT_CLASS(xe_guc_ct_flow_control,
-		    TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
-		    TP_ARGS(_head, _tail, size, space, len),
+		    TP_PROTO(struct xe_device *xe, u32 _head, u32 _tail, u32 size, u32 space, u32 len),
+		    TP_ARGS(xe, _head, _tail, size, space, len),
 
 		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_xe(xe))
 			     __field(u32, _head)
 			     __field(u32, _tail)
 			     __field(u32, size)
@@ -27,6 +31,7 @@ DECLARE_EVENT_CLASS(xe_guc_ct_flow_control,
 			     ),
 
 		    TP_fast_assign(
+			   __assign_str(dev);
 			   __entry->_head = _head;
 			   __entry->_tail = _tail;
 			   __entry->size = size;
@@ -34,30 +39,31 @@ DECLARE_EVENT_CLASS(xe_guc_ct_flow_control,
 			   __entry->len = len;
 			   ),
 
-		    TP_printk("h2g flow control: head=%u, tail=%u, size=%u, space=%u, len=%u",
-			      __entry->_head, __entry->_tail, __entry->size,
+		    TP_printk("h2g flow control: dev=%s, head=%u, tail=%u, size=%u, space=%u, len=%u",
+			      __get_str(dev), __entry->_head, __entry->_tail, __entry->size,
 			      __entry->space, __entry->len)
 );
 
 DEFINE_EVENT(xe_guc_ct_flow_control, xe_guc_ct_h2g_flow_control,
-	     TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
-	     TP_ARGS(_head, _tail, size, space, len)
+	     TP_PROTO(struct xe_device *xe, u32 _head, u32 _tail, u32 size, u32 space, u32 len),
+	     TP_ARGS(xe, _head, _tail, size, space, len)
 );
 
 DEFINE_EVENT_PRINT(xe_guc_ct_flow_control, xe_guc_ct_g2h_flow_control,
-		   TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
-		   TP_ARGS(_head, _tail, size, space, len),
+		   TP_PROTO(struct xe_device *xe, u32 _head, u32 _tail, u32 size, u32 space, u32 len),
+		   TP_ARGS(xe, _head, _tail, size, space, len),
 
-		   TP_printk("g2h flow control: head=%u, tail=%u, size=%u, space=%u, len=%u",
-			     __entry->_head, __entry->_tail, __entry->size,
+		   TP_printk("g2h flow control: dev=%s, head=%u, tail=%u, size=%u, space=%u, len=%u",
+			     __get_str(dev), __entry->_head, __entry->_tail, __entry->size,
 			     __entry->space, __entry->len)
 );
 
 DECLARE_EVENT_CLASS(xe_guc_ctb,
-		    TP_PROTO(u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
-		    TP_ARGS(gt_id, action, len, _head, tail),
+		    TP_PROTO(struct xe_device *xe, u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
+		    TP_ARGS(xe, gt_id, action, len, _head, tail),
 
 		    TP_STRUCT__entry(
+				__string(dev, __dev_name_xe(xe))
 				__field(u8, gt_id)
 				__field(u32, action)
 				__field(u32, len)
@@ -66,6 +72,7 @@ DECLARE_EVENT_CLASS(xe_guc_ctb,
 		    ),
 
 		    TP_fast_assign(
+			    __assign_str(dev);
 			    __entry->gt_id = gt_id;
 			    __entry->action = action;
 			    __entry->len = len;
@@ -73,22 +80,22 @@ DECLARE_EVENT_CLASS(xe_guc_ctb,
 			    __entry->_head = _head;
 		    ),
 
-		    TP_printk("gt%d: H2G CTB: action=0x%x, len=%d, tail=%d, head=%d\n",
-			      __entry->gt_id, __entry->action, __entry->len,
+		    TP_printk("H2G CTB: dev=%s, gt%d: action=0x%x, len=%d, tail=%d, head=%d\n",
+			      __get_str(dev), __entry->gt_id, __entry->action, __entry->len,
 			      __entry->tail, __entry->_head)
 );
 
 DEFINE_EVENT(xe_guc_ctb, xe_guc_ctb_h2g,
-	     TP_PROTO(u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
-	     TP_ARGS(gt_id, action, len, _head, tail)
+	     TP_PROTO(struct xe_device *xe, u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
+	     TP_ARGS(xe, gt_id, action, len, _head, tail)
 );
 
 DEFINE_EVENT_PRINT(xe_guc_ctb, xe_guc_ctb_g2h,
-		   TP_PROTO(u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
-		   TP_ARGS(gt_id, action, len, _head, tail),
+		   TP_PROTO(struct xe_device *xe, u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
+		   TP_ARGS(xe, gt_id, action, len, _head, tail),
 
-		   TP_printk("gt%d: G2H CTB: action=0x%x, len=%d, tail=%d, head=%d\n",
-			     __entry->gt_id, __entry->action, __entry->len,
+		   TP_printk("G2H CTB: dev=%s, gt%d: action=0x%x, len=%d, tail=%d, head=%d\n",
+			     __get_str(dev), __entry->gt_id, __entry->action, __entry->len,
 			     __entry->tail, __entry->_head)
 
 );

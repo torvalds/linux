@@ -571,7 +571,7 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	/* Update descriptor */
 	desc_write(xe, h2g, tail, h2g->info.tail);
 
-	trace_xe_guc_ctb_h2g(gt->info.id, *(action - 1), full_len,
+	trace_xe_guc_ctb_h2g(xe, gt->info.id, *(action - 1), full_len,
 			     desc_read(xe, h2g, head), h2g->info.tail);
 
 	return 0;
@@ -684,6 +684,7 @@ static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
 			      u32 g2h_len, u32 num_g2h,
 			      struct g2h_fence *g2h_fence)
 {
+	struct xe_device *xe = ct_to_xe(ct);
 	struct xe_gt *gt = ct_to_gt(ct);
 	struct drm_printer p = xe_gt_info_printer(gt);
 	unsigned int sleep_period_ms = 1;
@@ -711,7 +712,7 @@ try_again:
 		if (sleep_period_ms == 1024)
 			goto broken;
 
-		trace_xe_guc_ct_h2g_flow_control(h2g->info.head, h2g->info.tail,
+		trace_xe_guc_ct_h2g_flow_control(xe, h2g->info.head, h2g->info.tail,
 						 h2g->info.size,
 						 h2g->info.space,
 						 len + GUC_CTB_HDR_LEN);
@@ -723,7 +724,7 @@ try_again:
 		struct xe_device *xe = ct_to_xe(ct);
 		struct guc_ctb *g2h = &ct->ctbs.g2h;
 
-		trace_xe_guc_ct_g2h_flow_control(g2h->info.head,
+		trace_xe_guc_ct_g2h_flow_control(xe, g2h->info.head,
 						 desc_read(xe, g2h, tail),
 						 g2h->info.size,
 						 g2h->info.space,
@@ -1213,8 +1214,8 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	g2h->info.head = (head + avail) % g2h->info.size;
 	desc_write(xe, g2h, head, g2h->info.head);
 
-	trace_xe_guc_ctb_g2h(ct_to_gt(ct)->info.id, action, len,
-			     g2h->info.head, tail);
+	trace_xe_guc_ctb_g2h(xe, ct_to_gt(ct)->info.id,
+			     action, len, g2h->info.head, tail);
 
 	return len;
 }
