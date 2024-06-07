@@ -152,6 +152,15 @@ properties:
             events basis.
           const: app
         - description:
+            Interrupts triggered when the controller itself (in Endpoint mode)
+            has sent an Assert_INT{A,B,C,D}/Desassert_INT{A,B,C,D} message to
+            the upstream device.
+          pattern: "^tx_int(a|b|c|d)$"
+        - description:
+            Combined interrupt signal raised when the controller has sent an
+            Assert_INT{A,B,C,D} message. See "^tx_int(a|b|c|d)$" for details.
+          const: legacy
+        - description:
             Vendor-specific IRQ names. Consider using the generic names above
             for new bindings.
           oneOf:
