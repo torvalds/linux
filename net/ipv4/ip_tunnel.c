@@ -1099,7 +1099,6 @@ static void ip_tunnel_dev_free(struct net_device *dev)
 
 	gro_cells_destroy(&tunnel->gro_cells);
 	dst_cache_destroy(&tunnel->dst_cache);
-	free_percpu(dev->tstats);
 }
 
 void ip_tunnel_dellink(struct net_device *dev, struct list_head *head)
@@ -1313,20 +1312,15 @@ int ip_tunnel_init(struct net_device *dev)
 
 	dev->needs_free_netdev = true;
 	dev->priv_destructor = ip_tunnel_dev_free;
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	err = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
-	if (err) {
-		free_percpu(dev->tstats);
+	if (err)
 		return err;
-	}
 
 	err = gro_cells_init(&tunnel->gro_cells, dev);
 	if (err) {
 		dst_cache_destroy(&tunnel->dst_cache);
-		free_percpu(dev->tstats);
 		return err;
 	}
 
