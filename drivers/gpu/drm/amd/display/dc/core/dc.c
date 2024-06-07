@@ -2640,7 +2640,7 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 		if (u->plane_info)
 			format = u->plane_info->format;
-		else if (u->surface)
+		else
 			format = u->surface->format;
 
 		if (dce_use_lut(format))
@@ -2741,7 +2741,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		if (stream_update->mst_bw_update)
 			su_flags->bits.mst_bw = 1;
 
-		if (stream_update->stream && stream_update->stream->freesync_on_desktop &&
+		if (stream_update->stream->freesync_on_desktop &&
 			(stream_update->vrr_infopacket || stream_update->allow_freesync ||
 				stream_update->vrr_active_variable || stream_update->vrr_active_fixed))
 			su_flags->bits.fams_changed = 1;

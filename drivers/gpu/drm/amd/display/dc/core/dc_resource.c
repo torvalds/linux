@@ -2099,7 +2099,7 @@ int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 			timing->h_border_right;
 	width = h_active / count;
 
-	if (otg_master->stream_res.tg && otg_master->stream)
+	if (otg_master->stream_res.tg)
 		two_pixel_alignment_required =
 				otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing) ||
 				/*

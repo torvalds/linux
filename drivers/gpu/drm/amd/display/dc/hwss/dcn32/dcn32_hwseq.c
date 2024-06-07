@@ -271,58 +271,55 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	}
 
 	if (enable) {
-		if (dc->current_state) {
+		/* 1. Check no memory request case for CAB.
+		 * If no memory request case, send CAB_ACTION NO_DF_REQ DMUB message
+		 */
+		if (dcn32_check_no_memory_request_for_cab(dc)) {
+			/* Enable no-memory-requests case */
+			memset(&cmd, 0, sizeof(cmd));
+			cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
+			cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_DCN_REQ;
+			cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
 
-			/* 1. Check no memory request case for CAB.
-			 * If no memory request case, send CAB_ACTION NO_DF_REQ DMUB message
-			 */
-			if (dcn32_check_no_memory_request_for_cab(dc)) {
-				/* Enable no-memory-requests case */
-				memset(&cmd, 0, sizeof(cmd));
-				cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
-				cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_DCN_REQ;
-				cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
+			dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
-				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
-
-				return true;
-			}
-
-			/* 2. Check if all surfaces can fit in CAB.
-			 * If surfaces can fit into CAB, send CAB_ACTION_ALLOW DMUB message
-			 * and configure HUBP's to fetch from MALL
-			 */
-			ways = dcn32_calculate_cab_allocation(dc, dc->current_state);
-
-			/* MALL not supported with Stereo3D or TMZ surface. If any plane is using stereo,
-			 * or TMZ surface, don't try to enter MALL.
-			 */
-			for (i = 0; i < dc->current_state->stream_count; i++) {
-				for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
-					plane = dc->current_state->stream_status[i].plane_states[j];
-
-					if (plane->address.type == PLN_ADDR_TYPE_GRPH_STEREO ||
-							plane->address.tmz_surface) {
-						mall_ss_unsupported = true;
-						break;
-					}
-				}
-				if (mall_ss_unsupported)
-					break;
-			}
-			if (ways <= dc->caps.cache_num_ways && !mall_ss_unsupported) {
-				memset(&cmd, 0, sizeof(cmd));
-				cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
-				cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB;
-				cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
-				cmd.cab.cab_alloc_ways = (uint8_t)ways;
-
-				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
-
-				return true;
-			}
-
+			return true;
 		}
+
+		/* 2. Check if all surfaces can fit in CAB.
+		 * If surfaces can fit into CAB, send CAB_ACTION_ALLOW DMUB message
+		 * and configure HUBP's to fetch from MALL
+		 */
+		ways = dcn32_calculate_cab_allocation(dc, dc->current_state);
+
+		/* MALL not supported with Stereo3D or TMZ surface. If any plane is using stereo,
+		 * or TMZ surface, don't try to enter MALL.
+		 */
+		for (i = 0; i < dc->current_state->stream_count; i++) {
+			for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
+				plane = dc->current_state->stream_status[i].plane_states[j];
+
+				if (plane->address.type == PLN_ADDR_TYPE_GRPH_STEREO ||
+						plane->address.tmz_surface) {
+					mall_ss_unsupported = true;
+					break;
+				}
+			}
+			if (mall_ss_unsupported)
+				break;
+		}
+		if (ways <= dc->caps.cache_num_ways && !mall_ss_unsupported) {
+			memset(&cmd, 0, sizeof(cmd));
+			cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
+			cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB;
+			cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
+			cmd.cab.cab_alloc_ways = (uint8_t)ways;
+
+			dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+
+			return true;
+		}
+
 		return false;
 	}
 
