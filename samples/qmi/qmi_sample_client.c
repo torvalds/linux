@@ -511,7 +511,7 @@ err_release_qmi_handle:
 	return ret;
 }
 
-static int qmi_sample_remove(struct platform_device *pdev)
+static void qmi_sample_remove(struct platform_device *pdev)
 {
 	struct qmi_sample *sample = platform_get_drvdata(pdev);
 
@@ -520,13 +520,11 @@ static int qmi_sample_remove(struct platform_device *pdev)
 	debugfs_remove(sample->de_dir);
 
 	qmi_handle_release(&sample->qmi);
-
-	return 0;
 }
 
 static struct platform_driver qmi_sample_driver = {
 	.probe = qmi_sample_probe,
-	.remove = qmi_sample_remove,
+	.remove_new = qmi_sample_remove,
 	.driver = {
 		.name = "qmi_sample_client",
 	},
