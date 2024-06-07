@@ -47,6 +47,11 @@
 #define MAX31827_M_DGR_TO_16_BIT(x)	(((x) << 4) / 1000)
 #define MAX31827_DEVICE_ENABLE(x)	((x) ? 0xA : 0x0)
 
+/*
+ * The enum passed in the .data pointer of struct of_device_id must
+ * start with a value != 0 since that is a requirement for using
+ * device_get_match_data().
+ */
 enum chips { max31827 = 1, max31828, max31829 };
 
 enum max31827_cnv {
