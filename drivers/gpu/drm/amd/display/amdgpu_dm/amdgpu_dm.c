@@ -77,6 +77,7 @@
 #include <linux/types.h>
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
+#include <linux/power_supply.h>
 #include <linux/firmware.h>
 #include <linux/component.h>
 #include <linux/dmi.h>
@@ -4571,6 +4572,7 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	struct drm_device *drm = aconnector->base.dev;
 	struct amdgpu_display_manager *dm = &drm_to_adev(drm)->dm;
 	struct backlight_properties props = { 0 };
+	struct amdgpu_dm_backlight_caps caps = { 0 };
 	char bl_name[16];
 
 	if (aconnector->bl_idx == -1)
@@ -4583,8 +4585,16 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 		return;
 	}
 
+	amdgpu_acpi_get_backlight_caps(&caps);
+	if (caps.caps_valid) {
+		if (power_supply_is_system_supplied() > 0)
+			props.brightness = caps.ac_level;
+		else
+			props.brightness = caps.dc_level;
+	} else
+		props.brightness = AMDGPU_MAX_BL_LEVEL;
+
 	props.max_brightness = AMDGPU_MAX_BL_LEVEL;
-	props.brightness = AMDGPU_MAX_BL_LEVEL;
 	props.type = BACKLIGHT_RAW;
 
 	snprintf(bl_name, sizeof(bl_name), "amdgpu_bl%d",

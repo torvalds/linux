@@ -180,6 +180,14 @@ struct amdgpu_dm_backlight_caps {
 	 * @aux_support: Describes if the display supports AUX backlight.
 	 */
 	bool aux_support;
+	/**
+	 * @ac_level: the default brightness if booted on AC
+	 */
+	u8 ac_level;
+	/**
+	 * @dc_level: the default brightness if booted on DC
+	 */
+	u8 dc_level;
 };
 
 /**
