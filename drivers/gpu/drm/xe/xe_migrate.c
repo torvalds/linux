@@ -32,7 +32,7 @@
 #include "xe_res_cursor.h"
 #include "xe_sched_job.h"
 #include "xe_sync.h"
-#include "xe_trace.h"
+#include "xe_trace_bo.h"
 #include "xe_vm.h"
 
 /**

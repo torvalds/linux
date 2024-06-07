@@ -19,7 +19,7 @@
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_migrate.h"
-#include "xe_trace.h"
+#include "xe_trace_bo.h"
 #include "xe_vm.h"
 
 struct pagefault {

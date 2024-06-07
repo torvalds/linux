@@ -36,7 +36,7 @@
 #include "xe_pt.h"
 #include "xe_res_cursor.h"
 #include "xe_sync.h"
-#include "xe_trace.h"
+#include "xe_trace_bo.h"
 #include "xe_wa.h"
 #include "xe_hmm.h"
 
