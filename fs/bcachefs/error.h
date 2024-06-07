@@ -136,7 +136,10 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 /* XXX: mark in superblock that filesystem contains errors, if we ignore: */
 
 #define __fsck_err_on(cond, c, _flags, _err_type, ...)			\
-	(unlikely(cond) ? __fsck_err(c, _flags, _err_type, __VA_ARGS__) : false)
+({									\
+	might_sleep();							\
+	(unlikely(cond) ? __fsck_err(c, _flags, _err_type, __VA_ARGS__) : false);\
+})									\
 
 #define need_fsck_err_on(cond, c, _err_type, ...)				\
 	__fsck_err_on(cond, c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)

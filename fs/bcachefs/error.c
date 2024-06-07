@@ -210,6 +210,8 @@ int bch2_fsck_err(struct bch_fs *c,
 	int ret = -BCH_ERR_fsck_ignore;
 	const char *action_orig = "fix?", *action = action_orig;
 
+	might_sleep();
+
 	if (!WARN_ON(err >= ARRAY_SIZE(fsck_flags_extra)))
 		flags |= fsck_flags_extra[err];
 
