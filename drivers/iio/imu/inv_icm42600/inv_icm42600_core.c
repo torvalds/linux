@@ -34,12 +34,56 @@ static const struct regmap_range_cfg inv_icm42600_regmap_ranges[] = {
 	},
 };
 
+static const struct regmap_range inv_icm42600_regmap_volatile_yes_ranges[] = {
+	/* Sensor data registers */
+	regmap_reg_range(0x001D, 0x002A),
+	/* INT status, FIFO, APEX data */
+	regmap_reg_range(0x002D, 0x0038),
+	/* Signal path reset */
+	regmap_reg_range(0x004B, 0x004B),
+	/* FIFO lost packets */
+	regmap_reg_range(0x006C, 0x006D),
+	/* Timestamp value */
+	regmap_reg_range(0x1062, 0x1064),
+};
+
+static const struct regmap_range inv_icm42600_regmap_volatile_no_ranges[] = {
+	regmap_reg_range(0x0000, 0x001C),
+	regmap_reg_range(0x006E, 0x1061),
+	regmap_reg_range(0x1065, 0x4FFF),
+};
+
+static const struct regmap_access_table inv_icm42600_regmap_volatile_accesses[] = {
+	{
+		.yes_ranges = inv_icm42600_regmap_volatile_yes_ranges,
+		.n_yes_ranges = ARRAY_SIZE(inv_icm42600_regmap_volatile_yes_ranges),
+		.no_ranges = inv_icm42600_regmap_volatile_no_ranges,
+		.n_no_ranges = ARRAY_SIZE(inv_icm42600_regmap_volatile_no_ranges),
+	},
+};
+
+static const struct regmap_range inv_icm42600_regmap_rd_noinc_no_ranges[] = {
+	regmap_reg_range(0x0000, INV_ICM42600_REG_FIFO_DATA - 1),
+	regmap_reg_range(INV_ICM42600_REG_FIFO_DATA + 1, 0x4FFF),
+};
+
+static const struct regmap_access_table inv_icm42600_regmap_rd_noinc_accesses[] = {
+	{
+		.no_ranges = inv_icm42600_regmap_rd_noinc_no_ranges,
+		.n_no_ranges = ARRAY_SIZE(inv_icm42600_regmap_rd_noinc_no_ranges),
+	},
+};
+
 const struct regmap_config inv_icm42600_regmap_config = {
+	.name = "inv_icm42600",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x4FFF,
 	.ranges = inv_icm42600_regmap_ranges,
 	.num_ranges = ARRAY_SIZE(inv_icm42600_regmap_ranges),
+	.volatile_table = inv_icm42600_regmap_volatile_accesses,
+	.rd_noinc_table = inv_icm42600_regmap_rd_noinc_accesses,
+	.cache_type = REGCACHE_RBTREE,
 };
 EXPORT_SYMBOL_NS_GPL(inv_icm42600_regmap_config, IIO_ICM42600);
 
