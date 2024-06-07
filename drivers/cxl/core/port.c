@@ -2356,5 +2356,6 @@ static void cxl_core_exit(void)
 
 subsys_initcall(cxl_core_init);
 module_exit(cxl_core_exit);
+MODULE_DESCRIPTION("CXL: Core Compute Express Link support");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(CXL);
