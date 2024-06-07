@@ -1043,7 +1043,9 @@ config PANIC_TIMEOUT
 	  Set the timeout value (in seconds) until a reboot occurs when
 	  the kernel panics. If n = 0, then we wait forever. A timeout
 	  value n > 0 will wait n seconds before rebooting, while a timeout
-	  value n < 0 will reboot immediately.
+	  value n < 0 will reboot immediately. This setting can be overridden
+	  with the kernel command line option panic=, and from userspace via
+	  /proc/sys/kernel/panic.
 
 config LOCKUP_DETECTOR
 	bool
