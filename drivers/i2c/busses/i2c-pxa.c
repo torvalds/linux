@@ -1593,6 +1593,7 @@ static void __exit i2c_adap_pxa_exit(void)
 	platform_driver_unregister(&i2c_pxa_driver);
 }
 
+MODULE_DESCRIPTION("Intel PXA2XX I2C adapter");
 MODULE_LICENSE("GPL");
 
 subsys_initcall(i2c_adap_pxa_init);
