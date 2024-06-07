@@ -150,6 +150,13 @@ static const char * const drv_names_niobe[][MAX_DRV_NAMES] = {
 			"DISPLAY_2ND", "MODEM", "WLAN RF", "WLAN BB", "CAM", "PCIE", ""},
 };
 
+static const char * const drv_names_anorak[] = {
+	"TZ", "L3", "HLOS", "HYP", "SECPROC", "AUDIO", "SENSOR", "AOP", "DEBUG",
+	"GPU", "DISPLAY", "COMPUTE_DSP", "TIME_HW", "TIME_SW", "DISPLAY_1",
+	"MDM SW", "MDM HW", "WLAN RF", "WLAN BB", "DDR AUX", "ARC CPRF",
+	""
+};
+
 static ssize_t debug_time_ms_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -547,6 +554,8 @@ static const struct of_device_id drv_match_table[] = {
 	  .data = drv_names_cliffs },
 	{ .compatible = "qcom,sys-pm-niobe",
 	  .data = drv_names_niobe },
+	{ .compatible = "qcom,sys-pm-anorak",
+	  .data = drv_names_anorak },
 	{ }
 };
 
