@@ -5050,7 +5050,7 @@ static struct mount *listmnt_next(struct mount *curr)
 static ssize_t do_listmount(u64 mnt_parent_id, u64 last_mnt_id, u64 *mnt_ids,
 			    size_t nr_mnt_ids)
 {
-	struct path root;
+	struct path root __free(path_put) = {};
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 	struct path orig;
 	struct mount *r, *first;
@@ -5063,10 +5063,8 @@ static ssize_t do_listmount(u64 mnt_parent_id, u64 last_mnt_id, u64 *mnt_ids,
 		orig = root;
 	} else {
 		orig.mnt = lookup_mnt_in_ns(mnt_parent_id, ns);
-		if (!orig.mnt) {
-			ret = -ENOENT;
-			goto err;
-		}
+		if (!orig.mnt)
+			return -ENOENT;
 		orig.dentry = orig.mnt->mnt_root;
 	}
 
@@ -5075,14 +5073,12 @@ static ssize_t do_listmount(u64 mnt_parent_id, u64 last_mnt_id, u64 *mnt_ids,
 	 * mounts to show users.
 	 */
 	if (!is_path_reachable(real_mount(orig.mnt), orig.dentry, &root) &&
-	    !ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN)) {
-		ret = -EPERM;
-		goto err;
-	}
+	    !ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
 
 	ret = security_sb_statfs(orig.dentry);
 	if (ret)
-		goto err;
+		return ret;
 
 	if (!last_mnt_id)
 		first = node_to_mount(rb_first(&ns->mounts));
@@ -5099,8 +5095,6 @@ static ssize_t do_listmount(u64 mnt_parent_id, u64 last_mnt_id, u64 *mnt_ids,
 		nr_mnt_ids--;
 		ret++;
 	}
-err:
-	path_put(&root);
 	return ret;
 }
 
