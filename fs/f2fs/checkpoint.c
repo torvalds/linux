@@ -1718,6 +1718,7 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	}
 
 	f2fs_restore_inmem_curseg(sbi);
+	f2fs_reinit_atgc_curseg(sbi);
 	stat_inc_cp_count(sbi);
 stop:
 	unblock_operations(sbi);
