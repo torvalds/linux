@@ -484,40 +484,6 @@ static void qd_ungrab_sync(struct gfs2_quota_data *qd)
 	qd_put(qd);
 }
 
-static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
-{
-	struct gfs2_quota_data *qd = NULL, *iter;
-	int error;
-
-	*qdp = NULL;
-
-	if (sb_rdonly(sdp->sd_vfs))
-		return 0;
-
-	spin_lock(&qd_lock);
-
-	list_for_each_entry(iter, &sdp->sd_quota_list, qd_list) {
-		if (qd_grab_sync(sdp, iter, sdp->sd_quota_sync_gen)) {
-			qd = iter;
-			break;
-		}
-	}
-
-	spin_unlock(&qd_lock);
-
-	if (qd) {
-		error = bh_get(qd);
-		if (error) {
-			qd_ungrab_sync(qd);
-			return error;
-		}
-	}
-
-	*qdp = qd;
-
-	return 0;
-}
-
 static void qdsb_put(struct gfs2_quota_data *qd)
 {
 	bh_put(qd);
@@ -1332,10 +1298,10 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_quota_data **qda;
 	unsigned int max_qd = PAGE_SIZE / sizeof(struct gfs2_holder);
-	unsigned int num_qd;
-	unsigned int x;
 	int error = 0;
 
+	if (sb_rdonly(sdp->sd_vfs))
+		return 0;
 	if (!qd_changed(sdp))
 		return 0;
 
@@ -1347,24 +1313,39 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	sdp->sd_quota_sync_gen++;
 
 	do {
-		num_qd = 0;
+		struct gfs2_quota_data *iter;
+		unsigned int num_qd = 0;
+		unsigned int x;
 
-		for (;;) {
-			error = qd_fish(sdp, qda + num_qd);
-			if (error || !qda[num_qd])
-				break;
-			if (++num_qd == max_qd)
-				break;
+		spin_lock(&qd_lock);
+		list_for_each_entry(iter, &sdp->sd_quota_list, qd_list) {
+			if (qd_grab_sync(sdp, iter, sdp->sd_quota_sync_gen)) {
+				qda[num_qd++] = iter;
+				if (num_qd == max_qd)
+					break;
+			}
 		}
+		spin_unlock(&qd_lock);
 
-		if (num_qd) {
+		if (!num_qd)
+			break;
+
+		for (x = 0; x < num_qd; x++) {
+			error = bh_get(qda[x]);
 			if (!error)
-				error = do_sync(num_qd, qda);
+				continue;
 
-			for (x = 0; x < num_qd; x++)
-				qd_unlock(qda[x]);
+			while (x < num_qd)
+				qd_ungrab_sync(qda[--num_qd]);
+			break;
 		}
-	} while (!error && num_qd == max_qd);
+
+		if (!error)
+			error = do_sync(num_qd, qda);
+
+		for (x = 0; x < num_qd; x++)
+			qd_unlock(qda[x]);
+	} while (!error);
 
 	mutex_unlock(&sdp->sd_quota_sync_mutex);
 	kfree(qda);
