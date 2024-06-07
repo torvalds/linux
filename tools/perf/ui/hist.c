@@ -95,6 +95,10 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	}
 
 	for (i = 0; i < nr_members; i++) {
+		if (symbol_conf.skip_empty &&
+		    values[i].hists->stats.nr_samples == 0)
+			continue;
+
 		ret += __hpp__fmt_print(hpp, values[i].hists, values[i].val,
 					values[i].samples, fmt, len,
 					print_fn, fmtype);
@@ -296,8 +300,18 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 	int len = fmt->user_len ?: fmt->len;
 	struct evsel *evsel = hists_to_evsel(hists);
 
-	if (symbol_conf.event_group)
-		len = max(len, evsel->core.nr_members * fmt->len);
+	if (symbol_conf.event_group) {
+		int nr = 0;
+		struct evsel *pos;
+
+		for_each_group_evsel(pos, evsel) {
+			if (!symbol_conf.skip_empty ||
+			    evsel__hists(pos)->stats.nr_samples)
+				nr++;
+		}
+
+		len = max(len, nr * fmt->len);
+	}
 
 	if (len < (int)strlen(fmt->name))
 		len = strlen(fmt->name);

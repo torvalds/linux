@@ -23,6 +23,7 @@
 #include "util/env.h"
 #include "util/pmu.h"
 #include "util/pmus.h"
+#include "util/symbol_conf.h"
 #include <internal/lib.h>
 #include "util.h"
 
@@ -49,6 +50,8 @@
 #ifndef Py_TYPE
 #define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
 #endif
+
+struct symbol_conf symbol_conf;
 
 /*
  * Avoid bringing in event parsing.
