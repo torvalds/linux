@@ -408,8 +408,7 @@ void dcn201_plane_atomic_disconnect(struct dc *dc,
 	if (mpcc_removed == false)
 		return;
 
-	if (opp != NULL)
-		opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
+	opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
 
