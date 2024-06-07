@@ -573,10 +573,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 	bool need_recalculation = false;
 	uint32_t cstate_enter_plus_exit_z8_ns;
 
-	if (!context)
-		return true;
-
-	else if (context->stream_count == 0) {
+	if (context->stream_count == 0) {
 		unsigned int lowest_state_idx = 0;
 
 		out_clks.p_state_supported = true;
