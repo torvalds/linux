@@ -173,27 +173,6 @@ LRU related page flags
 The page-types tool in the tools/mm directory can be used to query the
 above flags.
 
-Using pagemap to do something useful
-====================================
-
-The general procedure for using pagemap to find out about a process' memory
-usage goes like this:
-
- 1. Read ``/proc/pid/maps`` to determine which parts of the memory space are
-    mapped to what.
- 2. Select the maps you are interested in -- all of them, or a particular
-    library, or the stack or the heap, etc.
- 3. Open ``/proc/pid/pagemap`` and seek to the pages you would like to examine.
- 4. Read a u64 for each page from pagemap.
- 5. Open ``/proc/kpagecount`` and/or ``/proc/kpageflags``.  For each PFN you
-    just read, seek to that entry in the file, and read the data you want.
-
-For example, to find the "unique set size" (USS), which is the amount of
-memory that a process is using that is not shared with any other process,
-you can go through every map in the process, find the PFNs, look those up
-in kpagecount, and tally up the number of pages that are only referenced
-once.
-
 Exceptions for Shared Memory
 ============================
 
