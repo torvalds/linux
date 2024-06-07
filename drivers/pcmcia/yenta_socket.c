@@ -1452,4 +1452,5 @@ static struct pci_driver yenta_cardbus_driver = {
 
 module_pci_driver(yenta_cardbus_driver);
 
+MODULE_DESCRIPTION("Driver for CardBus yenta-compatible bridges");
 MODULE_LICENSE("GPL");
