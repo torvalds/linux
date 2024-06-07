@@ -129,7 +129,7 @@ config NET_DSA_TAG_RTL4_A
 	tristate "Tag driver for Realtek 4 byte protocol A tags"
 	help
 	  Say Y or M if you want to enable support for tagging frames for the
-	  Realtek switches with 4 byte protocol A tags, sich as found in
+	  Realtek switches with 4 byte protocol A tags, such as found in
 	  the Realtek RTL8366RB.
 
 config NET_DSA_TAG_RTL8_4
