@@ -159,7 +159,7 @@ phys_addr_t linear_mapping_va_to_pa(unsigned long x);
 #ifdef CONFIG_XIP_KERNEL
 #define kernel_mapping_va_to_pa(y) ({						\
 	unsigned long _y = (unsigned long)(y);					\
-	(_y < kernel_map.virt_addr + XIP_OFFSET) ?				\
+	(_y < kernel_map.virt_addr + kernel_map.xiprom_sz) ?			\
 		(_y - kernel_map.va_kernel_xip_text_pa_offset) :		\
 		(_y - kernel_map.va_kernel_xip_data_pa_offset);			\
 	})
