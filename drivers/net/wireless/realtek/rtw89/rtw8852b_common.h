@@ -158,6 +158,7 @@ struct rtw8852bx_info {
 	void (*set_txpwr_ul_tb_offset)(struct rtw89_dev *rtwdev,
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	u8 (*get_thermal)(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path);
+	void (*adc_cfg)(struct rtw89_dev *rtwdev, u8 bw, u8 path);
 };
 
 extern const struct rtw8852bx_info rtw8852bx_info;
@@ -334,6 +335,12 @@ static inline
 u8 rtw8852bx_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
 {
 	return rtw8852bx_info.get_thermal(rtwdev, rf_path);
+}
+
+static inline
+void rtw8852bx_adc_cfg(struct rtw89_dev *rtwdev, u8 bw, u8 path)
+{
+	rtw8852bx_info.adc_cfg(rtwdev, bw, path);
 }
 
 #endif

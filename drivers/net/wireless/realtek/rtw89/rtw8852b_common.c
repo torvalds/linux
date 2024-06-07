@@ -7,6 +7,7 @@
 #include "phy.h"
 #include "reg.h"
 #include "rtw8852b_common.h"
+#include "util.h"
 
 static const struct rtw89_reg3_def rtw8852bx_pmac_ht20_mcs7_tbl[] = {
 	{0x4580, 0x0000ffff, 0x0},
@@ -609,6 +610,27 @@ static void rtw8852bx_set_gain_error(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw8852bt_ext_loss_avg_update(struct rtw89_dev *rtwdev,
+					  s8 ext_loss_a, s8 ext_loss_b)
+{
+	s8 ext_loss_avg;
+	u64 linear;
+	u8 pwrofst;
+
+	if (ext_loss_a == ext_loss_b) {
+		ext_loss_avg = ext_loss_a;
+	} else {
+		linear = rtw89_db_2_linear(abs(ext_loss_a - ext_loss_b)) + 1;
+		linear = DIV_ROUND_CLOSEST_ULL(linear / 2, 1 << RTW89_LINEAR_FRAC_BITS);
+		ext_loss_avg = rtw89_linear_2_db(linear);
+		ext_loss_avg += min(ext_loss_a, ext_loss_b);
+	}
+
+	pwrofst = max(DIV_ROUND_CLOSEST(ext_loss_avg, 4) + 16, EDCCA_PWROFST_DEFAULT);
+
+	rtw89_phy_write32_mask(rtwdev, R_PWOFST, B_PWOFST, pwrofst);
+}
+
 static void rtw8852bx_set_gain_offset(struct rtw89_dev *rtwdev,
 				      enum rtw89_subband subband,
 				      enum rtw89_phy_idx phy_idx)
@@ -619,6 +641,7 @@ static void rtw8852bx_set_gain_offset(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_phy_efuse_gain *efuse_gain = &rtwdev->efuse_gain;
 	enum rtw89_gain_offset gain_ofdm_band;
+	s8 ext_loss_a = 0, ext_loss_b = 0;
 	s32 offset_a, offset_b;
 	s32 offset_ofdm, offset_cck;
 	s32 tmp;
@@ -635,7 +658,7 @@ static void rtw8852bx_set_gain_offset(struct rtw89_dev *rtwdev,
 
 next:
 	if (!efuse_gain->offset_valid)
-		return;
+		goto ext_loss;
 
 	gain_ofdm_band = rtw89_subband_to_gain_offset_band_of_ofdm(subband);
 
@@ -672,6 +695,13 @@ next:
 		rtw89_phy_write32_mask(rtwdev, R_RX_RPL_OFST,
 				       B_RX_RPL_OFST_CCK_MASK, tmp);
 	}
+
+	ext_loss_a = (offset_a << 2) + (efuse_gain->offset_base[RTW89_PHY_0] >> 2);
+	ext_loss_b = (offset_b << 2) + (efuse_gain->offset_base[RTW89_PHY_0] >> 2);
+
+ext_loss:
+	if (rtwdev->chip->chip_id == RTL8852BT)
+		rtw8852bt_ext_loss_avg_update(rtwdev, ext_loss_a, ext_loss_b);
 }
 
 static
@@ -804,10 +834,79 @@ static void rtw8852b_bw_setting(struct rtw89_dev *rtwdev, u8 bw, u8 path)
 	}
 }
 
+static
+void rtw8852bt_adc_cfg(struct rtw89_dev *rtwdev, u8 bw, u8 path)
+{
+	static const u32 rck_reset_count[2] = {0xC0E8, 0xC1E8};
+	static const u32 adc_op5_bw_sel[2] = {0xC0D8, 0xC1D8};
+	static const u32 adc_sample_td[2] = {0xC0D4, 0xC1D4};
+	static const u32 adc_rst_cycle[2] = {0xC0EC, 0xC1EC};
+	static const u32 decim_filter[2] = {0xC0EC, 0xC1EC};
+	static const u32 rck_offset[2] = {0xC0C4, 0xC1C4};
+	static const u32 rx_adc_clk[2] = {0x12A0, 0x32A0};
+	static const u32 wbadc_sel[2] = {0xC0E4, 0xC1E4};
+	static const u32 idac2_1[2] = {0xC0D4, 0xC1D4};
+	static const u32 idac2[2] = {0xC0D4, 0xC1D4};
+	static const u32 upd_clk_adc = {0x704};
+
+	if (rtwdev->chip->chip_id != RTL8852BT)
+		return;
+
+	rtw89_phy_write32_mask(rtwdev, idac2[path], B_P0_CFCH_CTL, 0x8);
+	rtw89_phy_write32_mask(rtwdev, rck_reset_count[path], B_ADCMOD_LP, 0x9);
+	rtw89_phy_write32_mask(rtwdev, wbadc_sel[path], B_WDADC_SEL, 0x2);
+	rtw89_phy_write32_mask(rtwdev, rx_adc_clk[path], B_P0_RXCK_ADJ, 0x49);
+	rtw89_phy_write32_mask(rtwdev, decim_filter[path], B_DCIM_FR, 0x0);
+
+	switch (bw) {
+	case RTW89_CHANNEL_WIDTH_5:
+	case RTW89_CHANNEL_WIDTH_10:
+	case RTW89_CHANNEL_WIDTH_20:
+	case RTW89_CHANNEL_WIDTH_40:
+		rtw89_phy_write32_mask(rtwdev, idac2_1[path], B_P0_CFCH_EN, 0x2);
+		rtw89_phy_write32_mask(rtwdev, adc_sample_td[path], B_P0_CFCH_BW0, 0x3);
+		rtw89_phy_write32_mask(rtwdev, adc_op5_bw_sel[path], B_P0_CFCH_BW1, 0xf);
+		rtw89_phy_write32_mask(rtwdev, rck_offset[path], B_DRCK_MUL, 0x0);
+		/* Tx TSSI ADC update */
+		rtw89_phy_write32_mask(rtwdev, upd_clk_adc, B_RSTB_ASYNC_BW80, 0);
+
+		if (rtwdev->efuse.rfe_type >= 51)
+			rtw89_phy_write32_mask(rtwdev, adc_rst_cycle[path], B_DCIM_RC, 0x2);
+		else
+			rtw89_phy_write32_mask(rtwdev, adc_rst_cycle[path], B_DCIM_RC, 0x3);
+		break;
+	case RTW89_CHANNEL_WIDTH_80:
+		rtw89_phy_write32_mask(rtwdev, idac2_1[path], B_P0_CFCH_EN, 0x2);
+		rtw89_phy_write32_mask(rtwdev, adc_sample_td[path], B_P0_CFCH_BW0, 0x2);
+		rtw89_phy_write32_mask(rtwdev, adc_op5_bw_sel[path], B_P0_CFCH_BW1, 0x8);
+		rtw89_phy_write32_mask(rtwdev, rck_offset[path], B_DRCK_MUL, 0x0);
+		rtw89_phy_write32_mask(rtwdev, adc_rst_cycle[path], B_DCIM_RC, 0x3);
+		/* Tx TSSI ADC update */
+		rtw89_phy_write32_mask(rtwdev, upd_clk_adc, B_RSTB_ASYNC_BW80, 1);
+		break;
+	case RTW89_CHANNEL_WIDTH_160:
+		rtw89_phy_write32_mask(rtwdev, idac2_1[path], B_P0_CFCH_EN, 0x0);
+		rtw89_phy_write32_mask(rtwdev, adc_sample_td[path], B_P0_CFCH_BW0, 0x2);
+		rtw89_phy_write32_mask(rtwdev, adc_op5_bw_sel[path], B_P0_CFCH_BW1, 0x4);
+		rtw89_phy_write32_mask(rtwdev, rck_offset[path], B_DRCK_MUL, 0x6);
+		rtw89_phy_write32_mask(rtwdev, adc_rst_cycle[path], B_DCIM_RC, 0x3);
+		/* Tx TSSI ADC update */
+		rtw89_phy_write32_mask(rtwdev, upd_clk_adc, B_RSTB_ASYNC_BW80, 2);
+		break;
+	default:
+		rtw89_warn(rtwdev, "Fail to set ADC\n");
+		break;
+	}
+}
+
 static void rtw8852bx_ctrl_bw(struct rtw89_dev *rtwdev, u8 pri_ch, u8 bw,
 			      enum rtw89_phy_idx phy_idx)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 rx_path_0;
+	u32 val;
+
+	rx_path_0 = rtw89_phy_read32_idx(rtwdev, R_CHBW_MOD_V1, B_ANT_RX_SEG0, phy_idx);
 
 	switch (bw) {
 	case RTW89_CHANNEL_WIDTH_5:
@@ -820,6 +919,12 @@ static void rtw8852bx_ctrl_bw(struct rtw89_dev *rtwdev, u8 pri_ch, u8 bw,
 				      B_P0_RFMODE_ORI_RX_ALL, 0x333, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_P1_RFMODE_ORI_RX,
 				      B_P1_RFMODE_ORI_RX_ALL, 0x333, phy_idx);
+		if (chip_id == RTL8852BT) {
+			rtw89_phy_write32_idx(rtwdev, R_PATH0_BAND_SEL_V1,
+					      B_PATH0_BAND_NRBW_EN_V1, 0x0, phy_idx);
+			rtw89_phy_write32_idx(rtwdev, R_PATH1_BAND_SEL_V1,
+					      B_PATH1_BAND_NRBW_EN_V1, 0x0, phy_idx);
+		}
 		break;
 	case RTW89_CHANNEL_WIDTH_10:
 		rtw89_phy_write32_idx(rtwdev, R_FC0_BW_V1, B_FC0_BW_SET, 0x0, phy_idx);
@@ -831,6 +936,12 @@ static void rtw8852bx_ctrl_bw(struct rtw89_dev *rtwdev, u8 pri_ch, u8 bw,
 				      B_P0_RFMODE_ORI_RX_ALL, 0x333, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_P1_RFMODE_ORI_RX,
 				      B_P1_RFMODE_ORI_RX_ALL, 0x333, phy_idx);
+		if (chip_id == RTL8852BT) {
+			rtw89_phy_write32_idx(rtwdev, R_PATH0_BAND_SEL_V1,
+					      B_PATH0_BAND_NRBW_EN_V1, 0x0, phy_idx);
+			rtw89_phy_write32_idx(rtwdev, R_PATH1_BAND_SEL_V1,
+					      B_PATH1_BAND_NRBW_EN_V1, 0x0, phy_idx);
+		}
 		break;
 	case RTW89_CHANNEL_WIDTH_20:
 		rtw89_phy_write32_idx(rtwdev, R_FC0_BW_V1, B_FC0_BW_SET, 0x0, phy_idx);
@@ -842,6 +953,12 @@ static void rtw8852bx_ctrl_bw(struct rtw89_dev *rtwdev, u8 pri_ch, u8 bw,
 				      B_P0_RFMODE_ORI_RX_ALL, 0x333, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_P1_RFMODE_ORI_RX,
 				      B_P1_RFMODE_ORI_RX_ALL, 0x333, phy_idx);
+		if (chip_id == RTL8852BT) {
+			rtw89_phy_write32_idx(rtwdev, R_PATH0_BAND_SEL_V1,
+					      B_PATH0_BAND_NRBW_EN_V1, 0x1, phy_idx);
+			rtw89_phy_write32_idx(rtwdev, R_PATH1_BAND_SEL_V1,
+					      B_PATH1_BAND_NRBW_EN_V1, 0x1, phy_idx);
+		}
 		break;
 	case RTW89_CHANNEL_WIDTH_40:
 		rtw89_phy_write32_idx(rtwdev, R_FC0_BW_V1, B_FC0_BW_SET, 0x1, phy_idx);
@@ -868,21 +985,25 @@ static void rtw8852bx_ctrl_bw(struct rtw89_dev *rtwdev, u8 pri_ch, u8 bw,
 				      pri_ch, phy_idx);
 
 		/*Set RF mode at A */
+		val = chip_id == RTL8852BT ? 0x333 : 0xaaa;
 		rtw89_phy_write32_idx(rtwdev, R_P0_RFMODE_ORI_RX,
-				      B_P0_RFMODE_ORI_RX_ALL, 0xaaa, phy_idx);
+				      B_P0_RFMODE_ORI_RX_ALL, val, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_P1_RFMODE_ORI_RX,
-				      B_P1_RFMODE_ORI_RX_ALL, 0xaaa, phy_idx);
+				      B_P1_RFMODE_ORI_RX_ALL, val, phy_idx);
 		break;
 	default:
 		rtw89_warn(rtwdev, "Fail to switch bw (bw:%d, pri ch:%d)\n", bw,
 			   pri_ch);
 	}
 
-	rtw8852b_bw_setting(rtwdev, bw, RF_PATH_A);
-	rtw8852b_bw_setting(rtwdev, bw, RF_PATH_B);
+	if (chip_id == RTL8852B) {
+		rtw8852b_bw_setting(rtwdev, bw, RF_PATH_A);
+		rtw8852b_bw_setting(rtwdev, bw, RF_PATH_B);
+	} else if (chip_id == RTL8852BT) {
+		rtw8852bt_adc_cfg(rtwdev, bw, RF_PATH_A);
+		rtw8852bt_adc_cfg(rtwdev, bw, RF_PATH_B);
+	}
 
-	rx_path_0 = rtw89_phy_read32_idx(rtwdev, R_CHBW_MOD_V1, B_ANT_RX_SEG0,
-					 phy_idx);
 	if (rx_path_0 == 0x1)
 		rtw89_phy_write32_idx(rtwdev, R_P1_RFMODE_ORI_RX,
 				      B_P1_RFMODE_ORI_RX_ALL, 0x111, phy_idx);
@@ -1001,10 +1122,56 @@ static void rtw8852bx_bb_set_pop(struct rtw89_dev *rtwdev)
 		rtw89_phy_write32_clr(rtwdev, R_PKT_CTRL, B_PKT_POP_EN);
 }
 
+static u32 rtw8852bt_spur_freq(struct rtw89_dev *rtwdev,
+			       const struct rtw89_chan *chan)
+{
+	u8 center_chan = chan->channel;
+
+	switch (chan->band_type) {
+	case RTW89_BAND_5G:
+		if (center_chan == 151 || center_chan == 153 ||
+		    center_chan == 155 || center_chan == 163)
+			return 5760;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+#define CARRIER_SPACING_312_5 312500 /* 312.5 kHz */
+#define CARRIER_SPACING_78_125 78125 /* 78.125 kHz */
+#define MAX_TONE_NUM 2048
+
+static void rtw8852bt_set_csi_tone_idx(struct rtw89_dev *rtwdev,
+				       const struct rtw89_chan *chan,
+				       enum rtw89_phy_idx phy_idx)
+{
+	s32 freq_diff, csi_idx, csi_tone_idx;
+	u32 spur_freq;
+
+	spur_freq = rtw8852bt_spur_freq(rtwdev, chan);
+	if (spur_freq == 0) {
+		rtw89_phy_write32_idx(rtwdev, R_SEG0CSI_EN_V1, B_SEG0CSI_EN,
+				      0, phy_idx);
+		return;
+	}
+
+	freq_diff = (spur_freq - chan->freq) * 1000000;
+	csi_idx = s32_div_u32_round_closest(freq_diff, CARRIER_SPACING_78_125);
+	s32_div_u32_round_down(csi_idx, MAX_TONE_NUM, &csi_tone_idx);
+
+	rtw89_phy_write32_idx(rtwdev, R_SEG0CSI_V1, B_SEG0CSI_IDX,
+			      csi_tone_idx, phy_idx);
+	rtw89_phy_write32_idx(rtwdev, R_SEG0CSI_EN_V1, B_SEG0CSI_EN, 1, phy_idx);
+}
+
 static
 void __rtw8852bx_set_channel_bb(struct rtw89_dev *rtwdev, const struct rtw89_chan *chan,
 				enum rtw89_phy_idx phy_idx)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	bool cck_en = chan->channel <= 14;
 	u8 pri_ch_idx = chan->pri_ch_idx;
 	u8 band = chan->band_type, chan_idx;
@@ -1015,7 +1182,9 @@ void __rtw8852bx_set_channel_bb(struct rtw89_dev *rtwdev, const struct rtw89_cha
 	rtw8852bx_ctrl_ch(rtwdev, chan, phy_idx);
 	rtw8852bx_ctrl_bw(rtwdev, pri_ch_idx, chan->band_width, phy_idx);
 	rtw8852bx_ctrl_cck_en(rtwdev, cck_en);
-	if (chan->band_type == RTW89_BAND_5G) {
+	if (chip_id == RTL8852BT)
+		rtw8852bt_set_csi_tone_idx(rtwdev, chan, phy_idx);
+	if (chip_id == RTL8852B && chan->band_type == RTW89_BAND_5G) {
 		rtw89_phy_write32_mask(rtwdev, R_PATH0_BT_SHARE_V1,
 				       B_PATH0_BT_SHARE_V1, 0x0);
 		rtw89_phy_write32_mask(rtwdev, R_PATH0_BTG_PATH_V1,
@@ -1614,6 +1783,8 @@ static void __rtw8852bx_query_ppdu(struct rtw89_dev *rtwdev,
 
 static int __rtw8852bx_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u32 val32;
 	int ret;
 
 	rtw89_write8_set(rtwdev, R_AX_SYS_FUNC_EN,
@@ -1622,6 +1793,13 @@ static int __rtw8852bx_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 	rtw89_write32_set(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
 	rtw89_write32_clr(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
 	rtw89_write32_set(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
+
+	if (chip_id == RTL8852BT) {
+		val32 = rtw89_read32(rtwdev, R_AX_AFE_OFF_CTRL1);
+		val32 = u32_replace_bits(val32, 0x1, B_AX_S0_LDO_VSEL_F_MASK);
+		val32 = u32_replace_bits(val32, 0x1, B_AX_S1_LDO_VSEL_F_MASK);
+		rtw89_write32(rtwdev, R_AX_AFE_OFF_CTRL1, val32);
+	}
 
 	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_WL_RFC_S0, 0xC7,
 				      FULL_BIT_MASK);
@@ -1693,6 +1871,7 @@ const struct rtw8852bx_info rtw8852bx_info = {
 	.init_txpwr_unit = __rtw8852bx_init_txpwr_unit,
 	.set_txpwr_ul_tb_offset = __rtw8852bx_set_txpwr_ul_tb_offset,
 	.get_thermal = __rtw8852bx_get_thermal,
+	.adc_cfg = rtw8852bt_adc_cfg,
 };
 EXPORT_SYMBOL(rtw8852bx_info);
 
