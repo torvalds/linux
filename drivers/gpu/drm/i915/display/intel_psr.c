@@ -686,56 +686,62 @@ static bool psr2_su_region_et_valid(struct intel_dp *intel_dp)
 	return false;
 }
 
-static unsigned int intel_psr_get_enable_sink_offset(struct intel_dp *intel_dp)
+static void _panel_replay_enable_sink(struct intel_dp *intel_dp,
+				      const struct intel_crtc_state *crtc_state)
 {
-	return intel_dp->psr.panel_replay_enabled ?
-		PANEL_REPLAY_CONFIG : DP_PSR_EN_CFG;
+	u8 val = DP_PANEL_REPLAY_ENABLE |
+		DP_PANEL_REPLAY_VSC_SDP_CRC_EN |
+		DP_PANEL_REPLAY_UNRECOVERABLE_ERROR_EN |
+		DP_PANEL_REPLAY_RFB_STORAGE_ERROR_EN |
+		DP_PANEL_REPLAY_ACTIVE_FRAME_CRC_ERROR_EN;
+
+	if (crtc_state->has_sel_update)
+		val |= DP_PANEL_REPLAY_SU_ENABLE;
+
+	if (crtc_state->enable_psr2_su_region_et)
+		val |= DP_PANEL_REPLAY_ENABLE_SU_REGION_ET;
+
+	drm_dp_dpcd_writeb(&intel_dp->aux, PANEL_REPLAY_CONFIG, val);
 }
 
-/*
- * Note: Most of the bits are same in PANEL_REPLAY_CONFIG and DP_PSR_EN_CFG. We
- * are relying on PSR definitions on these "common" bits.
- */
+static void _psr_enable_sink(struct intel_dp *intel_dp,
+			     const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 val = DP_PSR_ENABLE;
+
+	if (crtc_state->has_sel_update) {
+		val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
+	} else {
+		if (intel_dp->psr.link_standby)
+			val |= DP_PSR_MAIN_LINK_ACTIVE;
+
+		if (DISPLAY_VER(i915) >= 8)
+			val |= DP_PSR_CRC_VERIFICATION;
+	}
+
+	if (crtc_state->enable_psr2_su_region_et)
+		val |= DP_PANEL_REPLAY_ENABLE_SU_REGION_ET;
+
+	if (intel_dp->psr.entry_setup_frames > 0)
+		val |= DP_PSR_FRAME_CAPTURE;
+
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, val);
+}
+
 void intel_psr_enable_sink(struct intel_dp *intel_dp,
 			   const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u8 dpcd_val = DP_PSR_ENABLE;
+	/* Enable ALPM at sink for psr2 */
+	if (!crtc_state->has_panel_replay && crtc_state->has_sel_update)
+		drm_dp_dpcd_writeb(&intel_dp->aux,
+				   DP_RECEIVER_ALPM_CONFIG,
+				   DP_ALPM_ENABLE |
+				   DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE);
 
-	if (crtc_state->has_sel_update) {
-		/* Enable ALPM at sink for psr2 */
-		if (!crtc_state->has_panel_replay) {
-			drm_dp_dpcd_writeb(&intel_dp->aux,
-					   DP_RECEIVER_ALPM_CONFIG,
-					   DP_ALPM_ENABLE |
-					   DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE);
-
-			if (crtc_state->enable_psr2_su_region_et)
-				dpcd_val |= DP_PSR_ENABLE_SU_REGION_ET;
-		}
-
-		dpcd_val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
-	} else {
-		if (intel_dp->psr.link_standby)
-			dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
-
-		if (!crtc_state->has_panel_replay && DISPLAY_VER(dev_priv) >= 8)
-			dpcd_val |= DP_PSR_CRC_VERIFICATION;
-	}
-
-	if (crtc_state->has_panel_replay)
-		dpcd_val |= DP_PANEL_REPLAY_UNRECOVERABLE_ERROR_EN |
-			DP_PANEL_REPLAY_RFB_STORAGE_ERROR_EN;
-
-	if (crtc_state->req_psr2_sdp_prior_scanline)
-		dpcd_val |= DP_PSR_SU_REGION_SCANLINE_CAPTURE;
-
-	if (intel_dp->psr.entry_setup_frames > 0)
-		dpcd_val |= DP_PSR_FRAME_CAPTURE;
-
-	drm_dp_dpcd_writeb(&intel_dp->aux,
-			   intel_psr_get_enable_sink_offset(intel_dp),
-			   dpcd_val);
+	crtc_state->has_panel_replay ?
+		_panel_replay_enable_sink(intel_dp, crtc_state) :
+		_psr_enable_sink(intel_dp, crtc_state);
 
 	if (intel_dp_is_edp(intel_dp))
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
@@ -1921,7 +1927,8 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux,
-			   intel_psr_get_enable_sink_offset(intel_dp), 0);
+			   intel_dp->psr.panel_replay_enabled ?
+			   PANEL_REPLAY_CONFIG : DP_PSR_EN_CFG, 0);
 
 	if (!intel_dp->psr.panel_replay_enabled &&
 	    intel_dp->psr.sel_update_enabled)
