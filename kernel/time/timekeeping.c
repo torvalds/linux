@@ -2547,6 +2547,7 @@ EXPORT_SYMBOL_GPL(random_get_entropy_fallback);
 
 /**
  * do_adjtimex() - Accessor function to NTP __do_adjtimex function
+ * @txc:	Pointer to kernel_timex structure containing NTP parameters
  */
 int do_adjtimex(struct __kernel_timex *txc)
 {
@@ -2615,6 +2616,8 @@ int do_adjtimex(struct __kernel_timex *txc)
 #ifdef CONFIG_NTP_PPS
 /**
  * hardpps() - Accessor function to NTP __hardpps function
+ * @phase_ts:	Pointer to timespec64 structure representing phase timestamp
+ * @raw_ts:	Pointer to timespec64 structure representing raw timestamp
  */
 void hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 {
