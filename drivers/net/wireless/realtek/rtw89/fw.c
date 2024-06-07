@@ -462,7 +462,7 @@ int rtw89_mfw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 	const u8 *mfw = firmware->data;
 	u32 mfw_len = firmware->size;
 	const struct rtw89_mfw_hdr *mfw_hdr = (const struct rtw89_mfw_hdr *)mfw;
-	const struct rtw89_mfw_info *mfw_info;
+	const struct rtw89_mfw_info *mfw_info = NULL, *tmp;
 	int i;
 
 	if (mfw_hdr->sig != RTW89_MFW_SIG) {
@@ -476,14 +476,26 @@ int rtw89_mfw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 	}
 
 	for (i = 0; i < mfw_hdr->fw_nr; i++) {
-		mfw_info = &mfw_hdr->info[i];
-		if (mfw_info->type == type) {
-			if (mfw_info->cv == rtwdev->hal.cv && !mfw_info->mp)
-				goto found;
-			if (type == RTW89_FW_LOGFMT)
-				goto found;
+		tmp = &mfw_hdr->info[i];
+		if (tmp->type != type)
+			continue;
+
+		if (type == RTW89_FW_LOGFMT) {
+			mfw_info = tmp;
+			goto found;
+		}
+
+		/* Version order of WiFi firmware in firmware file are not in order,
+		 * pass all firmware to find the equal or less but closest version.
+		 */
+		if (tmp->cv <= rtwdev->hal.cv && !tmp->mp) {
+			if (!mfw_info || mfw_info->cv < tmp->cv)
+				mfw_info = tmp;
 		}
 	}
+
+	if (mfw_info)
+		goto found;
 
 	if (!nowarn)
 		rtw89_err(rtwdev, "no suitable firmware found\n");
@@ -606,10 +618,16 @@ int __rtw89_fw_recognize_from_elm(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_fw_suit *fw_suit;
 
-	if (hal->cv != elm->u.bbmcu.cv)
+	/* Version of BB MCU is in decreasing order in firmware file, so take
+	 * first equal or less version, which is equal or less but closest version.
+	 */
+	if (hal->cv < elm->u.bbmcu.cv)
 		return 1; /* ignore this element */
 
 	fw_suit = rtw89_fw_suit_get(rtwdev, type);
+	if (fw_suit->data)
+		return 1; /* ignore this element (a firmware is taken already) */
+
 	fw_suit->data = elm->u.bbmcu.contents;
 	fw_suit->size = le32_to_cpu(elm->size);
 
