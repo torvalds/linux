@@ -841,7 +841,6 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		six_lock_exit(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
-		freed++;
 		bc->nr_freed_nonpcpu--;
 		bc->freed++;
 	}
@@ -855,7 +854,6 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		six_lock_exit(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
-		freed++;
 		bc->nr_freed_pcpu--;
 		bc->freed++;
 	}
@@ -877,23 +875,22 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 
 			if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
 				bc->skipped_dirty++;
-				goto next;
 			} else if (test_bit(BKEY_CACHED_ACCESSED, &ck->flags)) {
 				clear_bit(BKEY_CACHED_ACCESSED, &ck->flags);
 				bc->skipped_accessed++;
-				goto next;
-			} else if (bkey_cached_lock_for_evict(ck)) {
+			} else if (!bkey_cached_lock_for_evict(ck)) {
+				bc->skipped_lock_fail++;
+			} else {
 				bkey_cached_evict(bc, ck);
 				bkey_cached_free(bc, ck);
 				bc->moved_to_freelist++;
-			} else {
-				bc->skipped_lock_fail++;
+				freed++;
 			}
 
 			scanned++;
 			if (scanned >= nr)
 				break;
-next:
+
 			pos = next;
 		}
 
