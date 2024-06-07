@@ -23,6 +23,29 @@
 	__ret;							\
 })
 
+static int __hpp__fmt_print(struct perf_hpp *hpp, struct hists *hists, u64 val,
+			    int nr_samples, const char *fmt, int len,
+			    hpp_snprint_fn print_fn, enum perf_hpp_fmt_type fmtype)
+{
+	if (fmtype == PERF_HPP_FMT_TYPE__PERCENT) {
+		double percent = 0.0;
+		u64 total = hists__total_period(hists);
+
+		if (total)
+			percent = 100.0 * val / total;
+
+		return hpp__call_print_fn(hpp, print_fn, fmt, len, percent);
+	}
+
+	if (fmtype == PERF_HPP_FMT_TYPE__AVERAGE) {
+		double avg = nr_samples ? (1.0 * val / nr_samples) : 0;
+
+		return hpp__call_print_fn(hpp, print_fn, fmt, len, avg);
+	}
+
+	return hpp__call_print_fn(hpp, print_fn, fmt, len, val);
+}
+
 static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 		      hpp_field_fn get_field, const char *fmt, int len,
 		      hpp_snprint_fn print_fn, enum perf_hpp_fmt_type fmtype)
@@ -33,24 +56,8 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	char *buf = hpp->buf;
 	size_t size = hpp->size;
 
-	if (fmtype == PERF_HPP_FMT_TYPE__PERCENT) {
-		double percent = 0.0;
-		u64 total = hists__total_period(hists);
-
-		if (total)
-			percent = 100.0 * get_field(he) / total;
-
-		ret = hpp__call_print_fn(hpp, print_fn, fmt, len, percent);
-	} else if (fmtype == PERF_HPP_FMT_TYPE__AVERAGE) {
-		double average = 0;
-
-		if (he->stat.nr_events)
-			average = 1.0 * get_field(he) / he->stat.nr_events;
-
-		ret = hpp__call_print_fn(hpp, print_fn, fmt, len, average);
-	} else {
-		ret = hpp__call_print_fn(hpp, print_fn, fmt, len, get_field(he));
-	}
+	ret = __hpp__fmt_print(hpp, hists, get_field(he), he->stat.nr_events,
+			       fmt, len, print_fn, fmtype);
 
 	if (evsel__is_group_event(evsel)) {
 		int prev_idx, idx_delta;
@@ -72,30 +79,16 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 
 			while (idx_delta--) {
 				/*
-				 * zero-fill group members in the middle which
-				 * have no sample
+				 * zero-fill group members in the middle which have
+				 * no samples, pair->hists is not correct but it's
+				 * fine since the value is 0.
 				 */
-				if (fmtype != PERF_HPP_FMT_TYPE__RAW) {
-					ret += hpp__call_print_fn(hpp, print_fn,
-								  fmt, len, 0.0);
-				} else {
-					ret += hpp__call_print_fn(hpp, print_fn,
-								  fmt, len, 0ULL);
-				}
+				ret += __hpp__fmt_print(hpp, pair->hists, 0, 0,
+							fmt, len, print_fn, fmtype);
 			}
 
-			if (fmtype == PERF_HPP_FMT_TYPE__PERCENT) {
-				ret += hpp__call_print_fn(hpp, print_fn, fmt, len,
-							  100.0 * period / total);
-			} else if (fmtype == PERF_HPP_FMT_TYPE__AVERAGE) {
-				double avg = nr_samples ? (period / nr_samples) : 0;
-
-				ret += hpp__call_print_fn(hpp, print_fn, fmt,
-							  len, avg);
-			} else {
-				ret += hpp__call_print_fn(hpp, print_fn, fmt,
-							  len, period);
-			}
+			ret += __hpp__fmt_print(hpp, pair->hists, period, nr_samples,
+						fmt, len, print_fn, fmtype);
 
 			prev_idx = evsel__group_idx(evsel);
 		}
@@ -104,15 +97,11 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 
 		while (idx_delta--) {
 			/*
-			 * zero-fill group members at last which have no sample
+			 * zero-fill group members at last which have no sample.
+			 * the hists is not correct but it's fine like above.
 			 */
-			if (fmtype != PERF_HPP_FMT_TYPE__RAW) {
-				ret += hpp__call_print_fn(hpp, print_fn,
-							  fmt, len, 0.0);
-			} else {
-				ret += hpp__call_print_fn(hpp, print_fn,
-							  fmt, len, 0ULL);
-			}
+			ret += __hpp__fmt_print(hpp, evsel__hists(evsel), 0, 0,
+						fmt, len, print_fn, fmtype);
 		}
 	}
 
