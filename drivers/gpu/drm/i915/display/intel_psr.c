@@ -1251,8 +1251,12 @@ static bool wake_lines_fit_into_vblank(struct intel_dp *intel_dp,
 		crtc_state->hw.adjusted_mode.crtc_vblank_start;
 	int wake_lines;
 
-	wake_lines = DISPLAY_VER(i915) < 20 ? psr2_block_count_lines(intel_dp) :
-		intel_dp->alpm_parameters.io_wake_lines;
+	if (crtc_state->has_panel_replay)
+		wake_lines = intel_dp->alpm_parameters.aux_less_wake_lines;
+	else
+		wake_lines = DISPLAY_VER(i915) < 20 ?
+			psr2_block_count_lines(intel_dp) :
+			intel_dp->alpm_parameters.io_wake_lines;
 
 	if (crtc_state->req_psr2_sdp_prior_scanline)
 		vblank -= 1;
