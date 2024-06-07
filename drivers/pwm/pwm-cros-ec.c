@@ -168,24 +168,6 @@ static int cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-static struct pwm_device *
-cros_ec_pwm_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
-{
-	struct pwm_device *pwm;
-
-	if (args->args[0] >= chip->npwm)
-		return ERR_PTR(-EINVAL);
-
-	pwm = pwm_request_from_chip(chip, args->args[0], NULL);
-	if (IS_ERR(pwm))
-		return pwm;
-
-	/* The EC won't let us change the period */
-	pwm->args.period = EC_PWM_MAX_DUTY;
-
-	return pwm;
-}
-
 static const struct pwm_ops cros_ec_pwm_ops = {
 	.get_state	= cros_ec_pwm_get_state,
 	.apply		= cros_ec_pwm_apply,
@@ -236,7 +218,7 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 	struct cros_ec_pwm_device *ec_pwm;
 	struct pwm_chip *chip;
 	bool use_pwm_type = false;
-	unsigned int npwm;
+	unsigned int i, npwm;
 	int ret;
 
 	if (!ec)
@@ -262,7 +244,17 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 
 	/* PWM chip */
 	chip->ops = &cros_ec_pwm_ops;
-	chip->of_xlate = cros_ec_pwm_xlate;
+
+	/*
+	 * The device tree binding for this device is special as it only uses a
+	 * single cell (for the hwid) and so doesn't provide a default period.
+	 * This isn't a big problem though as the hardware only supports a
+	 * single period length, it's just a bit ugly to make this fit into the
+	 * pwm core abstractions. So initialize the period here, as
+	 * of_pwm_xlate_with_flags() won't do that for us.
+	 */
+	for (i = 0; i < npwm; ++i)
+		chip->pwms[i].args.period = EC_PWM_MAX_DUTY;
 
 	dev_dbg(dev, "Probed %u PWMs\n", chip->npwm);
 
