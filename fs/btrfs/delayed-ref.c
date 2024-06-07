@@ -855,11 +855,17 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 
 	/* Record qgroup extent info if provided */
 	if (qrecord) {
-		if (btrfs_qgroup_trace_extent_nolock(trans->fs_info,
-					delayed_refs, qrecord))
+		int ret;
+
+		ret = btrfs_qgroup_trace_extent_nolock(trans->fs_info,
+						       delayed_refs, qrecord);
+		if (ret) {
+			/* Clean up if insertion fails or item exists. */
+			xa_release(&delayed_refs->dirty_extents, qrecord->bytenr);
 			kfree(qrecord);
-		else
+		} else {
 			qrecord_inserted = true;
+		}
 	}
 
 	trace_add_delayed_ref_head(trans->fs_info, head_ref, action);
@@ -1012,6 +1018,9 @@ static int add_delayed_ref(struct btrfs_trans_handle *trans,
 		record = kzalloc(sizeof(*record), GFP_NOFS);
 		if (!record)
 			goto free_head_ref;
+		if (xa_reserve(&trans->transaction->delayed_refs.dirty_extents,
+			       generic_ref->bytenr, GFP_NOFS))
+			goto free_record;
 	}
 
 	init_delayed_ref_common(fs_info, node, generic_ref);
@@ -1048,6 +1057,8 @@ static int add_delayed_ref(struct btrfs_trans_handle *trans,
 		return btrfs_qgroup_trace_extent_post(trans, record);
 	return 0;
 
+free_record:
+	kfree(record);
 free_head_ref:
 	kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
 free_node:
