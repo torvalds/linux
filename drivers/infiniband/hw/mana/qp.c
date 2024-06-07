@@ -398,6 +398,22 @@ err_free_vport:
 	return err;
 }
 
+static int mana_table_store_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
+{
+	refcount_set(&qp->refcount, 1);
+	init_completion(&qp->free);
+	return xa_insert_irq(&mdev->qp_table_wq, qp->ibqp.qp_num, qp,
+			     GFP_KERNEL);
+}
+
+static void mana_table_remove_qp(struct mana_ib_dev *mdev,
+				 struct mana_ib_qp *qp)
+{
+	xa_erase_irq(&mdev->qp_table_wq, qp->ibqp.qp_num);
+	mana_put_qp_ref(qp);
+	wait_for_completion(&qp->free);
+}
+
 static int mana_ib_create_rc_qp(struct ib_qp *ibqp, struct ib_pd *ibpd,
 				struct ib_qp_init_attr *attr, struct ib_udata *udata)
 {
@@ -459,6 +475,10 @@ static int mana_ib_create_rc_qp(struct ib_qp *ibqp, struct ib_pd *ibpd,
 			goto destroy_qp;
 		}
 	}
+
+	err = mana_table_store_qp(mdev, qp);
+	if (err)
+		goto destroy_qp;
 
 	return 0;
 
@@ -619,6 +639,8 @@ static int mana_ib_destroy_rc_qp(struct mana_ib_qp *qp, struct ib_udata *udata)
 	struct mana_ib_dev *mdev =
 		container_of(qp->ibqp.device, struct mana_ib_dev, ib_dev);
 	int i;
+
+	mana_table_remove_qp(mdev, qp);
 
 	/* Ignore return code as there is not much we can do about it.
 	 * The error message is printed inside.

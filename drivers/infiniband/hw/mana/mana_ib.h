@@ -62,6 +62,7 @@ struct mana_ib_dev {
 	mana_handle_t adapter_handle;
 	struct gdma_queue *fatal_err_eq;
 	struct gdma_queue **eqs;
+	struct xarray qp_table_wq;
 	struct mana_ib_adapter_caps adapter_caps;
 };
 
@@ -124,6 +125,9 @@ struct mana_ib_qp {
 
 	/* The port on the IB device, starting with 1 */
 	u32 port;
+
+	refcount_t		refcount;
+	struct completion	free;
 };
 
 struct mana_ib_ucontext {
@@ -331,6 +335,26 @@ struct mana_rnic_set_qp_state_resp {
 static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
 {
 	return mdev->gdma_dev->gdma_context;
+}
+
+static inline struct mana_ib_qp *mana_get_qp_ref(struct mana_ib_dev *mdev,
+						 uint32_t qid)
+{
+	struct mana_ib_qp *qp;
+	unsigned long flag;
+
+	xa_lock_irqsave(&mdev->qp_table_wq, flag);
+	qp = xa_load(&mdev->qp_table_wq, qid);
+	if (qp)
+		refcount_inc(&qp->refcount);
+	xa_unlock_irqrestore(&mdev->qp_table_wq, flag);
+	return qp;
+}
+
+static inline void mana_put_qp_ref(struct mana_ib_qp *qp)
+{
+	if (refcount_dec_and_test(&qp->refcount))
+		complete(&qp->free);
 }
 
 static inline struct net_device *mana_ib_get_netdev(struct ib_device *ibdev, u32 port)
