@@ -127,4 +127,5 @@ static int __init probe_serial_gsc(void)
 
 module_init(probe_serial_gsc);
 
+MODULE_DESCRIPTION("Serial Device Initialisation for Lasi/Asp/Wax/Dino");
 MODULE_LICENSE("GPL");
