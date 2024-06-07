@@ -943,7 +943,7 @@ ipu6_isys_query_stream_by_source(struct ipu6_isys *isys, int source, u8 vc)
 		return NULL;
 
 	if (source < 0) {
-		dev_err(&stream->isys->adev->auxdev.dev,
+		dev_err(&isys->adev->auxdev.dev,
 			"query stream with invalid port number\n");
 		return NULL;
 	}
