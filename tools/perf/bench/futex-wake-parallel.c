@@ -318,7 +318,7 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 		cond_broadcast(&thread_worker);
 		mutex_unlock(&thread_lock);
 
-		usleep(100000);
+		usleep(200000);
 
 		/* Ok, all threads are patiently blocked, start waking folks up */
 		wakeup_threads(waking_worker);
