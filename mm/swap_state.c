@@ -567,7 +567,7 @@ struct folio *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 	mpol_cond_put(mpol);
 
 	if (page_allocated)
-		swap_read_folio(folio, false, plug);
+		swap_read_folio(folio, plug);
 	return folio;
 }
 
@@ -684,7 +684,7 @@ struct folio *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 		if (!folio)
 			continue;
 		if (page_allocated) {
-			swap_read_folio(folio, false, &splug);
+			swap_read_folio(folio, &splug);
 			if (offset != entry_offset) {
 				folio_set_readahead(folio);
 				count_vm_event(SWAP_RA);
@@ -701,7 +701,7 @@ skip:
 					&page_allocated, false);
 	if (unlikely(page_allocated)) {
 		zswap_folio_swapin(folio);
-		swap_read_folio(folio, false, NULL);
+		swap_read_folio(folio, NULL);
 	}
 	return folio;
 }
@@ -834,7 +834,7 @@ static struct folio *swap_vma_readahead(swp_entry_t targ_entry, gfp_t gfp_mask,
 		if (!folio)
 			continue;
 		if (page_allocated) {
-			swap_read_folio(folio, false, &splug);
+			swap_read_folio(folio, &splug);
 			if (addr != vmf->address) {
 				folio_set_readahead(folio);
 				count_vm_event(SWAP_RA);
@@ -853,7 +853,7 @@ skip:
 					&page_allocated, false);
 	if (unlikely(page_allocated)) {
 		zswap_folio_swapin(folio);
-		swap_read_folio(folio, false, NULL);
+		swap_read_folio(folio, NULL);
 	}
 	return folio;
 }

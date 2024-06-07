@@ -11,8 +11,7 @@ struct mempolicy;
 /* linux/mm/page_io.c */
 int sio_pool_init(void);
 struct swap_iocb;
-void swap_read_folio(struct folio *folio, bool do_poll,
-		struct swap_iocb **plug);
+void swap_read_folio(struct folio *folio, struct swap_iocb **plug);
 void __swap_read_unplug(struct swap_iocb *plug);
 static inline void swap_read_unplug(struct swap_iocb *plug)
 {
@@ -83,8 +82,7 @@ static inline unsigned int folio_swap_flags(struct folio *folio)
 }
 #else /* CONFIG_SWAP */
 struct swap_iocb;
-static inline void swap_read_folio(struct folio *folio, bool do_poll,
-		struct swap_iocb **plug)
+static inline void swap_read_folio(struct folio *folio, struct swap_iocb **plug)
 {
 }
 static inline void swap_write_unplug(struct swap_iocb *sio)
