@@ -725,7 +725,7 @@ static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
 			   FW_WM(wm->pipe[PIPE_B].plane[PLANE_CURSOR], CURSORB) |
 			   FW_WM(wm->pipe[PIPE_B].plane[PLANE_PRIMARY], PLANEB) |
 			   FW_WM(wm->pipe[PIPE_A].plane[PLANE_PRIMARY], PLANEA));
-	intel_uncore_write(&dev_priv->uncore, DSPFW2,
+	intel_uncore_write(&dev_priv->uncore, DSPFW2(dev_priv),
 			   (wm->fbc_en ? DSPFW_FBC_SR_EN : 0) |
 			   FW_WM(wm->sr.fbc, FBC_SR) |
 			   FW_WM(wm->hpll.fbc, FBC_HPLL_SR) |
@@ -775,7 +775,7 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 			   FW_WM(wm->pipe[PIPE_B].plane[PLANE_CURSOR], CURSORB) |
 			   FW_WM_VLV(wm->pipe[PIPE_B].plane[PLANE_PRIMARY], PLANEB) |
 			   FW_WM_VLV(wm->pipe[PIPE_A].plane[PLANE_PRIMARY], PLANEA));
-	intel_uncore_write(&dev_priv->uncore, DSPFW2,
+	intel_uncore_write(&dev_priv->uncore, DSPFW2(dev_priv),
 			   FW_WM_VLV(wm->pipe[PIPE_A].plane[PLANE_SPRITE1], SPRITEB) |
 			   FW_WM(wm->pipe[PIPE_A].plane[PLANE_CURSOR], CURSORA) |
 			   FW_WM_VLV(wm->pipe[PIPE_A].plane[PLANE_SPRITE0], SPRITEA));
@@ -2072,8 +2072,9 @@ static void i965_update_wm(struct drm_i915_private *dev_priv)
 			   FW_WM(8, CURSORB) |
 			   FW_WM(8, PLANEB) |
 			   FW_WM(8, PLANEA));
-	intel_uncore_write(&dev_priv->uncore, DSPFW2, FW_WM(8, CURSORA) |
-		   FW_WM(8, PLANEC_OLD));
+	intel_uncore_write(&dev_priv->uncore, DSPFW2(dev_priv),
+			   FW_WM(8, CURSORA) |
+			   FW_WM(8, PLANEC_OLD));
 	/* update cursor SR watermark */
 	intel_uncore_write(&dev_priv->uncore, DSPFW3, FW_WM(cursor_sr, CURSOR_SR));
 
@@ -3528,7 +3529,7 @@ static void g4x_read_wm_values(struct drm_i915_private *dev_priv,
 	wm->pipe[PIPE_B].plane[PLANE_PRIMARY] = _FW_WM(tmp, PLANEB);
 	wm->pipe[PIPE_A].plane[PLANE_PRIMARY] = _FW_WM(tmp, PLANEA);
 
-	tmp = intel_uncore_read(&dev_priv->uncore, DSPFW2);
+	tmp = intel_uncore_read(&dev_priv->uncore, DSPFW2(dev_priv));
 	wm->fbc_en = tmp & DSPFW_FBC_SR_EN;
 	wm->sr.fbc = _FW_WM(tmp, FBC_SR);
 	wm->hpll.fbc = _FW_WM(tmp, FBC_HPLL_SR);
@@ -3568,7 +3569,7 @@ static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
 	wm->pipe[PIPE_B].plane[PLANE_PRIMARY] = _FW_WM_VLV(tmp, PLANEB);
 	wm->pipe[PIPE_A].plane[PLANE_PRIMARY] = _FW_WM_VLV(tmp, PLANEA);
 
-	tmp = intel_uncore_read(&dev_priv->uncore, DSPFW2);
+	tmp = intel_uncore_read(&dev_priv->uncore, DSPFW2(dev_priv));
 	wm->pipe[PIPE_A].plane[PLANE_SPRITE1] = _FW_WM_VLV(tmp, SPRITEB);
 	wm->pipe[PIPE_A].plane[PLANE_CURSOR] = _FW_WM(tmp, CURSORA);
 	wm->pipe[PIPE_A].plane[PLANE_SPRITE0] = _FW_WM_VLV(tmp, SPRITEA);
