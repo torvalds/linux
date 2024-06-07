@@ -1568,6 +1568,8 @@ static int dmac_func_en_ax(struct rtw89_dev *rtwdev)
 		 B_AX_DLE_CPUIO_CLK_EN | B_AX_PKT_IN_CLK_EN |
 		 B_AX_STA_SCH_CLK_EN | B_AX_TXPKT_CTRL_CLK_EN |
 		 B_AX_WD_RLS_CLK_EN | B_AX_BBRPT_CLK_EN);
+	if (chip_id == RTL8852BT)
+		val32 |= B_AX_AXIDMA_CLK_EN;
 	rtw89_write32(rtwdev, R_AX_DMAC_CLK_EN, val32);
 
 	return 0;
@@ -1577,7 +1579,7 @@ static int chip_func_en_ax(struct rtw89_dev *rtwdev)
 {
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 
-	if (chip_id == RTL8852A || chip_id == RTL8852B)
+	if (chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev))
 		rtw89_write32_set(rtwdev, R_AX_SPS_DIG_ON_CTRL0,
 				  B_AX_OCP_L1_MASK);
 
@@ -2146,8 +2148,8 @@ int rtw89_mac_preload_init(struct rtw89_dev *rtwdev, enum rtw89_mac_idx mac_idx,
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
-	    chip->chip_id == RTL8851B || !is_qta_poh(rtwdev))
+	if (chip->chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev) ||
+	    !is_qta_poh(rtwdev))
 		return 0;
 
 	return preload_init_set(rtwdev, mac_idx, mode);
@@ -2183,8 +2185,7 @@ static void _patch_ss2f_path(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
-	    chip->chip_id == RTL8851B)
+	if (chip->chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev))
 		return;
 
 	rtw89_write32_mask(rtwdev, R_AX_SS2FINFO_PATH, B_AX_SS_DEST_QUEUE_MASK,
@@ -2360,7 +2361,7 @@ static int scheduler_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 		rtw89_write32_mask(rtwdev, reg, B_AX_SIFS_MACTXEN_T1_MASK,
 				   SIFS_MACTXEN_T1);
 
-	if (rtwdev->chip->chip_id == RTL8852B || rtwdev->chip->chip_id == RTL8851B) {
+	if (rtw89_is_rtl885xb(rtwdev)) {
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_SCH_EXT_CTRL, mac_idx);
 		rtw89_write32_set(rtwdev, reg, B_AX_PORT_RST_TSF_ADV);
 	}
@@ -2588,7 +2589,9 @@ static int trxptcl_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 	case RTL8852A:
 		sifs = WMAC_SPEC_SIFS_OFDM_52A;
 		break;
+	case RTL8851B:
 	case RTL8852B:
+	case RTL8852BT:
 		sifs = WMAC_SPEC_SIFS_OFDM_52B;
 		break;
 	default:
@@ -2632,6 +2635,7 @@ static int rmac_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 #define RX_MAX_LEN_UNIT 512
 #define PLD_RLS_MAX_PG 127
 #define RX_SPEC_MAX_LEN (11454 + RX_MAX_LEN_UNIT)
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	int ret;
 	u32 reg, rx_max_len, rx_qta;
 	u16 val;
@@ -2652,6 +2656,8 @@ static int rmac_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 			       B_AX_RX_DLK_DATA_TIME_MASK);
 	val = u16_replace_bits(val, TRXCFG_RMAC_CCA_TO,
 			       B_AX_RX_DLK_CCA_TIME_MASK);
+	if (chip_id == RTL8852BT)
+		val |= B_AX_RX_DLK_RST_EN;
 	rtw89_write16(rtwdev, reg, val);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_RCR, mac_idx);
@@ -2668,8 +2674,7 @@ static int rmac_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 	rx_max_len /= RX_MAX_LEN_UNIT;
 	rtw89_write32_mask(rtwdev, reg, B_AX_RX_MPDU_MAX_LEN_MASK, rx_max_len);
 
-	if (rtwdev->chip->chip_id == RTL8852A &&
-	    rtwdev->hal.cv == CHIP_CBV) {
+	if (chip_id == RTL8852A && rtwdev->hal.cv == CHIP_CBV) {
 		rtw89_write16_mask(rtwdev,
 				   rtw89_mac_reg_by_idx(rtwdev, R_AX_DLK_PROTECT_CTL, mac_idx),
 				   B_AX_RX_DLK_CCA_TIME_MASK, 0);
@@ -2700,7 +2705,7 @@ static int cmac_com_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 	val = u32_replace_bits(val, 0, B_AX_TXSC_80M_MASK);
 	rtw89_write32(rtwdev, reg, val);
 
-	if (chip_id == RTL8852A || chip_id == RTL8852B) {
+	if (chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev)) {
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PTCL_RRSR1, mac_idx);
 		rtw89_write32_mask(rtwdev, reg, B_AX_RRSR_RATE_EN_MASK, RRSR_OFDM_CCK_EN);
 	}
@@ -2766,11 +2771,10 @@ static int ptcl_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 
 static int cmac_dma_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 reg;
 	int ret;
 
-	if (chip_id != RTL8852B)
+	if (!rtw89_is_rtl885xb(rtwdev))
 		return 0;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
@@ -3587,13 +3591,11 @@ static int enable_imr_ax(struct rtw89_dev *rtwdev, u8 mac_idx,
 
 static void err_imr_ctrl_ax(struct rtw89_dev *rtwdev, bool en)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
-
 	rtw89_write32(rtwdev, R_AX_DMAC_ERR_IMR,
 		      en ? DMAC_ERR_IMR_EN : DMAC_ERR_IMR_DIS);
 	rtw89_write32(rtwdev, R_AX_CMAC_ERR_IMR,
 		      en ? CMAC0_ERR_IMR_EN : CMAC0_ERR_IMR_DIS);
-	if (chip_id != RTL8852B && rtwdev->mac.dle_info.c1_rx_qta)
+	if (!rtw89_is_rtl885xb(rtwdev) && rtwdev->mac.dle_info.c1_rx_qta)
 		rtw89_write32(rtwdev, R_AX_CMAC_ERR_IMR_C1,
 			      en ? CMAC1_ERR_IMR_EN : CMAC1_ERR_IMR_DIS);
 }
@@ -3719,10 +3721,9 @@ static int rtw89_mac_feat_init(struct rtw89_dev *rtwdev)
 
 static void rtw89_disable_fw_watchdog(struct rtw89_dev *rtwdev)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 val32;
 
-	if (chip_id == RTL8852B || chip_id == RTL8851B) {
+	if (rtw89_is_rtl885xb(rtwdev)) {
 		rtw89_write32_clr(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_APB_WRAP_EN);
 		rtw89_write32_set(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_APB_WRAP_EN);
 		return;
@@ -3818,7 +3819,7 @@ static void rtw89_mac_dmac_func_pre_en_ax(struct rtw89_dev *rtwdev)
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 val;
 
-	if (chip_id == RTL8851B)
+	if (chip_id == RTL8851B || chip_id == RTL8852BT)
 		val = B_AX_DISPATCHER_CLK_EN | B_AX_AXIDMA_CLK_EN;
 	else
 		val = B_AX_DISPATCHER_CLK_EN;
@@ -5463,18 +5464,19 @@ void rtw89_mac_flush_txq(struct rtw89_dev *rtwdev, u32 queues, bool drop)
 
 int rtw89_mac_coex_init(struct rtw89_dev *rtwdev, const struct rtw89_mac_ax_coex *coex)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u8 val;
 	u16 val16;
 	u32 val32;
 	int ret;
 
 	rtw89_write8_set(rtwdev, R_AX_GPIO_MUXCFG, B_AX_ENBT);
-	if (rtwdev->chip->chip_id != RTL8851B)
+	if (chip_id != RTL8851B && chip_id != RTL8852BT)
 		rtw89_write8_set(rtwdev, R_AX_BTC_FUNC_EN, B_AX_PTA_WL_TX_EN);
 	rtw89_write8_set(rtwdev, R_AX_BT_COEX_CFG_2 + 1, B_AX_GNT_BT_POLARITY >> 8);
 	rtw89_write8_set(rtwdev, R_AX_CSR_MODE, B_AX_STATIS_BT_EN | B_AX_WL_ACT_MSK);
 	rtw89_write8_set(rtwdev, R_AX_CSR_MODE + 2, B_AX_BT_CNT_RST >> 16);
-	if (rtwdev->chip->chip_id != RTL8851B)
+	if (chip_id != RTL8851B && chip_id != RTL8852BT)
 		rtw89_write8_clr(rtwdev, R_AX_TRXPTCL_RESP_0 + 3, B_AX_RSP_CHK_BTCCA >> 24);
 
 	val16 = rtw89_read16(rtwdev, R_AX_CCA_CFG_0);
@@ -5757,8 +5759,7 @@ bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev)
 
 	if (chip->chip_id == RTL8852C || chip->chip_id == RTL8922A)
 		return false;
-	else if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
-		 chip->chip_id == RTL8851B)
+	else if (chip->chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev))
 		val = rtw89_read8_mask(rtwdev, R_AX_SYS_SDIO_CTRL + 3,
 				       B_AX_LTE_MUX_CTRL_PATH >> 24);
 

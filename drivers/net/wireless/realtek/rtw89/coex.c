@@ -228,6 +228,7 @@ static u32 chip_id_to_bt_rom_code_id(u32 id)
 	case RTL8852A:
 	case RTL8852B:
 	case RTL8852C:
+	case RTL8852BT:
 		return 0x8852;
 	case RTL8851B:
 		return 0x8851;
@@ -9514,7 +9515,7 @@ static void _get_gnt(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_coex_gnt *gnt
 	u32 val, status;
 
 	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
-	    chip->chip_id == RTL8851B) {
+	    chip->chip_id == RTL8851B || chip->chip_id == RTL8852BT) {
 		rtw89_mac_read_lte(rtwdev, R_AX_LTE_SW_CFG_1, &val);
 		rtw89_mac_read_lte(rtwdev, R_AX_GNT_VAL, &status);
 

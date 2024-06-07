@@ -1676,7 +1676,7 @@ static void rtw89_phy_preinit_rf_nctl_ax(struct rtw89_dev *rtwdev)
 	rtw89_phy_write32_set(rtwdev, R_P0_PATH_RST, 0x8000000);
 	if (chip->chip_id != RTL8851B)
 		rtw89_phy_write32_set(rtwdev, R_P1_PATH_RST, 0x8000000);
-	if (chip->chip_id == RTL8852B)
+	if (chip->chip_id == RTL8852B || chip->chip_id == RTL8852BT)
 		rtw89_phy_write32_set(rtwdev, R_IOQ_IQK_DPK, 0x2);
 
 	/* check 0x8080 */

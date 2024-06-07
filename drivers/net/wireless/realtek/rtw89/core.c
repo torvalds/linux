@@ -4382,7 +4382,7 @@ static void rtw89_read_chip_ver(struct rtw89_dev *rtwdev)
 
 	rtwdev->hal.cv = cv;
 
-	if (chip->chip_id == RTL8852B || chip->chip_id == RTL8851B) {
+	if (rtw89_is_rtl885xb(rtwdev)) {
 		ret = rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_CV, &val);
 		if (ret)
 			return;
