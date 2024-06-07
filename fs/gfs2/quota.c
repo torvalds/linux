@@ -891,7 +891,8 @@ static int gfs2_adjust_quota(struct gfs2_sbd *sdp, loff_t loc,
 	return err;
 }
 
-static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
+static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda,
+		   u64 sync_gen)
 {
 	struct gfs2_sbd *sdp = (*qda)->qd_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
@@ -982,8 +983,13 @@ out_dq:
 	gfs2_log_flush(ip->i_gl->gl_name.ln_sbd, ip->i_gl,
 		       GFS2_LOG_HEAD_FLUSH_NORMAL | GFS2_LFC_DO_SYNC);
 	if (!error) {
-		for (x = 0; x < num_qd; x++)
-			qda[x]->qd_sync_gen = sdp->sd_quota_sync_gen;
+		for (x = 0; x < num_qd; x++) {
+			qd = qda[x];
+			spin_lock(&qd->qd_lockref.lock);
+			if (qd->qd_sync_gen < sync_gen)
+				qd->qd_sync_gen = sync_gen;
+			spin_unlock(&qd->qd_lockref.lock);
+		}
 	}
 	return error;
 }
@@ -1177,7 +1183,9 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 	}
 
 	if (count) {
-		do_sync(count, qda);
+		u64 sync_gen = READ_ONCE(sdp->sd_quota_sync_gen);
+
+		do_sync(count, qda, sync_gen);
 		for (x = 0; x < count; x++)
 			qd_unlock(qda[x]);
 	}
@@ -1323,6 +1331,7 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_quota_data **qda;
 	unsigned int max_qd = PAGE_SIZE / sizeof(struct gfs2_holder);
+	u64 sync_gen;
 	int error = 0;
 
 	if (sb_rdonly(sdp->sd_vfs))
@@ -1335,7 +1344,7 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 		return -ENOMEM;
 
 	mutex_lock(&sdp->sd_quota_sync_mutex);
-	sdp->sd_quota_sync_gen++;
+	sync_gen = sdp->sd_quota_sync_gen + 1;
 
 	do {
 		struct gfs2_quota_data *iter;
@@ -1344,7 +1353,7 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 
 		spin_lock(&qd_lock);
 		list_for_each_entry(iter, &sdp->sd_quota_list, qd_list) {
-			if (qd_grab_sync(sdp, iter, sdp->sd_quota_sync_gen)) {
+			if (qd_grab_sync(sdp, iter, sync_gen)) {
 				qda[num_qd++] = iter;
 				if (num_qd == max_qd)
 					break;
@@ -1365,8 +1374,10 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 			break;
 		}
 
-		if (!error)
-			error = do_sync(num_qd, qda);
+		if (!error) {
+			WRITE_ONCE(sdp->sd_quota_sync_gen, sync_gen);
+			error = do_sync(num_qd, qda, sync_gen);
+		}
 
 		for (x = 0; x < num_qd; x++)
 			qd_unlock(qda[x]);
