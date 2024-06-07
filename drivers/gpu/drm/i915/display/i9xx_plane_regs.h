@@ -38,10 +38,12 @@
 #define   DISP_STEREO_POLARITY_SECOND	REG_BIT(18)
 #define   DISP_ALPHA_PREMULTIPLY	REG_BIT(16) /* CHV pipe B */
 #define   DISP_ROTATE_180		REG_BIT(15) /* i965+ */
+#define   DISP_ALPHA_TRANS_ENABLE	REG_BIT(15) /* pre-g4x plane B */
 #define   DISP_TRICKLE_FEED_DISABLE	REG_BIT(14) /* g4x+ */
 #define   DISP_TILED			REG_BIT(10) /* i965+ */
 #define   DISP_ASYNC_FLIP		REG_BIT(9) /* g4x+ */
 #define   DISP_MIRROR			REG_BIT(8) /* CHV pipe B */
+#define   DISP_SPRITE_ABOVE_OVERLAY	REG_BIT(0) /* pre-g4x plane B/C */
 
 #define _DSPAADDR				0x70184 /* pre-i965 */
 #define DSPADDR(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPAADDR)
