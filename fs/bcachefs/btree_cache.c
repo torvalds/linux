@@ -1257,6 +1257,14 @@ const char *bch2_btree_id_str(enum btree_id btree)
 	return btree < BTREE_ID_NR ? __bch2_btree_ids[btree] : "(unknown)";
 }
 
+void bch2_btree_id_to_text(struct printbuf *out, enum btree_id btree)
+{
+	if (btree < BTREE_ID_NR)
+		prt_str(out, __bch2_btree_ids[btree]);
+	else
+		prt_printf(out, "(unknown btree %u)", btree);
+}
+
 void bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
 {
 	prt_printf(out, "%s level %u/%u\n  ",
