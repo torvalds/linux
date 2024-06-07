@@ -815,12 +815,6 @@ static void ieee80211_uninit(struct net_device *dev)
 	ieee80211_teardown_sdata(IEEE80211_DEV_TO_SUB_IF(dev));
 }
 
-static void
-ieee80211_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
-{
-	dev_fetch_sw_netstats(stats, dev->tstats);
-}
-
 static int ieee80211_netdev_setup_tc(struct net_device *dev,
 				     enum tc_setup_type type, void *type_data)
 {
@@ -837,7 +831,6 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_start_xmit		= ieee80211_subif_start_xmit,
 	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
 	.ndo_set_mac_address 	= ieee80211_change_mac,
-	.ndo_get_stats64	= ieee80211_get_stats64,
 	.ndo_setup_tc		= ieee80211_netdev_setup_tc,
 };
 
@@ -877,7 +870,6 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
 	.ndo_set_mac_address 	= ieee80211_change_mac,
 	.ndo_select_queue	= ieee80211_monitor_select_queue,
-	.ndo_get_stats64	= ieee80211_get_stats64,
 };
 
 static int ieee80211_netdev_fill_forward_path(struct net_device_path_ctx *ctx,
@@ -945,7 +937,6 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
 	.ndo_start_xmit		= ieee80211_subif_start_xmit_8023,
 	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
 	.ndo_set_mac_address	= ieee80211_change_mac,
-	.ndo_get_stats64	= ieee80211_get_stats64,
 	.ndo_fill_forward_path	= ieee80211_netdev_fill_forward_path,
 	.ndo_setup_tc		= ieee80211_netdev_setup_tc,
 };
