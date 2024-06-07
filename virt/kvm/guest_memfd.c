@@ -629,6 +629,11 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long 
 		gfn_t gfn = start_gfn + i;
 		kvm_pfn_t pfn;
 
+		if (signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+
 		ret = __kvm_gmem_get_pfn(file, slot, gfn, &pfn, &max_order, false);
 		if (ret)
 			break;
