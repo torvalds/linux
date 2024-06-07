@@ -62,7 +62,7 @@ int thermal_zone_get_num_trips(struct thermal_zone_device *tz)
 EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
 
 /**
- * __thermal_zone_set_trips - Computes the next trip points for the driver
+ * thermal_zone_set_trips - Computes the next trip points for the driver
  * @tz: a pointer to a thermal zone device structure
  *
  * The function computes the next temperature boundaries by browsing
@@ -76,7 +76,7 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
  *
  * It does not return a value
  */
-void __thermal_zone_set_trips(struct thermal_zone_device *tz)
+void thermal_zone_set_trips(struct thermal_zone_device *tz)
 {
 	const struct thermal_trip_desc *td;
 	int low = -INT_MAX, high = INT_MAX;
