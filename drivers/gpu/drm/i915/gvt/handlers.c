@@ -886,12 +886,12 @@ static unsigned int calc_index(unsigned int offset, i915_reg_t _start,
 	u32 start = i915_mmio_reg_offset(_start);
 	u32 next = i915_mmio_reg_offset(_next);
 	u32 end = i915_mmio_reg_offset(_end);
-	unsigned int range = next - start;
+	u32 stride = next - start;
 
 	if (offset < start || offset > end)
 		return INVALID_INDEX;
 	offset -= start;
-	return offset / range;
+	return offset / stride;
 }
 
 #define FDI_RX_CTL_TO_PIPE(offset) \
