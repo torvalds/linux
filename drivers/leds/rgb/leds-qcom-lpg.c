@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2017-2022 Linaro Ltd
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/bits.h>
 #include <linux/bitfield.h>
@@ -254,6 +254,9 @@ static int lpg_clear_pbs_trigger(struct lpg *lpg, unsigned int lut_mask)
 	u8 val = 0;
 	int rc;
 
+	if (!lpg->lpg_chan_sdam)
+		return 0;
+
 	lpg->pbs_en_bitmap &= (~lut_mask);
 	if (!lpg->pbs_en_bitmap) {
 		rc = nvmem_device_write(lpg->lpg_chan_sdam, SDAM_REG_PBS_SEQ_EN, 1, &val);
@@ -275,6 +278,9 @@ static int lpg_set_pbs_trigger(struct lpg *lpg, unsigned int lut_mask)
 {
 	u8 val = PBS_SW_TRIG_BIT;
 	int rc;
+
+	if (!lpg->lpg_chan_sdam)
+		return 0;
 
 	if (!lpg->pbs_en_bitmap) {
 		rc = nvmem_device_write(lpg->lpg_chan_sdam, SDAM_REG_PBS_SEQ_EN, 1, &val);
