@@ -158,8 +158,6 @@ static void netfs_prepare_write(struct netfs_io_request *wreq,
 	subreq = netfs_alloc_subrequest(wreq);
 	subreq->source		= stream->source;
 	subreq->start		= start;
-	subreq->max_len		= ULONG_MAX;
-	subreq->max_nr_segs	= INT_MAX;
 	subreq->stream_nr	= stream->stream_nr;
 
 	_enter("R=%x[%x]", wreq->debug_id, subreq->debug_index);
@@ -170,10 +168,12 @@ static void netfs_prepare_write(struct netfs_io_request *wreq,
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_prepare);
 
+	stream->sreq_max_len	= UINT_MAX;
+	stream->sreq_max_segs	= INT_MAX;
 	switch (stream->source) {
 	case NETFS_UPLOAD_TO_SERVER:
 		netfs_stat(&netfs_n_wh_upload);
-		subreq->max_len = wreq->wsize;
+		stream->sreq_max_len = wreq->wsize;
 		break;
 	case NETFS_WRITE_TO_CACHE:
 		netfs_stat(&netfs_n_wh_write);
@@ -290,13 +290,13 @@ int netfs_advance_write(struct netfs_io_request *wreq,
 		netfs_prepare_write(wreq, stream, start);
 	subreq = stream->construct;
 
-	part = min(subreq->max_len - subreq->len, len);
-	_debug("part %zx/%zx %zx/%zx", subreq->len, subreq->max_len, part, len);
+	part = umin(stream->sreq_max_len - subreq->len, len);
+	_debug("part %zx/%zx %zx/%zx", subreq->len, stream->sreq_max_len, part, len);
 	subreq->len += part;
 	subreq->nr_segs++;
 
-	if (subreq->len >= subreq->max_len ||
-	    subreq->nr_segs >= subreq->max_nr_segs ||
+	if (subreq->len >= stream->sreq_max_len ||
+	    subreq->nr_segs >= stream->sreq_max_segs ||
 	    to_eof) {
 		netfs_issue_write(wreq, stream);
 		subreq = NULL;

@@ -624,9 +624,9 @@ netfs_rreq_prepare_read(struct netfs_io_request *rreq,
 			goto out;
 		}
 
-		if (subreq->max_nr_segs) {
+		if (rreq->io_streams[0].sreq_max_segs) {
 			lsize = netfs_limit_iter(io_iter, 0, subreq->len,
-						 subreq->max_nr_segs);
+						 rreq->io_streams[0].sreq_max_segs);
 			if (subreq->len > lsize) {
 				subreq->len = lsize;
 				trace_netfs_sreq(subreq, netfs_sreq_trace_limited);

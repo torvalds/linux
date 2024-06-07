@@ -627,11 +627,12 @@ static void cachefiles_prepare_write_subreq(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *wreq = subreq->rreq;
 	struct netfs_cache_resources *cres = &wreq->cache_resources;
+	struct netfs_io_stream *stream = &wreq->io_streams[subreq->stream_nr];
 
 	_enter("W=%x[%x] %llx", wreq->debug_id, subreq->debug_index, subreq->start);
 
-	subreq->max_len = MAX_RW_COUNT;
-	subreq->max_nr_segs = BIO_MAX_VECS;
+	stream->sreq_max_len = MAX_RW_COUNT;
+	stream->sreq_max_segs = BIO_MAX_VECS;
 
 	if (!cachefiles_cres_file(cres)) {
 		if (!fscache_wait_for_operation(cres, FSCACHE_WANT_WRITE))

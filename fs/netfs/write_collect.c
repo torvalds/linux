@@ -238,7 +238,7 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 			__set_bit(NETFS_SREQ_RETRYING, &subreq->flags);
 			stream->prepare_write(subreq);
 
-			part = min(len, subreq->max_len);
+			part = min(len, stream->sreq_max_len);
 			subreq->len = part;
 			subreq->start = start;
 			subreq->transferred = 0;
@@ -278,8 +278,6 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 			subreq = netfs_alloc_subrequest(wreq);
 			subreq->source		= to->source;
 			subreq->start		= start;
-			subreq->max_len		= len;
-			subreq->max_nr_segs	= INT_MAX;
 			subreq->debug_index	= atomic_inc_return(&wreq->subreq_counter);
 			subreq->stream_nr	= to->stream_nr;
 			__set_bit(NETFS_SREQ_RETRYING, &subreq->flags);
@@ -293,10 +291,12 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 			to = list_next_entry(to, rreq_link);
 			trace_netfs_sreq(subreq, netfs_sreq_trace_retry);
 
+			stream->sreq_max_len	= len;
+			stream->sreq_max_segs	= INT_MAX;
 			switch (stream->source) {
 			case NETFS_UPLOAD_TO_SERVER:
 				netfs_stat(&netfs_n_wh_upload);
-				subreq->max_len = min(len, wreq->wsize);
+				stream->sreq_max_len = umin(len, wreq->wsize);
 				break;
 			case NETFS_WRITE_TO_CACHE:
 				netfs_stat(&netfs_n_wh_write);
@@ -307,7 +307,7 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 
 			stream->prepare_write(subreq);
 
-			part = min(len, subreq->max_len);
+			part = umin(len, stream->sreq_max_len);
 			subreq->len = subreq->transferred + part;
 			len -= part;
 			start += part;
