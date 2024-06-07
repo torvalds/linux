@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/genalloc.h>
 #include <linux/mailbox_client.h>
@@ -429,20 +429,6 @@ static int qrtr_genpool_irq_init(struct qrtr_genpool_dev *qdev)
 	struct device *dev = qdev->dev;
 	int irq, rc;
 
-	irq = of_irq_get(dev->of_node, IRQ_SETUP_IDX);
-	if (irq < 0)
-		return irq;
-
-	qdev->irq_setup = irq;
-	snprintf(qdev->irq_setup_label, LABEL_SIZE, "%s-setup", qdev->label);
-	rc = devm_request_irq(dev, qdev->irq_setup, qrtr_genpool_setup_intr, 0,
-			      qdev->irq_setup_label, qdev);
-	if (rc) {
-		dev_err(dev, "failed to request setup IRQ: %d\n", rc);
-		return rc;
-	}
-	enable_irq_wake(qdev->irq_setup);
-
 	irq = of_irq_get(dev->of_node, IRQ_XFER_IDX);
 	if (irq < 0)
 		return irq;
@@ -456,6 +442,20 @@ static int qrtr_genpool_irq_init(struct qrtr_genpool_dev *qdev)
 		return rc;
 	}
 	enable_irq_wake(qdev->irq_xfer);
+
+	irq = of_irq_get(dev->of_node, IRQ_SETUP_IDX);
+	if (irq < 0)
+		return irq;
+
+	qdev->irq_setup = irq;
+	snprintf(qdev->irq_setup_label, LABEL_SIZE, "%s-setup", qdev->label);
+	rc = devm_request_irq(dev, qdev->irq_setup, qrtr_genpool_setup_intr, 0,
+			      qdev->irq_setup_label, qdev);
+	if (rc) {
+		dev_err(dev, "failed to request setup IRQ: %d\n", rc);
+		return rc;
+	}
+	enable_irq_wake(qdev->irq_setup);
 
 	return 0;
 }
