@@ -1448,6 +1448,30 @@ static struct mount *mnt_find_id_at(struct mnt_namespace *ns, u64 mnt_id)
 	return ret;
 }
 
+/*
+ * Returns the mount which either has the specified mnt_id, or has the next
+ * greater id before the specified one.
+ */
+static struct mount *mnt_find_id_at_reverse(struct mnt_namespace *ns, u64 mnt_id)
+{
+	struct rb_node *node = ns->mounts.rb_node;
+	struct mount *ret = NULL;
+
+	while (node) {
+		struct mount *m = node_to_mount(node);
+
+		if (mnt_id >= m->mnt_id_unique) {
+			ret = node_to_mount(node);
+			if (mnt_id == m->mnt_id_unique)
+				break;
+			node = node->rb_right;
+		} else {
+			node = node->rb_left;
+		}
+	}
+	return ret;
+}
+
 #ifdef CONFIG_PROC_FS
 
 /* iterator; we want it to have access to namespace_sem, thus here... */
@@ -5042,13 +5066,20 @@ retry:
 	return ret;
 }
 
-static struct mount *listmnt_next(struct mount *curr)
+static struct mount *listmnt_next(struct mount *curr, bool reverse)
 {
-	return node_to_mount(rb_next(&curr->mnt_node));
+	struct rb_node *node;
+
+	if (reverse)
+		node = rb_prev(&curr->mnt_node);
+	else
+		node = rb_next(&curr->mnt_node);
+
+	return node_to_mount(node);
 }
 
 static ssize_t do_listmount(u64 mnt_parent_id, u64 last_mnt_id, u64 *mnt_ids,
-			    size_t nr_mnt_ids)
+			    size_t nr_mnt_ids, bool reverse)
 {
 	struct path root __free(path_put) = {};
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
@@ -5080,12 +5111,19 @@ static ssize_t do_listmount(u64 mnt_parent_id, u64 last_mnt_id, u64 *mnt_ids,
 	if (ret)
 		return ret;
 
-	if (!last_mnt_id)
-		first = node_to_mount(rb_first(&ns->mounts));
-	else
-		first = mnt_find_id_at(ns, last_mnt_id + 1);
+	if (!last_mnt_id) {
+		if (reverse)
+			first = node_to_mount(rb_last(&ns->mounts));
+		else
+			first = node_to_mount(rb_first(&ns->mounts));
+	} else {
+		if (reverse)
+			first = mnt_find_id_at_reverse(ns, last_mnt_id - 1);
+		else
+			first = mnt_find_id_at(ns, last_mnt_id + 1);
+	}
 
-	for (ret = 0, r = first; r && nr_mnt_ids; r = listmnt_next(r)) {
+	for (ret = 0, r = first; r && nr_mnt_ids; r = listmnt_next(r, reverse)) {
 		if (r->mnt_id_unique == mnt_parent_id)
 			continue;
 		if (!is_path_reachable(r, r->mnt.mnt_root, &orig))
@@ -5106,7 +5144,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	struct mnt_id_req kreq;
 	ssize_t ret;
 
-	if (flags)
+	if (flags & ~LISTMOUNT_REVERSE)
 		return -EINVAL;
 
 	/*
@@ -5130,7 +5168,8 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 		return -ENOMEM;
 
 	scoped_guard(rwsem_read, &namespace_sem)
-		ret = do_listmount(kreq.mnt_id, kreq.param, kmnt_ids, nr_mnt_ids);
+		ret = do_listmount(kreq.mnt_id, kreq.param, kmnt_ids,
+				   nr_mnt_ids, (flags & LISTMOUNT_REVERSE));
 
 	if (copy_to_user(mnt_ids, kmnt_ids, ret * sizeof(*mnt_ids)))
 		return -EFAULT;

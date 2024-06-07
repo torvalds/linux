@@ -207,5 +207,6 @@ struct mnt_id_req {
  * Special @mnt_id values that can be passed to listmount
  */
 #define LSMT_ROOT		0xffffffffffffffff	/* root mount */
+#define LISTMOUNT_REVERSE	(1 << 0) /* List later mounts first */
 
 #endif /* _UAPI_LINUX_MOUNT_H */
