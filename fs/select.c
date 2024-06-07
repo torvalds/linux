@@ -855,15 +855,14 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 				     __poll_t busy_flag)
 {
 	int fd = pollfd->fd;
-	__poll_t mask = 0, filter;
-	struct fd f;
+	__poll_t mask, filter;
 
 	if (fd < 0)
-		goto out;
-	mask = EPOLLNVAL;
-	f = fdget(fd);
-	if (!fd_file(f))
-		goto out;
+		return 0;
+
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
+		return EPOLLNVAL;
 
 	/* userland u16 ->events contains POLL... bitmap */
 	filter = demangle_poll(pollfd->events) | EPOLLERR | EPOLLHUP;
@@ -871,13 +870,7 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 	mask = vfs_poll(fd_file(f), pwait);
 	if (mask & busy_flag)
 		*can_busy_poll = true;
-	mask &= filter;		/* Mask out unneeded events. */
-	fdput(f);
-
-out:
-	/* ... and so does ->revents */
-	pollfd->revents = mangle_poll(mask);
-	return mask;
+	return mask & filter;		/* Mask out unneeded events. */
 }
 
 static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
@@ -909,6 +902,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
 			pfd = walk->entries;
 			pfd_end = pfd + walk->len;
 			for (; pfd != pfd_end; pfd++) {
+				__poll_t mask;
 				/*
 				 * Fish for events. If we found one, record it
 				 * and kill poll_table->_qproc, so we don't
@@ -916,8 +910,9 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
 				 * this. They'll get immediately deregistered
 				 * when we break out and return.
 				 */
-				if (do_pollfd(pfd, pt, &can_busy_loop,
-					      busy_flag)) {
+				mask = do_pollfd(pfd, pt, &can_busy_loop, busy_flag);
+				pfd->revents = mangle_poll(mask);
+				if (mask) {
 					count++;
 					pt->_qproc = NULL;
 					/* found something, stop busy polling */
