@@ -20,58 +20,64 @@
 #include "xe_sched_job.h"
 #include "xe_vm.h"
 
+#define __dev_name_xe(xe)	dev_name((xe)->drm.dev)
+#define __dev_name_gt(gt)	__dev_name_xe(gt_to_xe((gt)))
+#define __dev_name_eq(q)	__dev_name_gt((q)->gt)
+
 DECLARE_EVENT_CLASS(xe_gt_tlb_invalidation_fence,
-		    TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
-		    TP_ARGS(fence),
+		    TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+		    TP_ARGS(xe, fence),
 
 		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_xe(xe))
 			     __field(struct xe_gt_tlb_invalidation_fence *, fence)
 			     __field(int, seqno)
 			     ),
 
 		    TP_fast_assign(
+			   __assign_str(dev);
 			   __entry->fence = fence;
 			   __entry->seqno = fence->seqno;
 			   ),
 
-		    TP_printk("fence=%p, seqno=%d",
-			      __entry->fence, __entry->seqno)
+		    TP_printk("dev=%s, fence=%p, seqno=%d",
+			      __get_str(dev), __entry->fence, __entry->seqno)
 );
 
 DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_create,
-	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(fence)
+	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(xe, fence)
 );
 
 DEFINE_EVENT(xe_gt_tlb_invalidation_fence,
 	     xe_gt_tlb_invalidation_fence_work_func,
-	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(fence)
+	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(xe, fence)
 );
 
 DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_cb,
-	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(fence)
+	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(xe, fence)
 );
 
 DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_send,
-	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(fence)
+	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(xe, fence)
 );
 
 DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_recv,
-	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(fence)
+	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(xe, fence)
 );
 
 DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_signal,
-	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(fence)
+	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(xe, fence)
 );
 
 DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_timeout,
-	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(fence)
+	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(xe, fence)
 );
 
 DECLARE_EVENT_CLASS(xe_exec_queue,
@@ -79,6 +85,7 @@ DECLARE_EVENT_CLASS(xe_exec_queue,
 		    TP_ARGS(q),
 
 		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_eq(q))
 			     __field(enum xe_engine_class, class)
 			     __field(u32, logical_mask)
 			     __field(u8, gt_id)
@@ -89,6 +96,7 @@ DECLARE_EVENT_CLASS(xe_exec_queue,
 			     ),
 
 		    TP_fast_assign(
+			   __assign_str(dev);
 			   __entry->class = q->class;
 			   __entry->logical_mask = q->logical_mask;
 			   __entry->gt_id = q->gt->info.id;
@@ -98,8 +106,8 @@ DECLARE_EVENT_CLASS(xe_exec_queue,
 			   __entry->flags = q->flags;
 			   ),
 
-		    TP_printk("%d:0x%x, gt=%d, width=%d, guc_id=%d, guc_state=0x%x, flags=0x%x",
-			      __entry->class, __entry->logical_mask,
+		    TP_printk("dev=%s, %d:0x%x, gt=%d, width=%d, guc_id=%d, guc_state=0x%x, flags=0x%x",
+			      __get_str(dev), __entry->class, __entry->logical_mask,
 			      __entry->gt_id, __entry->width, __entry->guc_id,
 			      __entry->guc_state, __entry->flags)
 );
@@ -199,6 +207,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 		    TP_ARGS(job),
 
 		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_eq(job->q))
 			     __field(u32, seqno)
 			     __field(u32, lrc_seqno)
 			     __field(u16, guc_id)
@@ -210,6 +219,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			     ),
 
 		    TP_fast_assign(
+			   __assign_str(dev);
 			   __entry->seqno = xe_sched_job_seqno(job);
 			   __entry->lrc_seqno = xe_sched_job_lrc_seqno(job);
 			   __entry->guc_id = job->q->guc->id;
@@ -221,8 +231,8 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			   __entry->batch_addr = (u64)job->ptrs[0].batch_addr;
 			   ),
 
-		    TP_printk("fence=%p, seqno=%u, lrc_seqno=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
-			      __entry->fence, __entry->seqno,
+		    TP_printk("dev=%s, fence=%p, seqno=%u, lrc_seqno=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
+			      __get_str(dev), __entry->fence, __entry->seqno,
 			      __entry->lrc_seqno, __entry->guc_id,
 			      __entry->batch_addr, __entry->guc_state,
 			      __entry->flags, __entry->error)
@@ -268,17 +278,19 @@ DECLARE_EVENT_CLASS(xe_sched_msg,
 		    TP_ARGS(msg),
 
 		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_eq(((struct xe_exec_queue *)msg->private_data)))
 			     __field(u32, opcode)
 			     __field(u16, guc_id)
 			     ),
 
 		    TP_fast_assign(
+			   __assign_str(dev);
 			   __entry->opcode = msg->opcode;
 			   __entry->guc_id =
 			   ((struct xe_exec_queue *)msg->private_data)->guc->id;
 			   ),
 
-		    TP_printk("guc_id=%d, opcode=%u", __entry->guc_id,
+		    TP_printk("dev=%s, guc_id=%d, opcode=%u", __get_str(dev), __entry->guc_id,
 			      __entry->opcode)
 );
 
@@ -297,19 +309,21 @@ DECLARE_EVENT_CLASS(xe_hw_fence,
 		    TP_ARGS(fence),
 
 		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_gt(fence->ctx->gt))
 			     __field(u64, ctx)
 			     __field(u32, seqno)
 			     __field(struct xe_hw_fence *, fence)
 			     ),
 
 		    TP_fast_assign(
+			   __assign_str(dev);
 			   __entry->ctx = fence->dma.context;
 			   __entry->seqno = fence->dma.seqno;
 			   __entry->fence = fence;
 			   ),
 
-		    TP_printk("ctx=0x%016llx, fence=%p, seqno=%u",
-			      __entry->ctx, __entry->fence, __entry->seqno)
+		    TP_printk("dev=%s, ctx=0x%016llx, fence=%p, seqno=%u",
+			      __get_str(dev), __entry->ctx, __entry->fence, __entry->seqno)
 );
 
 DEFINE_EVENT(xe_hw_fence, xe_hw_fence_create,
