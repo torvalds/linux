@@ -6989,17 +6989,21 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 			dwc3_msm_clear_dp_only_params(mdwc);
 		}
 
-		usb_role_switch_set_role(mdwc->dwc3_drd_sw, USB_ROLE_DEVICE);
-		if (dwc->dr_mode == USB_DR_MODE_OTG)
-			flush_work(&dwc->drd_work);
-
-		usb_phy_notify_disconnect(mdwc->hs_phy, USB_SPEED_HIGH);
+		/*
+		 * Performing phy disconnect before flush work to
+		 * address TypeC certification--TD 4.7.4 failure.
+		 */
 		if (mdwc->ss_phy->flags & PHY_HOST_MODE) {
 			usb_phy_notify_disconnect(mdwc->ss_phy,
 					USB_SPEED_SUPER);
 			mdwc->ss_phy->flags &= ~PHY_HOST_MODE;
 		}
 		usb_redriver_notify_disconnect(mdwc->redriver);
+		usb_phy_notify_disconnect(mdwc->hs_phy, USB_SPEED_HIGH);
+
+		usb_role_switch_set_role(mdwc->dwc3_drd_sw, USB_ROLE_DEVICE);
+		if (dwc->dr_mode == USB_DR_MODE_OTG)
+			flush_work(&dwc->drd_work);
 
 		mdwc->hs_phy->flags &= ~PHY_HOST_MODE;
 		usb_unregister_notify(&mdwc->host_nb);
