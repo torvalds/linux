@@ -170,15 +170,15 @@ static irqreturn_t pm8941_pwrkey_irq(int irq, void *_data)
 	if (err)
 		return IRQ_HANDLED;
 
+	if (pwrkey->log_kpd_event)
+		pr_info_ratelimited("PMIC input: KPDPWR status=0x%02x, KPDPWR_ON=%d\n",
+			sts, !!(sts & pwrkey->data->status_bit));
+
 	sts &= pwrkey->data->status_bit;
 
 	if (pwrkey->sw_debounce_time_us && !sts)
 		pwrkey->sw_debounce_end_time = ktime_add_us(ktime_get(),
 						pwrkey->sw_debounce_time_us);
-
-	if (pwrkey->log_kpd_event)
-		pr_info_ratelimited("PMIC input: KPDPWR status=0x%02x, KPDPWR_ON=%d\n",
-			sts, (sts & PON_KPDPWR_N_SET));
 
 	/*
 	 * Simulate a press event in case a release event occurred without a
