@@ -422,24 +422,6 @@ void nop_func(void);
  * @newinstr. ".skip" directive takes care of proper instruction padding
  * in case @newinstr is longer than @oldinstr.
  */
-.macro ALTERNATIVE oldinstr, newinstr, ft_flags
-140:
-	\oldinstr
-141:
-	.skip -(((144f-143f)-(141b-140b)) > 0) * ((144f-143f)-(141b-140b)),0x90
-142:
-
-	.pushsection .altinstructions,"a"
-	altinstr_entry 140b,143f,\ft_flags,142b-140b,144f-143f
-	.popsection
-
-	.pushsection .altinstr_replacement,"ax"
-143:
-	\newinstr
-144:
-	.popsection
-.endm
-
 #define __N_ALTERNATIVE(oldinst, newinst, flag)				\
 740:									\
 	oldinst	;							\
@@ -455,11 +437,9 @@ void nop_func(void);
 744:									\
 	.popsection ;
 
-
-.macro N_ALTERNATIVE oldinstr, newinstr, ft_flags
+.macro ALTERNATIVE oldinstr, newinstr, ft_flags
 	__N_ALTERNATIVE(\oldinstr, \newinstr, \ft_flags)
 .endm
-
 
 #define old_len			141b-140b
 #define new_len1		144f-143f
