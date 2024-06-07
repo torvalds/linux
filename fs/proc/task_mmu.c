@@ -488,12 +488,12 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
 		return;
 	}
 	/*
-	 * The page_mapcount() is called to get a snapshot of the mapcount.
-	 * Without holding the folio lock this snapshot can be slightly wrong as
-	 * we cannot always read the mapcount atomically.
+	 * We obtain a snapshot of the mapcount. Without holding the folio lock
+	 * this snapshot can be slightly wrong as we cannot always read the
+	 * mapcount atomically.
 	 */
 	for (i = 0; i < nr; i++, page++) {
-		int mapcount = page_mapcount(page);
+		int mapcount = folio_precise_page_mapcount(folio, page);
 		unsigned long pss = PAGE_SIZE << PSS_SHIFT;
 		if (mapcount >= 2)
 			pss /= mapcount;
@@ -1427,6 +1427,7 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
 {
 	u64 frame = 0, flags = 0;
 	struct page *page = NULL;
+	struct folio *folio;
 
 	if (pte_present(pte)) {
 		if (pm->show_pfn)
@@ -1464,10 +1465,14 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
 			flags |= PM_UFFD_WP;
 	}
 
-	if (page && !PageAnon(page))
-		flags |= PM_FILE;
-	if (page && (flags & PM_PRESENT) && page_mapcount(page) == 1)
-		flags |= PM_MMAP_EXCLUSIVE;
+	if (page) {
+		folio = page_folio(page);
+		if (!folio_test_anon(folio))
+			flags |= PM_FILE;
+		if ((flags & PM_PRESENT) &&
+		    folio_precise_page_mapcount(folio, page) == 1)
+			flags |= PM_MMAP_EXCLUSIVE;
+	}
 	if (vma->vm_flags & VM_SOFTDIRTY)
 		flags |= PM_SOFT_DIRTY;
 
@@ -1490,6 +1495,7 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
 		u64 flags = 0, frame = 0;
 		pmd_t pmd = *pmdp;
 		struct page *page = NULL;
+		struct folio *folio = NULL;
 
 		if (vma->vm_flags & VM_SOFTDIRTY)
 			flags |= PM_SOFT_DIRTY;
@@ -1528,15 +1534,18 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
 		}
 #endif
 
-		if (page && !PageAnon(page))
-			flags |= PM_FILE;
+		if (page) {
+			folio = page_folio(page);
+			if (!folio_test_anon(folio))
+				flags |= PM_FILE;
+		}
 
 		for (; addr != end; addr += PAGE_SIZE, idx++) {
 			unsigned long cur_flags = flags;
 			pagemap_entry_t pme;
 
-			if (page && (flags & PM_PRESENT) &&
-			    page_mapcount(page + idx) == 1)
+			if (folio && (flags & PM_PRESENT) &&
+			    folio_precise_page_mapcount(folio, page + idx) == 1)
 				cur_flags |= PM_MMAP_EXCLUSIVE;
 
 			pme = make_pme(frame, cur_flags);
@@ -2575,7 +2584,7 @@ static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty,
 			unsigned long nr_pages)
 {
 	struct folio *folio = page_folio(page);
-	int count = page_mapcount(page);
+	int count = folio_precise_page_mapcount(folio, page);
 
 	md->pages += nr_pages;
 	if (pte_dirty || folio_test_dirty(folio))
