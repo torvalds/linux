@@ -1458,11 +1458,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	return res;
 }
 
-static void ieee80211_if_free(struct net_device *dev)
-{
-	free_percpu(dev->tstats);
-}
-
 static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -1470,7 +1465,6 @@ static void ieee80211_if_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->netdev_ops = &ieee80211_dataif_ops;
 	dev->needs_free_netdev = true;
-	dev->priv_destructor = ieee80211_if_free;
 }
 
 static void ieee80211_iface_process_skb(struct ieee80211_local *local,
@@ -2103,11 +2097,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		dev_net_set(ndev, wiphy_net(local->hw.wiphy));
 
-		ndev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-		if (!ndev->tstats) {
-			free_netdev(ndev);
-			return -ENOMEM;
-		}
+		ndev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 		ndev->needed_headroom = local->tx_headroom +
 					4*6 /* four MAC addresses */
@@ -2120,7 +2110,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		ret = dev_alloc_name(ndev, ndev->name);
 		if (ret < 0) {
-			ieee80211_if_free(ndev);
 			free_netdev(ndev);
 			return ret;
 		}
