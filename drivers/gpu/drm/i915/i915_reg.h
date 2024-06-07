@@ -2114,27 +2114,6 @@
 #define SWF3(dev_priv, i)	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x72414 + (i) * 4)
 #define SWF_ILK(i)	_MMIO(0x4F000 + (i) * 4)
 
-/* Pipe B */
-#define _PIPEBDSL		(DISPLAY_MMIO_BASE(dev_priv) + 0x71000)
-#define _TRANSBCONF		(DISPLAY_MMIO_BASE(dev_priv) + 0x71008)
-#define _PIPEBSTAT		(DISPLAY_MMIO_BASE(dev_priv) + 0x71024)
-#define _PIPEBFRAMEHIGH		0x71040
-#define _PIPEBFRAMEPIXEL	0x71044
-#define _PIPEB_FRMCOUNT_G4X	(DISPLAY_MMIO_BASE(dev_priv) + 0x71040)
-#define _PIPEB_FLIPCOUNT_G4X	(DISPLAY_MMIO_BASE(dev_priv) + 0x71044)
-
-
-/* Display B control */
-#define _DSPBCNTR		(DISPLAY_MMIO_BASE(dev_priv) + 0x71180)
-#define _DSPBADDR		(DISPLAY_MMIO_BASE(dev_priv) + 0x71184)
-#define _DSPBSTRIDE		(DISPLAY_MMIO_BASE(dev_priv) + 0x71188)
-#define _DSPBPOS		(DISPLAY_MMIO_BASE(dev_priv) + 0x7118C)
-#define _DSPBSIZE		(DISPLAY_MMIO_BASE(dev_priv) + 0x71190)
-#define _DSPBSURF		(DISPLAY_MMIO_BASE(dev_priv) + 0x7119C)
-#define _DSPBTILEOFF		(DISPLAY_MMIO_BASE(dev_priv) + 0x711A4)
-#define _DSPBOFFSET		(DISPLAY_MMIO_BASE(dev_priv) + 0x711A4)
-#define _DSPBSURFLIVE		(DISPLAY_MMIO_BASE(dev_priv) + 0x711AC)
-
 /* ICL DSI 0 and 1 */
 #define _PIPEDSI0CONF		0x7b008
 #define _PIPEDSI1CONF		0x7b808
