@@ -1806,6 +1806,13 @@ u32 flow_hash_from_keys(struct flow_keys *keys)
 }
 EXPORT_SYMBOL(flow_hash_from_keys);
 
+u32 flow_hash_from_keys_seed(struct flow_keys *keys,
+			     const siphash_key_t *keyval)
+{
+	return __flow_hash_from_keys(keys, keyval);
+}
+EXPORT_SYMBOL(flow_hash_from_keys_seed);
+
 static inline u32 ___skb_get_hash(const struct sk_buff *skb,
 				  struct flow_keys *keys,
 				  const siphash_key_t *keyval)

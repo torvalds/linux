@@ -520,13 +520,34 @@ void fib_nhc_update_mtu(struct fib_nh_common *nhc, u32 new, u32 orig);
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 		       const struct sk_buff *skb, struct flow_keys *flkeys);
-#endif
 
+static void
+fib_multipath_hash_construct_key(siphash_key_t *key, u32 mp_seed)
+{
+	u64 mp_seed_64 = mp_seed;
+
+	key->key[0] = (mp_seed_64 << 32) | mp_seed_64;
+	key->key[1] = key->key[0];
+}
+
+static inline u32 fib_multipath_hash_from_keys(const struct net *net,
+					       struct flow_keys *keys)
+{
+	siphash_aligned_key_t hash_key;
+	u32 mp_seed;
+
+	mp_seed = READ_ONCE(net->ipv4.sysctl_fib_multipath_hash_seed).mp_seed;
+	fib_multipath_hash_construct_key(&hash_key, mp_seed);
+
+	return flow_hash_from_keys_seed(keys, &hash_key);
+}
+#else
 static inline u32 fib_multipath_hash_from_keys(const struct net *net,
 					       struct flow_keys *keys)
 {
 	return flow_hash_from_keys(keys);
 }
+#endif
 
 int fib_check_nh(struct net *net, struct fib_nh *nh, u32 table, u8 scope,
 		 struct netlink_ext_ack *extack);
