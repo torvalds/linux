@@ -39,6 +39,9 @@ rtw89_8852a-objs := rtw8852a.o \
 obj-$(CONFIG_RTW89_8852AE) += rtw89_8852ae.o
 rtw89_8852ae-objs := rtw8852ae.o
 
+obj-$(CONFIG_RTW89_8852B_COMMON) += rtw89_8852b_common.o
+rtw89_8852b_common-objs := rtw8852b_common.o
+
 obj-$(CONFIG_RTW89_8852B) += rtw89_8852b.o
 rtw89_8852b-objs := rtw8852b.o \
 		    rtw8852b_table.o \

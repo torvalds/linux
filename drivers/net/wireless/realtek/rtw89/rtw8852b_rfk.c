@@ -8,6 +8,7 @@
 #include "phy.h"
 #include "reg.h"
 #include "rtw8852b.h"
+#include "rtw8852b_common.h"
 #include "rtw8852b_rfk.h"
 #include "rtw8852b_rfk_table.h"
 #include "rtw8852b_table.h"
@@ -3433,13 +3434,13 @@ static void _tssi_hw_tx(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 		rx_path = RF_ABCD; /* don't change path, but still set others */
 
 	if (enable) {
-		rtw8852b_bb_set_plcp_tx(rtwdev);
-		rtw8852b_bb_cfg_tx_path(rtwdev, path);
-		rtw8852b_bb_ctrl_rx_path(rtwdev, rx_path);
-		rtw8852b_bb_set_power(rtwdev, pwr_dbm, phy);
+		rtw8852bx_bb_set_plcp_tx(rtwdev);
+		rtw8852bx_bb_cfg_tx_path(rtwdev, path);
+		rtw8852bx_bb_ctrl_rx_path(rtwdev, rx_path);
+		rtw8852bx_bb_set_power(rtwdev, pwr_dbm, phy);
 	}
 
-	rtw8852b_bb_set_pmac_pkt_tx(rtwdev, enable, cnt, period, 20, phy);
+	rtw8852bx_bb_set_pmac_pkt_tx(rtwdev, enable, cnt, period, 20, phy);
 }
 
 static void _tssi_backup_bb_registers(struct rtw89_dev *rtwdev,
@@ -3578,7 +3579,7 @@ static void _tssi_alimentk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	u32 tssi_cw_rpt[RTW8852B_TSSI_PATH_NR] = {0};
 	u8 channel = chan->channel;
 	u8 ch_idx = _tssi_ch_to_idx(rtwdev, channel);
-	struct rtw8852b_bb_tssi_bak tssi_bak;
+	struct rtw8852bx_bb_tssi_bak tssi_bak;
 	s32 aliment_diff, tssi_cw_default;
 	u32 start_time, finish_time;
 	u32 bb_reg_backup[8] = {0};
@@ -3626,7 +3627,7 @@ static void _tssi_alimentk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	else
 		band = TSSI_ALIMK_2G;
 
-	rtw8852b_bb_backup_tssi(rtwdev, phy, &tssi_bak);
+	rtw8852bx_bb_backup_tssi(rtwdev, phy, &tssi_bak);
 	_tssi_backup_bb_registers(rtwdev, phy, bb_reg, bb_reg_backup, ARRAY_SIZE(bb_reg_backup));
 
 	rtw89_phy_write32_mask(rtwdev, R_P0_TSSI_AVG, B_P0_TSSI_AVG, 0x8);
@@ -3730,8 +3731,8 @@ static void _tssi_alimentk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 
 out:
 	_tssi_reload_bb_registers(rtwdev, phy, bb_reg, bb_reg_backup, ARRAY_SIZE(bb_reg_backup));
-	rtw8852b_bb_restore_tssi(rtwdev, phy, &tssi_bak);
-	rtw8852b_bb_tx_mode_switch(rtwdev, phy, 0);
+	rtw8852bx_bb_restore_tssi(rtwdev, phy, &tssi_bak);
+	rtw8852bx_bb_tx_mode_switch(rtwdev, phy, 0);
 
 	finish_time = ktime_get_ns();
 	tssi_info->tssi_alimk_time += finish_time - start_time;
