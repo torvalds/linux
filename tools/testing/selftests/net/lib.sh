@@ -172,11 +172,11 @@ setup_ns()
 	local ns_list=()
 	for ns_name in "$@"; do
 		# Some test may setup/remove same netns multi times
-		if unset ${ns_name} 2> /dev/null; then
+		if [ -z "${!ns_name}" ]; then
 			ns="${ns_name,,}-$(mktemp -u XXXXXX)"
-			eval readonly ${ns_name}="$ns"
+			eval "${ns_name}=${ns}"
 		else
-			eval ns='$'${ns_name}
+			ns="${!ns_name}"
 			cleanup_ns "$ns"
 		fi
 
