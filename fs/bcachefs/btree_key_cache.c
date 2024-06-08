@@ -792,6 +792,7 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 			       struct btree_path *path)
 {
 	struct bch_fs *c = trans->c;
+	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bkey_cached *ck = (void *) path->l[0].b;
 
 	BUG_ON(!ck->valid);
@@ -806,7 +807,11 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 		bch2_journal_pin_drop(&c->journal, &ck->journal);
 	}
 
-	ck->valid = false;
+	bkey_cached_evict(bc, ck);
+	bkey_cached_free_fast(bc, ck);
+
+	mark_btree_node_locked(trans, path, 0, BTREE_NODE_UNLOCKED);
+	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
 }
 
 static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,

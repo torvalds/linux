@@ -137,7 +137,8 @@ static inline void bch2_trans_unlock_write(struct btree_trans *trans)
 {
 	if (likely(trans->write_locked)) {
 		trans_for_each_update(trans, i)
-			if (!same_leaf_as_prev(trans, i))
+			if (btree_node_locked_type(trans->paths + i->path, i->level) ==
+			    BTREE_NODE_WRITE_LOCKED)
 				bch2_btree_node_unlock_write_inlined(trans,
 						trans->paths + i->path, insert_l(trans, i)->b);
 		trans->write_locked = false;
@@ -777,14 +778,12 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	trans_for_each_update(trans, i) {
 		struct btree_path *path = trans->paths + i->path;
 
-		if (!i->cached) {
+		if (!i->cached)
 			bch2_btree_insert_key_leaf(trans, path, i->k, trans->journal_res.seq);
-		} else if (!i->key_cache_already_flushed)
+		else if (!i->key_cache_already_flushed)
 			bch2_btree_insert_key_cached(trans, flags, i);
-		else {
+		else
 			bch2_btree_key_cache_drop(trans, path);
-			btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
-		}
 	}
 
 	return 0;
