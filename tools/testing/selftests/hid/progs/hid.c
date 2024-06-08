@@ -35,6 +35,30 @@ struct hid_bpf_ops first_event = {
 	.hid_id = 2,
 };
 
+int __hid_subprog_first_event(struct hid_bpf_ctx *hid_ctx, enum hid_report_type type)
+{
+	__u8 *rw_data = hid_bpf_get_data(hid_ctx, 0 /* offset */, 3 /* size */);
+
+	if (!rw_data)
+		return 0; /* EPERM check */
+
+	rw_data[2] = rw_data[1] + 5;
+
+	return hid_ctx->size;
+}
+
+SEC("?struct_ops/hid_device_event")
+int BPF_PROG(hid_subprog_first_event, struct hid_bpf_ctx *hid_ctx, enum hid_report_type type)
+{
+	return __hid_subprog_first_event(hid_ctx, type);
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops subprog_first_event = {
+	.hid_device_event = (void *)hid_subprog_first_event,
+	.hid_id = 2,
+};
+
 SEC("?struct_ops/hid_device_event")
 int BPF_PROG(hid_second_event, struct hid_bpf_ctx *hid_ctx, enum hid_report_type type)
 {
