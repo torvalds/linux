@@ -505,12 +505,14 @@ free:
 
 static int mtouch_alloc(struct usbtouch_usb *usbtouch)
 {
+	struct mtouch_priv *priv;
 	int ret;
 
-	usbtouch->priv = kmalloc(sizeof(struct mtouch_priv), GFP_KERNEL);
-	if (!usbtouch->priv)
+	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
 
+	usbtouch->priv = priv;
 	ret = sysfs_create_group(&usbtouch->interface->dev.kobj,
 				 &mtouch_attr_group);
 	if (ret) {
@@ -924,12 +926,11 @@ static int nexio_alloc(struct usbtouch_usb *usbtouch)
 	struct nexio_priv *priv;
 	int ret = -ENOMEM;
 
-	usbtouch->priv = kmalloc(sizeof(struct nexio_priv), GFP_KERNEL);
-	if (!usbtouch->priv)
+	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		goto out_buf;
 
-	priv = usbtouch->priv;
-
+	usbtouch->priv = priv;
 	priv->ack_buf = kmemdup(nexio_ack_pkt, sizeof(nexio_ack_pkt),
 				GFP_KERNEL);
 	if (!priv->ack_buf)
@@ -1661,7 +1662,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (!endpoint)
 		return -ENXIO;
 
-	usbtouch = kzalloc(sizeof(struct usbtouch_usb), GFP_KERNEL);
+	usbtouch = kzalloc(sizeof(*usbtouch), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!usbtouch || !input_dev)
 		goto out_free;

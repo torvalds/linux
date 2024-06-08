@@ -110,7 +110,7 @@ static int dynapro_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	pdynapro = kzalloc(sizeof(struct dynapro), GFP_KERNEL);
+	pdynapro = kzalloc(sizeof(*pdynapro), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!pdynapro || !input_dev) {
 		err = -ENOMEM;
