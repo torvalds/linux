@@ -20,9 +20,6 @@
 #define HID_REQ_SET_REPORT       HID_REQ_SET_REPORT___not_used
 #define HID_REQ_SET_IDLE         HID_REQ_SET_IDLE___not_used
 #define HID_REQ_SET_PROTOCOL     HID_REQ_SET_PROTOCOL___not_used
-#define HID_BPF_FLAG_NONE        HID_BPF_FLAG_NONE___not_used
-#define HID_BPF_FLAG_INSERT_HEAD HID_BPF_FLAG_INSERT_HEAD___not_used
-#define HID_BPF_FLAG_MAX         HID_BPF_FLAG_MAX___not_used
 
 #include "vmlinux.h"
 
@@ -40,9 +37,6 @@
 #undef HID_REQ_SET_REPORT
 #undef HID_REQ_SET_IDLE
 #undef HID_REQ_SET_PROTOCOL
-#undef HID_BPF_FLAG_NONE
-#undef HID_BPF_FLAG_INSERT_HEAD
-#undef HID_BPF_FLAG_MAX
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -57,10 +51,8 @@ enum hid_report_type {
 };
 
 struct hid_bpf_ctx {
-	__u32 index;
-	const struct hid_device *hid;
+	struct hid_device *hid;
 	__u32 allocated_size;
-	enum hid_report_type report_type;
 	union {
 		__s32 retval;
 		__s32 size;
@@ -76,17 +68,14 @@ enum hid_class_request {
 	HID_REQ_SET_PROTOCOL		= 0x0B,
 };
 
-enum hid_bpf_attach_flags {
-	HID_BPF_FLAG_NONE = 0,
-	HID_BPF_FLAG_INSERT_HEAD = _BITUL(0),
-	HID_BPF_FLAG_MAX,
-};
+#ifndef BPF_F_BEFORE
+#define BPF_F_BEFORE (1U << 3)
+#endif
 
 /* following are kfuncs exported by HID for HID-BPF */
 extern __u8 *hid_bpf_get_data(struct hid_bpf_ctx *ctx,
 			      unsigned int offset,
 			      const size_t __sz) __ksym;
-extern int hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, u32 flags) __ksym;
 extern struct hid_bpf_ctx *hid_bpf_allocate_context(unsigned int hid_id) __ksym;
 extern void hid_bpf_release_context(struct hid_bpf_ctx *ctx) __ksym;
 extern int hid_bpf_hw_request(struct hid_bpf_ctx *ctx,

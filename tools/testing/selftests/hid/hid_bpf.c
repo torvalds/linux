@@ -460,7 +460,7 @@ FIXTURE(hid_bpf) {
 	int hid_id;
 	pthread_t tid;
 	struct hid *skel;
-	int hid_links[3]; /* max number of programs loaded in a single test */
+	struct bpf_link *hid_links[3]; /* max number of programs loaded in a single test */
 };
 static void detach_bpf(FIXTURE_DATA(hid_bpf) * self)
 {
@@ -472,7 +472,7 @@ static void detach_bpf(FIXTURE_DATA(hid_bpf) * self)
 
 	for (i = 0; i < ARRAY_SIZE(self->hid_links); i++) {
 		if (self->hid_links[i])
-			close(self->hid_links[i]);
+			bpf_link__destroy(self->hid_links[i]);
 	}
 
 	hid__destroy(self->skel);
@@ -527,14 +527,7 @@ static void load_programs(const struct test_program programs[],
 			  FIXTURE_DATA(hid_bpf) * self,
 			  const FIXTURE_VARIANT(hid_bpf) * variant)
 {
-	int attach_fd, err = -EINVAL;
-	struct attach_prog_args args = {
-		.retval = -1,
-	};
-	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattr,
-			    .ctx_in = &args,
-			    .ctx_size_in = sizeof(args),
-	);
+	int err = -EINVAL;
 
 	ASSERT_LE(progs_count, ARRAY_SIZE(self->hid_links))
 		TH_LOG("too many programs are to be loaded");
@@ -545,35 +538,41 @@ static void load_programs(const struct test_program programs[],
 
 	for (int i = 0; i < progs_count; i++) {
 		struct bpf_program *prog;
+		struct bpf_map *map;
+		int *ops_hid_id;
 
 		prog = bpf_object__find_program_by_name(*self->skel->skeleton->obj,
 							programs[i].name);
 		ASSERT_OK_PTR(prog) TH_LOG("can not find program by name '%s'", programs[i].name);
 
 		bpf_program__set_autoload(prog, true);
+
+		map = bpf_object__find_map_by_name(*self->skel->skeleton->obj,
+							  programs[i].name + 4);
+		ASSERT_OK_PTR(map) TH_LOG("can not find struct_ops by name '%s'",
+					  programs[i].name + 4);
+
+		/* hid_id is the first field of struct hid_bpf_ops */
+		ops_hid_id = bpf_map__initial_value(map, NULL);
+		ASSERT_OK_PTR(ops_hid_id) TH_LOG("unable to retrieve struct_ops data");
+
+		*ops_hid_id = self->hid_id;
 	}
 
 	err = hid__load(self->skel);
 	ASSERT_OK(err) TH_LOG("hid_skel_load failed: %d", err);
 
-	attach_fd = bpf_program__fd(self->skel->progs.attach_prog);
-	ASSERT_GE(attach_fd, 0) TH_LOG("locate attach_prog: %d", attach_fd);
-
 	for (int i = 0; i < progs_count; i++) {
-		struct bpf_program *prog;
+		struct bpf_map *map;
 
-		prog = bpf_object__find_program_by_name(*self->skel->skeleton->obj,
-							programs[i].name);
-		ASSERT_OK_PTR(prog) TH_LOG("can not find program by name '%s'", programs[i].name);
+		map = bpf_object__find_map_by_name(*self->skel->skeleton->obj,
+							  programs[i].name + 4);
+		ASSERT_OK_PTR(map) TH_LOG("can not find struct_ops by name '%s'",
+					  programs[i].name + 4);
 
-		args.prog_fd = bpf_program__fd(prog);
-		args.hid = self->hid_id;
-		args.insert_head = programs[i].insert_head;
-		err = bpf_prog_test_run_opts(attach_fd, &tattr);
-		ASSERT_GE(args.retval, 0)
-			TH_LOG("attach_hid(%s): %d", programs[i].name, args.retval);
-
-		self->hid_links[i] = args.retval;
+		self->hid_links[i] = bpf_map__attach_struct_ops(map);
+		ASSERT_OK_PTR(self->hid_links[i]) TH_LOG("failed to attach struct ops '%s'",
+							 programs[i].name + 4);
 	}
 
 	self->hidraw_fd = open_hidraw(self->dev_id);
@@ -648,13 +647,17 @@ TEST_F(hid_bpf, test_attach_detach)
 		{ .name = "hid_first_event" },
 		{ .name = "hid_second_event" },
 	};
+	struct bpf_link *link;
 	__u8 buf[10] = {0};
-	int err, link;
+	int err, link_fd;
 
 	LOAD_PROGRAMS(progs);
 
 	link = self->hid_links[0];
-	ASSERT_GT(link, 0) TH_LOG("HID-BPF link not created");
+	ASSERT_OK_PTR(link) TH_LOG("HID-BPF link not created");
+
+	link_fd = bpf_link__fd(link);
+	ASSERT_GE(link_fd, 0) TH_LOG("HID-BPF link FD not valid");
 
 	/* inject one event */
 	buf[0] = 1;
@@ -673,7 +676,7 @@ TEST_F(hid_bpf, test_attach_detach)
 
 	/* pin the first program and immediately unpin it */
 #define PIN_PATH "/sys/fs/bpf/hid_first_event"
-	err = bpf_obj_pin(link, PIN_PATH);
+	err = bpf_obj_pin(link_fd, PIN_PATH);
 	ASSERT_OK(err) TH_LOG("error while calling bpf_obj_pin");
 	remove(PIN_PATH);
 #undef PIN_PATH
