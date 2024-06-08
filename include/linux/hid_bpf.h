@@ -43,7 +43,7 @@ struct hid_device;
  * ``hid`` and ``allocated_size`` are read-only, ``size`` and ``retval`` are read-write.
  */
 struct hid_bpf_ctx {
-	const struct hid_device *hid;
+	struct hid_device *hid;
 	__u32 allocated_size;
 	union {
 		__s32 retval;
