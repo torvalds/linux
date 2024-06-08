@@ -89,6 +89,7 @@ static int hid_bpf_ops_btf_struct_access(struct bpf_verifier_log *log,
 }
 
 static const struct bpf_verifier_ops hid_bpf_verifier_ops = {
+	.get_func_proto = bpf_base_func_proto,
 	.is_valid_access = hid_bpf_ops_is_valid_access,
 	.btf_struct_access = hid_bpf_ops_btf_struct_access,
 };
