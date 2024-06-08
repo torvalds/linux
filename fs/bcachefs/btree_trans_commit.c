@@ -599,7 +599,7 @@ static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 {
 	trans_for_each_update(trans, i)
 		if (btree_node_type_has_triggers(i->bkey_type) &&
-		    gc_visited(trans->c, gc_pos_btree_node(insert_l(trans, i)->b))) {
+		    gc_visited(trans->c, gc_pos_btree(i->btree_id, i->level, i->k->k.p))) {
 			int ret = run_one_mem_trigger(trans, i, i->flags|BTREE_TRIGGER_gc);
 			if (ret)
 				return ret;
