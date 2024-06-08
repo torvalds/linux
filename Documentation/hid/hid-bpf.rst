@@ -129,6 +129,23 @@ When a BPF program needs to emit input events, it needs to talk with the HID
 protocol, and rely on the HID kernel processing to translate the HID data into
 input events.
 
+In-tree HID-BPF programs and ``udev-hid-bpf``
+=============================================
+
+Official device fixes are shipped in the kernel tree as source in the
+``drivers/hid/bpf/progs`` directory. This allows to add selftests to them in
+``tools/testing/selftests/hid``.
+
+However, the compilation of these objects is not part of a regular kernel compilation
+given that they need an external tool to be loaded. This tool is currently
+`udev-hid-bpf <https://libevdev.pages.freedesktop.org/udev-hid-bpf/index.html>`_.
+
+For convenience, that external repository duplicates the files from here in
+``drivers/hid/bpf/progs`` into its own ``src/bpf/stable`` directory. This allows
+distributions to not have to pull the entire kernel source tree to ship and package
+those HID-BPF fixes. ``udev-hid-bpf`` also has capabilities of handling multiple
+objects files depending on the kernel the user is running.
+
 Available types of programs
 ===========================
 
