@@ -1800,12 +1800,11 @@ struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *
 			goto hole;
 	} else {
 		struct bkey_cached *ck = (void *) path->l[0].b;
-
-		EBUG_ON(ck &&
-			(path->btree_id != ck->key.btree_id ||
-			 !bkey_eq(path->pos, ck->key.pos)));
-		if (!ck || !ck->valid)
+		if (!ck)
 			return bkey_s_c_null;
+
+		EBUG_ON(path->btree_id != ck->key.btree_id ||
+			!bkey_eq(path->pos, ck->key.pos));
 
 		*u = ck->k->k;
 		k = bkey_i_to_s_c(ck->k);
