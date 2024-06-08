@@ -150,6 +150,25 @@ static int device_match_id(struct device *dev, const void *id)
 	return hdev->id == *(int *)id;
 }
 
+static struct hid_device *hid_get_device(unsigned int hid_id)
+{
+	struct device *dev;
+
+	if (!hid_ops)
+		return ERR_PTR(-EINVAL);
+
+	dev = bus_find_device(hid_ops->bus_type, NULL, &hid_id, device_match_id);
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	return to_hid_device(dev);
+}
+
+static void hid_put_device(struct hid_device *hid)
+{
+	put_device(&hid->dev);
+}
+
 static int __hid_bpf_allocate_data(struct hid_device *hdev, u8 **data, u32 *size)
 {
 	u8 *alloc_data;
@@ -281,20 +300,14 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 {
 	struct hid_device *hdev;
 	struct bpf_prog *prog;
-	struct device *dev;
 	int err, fd;
-
-	if (!hid_ops)
-		return -EINVAL;
 
 	if ((flags & ~HID_BPF_FLAG_MASK))
 		return -EINVAL;
 
-	dev = bus_find_device(hid_ops->bus_type, NULL, &hid_id, device_match_id);
-	if (!dev)
-		return -EINVAL;
-
-	hdev = to_hid_device(dev);
+	hdev = hid_get_device(hid_id);
+	if (IS_ERR(hdev))
+		return PTR_ERR(hdev);
 
 	/*
 	 * take a ref on the prog itself, it will be released
@@ -317,7 +330,7 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
  out_prog_put:
 	bpf_prog_put(prog);
  out_dev_put:
-	put_device(dev);
+	hid_put_device(hdev);
 	return err;
 }
 
@@ -333,20 +346,14 @@ hid_bpf_allocate_context(unsigned int hid_id)
 {
 	struct hid_device *hdev;
 	struct hid_bpf_ctx_kern *ctx_kern = NULL;
-	struct device *dev;
 
-	if (!hid_ops)
+	hdev = hid_get_device(hid_id);
+	if (IS_ERR(hdev))
 		return NULL;
-
-	dev = bus_find_device(hid_ops->bus_type, NULL, &hid_id, device_match_id);
-	if (!dev)
-		return NULL;
-
-	hdev = to_hid_device(dev);
 
 	ctx_kern = kzalloc(sizeof(*ctx_kern), GFP_KERNEL);
 	if (!ctx_kern) {
-		put_device(dev);
+		hid_put_device(hdev);
 		return NULL;
 	}
 
@@ -373,7 +380,7 @@ hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 	kfree(ctx_kern);
 
 	/* get_device() is called by bus_find_device() */
-	put_device(&hid->dev);
+	hid_put_device(hid);
 }
 
 static int
