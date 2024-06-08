@@ -39,6 +39,15 @@ static const struct rhashtable_params bch2_btree_key_cache_params = {
 	.automatic_shrinking	= true,
 };
 
+static inline void btree_path_cached_set(struct btree_trans *trans, struct btree_path *path,
+					 struct bkey_cached *ck,
+					 enum btree_node_locked_type lock_held)
+{
+	path->l[0].lock_seq	= six_lock_seq(&ck->c.lock);
+	path->l[0].b		= (void *) ck;
+	mark_btree_node_locked(trans, path, 0, lock_held);
+}
+
 __flatten
 inline struct bkey_cached *
 bch2_btree_key_cache_find(struct bch_fs *c, enum btree_id btree_id, struct bpos pos)
@@ -259,9 +268,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 			return ERR_PTR(ret);
 		}
 
-		path->l[0].b = (void *) ck;
-		path->l[0].lock_seq = six_lock_seq(&ck->c.lock);
-		mark_btree_node_locked(trans, path, 0, BTREE_NODE_INTENT_LOCKED);
+		btree_path_cached_set(trans, path, ck, BTREE_NODE_INTENT_LOCKED);
 
 		ret = bch2_btree_node_lock_write(trans, path, &ck->c);
 		if (unlikely(ret)) {
@@ -489,7 +496,7 @@ retry:
 		if (!ck)
 			goto retry;
 
-		mark_btree_node_locked(trans, path, 0, BTREE_NODE_INTENT_LOCKED);
+		btree_path_cached_set(trans, path, ck, BTREE_NODE_INTENT_LOCKED);
 		path->locks_want = 1;
 	} else {
 		enum six_lock_type lock_want = __btree_lock_want(path, 0);
@@ -507,12 +514,8 @@ retry:
 			goto retry;
 		}
 
-		mark_btree_node_locked(trans, path, 0,
-				       (enum btree_node_locked_type) lock_want);
+		btree_path_cached_set(trans, path, ck, (enum btree_node_locked_type) lock_want);
 	}
-
-	path->l[0].lock_seq	= six_lock_seq(&ck->c.lock);
-	path->l[0].b		= (void *) ck;
 fill:
 	path->uptodate = BTREE_ITER_UPTODATE;
 
@@ -559,30 +562,25 @@ int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path
 	}
 retry:
 	ck = bch2_btree_key_cache_find(c, path->btree_id, path->pos);
-	if (!ck) {
+	if (!ck)
 		return bch2_btree_path_traverse_cached_slowpath(trans, path, flags);
-	} else {
-		enum six_lock_type lock_want = __btree_lock_want(path, 0);
 
-		ret = btree_node_lock(trans, path, (void *) ck, 0,
-				      lock_want, _THIS_IP_);
-		EBUG_ON(ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart));
+	enum six_lock_type lock_want = __btree_lock_want(path, 0);
 
-		if (ret)
-			return ret;
+	ret = btree_node_lock(trans, path, (void *) ck, 0,
+			      lock_want, _THIS_IP_);
+	EBUG_ON(ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart));
 
-		if (ck->key.btree_id != path->btree_id ||
-		    !bpos_eq(ck->key.pos, path->pos)) {
-			six_unlock_type(&ck->c.lock, lock_want);
-			goto retry;
-		}
+	if (ret)
+		return ret;
 
-		mark_btree_node_locked(trans, path, 0,
-				       (enum btree_node_locked_type) lock_want);
+	if (ck->key.btree_id != path->btree_id ||
+	    !bpos_eq(ck->key.pos, path->pos)) {
+		six_unlock_type(&ck->c.lock, lock_want);
+		goto retry;
 	}
 
-	path->l[0].lock_seq	= six_lock_seq(&ck->c.lock);
-	path->l[0].b		= (void *) ck;
+	btree_path_cached_set(trans, path, ck, (enum btree_node_locked_type) lock_want);
 fill:
 	if (!ck->valid)
 		return bch2_btree_path_traverse_cached_slowpath(trans, path, flags);
