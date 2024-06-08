@@ -3401,8 +3401,10 @@ void bch2_fs_btree_iter_exit(struct bch_fs *c)
 		bch2_time_stats_exit(&s->lock_hold_times);
 	}
 
-	if (c->btree_trans_barrier_initialized)
+	if (c->btree_trans_barrier_initialized) {
+		synchronize_srcu_expedited(&c->btree_trans_barrier);
 		cleanup_srcu_struct(&c->btree_trans_barrier);
+	}
 	mempool_exit(&c->btree_trans_mem_pool);
 	mempool_exit(&c->btree_trans_pool);
 }
