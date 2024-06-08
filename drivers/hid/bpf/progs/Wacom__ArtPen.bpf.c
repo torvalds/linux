@@ -101,7 +101,7 @@ static inline __u8 *get_u8(__u8 *data, unsigned int offset)
 	return (__u8 *)get_bits(data, offset);
 }
 
-SEC("fmod_ret/hid_bpf_device_event")
+SEC(HID_BPF_DEVICE_EVENT)
 int BPF_PROG(artpen_pressure_interpolate, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, PEN_REPORT_LEN /* size */);

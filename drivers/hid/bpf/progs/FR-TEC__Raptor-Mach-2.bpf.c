@@ -133,7 +133,7 @@ HID_BPF_CONFIG(
  *   integer. We thus divide it by 30 to match what other joysticks are
  *   doing
  */
-SEC("fmod_ret/hid_bpf_rdesc_fixup")
+SEC(HID_BPF_RDESC_FIXUP)
 int BPF_PROG(hid_fix_rdesc_raptor_mach_2, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, HID_MAX_DESCRIPTOR_SIZE /* size */);
@@ -152,7 +152,7 @@ int BPF_PROG(hid_fix_rdesc_raptor_mach_2, struct hid_bpf_ctx *hctx)
  * divide it by 30.
  * Byte 34 is always null, so it is ignored.
  */
-SEC("fmod_ret/hid_bpf_device_event")
+SEC(HID_BPF_DEVICE_EVENT)
 int BPF_PROG(raptor_mach_2_fix_hat_switch, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 64 /* size */);

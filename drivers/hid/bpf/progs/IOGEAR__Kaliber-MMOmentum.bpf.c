@@ -21,7 +21,7 @@ HID_BPF_CONFIG(
  * We just fix the report descriptor to enable those missing 7 buttons.
  */
 
-SEC("fmod_ret/hid_bpf_rdesc_fixup")
+SEC(HID_BPF_RDESC_FIXUP)
 int BPF_PROG(hid_fix_rdesc, struct hid_bpf_ctx *hctx)
 {
 	const u8 offsets[] = {84, 112, 140};
