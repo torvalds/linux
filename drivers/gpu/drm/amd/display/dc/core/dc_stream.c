@@ -975,7 +975,7 @@ static int dc_stream_calculate_flickerless_refresh_rate(struct dc_stream_state *
 	}
 
 	if (search_for_max_increase)
-		return (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*stream->timing.h_total);
+		return (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*(long long)stream->timing.h_total);
 	else
 		return stream->lumin_data.refresh_rate_hz[0];
 }
@@ -1024,7 +1024,7 @@ static unsigned int dc_stream_get_max_flickerless_instant_vtotal_delta(struct dc
 	if (stream->timing.v_total * stream->timing.h_total == 0)
 		return 0;
 
-	int current_refresh_hz = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*stream->timing.h_total);
+	int current_refresh_hz = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*(long long)stream->timing.h_total);
 
 	int safe_refresh_hz = dc_stream_calculate_flickerless_refresh_rate(stream,
 							 dc_stream_get_brightness_millinits_from_refresh(stream, current_refresh_hz),
@@ -1032,7 +1032,7 @@ static unsigned int dc_stream_get_max_flickerless_instant_vtotal_delta(struct dc
 							 is_gaming,
 							 increase);
 
-	int safe_refresh_v_total = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, safe_refresh_hz*stream->timing.h_total);
+	int safe_refresh_v_total = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, safe_refresh_hz*(long long)stream->timing.h_total);
 
 	if (increase)
 		return (((int) stream->timing.v_total - safe_refresh_v_total) >= 0) ? (stream->timing.v_total - safe_refresh_v_total) : 0;

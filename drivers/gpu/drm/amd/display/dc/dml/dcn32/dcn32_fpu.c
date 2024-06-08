@@ -997,7 +997,7 @@ static bool subvp_subvp_admissable(struct dc *dc,
 		if (pipe->plane_state && !pipe->top_pipe &&
 				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN) {
 			refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
-				pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+				pipe->stream->timing.v_total * (uint64_t)pipe->stream->timing.h_total - (uint64_t)1);
 			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 

@@ -576,7 +576,7 @@ static void dcn32_auto_dpm_test_log(
 			p_state_list[i] = curr_pipe_ctx->p_state_type;
 
 			refresh_rate = (curr_pipe_ctx->stream->timing.pix_clk_100hz * (uint64_t)100 +
-				curr_pipe_ctx->stream->timing.v_total * curr_pipe_ctx->stream->timing.h_total - (uint64_t)1);
+				curr_pipe_ctx->stream->timing.v_total * (uint64_t)curr_pipe_ctx->stream->timing.h_total - (uint64_t)1);
 			refresh_rate = div_u64(refresh_rate, curr_pipe_ctx->stream->timing.v_total);
 			refresh_rate = div_u64(refresh_rate, curr_pipe_ctx->stream->timing.h_total);
 			disp_src_refresh_list[i] = refresh_rate;

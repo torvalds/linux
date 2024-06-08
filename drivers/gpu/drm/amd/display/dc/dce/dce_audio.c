@@ -353,7 +353,7 @@ static uint32_t calculate_required_audio_bw_in_symbols(
 	/* DP spec recommends between 1.05 to 1.1 safety margin to prevent sample under-run */
 	struct fixed31_32 audio_sdp_margin = dc_fixpt_from_fraction(110, 100);
 	struct fixed31_32 horizontal_line_freq_khz = dc_fixpt_from_fraction(
-			crtc_info->requested_pixel_clock_100Hz, crtc_info->h_total * 10);
+			crtc_info->requested_pixel_clock_100Hz, (long long)crtc_info->h_total * 10);
 	struct fixed31_32 samples_per_line;
 	struct fixed31_32 layouts_per_line;
 	struct fixed31_32 symbols_per_sdp_max_layout;
