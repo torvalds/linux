@@ -97,7 +97,7 @@ enum hid_bpf_prog_type {
 
 struct hid_report_enum;
 
-struct hid_bpf_ops {
+struct hid_ops {
 	struct hid_report *(*hid_get_report)(struct hid_report_enum *report_enum, const u8 *data);
 	int (*hid_hw_raw_request)(struct hid_device *hdev,
 				  unsigned char reportnum, __u8 *buf,
@@ -110,7 +110,7 @@ struct hid_bpf_ops {
 	const struct bus_type *bus_type;
 };
 
-extern struct hid_bpf_ops *hid_bpf_ops;
+extern struct hid_ops *hid_ops;
 
 struct hid_bpf_prog_list {
 	u16 prog_idx[HID_BPF_MAX_PROGS_PER_DEV];

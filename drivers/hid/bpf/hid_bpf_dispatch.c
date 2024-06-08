@@ -21,8 +21,8 @@
 #include "hid_bpf_dispatch.h"
 #include "entrypoints/entrypoints.lskel.h"
 
-struct hid_bpf_ops *hid_bpf_ops;
-EXPORT_SYMBOL(hid_bpf_ops);
+struct hid_ops *hid_ops;
+EXPORT_SYMBOL(hid_ops);
 
 /**
  * hid_bpf_device_event - Called whenever an event is coming in from the device
@@ -284,13 +284,13 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 	struct device *dev;
 	int err, fd;
 
-	if (!hid_bpf_ops)
+	if (!hid_ops)
 		return -EINVAL;
 
 	if ((flags & ~HID_BPF_FLAG_MASK))
 		return -EINVAL;
 
-	dev = bus_find_device(hid_bpf_ops->bus_type, NULL, &hid_id, device_match_id);
+	dev = bus_find_device(hid_ops->bus_type, NULL, &hid_id, device_match_id);
 	if (!dev)
 		return -EINVAL;
 
@@ -335,10 +335,10 @@ hid_bpf_allocate_context(unsigned int hid_id)
 	struct hid_bpf_ctx_kern *ctx_kern = NULL;
 	struct device *dev;
 
-	if (!hid_bpf_ops)
+	if (!hid_ops)
 		return NULL;
 
-	dev = bus_find_device(hid_bpf_ops->bus_type, NULL, &hid_id, device_match_id);
+	dev = bus_find_device(hid_ops->bus_type, NULL, &hid_id, device_match_id);
 	if (!dev)
 		return NULL;
 
@@ -386,7 +386,7 @@ __hid_bpf_hw_check_params(struct hid_bpf_ctx *ctx, __u8 *buf, size_t *buf__sz,
 	u32 report_len;
 
 	/* check arguments */
-	if (!ctx || !hid_bpf_ops || !buf)
+	if (!ctx || !hid_ops || !buf)
 		return -EINVAL;
 
 	switch (rtype) {
@@ -404,7 +404,7 @@ __hid_bpf_hw_check_params(struct hid_bpf_ctx *ctx, __u8 *buf, size_t *buf__sz,
 	hdev = (struct hid_device *)ctx->hid; /* discard const */
 
 	report_enum = hdev->report_enum + rtype;
-	report = hid_bpf_ops->hid_get_report(report_enum, buf);
+	report = hid_ops->hid_get_report(report_enum, buf);
 	if (!report)
 		return -EINVAL;
 
@@ -459,7 +459,7 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 	if (!dma_data)
 		return -ENOMEM;
 
-	ret = hid_bpf_ops->hid_hw_raw_request(hdev,
+	ret = hid_ops->hid_hw_raw_request(hdev,
 					      dma_data[0],
 					      dma_data,
 					      size,
@@ -501,7 +501,7 @@ hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz)
 	if (!dma_data)
 		return -ENOMEM;
 
-	ret = hid_bpf_ops->hid_hw_output_report(hdev,
+	ret = hid_ops->hid_hw_output_report(hdev,
 						dma_data,
 						size);
 
@@ -534,7 +534,7 @@ hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf
 
 	hdev = (struct hid_device *)ctx->hid; /* discard const */
 
-	return hid_bpf_ops->hid_input_report(hdev, type, buf, size, 0);
+	return hid_ops->hid_input_report(hdev, type, buf, size, 0);
 }
 __bpf_kfunc_end_defs();
 
