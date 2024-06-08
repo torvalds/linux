@@ -45,6 +45,22 @@
 #define DROP_PREV_NODE		11
 #define DID_FILL_FROM_SCAN	12
 
+static const char * const bch2_gc_phase_strs[] = {
+#define x(n)	#n,
+	GC_PHASES()
+#undef x
+	NULL
+};
+
+void bch2_gc_pos_to_text(struct printbuf *out, struct gc_pos *p)
+{
+	prt_str(out, bch2_gc_phase_strs[p->phase]);
+	prt_char(out, ' ');
+	bch2_btree_id_to_text(out, p->btree);
+	prt_printf(out, " l=%u ", p->level);
+	bch2_bpos_to_text(out, p->pos);
+}
+
 static struct bkey_s unsafe_bkey_s_c_to_s(struct bkey_s_c k)
 {
 	return (struct bkey_s) {{{

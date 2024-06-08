@@ -78,6 +78,8 @@ static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)
 	return ret;
 }
 
+void bch2_gc_pos_to_text(struct printbuf *, struct gc_pos *);
+
 int bch2_gc_gens(struct bch_fs *);
 void bch2_gc_gens_async(struct bch_fs *);
 void bch2_fs_gc_init(struct bch_fs *);
