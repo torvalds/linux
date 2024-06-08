@@ -19,15 +19,10 @@ properties:
     const: qcom,pm8008
 
   reg:
-    description:
-      I2C slave address.
-
     maxItems: 1
 
   interrupts:
     maxItems: 1
-
-    description: Parent interrupt.
 
   reset-gpios:
     maxItems: 1
