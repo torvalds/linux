@@ -38,8 +38,8 @@ enum {
 
 #define PM8008_PERIPH_0_BASE	0x900
 #define PM8008_PERIPH_1_BASE	0x2400
-#define PM8008_PERIPH_2_BASE	0xC000
-#define PM8008_PERIPH_3_BASE	0xC100
+#define PM8008_PERIPH_2_BASE	0xc000
+#define PM8008_PERIPH_3_BASE	0xc100
 
 #define PM8008_TEMP_ALARM_ADDR	PM8008_PERIPH_1_BASE
 #define PM8008_GPIO1_ADDR	PM8008_PERIPH_2_BASE
@@ -151,7 +151,7 @@ static const struct regmap_irq_chip pm8008_irq_chip = {
 static struct regmap_config qcom_mfd_regmap_cfg = {
 	.reg_bits	= 16,
 	.val_bits	= 8,
-	.max_register	= 0xFFFF,
+	.max_register	= 0xffff,
 };
 
 static int pm8008_probe(struct i2c_client *client)
