@@ -65,11 +65,12 @@ struct hid_bpf_ctx {
  * @HID_BPF_FLAG_INSERT_HEAD: insert the given program before any other program
  *                            currently attached to the device. This doesn't
  *                            guarantee that this program will always be first
- * @HID_BPF_FLAG_MAX: sentinel value, not to be used by the callers
  */
 enum hid_bpf_attach_flags {
 	HID_BPF_FLAG_NONE = 0,
 	HID_BPF_FLAG_INSERT_HEAD = _BITUL(0),
+
+	/* private: internal use only */
 	HID_BPF_FLAG_MAX,
 };
 
@@ -112,6 +113,60 @@ struct hid_ops {
 
 extern struct hid_ops *hid_ops;
 
+/**
+ * struct hid_bpf_ops - A BPF struct_ops of callbacks allowing to attach HID-BPF
+ *			programs to a HID device
+ * @hid_id: the HID uniq ID to attach to. This is writeable before ``load()``, and
+ *	    cannot be changed after
+ * @flags: flags used while attaching the struct_ops to the device. Currently only
+ *	   available value is %0 or ``BPF_F_BEFORE``.
+ *	   Writeable only before ``load()``
+ */
+struct hid_bpf_ops {
+	/* hid_id needs to stay first so we can easily change it
+	 * from userspace.
+	 */
+	int			hid_id;
+	u32			flags;
+
+	/* private: do not show up in the docs */
+	struct list_head	list;
+
+	/* public: rest should show up in the docs */
+
+	/**
+	 * @hid_device_event: called whenever an event is coming in from the device
+	 *
+	 * It has the following arguments:
+	 *
+	 * ``ctx``: The HID-BPF context as &struct hid_bpf_ctx
+	 *
+	 * Return: %0 on success and keep processing; a positive
+	 * value to change the incoming size buffer; a negative
+	 * error code to interrupt the processing of this event
+	 *
+	 * Context: Interrupt context.
+	 */
+	int (*hid_device_event)(struct hid_bpf_ctx *ctx, enum hid_report_type report_type);
+
+	/**
+	 * @hid_rdesc_fixup: called when the probe function parses the report descriptor
+	 * of the HID device
+	 *
+	 * It has the following arguments:
+	 *
+	 * ``ctx``: The HID-BPF context as &struct hid_bpf_ctx
+	 *
+	 * Return: %0 on success and keep processing; a positive
+	 * value to change the incoming size buffer; a negative
+	 * error code to interrupt the processing of this device
+	 */
+	int (*hid_rdesc_fixup)(struct hid_bpf_ctx *ctx);
+
+	/* private: do not show up in the docs */
+	struct hid_device *hdev;
+};
+
 struct hid_bpf_prog_list {
 	u16 prog_idx[HID_BPF_MAX_PROGS_PER_DEV];
 	u8 prog_cnt;
@@ -129,6 +184,10 @@ struct hid_bpf {
 	bool destroyed;			/* prevents the assignment of any progs */
 
 	spinlock_t progs_lock;		/* protects RCU update of progs */
+
+	struct hid_bpf_ops *rdesc_ops;
+	struct list_head prog_list;
+	struct mutex prog_list_lock;	/* protects prog_list update */
 };
 
 /* specific HID-BPF link when a program is attached to a device */

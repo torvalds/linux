@@ -81,6 +81,9 @@ static int hid_bpf_program_count(struct hid_device *hdev,
 	if (type >= HID_BPF_PROG_TYPE_MAX)
 		return -EINVAL;
 
+	if (type == HID_BPF_PROG_TYPE_RDESC_FIXUP && hdev->bpf.rdesc_ops)
+		n += 1;
+
 	FOR_ENTRIES(i, jmp_table.tail, jmp_table.head) {
 		struct hid_bpf_prog_entry *entry = &jmp_table.entries[i];
 

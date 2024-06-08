@@ -58,6 +58,7 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 		},
 		.data = hdev->bpf.device_data,
 	};
+	struct hid_bpf_ops *e;
 	int ret;
 
 	if (type >= HID_REPORT_TYPES)
@@ -70,9 +71,25 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 	memset(ctx_kern.data, 0, hdev->bpf.allocated_data);
 	memcpy(ctx_kern.data, data, *size);
 
+	rcu_read_lock();
+	list_for_each_entry_rcu(e, &hdev->bpf.prog_list, list) {
+		if (e->hid_device_event) {
+			ret = e->hid_device_event(&ctx_kern.ctx, type);
+			if (ret < 0) {
+				rcu_read_unlock();
+				return ERR_PTR(ret);
+			}
+
+			if (ret)
+				ctx_kern.ctx.retval = ret;
+		}
+	}
+	rcu_read_unlock();
+
 	ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_DEVICE_EVENT, &ctx_kern);
 	if (ret < 0)
 		return ERR_PTR(ret);
+	ret = ctx_kern.ctx.retval;
 
 	if (ret) {
 		if (ret > ctx_kern.ctx.allocated_size)
@@ -122,7 +139,10 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 
 	memcpy(ctx_kern.data, rdesc, min_t(unsigned int, *size, HID_MAX_DESCRIPTOR_SIZE));
 
-	ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_RDESC_FIXUP, &ctx_kern);
+	if (hdev->bpf.rdesc_ops)
+		ret = hdev->bpf.rdesc_ops->hid_rdesc_fixup(&ctx_kern.ctx);
+	else
+		ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_RDESC_FIXUP, &ctx_kern);
 	if (ret < 0)
 		goto ignore_bpf;
 
@@ -150,7 +170,7 @@ static int device_match_id(struct device *dev, const void *id)
 	return hdev->id == *(int *)id;
 }
 
-static struct hid_device *hid_get_device(unsigned int hid_id)
+struct hid_device *hid_get_device(unsigned int hid_id)
 {
 	struct device *dev;
 
@@ -164,7 +184,7 @@ static struct hid_device *hid_get_device(unsigned int hid_id)
 	return to_hid_device(dev);
 }
 
-static void hid_put_device(struct hid_device *hid)
+void hid_put_device(struct hid_device *hid)
 {
 	put_device(&hid->dev);
 }
@@ -205,7 +225,7 @@ static int __hid_bpf_allocate_data(struct hid_device *hdev, u8 **data, u32 *size
 	return 0;
 }
 
-static int hid_bpf_allocate_event_data(struct hid_device *hdev)
+int hid_bpf_allocate_event_data(struct hid_device *hdev)
 {
 	/* hdev->bpf.device_data is already allocated, abort */
 	if (hdev->bpf.device_data)
@@ -592,14 +612,22 @@ static const struct btf_kfunc_id_set hid_bpf_syscall_kfunc_set = {
 
 int hid_bpf_connect_device(struct hid_device *hdev)
 {
-	struct hid_bpf_prog_list *prog_list;
+	bool need_to_allocate = false;
+	struct hid_bpf_ops *e;
 
 	rcu_read_lock();
-	prog_list = rcu_dereference(hdev->bpf.progs[HID_BPF_PROG_TYPE_DEVICE_EVENT]);
+	list_for_each_entry_rcu(e, &hdev->bpf.prog_list, list) {
+		if (e->hid_device_event) {
+			need_to_allocate = true;
+			break;
+		}
+	}
+	if (rcu_dereference(hdev->bpf.progs[HID_BPF_PROG_TYPE_DEVICE_EVENT]))
+		need_to_allocate = true;
 	rcu_read_unlock();
 
 	/* only allocate BPF data if there are programs attached */
-	if (!prog_list)
+	if (!need_to_allocate)
 		return 0;
 
 	return hid_bpf_allocate_event_data(hdev);
@@ -623,12 +651,15 @@ void hid_bpf_destroy_device(struct hid_device *hdev)
 	hdev->bpf.destroyed = true;
 
 	__hid_bpf_destroy_device(hdev);
+	__hid_bpf_ops_destroy_device(hdev);
 }
 EXPORT_SYMBOL_GPL(hid_bpf_destroy_device);
 
 void hid_bpf_device_init(struct hid_device *hdev)
 {
 	spin_lock_init(&hdev->bpf.progs_lock);
+	INIT_LIST_HEAD(&hdev->bpf.prog_list);
+	mutex_init(&hdev->bpf.prog_list_lock);
 }
 EXPORT_SYMBOL_GPL(hid_bpf_device_init);
 
@@ -657,6 +688,13 @@ static int __init hid_bpf_init(void)
 
 	/* register tracing kfuncs after we are sure we can load our preloaded bpf program */
 	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &hid_bpf_kfunc_set);
+	if (err) {
+		pr_warn("error while setting HID BPF tracing kfuncs: %d", err);
+		return 0;
+	}
+
+	/* register struct_ops kfuncs after we are sure we can load our preloaded bpf program */
+	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &hid_bpf_kfunc_set);
 	if (err) {
 		pr_warn("error while setting HID BPF tracing kfuncs: %d", err);
 		return 0;
