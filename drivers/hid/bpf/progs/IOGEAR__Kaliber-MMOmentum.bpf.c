@@ -45,6 +45,10 @@ int BPF_PROG(hid_fix_rdesc, struct hid_bpf_ctx *hctx)
 	return 0;
 }
 
+HID_BPF_OPS(iogear_kaliber_momentum) = {
+	.hid_rdesc_fixup = (void *)hid_fix_rdesc,
+};
+
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)
 {

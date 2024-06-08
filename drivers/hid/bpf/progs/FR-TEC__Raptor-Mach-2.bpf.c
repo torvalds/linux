@@ -168,6 +168,11 @@ int BPF_PROG(raptor_mach_2_fix_hat_switch, struct hid_bpf_ctx *hctx)
 	return 0;
 }
 
+HID_BPF_OPS(raptor_mach_2) = {
+	.hid_rdesc_fixup = (void *)hid_fix_rdesc_raptor_mach_2,
+	.hid_device_event = (void *)raptor_mach_2_fix_hat_switch,
+};
+
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)
 {

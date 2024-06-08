@@ -255,6 +255,11 @@ int BPF_PROG(kamvas_pro_19_fix_3rd_button, struct hid_bpf_ctx *hctx)
 	return 0;
 }
 
+HID_BPF_OPS(huion_Kamvas_pro_19) = {
+	.hid_rdesc_fixup = (void *)hid_fix_rdesc_huion_kamvas_pro_19,
+	.hid_device_event = (void *)kamvas_pro_19_fix_3rd_button,
+};
+
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)
 {

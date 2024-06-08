@@ -105,8 +105,7 @@ int BPF_PROG(hid_fix_rdesc_xppen_artistpro16gen2, struct hid_bpf_ctx *hctx)
 	return sizeof(fixed_rdesc);
 }
 
-SEC(HID_BPF_DEVICE_EVENT)
-int BPF_PROG(xppen_16_fix_eraser, struct hid_bpf_ctx *hctx)
+static int xppen_16_fix_eraser(struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 10 /* size */);
 
@@ -207,8 +206,7 @@ static void compensate_coordinates_by_tilt(__u8 *data, const __u8 idx,
 	data[idx+1] = coords >> 8;
 }
 
-SEC(HID_BPF_DEVICE_EVENT)
-int BPF_PROG(xppen_16_fix_angle_offset, struct hid_bpf_ctx *hctx)
+static int xppen_16_fix_angle_offset(struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 10 /* size */);
 
@@ -253,6 +251,22 @@ int BPF_PROG(xppen_16_fix_angle_offset, struct hid_bpf_ctx *hctx)
 
 	return 0;
 }
+
+SEC(HID_BPF_DEVICE_EVENT)
+int BPF_PROG(xppen_artist_pro_16_device_event, struct hid_bpf_ctx *hctx)
+{
+	int ret = xppen_16_fix_angle_offset(hctx);
+
+	if (ret)
+		return ret;
+
+	return xppen_16_fix_eraser(hctx);
+}
+
+HID_BPF_OPS(xppen_artist_pro_16) = {
+	.hid_rdesc_fixup = (void *)hid_fix_rdesc_xppen_artistpro16gen2,
+	.hid_device_event = (void *)xppen_artist_pro_16_device_event,
+};
 
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)

@@ -139,6 +139,10 @@ int BPF_PROG(artpen_pressure_interpolate, struct hid_bpf_ctx *hctx)
 	return 0;
 }
 
+HID_BPF_OPS(wacom_artpen) = {
+	.hid_device_event = (void *)artpen_pressure_interpolate,
+};
+
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)
 {

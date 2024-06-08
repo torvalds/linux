@@ -209,6 +209,11 @@ int BPF_PROG(xppen_24_fix_eraser, struct hid_bpf_ctx *hctx)
 	return 0;
 }
 
+HID_BPF_OPS(xppen_artist_24) = {
+	.hid_rdesc_fixup = (void *)hid_fix_rdesc_xppen_artist24,
+	.hid_device_event = (void *)xppen_24_fix_eraser,
+};
+
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)
 {
