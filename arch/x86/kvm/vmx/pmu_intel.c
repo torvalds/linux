@@ -448,6 +448,14 @@ static __always_inline u64 intel_get_fixed_pmc_eventsel(unsigned int index)
 	return eventsel;
 }
 
+static void intel_pmu_enable_fixed_counter_bits(struct kvm_pmu *pmu, u64 bits)
+{
+	int i;
+
+	for (i = 0; i < pmu->nr_arch_fixed_counters; i++)
+		pmu->fixed_ctr_ctrl_rsvd &= ~intel_fixed_bits_by_idx(i, bits);
+}
+
 static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -457,7 +465,6 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	union cpuid10_edx edx;
 	u64 perf_capabilities;
 	u64 counter_rsvd;
-	int i;
 
 	memset(&lbr_desc->records, 0, sizeof(lbr_desc->records));
 
@@ -501,12 +508,9 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 			((u64)1 << edx.split.bit_width_fixed) - 1;
 	}
 
-	for (i = 0; i < pmu->nr_arch_fixed_counters; i++)
-		pmu->fixed_ctr_ctrl_rsvd &=
-			 ~intel_fixed_bits_by_idx(i,
-						  INTEL_FIXED_0_KERNEL |
-						  INTEL_FIXED_0_USER |
-						  INTEL_FIXED_0_ENABLE_PMI);
+	intel_pmu_enable_fixed_counter_bits(pmu, INTEL_FIXED_0_KERNEL |
+						 INTEL_FIXED_0_USER |
+						 INTEL_FIXED_0_ENABLE_PMI);
 
 	counter_rsvd = ~(((1ull << pmu->nr_arch_gp_counters) - 1) |
 		(((1ull << pmu->nr_arch_fixed_counters) - 1) << KVM_FIXED_PMC_BASE_IDX));
@@ -551,10 +555,8 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 		if (perf_capabilities & PERF_CAP_PEBS_BASELINE) {
 			pmu->pebs_enable_rsvd = counter_rsvd;
 			pmu->reserved_bits &= ~ICL_EVENTSEL_ADAPTIVE;
-			for (i = 0; i < pmu->nr_arch_fixed_counters; i++)
-				pmu->fixed_ctr_ctrl_rsvd &=
-					~intel_fixed_bits_by_idx(i, ICL_FIXED_0_ADAPTIVE);
 			pmu->pebs_data_cfg_rsvd = ~0xff00000full;
+			intel_pmu_enable_fixed_counter_bits(pmu, ICL_FIXED_0_ADAPTIVE);
 		} else {
 			pmu->pebs_enable_rsvd =
 				~((1ull << pmu->nr_arch_gp_counters) - 1);
