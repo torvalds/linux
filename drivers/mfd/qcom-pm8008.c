@@ -130,7 +130,7 @@ static int pm8008_set_type_config(unsigned int **buf, unsigned int type,
 }
 
 static const struct regmap_irq_chip pm8008_irq_chip = {
-	.name			= "pm8008_irq",
+	.name			= "pm8008",
 	.main_status		= I2C_INTR_STATUS_BASE,
 	.num_main_regs		= 1,
 	.irqs			= pm8008_irqs,
