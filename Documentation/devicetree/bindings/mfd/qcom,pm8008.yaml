@@ -29,6 +29,9 @@ properties:
 
     description: Parent interrupt.
 
+  reset-gpios:
+    maxItems: 1
+
   "#interrupt-cells":
     const: 2
 
@@ -97,6 +100,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/mfd/qcom-pm8008.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -114,6 +118,8 @@ examples:
 
         interrupt-parent = <&tlmm>;
         interrupts = <32 IRQ_TYPE_EDGE_RISING>;
+
+        reset-gpios = <&tlmm 42 GPIO_ACTIVE_LOW>;
 
         pm8008_gpios: gpio@c000 {
           compatible = "qcom,pm8008-gpio", "qcom,spmi-gpio";
