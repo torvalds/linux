@@ -11521,8 +11521,8 @@ void dml2_core_calcs_get_dpte_row_height(
 	unsigned int MacroTileWidthC;
 	unsigned int MacroTileHeightY;
 	unsigned int MacroTileHeightC;
-	bool surf_linear_128_l;
-	bool surf_linear_128_c;
+	bool surf_linear_128_l = false;
+	bool surf_linear_128_c = false;
 
 	CalculateBytePerPixelAndBlockSizes(
 		SourcePixelFormat,
