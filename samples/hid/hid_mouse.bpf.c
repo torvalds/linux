@@ -5,8 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include "hid_bpf_helpers.h"
 
-SEC("fmod_ret/hid_bpf_device_event")
-int BPF_PROG(hid_y_event, struct hid_bpf_ctx *hctx)
+static int hid_y_event(struct hid_bpf_ctx *hctx)
 {
 	s16 y;
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 9 /* size */);
@@ -51,8 +50,7 @@ int BPF_PROG(hid_y_event, struct hid_bpf_ctx *hctx)
 	return 0;
 }
 
-SEC("fmod_ret/hid_bpf_device_event")
-int BPF_PROG(hid_x_event, struct hid_bpf_ctx *hctx)
+static int hid_x_event(struct hid_bpf_ctx *hctx)
 {
 	s16 x;
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 9 /* size */);
@@ -69,7 +67,19 @@ int BPF_PROG(hid_x_event, struct hid_bpf_ctx *hctx)
 	return 0;
 }
 
-SEC("fmod_ret/hid_bpf_rdesc_fixup")
+SEC("struct_ops/device_event")
+int BPF_PROG(hid_event, struct hid_bpf_ctx *hctx, enum hid_report_type type)
+{
+	int ret = hid_y_event(hctx);
+
+	if (ret)
+		return ret;
+
+	return hid_x_event(hctx);
+}
+
+
+SEC("struct_ops/rdesc_fixup")
 int BPF_PROG(hid_rdesc_fixup, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 4096 /* size */);
@@ -108,5 +118,11 @@ int BPF_PROG(hid_rdesc_fixup, struct hid_bpf_ctx *hctx)
 
 	return 0;
 }
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops mouse_invert = {
+	.rdesc_fixup = (void *)hid_rdesc_fixup,
+	.device_event = (void *)hid_event,
+};
 
 char _license[] SEC("license") = "GPL";
