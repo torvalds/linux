@@ -20,11 +20,9 @@ struct hid_device;
  * struct hid_bpf_ctx - User accessible data for all HID programs
  *
  * ``data`` is not directly accessible from the context. We need to issue
- * a call to ``hid_bpf_get_data()`` in order to get a pointer to that field.
+ * a call to hid_bpf_get_data() in order to get a pointer to that field.
  *
- * All of these fields are currently read-only.
- *
- * @hid: the ``struct hid_device`` representing the device itself
+ * @hid: the &struct hid_device representing the device itself
  * @allocated_size: Allocated size of data.
  *
  *                  This is how much memory is available and can be requested
@@ -41,6 +39,8 @@ struct hid_device;
  *        ``size`` must always be less or equal than ``allocated_size`` (it is enforced
  *        once all BPF programs have been run).
  * @retval: Return value of the previous program.
+ *
+ * ``hid`` and ``allocated_size`` are read-only, ``size`` and ``retval`` are read-write.
  */
 struct hid_bpf_ctx {
 	const struct hid_device *hid;
