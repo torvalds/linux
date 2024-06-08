@@ -197,7 +197,9 @@ out:
 	return ck;
 }
 
-static int btree_key_cache_create(struct btree_trans *trans, struct btree_path *path,
+static int btree_key_cache_create(struct btree_trans *trans,
+				  struct btree_path *path,
+				  struct btree_path *ck_path,
 				  struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
@@ -217,7 +219,7 @@ static int btree_key_cache_create(struct btree_trans *trans, struct btree_path *
 	key_u64s = min(256U, (key_u64s * 3) / 2);
 	key_u64s = roundup_pow_of_two(key_u64s);
 
-	struct bkey_cached *ck = bkey_cached_alloc(trans, path, key_u64s);
+	struct bkey_cached *ck = bkey_cached_alloc(trans, ck_path, key_u64s);
 	int ret = PTR_ERR_OR_ZERO(ck);
 	if (ret)
 		return ret;
@@ -226,19 +228,19 @@ static int btree_key_cache_create(struct btree_trans *trans, struct btree_path *
 		ck = bkey_cached_reuse(bc);
 		if (unlikely(!ck)) {
 			bch_err(c, "error allocating memory for key cache item, btree %s",
-				bch2_btree_id_str(path->btree_id));
+				bch2_btree_id_str(ck_path->btree_id));
 			return -BCH_ERR_ENOMEM_btree_key_cache_create;
 		}
 	}
 
 	ck->c.level		= 0;
-	ck->c.btree_id		= path->btree_id;
-	ck->key.btree_id	= path->btree_id;
-	ck->key.pos		= path->pos;
+	ck->c.btree_id		= ck_path->btree_id;
+	ck->key.btree_id	= ck_path->btree_id;
+	ck->key.pos		= ck_path->pos;
 	ck->flags		= 1U << BKEY_CACHED_ACCESSED;
 
 	if (unlikely(key_u64s > ck->u64s)) {
-		mark_btree_node_locked_noreset(path, 0, BTREE_NODE_UNLOCKED);
+		mark_btree_node_locked_noreset(ck_path, 0, BTREE_NODE_UNLOCKED);
 
 		struct bkey_i *new_k = allocate_dropping_locks(trans, ret,
 				kmalloc(key_u64s * sizeof(u64), _gfp));
@@ -258,22 +260,29 @@ static int btree_key_cache_create(struct btree_trans *trans, struct btree_path *
 
 	bkey_reassemble(ck->k, k);
 
+	ret = bch2_btree_node_lock_write(trans, path, &path_l(path)->b->c);
+	if (unlikely(ret))
+		goto err;
+
 	ret = rhashtable_lookup_insert_fast(&bc->table, &ck->hash, bch2_btree_key_cache_params);
+
+	bch2_btree_node_unlock_write(trans, path, path_l(path)->b);
+
 	if (unlikely(ret)) /* raced with another fill? */
 		goto err;
 
 	atomic_long_inc(&bc->nr_keys);
 	six_unlock_write(&ck->c.lock);
 
-	enum six_lock_type lock_want = __btree_lock_want(path, 0);
+	enum six_lock_type lock_want = __btree_lock_want(ck_path, 0);
 	if (lock_want == SIX_LOCK_read)
 		six_lock_downgrade(&ck->c.lock);
-	btree_path_cached_set(trans, path, ck, (enum btree_node_locked_type) lock_want);
-	path->uptodate = BTREE_ITER_UPTODATE;
+	btree_path_cached_set(trans, ck_path, ck, (enum btree_node_locked_type) lock_want);
+	ck_path->uptodate = BTREE_ITER_UPTODATE;
 	return 0;
 err:
 	bkey_cached_free(bc, ck);
-	mark_btree_node_locked_noreset(path, 0, BTREE_NODE_UNLOCKED);
+	mark_btree_node_locked_noreset(ck_path, 0, BTREE_NODE_UNLOCKED);
 
 	return ret;
 }
@@ -293,6 +302,7 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, ck_path->btree_id, ck_path->pos,
+			     BTREE_ITER_intent|
 			     BTREE_ITER_key_cache_fill|
 			     BTREE_ITER_cached_nofill);
 	iter.flags &= ~BTREE_ITER_with_journal;
@@ -306,7 +316,7 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 	if (unlikely(ret))
 		goto out;
 
-	ret = btree_key_cache_create(trans, ck_path, k);
+	ret = btree_key_cache_create(trans, btree_iter_path(trans, &iter), ck_path, k);
 	if (ret)
 		goto err;
 
