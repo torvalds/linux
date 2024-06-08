@@ -56,15 +56,25 @@ static unsigned int pm8008_config_regs[] = {
 	INT_POL_LOW_OFFSET,
 };
 
-static struct regmap_irq pm8008_irqs[] = {
-	REGMAP_IRQ_REG(PM8008_IRQ_MISC_UVLO,	PM8008_MISC,	BIT(0)),
-	REGMAP_IRQ_REG(PM8008_IRQ_MISC_OVLO,	PM8008_MISC,	BIT(1)),
-	REGMAP_IRQ_REG(PM8008_IRQ_MISC_OTST2,	PM8008_MISC,	BIT(2)),
-	REGMAP_IRQ_REG(PM8008_IRQ_MISC_OTST3,	PM8008_MISC,	BIT(3)),
-	REGMAP_IRQ_REG(PM8008_IRQ_MISC_LDO_OCP,	PM8008_MISC,	BIT(4)),
-	REGMAP_IRQ_REG(PM8008_IRQ_TEMP_ALARM,	PM8008_TEMP_ALARM, BIT(0)),
-	REGMAP_IRQ_REG(PM8008_IRQ_GPIO1,	PM8008_GPIO1,	BIT(0)),
-	REGMAP_IRQ_REG(PM8008_IRQ_GPIO2,	PM8008_GPIO2,	BIT(0)),
+#define _IRQ(_irq, _off, _mask, _types)			\
+	[_irq] = {					\
+		.reg_offset = (_off),			\
+		.mask = (_mask),			\
+		.type = {				\
+			.type_reg_offset = (_off),	\
+			.types_supported = (_types),	\
+		},					\
+	}
+
+static const struct regmap_irq pm8008_irqs[] = {
+	_IRQ(PM8008_IRQ_MISC_UVLO,    PM8008_MISC,	BIT(0), IRQ_TYPE_EDGE_RISING),
+	_IRQ(PM8008_IRQ_MISC_OVLO,    PM8008_MISC,	BIT(1), IRQ_TYPE_EDGE_RISING),
+	_IRQ(PM8008_IRQ_MISC_OTST2,   PM8008_MISC,	BIT(2), IRQ_TYPE_EDGE_RISING),
+	_IRQ(PM8008_IRQ_MISC_OTST3,   PM8008_MISC,	BIT(3), IRQ_TYPE_EDGE_RISING),
+	_IRQ(PM8008_IRQ_MISC_LDO_OCP, PM8008_MISC,	BIT(4), IRQ_TYPE_EDGE_RISING),
+	_IRQ(PM8008_IRQ_TEMP_ALARM,   PM8008_TEMP_ALARM,BIT(0), IRQ_TYPE_SENSE_MASK),
+	_IRQ(PM8008_IRQ_GPIO1,	      PM8008_GPIO1,	BIT(0), IRQ_TYPE_SENSE_MASK),
+	_IRQ(PM8008_IRQ_GPIO2,	      PM8008_GPIO2,	BIT(0), IRQ_TYPE_SENSE_MASK),
 };
 
 static const unsigned int pm8008_periph_base[] = {
@@ -143,38 +153,9 @@ static struct regmap_config qcom_mfd_regmap_cfg = {
 	.max_register	= 0xFFFF,
 };
 
-static int pm8008_probe_irq_peripherals(struct device *dev,
-					struct regmap *regmap,
-					int client_irq)
-{
-	int rc, i;
-	struct regmap_irq_type *type;
-	struct regmap_irq_chip_data *irq_data;
-
-	for (i = 0; i < ARRAY_SIZE(pm8008_irqs); i++) {
-		type = &pm8008_irqs[i].type;
-
-		type->type_reg_offset = pm8008_irqs[i].reg_offset;
-
-		if (type->type_reg_offset == PM8008_MISC)
-			type->types_supported = IRQ_TYPE_EDGE_RISING;
-		else
-			type->types_supported = (IRQ_TYPE_EDGE_BOTH |
-				IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW);
-	}
-
-	rc = devm_regmap_add_irq_chip(dev, regmap, client_irq,
-			IRQF_SHARED, 0, &pm8008_irq_chip, &irq_data);
-	if (rc) {
-		dev_err(dev, "Failed to add IRQ chip: %d\n", rc);
-		return rc;
-	}
-
-	return 0;
-}
-
 static int pm8008_probe(struct i2c_client *client)
 {
+	struct regmap_irq_chip_data *irq_data;
 	int rc;
 	struct device *dev;
 	struct regmap *regmap;
@@ -187,9 +168,10 @@ static int pm8008_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, regmap);
 
 	if (of_property_read_bool(dev->of_node, "interrupt-controller")) {
-		rc = pm8008_probe_irq_peripherals(dev, regmap, client->irq);
+		rc = devm_regmap_add_irq_chip(dev, regmap, client->irq,
+				IRQF_SHARED, 0, &pm8008_irq_chip, &irq_data);
 		if (rc)
-			dev_err(dev, "Failed to probe irq periphs: %d\n", rc);
+			dev_err(dev, "failed to add IRQ chip: %d\n", rc);
 	}
 
 	return devm_of_platform_populate(dev);
