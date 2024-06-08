@@ -3,7 +3,7 @@
 /*
  *  HID-BPF support for Linux
  *
- *  Copyright (c) 2022 Benjamin Tissoires
+ *  Copyright (c) 2022-2024 Benjamin Tissoires
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -17,33 +17,10 @@
 #include <linux/kfifo.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
-#include <linux/workqueue.h>
 #include "hid_bpf_dispatch.h"
-#include "entrypoints/entrypoints.lskel.h"
 
 struct hid_ops *hid_ops;
 EXPORT_SYMBOL(hid_ops);
-
-/**
- * hid_bpf_device_event - Called whenever an event is coming in from the device
- *
- * @ctx: The HID-BPF context
- *
- * @return %0 on success and keep processing; a positive value to change the
- * incoming size buffer; a negative error code to interrupt the processing
- * of this event
- *
- * Declare an %fmod_ret tracing bpf program to this function and attach this
- * program through hid_bpf_attach_prog() to have this helper called for
- * any incoming event from the device itself.
- *
- * The function is called while on IRQ context, so we can not sleep.
- */
-/* never used by the kernel but declared so we can load and attach a tracepoint */
-__weak noinline int hid_bpf_device_event(struct hid_bpf_ctx *ctx)
-{
-	return 0;
-}
 
 u8 *
 dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type, u8 *data,
@@ -52,7 +29,6 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 	struct hid_bpf_ctx_kern ctx_kern = {
 		.ctx = {
 			.hid = hdev,
-			.report_type = type,
 			.allocated_size = hdev->bpf.allocated_data,
 			.size = *size,
 		},
@@ -86,11 +62,6 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 	}
 	rcu_read_unlock();
 
-	ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_DEVICE_EVENT, &ctx_kern);
-	if (ret < 0)
-		return ERR_PTR(ret);
-	ret = ctx_kern.ctx.retval;
-
 	if (ret) {
 		if (ret > ctx_kern.ctx.allocated_size)
 			return ERR_PTR(-EINVAL);
@@ -101,26 +72,6 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 	return ctx_kern.data;
 }
 EXPORT_SYMBOL_GPL(dispatch_hid_bpf_device_event);
-
-/**
- * hid_bpf_rdesc_fixup - Called when the probe function parses the report
- * descriptor of the HID device
- *
- * @ctx: The HID-BPF context
- *
- * @return 0 on success and keep processing; a positive value to change the
- * incoming size buffer; a negative error code to interrupt the processing
- * of this event
- *
- * Declare an %fmod_ret tracing bpf program to this function and attach this
- * program through hid_bpf_attach_prog() to have this helper called before any
- * parsing of the report descriptor by HID.
- */
-/* never used by the kernel but declared so we can load and attach a tracepoint */
-__weak noinline int hid_bpf_rdesc_fixup(struct hid_bpf_ctx *ctx)
-{
-	return 0;
-}
 
 u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size)
 {
@@ -133,16 +84,16 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 		},
 	};
 
+	if (!hdev->bpf.rdesc_ops)
+		goto ignore_bpf;
+
 	ctx_kern.data = kzalloc(ctx_kern.ctx.allocated_size, GFP_KERNEL);
 	if (!ctx_kern.data)
 		goto ignore_bpf;
 
 	memcpy(ctx_kern.data, rdesc, min_t(unsigned int, *size, HID_MAX_DESCRIPTOR_SIZE));
 
-	if (hdev->bpf.rdesc_ops)
-		ret = hdev->bpf.rdesc_ops->hid_rdesc_fixup(&ctx_kern.ctx);
-	else
-		ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_RDESC_FIXUP, &ctx_kern);
+	ret = hdev->bpf.rdesc_ops->hid_rdesc_fixup(&ctx_kern.ctx);
 	if (ret < 0)
 		goto ignore_bpf;
 
@@ -242,39 +193,6 @@ int hid_bpf_reconnect(struct hid_device *hdev)
 	return 0;
 }
 
-static int do_hid_bpf_attach_prog(struct hid_device *hdev, int prog_fd, struct bpf_prog *prog,
-				  __u32 flags)
-{
-	int fd, err, prog_type;
-
-	prog_type = hid_bpf_get_prog_attach_type(prog);
-	if (prog_type < 0)
-		return prog_type;
-
-	if (prog_type >= HID_BPF_PROG_TYPE_MAX)
-		return -EINVAL;
-
-	if (prog_type == HID_BPF_PROG_TYPE_DEVICE_EVENT) {
-		err = hid_bpf_allocate_event_data(hdev);
-		if (err)
-			return err;
-	}
-
-	fd = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, prog, flags);
-	if (fd < 0)
-		return fd;
-
-	if (prog_type == HID_BPF_PROG_TYPE_RDESC_FIXUP) {
-		err = hid_bpf_reconnect(hdev);
-		if (err) {
-			close_fd(fd);
-			return err;
-		}
-	}
-
-	return fd;
-}
-
 /* Disables missing prototype warnings */
 __bpf_kfunc_start_defs();
 
@@ -301,57 +219,6 @@ hid_bpf_get_data(struct hid_bpf_ctx *ctx, unsigned int offset, const size_t rdwr
 		return NULL;
 
 	return ctx_kern->data + offset;
-}
-
-/**
- * hid_bpf_attach_prog - Attach the given @prog_fd to the given HID device
- *
- * @hid_id: the system unique identifier of the HID device
- * @prog_fd: an fd in the user process representing the program to attach
- * @flags: any logical OR combination of &enum hid_bpf_attach_flags
- *
- * @returns an fd of a bpf_link object on success (> %0), an error code otherwise.
- * Closing this fd will detach the program from the HID device (unless the bpf_link
- * is pinned to the BPF file system).
- */
-/* called from syscall */
-__bpf_kfunc int
-hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
-{
-	struct hid_device *hdev;
-	struct bpf_prog *prog;
-	int err, fd;
-
-	if ((flags & ~HID_BPF_FLAG_MASK))
-		return -EINVAL;
-
-	hdev = hid_get_device(hid_id);
-	if (IS_ERR(hdev))
-		return PTR_ERR(hdev);
-
-	/*
-	 * take a ref on the prog itself, it will be released
-	 * on errors or when it'll be detached
-	 */
-	prog = bpf_prog_get(prog_fd);
-	if (IS_ERR(prog)) {
-		err = PTR_ERR(prog);
-		goto out_dev_put;
-	}
-
-	fd = do_hid_bpf_attach_prog(hdev, prog_fd, prog, flags);
-	if (fd < 0) {
-		err = fd;
-		goto out_prog_put;
-	}
-
-	return fd;
-
- out_prog_put:
-	bpf_prog_put(prog);
- out_dev_put:
-	hid_put_device(hdev);
-	return err;
 }
 
 /**
@@ -583,21 +450,8 @@ static const struct btf_kfunc_id_set hid_bpf_kfunc_set = {
 	.set   = &hid_bpf_kfunc_ids,
 };
 
-/* our HID-BPF entrypoints */
-BTF_SET8_START(hid_bpf_fmodret_ids)
-BTF_ID_FLAGS(func, hid_bpf_device_event)
-BTF_ID_FLAGS(func, hid_bpf_rdesc_fixup)
-BTF_ID_FLAGS(func, __hid_bpf_tail_call)
-BTF_SET8_END(hid_bpf_fmodret_ids)
-
-static const struct btf_kfunc_id_set hid_bpf_fmodret_set = {
-	.owner = THIS_MODULE,
-	.set   = &hid_bpf_fmodret_ids,
-};
-
 /* for syscall HID-BPF */
 BTF_KFUNCS_START(hid_bpf_syscall_kfunc_ids)
-BTF_ID_FLAGS(func, hid_bpf_attach_prog)
 BTF_ID_FLAGS(func, hid_bpf_allocate_context, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, hid_bpf_release_context, KF_RELEASE)
 BTF_ID_FLAGS(func, hid_bpf_hw_request)
@@ -622,8 +476,6 @@ int hid_bpf_connect_device(struct hid_device *hdev)
 			break;
 		}
 	}
-	if (rcu_dereference(hdev->bpf.progs[HID_BPF_PROG_TYPE_DEVICE_EVENT]))
-		need_to_allocate = true;
 	rcu_read_unlock();
 
 	/* only allocate BPF data if there are programs attached */
@@ -650,14 +502,12 @@ void hid_bpf_destroy_device(struct hid_device *hdev)
 	/* mark the device as destroyed in bpf so we don't reattach it */
 	hdev->bpf.destroyed = true;
 
-	__hid_bpf_destroy_device(hdev);
 	__hid_bpf_ops_destroy_device(hdev);
 }
 EXPORT_SYMBOL_GPL(hid_bpf_destroy_device);
 
 void hid_bpf_device_init(struct hid_device *hdev)
 {
-	spin_lock_init(&hdev->bpf.progs_lock);
 	INIT_LIST_HEAD(&hdev->bpf.prog_list);
 	mutex_init(&hdev->bpf.prog_list_lock);
 }
@@ -670,37 +520,15 @@ static int __init hid_bpf_init(void)
 	/* Note: if we exit with an error any time here, we would entirely break HID, which
 	 * is probably not something we want. So we log an error and return success.
 	 *
-	 * This is not a big deal: the syscall allowing to attach a BPF program to a HID device
-	 * will not be available, so nobody will be able to use the functionality.
+	 * This is not a big deal: nobody will be able to use the functionality.
 	 */
 
-	err = register_btf_fmodret_id_set(&hid_bpf_fmodret_set);
-	if (err) {
-		pr_warn("error while registering fmodret entrypoints: %d", err);
-		return 0;
-	}
-
-	err = hid_bpf_preload_skel();
-	if (err) {
-		pr_warn("error while preloading HID BPF dispatcher: %d", err);
-		return 0;
-	}
-
-	/* register tracing kfuncs after we are sure we can load our preloaded bpf program */
-	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &hid_bpf_kfunc_set);
-	if (err) {
-		pr_warn("error while setting HID BPF tracing kfuncs: %d", err);
-		return 0;
-	}
-
-	/* register struct_ops kfuncs after we are sure we can load our preloaded bpf program */
 	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &hid_bpf_kfunc_set);
 	if (err) {
 		pr_warn("error while setting HID BPF tracing kfuncs: %d", err);
 		return 0;
 	}
 
-	/* register syscalls after we are sure we can load our preloaded bpf program */
 	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &hid_bpf_syscall_kfunc_set);
 	if (err) {
 		pr_warn("error while setting HID BPF syscall kfuncs: %d", err);
@@ -710,15 +538,6 @@ static int __init hid_bpf_init(void)
 	return 0;
 }
 
-static void __exit hid_bpf_exit(void)
-{
-	/* HID depends on us, so if we hit that code, we are guaranteed that hid
-	 * has been removed and thus we do not need to clear the HID devices
-	 */
-	hid_bpf_free_links_and_skel();
-}
-
 late_initcall(hid_bpf_init);
-module_exit(hid_bpf_exit);
 MODULE_AUTHOR("Benjamin Tissoires");
 MODULE_LICENSE("GPL");
