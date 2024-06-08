@@ -136,6 +136,7 @@ static inline void btree_node_unlock(struct btree_trans *trans,
 	int lock_type = btree_node_locked_type(path, level);
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
+	EBUG_ON(lock_type == BTREE_NODE_WRITE_LOCKED);
 
 	if (lock_type != BTREE_NODE_UNLOCKED) {
 		six_unlock_type(&path->l[level].b->c.lock, lock_type);
