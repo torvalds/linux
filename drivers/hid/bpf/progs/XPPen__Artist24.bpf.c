@@ -158,7 +158,6 @@ int BPF_PROG(xppen_24_fix_eraser, struct hid_bpf_ctx *hctx)
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 10 /* size */);
 	__u8 current_state, changed_state;
 	bool prev_tip;
-	__u16 tilt;
 
 	if (!data)
 		return 0; /* EPERM check */
