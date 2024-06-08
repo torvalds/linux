@@ -27,103 +27,128 @@ properties:
   reset-gpios:
     maxItems: 1
 
-  "#interrupt-cells":
+  vdd-l1-l2-supply: true
+  vdd-l3-l4-supply: true
+  vdd-l5-supply: true
+  vdd-l6-supply: true
+  vdd-l7-supply: true
+
+  gpio-controller: true
+
+  "#gpio-cells":
     const: 2
 
-    description: |
-      The first cell is the IRQ number, the second cell is the IRQ trigger
-      flag. All interrupts are listed in include/dt-bindings/mfd/qcom-pm8008.h.
+  gpio-ranges:
+    maxItems: 1
 
   interrupt-controller: true
 
-  "#address-cells":
-    const: 1
+  "#interrupt-cells":
+    const: 2
 
-  "#size-cells":
+  "#thermal-sensor-cells":
     const: 0
 
-patternProperties:
-  "^gpio@[0-9a-f]+$":
+  pinctrl:
     type: object
-
-    description: |
-      The GPIO peripheral. This node may be specified twice, one for each GPIO.
-
-    properties:
-      compatible:
-        items:
-          - const: qcom,pm8008-gpio
-          - const: qcom,spmi-gpio
-
-      reg:
-        description: Peripheral address of one of the two GPIO peripherals.
-        maxItems: 1
-
-      gpio-controller: true
-
-      gpio-ranges:
-        maxItems: 1
-
-      interrupt-controller: true
-
-      "#interrupt-cells":
-        const: 2
-
-      "#gpio-cells":
-        const: 2
-
-    required:
-      - compatible
-      - reg
-      - gpio-controller
-      - interrupt-controller
-      - "#gpio-cells"
-      - gpio-ranges
-      - "#interrupt-cells"
-
     additionalProperties: false
+    patternProperties:
+      "-state$":
+        type: object
+
+        allOf:
+          - $ref: /schemas/pinctrl/pinmux-node.yaml
+          - $ref: /schemas/pinctrl/pincfg-node.yaml
+
+        properties:
+          pins:
+            items:
+              pattern: "^gpio[12]$"
+
+          function:
+            items:
+              - enum:
+                  - normal
+
+        required:
+          - pins
+          - function
+
+        additionalProperties: false
+
+  regulators:
+    type: object
+    additionalProperties: false
+    patternProperties:
+      "^ldo[1-7]$":
+        type: object
+        $ref: /schemas/regulator/regulator.yaml#
+        unevaluatedProperties: false
 
 required:
   - compatible
   - reg
   - interrupts
-  - "#address-cells"
-  - "#size-cells"
+  - vdd-l1-l2-supply
+  - vdd-l3-l4-supply
+  - vdd-l5-supply
+  - vdd-l6-supply
+  - vdd-l7-supply
+  - gpio-controller
+  - "#gpio-cells"
+  - gpio-ranges
+  - interrupt-controller
   - "#interrupt-cells"
+  - "#thermal-sensor-cells"
 
 additionalProperties: false
 
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    #include <dt-bindings/mfd/qcom-pm8008.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
     i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 
-      pmic@8 {
+      pm8008: pmic@8 {
         compatible = "qcom,pm8008";
         reg = <0x8>;
-        #address-cells = <1>;
-        #size-cells = <0>;
-        interrupt-controller;
-        #interrupt-cells = <2>;
 
         interrupt-parent = <&tlmm>;
         interrupts = <32 IRQ_TYPE_EDGE_RISING>;
 
         reset-gpios = <&tlmm 42 GPIO_ACTIVE_LOW>;
 
-        pm8008_gpios: gpio@c000 {
-          compatible = "qcom,pm8008-gpio", "qcom,spmi-gpio";
-          reg = <0xc000>;
-          gpio-controller;
-          gpio-ranges = <&pm8008_gpios 0 0 2>;
-          #gpio-cells = <2>;
-          interrupt-controller;
-          #interrupt-cells = <2>;
+        vdd-l1-l2-supply = <&vreg_s8b_1p2>;
+        vdd-l3-l4-supply = <&vreg_s1b_1p8>;
+        vdd-l5-supply = <&vreg_bob>;
+        vdd-l6-supply = <&vreg_bob>;
+        vdd-l7-supply = <&vreg_bob>;
+
+        gpio-controller;
+        #gpio-cells = <2>;
+        gpio-ranges = <&pm8008 0 0 2>;
+
+        interrupt-controller;
+        #interrupt-cells = <2>;
+
+        #thermal-sensor-cells = <0>;
+
+        pinctrl {
+          gpio-keys-state {
+            pins = "gpio1";
+            function = "normal";
+          };
+        };
+
+        regulators {
+          ldo1 {
+            regulator-name = "vreg_l1";
+            regulator-min-microvolt = <950000>;
+            regulator-max-microvolt = <1300000>;
+          };
         };
       };
     };
