@@ -623,7 +623,7 @@ static int midas_probe(struct platform_device *pdev)
 
 		if (channel_type != IIO_VOLTAGE) {
 			dev_err(dev, "ADC channel is not voltage\n");
-			return ret;
+			return -EINVAL;
 		}
 
 		priv->gpio_headset_key = devm_gpiod_get(dev, "headset-key",
