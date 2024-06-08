@@ -2834,9 +2834,6 @@ int vmx_hardware_enable(void)
 		return r;
 	}
 
-	if (enable_ept)
-		ept_sync_global();
-
 	return 0;
 }
 
