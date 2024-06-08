@@ -58,9 +58,7 @@ void bch2_inode_update_after_write(struct btree_trans *trans,
 
 	BUG_ON(bi->bi_inum != inode->v.i_ino);
 
-	bch2_assert_pos_locked(trans, BTREE_ID_inodes,
-			       POS(0, bi->bi_inum),
-			       c->opts.inodes_use_key_cache);
+	bch2_assert_pos_locked(trans, BTREE_ID_inodes, POS(0, bi->bi_inum));
 
 	set_nlink(&inode->v, bch2_inode_nlink_get(bi));
 	i_uid_write(&inode->v, bi->bi_uid);
