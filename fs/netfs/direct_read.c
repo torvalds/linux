@@ -33,7 +33,7 @@ ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *i
 	size_t orig_count = iov_iter_count(iter);
 	bool async = !is_sync_kiocb(iocb);
 
-	_enter("");
+	kenter("");
 
 	if (!orig_count)
 		return 0; /* Don't update atime */

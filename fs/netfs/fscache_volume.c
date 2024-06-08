@@ -251,7 +251,7 @@ static struct fscache_volume *fscache_alloc_volume(const char *volume_key,
 	fscache_see_volume(volume, fscache_volume_new_acquire);
 	fscache_stat(&fscache_n_volumes);
 	up_write(&fscache_addremove_sem);
-	_leave(" = v=%x", volume->debug_id);
+	kleave(" = v=%x", volume->debug_id);
 	return volume;
 
 err_vol:
@@ -452,7 +452,7 @@ void fscache_withdraw_volume(struct fscache_volume *volume)
 {
 	int n_accesses;
 
-	_debug("withdraw V=%x", volume->debug_id);
+	kdebug("withdraw V=%x", volume->debug_id);
 
 	/* Allow wakeups on dec-to-0 */
 	n_accesses = atomic_dec_return(&volume->n_accesses);

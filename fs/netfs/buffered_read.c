@@ -117,7 +117,7 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 		if (!test_bit(NETFS_RREQ_DONT_UNLOCK_FOLIOS, &rreq->flags)) {
 			if (folio->index == rreq->no_unlock_folio &&
 			    test_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags))
-				_debug("no unlock");
+				kdebug("no unlock");
 			else
 				folio_unlock(folio);
 		}
@@ -204,7 +204,7 @@ void netfs_readahead(struct readahead_control *ractl)
 	struct netfs_inode *ctx = netfs_inode(ractl->mapping->host);
 	int ret;
 
-	_enter("%lx,%x", readahead_index(ractl), readahead_count(ractl));
+	kenter("%lx,%x", readahead_index(ractl), readahead_count(ractl));
 
 	if (readahead_count(ractl) == 0)
 		return;
@@ -268,7 +268,7 @@ int netfs_read_folio(struct file *file, struct folio *folio)
 	struct folio *sink = NULL;
 	int ret;
 
-	_enter("%lx", folio->index);
+	kenter("%lx", folio->index);
 
 	rreq = netfs_alloc_request(mapping, file,
 				   folio_file_pos(folio), folio_size(folio),
@@ -508,7 +508,7 @@ retry:
 
 have_folio:
 	*_folio = folio;
-	_leave(" = 0");
+	kleave(" = 0");
 	return 0;
 
 error_put:
@@ -518,7 +518,7 @@ error:
 		folio_unlock(folio);
 		folio_put(folio);
 	}
-	_leave(" = %d", ret);
+	kleave(" = %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_write_begin);
@@ -536,7 +536,7 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 	size_t flen = folio_size(folio);
 	int ret;
 
-	_enter("%zx @%llx", flen, start);
+	kenter("%zx @%llx", flen, start);
 
 	ret = -ENOMEM;
 
@@ -567,7 +567,7 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 error_put:
 	netfs_put_request(rreq, false, netfs_rreq_trace_put_discard);
 error:
-	_leave(" = %d", ret);
+	kleave(" = %d", ret);
 	return ret;
 }
 
