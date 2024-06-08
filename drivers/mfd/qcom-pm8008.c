@@ -51,7 +51,7 @@ enum {
 	POLARITY_LO_INDEX,
 };
 
-static unsigned int pm8008_config_regs[] = {
+static const unsigned int pm8008_config_regs[] = {
 	INT_SET_TYPE_OFFSET,
 	INT_POL_HIGH_OFFSET,
 	INT_POL_LOW_OFFSET,
@@ -129,7 +129,7 @@ static int pm8008_set_type_config(unsigned int **buf, unsigned int type,
 	return 0;
 }
 
-static struct regmap_irq_chip pm8008_irq_chip = {
+static const struct regmap_irq_chip pm8008_irq_chip = {
 	.name			= "pm8008_irq",
 	.main_status		= I2C_INTR_STATUS_BASE,
 	.num_main_regs		= 1,
