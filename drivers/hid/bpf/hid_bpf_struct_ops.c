@@ -16,6 +16,7 @@
 #include <linux/hid_bpf.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/stddef.h>
 #include <linux/workqueue.h>
 #include "hid_bpf_dispatch.h"
 
@@ -52,40 +53,86 @@ static int hid_bpf_ops_check_member(const struct btf_type *t,
 	return 0;
 }
 
+struct hid_bpf_offset_write_range {
+	const char *struct_name;
+	u32 struct_length;
+	u32 start;
+	u32 end;
+};
+
 static int hid_bpf_ops_btf_struct_access(struct bpf_verifier_log *log,
 					   const struct bpf_reg_state *reg,
 					   int off, int size)
 {
-	const struct btf_type *state;
-	const struct btf_type *t;
-	s32 type_id;
+#define WRITE_RANGE(_name, _field, _is_string)					\
+	{									\
+		.struct_name = #_name,						\
+		.struct_length = sizeof(struct _name),				\
+		.start = offsetof(struct _name, _field),			\
+		.end = offsetofend(struct _name, _field) - !!(_is_string),	\
+	}
 
-	type_id = btf_find_by_name_kind(reg->btf, "hid_bpf_ctx",
-					BTF_KIND_STRUCT);
-	if (type_id < 0)
-		return -EINVAL;
+	const struct hid_bpf_offset_write_range write_ranges[] = {
+		WRITE_RANGE(hid_bpf_ctx, retval, false),
+	};
+#undef WRITE_RANGE
+	const struct btf_type *state = NULL;
+	const struct btf_type *t;
+	const char *cur = NULL;
+	int i;
 
 	t = btf_type_by_id(reg->btf, reg->btf_id);
-	state = btf_type_by_id(reg->btf, type_id);
-	if (t != state) {
-		bpf_log(log, "only access to hid_bpf_ctx is supported\n");
-		return -EACCES;
+
+	for (i = 0; i < ARRAY_SIZE(write_ranges); i++) {
+		const struct hid_bpf_offset_write_range *write_range = &write_ranges[i];
+		s32 type_id;
+
+		/* we already found a writeable struct, but there is a
+		 * new one, let's break the loop.
+		 */
+		if (t == state && write_range->struct_name != cur)
+			break;
+
+		/* new struct to look for */
+		if (write_range->struct_name != cur) {
+			type_id = btf_find_by_name_kind(reg->btf, write_range->struct_name,
+							BTF_KIND_STRUCT);
+			if (type_id < 0)
+				return -EINVAL;
+
+			state = btf_type_by_id(reg->btf, type_id);
+		}
+
+		/* this is not the struct we are looking for */
+		if (t != state) {
+			cur = write_range->struct_name;
+			continue;
+		}
+
+		/* first time we see this struct, check for out of bounds */
+		if (cur != write_range->struct_name &&
+		    off + size > write_range->struct_length) {
+			bpf_log(log, "write access for struct %s at off %d with size %d\n",
+				write_range->struct_name, off, size);
+			return -EACCES;
+		}
+
+		/* now check if we are in our boundaries */
+		if (off >= write_range->start && off + size <= write_range->end)
+			return NOT_INIT;
+
+		cur = write_range->struct_name;
 	}
 
-	/* out-of-bound access in hid_bpf_ctx */
-	if (off + size > sizeof(struct hid_bpf_ctx)) {
-		bpf_log(log, "write access at off %d with size %d\n", off, size);
-		return -EACCES;
-	}
 
-	if (off < offsetof(struct hid_bpf_ctx, retval)) {
+	if (t != state)
+		bpf_log(log, "write access to this struct is not supported\n");
+	else
 		bpf_log(log,
-			"write access at off %d with size %d on read-only part of hid_bpf_ctx\n",
-			off, size);
-		return -EACCES;
-	}
+			"write access at off %d with size %d on read-only part of %s\n",
+			off, size, cur);
 
-	return NOT_INIT;
+	return -EACCES;
 }
 
 static const struct bpf_verifier_ops hid_bpf_verifier_ops = {
