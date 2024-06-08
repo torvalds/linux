@@ -1686,7 +1686,7 @@ static int xpad_led_probe(struct usb_xpad *xpad)
 	if (xpad->xtype != XTYPE_XBOX360 && xpad->xtype != XTYPE_XBOX360W)
 		return 0;
 
-	xpad->led = led = kzalloc(sizeof(struct xpad_led), GFP_KERNEL);
+	xpad->led = led = kzalloc(sizeof(*led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 
@@ -2022,7 +2022,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 			break;
 	}
 
-	xpad = kzalloc(sizeof(struct usb_xpad), GFP_KERNEL);
+	xpad = kzalloc(sizeof(*xpad), GFP_KERNEL);
 	if (!xpad)
 		return -ENOMEM;
 
