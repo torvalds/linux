@@ -585,6 +585,8 @@ static void msgdma_chan_desc_cleanup(struct msgdma_device *mdev)
 	struct msgdma_sw_desc *desc, *next;
 	unsigned long irqflags;
 
+	spin_lock_irqsave(&mdev->lock, irqflags);
+
 	list_for_each_entry_safe(desc, next, &mdev->done_list, node) {
 		struct dmaengine_desc_callback cb;
 
@@ -600,6 +602,8 @@ static void msgdma_chan_desc_cleanup(struct msgdma_device *mdev)
 		/* Run any dependencies, then free the descriptor */
 		msgdma_free_descriptor(mdev, desc);
 	}
+
+	spin_unlock_irqrestore(&mdev->lock, irqflags);
 }
 
 /**
@@ -714,10 +718,11 @@ static void msgdma_tasklet(struct tasklet_struct *t)
 		}
 
 		msgdma_complete_descriptor(mdev);
-		msgdma_chan_desc_cleanup(mdev);
 	}
 
 	spin_unlock_irqrestore(&mdev->lock, flags);
+
+	msgdma_chan_desc_cleanup(mdev);
 }
 
 /**
