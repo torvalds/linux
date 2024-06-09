@@ -199,4 +199,5 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 }
 EXPORT_SYMBOL(matrix_keypad_build_keymap);
 
+MODULE_DESCRIPTION("Helpers for matrix keyboard bindings");
 MODULE_LICENSE("GPL");
