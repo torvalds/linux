@@ -582,14 +582,12 @@ static ssize_t ili210x_calibrate(struct device *dev,
 }
 static DEVICE_ATTR(calibrate, S_IWUSR, NULL, ili210x_calibrate);
 
-static int ili251x_firmware_to_buffer(const struct firmware *fw,
-				      u8 **buf, u16 *ac_end, u16 *df_end)
+static const u8 *ili251x_firmware_to_buffer(const struct firmware *fw,
+					    u16 *ac_end, u16 *df_end)
 {
 	const struct ihex_binrec *rec;
 	u32 fw_addr, fw_last_addr = 0;
 	u16 fw_len;
-	u8 *fw_buf;
-	int error;
 
 	/*
 	 * The firmware ihex blob can never be bigger than 64 kiB, so make this
@@ -597,9 +595,9 @@ static int ili251x_firmware_to_buffer(const struct firmware *fw,
 	 * once, copy them all into this buffer at the right locations, and then
 	 * do all operations on this linear buffer.
 	 */
-	fw_buf = kvmalloc(SZ_64K, GFP_KERNEL);
+	u8* fw_buf __free(kvfree) = kvmalloc(SZ_64K, GFP_KERNEL);
 	if (!fw_buf)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	rec = (const struct ihex_binrec *)fw->data;
 	while (rec) {
@@ -607,10 +605,8 @@ static int ili251x_firmware_to_buffer(const struct firmware *fw,
 		fw_len = be16_to_cpu(rec->len);
 
 		/* The last 32 Byte firmware block can be 0xffe0 */
-		if (fw_addr + fw_len > SZ_64K || fw_addr > SZ_64K - 32) {
-			error = -EFBIG;
-			goto err_big;
-		}
+		if (fw_addr + fw_len > SZ_64K || fw_addr > SZ_64K - 32)
+			return ERR_PTR(-EFBIG);
 
 		/* Find the last address before DF start address, that is AC end */
 		if (fw_addr == 0xf000)
@@ -623,12 +619,8 @@ static int ili251x_firmware_to_buffer(const struct firmware *fw,
 
 	/* DF end address is the last address in the firmware blob */
 	*df_end = fw_addr + fw_len;
-	*buf = fw_buf;
-	return 0;
 
-err_big:
-	kvfree(fw_buf);
-	return error;
+	return_ptr(fw_buf);
 }
 
 /* Switch mode between Application and BootLoader */
@@ -691,7 +683,7 @@ static int ili251x_firmware_busy(struct i2c_client *client)
 	return 0;
 }
 
-static int ili251x_firmware_write_to_ic(struct device *dev, u8 *fwbuf,
+static int ili251x_firmware_write_to_ic(struct device *dev, const u8 *fwbuf,
 					u16 start, u16 end, u8 dataflash)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -776,6 +768,67 @@ static void ili210x_hardware_reset(struct gpio_desc *reset_gpio)
 	msleep(300);
 }
 
+static int ili210x_do_firmware_update(struct ili210x *priv,
+				      const u8 *fwbuf, u16 ac_end, u16 df_end)
+{
+	struct i2c_client *client = priv->client;
+	struct device *dev = &client->dev;
+	int error;
+	int i;
+
+	error = ili251x_firmware_reset(client);
+	if (error)
+		return error;
+
+	/* This may not succeed on first try, so re-try a few times. */
+	for (i = 0; i < 5; i++) {
+		error = ili251x_switch_ic_mode(client, REG_SET_MODE_BL);
+		if (!error)
+			break;
+	}
+
+	if (error)
+		return error;
+
+	dev_dbg(dev, "IC is now in BootLoader mode\n");
+
+	msleep(200);	/* The bootloader seems to need some time too. */
+
+	error = ili251x_firmware_write_to_ic(dev, fwbuf, 0xf000, df_end, 1);
+	if (error) {
+		dev_err(dev, "DF firmware update failed, error=%d\n", error);
+		return error;
+	}
+
+	dev_dbg(dev, "DataFlash firmware written\n");
+
+	error = ili251x_firmware_write_to_ic(dev, fwbuf, 0x2000, ac_end, 0);
+	if (error) {
+		dev_err(dev, "AC firmware update failed, error=%d\n", error);
+		return error;
+	}
+
+	dev_dbg(dev, "Application firmware written\n");
+
+	/* This may not succeed on first try, so re-try a few times. */
+	for (i = 0; i < 5; i++) {
+		error = ili251x_switch_ic_mode(client, REG_SET_MODE_AP);
+		if (!error)
+			break;
+	}
+
+	if (error)
+		return error;
+
+	dev_dbg(dev, "IC is now in Application mode\n");
+
+	error = ili251x_firmware_update_cached_state(dev);
+	if (error)
+		return error;
+
+	return 0;
+}
+
 static ssize_t ili210x_firmware_update_store(struct device *dev,
 					     struct device_attribute *attr,
 					     const char *buf, size_t count)
@@ -783,12 +836,10 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ili210x *priv = i2c_get_clientdata(client);
 	const char *fwname = ILI251X_FW_FILENAME;
-	const struct firmware *fw;
 	u16 ac_end, df_end;
-	u8 *fwbuf;
 	int error;
-	int i;
 
+	const struct firmware *fw __free(firmware) = NULL;
 	error = request_ihex_firmware(&fw, fwname, dev);
 	if (error) {
 		dev_err(dev, "Failed to request firmware %s, error=%d\n",
@@ -796,8 +847,9 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 		return error;
 	}
 
-	error = ili251x_firmware_to_buffer(fw, &fwbuf, &ac_end, &df_end);
-	release_firmware(fw);
+	const u8* fwbuf __free(kvfree) =
+			ili251x_firmware_to_buffer(fw, &ac_end, &df_end);
+	error = PTR_ERR_OR_ZERO(fwbuf);
 	if (error)
 		return error;
 
@@ -814,64 +866,15 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 
 	ili210x_hardware_reset(priv->reset_gpio);
 
-	error = ili251x_firmware_reset(client);
-	if (error)
-		goto exit;
+	error = ili210x_do_firmware_update(priv, fwbuf, ac_end, df_end);
 
-	/* This may not succeed on first try, so re-try a few times. */
-	for (i = 0; i < 5; i++) {
-		error = ili251x_switch_ic_mode(client, REG_SET_MODE_BL);
-		if (!error)
-			break;
-	}
-
-	if (error)
-		goto exit;
-
-	dev_dbg(dev, "IC is now in BootLoader mode\n");
-
-	msleep(200);	/* The bootloader seems to need some time too. */
-
-	error = ili251x_firmware_write_to_ic(dev, fwbuf, 0xf000, df_end, 1);
-	if (error) {
-		dev_err(dev, "DF firmware update failed, error=%d\n", error);
-		goto exit;
-	}
-
-	dev_dbg(dev, "DataFlash firmware written\n");
-
-	error = ili251x_firmware_write_to_ic(dev, fwbuf, 0x2000, ac_end, 0);
-	if (error) {
-		dev_err(dev, "AC firmware update failed, error=%d\n", error);
-		goto exit;
-	}
-
-	dev_dbg(dev, "Application firmware written\n");
-
-	/* This may not succeed on first try, so re-try a few times. */
-	for (i = 0; i < 5; i++) {
-		error = ili251x_switch_ic_mode(client, REG_SET_MODE_AP);
-		if (!error)
-			break;
-	}
-
-	if (error)
-		goto exit;
-
-	dev_dbg(dev, "IC is now in Application mode\n");
-
-	error = ili251x_firmware_update_cached_state(dev);
-	if (error)
-		goto exit;
-
-	error = count;
-
-exit:
 	ili210x_hardware_reset(priv->reset_gpio);
+
 	dev_dbg(dev, "Firmware update ended, error=%i\n", error);
+
 	enable_irq(client->irq);
-	kvfree(fwbuf);
-	return error;
+
+	return error ?: count;
 }
 
 static DEVICE_ATTR(firmware_update, 0200, NULL, ili210x_firmware_update_store);
