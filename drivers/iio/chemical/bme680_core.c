@@ -572,15 +572,6 @@ static int bme680_read_temp(struct bme680_data *data, int *val)
 	u32 adc_temp;
 	s16 comp_temp;
 
-	/* set forced mode to trigger measurement */
-	ret = bme680_set_mode(data, true);
-	if (ret < 0)
-		return ret;
-
-	ret = bme680_wait_for_eoc(data);
-	if (ret)
-		return ret;
-
 	ret = regmap_bulk_read(data->regmap, BME680_REG_TEMP_MSB,
 			       data->buf, BME680_TEMP_NUM_BYTES);
 	if (ret < 0) {
@@ -683,15 +674,6 @@ static int bme680_read_gas(struct bme680_data *data,
 	u16 adc_gas_res, gas_regs_val;
 	u8 gas_range;
 
-	/* set forced mode to trigger measurement */
-	ret = bme680_set_mode(data, true);
-	if (ret < 0)
-		return ret;
-
-	ret = bme680_wait_for_eoc(data);
-	if (ret)
-		return ret;
-
 	ret = regmap_read(data->regmap, BME680_REG_MEAS_STAT_0, &data->check);
 	if (data->check & BME680_GAS_MEAS_BIT) {
 		dev_err(dev, "gas measurement incomplete\n");
@@ -730,8 +712,18 @@ static int bme680_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	struct bme680_data *data = iio_priv(indio_dev);
+	int ret;
 
 	guard(mutex)(&data->lock);
+
+	/* set forced mode to trigger measurement */
+	ret = bme680_set_mode(data, true);
+	if (ret < 0)
+		return ret;
+
+	ret = bme680_wait_for_eoc(data);
+	if (ret)
+		return ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_PROCESSED:
