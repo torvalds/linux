@@ -860,19 +860,17 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 	 * the touch controller to disable the IRQs during update, so we have
 	 * to do it this way here.
 	 */
-	disable_irq(client->irq);
+	scoped_guard(disable_irq, &client->irq) {
+		dev_dbg(dev, "Firmware update started, firmware=%s\n", fwname);
 
-	dev_dbg(dev, "Firmware update started, firmware=%s\n", fwname);
+		ili210x_hardware_reset(priv->reset_gpio);
 
-	ili210x_hardware_reset(priv->reset_gpio);
+		error = ili210x_do_firmware_update(priv, fwbuf, ac_end, df_end);
 
-	error = ili210x_do_firmware_update(priv, fwbuf, ac_end, df_end);
+		ili210x_hardware_reset(priv->reset_gpio);
 
-	ili210x_hardware_reset(priv->reset_gpio);
-
-	dev_dbg(dev, "Firmware update ended, error=%i\n", error);
-
-	enable_irq(client->irq);
+		dev_dbg(dev, "Firmware update ended, error=%i\n", error);
+	}
 
 	return error ?: count;
 }
