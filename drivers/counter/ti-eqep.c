@@ -122,7 +122,6 @@ enum ti_eqep_count_func {
 };
 
 struct ti_eqep_cnt {
-	struct counter_device counter;
 	struct regmap *regmap32;
 	struct regmap *regmap16;
 };
