@@ -19,7 +19,52 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
+#include <asm/unaligned.h>
+
 #include "bme680.h"
+
+/* 1st set of calibration data */
+enum {
+	/* Temperature calib indexes */
+	T2_LSB = 0,
+	T3 = 2,
+	/* Pressure calib indexes */
+	P1_LSB = 4,
+	P2_LSB = 6,
+	P3 = 8,
+	P4_LSB = 10,
+	P5_LSB = 12,
+	P7 = 14,
+	P6 = 15,
+	P8_LSB = 18,
+	P9_LSB = 20,
+	P10 = 22,
+};
+
+/* 2nd set of calibration data */
+enum {
+	/* Humidity calib indexes */
+	H2_MSB = 0,
+	H1_LSB = 1,
+	H3 = 3,
+	H4 = 4,
+	H5 = 5,
+	H6 = 6,
+	H7 = 7,
+	/* Stray T1 calib index */
+	T1_LSB = 8,
+	/* Gas heater calib indexes */
+	GH2_LSB = 10,
+	GH1 = 12,
+	GH3 = 13,
+};
+
+/* 3rd set of calibration data */
+enum {
+	RES_HEAT_VAL = 0,
+	RES_HEAT_RANGE = 2,
+	RANGE_SW_ERR = 4,
+};
 
 struct bme680_calib {
 	u16 par_t1;
@@ -64,6 +109,12 @@ struct bme680_data {
 	 * and humidity compensation calculations.
 	 */
 	s32 t_fine;
+
+	union {
+		u8 bme680_cal_buf_1[BME680_CALIB_RANGE_1_LEN];
+		u8 bme680_cal_buf_2[BME680_CALIB_RANGE_2_LEN];
+		u8 bme680_cal_buf_3[BME680_CALIB_RANGE_3_LEN];
+	};
 };
 
 static const struct regmap_range bme680_volatile_ranges[] = {
@@ -112,217 +163,73 @@ static int bme680_read_calib(struct bme680_data *data,
 			     struct bme680_calib *calib)
 {
 	struct device *dev = regmap_get_device(data->regmap);
-	unsigned int tmp, tmp_msb, tmp_lsb;
+	unsigned int tmp_msb, tmp_lsb;
 	int ret;
-	__le16 buf;
-
-	/* Temperature related coefficients */
-	ret = regmap_bulk_read(data->regmap, BME680_T1_LSB_REG,
-			       &buf, sizeof(buf));
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_T1_LSB_REG\n");
-		return ret;
-	}
-	calib->par_t1 = le16_to_cpu(buf);
 
 	ret = regmap_bulk_read(data->regmap, BME680_T2_LSB_REG,
-			       &buf, sizeof(buf));
+			       data->bme680_cal_buf_1,
+			       sizeof(data->bme680_cal_buf_1));
 	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_T2_LSB_REG\n");
+		dev_err(dev, "failed to read 1st set of calib data;\n");
 		return ret;
 	}
-	calib->par_t2 = le16_to_cpu(buf);
 
-	ret = regmap_read(data->regmap, BME680_T3_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_T3_REG\n");
-		return ret;
-	}
-	calib->par_t3 = tmp;
+	calib->par_t2 = get_unaligned_le16(&data->bme680_cal_buf_1[T2_LSB]);
+	calib->par_t3 = data->bme680_cal_buf_1[T3];
+	calib->par_p1 = get_unaligned_le16(&data->bme680_cal_buf_1[P1_LSB]);
+	calib->par_p2 = get_unaligned_le16(&data->bme680_cal_buf_1[P2_LSB]);
+	calib->par_p3 = data->bme680_cal_buf_1[P3];
+	calib->par_p4 = get_unaligned_le16(&data->bme680_cal_buf_1[P4_LSB]);
+	calib->par_p5 = get_unaligned_le16(&data->bme680_cal_buf_1[P5_LSB]);
+	calib->par_p7 = data->bme680_cal_buf_1[P7];
+	calib->par_p6 = data->bme680_cal_buf_1[P6];
+	calib->par_p8 = get_unaligned_le16(&data->bme680_cal_buf_1[P8_LSB]);
+	calib->par_p9 = get_unaligned_le16(&data->bme680_cal_buf_1[P9_LSB]);
+	calib->par_p10 = data->bme680_cal_buf_1[P10];
 
-	/* Pressure related coefficients */
-	ret = regmap_bulk_read(data->regmap, BME680_P1_LSB_REG,
-			       &buf, sizeof(buf));
+	ret = regmap_bulk_read(data->regmap, BME680_H2_MSB_REG,
+			       data->bme680_cal_buf_2,
+			       sizeof(data->bme680_cal_buf_2));
 	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P1_LSB_REG\n");
+		dev_err(dev, "failed to read 2nd set of calib data;\n");
 		return ret;
 	}
-	calib->par_p1 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_P2_LSB_REG,
-			       &buf, sizeof(buf));
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P2_LSB_REG\n");
-		return ret;
-	}
-	calib->par_p2 = le16_to_cpu(buf);
-
-	ret = regmap_read(data->regmap, BME680_P3_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P3_REG\n");
-		return ret;
-	}
-	calib->par_p3 = tmp;
-
-	ret = regmap_bulk_read(data->regmap, BME680_P4_LSB_REG,
-			       &buf, sizeof(buf));
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P4_LSB_REG\n");
-		return ret;
-	}
-	calib->par_p4 = le16_to_cpu(buf);
-
-	ret = regmap_bulk_read(data->regmap, BME680_P5_LSB_REG,
-			       &buf, sizeof(buf));
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P5_LSB_REG\n");
-		return ret;
-	}
-	calib->par_p5 = le16_to_cpu(buf);
-
-	ret = regmap_read(data->regmap, BME680_P6_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P6_REG\n");
-		return ret;
-	}
-	calib->par_p6 = tmp;
-
-	ret = regmap_read(data->regmap, BME680_P7_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P7_REG\n");
-		return ret;
-	}
-	calib->par_p7 = tmp;
-
-	ret = regmap_bulk_read(data->regmap, BME680_P8_LSB_REG,
-			       &buf, sizeof(buf));
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P8_LSB_REG\n");
-		return ret;
-	}
-	calib->par_p8 = le16_to_cpu(buf);
-
-	ret = regmap_bulk_read(data->regmap, BME680_P9_LSB_REG,
-			       &buf, sizeof(buf));
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P9_LSB_REG\n");
-		return ret;
-	}
-	calib->par_p9 = le16_to_cpu(buf);
-
-	ret = regmap_read(data->regmap, BME680_P10_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_P10_REG\n");
-		return ret;
-	}
-	calib->par_p10 = tmp;
-
-	/* Humidity related coefficients */
-	ret = regmap_read(data->regmap, BME680_H1_MSB_REG, &tmp_msb);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H1_MSB_REG\n");
-		return ret;
-	}
-	ret = regmap_read(data->regmap, BME680_H1_LSB_REG, &tmp_lsb);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H1_LSB_REG\n");
-		return ret;
-	}
+	tmp_lsb = data->bme680_cal_buf_2[H1_LSB];
+	tmp_msb = data->bme680_cal_buf_2[H1_LSB + 1];
 	calib->par_h1 = (tmp_msb << BME680_HUM_REG_SHIFT_VAL) |
 			(tmp_lsb & BME680_BIT_H1_DATA_MASK);
 
-	ret = regmap_read(data->regmap, BME680_H2_MSB_REG, &tmp_msb);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H2_MSB_REG\n");
-		return ret;
-	}
-	ret = regmap_read(data->regmap, BME680_H2_LSB_REG, &tmp_lsb);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H2_LSB_REG\n");
-		return ret;
-	}
+	tmp_msb = data->bme680_cal_buf_2[H2_MSB];
+	tmp_lsb = data->bme680_cal_buf_2[H2_MSB + 1];
 	calib->par_h2 = (tmp_msb << BME680_HUM_REG_SHIFT_VAL) |
 			(tmp_lsb >> BME680_HUM_REG_SHIFT_VAL);
 
-	ret = regmap_read(data->regmap, BME680_H3_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H3_REG\n");
-		return ret;
-	}
-	calib->par_h3 = tmp;
+	calib->par_h3 = data->bme680_cal_buf_2[H3];
+	calib->par_h4 = data->bme680_cal_buf_2[H4];
+	calib->par_h5 = data->bme680_cal_buf_2[H5];
+	calib->par_h6 = data->bme680_cal_buf_2[H6];
+	calib->par_h7 = data->bme680_cal_buf_2[H7];
+	calib->par_t1 = get_unaligned_le16(&data->bme680_cal_buf_2[T1_LSB]);
+	calib->par_gh2 = get_unaligned_le16(&data->bme680_cal_buf_2[GH2_LSB]);
+	calib->par_gh1 = data->bme680_cal_buf_2[GH1];
+	calib->par_gh3 = data->bme680_cal_buf_2[GH3];
 
-	ret = regmap_read(data->regmap, BME680_H4_REG, &tmp);
+	ret = regmap_bulk_read(data->regmap, BME680_REG_RES_HEAT_VAL,
+			       data->bme680_cal_buf_3,
+			       sizeof(data->bme680_cal_buf_3));
 	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H4_REG\n");
+		dev_err(dev, "failed to read 3rd set of calib data;\n");
 		return ret;
 	}
-	calib->par_h4 = tmp;
 
-	ret = regmap_read(data->regmap, BME680_H5_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H5_REG\n");
-		return ret;
-	}
-	calib->par_h5 = tmp;
+	calib->res_heat_val = data->bme680_cal_buf_3[RES_HEAT_VAL];
 
-	ret = regmap_read(data->regmap, BME680_H6_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H6_REG\n");
-		return ret;
-	}
-	calib->par_h6 = tmp;
+	calib->res_heat_range = FIELD_GET(BME680_RHRANGE_MASK,
+					data->bme680_cal_buf_3[RES_HEAT_RANGE]);
 
-	ret = regmap_read(data->regmap, BME680_H7_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_H7_REG\n");
-		return ret;
-	}
-	calib->par_h7 = tmp;
-
-	/* Gas heater related coefficients */
-	ret = regmap_read(data->regmap, BME680_GH1_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_GH1_REG\n");
-		return ret;
-	}
-	calib->par_gh1 = tmp;
-
-	ret = regmap_bulk_read(data->regmap, BME680_GH2_LSB_REG,
-			       &buf, sizeof(buf));
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_GH2_LSB_REG\n");
-		return ret;
-	}
-	calib->par_gh2 = le16_to_cpu(buf);
-
-	ret = regmap_read(data->regmap, BME680_GH3_REG, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read BME680_GH3_REG\n");
-		return ret;
-	}
-	calib->par_gh3 = tmp;
-
-	/* Other coefficients */
-	ret = regmap_read(data->regmap, BME680_REG_RES_HEAT_RANGE, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read resistance heat range\n");
-		return ret;
-	}
-	calib->res_heat_range = FIELD_GET(BME680_RHRANGE_MASK, tmp);
-
-	ret = regmap_read(data->regmap, BME680_REG_RES_HEAT_VAL, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read resistance heat value\n");
-		return ret;
-	}
-	calib->res_heat_val = tmp;
-
-	ret = regmap_read(data->regmap, BME680_REG_RANGE_SW_ERR, &tmp);
-	if (ret < 0) {
-		dev_err(dev, "failed to read range software error\n");
-		return ret;
-	}
-	calib->range_sw_err = FIELD_GET(BME680_RSERROR_MASK, tmp);
+	calib->range_sw_err = FIELD_GET(BME680_RSERROR_MASK,
+					data->bme680_cal_buf_3[RANGE_SW_ERR]);
 
 	return 0;
 }

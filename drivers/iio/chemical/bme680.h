@@ -39,10 +39,8 @@
 #define BME680_HUM_REG_SHIFT_VAL		4
 #define BME680_BIT_H1_DATA_MASK			GENMASK(3, 0)
 
-#define BME680_REG_RES_HEAT_RANGE		0x02
 #define   BME680_RHRANGE_MASK			GENMASK(5, 4)
 #define BME680_REG_RES_HEAT_VAL			0x00
-#define BME680_REG_RANGE_SW_ERR			0x04
 #define   BME680_RSERROR_MASK			GENMASK(7, 4)
 #define BME680_REG_RES_HEAT_0			0x5A
 #define BME680_REG_GAS_WAIT_0			0x64
@@ -60,30 +58,12 @@
 
 /* Calibration Parameters */
 #define BME680_T2_LSB_REG	0x8A
-#define BME680_T3_REG		0x8C
-#define BME680_P1_LSB_REG	0x8E
-#define BME680_P2_LSB_REG	0x90
-#define BME680_P3_REG		0x92
-#define BME680_P4_LSB_REG	0x94
-#define BME680_P5_LSB_REG	0x96
-#define BME680_P7_REG		0x98
-#define BME680_P6_REG		0x99
-#define BME680_P8_LSB_REG	0x9C
-#define BME680_P9_LSB_REG	0x9E
-#define BME680_P10_REG		0xA0
-#define BME680_H2_LSB_REG	0xE2
 #define BME680_H2_MSB_REG	0xE1
-#define BME680_H1_MSB_REG	0xE3
-#define BME680_H1_LSB_REG	0xE2
-#define BME680_H3_REG		0xE4
-#define BME680_H4_REG		0xE5
-#define BME680_H5_REG		0xE6
-#define BME680_H6_REG		0xE7
-#define BME680_H7_REG		0xE8
-#define BME680_T1_LSB_REG	0xE9
-#define BME680_GH2_LSB_REG	0xEB
-#define BME680_GH1_REG		0xED
 #define BME680_GH3_REG		0xEE
+
+#define BME680_CALIB_RANGE_1_LEN               23
+#define BME680_CALIB_RANGE_2_LEN               14
+#define BME680_CALIB_RANGE_3_LEN               5
 
 extern const struct regmap_config bme680_regmap_config;
 
