@@ -335,7 +335,7 @@ static int bme680_read_calib(struct bme680_data *data,
  * output value of "3233" represents 32.33 DegC.
  */
 static s16 bme680_compensate_temp(struct bme680_data *data,
-				  s32 adc_temp)
+				  u32 adc_temp)
 {
 	struct bme680_calib *calib = &data->bme680;
 	s64 var1, var2, var3;
@@ -345,7 +345,7 @@ static s16 bme680_compensate_temp(struct bme680_data *data,
 	if (!calib->par_t2)
 		bme680_read_calib(data, calib);
 
-	var1 = (adc_temp >> 3) - ((s32)calib->par_t1 << 1);
+	var1 = ((s32)adc_temp >> 3) - ((s32)calib->par_t1 << 1);
 	var2 = (var1 * calib->par_t2) >> 11;
 	var3 = ((var1 >> 1) * (var1 >> 1)) >> 12;
 	var3 = (var3 * ((s32)calib->par_t3 << 4)) >> 14;
@@ -410,9 +410,9 @@ static u32 bme680_compensate_humid(struct bme680_data *data,
 	s32 var1, var2, var3, var4, var5, var6, temp_scaled, calc_hum;
 
 	temp_scaled = (data->t_fine * 5 + 128) >> 8;
-	var1 = (adc_humid - ((s32) ((s32) calib->par_h1 * 16))) -
-		(((temp_scaled * (s32) calib->par_h3) / 100) >> 1);
-	var2 = ((s32) calib->par_h2 *
+	var1 = (adc_humid - (((s32)calib->par_h1 * 16))) -
+		(((temp_scaled * calib->par_h3) / 100) >> 1);
+	var2 = (calib->par_h2 *
 		(((temp_scaled * calib->par_h4) / 100) +
 		 (((temp_scaled * ((temp_scaled * calib->par_h5) / 100))
 		   >> 6) / 100) + (1 << 14))) >> 10;
@@ -654,7 +654,7 @@ static int bme680_read_temp(struct bme680_data *data, int *val)
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	__be32 tmp = 0;
-	s32 adc_temp;
+	u32 adc_temp;
 	s16 comp_temp;
 
 	/* set forced mode to trigger measurement */
@@ -700,7 +700,7 @@ static int bme680_read_press(struct bme680_data *data,
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	__be32 tmp = 0;
-	s32 adc_press;
+	u32 adc_press;
 
 	/* Read and compensate temperature to get a reading of t_fine */
 	ret = bme680_read_temp(data, NULL);
@@ -732,7 +732,7 @@ static int bme680_read_humid(struct bme680_data *data,
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	__be16 tmp = 0;
-	s32 adc_humidity;
+	u16 adc_humidity;
 	u32 comp_humidity;
 
 	/* Read and compensate temperature to get a reading of t_fine */
