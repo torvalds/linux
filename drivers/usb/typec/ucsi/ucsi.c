@@ -646,8 +646,12 @@ static int ucsi_read_pdos(struct ucsi_connector *con,
 static int ucsi_get_pdos(struct ucsi_connector *con, enum typec_role role,
 			 int is_partner, u32 *pdos)
 {
+	struct ucsi *ucsi = con->ucsi;
 	u8 num_pdos;
 	int ret;
+
+	if (!(ucsi->cap.features & UCSI_CAP_PDO_DETAILS))
+		return 0;
 
 	/* UCSI max payload means only getting at most 4 PDOs at a time */
 	ret = ucsi_read_pdos(con, role, is_partner, pdos, 0, UCSI_MAX_PDOS);
