@@ -8,7 +8,6 @@
  * Datasheet:
  * https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BME680-DS001-00.pdf
  */
-#include <linux/acpi.h>
 #include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/delay.h>
@@ -927,17 +926,6 @@ static const struct iio_info bme680_info = {
 	.attrs = &bme680_attribute_group,
 };
 
-static const char *bme680_match_acpi_device(struct device *dev)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-
-	return dev_name(dev);
-}
-
 int bme680_core_probe(struct device *dev, struct regmap *regmap,
 		      const char *name)
 {
@@ -968,9 +956,6 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
-
-	if (!name && ACPI_HANDLE(dev))
-		name = bme680_match_acpi_device(dev);
 
 	data = iio_priv(indio_dev);
 	mutex_init(&data->lock);
