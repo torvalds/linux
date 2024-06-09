@@ -386,17 +386,17 @@ struct bkey_cached {
 	struct btree_bkey_cached_common c;
 
 	unsigned long		flags;
-	unsigned long		btree_trans_barrier_seq;
 	u16			u64s;
 	struct bkey_cached_key	key;
 
 	struct rhash_head	hash;
-	struct list_head	list;
 
 	struct journal_entry_pin journal;
 	u64			seq;
 
 	struct bkey_i		*k;
+
+	struct rcu_head		rcu;
 };
 
 static inline struct bpos btree_node_pos(struct btree_bkey_cached_common *b)
