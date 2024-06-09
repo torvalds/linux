@@ -678,4 +678,5 @@ static struct usb_driver gud_usb_driver = {
 module_usb_driver(gud_usb_driver);
 
 MODULE_AUTHOR("Noralf Trønnes");
+MODULE_DESCRIPTION("GUD USB Display driver");
 MODULE_LICENSE("Dual MIT/GPL");
