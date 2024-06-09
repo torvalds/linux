@@ -767,7 +767,7 @@ static int bme680_read_gas(struct bme680_data *data,
 	int ret;
 	__be16 tmp = 0;
 	unsigned int check;
-	u16 adc_gas_res;
+	u16 adc_gas_res, gas_regs_val;
 	u8 gas_range;
 
 	/* Set heater settings */
@@ -792,11 +792,14 @@ static int bme680_read_gas(struct bme680_data *data,
 		return -EBUSY;
 	}
 
-	ret = regmap_read(data->regmap, BME680_REG_GAS_R_LSB, &check);
+	ret = regmap_bulk_read(data->regmap, BME680_REG_GAS_MSB,
+			       &tmp, sizeof(tmp));
 	if (ret < 0) {
-		dev_err(dev, "failed to read gas_r_lsb register\n");
+		dev_err(dev, "failed to read gas resistance\n");
 		return ret;
 	}
+	gas_regs_val = be16_to_cpu(tmp);
+	adc_gas_res = FIELD_GET(BME680_ADC_GAS_RES, gas_regs_val);
 
 	/*
 	 * occurs if either the gas heating duration was insuffient
@@ -804,20 +807,12 @@ static int bme680_read_gas(struct bme680_data *data,
 	 * heater temperature was too high for the heater sink to
 	 * reach.
 	 */
-	if ((check & BME680_GAS_STAB_BIT) == 0) {
+	if ((gas_regs_val & BME680_GAS_STAB_BIT) == 0) {
 		dev_err(dev, "heater failed to reach the target temperature\n");
 		return -EINVAL;
 	}
 
-	ret = regmap_bulk_read(data->regmap, BME680_REG_GAS_MSB,
-			       &tmp, sizeof(tmp));
-	if (ret < 0) {
-		dev_err(dev, "failed to read gas resistance\n");
-		return ret;
-	}
-
-	gas_range = check & BME680_GAS_RANGE_MASK;
-	adc_gas_res = be16_to_cpu(tmp) >> BME680_ADC_GAS_RES_SHIFT;
+	gas_range = FIELD_GET(BME680_GAS_RANGE_MASK, gas_regs_val);
 
 	*val = bme680_compensate_gas(data, adc_gas_res, gas_range);
 	return IIO_VAL_INT;
