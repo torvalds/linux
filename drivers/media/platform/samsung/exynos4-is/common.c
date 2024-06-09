@@ -44,4 +44,5 @@ void __fimc_vidioc_querycap(struct device *dev, struct v4l2_capability *cap)
 }
 EXPORT_SYMBOL(__fimc_vidioc_querycap);
 
+MODULE_DESCRIPTION("Samsung S5P/EXYNOS4 SoC Camera Subsystem driver");
 MODULE_LICENSE("GPL");
