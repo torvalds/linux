@@ -486,7 +486,7 @@ static void bch2_writepage_io_alloc(struct bch_fs *c,
 	op->nr_replicas		= nr_replicas;
 	op->res.nr_replicas	= nr_replicas;
 	op->write_point		= writepoint_hashed(inode->ei_last_dirtied);
-	op->subvol		= inode->ei_subvol;
+	op->subvol		= inode->ei_inum.subvol;
 	op->pos			= POS(inode->v.i_ino, sector);
 	op->end_io		= bch2_writepage_io_done;
 	op->devs_need_flush	= &inode->ei_devs_need_flush;

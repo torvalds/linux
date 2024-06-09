@@ -306,7 +306,7 @@ retry:
 	bch2_trans_begin(trans);
 	iter = (struct btree_iter) { NULL };
 
-	ret = bch2_subvolume_get_snapshot(trans, inode->ei_subvol, &snapshot);
+	ret = bch2_subvolume_get_snapshot(trans, inode->ei_inum.subvol, &snapshot);
 	if (ret)
 		goto err;
 

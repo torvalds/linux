@@ -267,7 +267,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 		 * XXX: we're doing two index lookups when we end up reading the
 		 * folio
 		 */
-		ret = range_has_data(c, inode->ei_subvol,
+		ret = range_has_data(c, inode->ei_inum.subvol,
 				POS(inode->v.i_ino, (index << PAGE_SECTORS_SHIFT)),
 				POS(inode->v.i_ino, (index << PAGE_SECTORS_SHIFT) + PAGE_SECTORS));
 		if (ret <= 0)
@@ -618,7 +618,7 @@ static noinline int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		bch2_trans_begin(trans);
 
 		ret = bch2_subvolume_get_snapshot(trans,
-					inode->ei_subvol, &snapshot);
+					inode->ei_inum.subvol, &snapshot);
 		if (ret)
 			goto bkey_err;
 
@@ -823,7 +823,7 @@ static int quota_reserve_range(struct bch_inode_info *inode,
 retry:
 	bch2_trans_begin(trans);
 
-	ret = bch2_subvolume_get_snapshot(trans, inode->ei_subvol, &snapshot);
+	ret = bch2_subvolume_get_snapshot(trans, inode->ei_inum.subvol, &snapshot);
 	if (ret)
 		goto err;
 
