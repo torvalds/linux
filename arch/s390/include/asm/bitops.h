@@ -379,8 +379,9 @@ static inline int fls(unsigned int word)
 	return fls64(word);
 }
 
+#include <asm/arch_hweight.h>
+#include <asm-generic/bitops/const_hweight.h>
 #include <asm-generic/bitops/ffz.h>
-#include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
