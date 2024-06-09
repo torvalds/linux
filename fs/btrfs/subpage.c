@@ -909,7 +909,6 @@ void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
 	struct btrfs_subpage_info *subpage_info = fs_info->subpage_info;
 	struct btrfs_subpage *subpage;
 	unsigned long uptodate_bitmap;
-	unsigned long error_bitmap;
 	unsigned long dirty_bitmap;
 	unsigned long writeback_bitmap;
 	unsigned long ordered_bitmap;
@@ -931,10 +930,9 @@ void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
 
 	dump_page(folio_page(folio, 0), "btrfs subpage dump");
 	btrfs_warn(fs_info,
-"start=%llu len=%u page=%llu, bitmaps uptodate=%*pbl error=%*pbl dirty=%*pbl writeback=%*pbl ordered=%*pbl checked=%*pbl",
+"start=%llu len=%u page=%llu, bitmaps uptodate=%*pbl dirty=%*pbl writeback=%*pbl ordered=%*pbl checked=%*pbl",
 		    start, len, folio_pos(folio),
 		    subpage_info->bitmap_nr_bits, &uptodate_bitmap,
-		    subpage_info->bitmap_nr_bits, &error_bitmap,
 		    subpage_info->bitmap_nr_bits, &dirty_bitmap,
 		    subpage_info->bitmap_nr_bits, &writeback_bitmap,
 		    subpage_info->bitmap_nr_bits, &ordered_bitmap,
