@@ -944,4 +944,5 @@ module_spi_driver(nv3052c_driver);
 MODULE_AUTHOR("Paul Cercueil <paul@crapouillou.net>");
 MODULE_AUTHOR("Christophe Branchereau <cbranchereau@gmail.com>");
 MODULE_AUTHOR("Ryan Walklin <ryan@testtoast.com");
+MODULE_DESCRIPTION("NewVision NV3052C IPS LCD panel driver");
 MODULE_LICENSE("GPL v2");
