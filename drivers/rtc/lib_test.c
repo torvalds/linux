@@ -97,4 +97,5 @@ static struct kunit_suite rtc_lib_test_suite = {
 
 kunit_test_suite(rtc_lib_test_suite);
 
+MODULE_DESCRIPTION("KUnit test for RTC lib functions");
 MODULE_LICENSE("GPL");
