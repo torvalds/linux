@@ -63,6 +63,8 @@
 
 #define BME680_MEAS_TRIM_MASK			GENMASK(24, 4)
 
+#define BME680_STARTUP_TIME_US			5000
+
 /* Calibration Parameters */
 #define BME680_T2_LSB_REG	0x8A
 #define BME680_H2_MSB_REG	0xE1

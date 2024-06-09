@@ -531,6 +531,11 @@ static int bme680_gas_config(struct bme680_data *data)
 	int ret;
 	u8 heatr_res, heatr_dur;
 
+	/* Go to sleep */
+	ret = bme680_set_mode(data, false);
+	if (ret < 0)
+		return ret;
+
 	heatr_res = bme680_calc_heater_res(data, data->heater_temp);
 
 	/* set target heater temperature */
@@ -866,6 +871,8 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
+	usleep_range(BME680_STARTUP_TIME_US, BME680_STARTUP_TIME_US + 1000);
+
 	ret = regmap_read(regmap, BME680_REG_CHIP_ID, &data->check);
 	if (ret < 0) {
 		dev_err(dev, "Error reading chip ID\n");
@@ -878,6 +885,13 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 		return -ENODEV;
 	}
 
+	ret = bme680_read_calib(data, &data->bme680);
+	if (ret < 0) {
+		dev_err(dev,
+			"failed to read calibration coefficients at probe\n");
+		return ret;
+	}
+
 	ret = bme680_chip_config(data);
 	if (ret < 0) {
 		dev_err(dev, "failed to set chip_config data\n");
@@ -887,13 +901,6 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	ret = bme680_gas_config(data);
 	if (ret < 0) {
 		dev_err(dev, "failed to set gas config data\n");
-		return ret;
-	}
-
-	ret = bme680_read_calib(data, &data->bme680);
-	if (ret < 0) {
-		dev_err(dev,
-			"failed to read calibration coefficients at probe\n");
 		return ret;
 	}
 
