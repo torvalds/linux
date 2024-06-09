@@ -756,7 +756,7 @@ static ssize_t swap_xy_show(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rohm_ts_data *ts = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d\n", !!(ts->setup2 & SWAP_XY));
+	return sysfs_emit(buf, "%d\n", !!(ts->setup2 & SWAP_XY));
 }
 
 static ssize_t swap_xy_store(struct device *dev, struct device_attribute *attr,
@@ -781,7 +781,7 @@ static ssize_t inv_x_show(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rohm_ts_data *ts = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d\n", !!(ts->setup2 & INV_X));
+	return sysfs_emit(buf, "%d\n", !!(ts->setup2 & INV_X));
 }
 
 static ssize_t inv_x_store(struct device *dev, struct device_attribute *attr,
@@ -806,7 +806,7 @@ static ssize_t inv_y_show(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rohm_ts_data *ts = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d\n", !!(ts->setup2 & INV_Y));
+	return sysfs_emit(buf, "%d\n", !!(ts->setup2 & INV_Y));
 }
 
 static ssize_t inv_y_store(struct device *dev, struct device_attribute *attr,
