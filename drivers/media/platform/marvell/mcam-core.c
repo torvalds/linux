@@ -1981,5 +1981,6 @@ int mccic_resume(struct mcam_camera *cam)
 }
 EXPORT_SYMBOL_GPL(mccic_resume);
 
+MODULE_DESCRIPTION("Marvell camera core driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
