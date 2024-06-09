@@ -643,12 +643,12 @@ static int rohm_ts_load_firmware(struct i2c_client *client,
 				 const char *firmware_name)
 {
 	struct device *dev = &client->dev;
-	const struct firmware *fw;
 	s32 status;
 	unsigned int offset, len, xfer_len;
 	unsigned int retry = 0;
 	int error, error2;
 
+	const struct firmware *fw __free(firmware) = NULL;
 	error = request_firmware(&fw, firmware_name, dev);
 	if (error) {
 		dev_err(dev, "unable to retrieve firmware %s: %d\n",
@@ -722,8 +722,6 @@ static int rohm_ts_load_firmware(struct i2c_client *client,
 out:
 	error2 = i2c_smbus_write_byte_data(client, INT_MASK, INT_ALL);
 
-	release_firmware(fw);
-
 	return error ? error : error2;
 }
 
@@ -732,22 +730,22 @@ static int rohm_ts_update_setting(struct rohm_ts_data *ts,
 {
 	int error;
 
-	error = mutex_lock_interruptible(&ts->input->mutex);
-	if (error)
-		return error;
+	scoped_cond_guard(mutex_intr, return -EINTR, &ts->input->mutex) {
+		if (on)
+			ts->setup2 |= setting_bit;
+		else
+			ts->setup2 &= ~setting_bit;
 
-	if (on)
-		ts->setup2 |= setting_bit;
-	else
-		ts->setup2 &= ~setting_bit;
+		if (ts->initialized) {
+			error = i2c_smbus_write_byte_data(ts->client,
+							  COMMON_SETUP2,
+							  ts->setup2);
+			if (error)
+				return error;
+		}
+	}
 
-	if (ts->initialized)
-		error = i2c_smbus_write_byte_data(ts->client, COMMON_SETUP2,
-						  ts->setup2);
-
-	mutex_unlock(&ts->input->mutex);
-
-	return error;
+	return 0;
 }
 
 static ssize_t swap_xy_show(struct device *dev, struct device_attribute *attr,
@@ -842,7 +840,7 @@ static int rohm_ts_device_init(struct i2c_client *client, u8 setup2)
 	struct device *dev = &client->dev;
 	int error;
 
-	disable_irq(client->irq);
+	guard(disable_irq)(&client->irq);
 
 	/*
 	 * Wait 200usec for reset
@@ -1017,10 +1015,10 @@ static int rohm_ts_device_init(struct i2c_client *client, u8 setup2)
 	/* controller CPU power on */
 	error = i2c_smbus_write_byte_data(client, SYSTEM,
 					  ANALOG_POWER_ON | CPU_POWER_ON);
+	if (error)
+		return error;
 
-	enable_irq(client->irq);
-
-	return error;
+	return 0;
 }
 
 static int rohm_ts_power_off(struct i2c_client *client)
