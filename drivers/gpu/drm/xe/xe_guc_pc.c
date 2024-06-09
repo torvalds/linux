@@ -17,7 +17,7 @@
 #include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_idle.h"
-#include "xe_gt_sysfs.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_types.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
@@ -139,7 +139,8 @@ static int pc_action_reset(struct xe_guc_pc *pc)
 
 	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 	if (ret)
-		drm_err(&pc_to_xe(pc)->drm, "GuC PC reset: %pe", ERR_PTR(ret));
+		xe_gt_err(pc_to_gt(pc), "GuC PC reset failed: %pe\n",
+			  ERR_PTR(ret));
 
 	return ret;
 }
@@ -161,8 +162,8 @@ static int pc_action_query_task_state(struct xe_guc_pc *pc)
 	/* Blocking here to ensure the results are ready before reading them */
 	ret = xe_guc_ct_send_block(ct, action, ARRAY_SIZE(action));
 	if (ret)
-		drm_err(&pc_to_xe(pc)->drm,
-			"GuC PC query task state failed: %pe", ERR_PTR(ret));
+		xe_gt_err(pc_to_gt(pc), "GuC PC query task state failed: %pe\n",
+			  ERR_PTR(ret));
 
 	return ret;
 }
@@ -183,8 +184,8 @@ static int pc_action_set_param(struct xe_guc_pc *pc, u8 id, u32 value)
 
 	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 	if (ret)
-		drm_err(&pc_to_xe(pc)->drm, "GuC PC set param failed: %pe",
-			ERR_PTR(ret));
+		xe_gt_err(pc_to_gt(pc), "GuC PC set param[%u]=%u failed: %pe\n",
+			  id, value, ERR_PTR(ret));
 
 	return ret;
 }
@@ -200,8 +201,8 @@ static int pc_action_setup_gucrc(struct xe_guc_pc *pc, u32 mode)
 
 	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 	if (ret)
-		drm_err(&pc_to_xe(pc)->drm, "GuC RC enable failed: %pe",
-			ERR_PTR(ret));
+		xe_gt_err(pc_to_gt(pc), "GuC RC enable mode=%u failed: %pe\n",
+			  mode, ERR_PTR(ret));
 	return ret;
 }
 
@@ -844,7 +845,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 		goto out;
 
 	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING)) {
-		drm_err(&pc_to_xe(pc)->drm, "GuC PC Start failed\n");
+		xe_gt_err(gt, "GuC PC Start failed\n");
 		ret = -EIO;
 		goto out;
 	}
