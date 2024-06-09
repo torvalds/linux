@@ -727,6 +727,29 @@ out:
 	return error ? error : error2;
 }
 
+static int rohm_ts_update_setting(struct rohm_ts_data *ts,
+				  unsigned int setting_bit, bool on)
+{
+	int error;
+
+	error = mutex_lock_interruptible(&ts->input->mutex);
+	if (error)
+		return error;
+
+	if (on)
+		ts->setup2 |= setting_bit;
+	else
+		ts->setup2 &= ~setting_bit;
+
+	if (ts->initialized)
+		error = i2c_smbus_write_byte_data(ts->client, COMMON_SETUP2,
+						  ts->setup2);
+
+	mutex_unlock(&ts->input->mutex);
+
+	return error;
+}
+
 static ssize_t swap_xy_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
@@ -748,22 +771,8 @@ static ssize_t swap_xy_store(struct device *dev, struct device_attribute *attr,
 	if (error)
 		return error;
 
-	error = mutex_lock_interruptible(&ts->input->mutex);
-	if (error)
-		return error;
-
-	if (val)
-		ts->setup2 |= SWAP_XY;
-	else
-		ts->setup2 &= ~SWAP_XY;
-
-	if (ts->initialized)
-		error = i2c_smbus_write_byte_data(ts->client, COMMON_SETUP2,
-						  ts->setup2);
-
-	mutex_unlock(&ts->input->mutex);
-
-	return error ? error : count;
+	error = rohm_ts_update_setting(ts, SWAP_XY, val);
+	return error ?: count;
 }
 
 static ssize_t inv_x_show(struct device *dev, struct device_attribute *attr,
@@ -787,22 +796,8 @@ static ssize_t inv_x_store(struct device *dev, struct device_attribute *attr,
 	if (error)
 		return error;
 
-	error = mutex_lock_interruptible(&ts->input->mutex);
-	if (error)
-		return error;
-
-	if (val)
-		ts->setup2 |= INV_X;
-	else
-		ts->setup2 &= ~INV_X;
-
-	if (ts->initialized)
-		error = i2c_smbus_write_byte_data(ts->client, COMMON_SETUP2,
-						  ts->setup2);
-
-	mutex_unlock(&ts->input->mutex);
-
-	return error ? error : count;
+	error = rohm_ts_update_setting(ts, INV_X, val);
+	return error ?: count;
 }
 
 static ssize_t inv_y_show(struct device *dev, struct device_attribute *attr,
@@ -826,22 +821,8 @@ static ssize_t inv_y_store(struct device *dev, struct device_attribute *attr,
 	if (error)
 		return error;
 
-	error = mutex_lock_interruptible(&ts->input->mutex);
-	if (error)
-		return error;
-
-	if (val)
-		ts->setup2 |= INV_Y;
-	else
-		ts->setup2 &= ~INV_Y;
-
-	if (ts->initialized)
-		error = i2c_smbus_write_byte_data(client, COMMON_SETUP2,
-						  ts->setup2);
-
-	mutex_unlock(&ts->input->mutex);
-
-	return error ? error : count;
+	error = rohm_ts_update_setting(ts, INV_Y, val);
+	return error ?: count;
 }
 
 static DEVICE_ATTR_RW(swap_xy);
