@@ -4,4 +4,4 @@
  *
  */
 
-#include "rk3588.dtsi"
+#include "rk3588-extra.dtsi"
