@@ -9,7 +9,6 @@
 
 #include <drm/drm_managed.h>
 
-#include "abi/guc_actions_abi.h"
 #include "abi/guc_actions_slpc_abi.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
@@ -195,7 +194,7 @@ static int pc_action_setup_gucrc(struct xe_guc_pc *pc, u32 mode)
 {
 	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
 	u32 action[] = {
-		XE_GUC_ACTION_SETUP_PC_GUCRC,
+		GUC_ACTION_HOST2GUC_SETUP_PC_GUCRC,
 		mode,
 	};
 	int ret;
@@ -758,7 +757,7 @@ int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 	if (xe->info.skip_guc_pc)
 		return 0;
 
-	ret = pc_action_setup_gucrc(pc, XE_GUCRC_HOST_CONTROL);
+	ret = pc_action_setup_gucrc(pc, GUCRC_HOST_CONTROL);
 	if (ret)
 		return ret;
 
@@ -861,7 +860,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 		goto out;
 	}
 
-	ret = pc_action_setup_gucrc(pc, XE_GUCRC_FIRMWARE_CONTROL);
+	ret = pc_action_setup_gucrc(pc, GUCRC_FIRMWARE_CONTROL);
 
 out:
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
