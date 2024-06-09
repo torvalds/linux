@@ -740,7 +740,7 @@ static int bme680_read_humid(struct bme680_data *data,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BM6880_REG_HUMIDITY_MSB,
+	ret = regmap_bulk_read(data->regmap, BME680_REG_HUMIDITY_MSB,
 			       &tmp, sizeof(tmp));
 	if (ret < 0) {
 		dev_err(dev, "failed to read humidity\n");
