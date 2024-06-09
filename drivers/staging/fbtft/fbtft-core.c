@@ -1276,4 +1276,5 @@ void fbtft_remove_common(struct device *dev, struct fb_info *info)
 }
 EXPORT_SYMBOL(fbtft_remove_common);
 
+MODULE_DESCRIPTION("Core FB support for small TFT LCD display modules");
 MODULE_LICENSE("GPL");
