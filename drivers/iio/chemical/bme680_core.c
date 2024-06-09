@@ -683,13 +683,6 @@ static int bme680_read_gas(struct bme680_data *data,
 	u16 adc_gas_res, gas_regs_val;
 	u8 gas_range;
 
-	/* Set heater settings */
-	ret = bme680_gas_config(data);
-	if (ret < 0) {
-		dev_err(dev, "failed to set gas config\n");
-		return ret;
-	}
-
 	/* set forced mode to trigger measurement */
 	ret = bme680_set_mode(data, true);
 	if (ret < 0)
