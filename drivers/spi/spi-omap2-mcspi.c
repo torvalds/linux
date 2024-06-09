@@ -1671,4 +1671,5 @@ static struct platform_driver omap2_mcspi_driver = {
 };
 
 module_platform_driver(omap2_mcspi_driver);
+MODULE_DESCRIPTION("OMAP2 McSPI controller driver");
 MODULE_LICENSE("GPL");

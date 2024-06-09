@@ -1369,5 +1369,6 @@ static struct platform_driver spi_qup_driver = {
 };
 module_platform_driver(spi_qup_driver);
 
+MODULE_DESCRIPTION("Qualcomm SPI controller with QUP interface");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:spi_qup");

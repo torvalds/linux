@@ -541,5 +541,6 @@ static void __exit omap_uwire_exit(void)
 subsys_initcall(omap_uwire_init);
 module_exit(omap_uwire_exit);
 
+MODULE_DESCRIPTION("MicroWire interface driver for OMAP");
 MODULE_LICENSE("GPL");
 

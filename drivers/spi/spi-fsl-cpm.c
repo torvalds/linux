@@ -415,4 +415,5 @@ void fsl_spi_cpm_free(struct mpc8xxx_spi *mspi)
 }
 EXPORT_SYMBOL_GPL(fsl_spi_cpm_free);
 
+MODULE_DESCRIPTION("Freescale SPI controller driver CPM functions");
 MODULE_LICENSE("GPL");
