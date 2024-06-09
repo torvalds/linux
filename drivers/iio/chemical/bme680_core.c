@@ -866,18 +866,14 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 
 	ret = regmap_write(regmap, BME680_REG_SOFT_RESET,
 			   BME680_CMD_SOFTRESET);
-	if (ret < 0) {
-		dev_err(dev, "Failed to reset chip\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to reset chip\n");
 
 	usleep_range(BME680_STARTUP_TIME_US, BME680_STARTUP_TIME_US + 1000);
 
 	ret = regmap_read(regmap, BME680_REG_CHIP_ID, &data->check);
-	if (ret < 0) {
-		dev_err(dev, "Error reading chip ID\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Error reading chip ID\n");
 
 	if (data->check != BME680_CHIP_ID_VAL) {
 		dev_err(dev, "Wrong chip ID, got %x expected %x\n",
@@ -887,22 +883,19 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 
 	ret = bme680_read_calib(data, &data->bme680);
 	if (ret < 0) {
-		dev_err(dev,
+		return dev_err_probe(dev, ret,
 			"failed to read calibration coefficients at probe\n");
-		return ret;
 	}
 
 	ret = bme680_chip_config(data);
-	if (ret < 0) {
-		dev_err(dev, "failed to set chip_config data\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret,
+				     "failed to set chip_config data\n");
 
 	ret = bme680_gas_config(data);
-	if (ret < 0) {
-		dev_err(dev, "failed to set gas config data\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret,
+				     "failed to set gas config data\n");
 
 	return devm_iio_device_register(dev, indio_dev);
 }
