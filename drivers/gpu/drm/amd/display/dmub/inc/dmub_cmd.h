@@ -208,6 +208,11 @@ union abm_flags {
 		 * @abm_new_frame: Indicates if a new frame update needed for ABM to ramp up into steady
 		 */
 		unsigned int abm_new_frame : 1;
+
+		/**
+		 * @vb_scaling_enabled: Indicates variBright Scaling Enable
+		 */
+		unsigned int vb_scaling_enabled : 1;
 	} bitfields;
 
 	unsigned int u32All;
@@ -2796,9 +2801,9 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t relock_delay_frame_cnt;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * esd recovery indicate.
 	 */
-	uint8_t pad3;
+	uint8_t esd_recovery;
 	/**
 	 * DSC Slice height.
 	 */
