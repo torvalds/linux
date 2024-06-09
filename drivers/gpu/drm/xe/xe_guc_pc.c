@@ -19,6 +19,7 @@
 #include "xe_gt_idle.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_types.h"
+#include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
@@ -66,29 +67,27 @@
  *
  */
 
-static struct xe_guc *
-pc_to_guc(struct xe_guc_pc *pc)
+static struct xe_guc *pc_to_guc(struct xe_guc_pc *pc)
 {
 	return container_of(pc, struct xe_guc, pc);
 }
 
-static struct xe_device *
-pc_to_xe(struct xe_guc_pc *pc)
+static struct xe_guc_ct *pc_to_ct(struct xe_guc_pc *pc)
 {
-	struct xe_guc *guc = pc_to_guc(pc);
-	struct xe_gt *gt = container_of(guc, struct xe_gt, uc.guc);
-
-	return gt_to_xe(gt);
+	return &pc_to_guc(pc)->ct;
 }
 
-static struct xe_gt *
-pc_to_gt(struct xe_guc_pc *pc)
+static struct xe_gt *pc_to_gt(struct xe_guc_pc *pc)
 {
-	return container_of(pc, struct xe_gt, uc.guc.pc);
+	return guc_to_gt(pc_to_guc(pc));
 }
 
-static struct iosys_map *
-pc_to_maps(struct xe_guc_pc *pc)
+static struct xe_device *pc_to_xe(struct xe_guc_pc *pc)
+{
+	return guc_to_xe(pc_to_guc(pc));
+}
+
+static struct iosys_map *pc_to_maps(struct xe_guc_pc *pc)
 {
 	return &pc->bo->vmap;
 }
@@ -129,14 +128,14 @@ static int wait_for_pc_state(struct xe_guc_pc *pc,
 
 static int pc_action_reset(struct xe_guc_pc *pc)
 {
-	struct  xe_guc_ct *ct = &pc_to_guc(pc)->ct;
-	int ret;
+	struct xe_guc_ct *ct = pc_to_ct(pc);
 	u32 action[] = {
 		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
 		SLPC_EVENT(SLPC_EVENT_RESET, 2),
 		xe_bo_ggtt_addr(pc->bo),
 		0,
 	};
+	int ret;
 
 	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 	if (ret)
@@ -147,14 +146,14 @@ static int pc_action_reset(struct xe_guc_pc *pc)
 
 static int pc_action_query_task_state(struct xe_guc_pc *pc)
 {
-	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
-	int ret;
+	struct xe_guc_ct *ct = pc_to_ct(pc);
 	u32 action[] = {
 		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
 		SLPC_EVENT(SLPC_EVENT_QUERY_TASK_STATE, 2),
 		xe_bo_ggtt_addr(pc->bo),
 		0,
 	};
+	int ret;
 
 	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING))
 		return -EAGAIN;
@@ -170,14 +169,14 @@ static int pc_action_query_task_state(struct xe_guc_pc *pc)
 
 static int pc_action_set_param(struct xe_guc_pc *pc, u8 id, u32 value)
 {
-	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
-	int ret;
+	struct xe_guc_ct *ct = pc_to_ct(pc);
 	u32 action[] = {
 		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
 		SLPC_EVENT(SLPC_EVENT_PARAMETER_SET, 2),
 		id,
 		value,
 	};
+	int ret;
 
 	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING))
 		return -EAGAIN;
@@ -192,7 +191,7 @@ static int pc_action_set_param(struct xe_guc_pc *pc, u8 id, u32 value)
 
 static int pc_action_setup_gucrc(struct xe_guc_pc *pc, u32 mode)
 {
-	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
+	struct xe_guc_ct *ct = pc_to_ct(pc);
 	u32 action[] = {
 		GUC_ACTION_HOST2GUC_SETUP_PC_GUCRC,
 		mode,
