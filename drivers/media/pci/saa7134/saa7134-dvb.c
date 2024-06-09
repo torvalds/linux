@@ -52,6 +52,7 @@
 #include "s5h1411.h"
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_DESCRIPTION("DVB/ATSC Support for saa7134 based TV cards");
 MODULE_LICENSE("GPL");
 
 static unsigned int antenna_pwr;
