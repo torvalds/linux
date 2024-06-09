@@ -755,4 +755,5 @@ static struct usb_driver gm12u320_usb_driver = {
 
 module_usb_driver(gm12u320_usb_driver);
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
+MODULE_DESCRIPTION("GM12U320 driver for USB projectors");
 MODULE_LICENSE("GPL");

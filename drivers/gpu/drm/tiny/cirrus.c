@@ -760,4 +760,5 @@ static struct pci_driver cirrus_pci_driver = {
 drm_module_pci_driver(cirrus_pci_driver)
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
+MODULE_DESCRIPTION("Cirrus driver for QEMU emulated device");
 MODULE_LICENSE("GPL");
