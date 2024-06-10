@@ -1898,6 +1898,25 @@ DEFINE_DEBUGFS_ATTRIBUTE(i915_dp_force_link_retrain_fops,
 			 i915_dp_force_link_retrain_show,
 			 i915_dp_force_link_retrain_write, "%llu\n");
 
+static int i915_dp_link_retrain_disabled_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = to_intel_connector(m->private);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	seq_printf(m, "%s\n", str_yes_no(intel_dp->link.retrain_disabled));
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(i915_dp_link_retrain_disabled);
+
 void intel_dp_link_training_debugfs_add(struct intel_connector *connector)
 {
 	struct dentry *root = connector->base.debugfs_entry;
@@ -1923,4 +1942,7 @@ void intel_dp_link_training_debugfs_add(struct intel_connector *connector)
 
 	debugfs_create_file("i915_dp_force_link_retrain", 0644, root,
 			    connector, &i915_dp_force_link_retrain_fops);
+
+	debugfs_create_file("i915_dp_link_retrain_disabled", 0444, root,
+			    connector, &i915_dp_link_retrain_disabled_fops);
 }
