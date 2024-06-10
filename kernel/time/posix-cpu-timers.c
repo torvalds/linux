@@ -689,13 +689,8 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 			__posix_cpu_timer_get(timer, old, now);
 	}
 
+	/* Retry if the timer expiry is running concurrently */
 	if (unlikely(ret)) {
-		/*
-		 * We are colliding with the timer actually firing.
-		 * Punt after filling in the timer's old value, and
-		 * disable this firing since we are already reporting
-		 * it as an overrun (thanks to bump_cpu_timer above).
-		 */
 		unlock_task_sighand(p, &flags);
 		goto out;
 	}
