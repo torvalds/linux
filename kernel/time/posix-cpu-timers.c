@@ -622,7 +622,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 {
 	bool sigev_none = timer->it_sigev_notify == SIGEV_NONE;
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
-	u64 old_expires, new_expires, old_incr, val;
+	u64 old_expires, new_expires, old_incr, now;
 	struct cpu_timer *ctmr = &timer->it.cpu;
 	struct sighand_struct *sighand;
 	struct task_struct *p;
@@ -674,23 +674,19 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	}
 
 	/*
-	 * We need to sample the current value to convert the new
-	 * value from to relative and absolute, and to convert the
-	 * old value from absolute to relative.  To set a process
-	 * timer, we need a sample to balance the thread expiry
-	 * times (in arm_timer).  With an absolute time, we must
-	 * check if it's already passed.  In short, we need a sample.
+	 * Sample the current clock for saving the previous setting
+	 * and for rearming the timer.
 	 */
 	if (CPUCLOCK_PERTHREAD(timer->it_clock))
-		val = cpu_clock_sample(clkid, p);
+		now = cpu_clock_sample(clkid, p);
 	else
-		val = cpu_clock_sample_group(clkid, p, !sigev_none);
+		now = cpu_clock_sample_group(clkid, p, !sigev_none);
 
 	/* Retrieve the previous expiry value if requested. */
 	if (old) {
 		old->it_value = (struct timespec64){ };
 		if (old_expires)
-			__posix_cpu_timer_get(timer, old, val);
+			__posix_cpu_timer_get(timer, old, now);
 	}
 
 	if (unlikely(ret)) {
@@ -706,7 +702,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 
 	/* Convert relative expiry time to absolute */
 	if (new_expires && !(timer_flags & TIMER_ABSTIME))
-		new_expires += val;
+		new_expires += now;
 
 	/* Set the new expiry time (might be 0) */
 	cpu_timer_setexpires(ctmr, new_expires);
@@ -716,7 +712,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	 * not yet expired and the timer requires signal delivery.
 	 * SIGEV_NONE timers are never armed.
 	 */
-	if (!sigev_none && new_expires && val < new_expires)
+	if (!sigev_none && new_expires && now < new_expires)
 		arm_timer(timer, p);
 
 	unlock_task_sighand(p, &flags);
@@ -736,7 +732,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	timer->it_overrun_last = 0;
 	timer->it_overrun = -1;
 
-	if (!sigev_none && val >= new_expires) {
+	if (!sigev_none && now >= new_expires) {
 		if (new_expires != 0) {
 			/*
 			 * The designated time already passed, so we notify
