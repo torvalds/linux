@@ -403,21 +403,22 @@ static int alvium_get_bcrm_vers(struct alvium_dev *alvium)
 static int alvium_get_fw_version(struct alvium_dev *alvium)
 {
 	struct device *dev = &alvium->i2c_client->dev;
-	u64 spec, maj, min, pat;
-	int ret = 0;
+	u64 val;
+	int ret;
 
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_SPEC_VERSION_R,
-			  &spec, &ret);
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_MAJOR_VERSION_R,
-			  &maj, &ret);
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_MINOR_VERSION_R,
-			  &min, &ret);
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_PATCH_VERSION_R,
-			  &pat, &ret);
+	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW, &val, NULL);
 	if (ret)
 		return ret;
 
-	dev_info(dev, "fw version: %llu.%llu.%llu.%llu\n", spec, maj, min, pat);
+	dev_info(dev, "fw version: %02u.%02u.%04u.%08x\n",
+		 (u8)((val & BCRM_DEVICE_FW_SPEC_MASK) >>
+		       BCRM_DEVICE_FW_SPEC_SHIFT),
+		 (u8)((val & BCRM_DEVICE_FW_MAJOR_MASK) >>
+		       BCRM_DEVICE_FW_MAJOR_SHIFT),
+		 (u16)((val & BCRM_DEVICE_FW_MINOR_MASK) >>
+			BCRM_DEVICE_FW_MINOR_SHIFT),
+		 (u32)((val & BCRM_DEVICE_FW_PATCH_MASK) >>
+			BCRM_DEVICE_FW_PATCH_SHIFT));
 
 	return 0;
 }
