@@ -809,17 +809,15 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 
 	rcu_read_lock();
 	p = cpu_timer_task_rcu(timer);
-	if (p) {
+	if (p && cpu_timer_getexpires(&timer->it.cpu)) {
 		itp->it_interval = ktime_to_timespec64(timer->it_interval);
 
-		if (cpu_timer_getexpires(&timer->it.cpu)) {
-			if (CPUCLOCK_PERTHREAD(timer->it_clock))
-				now = cpu_clock_sample(clkid, p);
-			else
-				now = cpu_clock_sample_group(clkid, p, false);
+		if (CPUCLOCK_PERTHREAD(timer->it_clock))
+			now = cpu_clock_sample(clkid, p);
+		else
+			now = cpu_clock_sample_group(clkid, p, false);
 
-			__posix_cpu_timer_get(timer, itp, now);
-		}
+		__posix_cpu_timer_get(timer, itp, now);
 	}
 	rcu_read_unlock();
 }
