@@ -929,6 +929,67 @@ struct drm_connector_hdmi_infoframe {
 	bool set;
 };
 
+/*
+ * struct drm_connector_hdmi_state - HDMI state container
+ */
+struct drm_connector_hdmi_state {
+	/**
+	 * @broadcast_rgb: Connector property to pass the
+	 * Broadcast RGB selection value.
+	 */
+	enum drm_hdmi_broadcast_rgb broadcast_rgb;
+
+	/**
+	 * @infoframes: HDMI Infoframes matching that state
+	 */
+	struct {
+		/**
+		 * @avi: AVI Infoframes structure matching our
+		 * state.
+		 */
+		struct drm_connector_hdmi_infoframe avi;
+
+		/**
+		 * @hdr_drm: DRM (Dynamic Range and Mastering)
+		 * Infoframes structure matching our state.
+		 */
+		struct drm_connector_hdmi_infoframe hdr_drm;
+
+		/**
+		 * @spd: SPD Infoframes structure matching our
+		 * state.
+		 */
+		struct drm_connector_hdmi_infoframe spd;
+
+		/**
+		 * @vendor: HDMI Vendor Infoframes structure
+		 * matching our state.
+		 */
+		struct drm_connector_hdmi_infoframe hdmi;
+	} infoframes;
+
+	/**
+	 * @is_limited_range: Is the output supposed to use a limited
+	 * RGB Quantization Range or not?
+	 */
+	bool is_limited_range;
+
+	/**
+	 * @output_bpc: Bits per color channel to output.
+	 */
+	unsigned int output_bpc;
+
+	/**
+	 * @output_format: Pixel format to output in.
+	 */
+	enum hdmi_colorspace output_format;
+
+	/**
+	 * @tmds_char_rate: TMDS Character Rate, in Hz.
+	 */
+	unsigned long long tmds_char_rate;
+};
+
 /**
  * struct drm_connector_state - mutable connector state
  */
@@ -1078,63 +1139,7 @@ struct drm_connector_state {
 	 * @hdmi: HDMI-related variable and properties. Filled by
 	 * @drm_atomic_helper_connector_hdmi_check().
 	 */
-	struct {
-		/**
-		 * @broadcast_rgb: Connector property to pass the
-		 * Broadcast RGB selection value.
-		 */
-		enum drm_hdmi_broadcast_rgb broadcast_rgb;
-
-		/**
-		 * @infoframes: HDMI Infoframes matching that state
-		 */
-		struct {
-			/**
-			 * @avi: AVI Infoframes structure matching our
-			 * state.
-			 */
-			struct drm_connector_hdmi_infoframe avi;
-
-			/**
-			 * @hdr_drm: DRM (Dynamic Range and Mastering)
-			 * Infoframes structure matching our state.
-			 */
-			struct drm_connector_hdmi_infoframe hdr_drm;
-
-			/**
-			 * @spd: SPD Infoframes structure matching our
-			 * state.
-			 */
-			struct drm_connector_hdmi_infoframe spd;
-
-			/**
-			 * @vendor: HDMI Vendor Infoframes structure
-			 * matching our state.
-			 */
-			struct drm_connector_hdmi_infoframe hdmi;
-		} infoframes;
-
-		/**
-		 * @is_limited_range: Is the output supposed to use a limited
-		 * RGB Quantization Range or not?
-		 */
-		bool is_limited_range;
-
-		/**
-		 * @output_bpc: Bits per color channel to output.
-		 */
-		unsigned int output_bpc;
-
-		/**
-		 * @output_format: Pixel format to output in.
-		 */
-		enum hdmi_colorspace output_format;
-
-		/**
-		 * @tmds_char_rate: TMDS Character Rate, in Hz.
-		 */
-		unsigned long long tmds_char_rate;
-	} hdmi;
+	struct drm_connector_hdmi_state hdmi;
 };
 
 /**
@@ -1656,6 +1661,51 @@ struct drm_cmdline_mode {
 	bool tv_mode_specified;
 };
 
+/*
+ * struct drm_connector_hdmi - DRM Connector HDMI-related structure
+ */
+struct drm_connector_hdmi {
+#define DRM_CONNECTOR_HDMI_VENDOR_LEN	8
+	/**
+	 * @vendor: HDMI Controller Vendor Name
+	 */
+	unsigned char vendor[DRM_CONNECTOR_HDMI_VENDOR_LEN] __nonstring;
+
+#define DRM_CONNECTOR_HDMI_PRODUCT_LEN	16
+	/**
+	 * @product: HDMI Controller Product Name
+	 */
+	unsigned char product[DRM_CONNECTOR_HDMI_PRODUCT_LEN] __nonstring;
+
+	/**
+	 * @supported_formats: Bitmask of @hdmi_colorspace
+	 * supported by the controller.
+	 */
+	unsigned long supported_formats;
+
+	/**
+	 * @funcs: HDMI connector Control Functions
+	 */
+	const struct drm_connector_hdmi_funcs *funcs;
+
+	/**
+	 * @infoframes: Current Infoframes output by the connector
+	 */
+	struct {
+		/**
+		 * @lock: Mutex protecting against concurrent access to
+		 * the infoframes, most notably between KMS and ALSA.
+		 */
+		struct mutex lock;
+
+		/**
+		 * @audio: Current Audio Infoframes structure. Protected
+		 * by @lock.
+		 */
+		struct drm_connector_hdmi_infoframe audio;
+	} infoframes;
+};
+
 /**
  * struct drm_connector - central DRM connector control structure
  *
@@ -2068,47 +2118,7 @@ struct drm_connector {
 	/**
 	 * @hdmi: HDMI-related variable and properties.
 	 */
-	struct {
-#define DRM_CONNECTOR_HDMI_VENDOR_LEN	8
-		/**
-		 * @vendor: HDMI Controller Vendor Name
-		 */
-		unsigned char vendor[DRM_CONNECTOR_HDMI_VENDOR_LEN] __nonstring;
-
-#define DRM_CONNECTOR_HDMI_PRODUCT_LEN	16
-		/**
-		 * @product: HDMI Controller Product Name
-		 */
-		unsigned char product[DRM_CONNECTOR_HDMI_PRODUCT_LEN] __nonstring;
-
-		/**
-		 * @supported_formats: Bitmask of @hdmi_colorspace
-		 * supported by the controller.
-		 */
-		unsigned long supported_formats;
-
-		/**
-		 * @funcs: HDMI connector Control Functions
-		 */
-		const struct drm_connector_hdmi_funcs *funcs;
-
-		/**
-		 * @infoframes: Current Infoframes output by the connector
-		 */
-		struct {
-			/**
-			 * @lock: Mutex protecting against concurrent access to
-			 * the infoframes, most notably between KMS and ALSA.
-			 */
-			struct mutex lock;
-
-			/**
-			 * @audio: Current Audio Infoframes structure. Protected
-			 * by @lock.
-			 */
-			struct drm_connector_hdmi_infoframe audio;
-		} infoframes;
-	} hdmi;
+	struct drm_connector_hdmi hdmi;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
