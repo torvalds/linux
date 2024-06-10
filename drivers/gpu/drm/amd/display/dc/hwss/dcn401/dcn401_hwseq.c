@@ -1099,31 +1099,21 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,
 		.v_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.vert,
 		.rotation = pipe_ctx->plane_state->rotation,
-		.mirror = pipe_ctx->plane_state->horizontal_mirror
+		.mirror = pipe_ctx->plane_state->horizontal_mirror,
+		.stream = pipe_ctx->stream
 	};
-	bool pipe_split_on = false;
 	bool odm_combine_on = (pipe_ctx->next_odm_pipe != NULL) ||
 		(pipe_ctx->prev_odm_pipe != NULL);
 	int prev_odm_width = 0;
 	int prev_odm_offset = 0;
-	int next_odm_width = 0;
-	int next_odm_offset = 0;
-	struct pipe_ctx *next_odm_pipe = NULL;
 	struct pipe_ctx *prev_odm_pipe = NULL;
 
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
+	int recout_x_pos = 0;
+	int recout_y_pos = 0;
 
-	if ((pipe_ctx->top_pipe != NULL) || (pipe_ctx->bottom_pipe != NULL)) {
-		if ((pipe_ctx->plane_state->src_rect.width != pipe_ctx->plane_res.scl_data.viewport.width) ||
-			(pipe_ctx->plane_state->src_rect.height != pipe_ctx->plane_res.scl_data.viewport.height)) {
-			pipe_split_on = true;
-		}
-	}
-
-
-	/**
-	 * DCN4 moved cursor composition after Scaler, so in HW it is in
+	/* DCN4 moved cursor composition after Scaler, so in HW it is in
 	 * recout space and for HW Cursor position programming need to
 	 * translate to recout space.
 	 *
@@ -1148,8 +1138,7 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	y_pos = pipe_ctx->stream->dst.y + y_pos * pipe_ctx->stream->dst.height /
 		pipe_ctx->stream->src.height;
 
-	/**
-	 * If the cursor's source viewport is clipped then we need to
+	/* If the cursor's source viewport is clipped then we need to
 	 * translate the cursor to appear in the correct position on
 	 * the screen.
 	 *
@@ -1169,38 +1158,15 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * next/prev_odm_offset is to account for scaled modes that have underscan
 	 */
 	if (odm_combine_on) {
-		next_odm_pipe = pipe_ctx->next_odm_pipe;
 		prev_odm_pipe = pipe_ctx->prev_odm_pipe;
 
-		while (next_odm_pipe != NULL) {
-			next_odm_width += next_odm_pipe->plane_res.scl_data.recout.width;
-			next_odm_offset += next_odm_pipe->plane_res.scl_data.recout.x;
-			next_odm_pipe = next_odm_pipe->next_odm_pipe;
-		}
 		while (prev_odm_pipe != NULL) {
 			prev_odm_width += prev_odm_pipe->plane_res.scl_data.recout.width;
 			prev_odm_offset += prev_odm_pipe->plane_res.scl_data.recout.x;
 			prev_odm_pipe = prev_odm_pipe->prev_odm_pipe;
 		}
 
-		if (param.rotation == ROTATION_ANGLE_0) {
-			x_pos -= (prev_odm_width + prev_odm_offset);
-		}
-	}
-
-	/**
-	 * If the position is negative then we need to add to the hotspot
-	 * to shift the cursor outside the plane.
-	 */
-
-	if (x_pos < 0) {
-		pos_cpy.x_hotspot -= x_pos;
-		x_pos = 0;
-	}
-
-	if (y_pos < 0) {
-		pos_cpy.y_hotspot -= y_pos;
-		y_pos = 0;
+		x_pos -= (prev_odm_width + prev_odm_offset);
 	}
 
 	pos_cpy.x = (uint32_t)x_pos;
@@ -1209,86 +1175,23 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	if (pos_cpy.enable && dcn401_can_pipe_disable_cursor(pipe_ctx))
 		pos_cpy.enable = false;
 
-	if (param.rotation == ROTATION_ANGLE_270) {
-		// Swap axis and mirror vertically
-		uint32_t temp_x = pos_cpy.x;
+	x_pos = pos_cpy.x - param.recout.x;
+	y_pos = pos_cpy.y - param.recout.y;
 
-		int recout_height =
-			pipe_ctx->plane_res.scl_data.recout.height;
-		int recout_y =
-			pipe_ctx->plane_res.scl_data.recout.y;
+	recout_x_pos = x_pos - pos_cpy.x_hotspot;
+	recout_y_pos = y_pos - pos_cpy.y_hotspot;
 
-		/**
-		 * Display groups that are 1xnY, have pos_cpy.x > 2 * recout.height
-		 * For pipe split cases:
-		 * - apply offset of recout.y to normalize pos_cpy.x
-		 * - calculate the pos_cpy.y as before
-		 * - shift pos_cpy.y back by same offset to get final value
-		 * - since we iterate through both pipes, use the lower
-		 *   recout.y for offset
-		 * For non pipe split cases, use the same calculation for
-		 *  pos_cpy.y as the 180 degree rotation case below,
-		 *  but use pos_cpy.x as our input because we are rotating
-		 *  270 degrees
-		 */
-		if (pipe_split_on || odm_combine_on) {
-			int pos_cpy_x_offset;
-			int other_pipe_recout_y;
+	if (recout_x_pos >= (int)param.recout.width)
+		pos_cpy.enable = false;  /* not visible beyond right edge*/
 
-			if (pipe_split_on) {
-				if (pipe_ctx->bottom_pipe) {
-					other_pipe_recout_y =
-						pipe_ctx->bottom_pipe->plane_res.scl_data.recout.y;
-				} else {
-					other_pipe_recout_y =
-						pipe_ctx->top_pipe->plane_res.scl_data.recout.y;
-				}
-				pos_cpy_x_offset = (recout_y > other_pipe_recout_y) ?
-					other_pipe_recout_y : recout_y;
-				pos_cpy.x -= pos_cpy_x_offset;
-				if (pos_cpy.x > recout_height) {
-					pos_cpy.x = pos_cpy.x - recout_height;
-					pos_cpy.y = recout_height - pos_cpy.x;
-				} else {
-					pos_cpy.y = 2 * recout_height - pos_cpy.x;
-				}
-				pos_cpy.y += pos_cpy_x_offset;
+	if (recout_y_pos >= (int)param.recout.height)
+		pos_cpy.enable = false;  /* not visible beyond bottom edge*/
 
-			} else {
-				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width + next_odm_width + next_odm_offset - pos_cpy.y;
-				pos_cpy.y = temp_x;
-			}
-		}
-	} else if (param.rotation == ROTATION_ANGLE_180) {
-		// Mirror horizontally and vertically
-		int recout_width =
-			pipe_ctx->plane_res.scl_data.recout.width;
-		int recout_x =
-			pipe_ctx->plane_res.scl_data.recout.x;
+	if (recout_x_pos + (int)hubp->curs_attr.width <= 0)
+		pos_cpy.enable = false;  /* not visible beyond left edge*/
 
-		if (!param.mirror) {
-			if (odm_combine_on) {
-				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width + next_odm_width - pos_cpy.x;
-			} else if (pipe_split_on) {
-				if (pos_cpy.x >= recout_width + recout_x) {
-					pos_cpy.x = 2 * recout_width
-						- pos_cpy.x + 2 * recout_x;
-				} else {
-					uint32_t temp_x = pos_cpy.x;
-
-					pos_cpy.x = 2 * recout_x - pos_cpy.x;
-					if (temp_x >= recout_x +
-						(int)hubp->curs_attr.width || pos_cpy.x
-						<= (int)hubp->curs_attr.width +
-						pipe_ctx->plane_state->src_rect.x) {
-						pos_cpy.x = temp_x + recout_width;
-					}
-				}
-			}
-
-		}
-
-	}
+	if (recout_y_pos + (int)hubp->curs_attr.height <= 0)
+		pos_cpy.enable = false;  /* not visible beyond top edge*/
 
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
 	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width, hubp->curs_attr.height);

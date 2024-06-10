@@ -654,12 +654,8 @@ void hubp401_cursor_set_position(
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 	int x_pos = pos->x - param->recout.x;
 	int y_pos = pos->y - param->recout.y;
-	int x_hotspot = pos->x_hotspot;
-	int y_hotspot = pos->y_hotspot;
 	int rec_x_offset = x_pos - pos->x_hotspot;
 	int rec_y_offset = y_pos - pos->y_hotspot;
-	int cursor_height = (int)hubp->curs_attr.height;
-	int cursor_width = (int)hubp->curs_attr.width;
 	uint32_t dst_x_offset;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
@@ -672,28 +668,6 @@ void hubp401_cursor_set_position(
 	if (hubp->curs_attr.address.quad_part == 0)
 		return;
 
-	// Transform cursor width / height and hotspots for offset calculations
-	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
-		swap(cursor_height, cursor_width);
-		swap(x_hotspot, y_hotspot);
-
-		if (param->rotation == ROTATION_ANGLE_90) {
-			// hotspot = (-y, x)
-			rec_x_offset = x_pos - (cursor_width - x_hotspot);
-			rec_y_offset = y_pos - y_hotspot;
-		} else if (param->rotation == ROTATION_ANGLE_270) {
-			// hotspot = (y, -x)
-			rec_x_offset = x_pos - x_hotspot;
-			rec_y_offset = y_pos - (cursor_height - y_hotspot);
-		}
-	} else if (param->rotation == ROTATION_ANGLE_180) {
-		// hotspot = (-x, -y)
-		if (!param->mirror)
-			rec_x_offset = x_pos - (cursor_width - x_hotspot);
-
-		rec_y_offset = y_pos - (cursor_height - y_hotspot);
-	}
-
 	dst_x_offset = (rec_x_offset >= 0) ? rec_x_offset : 0;
 	dst_x_offset *= param->ref_clk_khz;
 	dst_x_offset /= param->pixel_clk_khz;
@@ -704,18 +678,6 @@ void hubp401_cursor_set_position(
 		dst_x_offset = dc_fixpt_floor(dc_fixpt_div(
 			dc_fixpt_from_int(dst_x_offset),
 			param->h_scale_ratio));
-
-	if (rec_x_offset >= (int)param->recout.width)
-		cur_en = 0;  /* not visible beyond right edge*/
-
-	if (rec_x_offset + cursor_width <= 0)
-		cur_en = 0;  /* not visible beyond left edge*/
-
-	if (rec_y_offset >= (int)param->recout.height)
-		cur_en = 0;  /* not visible beyond bottom edge*/
-
-	if (rec_y_offset + cursor_height <= 0)
-		cur_en = 0;  /* not visible beyond top edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
 		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
