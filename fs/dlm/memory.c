@@ -101,11 +101,17 @@ struct dlm_rsb *dlm_allocate_rsb(struct dlm_ls *ls)
 	return r;
 }
 
-void dlm_free_rsb(struct dlm_rsb *r)
+static void __free_rsb_rcu(struct rcu_head *rcu)
 {
+	struct dlm_rsb *r = container_of(rcu, struct dlm_rsb, rcu);
 	if (r->res_lvbptr)
 		dlm_free_lvb(r->res_lvbptr);
 	kmem_cache_free(rsb_cache, r);
+}
+
+void dlm_free_rsb(struct dlm_rsb *r)
+{
+	call_rcu(&r->rcu, __free_rsb_rcu);
 }
 
 struct dlm_lkb *dlm_allocate_lkb(struct dlm_ls *ls)

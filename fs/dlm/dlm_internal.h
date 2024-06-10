@@ -333,6 +333,7 @@ struct dlm_rsb {
 	struct list_head	res_masters_list;   /* used for recovery */
 	struct list_head	res_recover_list;   /* used for recovery */
 	int			res_recover_locks_count;
+	struct rcu_head		rcu;
 
 	char			*res_lvbptr;
 	char			res_name[DLM_RESNAME_MAXLEN+1];
@@ -366,6 +367,7 @@ enum rsb_flags {
 	RSB_RECOVER_GRANT,
 	RSB_RECOVER_LVB_INVAL,
 	RSB_INACTIVE,
+	RSB_HASHED, /* set while rsb is on ls_rsbtbl */
 };
 
 static inline void rsb_set_flag(struct dlm_rsb *r, enum rsb_flags flag)
