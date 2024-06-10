@@ -521,6 +521,7 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 		return ERR_PTR(ret);
 
 	drm_mode_config_reset(dev);
+	drm_kms_helper_poll_init(dev);
 
 	return mdev;
 }

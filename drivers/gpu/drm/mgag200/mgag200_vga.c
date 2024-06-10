@@ -12,7 +12,8 @@ static const struct drm_encoder_funcs mgag200_dac_encoder_funcs = {
 };
 
 static const struct drm_connector_helper_funcs mgag200_vga_connector_helper_funcs = {
-	.get_modes = drm_connector_helper_get_modes
+	.get_modes = drm_connector_helper_get_modes,
+	.detect_ctx = drm_connector_helper_detect_from_ddc
 };
 
 static const struct drm_connector_funcs mgag200_vga_connector_funcs = {
@@ -57,6 +58,9 @@ int mgag200_vga_output_init(struct mga_device *mdev)
 		return ret;
 	}
 	drm_connector_helper_add(connector, &mgag200_vga_connector_helper_funcs);
+
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+			    DRM_CONNECTOR_POLL_DISCONNECT;
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
