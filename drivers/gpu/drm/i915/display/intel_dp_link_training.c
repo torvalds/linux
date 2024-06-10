@@ -1124,6 +1124,10 @@ static int reduce_link_rate(struct intel_dp *intel_dp, int current_rate)
 
 	new_rate = intel_dp_common_rate(intel_dp, rate_index - 1);
 
+	/* TODO: Make switching from UHBR to non-UHBR rates work. */
+	if (drm_dp_is_uhbr_rate(current_rate) != drm_dp_is_uhbr_rate(new_rate))
+		return -1;
+
 	return new_rate;
 }
 
@@ -1140,15 +1144,6 @@ static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 {
 	int new_link_rate;
 	int new_lane_count;
-
-	/*
-	 * TODO: Enable fallback on MST links once MST link compute can handle
-	 * the fallback params.
-	 */
-	if (intel_dp->is_mst) {
-		lt_err(intel_dp, DP_PHY_DPRX, "Link Training Unsuccessful\n");
-		return -1;
-	}
 
 	if (intel_dp_is_edp(intel_dp) && !intel_dp->use_max_params) {
 		lt_dbg(intel_dp, DP_PHY_DPRX,
