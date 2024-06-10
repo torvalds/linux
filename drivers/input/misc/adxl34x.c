@@ -241,7 +241,8 @@ static void adxl34x_get_triple(struct adxl34x *ac, struct axis_triple *axis)
 
 	ac->bops->read_block(ac->dev, DATAX0, DATAZ1 - DATAX0 + 1, buf);
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
+
 	ac->saved.x = (s16) le16_to_cpu(buf[0]);
 	axis->x = ac->saved.x;
 
@@ -250,7 +251,6 @@ static void adxl34x_get_triple(struct adxl34x *ac, struct axis_triple *axis)
 
 	ac->saved.z = (s16) le16_to_cpu(buf[2]);
 	axis->z = ac->saved.z;
-	mutex_unlock(&ac->mutex);
 }
 
 static void adxl34x_service_ev_fifo(struct adxl34x *ac)
@@ -416,14 +416,12 @@ static int adxl34x_suspend(struct device *dev)
 {
 	struct adxl34x *ac = dev_get_drvdata(dev);
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
 	if (!ac->suspended && !ac->disabled && ac->opened)
 		__adxl34x_disable(ac);
 
 	ac->suspended = true;
-
-	mutex_unlock(&ac->mutex);
 
 	return 0;
 }
@@ -432,14 +430,12 @@ static int adxl34x_resume(struct device *dev)
 {
 	struct adxl34x *ac = dev_get_drvdata(dev);
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
 	if (ac->suspended && !ac->disabled && ac->opened)
 		__adxl34x_enable(ac);
 
 	ac->suspended = false;
-
-	mutex_unlock(&ac->mutex);
 
 	return 0;
 }
@@ -464,7 +460,7 @@ static ssize_t adxl34x_disable_store(struct device *dev,
 	if (error)
 		return error;
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
 	if (!ac->suspended && ac->opened) {
 		if (val) {
@@ -478,8 +474,6 @@ static ssize_t adxl34x_disable_store(struct device *dev,
 
 	ac->disabled = !!val;
 
-	mutex_unlock(&ac->mutex);
-
 	return count;
 }
 
@@ -489,16 +483,13 @@ static ssize_t adxl34x_calibrate_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
 	struct adxl34x *ac = dev_get_drvdata(dev);
-	ssize_t count;
 
-	mutex_lock(&ac->mutex);
-	count = sprintf(buf, "%d,%d,%d\n",
-			ac->hwcal.x * 4 + ac->swcal.x,
-			ac->hwcal.y * 4 + ac->swcal.y,
-			ac->hwcal.z * 4 + ac->swcal.z);
-	mutex_unlock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
-	return count;
+	return sprintf(buf, "%d,%d,%d\n",
+		       ac->hwcal.x * 4 + ac->swcal.x,
+		       ac->hwcal.y * 4 + ac->swcal.y,
+		       ac->hwcal.z * 4 + ac->swcal.z);
 }
 
 static ssize_t adxl34x_calibrate_store(struct device *dev,
@@ -512,7 +503,8 @@ static ssize_t adxl34x_calibrate_store(struct device *dev,
 	 * We use HW calibration and handle the remaining bits in SW. (4mg/LSB)
 	 */
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
+
 	ac->hwcal.x -= (ac->saved.x / 4);
 	ac->swcal.x = ac->saved.x % 4;
 
@@ -525,7 +517,6 @@ static ssize_t adxl34x_calibrate_store(struct device *dev,
 	AC_WRITE(ac, OFSX, (s8) ac->hwcal.x);
 	AC_WRITE(ac, OFSY, (s8) ac->hwcal.y);
 	AC_WRITE(ac, OFSZ, (s8) ac->hwcal.z);
-	mutex_unlock(&ac->mutex);
 
 	return count;
 }
@@ -553,14 +544,12 @@ static ssize_t adxl34x_rate_store(struct device *dev,
 	if (error)
 		return error;
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
 	ac->pdata.data_rate = RATE(val);
 	AC_WRITE(ac, BW_RATE,
 		 ac->pdata.data_rate |
 			(ac->pdata.low_power_mode ? LOW_POWER : 0));
-
-	mutex_unlock(&ac->mutex);
 
 	return count;
 }
@@ -588,7 +577,7 @@ static ssize_t adxl34x_autosleep_store(struct device *dev,
 	if (error)
 		return error;
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
 	if (val)
 		ac->pdata.power_mode |= (PCTL_AUTO_SLEEP | PCTL_LINK);
@@ -597,8 +586,6 @@ static ssize_t adxl34x_autosleep_store(struct device *dev,
 
 	if (!ac->disabled && !ac->suspended && ac->opened)
 		AC_WRITE(ac, POWER_CTL, ac->pdata.power_mode | PCTL_MEASURE);
-
-	mutex_unlock(&ac->mutex);
 
 	return count;
 }
@@ -610,14 +597,11 @@ static ssize_t adxl34x_position_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct adxl34x *ac = dev_get_drvdata(dev);
-	ssize_t count;
 
-	mutex_lock(&ac->mutex);
-	count = sprintf(buf, "(%d, %d, %d)\n",
-			ac->saved.x, ac->saved.y, ac->saved.z);
-	mutex_unlock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
-	return count;
+	return sprintf(buf, "(%d, %d, %d)\n",
+		       ac->saved.x, ac->saved.y, ac->saved.z);
 }
 
 static DEVICE_ATTR(position, S_IRUGO, adxl34x_position_show, NULL);
@@ -638,9 +622,8 @@ static ssize_t adxl34x_write_store(struct device *dev,
 	if (error)
 		return error;
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 	AC_WRITE(ac, val >> 8, val & 0xFF);
-	mutex_unlock(&ac->mutex);
 
 	return count;
 }
@@ -674,14 +657,12 @@ static int adxl34x_input_open(struct input_dev *input)
 {
 	struct adxl34x *ac = input_get_drvdata(input);
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
 	if (!ac->suspended && !ac->disabled)
 		__adxl34x_enable(ac);
 
 	ac->opened = true;
-
-	mutex_unlock(&ac->mutex);
 
 	return 0;
 }
@@ -690,14 +671,12 @@ static void adxl34x_input_close(struct input_dev *input)
 {
 	struct adxl34x *ac = input_get_drvdata(input);
 
-	mutex_lock(&ac->mutex);
+	guard(mutex)(&ac->mutex);
 
 	if (!ac->suspended && !ac->disabled)
 		__adxl34x_disable(ac);
 
 	ac->opened = false;
-
-	mutex_unlock(&ac->mutex);
 }
 
 struct adxl34x *adxl34x_probe(struct device *dev, int irq,
