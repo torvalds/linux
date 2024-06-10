@@ -1277,6 +1277,13 @@ static int omap_rproc_of_get_timers(struct platform_device *pdev,
 	return 0;
 }
 
+static void omap_rproc_mem_release(void *data)
+{
+	struct device *dev = data;
+
+	of_reserved_mem_device_release(dev);
+}
+
 static int omap_rproc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1346,19 +1353,17 @@ static int omap_rproc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Typically this should be provided,\n");
 		dev_warn(&pdev->dev, "only omit if you know what you are doing.\n");
 	}
+	ret = devm_add_action_or_reset(&pdev->dev, omap_rproc_mem_release, &pdev->dev);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, rproc);
 
 	ret = rproc_add(rproc);
 	if (ret)
-		goto release_mem;
+		return ret;
 
 	return 0;
-
-release_mem:
-	of_reserved_mem_device_release(&pdev->dev);
-
-	return ret;
 }
 
 static void omap_rproc_remove(struct platform_device *pdev)
@@ -1366,7 +1371,6 @@ static void omap_rproc_remove(struct platform_device *pdev)
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
 	rproc_del(rproc);
-	of_reserved_mem_device_release(&pdev->dev);
 }
 
 static const struct dev_pm_ops omap_rproc_pm_ops = {
