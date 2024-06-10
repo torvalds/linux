@@ -4558,14 +4558,13 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 	state = intel_encoder_hotplug(encoder, connector);
 
 	if (!intel_tc_port_link_reset(dig_port)) {
-		intel_modeset_lock_ctx_retry(&ctx, NULL, 0, ret) {
-			if (connector->base.connector_type == DRM_MODE_CONNECTOR_HDMIA)
+		if (connector->base.connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+			intel_modeset_lock_ctx_retry(&ctx, NULL, 0, ret)
 				ret = intel_hdmi_reset_link(encoder, &ctx);
-			else
-				ret = intel_dp_retrain_link(encoder, &ctx);
+			drm_WARN_ON(encoder->base.dev, ret);
+		} else {
+			intel_dp_check_link_state(intel_dp);
 		}
-
-		drm_WARN_ON(encoder->base.dev, ret);
 	}
 
 	/*

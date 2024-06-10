@@ -1160,9 +1160,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 		 struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_modeset_acquire_ctx ctx;
 	enum intel_hotplug_state state;
-	int ret;
 
 	if (intel_dp->compliance.test_active &&
 	    intel_dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
@@ -1173,23 +1171,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 
 	state = intel_encoder_hotplug(encoder, connector);
 
-	drm_modeset_acquire_init(&ctx, 0);
-
-	for (;;) {
-		ret = intel_dp_retrain_link(encoder, &ctx);
-
-		if (ret == -EDEADLK) {
-			drm_modeset_backoff(&ctx);
-			continue;
-		}
-
-		break;
-	}
-
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-	drm_WARN(encoder->base.dev, ret,
-		 "Acquiring modeset locks failed with %i\n", ret);
+	intel_dp_check_link_state(intel_dp);
 
 	/*
 	 * Keeping it consistent with intel_ddi_hotplug() and
