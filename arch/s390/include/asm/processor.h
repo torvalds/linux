@@ -46,17 +46,17 @@ typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
 
 static __always_inline void set_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags |= (1UL << flag);
+	get_lowcore()->cpu_flags |= (1UL << flag);
 }
 
 static __always_inline void clear_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags &= ~(1UL << flag);
+	get_lowcore()->cpu_flags &= ~(1UL << flag);
 }
 
 static __always_inline bool test_cpu_flag(int flag)
 {
-	return S390_lowcore.cpu_flags & (1UL << flag);
+	return get_lowcore()->cpu_flags & (1UL << flag);
 }
 
 static __always_inline bool test_and_set_cpu_flag(int flag)
@@ -269,7 +269,7 @@ static __always_inline unsigned long __current_stack_pointer(void)
 
 static __always_inline bool on_thread_stack(void)
 {
-	unsigned long ksp = S390_lowcore.kernel_stack;
+	unsigned long ksp = get_lowcore()->kernel_stack;
 
 	return !((ksp ^ current_stack_pointer) & ~(THREAD_SIZE - 1));
 }

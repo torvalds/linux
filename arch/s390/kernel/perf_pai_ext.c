@@ -389,7 +389,7 @@ static int paiext_add(struct perf_event *event, int flags)
 	struct paiext_cb *pcb = cpump->paiext_cb;
 
 	if (++cpump->active_events == 1) {
-		S390_lowcore.aicd = virt_to_phys(cpump->paiext_cb);
+		get_lowcore()->aicd = virt_to_phys(cpump->paiext_cb);
 		pcb->acc = virt_to_phys(cpump->area) | 0x1;
 		/* Enable CPU instruction lookup for PAIE1 control block */
 		local_ctl_set_bit(0, CR0_PAI_EXTENSION_BIT);
@@ -431,7 +431,7 @@ static void paiext_del(struct perf_event *event, int flags)
 		/* Disable CPU instruction lookup for PAIE1 control block */
 		local_ctl_clear_bit(0, CR0_PAI_EXTENSION_BIT);
 		pcb->acc = 0;
-		S390_lowcore.aicd = 0;
+		get_lowcore()->aicd = 0;
 	}
 }
 

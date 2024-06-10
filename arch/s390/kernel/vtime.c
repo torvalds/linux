@@ -41,8 +41,8 @@ static inline void set_vtimer(u64 expires)
 		"	stpt	%0\n"	/* Store current cpu timer value */
 		"	spt	%1"	/* Set new value imm. afterwards */
 		: "=Q" (timer) : "Q" (expires));
-	S390_lowcore.system_timer += S390_lowcore.last_update_timer - timer;
-	S390_lowcore.last_update_timer = expires;
+	get_lowcore()->system_timer += get_lowcore()->last_update_timer - timer;
+	get_lowcore()->last_update_timer = expires;
 }
 
 static inline int virt_timer_forward(u64 elapsed)
@@ -118,21 +118,21 @@ static int do_account_vtime(struct task_struct *tsk)
 {
 	u64 timer, clock, user, guest, system, hardirq, softirq;
 
-	timer = S390_lowcore.last_update_timer;
-	clock = S390_lowcore.last_update_clock;
+	timer = get_lowcore()->last_update_timer;
+	clock = get_lowcore()->last_update_clock;
 	asm volatile(
 		"	stpt	%0\n"	/* Store current cpu timer value */
 		"	stckf	%1"	/* Store current tod clock value */
-		: "=Q" (S390_lowcore.last_update_timer),
-		  "=Q" (S390_lowcore.last_update_clock)
+		: "=Q" (get_lowcore()->last_update_timer),
+		  "=Q" (get_lowcore()->last_update_clock)
 		: : "cc");
-	clock = S390_lowcore.last_update_clock - clock;
-	timer -= S390_lowcore.last_update_timer;
+	clock = get_lowcore()->last_update_clock - clock;
+	timer -= get_lowcore()->last_update_timer;
 
 	if (hardirq_count())
-		S390_lowcore.hardirq_timer += timer;
+		get_lowcore()->hardirq_timer += timer;
 	else
-		S390_lowcore.system_timer += timer;
+		get_lowcore()->system_timer += timer;
 
 	/* Update MT utilization calculation */
 	if (smp_cpu_mtid &&
@@ -141,16 +141,16 @@ static int do_account_vtime(struct task_struct *tsk)
 
 	/* Calculate cputime delta */
 	user = update_tsk_timer(&tsk->thread.user_timer,
-				READ_ONCE(S390_lowcore.user_timer));
+				READ_ONCE(get_lowcore()->user_timer));
 	guest = update_tsk_timer(&tsk->thread.guest_timer,
-				 READ_ONCE(S390_lowcore.guest_timer));
+				 READ_ONCE(get_lowcore()->guest_timer));
 	system = update_tsk_timer(&tsk->thread.system_timer,
-				  READ_ONCE(S390_lowcore.system_timer));
+				  READ_ONCE(get_lowcore()->system_timer));
 	hardirq = update_tsk_timer(&tsk->thread.hardirq_timer,
-				   READ_ONCE(S390_lowcore.hardirq_timer));
+				   READ_ONCE(get_lowcore()->hardirq_timer));
 	softirq = update_tsk_timer(&tsk->thread.softirq_timer,
-				   READ_ONCE(S390_lowcore.softirq_timer));
-	S390_lowcore.steal_timer +=
+				   READ_ONCE(get_lowcore()->softirq_timer));
+	get_lowcore()->steal_timer +=
 		clock - user - guest - system - hardirq - softirq;
 
 	/* Push account value */
@@ -177,16 +177,16 @@ static int do_account_vtime(struct task_struct *tsk)
 void vtime_task_switch(struct task_struct *prev)
 {
 	do_account_vtime(prev);
-	prev->thread.user_timer = S390_lowcore.user_timer;
-	prev->thread.guest_timer = S390_lowcore.guest_timer;
-	prev->thread.system_timer = S390_lowcore.system_timer;
-	prev->thread.hardirq_timer = S390_lowcore.hardirq_timer;
-	prev->thread.softirq_timer = S390_lowcore.softirq_timer;
-	S390_lowcore.user_timer = current->thread.user_timer;
-	S390_lowcore.guest_timer = current->thread.guest_timer;
-	S390_lowcore.system_timer = current->thread.system_timer;
-	S390_lowcore.hardirq_timer = current->thread.hardirq_timer;
-	S390_lowcore.softirq_timer = current->thread.softirq_timer;
+	prev->thread.user_timer = get_lowcore()->user_timer;
+	prev->thread.guest_timer = get_lowcore()->guest_timer;
+	prev->thread.system_timer = get_lowcore()->system_timer;
+	prev->thread.hardirq_timer = get_lowcore()->hardirq_timer;
+	prev->thread.softirq_timer = get_lowcore()->softirq_timer;
+	get_lowcore()->user_timer = current->thread.user_timer;
+	get_lowcore()->guest_timer = current->thread.guest_timer;
+	get_lowcore()->system_timer = current->thread.system_timer;
+	get_lowcore()->hardirq_timer = current->thread.hardirq_timer;
+	get_lowcore()->softirq_timer = current->thread.softirq_timer;
 }
 
 /*
@@ -201,23 +201,23 @@ void vtime_flush(struct task_struct *tsk)
 	if (do_account_vtime(tsk))
 		virt_timer_expire();
 
-	steal = S390_lowcore.steal_timer;
-	avg_steal = S390_lowcore.avg_steal_timer;
+	steal = get_lowcore()->steal_timer;
+	avg_steal = get_lowcore()->avg_steal_timer;
 	if ((s64) steal > 0) {
-		S390_lowcore.steal_timer = 0;
+		get_lowcore()->steal_timer = 0;
 		account_steal_time(cputime_to_nsecs(steal));
 		avg_steal += steal;
 	}
-	S390_lowcore.avg_steal_timer = avg_steal / 2;
+	get_lowcore()->avg_steal_timer = avg_steal / 2;
 }
 
 static u64 vtime_delta(void)
 {
-	u64 timer = S390_lowcore.last_update_timer;
+	u64 timer = get_lowcore()->last_update_timer;
 
-	S390_lowcore.last_update_timer = get_cpu_timer();
+	get_lowcore()->last_update_timer = get_cpu_timer();
 
-	return timer - S390_lowcore.last_update_timer;
+	return timer - get_lowcore()->last_update_timer;
 }
 
 /*
@@ -229,9 +229,9 @@ void vtime_account_kernel(struct task_struct *tsk)
 	u64 delta = vtime_delta();
 
 	if (tsk->flags & PF_VCPU)
-		S390_lowcore.guest_timer += delta;
+		get_lowcore()->guest_timer += delta;
 	else
-		S390_lowcore.system_timer += delta;
+		get_lowcore()->system_timer += delta;
 
 	virt_timer_forward(delta);
 }
@@ -241,7 +241,7 @@ void vtime_account_softirq(struct task_struct *tsk)
 {
 	u64 delta = vtime_delta();
 
-	S390_lowcore.softirq_timer += delta;
+	get_lowcore()->softirq_timer += delta;
 
 	virt_timer_forward(delta);
 }
@@ -250,7 +250,7 @@ void vtime_account_hardirq(struct task_struct *tsk)
 {
 	u64 delta = vtime_delta();
 
-	S390_lowcore.hardirq_timer += delta;
+	get_lowcore()->hardirq_timer += delta;
 
 	virt_timer_forward(delta);
 }

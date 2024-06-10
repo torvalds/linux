@@ -34,13 +34,13 @@ void account_idle_time_irq(void)
 			this_cpu_add(mt_cycles[i], cycles_new[i] - idle->mt_cycles_enter[i]);
 	}
 
-	idle_time = S390_lowcore.int_clock - idle->clock_idle_enter;
+	idle_time = get_lowcore()->int_clock - idle->clock_idle_enter;
 
-	S390_lowcore.steal_timer += idle->clock_idle_enter - S390_lowcore.last_update_clock;
-	S390_lowcore.last_update_clock = S390_lowcore.int_clock;
+	get_lowcore()->steal_timer += idle->clock_idle_enter - get_lowcore()->last_update_clock;
+	get_lowcore()->last_update_clock = get_lowcore()->int_clock;
 
-	S390_lowcore.system_timer += S390_lowcore.last_update_timer - idle->timer_idle_enter;
-	S390_lowcore.last_update_timer = S390_lowcore.sys_enter_timer;
+	get_lowcore()->system_timer += get_lowcore()->last_update_timer - idle->timer_idle_enter;
+	get_lowcore()->last_update_timer = get_lowcore()->sys_enter_timer;
 
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	WRITE_ONCE(idle->idle_time, READ_ONCE(idle->idle_time) + idle_time);

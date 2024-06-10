@@ -11,7 +11,7 @@
 #include <asm/lowcore.h>
 #include <asm/processor.h>
 
-#define raw_smp_processor_id()	(S390_lowcore.cpu_nr)
+#define raw_smp_processor_id()	(get_lowcore()->cpu_nr)
 
 extern struct mutex smp_cpu_state_mutex;
 extern unsigned int smp_cpu_mt_shift;

@@ -287,7 +287,7 @@ EXPORT_SYMBOL_GPL(gmap_remove);
  */
 void gmap_enable(struct gmap *gmap)
 {
-	S390_lowcore.gmap = (unsigned long) gmap;
+	get_lowcore()->gmap = (unsigned long)gmap;
 }
 EXPORT_SYMBOL_GPL(gmap_enable);
 
@@ -297,7 +297,7 @@ EXPORT_SYMBOL_GPL(gmap_enable);
  */
 void gmap_disable(struct gmap *gmap)
 {
-	S390_lowcore.gmap = 0UL;
+	get_lowcore()->gmap = 0UL;
 }
 EXPORT_SYMBOL_GPL(gmap_disable);
 
@@ -308,7 +308,7 @@ EXPORT_SYMBOL_GPL(gmap_disable);
  */
 struct gmap *gmap_get_enabled(void)
 {
-	return (struct gmap *) S390_lowcore.gmap;
+	return (struct gmap *)get_lowcore()->gmap;
 }
 EXPORT_SYMBOL_GPL(gmap_get_enabled);
 

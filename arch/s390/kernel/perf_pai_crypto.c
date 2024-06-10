@@ -372,7 +372,7 @@ static int paicrypt_add(struct perf_event *event, int flags)
 
 	if (++cpump->active_events == 1) {
 		ccd = virt_to_phys(cpump->page) | PAI_CRYPTO_KERNEL_OFFSET;
-		WRITE_ONCE(S390_lowcore.ccd, ccd);
+		WRITE_ONCE(get_lowcore()->ccd, ccd);
 		local_ctl_set_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
 	}
 	if (flags & PERF_EF_START)
@@ -409,7 +409,7 @@ static void paicrypt_del(struct perf_event *event, int flags)
 	paicrypt_stop(event, PERF_EF_UPDATE);
 	if (--cpump->active_events == 0) {
 		local_ctl_clear_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
-		WRITE_ONCE(S390_lowcore.ccd, 0);
+		WRITE_ONCE(get_lowcore()->ccd, 0);
 	}
 }
 

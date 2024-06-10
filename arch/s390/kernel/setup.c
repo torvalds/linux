@@ -421,16 +421,16 @@ static void __init setup_lowcore(void)
 	lc->clock_comparator = clock_comparator_max;
 	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
-	lc->machine_flags = S390_lowcore.machine_flags;
-	lc->preempt_count = S390_lowcore.preempt_count;
+	lc->machine_flags = get_lowcore()->machine_flags;
+	lc->preempt_count = get_lowcore()->preempt_count;
 	nmi_alloc_mcesa_early(&lc->mcesad);
-	lc->sys_enter_timer = S390_lowcore.sys_enter_timer;
-	lc->exit_timer = S390_lowcore.exit_timer;
-	lc->user_timer = S390_lowcore.user_timer;
-	lc->system_timer = S390_lowcore.system_timer;
-	lc->steal_timer = S390_lowcore.steal_timer;
-	lc->last_update_timer = S390_lowcore.last_update_timer;
-	lc->last_update_clock = S390_lowcore.last_update_clock;
+	lc->sys_enter_timer = get_lowcore()->sys_enter_timer;
+	lc->exit_timer = get_lowcore()->exit_timer;
+	lc->user_timer = get_lowcore()->user_timer;
+	lc->system_timer = get_lowcore()->system_timer;
+	lc->steal_timer = get_lowcore()->steal_timer;
+	lc->last_update_timer = get_lowcore()->last_update_timer;
+	lc->last_update_clock = get_lowcore()->last_update_clock;
 	/*
 	 * Allocate the global restart stack which is the same for
 	 * all CPUs in case *one* of them does a PSW restart.
@@ -439,7 +439,7 @@ static void __init setup_lowcore(void)
 	lc->mcck_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->async_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->nodat_stack = stack_alloc_early() + STACK_INIT_OFFSET;
-	lc->kernel_stack = S390_lowcore.kernel_stack;
+	lc->kernel_stack = get_lowcore()->kernel_stack;
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
 	 * restart data to the absolute zero lowcore. This is necessary if
@@ -455,8 +455,8 @@ static void __init setup_lowcore(void)
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
-	lc->kernel_asce = S390_lowcore.kernel_asce;
-	lc->user_asce = S390_lowcore.user_asce;
+	lc->kernel_asce = get_lowcore()->kernel_asce;
+	lc->user_asce = get_lowcore()->user_asce;
 
 	system_ctlreg_init_save_area(lc);
 	abs_lc = get_abs_lowcore();

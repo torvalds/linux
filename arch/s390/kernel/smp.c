@@ -203,7 +203,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	mcck_stack = stack_alloc();
 	if (!lc || !nodat_stack || !async_stack || !mcck_stack)
 		goto out;
-	memcpy(lc, &S390_lowcore, 512);
+	memcpy(lc, get_lowcore(), 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
 	lc->async_stack = async_stack + STACK_INIT_OFFSET;
 	lc->nodat_stack = nodat_stack + STACK_INIT_OFFSET;
@@ -265,9 +265,9 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
 	lc->percpu_offset = __per_cpu_offset[cpu];
-	lc->kernel_asce = S390_lowcore.kernel_asce;
+	lc->kernel_asce = get_lowcore()->kernel_asce;
 	lc->user_asce = s390_invalid_asce;
-	lc->machine_flags = S390_lowcore.machine_flags;
+	lc->machine_flags = get_lowcore()->machine_flags;
 	lc->user_timer = lc->system_timer =
 		lc->steal_timer = lc->avg_steal_timer = 0;
 	abs_lc = get_abs_lowcore();
@@ -407,7 +407,7 @@ void smp_call_ipl_cpu(void (*func)(void *), void *data)
 	struct lowcore *lc = lowcore_ptr[0];
 
 	if (pcpu_devices[0].address == stap())
-		lc = &S390_lowcore;
+		lc = get_lowcore();
 
 	pcpu_delegate(&pcpu_devices[0], func, data,
 		      lc->nodat_stack);
@@ -844,13 +844,13 @@ static void smp_start_secondary(void *cpuvoid)
 {
 	int cpu = raw_smp_processor_id();
 
-	S390_lowcore.last_update_clock = get_tod_clock();
-	S390_lowcore.restart_stack = (unsigned long)restart_stack;
-	S390_lowcore.restart_fn = (unsigned long)do_restart;
-	S390_lowcore.restart_data = 0;
-	S390_lowcore.restart_source = -1U;
-	S390_lowcore.restart_flags = 0;
-	restore_access_regs(S390_lowcore.access_regs_save_area);
+	get_lowcore()->last_update_clock = get_tod_clock();
+	get_lowcore()->restart_stack = (unsigned long)restart_stack;
+	get_lowcore()->restart_fn = (unsigned long)do_restart;
+	get_lowcore()->restart_data = 0;
+	get_lowcore()->restart_source = -1U;
+	get_lowcore()->restart_flags = 0;
+	restore_access_regs(get_lowcore()->access_regs_save_area);
 	cpu_init();
 	rcutree_report_cpu_starting(cpu);
 	init_cpu_timer();
@@ -981,16 +981,16 @@ void __init smp_prepare_boot_cpu(void)
 
 	WARN_ON(!cpu_present(0) || !cpu_online(0));
 	pcpu->state = CPU_STATE_CONFIGURED;
-	S390_lowcore.percpu_offset = __per_cpu_offset[0];
+	get_lowcore()->percpu_offset = __per_cpu_offset[0];
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 }
 
 void __init smp_setup_processor_id(void)
 {
 	pcpu_devices[0].address = stap();
-	S390_lowcore.cpu_nr = 0;
-	S390_lowcore.spinlock_lockval = arch_spin_lockval(0);
-	S390_lowcore.spinlock_index = 0;
+	get_lowcore()->cpu_nr = 0;
+	get_lowcore()->spinlock_lockval = arch_spin_lockval(0);
+	get_lowcore()->spinlock_index = 0;
 }
 
 /*
