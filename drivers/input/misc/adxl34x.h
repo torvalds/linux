@@ -26,5 +26,6 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 void adxl34x_remove(struct adxl34x *ac);
 
 extern const struct dev_pm_ops adxl34x_pm;
+extern const struct attribute_group *adxl34x_groups[];
 
 #endif

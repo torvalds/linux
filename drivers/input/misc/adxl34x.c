@@ -664,6 +664,12 @@ static const struct attribute_group adxl34x_attr_group = {
 	.attrs = adxl34x_attributes,
 };
 
+const struct attribute_group *adxl34x_groups[] = {
+	&adxl34x_attr_group,
+	NULL
+};
+EXPORT_SYMBOL_GPL(adxl34x_groups);
+
 static int adxl34x_input_open(struct input_dev *input)
 {
 	struct adxl34x *ac = input_get_drvdata(input);
@@ -823,13 +829,9 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 		goto err_free_mem;
 	}
 
-	err = sysfs_create_group(&dev->kobj, &adxl34x_attr_group);
-	if (err)
-		goto err_free_irq;
-
 	err = input_register_device(input_dev);
 	if (err)
-		goto err_remove_attr;
+		goto err_free_irq;
 
 	AC_WRITE(ac, OFSX, pdata->x_axis_offset);
 	ac->hwcal.x = pdata->x_axis_offset;
@@ -889,8 +891,6 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 
 	return ac;
 
- err_remove_attr:
-	sysfs_remove_group(&dev->kobj, &adxl34x_attr_group);
  err_free_irq:
 	free_irq(ac->irq, ac);
  err_free_mem:
@@ -903,7 +903,6 @@ EXPORT_SYMBOL_GPL(adxl34x_probe);
 
 void adxl34x_remove(struct adxl34x *ac)
 {
-	sysfs_remove_group(&ac->dev->kobj, &adxl34x_attr_group);
 	free_irq(ac->irq, ac);
 	input_unregister_device(ac->input);
 	dev_dbg(ac->dev, "unregistered accelerometer\n");

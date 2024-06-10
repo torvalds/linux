@@ -97,6 +97,7 @@ static void adxl34x_spi_remove(struct spi_device *spi)
 static struct spi_driver adxl34x_driver = {
 	.driver = {
 		.name = "adxl34x",
+		.dev_groups = adxl34x_groups,
 		.pm = pm_sleep_ptr(&adxl34x_pm),
 	},
 	.probe   = adxl34x_spi_probe,
