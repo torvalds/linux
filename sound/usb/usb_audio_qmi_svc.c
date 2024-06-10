@@ -1566,6 +1566,12 @@ static void handle_uaudio_stream_req(struct qmi_handle *handle,
 	pcm_card_num = (req_msg->usb_token & SND_PCM_CARD_NUM_MASK) >> 16;
 
 	subs = find_substream(pcm_card_num, pcm_dev_num, direction);
+
+	if (!subs) {
+		uaudio_err("invalid substream\n");
+		goto response;
+	}
+
 	chip = uadev[pcm_card_num].chip;
 
 	ret = __handle_uaudio_stream_req(req_msg, &info_idx);
