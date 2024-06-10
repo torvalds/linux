@@ -329,6 +329,7 @@ i915-y += \
 	display/intel_dsi_dcs_backlight.o \
 	display/intel_dsi_vbt.o \
 	display/intel_dvo.o \
+	display/intel_encoder.o \
 	display/intel_gmbus.o \
 	display/intel_hdmi.o \
 	display/intel_lspcon.o \
