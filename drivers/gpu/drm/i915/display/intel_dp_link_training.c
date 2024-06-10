@@ -1504,7 +1504,10 @@ void intel_dp_start_link_train(struct intel_atomic_state *state,
 	else
 		passed = intel_dp_link_train_all_phys(intel_dp, crtc_state, lttpr_count);
 
-	if (passed) {
+	if (intel_dp->link.force_train_failure) {
+		intel_dp->link.force_train_failure--;
+		lt_dbg(intel_dp, DP_PHY_DPRX, "Forcing link training failure\n");
+	} else if (passed) {
 		intel_dp->link.seq_train_failures = 0;
 		intel_encoder_link_check_queue_work(encoder, 2000);
 		return;
@@ -1539,7 +1542,10 @@ void intel_dp_start_link_train(struct intel_atomic_state *state,
 
 	intel_dp->link.retrain_disabled = true;
 
-	lt_err(intel_dp, DP_PHY_DPRX, "Can't reduce link training parameters after failure\n");
+	if (!passed)
+		lt_err(intel_dp, DP_PHY_DPRX, "Can't reduce link training parameters after failure\n");
+	else
+		lt_dbg(intel_dp, DP_PHY_DPRX, "Can't reduce link training parameters after forced failure\n");
 }
 
 void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,
@@ -1808,6 +1814,48 @@ static int i915_dp_max_lane_count_show(void *data, u64 *val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(i915_dp_max_lane_count_fops, i915_dp_max_lane_count_show, NULL, "%llu\n");
 
+static int i915_dp_force_link_training_failure_show(void *data, u64 *val)
+{
+	struct intel_connector *connector = to_intel_connector(data);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	*val = intel_dp->link.force_train_failure;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+
+static int i915_dp_force_link_training_failure_write(void *data, u64 val)
+{
+	struct intel_connector *connector = to_intel_connector(data);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	if (val > 2)
+		return -EINVAL;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	intel_dp->link.force_train_failure = val;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(i915_dp_force_link_training_failure_fops,
+			 i915_dp_force_link_training_failure_show,
+			 i915_dp_force_link_training_failure_write, "%llu\n");
+
 void intel_dp_link_training_debugfs_add(struct intel_connector *connector)
 {
 	struct dentry *root = connector->base.debugfs_entry;
@@ -1827,4 +1875,7 @@ void intel_dp_link_training_debugfs_add(struct intel_connector *connector)
 
 	debugfs_create_file("i915_dp_max_lane_count", 0444, root,
 			    connector, &i915_dp_max_lane_count_fops);
+
+	debugfs_create_file("i915_dp_force_link_training_failure", 0644, root,
+			    connector, &i915_dp_force_link_training_failure_fops);
 }
