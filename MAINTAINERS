@@ -3649,7 +3649,6 @@ F:	drivers/md/bcache/
 
 BCACHEFS
 M:	Kent Overstreet <kent.overstreet@linux.dev>
-R:	Brian Foster <bfoster@redhat.com>
 L:	linux-bcachefs@vger.kernel.org
 S:	Supported
 C:	irc://irc.oftc.net/bcache
