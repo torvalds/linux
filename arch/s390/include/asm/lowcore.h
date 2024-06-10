@@ -215,6 +215,11 @@ struct lowcore {
 
 #define S390_lowcore (*((struct lowcore *) 0))
 
+static __always_inline struct lowcore *get_lowcore(void)
+{
+	return NULL;
+}
+
 extern struct lowcore *lowcore_ptr[];
 
 static inline void set_prefix(__u32 address)
