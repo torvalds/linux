@@ -1279,4 +1279,5 @@ static struct parport_driver imm_driver = {
 };
 module_parport_driver(imm_driver);
 
+MODULE_DESCRIPTION("IOMEGA MatchMaker parallel port SCSI host adapter driver");
 MODULE_LICENSE("GPL");
