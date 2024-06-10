@@ -183,8 +183,11 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
+	if (ops->get_vq_size)
+		max_num = ops->get_vq_size(vdpa, index);
+	else
+		max_num = ops->get_vq_num_max(vdpa);
 
-	max_num = ops->get_vq_num_max(vdpa);
 	if (max_num == 0) {
 		err = -ENOENT;
 		goto error_new_virtqueue;

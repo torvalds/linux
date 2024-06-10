@@ -2144,7 +2144,7 @@ static int icm_runtime_resume(struct tb *tb)
 	return 0;
 }
 
-static int icm_start(struct tb *tb)
+static int icm_start(struct tb *tb, bool not_used)
 {
 	struct icm *icm = tb_priv(tb);
 	int ret;
@@ -2532,6 +2532,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 
 	case PCI_DEVICE_ID_INTEL_MAPLE_RIDGE_2C_NHI:
 	case PCI_DEVICE_ID_INTEL_MAPLE_RIDGE_4C_NHI:
+		icm->can_upgrade_nvm = true;
 		icm->is_supported = icm_tgl_is_supported;
 		icm->get_mode = icm_ar_get_mode;
 		icm->driver_ready = icm_tr_driver_ready;

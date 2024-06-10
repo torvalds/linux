@@ -9,7 +9,7 @@ title: Marvell PXA GPIO controller
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
   - Bartosz Golaszewski <bgolaszewski@baylibre.com>
-  - Rob Herring <robh+dt@kernel.org>
+  - Rob Herring <robh@kernel.org>
 
 allOf:
   - if:

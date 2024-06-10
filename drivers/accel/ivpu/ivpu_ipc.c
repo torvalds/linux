@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <linux/genalloc.h>
@@ -58,8 +58,8 @@ static void ivpu_ipc_mem_fini(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 
-	ivpu_bo_free_internal(ipc->mem_rx);
-	ivpu_bo_free_internal(ipc->mem_tx);
+	ivpu_bo_free(ipc->mem_rx);
+	ivpu_bo_free(ipc->mem_tx);
 }
 
 static int
@@ -471,13 +471,13 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	int ret;
 
-	ipc->mem_tx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
+	ipc->mem_tx = ivpu_bo_create_global(vdev, SZ_16K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!ipc->mem_tx) {
 		ivpu_err(vdev, "Failed to allocate mem_tx\n");
 		return -ENOMEM;
 	}
 
-	ipc->mem_rx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
+	ipc->mem_rx = ivpu_bo_create_global(vdev, SZ_16K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!ipc->mem_rx) {
 		ivpu_err(vdev, "Failed to allocate mem_rx\n");
 		ret = -ENOMEM;
@@ -501,14 +501,18 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	spin_lock_init(&ipc->cons_lock);
 	INIT_LIST_HEAD(&ipc->cons_list);
 	INIT_LIST_HEAD(&ipc->cb_msg_list);
-	drmm_mutex_init(&vdev->drm, &ipc->lock);
+	ret = drmm_mutex_init(&vdev->drm, &ipc->lock);
+	if (ret) {
+		ivpu_err(vdev, "Failed to initialize ipc->lock, ret %d\n", ret);
+		goto err_free_rx;
+	}
 	ivpu_ipc_reset(vdev);
 	return 0;
 
 err_free_rx:
-	ivpu_bo_free_internal(ipc->mem_rx);
+	ivpu_bo_free(ipc->mem_rx);
 err_free_tx:
-	ivpu_bo_free_internal(ipc->mem_tx);
+	ivpu_bo_free(ipc->mem_tx);
 	return ret;
 }
 

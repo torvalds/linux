@@ -1293,6 +1293,7 @@ static struct Qdisc_ops netem_qdisc_ops __read_mostly = {
 	.dump		=	netem_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("netem");
 
 
 static int __init netem_module_init(void)

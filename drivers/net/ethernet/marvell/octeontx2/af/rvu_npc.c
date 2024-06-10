@@ -395,7 +395,7 @@ static void npc_fixup_vf_rule(struct rvu *rvu, struct npc_mcam *mcam,
 	owner = mcam->entry2pfvf_map[index];
 	target_func = (entry->action >> 4) & 0xffff;
 	/* do nothing when target is LBK/PF or owner is not PF */
-	if (is_pffunc_af(owner) || is_afvf(target_func) ||
+	if (is_pffunc_af(owner) || is_lbk_vf(rvu, target_func) ||
 	    (owner & RVU_PFVF_FUNC_MASK) ||
 	    !(target_func & RVU_PFVF_FUNC_MASK))
 		return;
@@ -608,7 +608,7 @@ void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 	int blkaddr, index;
 
 	/* AF's and SDP VFs work in promiscuous mode */
-	if (is_afvf(pcifunc) || is_sdp_vf(pcifunc))
+	if (is_lbk_vf(rvu, pcifunc) || is_sdp_vf(rvu, pcifunc))
 		return;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
@@ -773,7 +773,7 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 		return;
 
 	/* Skip LBK VFs */
-	if (is_afvf(pcifunc))
+	if (is_lbk_vf(rvu, pcifunc))
 		return;
 
 	/* If pkt replication is not supported,
@@ -853,7 +853,7 @@ void rvu_npc_install_allmulti_entry(struct rvu *rvu, u16 pcifunc, int nixlf,
 	u16 vf_func;
 
 	/* Only CGX PF/VF can add allmulticast entry */
-	if (is_afvf(pcifunc) && is_sdp_vf(pcifunc))
+	if (is_lbk_vf(rvu, pcifunc) && is_sdp_vf(rvu, pcifunc))
 		return;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
@@ -1657,7 +1657,7 @@ static int npc_fwdb_detect_load_prfl_img(struct rvu *rvu, uint64_t prfl_sz,
 	struct npc_coalesced_kpu_prfl *img_data = NULL;
 	int i = 0, rc = -EINVAL;
 	void __iomem *kpu_prfl_addr;
-	u16 offset;
+	u32 offset;
 
 	img_data = (struct npc_coalesced_kpu_prfl __force *)rvu->kpu_prfl_addr;
 	if (le64_to_cpu(img_data->signature) == KPU_SIGN &&
@@ -2181,7 +2181,6 @@ void rvu_npc_freemem(struct rvu *rvu)
 
 	kfree(pkind->rsrc.bmap);
 	npc_mcam_rsrcs_deinit(rvu);
-	kfree(mcam->counters.bmap);
 	if (rvu->kpu_prfl_addr)
 		iounmap(rvu->kpu_prfl_addr);
 	else

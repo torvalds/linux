@@ -1024,7 +1024,7 @@ static void bbr_update_model(struct sock *sk, const struct rate_sample *rs)
 	bbr_update_gains(sk);
 }
 
-__bpf_kfunc static void bbr_main(struct sock *sk, const struct rate_sample *rs)
+__bpf_kfunc static void bbr_main(struct sock *sk, u32 ack, int flag, const struct rate_sample *rs)
 {
 	struct bbr *bbr = inet_csk_ca(sk);
 	u32 bw;
@@ -1155,9 +1155,7 @@ static struct tcp_congestion_ops tcp_bbr_cong_ops __read_mostly = {
 	.set_state	= bbr_set_state,
 };
 
-BTF_SET8_START(tcp_bbr_check_kfunc_ids)
-#ifdef CONFIG_X86
-#ifdef CONFIG_DYNAMIC_FTRACE
+BTF_KFUNCS_START(tcp_bbr_check_kfunc_ids)
 BTF_ID_FLAGS(func, bbr_init)
 BTF_ID_FLAGS(func, bbr_main)
 BTF_ID_FLAGS(func, bbr_sndbuf_expand)
@@ -1166,9 +1164,7 @@ BTF_ID_FLAGS(func, bbr_cwnd_event)
 BTF_ID_FLAGS(func, bbr_ssthresh)
 BTF_ID_FLAGS(func, bbr_min_tso_segs)
 BTF_ID_FLAGS(func, bbr_set_state)
-#endif
-#endif
-BTF_SET8_END(tcp_bbr_check_kfunc_ids)
+BTF_KFUNCS_END(tcp_bbr_check_kfunc_ids)
 
 static const struct btf_kfunc_id_set tcp_bbr_kfunc_set = {
 	.owner = THIS_MODULE,

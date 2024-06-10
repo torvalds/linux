@@ -152,6 +152,7 @@ struct rpc_xprt_ops {
 	int		(*prepare_request)(struct rpc_rqst *req,
 					   struct xdr_buf *buf);
 	int		(*send_request)(struct rpc_rqst *req);
+	void		(*abort_send_request)(struct rpc_rqst *req);
 	void		(*wait_for_reply_request)(struct rpc_task *task);
 	void		(*timer)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*release_request)(struct rpc_task *task);

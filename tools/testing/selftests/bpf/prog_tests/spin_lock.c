@@ -48,6 +48,8 @@ static struct {
 	{ "lock_id_mismatch_innermapval_kptr", "bpf_spin_unlock of different lock" },
 	{ "lock_id_mismatch_innermapval_global", "bpf_spin_unlock of different lock" },
 	{ "lock_id_mismatch_innermapval_mapval", "bpf_spin_unlock of different lock" },
+	{ "lock_global_subprog_call1", "global function calls are not allowed while holding a lock" },
+	{ "lock_global_subprog_call2", "global function calls are not allowed while holding a lock" },
 };
 
 static int match_regex(const char *pattern, const char *string)

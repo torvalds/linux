@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # KVM common configuration items and defaults
 
-config HAVE_KVM
-       bool
-
 config KVM_COMMON
        bool
        select EVENTFD
@@ -55,6 +52,9 @@ config KVM_ASYNC_PF_SYNC
 config HAVE_KVM_MSI
        bool
 
+config HAVE_KVM_READONLY_MEM
+       bool
+
 config HAVE_KVM_CPU_RELAX_INTERCEPT
        bool
 
@@ -73,6 +73,7 @@ config KVM_COMPAT
 
 config HAVE_KVM_IRQ_BYPASS
        bool
+       select IRQ_BYPASS_MANAGER
 
 config HAVE_KVM_VCPU_ASYNC_IOCTL
        bool

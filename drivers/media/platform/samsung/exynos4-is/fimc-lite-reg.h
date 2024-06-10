@@ -133,15 +133,13 @@ void flite_hw_set_interrupt_mask(struct fimc_lite *dev);
 void flite_hw_capture_start(struct fimc_lite *dev);
 void flite_hw_capture_stop(struct fimc_lite *dev);
 void flite_hw_set_camera_bus(struct fimc_lite *dev,
-			     struct fimc_source_info *s_info);
-void flite_hw_set_camera_polarity(struct fimc_lite *dev,
-				  struct fimc_source_info *cam);
-void flite_hw_set_window_offset(struct fimc_lite *dev, struct flite_frame *f);
-void flite_hw_set_source_format(struct fimc_lite *dev, struct flite_frame *f);
+			     const struct fimc_source_info *s_info);
+void flite_hw_set_window_offset(struct fimc_lite *dev, const struct flite_frame *f);
+void flite_hw_set_source_format(struct fimc_lite *dev, const struct flite_frame *f);
 
-void flite_hw_set_output_dma(struct fimc_lite *dev, struct flite_frame *f,
+void flite_hw_set_output_dma(struct fimc_lite *dev, const struct flite_frame *f,
 			     bool enable);
-void flite_hw_set_dma_window(struct fimc_lite *dev, struct flite_frame *f);
+void flite_hw_set_dma_window(struct fimc_lite *dev, const struct flite_frame *f);
 void flite_hw_set_test_pattern(struct fimc_lite *dev, bool on);
 void flite_hw_dump_regs(struct fimc_lite *dev, const char *label);
 void flite_hw_set_dma_buffer(struct fimc_lite *dev, struct flite_buffer *buf);

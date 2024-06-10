@@ -1568,7 +1568,7 @@ static int s5c73m3_get_dt_data(struct s5c73m3 *state)
 				     "failed to request gpio S5C73M3_RST\n");
 	gpiod_set_consumer_name(state->reset, "S5C73M3_RST");
 
-	node_ep = of_graph_get_next_endpoint(node, NULL);
+	node_ep = of_graph_get_endpoint_by_regs(node, 0, -1);
 	if (!node_ep) {
 		dev_warn(dev, "no endpoint defined for node: %pOF\n", node);
 		return 0;

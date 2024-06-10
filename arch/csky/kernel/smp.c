@@ -152,10 +152,6 @@ void arch_irq_work_raise(void)
 }
 #endif
 
-void __init smp_prepare_boot_cpu(void)
-{
-}
-
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 }

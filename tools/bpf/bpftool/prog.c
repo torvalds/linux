@@ -1778,7 +1778,10 @@ offload_dev:
 		goto err_close_obj;
 	}
 
-	err = mount_bpffs_for_pin(pinfile, !first_prog_only);
+	if (first_prog_only)
+		err = mount_bpffs_for_file(pinfile);
+	else
+		err = create_and_mount_bpffs_dir(pinfile);
 	if (err)
 		goto err_close_obj;
 
@@ -2078,7 +2081,7 @@ static int profile_parse_metrics(int argc, char **argv)
 		NEXT_ARG();
 	}
 	if (selected_cnt > MAX_NUM_PROFILE_METRICS) {
-		p_err("too many (%d) metrics, please specify no more than %d metrics at at time",
+		p_err("too many (%d) metrics, please specify no more than %d metrics at a time",
 		      selected_cnt, MAX_NUM_PROFILE_METRICS);
 		return -1;
 	}
@@ -2298,7 +2301,7 @@ static int profile_open_perf_events(struct profiler_bpf *obj)
 	int map_fd;
 
 	profile_perf_events = calloc(
-		sizeof(int), obj->rodata->num_cpu * obj->rodata->num_metric);
+		obj->rodata->num_cpu * obj->rodata->num_metric, sizeof(int));
 	if (!profile_perf_events) {
 		p_err("failed to allocate memory for perf_event array: %s",
 		      strerror(errno));

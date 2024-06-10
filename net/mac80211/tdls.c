@@ -6,7 +6,7 @@
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
  * Copyright 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2019, 2021-2023 Intel Corporation
+ * Copyright (C) 2019, 2021-2024 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -159,7 +159,7 @@ static void ieee80211_tdls_add_oper_classes(struct ieee80211_link_data *link,
 	u8 *pos;
 	u8 op_class;
 
-	if (!ieee80211_chandef_to_operating_class(&link->conf->chandef,
+	if (!ieee80211_chandef_to_operating_class(&link->conf->chanreq.oper,
 						  &op_class))
 		return;
 
@@ -347,7 +347,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	       (uc.width > sta->tdls_chandef.width &&
 		!cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &uc,
 					       sdata->wdev.iftype)))
-		ieee80211_chandef_downgrade(&uc);
+		ieee80211_chandef_downgrade(&uc, NULL);
 
 	if (!cfg80211_chandef_identical(&uc, &sta->tdls_chandef)) {
 		tdls_dbg(sdata, "TDLS ch width upgraded %d -> %d\n",
@@ -382,8 +382,8 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	if (WARN_ON_ONCE(!sband))
 		return;
 
-	ieee80211_add_srates_ie(sdata, skb, false, sband->band);
-	ieee80211_add_ext_srates_ie(sdata, skb, false, sband->band);
+	ieee80211_put_srates_elem(skb, sband, 0, 0, 0, WLAN_EID_SUPP_RATES);
+	ieee80211_put_srates_elem(skb, sband, 0, 0, 0, WLAN_EID_EXT_SUPP_RATES);
 	ieee80211_tdls_add_supp_channels(sdata, skb);
 
 	/* add any custom IEs that go before Extended Capabilities */
@@ -438,7 +438,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 		if (WARN_ON_ONCE(!sta))
 			return;
 
-		sta->tdls_chandef = link->conf->chandef;
+		sta->tdls_chandef = link->conf->chanreq.oper;
 	}
 
 	ieee80211_tdls_add_oper_classes(link, skb);
@@ -548,30 +548,14 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	}
 
 	/* build the HE-cap from sband */
-	if (he_cap &&
-	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
-	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
-	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)) {
-		__le16 he_6ghz_capa;
-		u8 cap_size;
-
-		cap_size =
-			2 + 1 + sizeof(he_cap->he_cap_elem) +
-			ieee80211_he_mcs_nss_size(&he_cap->he_cap_elem) +
-			ieee80211_he_ppe_size(he_cap->ppe_thres[0],
-					      he_cap->he_cap_elem.phy_cap_info);
-		pos = skb_put(skb, cap_size);
-		pos = ieee80211_ie_build_he_cap(0, pos, he_cap, pos + cap_size);
+	if (action_code == WLAN_TDLS_SETUP_REQUEST ||
+	    action_code == WLAN_TDLS_SETUP_RESPONSE ||
+	    action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) {
+		ieee80211_put_he_cap(skb, sdata, sband, NULL);
 
 		/* Build HE 6Ghz capa IE from sband */
-		if (sband->band == NL80211_BAND_6GHZ) {
-			cap_size = 2 + 1 + sizeof(struct ieee80211_he_6ghz_capa);
-			pos = skb_put(skb, cap_size);
-			he_6ghz_capa =
-				ieee80211_get_he_6ghz_capa_vif(sband, &sdata->vif);
-			pos = ieee80211_write_he_6ghz_cap(pos, he_6ghz_capa,
-							  pos + cap_size);
-		}
+		if (sband->band == NL80211_BAND_6GHZ)
+			ieee80211_put_he_6ghz_cap(skb, sdata, link->smps_mode);
 	}
 
 	/* add any custom IEs that go before EHT capabilities */
@@ -591,21 +575,10 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	}
 
 	/* build the EHT-cap from sband */
-	if (he_cap && eht_cap &&
-	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
-	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
-	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)) {
-		u8 cap_size;
-
-		cap_size =
-			2 + 1 + sizeof(eht_cap->eht_cap_elem) +
-			ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
-						   &eht_cap->eht_cap_elem, false) +
-			ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
-					       eht_cap->eht_cap_elem.phy_cap_info);
-		pos = skb_put(skb, cap_size);
-		ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + cap_size, false);
-	}
+	if (action_code == WLAN_TDLS_SETUP_REQUEST ||
+	    action_code == WLAN_TDLS_SETUP_RESPONSE ||
+	    action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)
+		ieee80211_put_eht_cap(skb, sdata, sband, NULL);
 
 	/* add any remaining IEs */
 	if (extra_ies_len) {
@@ -638,7 +611,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_link_data *link,
 	if (WARN_ON_ONCE(!sta || !ap_sta))
 		return;
 
-	sta->tdls_chandef = link->conf->chandef;
+	sta->tdls_chandef = link->conf->chanreq.oper;
 
 	/* add any custom IEs that go before the QoS IE */
 	if (extra_ies_len) {
@@ -684,7 +657,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_link_data *link,
 
 		pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
 		ieee80211_ie_build_ht_oper(pos, &sta->sta.deflink.ht_cap,
-					   &link->conf->chandef, prot,
+					   &link->conf->chanreq.oper, prot,
 					   true);
 	}
 
@@ -1413,8 +1386,8 @@ iee80211_tdls_recalc_ht_protection(struct ieee80211_sub_if_data *sdata,
 			 IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT;
 	u16 opmode;
 
-	/* Nothing to do if the BSS connection uses HT */
-	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
+	/* Nothing to do if the BSS connection uses (at least) HT */
+	if (sdata->deflink.u.mgd.conn.mode >= IEEE80211_CONN_MODE_HT)
 		return;
 
 	tdls_ht = (sta && sta->sta.deflink.ht_cap.ht_supported) ||
@@ -2055,8 +2028,9 @@ ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata)
+void ieee80211_teardown_tdls_peers(struct ieee80211_link_data *link)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct sta_info *sta;
 	u16 reason = WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED;
 
@@ -2064,6 +2038,9 @@ void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata)
 	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
 		if (!sta->sta.tdls || sta->sdata != sdata || !sta->uploaded ||
 		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+			continue;
+
+		if (sta->deflink.link_id != link->link_id)
 			continue;
 
 		ieee80211_tdls_oper_request(&sdata->vif, sta->sta.addr,

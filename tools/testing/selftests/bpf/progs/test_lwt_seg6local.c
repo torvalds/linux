@@ -6,6 +6,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+#include "bpf_compiler.h"
+
 /* Packet parsing state machine helpers. */
 #define cursor_advance(_cursor, _len) \
 	({ void *_tmp = _cursor; _cursor += _len; _tmp; })
@@ -131,7 +133,7 @@ int is_valid_tlv_boundary(struct __sk_buff *skb, struct ip6_srh_t *srh,
 	*pad_off = 0;
 
 	// we can only go as far as ~10 TLVs due to the BPF max stack size
-	#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (int i = 0; i < 10; i++) {
 		struct sr6_tlv_t tlv;
 
@@ -302,7 +304,7 @@ int __encap_srh(struct __sk_buff *skb)
 
 	seg = (struct ip6_addr_t *)((char *)srh + sizeof(*srh));
 
-	#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (unsigned long long lo = 0; lo < 4; lo++) {
 		seg->lo = bpf_cpu_to_be64(4 - lo);
 		seg->hi = bpf_cpu_to_be64(hi);

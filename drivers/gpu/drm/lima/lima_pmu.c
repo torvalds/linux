@@ -21,7 +21,8 @@ static int lima_pmu_wait_cmd(struct lima_ip *ip)
 				 v, v & LIMA_PMU_INT_CMD_MASK,
 				 100, 100000);
 	if (err) {
-		dev_err(dev->dev, "timeout wait pmu cmd\n");
+		dev_err(dev->dev, "%s timeout wait pmu cmd\n",
+			lima_ip_name(ip));
 		return err;
 	}
 

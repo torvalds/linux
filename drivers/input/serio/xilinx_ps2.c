@@ -219,8 +219,7 @@ static void sxps2_close(struct serio *pserio)
 
 /**
  * xps2_of_probe - probe method for the PS/2 device.
- * @of_dev:	pointer to OF device structure
- * @match:	pointer to the structure used for matching a device
+ * @ofdev:	pointer to OF device structure
  *
  * This function probes the PS/2 device in the device tree.
  * It initializes the driver data structure and the hardware.

@@ -27,7 +27,7 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 	struct ocfs2_file_private *fp = file->private_data;
 	struct ocfs2_lock_res *lockres = &fp->fp_flock;
 
-	if (fl->fl_type == F_WRLCK)
+	if (lock_is_write(fl))
 		level = 1;
 	if (!IS_SETLKW(cmd))
 		trylock = 1;
@@ -53,8 +53,8 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 		 */
 
 		locks_init_lock(&request);
-		request.fl_type = F_UNLCK;
-		request.fl_flags = FL_FLOCK;
+		request.c.flc_type = F_UNLCK;
+		request.c.flc_flags = FL_FLOCK;
 		locks_lock_file_wait(file, &request);
 
 		ocfs2_file_unlock(file);
@@ -100,14 +100,14 @@ int ocfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 	struct inode *inode = file->f_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	if (!(fl->fl_flags & FL_FLOCK))
+	if (!(fl->c.flc_flags & FL_FLOCK))
 		return -ENOLCK;
 
 	if ((osb->s_mount_opt & OCFS2_MOUNT_LOCALFLOCKS) ||
 	    ocfs2_mount_local(osb))
 		return locks_lock_file_wait(file, fl);
 
-	if (fl->fl_type == F_UNLCK)
+	if (lock_is_unlock(fl))
 		return ocfs2_do_funlock(file, cmd, fl);
 	else
 		return ocfs2_do_flock(file, inode, cmd, fl);
@@ -118,7 +118,7 @@ int ocfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 	struct inode *inode = file->f_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	if (!(fl->fl_flags & FL_POSIX))
+	if (!(fl->c.flc_flags & FL_POSIX))
 		return -ENOLCK;
 
 	return ocfs2_plock(osb->cconn, OCFS2_I(inode)->ip_blkno, file, cmd, fl);

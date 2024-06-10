@@ -114,7 +114,7 @@ static int gpio_halt_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int gpio_halt_remove(struct platform_device *pdev)
+static void gpio_halt_remove(struct platform_device *pdev)
 {
 	free_irq(halt_irq, pdev);
 	cancel_work_sync(&gpio_halt_wq);
@@ -124,8 +124,6 @@ static int gpio_halt_remove(struct platform_device *pdev)
 
 	gpiod_put(halt_gpio);
 	halt_gpio = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id gpio_halt_match[] = {
@@ -145,7 +143,7 @@ static struct platform_driver gpio_halt_driver = {
 		.of_match_table = gpio_halt_match,
 	},
 	.probe		= gpio_halt_probe,
-	.remove		= gpio_halt_remove,
+	.remove_new	= gpio_halt_remove,
 };
 
 module_platform_driver(gpio_halt_driver);

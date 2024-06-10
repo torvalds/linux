@@ -302,7 +302,7 @@ int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	efx_stop_all(efx);
 
 	mutex_lock(&efx->mac_lock);
-	net_dev->mtu = new_mtu;
+	WRITE_ONCE(net_dev->mtu, new_mtu);
 	efx_mac_reconfigure(efx, true);
 	mutex_unlock(&efx->mac_lock);
 
@@ -595,7 +595,7 @@ void efx_stop_all(struct efx_nic *efx)
 	efx_stop_datapath(efx);
 }
 
-/* Context: process, dev_base_lock or RTNL held, non-blocking. */
+/* Context: process, rcu_read_lock or RTNL held, non-blocking. */
 void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);

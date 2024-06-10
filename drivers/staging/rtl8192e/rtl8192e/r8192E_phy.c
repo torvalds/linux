@@ -714,7 +714,6 @@ void rtl92e_set_channel(struct net_device *dev, u8 channel)
 	if (priv->up)
 		_rtl92e_phy_switch_channel_work_item(dev);
 	priv->sw_chnl_in_progress = false;
-	return;
 }
 
 static void _rtl92e_cck_tx_power_track_bw_switch_tssi(struct net_device *dev)

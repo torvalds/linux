@@ -37,7 +37,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	gdb_regs[GDB_Y] = regs->y;
 	gdb_regs[GDB_PSR] = regs->psr;
 	gdb_regs[GDB_WIM] = 0;
-	gdb_regs[GDB_TBR] = (unsigned long) &trapbase;
+	gdb_regs[GDB_TBR] = (unsigned long) &trapbase[0];
 	gdb_regs[GDB_PC] = regs->pc;
 	gdb_regs[GDB_NPC] = regs->npc;
 	gdb_regs[GDB_FSR] = 0;
@@ -72,7 +72,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 
 	gdb_regs[GDB_PSR] = t->kpsr;
 	gdb_regs[GDB_WIM] = t->kwim;
-	gdb_regs[GDB_TBR] = (unsigned long) &trapbase;
+	gdb_regs[GDB_TBR] = (unsigned long) &trapbase[0];
 	gdb_regs[GDB_PC] = t->kpc;
 	gdb_regs[GDB_NPC] = t->kpc + 4;
 	gdb_regs[GDB_FSR] = 0;

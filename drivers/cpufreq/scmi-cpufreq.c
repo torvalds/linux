@@ -30,6 +30,7 @@ struct scmi_data {
 
 static struct scmi_protocol_handle *ph;
 static const struct scmi_perf_proto_ops *perf_ops;
+static struct cpufreq_driver scmi_cpufreq_driver;
 
 static unsigned int scmi_cpufreq_get_rate(unsigned int cpu)
 {
@@ -144,6 +145,35 @@ scmi_get_cpu_power(struct device *cpu_dev, unsigned long *power,
 	return 0;
 }
 
+static int
+scmi_get_rate_limit(u32 domain, bool has_fast_switch)
+{
+	int ret, rate_limit;
+
+	if (has_fast_switch) {
+		/*
+		 * Fast channels are used whenever available,
+		 * so use their rate_limit value if populated.
+		 */
+		ret = perf_ops->fast_switch_rate_limit(ph, domain,
+						       &rate_limit);
+		if (!ret && rate_limit)
+			return rate_limit;
+	}
+
+	ret = perf_ops->rate_limit_get(ph, domain, &rate_limit);
+	if (ret)
+		return 0;
+
+	return rate_limit;
+}
+
+static struct freq_attr *scmi_cpufreq_hw_attr[] = {
+	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,
+	NULL,
+};
+
 static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int ret, nr_opp, domain;
@@ -250,6 +280,20 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	policy->fast_switch_possible =
 		perf_ops->fast_switch_possible(ph, domain);
 
+	policy->transition_delay_us =
+		scmi_get_rate_limit(domain, policy->fast_switch_possible);
+
+	if (policy_has_boost_freq(policy)) {
+		ret = cpufreq_enable_boost_support();
+		if (ret) {
+			dev_warn(cpu_dev, "failed to enable boost: %d\n", ret);
+			goto out_free_opp;
+		} else {
+			scmi_cpufreq_hw_attr[1] = &cpufreq_freq_attr_scaling_boost_freqs;
+			scmi_cpufreq_driver.boost_enabled = true;
+		}
+	}
+
 	return 0;
 
 out_free_opp:
@@ -308,7 +352,7 @@ static struct cpufreq_driver scmi_cpufreq_driver = {
 		  CPUFREQ_NEED_INITIAL_FREQ_CHECK |
 		  CPUFREQ_IS_COOLING_DEV,
 	.verify	= cpufreq_generic_frequency_table_verify,
-	.attr	= cpufreq_generic_attr,
+	.attr	= scmi_cpufreq_hw_attr,
 	.target_index	= scmi_cpufreq_set_target,
 	.fast_switch	= scmi_cpufreq_fast_switch,
 	.get	= scmi_cpufreq_get_rate,

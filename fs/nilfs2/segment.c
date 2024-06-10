@@ -880,76 +880,6 @@ static void nilfs_segctor_clear_metadata_dirty(struct nilfs_sc_info *sci)
 	nilfs_mdt_clear_dirty(nilfs->ns_dat);
 }
 
-static int nilfs_segctor_create_checkpoint(struct nilfs_sc_info *sci)
-{
-	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
-	struct buffer_head *bh_cp;
-	struct nilfs_checkpoint *raw_cp;
-	int err;
-
-	/* XXX: this interface will be changed */
-	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, nilfs->ns_cno, 1,
-					  &raw_cp, &bh_cp);
-	if (likely(!err)) {
-		/*
-		 * The following code is duplicated with cpfile.  But, it is
-		 * needed to collect the checkpoint even if it was not newly
-		 * created.
-		 */
-		mark_buffer_dirty(bh_cp);
-		nilfs_mdt_mark_dirty(nilfs->ns_cpfile);
-		nilfs_cpfile_put_checkpoint(
-			nilfs->ns_cpfile, nilfs->ns_cno, bh_cp);
-	} else if (err == -EINVAL || err == -ENOENT) {
-		nilfs_error(sci->sc_super,
-			    "checkpoint creation failed due to metadata corruption.");
-		err = -EIO;
-	}
-	return err;
-}
-
-static int nilfs_segctor_fill_in_checkpoint(struct nilfs_sc_info *sci)
-{
-	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
-	struct buffer_head *bh_cp;
-	struct nilfs_checkpoint *raw_cp;
-	int err;
-
-	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, nilfs->ns_cno, 0,
-					  &raw_cp, &bh_cp);
-	if (unlikely(err)) {
-		if (err == -EINVAL || err == -ENOENT) {
-			nilfs_error(sci->sc_super,
-				    "checkpoint finalization failed due to metadata corruption.");
-			err = -EIO;
-		}
-		goto failed_ibh;
-	}
-	raw_cp->cp_snapshot_list.ssl_next = 0;
-	raw_cp->cp_snapshot_list.ssl_prev = 0;
-	raw_cp->cp_inodes_count =
-		cpu_to_le64(atomic64_read(&sci->sc_root->inodes_count));
-	raw_cp->cp_blocks_count =
-		cpu_to_le64(atomic64_read(&sci->sc_root->blocks_count));
-	raw_cp->cp_nblk_inc =
-		cpu_to_le64(sci->sc_nblk_inc + sci->sc_nblk_this_inc);
-	raw_cp->cp_create = cpu_to_le64(sci->sc_seg_ctime);
-	raw_cp->cp_cno = cpu_to_le64(nilfs->ns_cno);
-
-	if (test_bit(NILFS_SC_HAVE_DELTA, &sci->sc_flags))
-		nilfs_checkpoint_clear_minor(raw_cp);
-	else
-		nilfs_checkpoint_set_minor(raw_cp);
-
-	nilfs_write_inode_common(sci->sc_root->ifile,
-				 &raw_cp->cp_ifile_inode, 1);
-	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, nilfs->ns_cno, bh_cp);
-	return 0;
-
- failed_ibh:
-	return err;
-}
-
 static void nilfs_fill_in_file_bmap(struct inode *ifile,
 				    struct nilfs_inode_info *ii)
 
@@ -963,7 +893,7 @@ static void nilfs_fill_in_file_bmap(struct inode *ifile,
 		raw_inode = nilfs_ifile_map_inode(ifile, ii->vfs_inode.i_ino,
 						  ibh);
 		nilfs_bmap_write(ii->i_bmap, raw_inode);
-		nilfs_ifile_unmap_inode(ifile, ii->vfs_inode.i_ino, ibh);
+		nilfs_ifile_unmap_inode(raw_inode);
 	}
 }
 
@@ -975,6 +905,33 @@ static void nilfs_segctor_fill_in_file_bmap(struct nilfs_sc_info *sci)
 		nilfs_fill_in_file_bmap(sci->sc_root->ifile, ii);
 		set_bit(NILFS_I_COLLECTED, &ii->i_state);
 	}
+}
+
+/**
+ * nilfs_write_root_mdt_inode - export root metadata inode information to
+ *                              the on-disk inode
+ * @inode:     inode object of the root metadata file
+ * @raw_inode: on-disk inode
+ *
+ * nilfs_write_root_mdt_inode() writes inode information and bmap data of
+ * @inode to the inode area of the metadata file allocated on the super root
+ * block created to finalize the log.  Since super root blocks are configured
+ * each time, this function zero-fills the unused area of @raw_inode.
+ */
+static void nilfs_write_root_mdt_inode(struct inode *inode,
+				       struct nilfs_inode *raw_inode)
+{
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+
+	nilfs_write_inode_common(inode, raw_inode);
+
+	/* zero-fill unused portion of raw_inode */
+	raw_inode->i_xattr = 0;
+	raw_inode->i_pad = 0;
+	memset((void *)raw_inode + sizeof(*raw_inode), 0,
+	       nilfs->ns_inode_size - sizeof(*raw_inode));
+
+	nilfs_bmap_write(NILFS_I(inode)->i_bmap, raw_inode);
 }
 
 static void nilfs_segctor_fill_in_super_root(struct nilfs_sc_info *sci,
@@ -998,12 +955,13 @@ static void nilfs_segctor_fill_in_super_root(struct nilfs_sc_info *sci,
 			      nilfs->ns_nongc_ctime : sci->sc_seg_ctime);
 	raw_sr->sr_flags = 0;
 
-	nilfs_write_inode_common(nilfs->ns_dat, (void *)raw_sr +
-				 NILFS_SR_DAT_OFFSET(isz), 1);
-	nilfs_write_inode_common(nilfs->ns_cpfile, (void *)raw_sr +
-				 NILFS_SR_CPFILE_OFFSET(isz), 1);
-	nilfs_write_inode_common(nilfs->ns_sufile, (void *)raw_sr +
-				 NILFS_SR_SUFILE_OFFSET(isz), 1);
+	nilfs_write_root_mdt_inode(nilfs->ns_dat, (void *)raw_sr +
+				   NILFS_SR_DAT_OFFSET(isz));
+	nilfs_write_root_mdt_inode(nilfs->ns_cpfile, (void *)raw_sr +
+				   NILFS_SR_CPFILE_OFFSET(isz));
+	nilfs_write_root_mdt_inode(nilfs->ns_sufile, (void *)raw_sr +
+				   NILFS_SR_SUFILE_OFFSET(isz));
+
 	memset((void *)raw_sr + srsz, 0, nilfs->ns_blocksize - srsz);
 	set_buffer_uptodate(bh_sr);
 	unlock_buffer(bh_sr);
@@ -1230,7 +1188,8 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 			break;
 		nilfs_sc_cstage_inc(sci);
 		/* Creating a checkpoint */
-		err = nilfs_segctor_create_checkpoint(sci);
+		err = nilfs_cpfile_create_checkpoint(nilfs->ns_cpfile,
+						     nilfs->ns_cno);
 		if (unlikely(err))
 			break;
 		fallthrough;
@@ -1766,14 +1725,8 @@ static void nilfs_end_folio_io(struct folio *folio, int err)
 		return;
 	}
 
-	if (!err) {
-		if (!nilfs_folio_buffers_clean(folio))
-			filemap_dirty_folio(folio->mapping, folio);
-		folio_clear_error(folio);
-	} else {
+	if (err || !nilfs_folio_buffers_clean(folio))
 		filemap_dirty_folio(folio->mapping, folio);
-		folio_set_error(folio);
-	}
 
 	folio_end_writeback(folio);
 }
@@ -2101,7 +2054,11 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 
 		if (mode == SC_LSEG_SR &&
 		    nilfs_sc_cstage_get(sci) >= NILFS_ST_CPFILE) {
-			err = nilfs_segctor_fill_in_checkpoint(sci);
+			err = nilfs_cpfile_finalize_checkpoint(
+				nilfs->ns_cpfile, nilfs->ns_cno, sci->sc_root,
+				sci->sc_nblk_inc + sci->sc_nblk_this_inc,
+				sci->sc_seg_ctime,
+				!test_bit(NILFS_SC_HAVE_DELTA, &sci->sc_flags));
 			if (unlikely(err))
 				goto failed_to_write;
 
@@ -2161,8 +2118,10 @@ static void nilfs_segctor_start_timer(struct nilfs_sc_info *sci)
 {
 	spin_lock(&sci->sc_state_lock);
 	if (!(sci->sc_state & NILFS_SEGCTOR_COMMIT)) {
-		sci->sc_timer.expires = jiffies + sci->sc_interval;
-		add_timer(&sci->sc_timer);
+		if (sci->sc_task) {
+			sci->sc_timer.expires = jiffies + sci->sc_interval;
+			add_timer(&sci->sc_timer);
+		}
 		sci->sc_state |= NILFS_SEGCTOR_COMMIT;
 	}
 	spin_unlock(&sci->sc_state_lock);
@@ -2209,19 +2168,36 @@ static int nilfs_segctor_sync(struct nilfs_sc_info *sci)
 	struct nilfs_segctor_wait_request wait_req;
 	int err = 0;
 
-	spin_lock(&sci->sc_state_lock);
 	init_wait(&wait_req.wq);
 	wait_req.err = 0;
 	atomic_set(&wait_req.done, 0);
+	init_waitqueue_entry(&wait_req.wq, current);
+
+	/*
+	 * To prevent a race issue where completion notifications from the
+	 * log writer thread are missed, increment the request sequence count
+	 * "sc_seq_request" and insert a wait queue entry using the current
+	 * sequence number into the "sc_wait_request" queue at the same time
+	 * within the lock section of "sc_state_lock".
+	 */
+	spin_lock(&sci->sc_state_lock);
 	wait_req.seq = ++sci->sc_seq_request;
+	add_wait_queue(&sci->sc_wait_request, &wait_req.wq);
 	spin_unlock(&sci->sc_state_lock);
 
-	init_waitqueue_entry(&wait_req.wq, current);
-	add_wait_queue(&sci->sc_wait_request, &wait_req.wq);
-	set_current_state(TASK_INTERRUPTIBLE);
 	wake_up(&sci->sc_wait_daemon);
 
 	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		/*
+		 * Synchronize only while the log writer thread is alive.
+		 * Leave flushing out after the log writer thread exits to
+		 * the cleanup work in nilfs_segctor_destroy().
+		 */
+		if (!sci->sc_task)
+			break;
+
 		if (atomic_read(&wait_req.done)) {
 			err = wait_req.err;
 			break;
@@ -2237,7 +2213,7 @@ static int nilfs_segctor_sync(struct nilfs_sc_info *sci)
 	return err;
 }
 
-static void nilfs_segctor_wakeup(struct nilfs_sc_info *sci, int err)
+static void nilfs_segctor_wakeup(struct nilfs_sc_info *sci, int err, bool force)
 {
 	struct nilfs_segctor_wait_request *wrq, *n;
 	unsigned long flags;
@@ -2245,7 +2221,7 @@ static void nilfs_segctor_wakeup(struct nilfs_sc_info *sci, int err)
 	spin_lock_irqsave(&sci->sc_wait_request.lock, flags);
 	list_for_each_entry_safe(wrq, n, &sci->sc_wait_request.head, wq.entry) {
 		if (!atomic_read(&wrq->done) &&
-		    nilfs_cnt32_ge(sci->sc_seq_done, wrq->seq)) {
+		    (force || nilfs_cnt32_ge(sci->sc_seq_done, wrq->seq))) {
 			wrq->err = err;
 			atomic_set(&wrq->done, 1);
 		}
@@ -2363,10 +2339,21 @@ int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
  */
 static void nilfs_segctor_accept(struct nilfs_sc_info *sci)
 {
+	bool thread_is_alive;
+
 	spin_lock(&sci->sc_state_lock);
 	sci->sc_seq_accepted = sci->sc_seq_request;
+	thread_is_alive = (bool)sci->sc_task;
 	spin_unlock(&sci->sc_state_lock);
-	del_timer_sync(&sci->sc_timer);
+
+	/*
+	 * This function does not race with the log writer thread's
+	 * termination.  Therefore, deleting sc_timer, which should not be
+	 * done after the log writer thread exits, can be done safely outside
+	 * the area protected by sc_state_lock.
+	 */
+	if (thread_is_alive)
+		del_timer_sync(&sci->sc_timer);
 }
 
 /**
@@ -2383,7 +2370,7 @@ static void nilfs_segctor_notify(struct nilfs_sc_info *sci, int mode, int err)
 	if (mode == SC_LSEG_SR) {
 		sci->sc_state &= ~NILFS_SEGCTOR_COMMIT;
 		sci->sc_seq_done = sci->sc_seq_accepted;
-		nilfs_segctor_wakeup(sci, err);
+		nilfs_segctor_wakeup(sci, err, false);
 		sci->sc_flush_request = 0;
 	} else {
 		if (mode == SC_FLUSH_FILE)
@@ -2392,7 +2379,7 @@ static void nilfs_segctor_notify(struct nilfs_sc_info *sci, int mode, int err)
 			sci->sc_flush_request &= ~FLUSH_DAT_BIT;
 
 		/* re-enable timer if checkpoint creation was not done */
-		if ((sci->sc_state & NILFS_SEGCTOR_COMMIT) &&
+		if ((sci->sc_state & NILFS_SEGCTOR_COMMIT) && sci->sc_task &&
 		    time_before(jiffies, sci->sc_timer.expires))
 			add_timer(&sci->sc_timer);
 	}
@@ -2582,6 +2569,7 @@ static int nilfs_segctor_thread(void *arg)
 	int timeout = 0;
 
 	sci->sc_timer_task = current;
+	timer_setup(&sci->sc_timer, nilfs_construction_timeout, 0);
 
 	/* start sync. */
 	sci->sc_task = current;
@@ -2649,6 +2637,7 @@ static int nilfs_segctor_thread(void *arg)
  end_thread:
 	/* end sync. */
 	sci->sc_task = NULL;
+	timer_shutdown_sync(&sci->sc_timer);
 	wake_up(&sci->sc_wait_task); /* for nilfs_segctor_kill_thread() */
 	spin_unlock(&sci->sc_state_lock);
 	return 0;
@@ -2712,7 +2701,6 @@ static struct nilfs_sc_info *nilfs_segctor_new(struct super_block *sb,
 	INIT_LIST_HEAD(&sci->sc_gc_inodes);
 	INIT_LIST_HEAD(&sci->sc_iput_queue);
 	INIT_WORK(&sci->sc_iput_work, nilfs_iput_work_func);
-	timer_setup(&sci->sc_timer, nilfs_construction_timeout, 0);
 
 	sci->sc_interval = HZ * NILFS_SC_DEFAULT_TIMEOUT;
 	sci->sc_mjcp_freq = HZ * NILFS_SC_DEFAULT_SR_FREQ;
@@ -2766,6 +2754,13 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 		|| sci->sc_seq_request != sci->sc_seq_done);
 	spin_unlock(&sci->sc_state_lock);
 
+	/*
+	 * Forcibly wake up tasks waiting in nilfs_segctor_sync(), which can
+	 * be called from delayed iput() via nilfs_evict_inode() and can race
+	 * with the above log writer thread termination.
+	 */
+	nilfs_segctor_wakeup(sci, 0, true);
+
 	if (flush_work(&sci->sc_iput_work))
 		flag = true;
 
@@ -2791,7 +2786,6 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 
 	down_write(&nilfs->ns_segctor_sem);
 
-	timer_shutdown_sync(&sci->sc_timer);
 	kfree(sci);
 }
 
@@ -2827,7 +2821,7 @@ int nilfs_attach_log_writer(struct super_block *sb, struct nilfs_root *root)
 	if (!nilfs->ns_writer)
 		return -ENOMEM;
 
-	inode_attach_wb(nilfs->ns_bdev->bd_inode, NULL);
+	inode_attach_wb(nilfs->ns_bdev->bd_mapping->host, NULL);
 
 	err = nilfs_segctor_start_thread(nilfs->ns_writer);
 	if (unlikely(err))

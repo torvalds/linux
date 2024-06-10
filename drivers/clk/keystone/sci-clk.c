@@ -272,7 +272,7 @@ static const struct clk_ops sci_clk_ops = {
 };
 
 /**
- * _sci_clk_get - Gets a handle for an SCI clock
+ * _sci_clk_build - Gets a handle for an SCI clock
  * @provider: Handle to SCI clock provider
  * @sci_clk: Handle to the SCI clock to populate
  *
@@ -516,6 +516,7 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 	struct sci_clk *sci_clk, *prev;
 	int num_clks = 0;
 	int num_parents;
+	bool state;
 	int clk_id;
 	const char * const clk_names[] = {
 		"clocks", "assigned-clocks", "assigned-clock-parents", NULL
@@ -586,6 +587,15 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 				clk_id = args.args[1] + 1;
 
 				while (num_parents--) {
+					/* Check if this clock id is valid */
+					ret = provider->ops->is_auto(provider->sci,
+						sci_clk->dev_id, clk_id, &state);
+
+					if (ret) {
+						clk_id++;
+						continue;
+					}
+
 					sci_clk = devm_kzalloc(dev,
 							       sizeof(*sci_clk),
 							       GFP_KERNEL);

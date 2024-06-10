@@ -94,9 +94,16 @@
  *	Unlock all
  */
 
+/*
+ * Add validation and rebinding to the drm_exec locking loop, since both can
+ * trigger eviction which may require sleeping dma_resv locks.
+ */
 static int xe_exec_fn(struct drm_gpuvm_exec *vm_exec)
 {
-	return drm_gpuvm_validate(vm_exec->vm, &vm_exec->exec);
+	struct xe_vm *vm = container_of(vm_exec->vm, struct xe_vm, gpuvm);
+
+	/* The fence slot added here is intended for the exec sched job. */
+	return xe_vm_validate_rebind(vm, &vm_exec->exec, 1);
 }
 
 int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -113,7 +120,6 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_exec *exec = &vm_exec.exec;
 	u32 i, num_syncs = 0, num_ufence = 0;
 	struct xe_sched_job *job;
-	struct dma_fence *rebind_fence;
 	struct xe_vm *vm;
 	bool write_locked, skip_retry = false;
 	ktime_t end = 0;
@@ -196,8 +202,30 @@ retry:
 			goto err_unlock_list;
 	}
 
+	if (!args->num_batch_buffer) {
+		err = xe_vm_lock(vm, true);
+		if (err)
+			goto err_unlock_list;
+
+		if (!xe_vm_in_lr_mode(vm)) {
+			struct dma_fence *fence;
+
+			fence = xe_sync_in_fence_get(syncs, num_syncs, q, vm);
+			if (IS_ERR(fence)) {
+				err = PTR_ERR(fence);
+				goto err_unlock_list;
+			}
+			for (i = 0; i < num_syncs; i++)
+				xe_sync_entry_signal(&syncs[i], fence);
+			xe_exec_queue_last_fence_set(q, vm, fence);
+			dma_fence_put(fence);
+		}
+
+		xe_vm_unlock(vm);
+		goto err_unlock_list;
+	}
+
 	vm_exec.vm = &vm->gpuvm;
-	vm_exec.num_fences = 1 + vm->xe->info.tile_count;
 	vm_exec.flags = DRM_EXEC_INTERRUPTIBLE_WAIT;
 	if (xe_vm_in_lr_mode(vm)) {
 		drm_exec_init(exec, vm_exec.flags, 0);
@@ -216,24 +244,6 @@ retry:
 		goto err_exec;
 	}
 
-	if (!args->num_batch_buffer) {
-		if (!xe_vm_in_lr_mode(vm)) {
-			struct dma_fence *fence;
-
-			fence = xe_sync_in_fence_get(syncs, num_syncs, q, vm);
-			if (IS_ERR(fence)) {
-				err = PTR_ERR(fence);
-				goto err_exec;
-			}
-			for (i = 0; i < num_syncs; i++)
-				xe_sync_entry_signal(&syncs[i], NULL, fence);
-			xe_exec_queue_last_fence_set(q, vm, fence);
-			dma_fence_put(fence);
-		}
-
-		goto err_exec;
-	}
-
 	if (xe_exec_queue_is_lr(q) && xe_exec_queue_ring_full(q)) {
 		err = -EWOULDBLOCK;	/* Aliased to -EAGAIN */
 		skip_retry = true;
@@ -247,39 +257,7 @@ retry:
 		goto err_exec;
 	}
 
-	/*
-	 * Rebind any invalidated userptr or evicted BOs in the VM, non-compute
-	 * VM mode only.
-	 */
-	rebind_fence = xe_vm_rebind(vm, false);
-	if (IS_ERR(rebind_fence)) {
-		err = PTR_ERR(rebind_fence);
-		goto err_put_job;
-	}
-
-	/*
-	 * We store the rebind_fence in the VM so subsequent execs don't get
-	 * scheduled before the rebinds of userptrs / evicted BOs is complete.
-	 */
-	if (rebind_fence) {
-		dma_fence_put(vm->rebind_fence);
-		vm->rebind_fence = rebind_fence;
-	}
-	if (vm->rebind_fence) {
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-			     &vm->rebind_fence->flags)) {
-			dma_fence_put(vm->rebind_fence);
-			vm->rebind_fence = NULL;
-		} else {
-			dma_fence_get(vm->rebind_fence);
-			err = drm_sched_job_add_dependency(&job->drm,
-							   vm->rebind_fence);
-			if (err)
-				goto err_put_job;
-		}
-	}
-
-	/* Wait behind munmap style rebinds */
+	/* Wait behind rebinds */
 	if (!xe_vm_in_lr_mode(vm)) {
 		err = drm_sched_job_add_resv_dependencies(&job->drm,
 							  xe_vm_resv(vm),
@@ -316,9 +294,10 @@ retry:
 		drm_gpuvm_resv_add_fence(&vm->gpuvm, exec, &job->drm.s_fence->finished,
 					 DMA_RESV_USAGE_BOOKKEEP, DMA_RESV_USAGE_WRITE);
 
-	for (i = 0; i < num_syncs; i++)
-		xe_sync_entry_signal(&syncs[i], job,
-				     &job->drm.s_fence->finished);
+	for (i = 0; i < num_syncs; i++) {
+		xe_sync_entry_signal(&syncs[i], &job->drm.s_fence->finished);
+		xe_sched_job_init_user_fence(job, &syncs[i]);
+	}
 
 	if (xe_exec_queue_is_lr(q))
 		q->ring_ops->emit_job(job);
@@ -342,10 +321,7 @@ err_put_job:
 err_exec:
 	drm_exec_fini(exec);
 err_unlock_list:
-	if (write_locked)
-		up_write(&vm->lock);
-	else
-		up_read(&vm->lock);
+	up_read(&vm->lock);
 	if (err == -EAGAIN && !skip_retry)
 		goto retry;
 err_syncs:

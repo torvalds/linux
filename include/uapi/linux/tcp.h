@@ -135,6 +135,8 @@ enum {
 #define TCP_AO_GET_KEYS		41	/* List MKT(s) */
 #define TCP_AO_REPAIR		42	/* Get/Set SNEs and ISNs */
 
+#define TCP_IS_MPTCP		43	/* Is MPTCP being used? */
+
 #define TCP_REPAIR_ON		1
 #define TCP_REPAIR_OFF		0
 #define TCP_REPAIR_OFF_NO_WP	-1	/* Turn off without window probes */

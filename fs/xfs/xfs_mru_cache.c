@@ -333,13 +333,14 @@ xfs_mru_cache_create(
 	if (!(grp_time = msecs_to_jiffies(lifetime_ms) / grp_count))
 		return -EINVAL;
 
-	if (!(mru = kmem_zalloc(sizeof(*mru), 0)))
+	mru = kzalloc(sizeof(*mru), GFP_KERNEL | __GFP_NOFAIL);
+	if (!mru)
 		return -ENOMEM;
 
 	/* An extra list is needed to avoid reaping up to a grp_time early. */
 	mru->grp_count = grp_count + 1;
-	mru->lists = kmem_zalloc(mru->grp_count * sizeof(*mru->lists), 0);
-
+	mru->lists = kzalloc(mru->grp_count * sizeof(*mru->lists),
+				GFP_KERNEL | __GFP_NOFAIL);
 	if (!mru->lists) {
 		err = -ENOMEM;
 		goto exit;
@@ -364,9 +365,9 @@ xfs_mru_cache_create(
 
 exit:
 	if (err && mru && mru->lists)
-		kmem_free(mru->lists);
+		kfree(mru->lists);
 	if (err && mru)
-		kmem_free(mru);
+		kfree(mru);
 
 	return err;
 }
@@ -406,8 +407,8 @@ xfs_mru_cache_destroy(
 
 	xfs_mru_cache_flush(mru);
 
-	kmem_free(mru->lists);
-	kmem_free(mru);
+	kfree(mru->lists);
+	kfree(mru);
 }
 
 /*
@@ -427,7 +428,7 @@ xfs_mru_cache_insert(
 	if (!mru || !mru->lists)
 		return -EINVAL;
 
-	if (radix_tree_preload(GFP_NOFS))
+	if (radix_tree_preload(GFP_KERNEL))
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&elem->list_node);

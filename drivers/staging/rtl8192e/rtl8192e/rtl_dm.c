@@ -144,7 +144,7 @@ const u8 dm_cck_tx_bb_gain_ch14[CCK_TX_BB_GAIN_TABLE_LEN][8] = {
 /*------------------------Define global variable-----------------------------*/
 struct dig_t dm_digtable;
 
-struct drx_path_sel dm_rx_path_sel_table;
+static struct drx_path_sel dm_rx_path_sel_table;
 /*------------------------Define global variable-----------------------------*/
 
 
@@ -163,7 +163,6 @@ static	void	_rtl92e_dm_check_tx_power_tracking(struct net_device *dev);
 
 static void _rtl92e_dm_dig_init(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev);
-static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev);
 static void _rtl92e_dm_initial_gain(struct net_device *dev);
 static void _rtl92e_dm_pd_th(struct net_device *dev);
 static void _rtl92e_dm_cs_ratio(struct net_device *dev);
@@ -354,7 +353,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 			}
 		}
 
-		if (priv->rtllib->GetHalfNmodeSupportByAPsHandler(dev))
+		if (priv->rtllib->get_half_nmode_support_by_aps_handler(dev))
 			target_ratr &=  0xf00fffff;
 
 		current_ratr = rtl92e_readl(dev, RATR0);
@@ -929,11 +928,6 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN;
 }
 
-static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
-{
-	_rtl92e_dm_ctrl_initgain_byrssi_driver(dev);
-}
-
 /*-----------------------------------------------------------------------------
  * Function:	dm_CtrlInitGainBeforeConnectByRssiAndFalseAlarm()
  *
@@ -952,7 +946,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
  *
  ******************************************************************************/
 
-static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
+static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 i;
@@ -1185,7 +1179,7 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 		if (priv->bcurrent_turbo_EDCA) {
 			u8 tmp = AC0_BE;
 
-			priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM,
+			priv->rtllib->set_hw_reg_handler(dev, HW_VAR_AC_PARAM,
 						      (u8 *)(&tmp));
 			priv->bcurrent_turbo_EDCA = false;
 		}
@@ -1523,7 +1517,7 @@ static void _rtl92e_dm_init_fsync(struct net_device *dev)
 	priv->rtllib->fsync_multiple_timeinterval = 3;
 	priv->rtllib->fsync_firstdiff_ratethreshold = 100;
 	priv->rtllib->fsync_seconddiff_ratethreshold = 200;
-	priv->rtllib->fsync_state = Default_Fsync;
+	priv->rtllib->fsync_state = DEFAULT_FSYNC;
 
 	timer_setup(&priv->fsync_timer, _rtl92e_dm_fsync_timer_callback, 0);
 }
@@ -1636,7 +1630,7 @@ static void _rtl92e_dm_start_hw_fsync(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c12cf);
-	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING,
+	priv->rtllib->set_hw_reg_handler(dev, HW_VAR_RF_TIMING,
 				      (u8 *)(&rf_timing));
 	rtl92e_writeb(dev, 0xc3b, 0x41);
 }
@@ -1647,7 +1641,7 @@ static void _rtl92e_dm_end_hw_fsync(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
-	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING, (u8 *)
+	priv->rtllib->set_hw_reg_handler(dev, HW_VAR_RF_TIMING, (u8 *)
 				     (&rf_timing));
 	rtl92e_writeb(dev, 0xc3b, 0x49);
 }
@@ -1716,31 +1710,29 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 	    priv->rtllib->ht_info->iot_peer == HT_IOT_PEER_BROADCOM) {
 		if (priv->rtllib->bfsync_enable == 0) {
 			switch (priv->rtllib->fsync_state) {
-			case Default_Fsync:
+			case DEFAULT_FSYNC:
 				_rtl92e_dm_start_hw_fsync(dev);
-				priv->rtllib->fsync_state = HW_Fsync;
+				priv->rtllib->fsync_state = HW_FSYNC;
 				break;
-			case SW_Fsync:
+			case SW_FSYNC:
 				_rtl92e_dm_end_sw_fsync(dev);
 				_rtl92e_dm_start_hw_fsync(dev);
-				priv->rtllib->fsync_state = HW_Fsync;
+				priv->rtllib->fsync_state = HW_FSYNC;
 				break;
-			case HW_Fsync:
 			default:
 				break;
 			}
 		} else {
 			switch (priv->rtllib->fsync_state) {
-			case Default_Fsync:
+			case DEFAULT_FSYNC:
 				_rtl92e_dm_start_sw_fsync(dev);
-				priv->rtllib->fsync_state = SW_Fsync;
+				priv->rtllib->fsync_state = SW_FSYNC;
 				break;
-			case HW_Fsync:
+			case HW_FSYNC:
 				_rtl92e_dm_end_hw_fsync(dev);
 				_rtl92e_dm_start_sw_fsync(dev);
-				priv->rtllib->fsync_state = SW_Fsync;
+				priv->rtllib->fsync_state = SW_FSYNC;
 				break;
-			case SW_Fsync:
 			default:
 				break;
 			}
@@ -1752,15 +1744,14 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 		}
 	} else {
 		switch (priv->rtllib->fsync_state) {
-		case HW_Fsync:
+		case HW_FSYNC:
 			_rtl92e_dm_end_hw_fsync(dev);
-			priv->rtllib->fsync_state = Default_Fsync;
+			priv->rtllib->fsync_state = DEFAULT_FSYNC;
 			break;
-		case SW_Fsync:
+		case SW_FSYNC:
 			_rtl92e_dm_end_sw_fsync(dev);
-			priv->rtllib->fsync_state = Default_Fsync;
+			priv->rtllib->fsync_state = DEFAULT_FSYNC;
 			break;
-		case Default_Fsync:
 		default:
 			break;
 		}

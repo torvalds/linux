@@ -608,6 +608,7 @@ static struct Qdisc_ops tbf_qdisc_ops __read_mostly = {
 	.dump		=	tbf_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("tbf");
 
 static int __init tbf_module_init(void)
 {

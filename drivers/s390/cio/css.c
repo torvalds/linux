@@ -39,7 +39,7 @@ int max_ssid;
 
 #define MAX_CSS_IDX 0
 struct channel_subsystem *channel_subsystems[MAX_CSS_IDX + 1];
-static struct bus_type css_bus_type;
+static const struct bus_type css_bus_type;
 
 int
 for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
@@ -309,7 +309,7 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 {
 	struct subchannel *sch = to_subchannel(dev);
 
-	return sprintf(buf, "%01x\n", sch->st);
+	return sysfs_emit(buf, "%01x\n", sch->st);
 }
 
 static DEVICE_ATTR_RO(type);
@@ -319,7 +319,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 {
 	struct subchannel *sch = to_subchannel(dev);
 
-	return sprintf(buf, "css:t%01X\n", sch->st);
+	return sysfs_emit(buf, "css:t%01X\n", sch->st);
 }
 
 static DEVICE_ATTR_RO(modalias);
@@ -345,7 +345,7 @@ static ssize_t driver_override_show(struct device *dev,
 	ssize_t len;
 
 	device_lock(dev);
-	len = snprintf(buf, PAGE_SIZE, "%s\n", sch->driver_override);
+	len = sysfs_emit(buf, "%s\n", sch->driver_override);
 	device_unlock(dev);
 	return len;
 }
@@ -396,8 +396,8 @@ static ssize_t pimpampom_show(struct device *dev,
 	struct subchannel *sch = to_subchannel(dev);
 	struct pmcw *pmcw = &sch->schib.pmcw;
 
-	return sprintf(buf, "%02x %02x %02x\n",
-		       pmcw->pim, pmcw->pam, pmcw->pom);
+	return sysfs_emit(buf, "%02x %02x %02x\n",
+			  pmcw->pim, pmcw->pam, pmcw->pom);
 }
 static DEVICE_ATTR_RO(pimpampom);
 
@@ -881,7 +881,7 @@ static ssize_t real_cssid_show(struct device *dev, struct device_attribute *a,
 	if (!css->id_valid)
 		return -EINVAL;
 
-	return sprintf(buf, "%x\n", css->cssid);
+	return sysfs_emit(buf, "%x\n", css->cssid);
 }
 static DEVICE_ATTR_RO(real_cssid);
 
@@ -904,7 +904,7 @@ static ssize_t cm_enable_show(struct device *dev, struct device_attribute *a,
 	int ret;
 
 	mutex_lock(&css->mutex);
-	ret = sprintf(buf, "%x\n", css->cm_enabled);
+	ret = sysfs_emit(buf, "%x\n", css->cm_enabled);
 	mutex_unlock(&css->mutex);
 	return ret;
 }
@@ -1114,26 +1114,33 @@ static int cio_dma_pool_init(void)
 	return 0;
 }
 
-void *cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
-			size_t size)
+void *__cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
+			  size_t size, dma32_t *dma_handle)
 {
 	dma_addr_t dma_addr;
-	unsigned long addr;
 	size_t chunk_size;
+	void *addr;
 
 	if (!gp_dma)
 		return NULL;
-	addr = gen_pool_alloc(gp_dma, size);
+	addr = gen_pool_dma_alloc(gp_dma, size, &dma_addr);
 	while (!addr) {
 		chunk_size = round_up(size, PAGE_SIZE);
-		addr = (unsigned long) dma_alloc_coherent(dma_dev,
-					 chunk_size, &dma_addr, CIO_DMA_GFP);
+		addr = dma_alloc_coherent(dma_dev, chunk_size, &dma_addr, CIO_DMA_GFP);
 		if (!addr)
 			return NULL;
-		gen_pool_add_virt(gp_dma, addr, dma_addr, chunk_size, -1);
-		addr = gen_pool_alloc(gp_dma, size);
+		gen_pool_add_virt(gp_dma, (unsigned long)addr, dma_addr, chunk_size, -1);
+		addr = gen_pool_dma_alloc(gp_dma, size, dma_handle ? &dma_addr : NULL);
 	}
-	return (void *) addr;
+	if (dma_handle)
+		*dma_handle = (__force dma32_t)dma_addr;
+	return addr;
+}
+
+void *cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
+			size_t size)
+{
+	return __cio_gp_dma_zalloc(gp_dma, dma_dev, size, NULL);
 }
 
 void cio_gp_dma_free(struct gen_pool *gp_dma, void *cpu_addr, size_t size)
@@ -1409,7 +1416,7 @@ static int css_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return ret;
 }
 
-static struct bus_type css_bus_type = {
+static const struct bus_type css_bus_type = {
 	.name     = "css",
 	.match    = css_bus_match,
 	.probe    = css_probe,

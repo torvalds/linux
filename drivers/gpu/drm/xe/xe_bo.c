@@ -22,6 +22,7 @@
 #include "xe_gt.h"
 #include "xe_map.h"
 #include "xe_migrate.h"
+#include "xe_pm.h"
 #include "xe_preempt_fence.h"
 #include "xe_res_cursor.h"
 #include "xe_trace.h"
@@ -46,22 +47,26 @@ static const struct ttm_place sys_placement_flags = {
 static struct ttm_placement sys_placement = {
 	.num_placement = 1,
 	.placement = &sys_placement_flags,
-	.num_busy_placement = 1,
-	.busy_placement = &sys_placement_flags,
 };
 
-static const struct ttm_place tt_placement_flags = {
-	.fpfn = 0,
-	.lpfn = 0,
-	.mem_type = XE_PL_TT,
-	.flags = 0,
+static const struct ttm_place tt_placement_flags[] = {
+	{
+		.fpfn = 0,
+		.lpfn = 0,
+		.mem_type = XE_PL_TT,
+		.flags = TTM_PL_FLAG_DESIRED,
+	},
+	{
+		.fpfn = 0,
+		.lpfn = 0,
+		.mem_type = XE_PL_SYSTEM,
+		.flags = TTM_PL_FLAG_FALLBACK,
+	}
 };
 
 static struct ttm_placement tt_placement = {
-	.num_placement = 1,
-	.placement = &tt_placement_flags,
-	.num_busy_placement = 1,
-	.busy_placement = &sys_placement_flags,
+	.num_placement = 2,
+	.placement = tt_placement_flags,
 };
 
 bool mem_type_is_vram(u32 mem_type)
@@ -107,7 +112,7 @@ bool xe_bo_is_stolen_devmem(struct xe_bo *bo)
 
 static bool xe_bo_is_user(struct xe_bo *bo)
 {
-	return bo->flags & XE_BO_CREATE_USER_BIT;
+	return bo->flags & XE_BO_FLAG_USER;
 }
 
 static struct xe_migrate *
@@ -133,16 +138,13 @@ static struct xe_mem_region *res_to_mem_region(struct ttm_resource *res)
 static void try_add_system(struct xe_device *xe, struct xe_bo *bo,
 			   u32 bo_flags, u32 *c)
 {
-	if (bo_flags & XE_BO_CREATE_SYSTEM_BIT) {
+	if (bo_flags & XE_BO_FLAG_SYSTEM) {
 		xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
 
 		bo->placements[*c] = (struct ttm_place) {
 			.mem_type = XE_PL_TT,
 		};
 		*c += 1;
-
-		if (bo->props.preferred_mem_type == XE_BO_PROPS_INVALID)
-			bo->props.preferred_mem_type = XE_PL_TT;
 	}
 }
 
@@ -163,12 +165,12 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 	 * For eviction / restore on suspend / resume objects
 	 * pinned in VRAM must be contiguous
 	 */
-	if (bo_flags & (XE_BO_CREATE_PINNED_BIT |
-			XE_BO_CREATE_GGTT_BIT))
+	if (bo_flags & (XE_BO_FLAG_PINNED |
+			XE_BO_FLAG_GGTT))
 		place.flags |= TTM_PL_FLAG_CONTIGUOUS;
 
 	if (io_size < vram->usable_size) {
-		if (bo_flags & XE_BO_NEEDS_CPU_ACCESS) {
+		if (bo_flags & XE_BO_FLAG_NEEDS_CPU_ACCESS) {
 			place.fpfn = 0;
 			place.lpfn = io_size >> PAGE_SHIFT;
 		} else {
@@ -177,37 +179,27 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 	}
 	places[*c] = place;
 	*c += 1;
-
-	if (bo->props.preferred_mem_type == XE_BO_PROPS_INVALID)
-		bo->props.preferred_mem_type = mem_type;
 }
 
 static void try_add_vram(struct xe_device *xe, struct xe_bo *bo,
 			 u32 bo_flags, u32 *c)
 {
-	if (bo->props.preferred_gt == XE_GT1) {
-		if (bo_flags & XE_BO_CREATE_VRAM1_BIT)
-			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM1, c);
-		if (bo_flags & XE_BO_CREATE_VRAM0_BIT)
-			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM0, c);
-	} else {
-		if (bo_flags & XE_BO_CREATE_VRAM0_BIT)
-			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM0, c);
-		if (bo_flags & XE_BO_CREATE_VRAM1_BIT)
-			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM1, c);
-	}
+	if (bo_flags & XE_BO_FLAG_VRAM0)
+		add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM0, c);
+	if (bo_flags & XE_BO_FLAG_VRAM1)
+		add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM1, c);
 }
 
 static void try_add_stolen(struct xe_device *xe, struct xe_bo *bo,
 			   u32 bo_flags, u32 *c)
 {
-	if (bo_flags & XE_BO_CREATE_STOLEN_BIT) {
+	if (bo_flags & XE_BO_FLAG_STOLEN) {
 		xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
 
 		bo->placements[*c] = (struct ttm_place) {
 			.mem_type = XE_PL_STOLEN,
-			.flags = bo_flags & (XE_BO_CREATE_PINNED_BIT |
-					     XE_BO_CREATE_GGTT_BIT) ?
+			.flags = bo_flags & (XE_BO_FLAG_PINNED |
+					     XE_BO_FLAG_GGTT) ?
 				TTM_PL_FLAG_CONTIGUOUS : 0,
 		};
 		*c += 1;
@@ -219,17 +211,8 @@ static int __xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 {
 	u32 c = 0;
 
-	bo->props.preferred_mem_type = XE_BO_PROPS_INVALID;
-
-	/* The order of placements should indicate preferred location */
-
-	if (bo->props.preferred_mem_class == DRM_XE_MEM_REGION_CLASS_SYSMEM) {
-		try_add_system(xe, bo, bo_flags, &c);
-		try_add_vram(xe, bo, bo_flags, &c);
-	} else {
-		try_add_vram(xe, bo, bo_flags, &c);
-		try_add_system(xe, bo, bo_flags, &c);
-	}
+	try_add_vram(xe, bo, bo_flags, &c);
+	try_add_system(xe, bo, bo_flags, &c);
 	try_add_stolen(xe, bo, bo_flags, &c);
 
 	if (!c)
@@ -238,8 +221,6 @@ static int __xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 	bo->placement = (struct ttm_placement) {
 		.num_placement = c,
 		.placement = bo->placements,
-		.num_busy_placement = c,
-		.busy_placement = bo->placements,
 	};
 
 	return 0;
@@ -259,7 +240,6 @@ static void xe_evict_flags(struct ttm_buffer_object *tbo,
 		/* Don't handle scatter gather BOs */
 		if (tbo->type == ttm_bo_type_sg) {
 			placement->num_placement = 0;
-			placement->num_busy_placement = 0;
 			return;
 		}
 
@@ -360,7 +340,7 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 		break;
 	}
 
-	WARN_ON((bo->flags & XE_BO_CREATE_USER_BIT) && !bo->cpu_caching);
+	WARN_ON((bo->flags & XE_BO_FLAG_USER) && !bo->cpu_caching);
 
 	/*
 	 * Display scanout is always non-coherent with the CPU cache.
@@ -368,8 +348,8 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 	 * For Xe_LPG and beyond, PPGTT PTE lookups are also non-coherent and
 	 * require a CPU:WC mapping.
 	 */
-	if ((!bo->cpu_caching && bo->flags & XE_BO_SCANOUT_BIT) ||
-	    (xe->info.graphics_verx100 >= 1270 && bo->flags & XE_BO_PAGETABLE))
+	if ((!bo->cpu_caching && bo->flags & XE_BO_FLAG_SCANOUT) ||
+	    (xe->info.graphics_verx100 >= 1270 && bo->flags & XE_BO_FLAG_PAGETABLE))
 		caching = ttm_write_combined;
 
 	err = ttm_tt_init(&tt->ttm, &bo->ttm, page_flags, caching, extra_pages);
@@ -594,6 +574,8 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 {
 	struct ttm_buffer_object *ttm_bo = &bo->ttm;
 	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
+	struct ttm_resource *old_mem = ttm_bo->resource;
+	u32 old_mem_type = old_mem ? old_mem->mem_type : XE_PL_SYSTEM;
 	int ret;
 
 	/*
@@ -612,6 +594,18 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 	/* Don't call move_notify() for imported dma-bufs. */
 	if (ttm_bo->base.dma_buf && !ttm_bo->base.import_attach)
 		dma_buf_move_notify(ttm_bo->base.dma_buf);
+
+	/*
+	 * TTM has already nuked the mmap for us (see ttm_bo_unmap_virtual),
+	 * so if we moved from VRAM make sure to unlink this from the userfault
+	 * tracking.
+	 */
+	if (mem_type_is_vram(old_mem_type)) {
+		mutex_lock(&xe->mem_access.vram_userfault.lock);
+		if (!list_empty(&bo->vram_userfault_link))
+			list_del_init(&bo->vram_userfault_link);
+		mutex_unlock(&xe->mem_access.vram_userfault.lock);
+	}
 
 	return 0;
 }
@@ -722,7 +716,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 
 	xe_assert(xe, migrate);
 	trace_xe_bo_move(bo, new_mem->mem_type, old_mem_type, move_lacks_source);
-	xe_device_mem_access_get(xe);
+	xe_pm_runtime_get_noresume(xe);
 
 	if (xe_bo_is_pinned(bo) && !xe_bo_is_user(bo)) {
 		/*
@@ -746,7 +740,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 
 				if (XE_WARN_ON(new_mem->start == XE_BO_INVALID_OFFSET)) {
 					ret = -EINVAL;
-					xe_device_mem_access_put(xe);
+					xe_pm_runtime_put(xe);
 					goto out;
 				}
 
@@ -764,7 +758,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 						new_mem, handle_system_ccs);
 		if (IS_ERR(fence)) {
 			ret = PTR_ERR(fence);
-			xe_device_mem_access_put(xe);
+			xe_pm_runtime_put(xe);
 			goto out;
 		}
 		if (!move_lacks_source) {
@@ -789,7 +783,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		dma_fence_put(fence);
 	}
 
-	xe_device_mem_access_put(xe);
+	xe_pm_runtime_put(xe);
 
 out:
 	return ret;
@@ -801,7 +795,6 @@ out:
  * @bo: The buffer object to move.
  *
  * On successful completion, the object memory will be moved to sytem memory.
- * This function blocks until the object has been fully moved.
  *
  * This is needed to for special handling of pinned VRAM object during
  * suspend-resume.
@@ -858,9 +851,6 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 	if (ret)
 		goto err_res_free;
 
-	dma_resv_wait_timeout(bo->ttm.base.resv, DMA_RESV_USAGE_KERNEL,
-			      false, MAX_SCHEDULE_TIMEOUT);
-
 	return 0;
 
 err_res_free:
@@ -873,7 +863,6 @@ err_res_free:
  * @bo: The buffer object to move.
  *
  * On successful completion, the object memory will be moved back to VRAM.
- * This function blocks until the object has been fully moved.
  *
  * This is needed to for special handling of pinned VRAM object during
  * suspend-resume.
@@ -914,9 +903,6 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 	ret = xe_bo_move(&bo->ttm, false, &ctx, new_mem, NULL);
 	if (ret)
 		goto err_res_free;
-
-	dma_resv_wait_timeout(bo->ttm.base.resv, DMA_RESV_USAGE_KERNEL,
-			      false, MAX_SCHEDULE_TIMEOUT);
 
 	return 0;
 
@@ -1034,7 +1020,7 @@ static void xe_ttm_bo_delete_mem_notify(struct ttm_buffer_object *ttm_bo)
 	}
 }
 
-struct ttm_device_funcs xe_ttm_funcs = {
+const struct ttm_device_funcs xe_ttm_funcs = {
 	.ttm_tt_create = xe_ttm_tt_create,
 	.ttm_tt_populate = xe_ttm_tt_populate,
 	.ttm_tt_unpopulate = xe_ttm_tt_unpopulate,
@@ -1069,6 +1055,11 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 
 	if (bo->vm && xe_bo_is_user(bo))
 		xe_vm_put(bo->vm);
+
+	mutex_lock(&xe->mem_access.vram_userfault.lock);
+	if (!list_empty(&bo->vram_userfault_link))
+		list_del(&bo->vram_userfault_link);
+	mutex_unlock(&xe->mem_access.vram_userfault.lock);
 
 	kfree(bo);
 }
@@ -1106,48 +1097,50 @@ static void xe_gem_object_close(struct drm_gem_object *obj,
 	}
 }
 
-static bool should_migrate_to_system(struct xe_bo *bo)
-{
-	struct xe_device *xe = xe_bo_device(bo);
-
-	return xe_device_in_fault_mode(xe) && bo->props.cpu_atomic;
-}
-
 static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *tbo = vmf->vma->vm_private_data;
 	struct drm_device *ddev = tbo->base.dev;
+	struct xe_device *xe = to_xe_device(ddev);
+	struct xe_bo *bo = ttm_to_xe_bo(tbo);
+	bool needs_rpm = bo->flags & XE_BO_FLAG_VRAM_MASK;
 	vm_fault_t ret;
-	int idx, r = 0;
+	int idx;
+
+	if (needs_rpm)
+		xe_pm_runtime_get(xe);
 
 	ret = ttm_bo_vm_reserve(tbo, vmf);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (drm_dev_enter(ddev, &idx)) {
-		struct xe_bo *bo = ttm_to_xe_bo(tbo);
-
 		trace_xe_bo_cpu_fault(bo);
 
-		if (should_migrate_to_system(bo)) {
-			r = xe_bo_migrate(bo, XE_PL_TT);
-			if (r == -EBUSY || r == -ERESTARTSYS || r == -EINTR)
-				ret = VM_FAULT_NOPAGE;
-			else if (r)
-				ret = VM_FAULT_SIGBUS;
-		}
-		if (!ret)
-			ret = ttm_bo_vm_fault_reserved(vmf,
-						       vmf->vma->vm_page_prot,
-						       TTM_BO_VM_NUM_PREFAULT);
+		ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
+					       TTM_BO_VM_NUM_PREFAULT);
 		drm_dev_exit(idx);
 	} else {
 		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
 	}
+
 	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		return ret;
+		goto out;
+	/*
+	 * ttm_bo_vm_reserve() already has dma_resv_lock.
+	 */
+	if (ret == VM_FAULT_NOPAGE && mem_type_is_vram(tbo->resource->mem_type)) {
+		mutex_lock(&xe->mem_access.vram_userfault.lock);
+		if (list_empty(&bo->vram_userfault_link))
+			list_add(&bo->vram_userfault_link, &xe->mem_access.vram_userfault.list);
+		mutex_unlock(&xe->mem_access.vram_userfault.lock);
+	}
 
 	dma_resv_unlock(tbo->base.resv);
+out:
+	if (needs_rpm)
+		xe_pm_runtime_put(xe);
+
 	return ret;
 }
 
@@ -1223,18 +1216,19 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (flags & (XE_BO_CREATE_VRAM_MASK | XE_BO_CREATE_STOLEN_BIT) &&
-	    !(flags & XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT) &&
-	    xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) {
+	if (flags & (XE_BO_FLAG_VRAM_MASK | XE_BO_FLAG_STOLEN) &&
+	    !(flags & XE_BO_FLAG_IGNORE_MIN_PAGE_SIZE) &&
+	    ((xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) ||
+	     (flags & XE_BO_NEEDS_64K))) {
 		aligned_size = ALIGN(size, SZ_64K);
 		if (type != ttm_bo_type_device)
 			size = ALIGN(size, SZ_64K);
-		flags |= XE_BO_INTERNAL_64K;
+		flags |= XE_BO_FLAG_INTERNAL_64K;
 		alignment = SZ_64K >> PAGE_SHIFT;
 
 	} else {
 		aligned_size = ALIGN(size, SZ_4K);
-		flags &= ~XE_BO_INTERNAL_64K;
+		flags &= ~XE_BO_FLAG_INTERNAL_64K;
 		alignment = SZ_4K >> PAGE_SHIFT;
 	}
 
@@ -1253,23 +1247,21 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	bo->flags = flags;
 	bo->cpu_caching = cpu_caching;
 	bo->ttm.base.funcs = &xe_gem_object_funcs;
-	bo->props.preferred_mem_class = XE_BO_PROPS_INVALID;
-	bo->props.preferred_gt = XE_BO_PROPS_INVALID;
-	bo->props.preferred_mem_type = XE_BO_PROPS_INVALID;
 	bo->ttm.priority = XE_BO_PRIORITY_NORMAL;
 	INIT_LIST_HEAD(&bo->pinned_link);
 #ifdef CONFIG_PROC_FS
 	INIT_LIST_HEAD(&bo->client_link);
 #endif
+	INIT_LIST_HEAD(&bo->vram_userfault_link);
 
 	drm_gem_private_object_init(&xe->drm, &bo->ttm.base, size);
 
 	if (resv) {
-		ctx.allow_res_evict = !(flags & XE_BO_CREATE_NO_RESV_EVICT);
+		ctx.allow_res_evict = !(flags & XE_BO_FLAG_NO_RESV_EVICT);
 		ctx.resv = resv;
 	}
 
-	if (!(flags & XE_BO_FIXED_PLACEMENT_BIT)) {
+	if (!(flags & XE_BO_FLAG_FIXED_PLACEMENT)) {
 		err = __xe_bo_placement_for_flags(xe, bo, bo->flags);
 		if (WARN_ON(err)) {
 			xe_ttm_bo_destroy(&bo->ttm);
@@ -1279,7 +1271,7 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 
 	/* Defer populating type_sg bos */
 	placement = (type == ttm_bo_type_sg ||
-		     bo->flags & XE_BO_DEFER_BACKING) ? &sys_placement :
+		     bo->flags & XE_BO_FLAG_DEFER_BACKING) ? &sys_placement :
 		&bo->placement;
 	err = ttm_bo_init_reserved(&xe->ttm, &bo->ttm, type,
 				   placement, alignment,
@@ -1334,21 +1326,21 @@ static int __xe_bo_fixed_placement(struct xe_device *xe,
 {
 	struct ttm_place *place = bo->placements;
 
-	if (flags & (XE_BO_CREATE_USER_BIT|XE_BO_CREATE_SYSTEM_BIT))
+	if (flags & (XE_BO_FLAG_USER | XE_BO_FLAG_SYSTEM))
 		return -EINVAL;
 
 	place->flags = TTM_PL_FLAG_CONTIGUOUS;
 	place->fpfn = start >> PAGE_SHIFT;
 	place->lpfn = end >> PAGE_SHIFT;
 
-	switch (flags & (XE_BO_CREATE_STOLEN_BIT | XE_BO_CREATE_VRAM_MASK)) {
-	case XE_BO_CREATE_VRAM0_BIT:
+	switch (flags & (XE_BO_FLAG_STOLEN | XE_BO_FLAG_VRAM_MASK)) {
+	case XE_BO_FLAG_VRAM0:
 		place->mem_type = XE_PL_VRAM0;
 		break;
-	case XE_BO_CREATE_VRAM1_BIT:
+	case XE_BO_FLAG_VRAM1:
 		place->mem_type = XE_PL_VRAM1;
 		break;
-	case XE_BO_CREATE_STOLEN_BIT:
+	case XE_BO_FLAG_STOLEN:
 		place->mem_type = XE_PL_STOLEN;
 		break;
 
@@ -1360,8 +1352,6 @@ static int __xe_bo_fixed_placement(struct xe_device *xe,
 	bo->placement = (struct ttm_placement) {
 		.num_placement = 1,
 		.placement = place,
-		.num_busy_placement = 1,
-		.busy_placement = place,
 	};
 
 	return 0;
@@ -1384,7 +1374,7 @@ __xe_bo_create_locked(struct xe_device *xe,
 		if (IS_ERR(bo))
 			return bo;
 
-		flags |= XE_BO_FIXED_PLACEMENT_BIT;
+		flags |= XE_BO_FLAG_FIXED_PLACEMENT;
 		err = __xe_bo_fixed_placement(xe, bo, flags, start, end, size);
 		if (err) {
 			xe_bo_free(bo);
@@ -1394,7 +1384,7 @@ __xe_bo_create_locked(struct xe_device *xe,
 
 	bo = ___xe_bo_create_locked(xe, bo, tile, vm ? xe_vm_resv(vm) : NULL,
 				    vm && !xe_vm_in_fault_mode(vm) &&
-				    flags & XE_BO_CREATE_USER_BIT ?
+				    flags & XE_BO_FLAG_USER ?
 				    &vm->lru_bulk_move : NULL, size,
 				    cpu_caching, type, flags);
 	if (IS_ERR(bo))
@@ -1411,13 +1401,13 @@ __xe_bo_create_locked(struct xe_device *xe,
 		xe_vm_get(vm);
 	bo->vm = vm;
 
-	if (bo->flags & XE_BO_CREATE_GGTT_BIT) {
-		if (!tile && flags & XE_BO_CREATE_STOLEN_BIT)
+	if (bo->flags & XE_BO_FLAG_GGTT) {
+		if (!tile && flags & XE_BO_FLAG_STOLEN)
 			tile = xe_device_get_root_tile(xe);
 
 		xe_assert(xe, tile);
 
-		if (flags & XE_BO_FIXED_PLACEMENT_BIT) {
+		if (flags & XE_BO_FLAG_FIXED_PLACEMENT) {
 			err = xe_ggtt_insert_bo_at(tile->mem.ggtt, bo,
 						   start + bo->size, U64_MAX);
 		} else {
@@ -1460,7 +1450,7 @@ struct xe_bo *xe_bo_create_user(struct xe_device *xe, struct xe_tile *tile,
 {
 	struct xe_bo *bo = __xe_bo_create_locked(xe, tile, vm, size, 0, ~0ULL,
 						 cpu_caching, type,
-						 flags | XE_BO_CREATE_USER_BIT);
+						 flags | XE_BO_FLAG_USER);
 	if (!IS_ERR(bo))
 		xe_bo_unlock_vm_held(bo);
 
@@ -1489,12 +1479,12 @@ struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_tile *tile
 	u64 start = offset == ~0ull ? 0 : offset;
 	u64 end = offset == ~0ull ? offset : start + size;
 
-	if (flags & XE_BO_CREATE_STOLEN_BIT &&
+	if (flags & XE_BO_FLAG_STOLEN &&
 	    xe_ttm_stolen_cpu_access_needs_ggtt(xe))
-		flags |= XE_BO_CREATE_GGTT_BIT;
+		flags |= XE_BO_FLAG_GGTT;
 
 	bo = xe_bo_create_locked_range(xe, tile, vm, size, start, end, type,
-				       flags | XE_BO_NEEDS_CPU_ACCESS);
+				       flags | XE_BO_FLAG_NEEDS_CPU_ACCESS);
 	if (IS_ERR(bo))
 		return bo;
 
@@ -1575,6 +1565,40 @@ struct xe_bo *xe_managed_bo_create_from_data(struct xe_device *xe, struct xe_til
 	return bo;
 }
 
+/**
+ * xe_managed_bo_reinit_in_vram
+ * @xe: xe device
+ * @tile: Tile where the new buffer will be created
+ * @src: Managed buffer object allocated in system memory
+ *
+ * Replace a managed src buffer object allocated in system memory with a new
+ * one allocated in vram, copying the data between them.
+ * Buffer object in VRAM is not going to have the same GGTT address, the caller
+ * is responsible for making sure that any old references to it are updated.
+ *
+ * Returns 0 for success, negative error code otherwise.
+ */
+int xe_managed_bo_reinit_in_vram(struct xe_device *xe, struct xe_tile *tile, struct xe_bo **src)
+{
+	struct xe_bo *bo;
+	u32 dst_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) | XE_BO_FLAG_GGTT;
+
+	dst_flags |= (*src)->flags & XE_BO_FLAG_GGTT_INVALIDATE;
+
+	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, !(*src)->vmap.is_iomem);
+
+	bo = xe_managed_bo_create_from_data(xe, tile, (*src)->vmap.vaddr,
+					    (*src)->size, dst_flags);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
+
+	drmm_release_action(&xe->drm, __xe_bo_unpin_map_no_vm, *src);
+	*src = bo;
+
+	return 0;
+}
+
 /*
  * XXX: This is in the VM bind data path, likely should calculate this once and
  * store, with a recalculation if the BO is moved.
@@ -1640,8 +1664,8 @@ int xe_bo_pin(struct xe_bo *bo)
 	xe_assert(xe, !xe_bo_is_user(bo));
 
 	/* Pinned object must be in GGTT or have pinned flag */
-	xe_assert(xe, bo->flags & (XE_BO_CREATE_PINNED_BIT |
-				   XE_BO_CREATE_GGTT_BIT));
+	xe_assert(xe, bo->flags & (XE_BO_FLAG_PINNED |
+				   XE_BO_FLAG_GGTT));
 
 	/*
 	 * No reason we can't support pinning imported dma-bufs we just don't
@@ -1662,7 +1686,7 @@ int xe_bo_pin(struct xe_bo *bo)
 	 * during suspend / resume (force restore to same physical address).
 	 */
 	if (IS_DGFX(xe) && !(IS_ENABLED(CONFIG_DRM_XE_DEBUG) &&
-	    bo->flags & XE_BO_INTERNAL_TEST)) {
+	    bo->flags & XE_BO_FLAG_INTERNAL_TEST)) {
 		struct ttm_place *place = &(bo->placements[0]);
 
 		if (mem_type_is_vram(place->mem_type)) {
@@ -1730,7 +1754,7 @@ void xe_bo_unpin(struct xe_bo *bo)
 	xe_assert(xe, xe_bo_is_pinned(bo));
 
 	if (IS_DGFX(xe) && !(IS_ENABLED(CONFIG_DRM_XE_DEBUG) &&
-	    bo->flags & XE_BO_INTERNAL_TEST)) {
+	    bo->flags & XE_BO_FLAG_INTERNAL_TEST)) {
 		struct ttm_place *place = &(bo->placements[0]);
 
 		if (mem_type_is_vram(place->mem_type)) {
@@ -1833,7 +1857,7 @@ int xe_bo_vmap(struct xe_bo *bo)
 
 	xe_bo_assert_held(bo);
 
-	if (!(bo->flags & XE_BO_NEEDS_CPU_ACCESS))
+	if (!(bo->flags & XE_BO_FLAG_NEEDS_CPU_ACCESS))
 		return -EINVAL;
 
 	if (!iosys_map_is_null(&bo->vmap))
@@ -1915,29 +1939,29 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	bo_flags = 0;
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING)
-		bo_flags |= XE_BO_DEFER_BACKING;
+		bo_flags |= XE_BO_FLAG_DEFER_BACKING;
 
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_SCANOUT)
-		bo_flags |= XE_BO_SCANOUT_BIT;
+		bo_flags |= XE_BO_FLAG_SCANOUT;
 
-	bo_flags |= args->placement << (ffs(XE_BO_CREATE_SYSTEM_BIT) - 1);
+	bo_flags |= args->placement << (ffs(XE_BO_FLAG_SYSTEM) - 1);
 
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM) {
-		if (XE_IOCTL_DBG(xe, !(bo_flags & XE_BO_CREATE_VRAM_MASK)))
+		if (XE_IOCTL_DBG(xe, !(bo_flags & XE_BO_FLAG_VRAM_MASK)))
 			return -EINVAL;
 
-		bo_flags |= XE_BO_NEEDS_CPU_ACCESS;
+		bo_flags |= XE_BO_FLAG_NEEDS_CPU_ACCESS;
 	}
 
 	if (XE_IOCTL_DBG(xe, !args->cpu_caching ||
 			 args->cpu_caching > DRM_XE_GEM_CPU_CACHING_WC))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, bo_flags & XE_BO_CREATE_VRAM_MASK &&
+	if (XE_IOCTL_DBG(xe, bo_flags & XE_BO_FLAG_VRAM_MASK &&
 			 args->cpu_caching != DRM_XE_GEM_CPU_CACHING_WC))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, bo_flags & XE_BO_SCANOUT_BIT &&
+	if (XE_IOCTL_DBG(xe, bo_flags & XE_BO_FLAG_SCANOUT &&
 			 args->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB))
 		return -EINVAL;
 
@@ -2119,9 +2143,7 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type)
 
 	xe_place_from_ttm_type(mem_type, &requested);
 	placement.num_placement = 1;
-	placement.num_busy_placement = 1;
 	placement.placement = &requested;
-	placement.busy_placement = &requested;
 
 	/*
 	 * Stolen needs to be handled like below VRAM handling if we ever need
@@ -2180,6 +2202,9 @@ bool xe_bo_needs_ccs_pages(struct xe_bo *bo)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 
+	if (GRAPHICS_VER(xe) >= 20 && IS_DGFX(xe))
+		return false;
+
 	if (!xe_device_has_flat_ccs(xe) || bo->ttm.type != ttm_bo_type_device)
 		return false;
 
@@ -2188,7 +2213,7 @@ bool xe_bo_needs_ccs_pages(struct xe_bo *bo)
 	 * can't be used since there's no CCS storage associated with
 	 * non-VRAM addresses.
 	 */
-	if (IS_DGFX(xe) && (bo->flags & XE_BO_CREATE_SYSTEM_BIT))
+	if (IS_DGFX(xe) && (bo->flags & XE_BO_FLAG_SYSTEM))
 		return false;
 
 	return true;
@@ -2257,9 +2282,9 @@ int xe_bo_dumb_create(struct drm_file *file_priv,
 	bo = xe_bo_create_user(xe, NULL, NULL, args->size,
 			       DRM_XE_GEM_CPU_CACHING_WC,
 			       ttm_bo_type_device,
-			       XE_BO_CREATE_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
-			       XE_BO_CREATE_USER_BIT | XE_BO_SCANOUT_BIT |
-			       XE_BO_NEEDS_CPU_ACCESS);
+			       XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
+			       XE_BO_FLAG_SCANOUT |
+			       XE_BO_FLAG_NEEDS_CPU_ACCESS);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -2269,6 +2294,16 @@ int xe_bo_dumb_create(struct drm_file *file_priv,
 	if (!err)
 		args->handle = handle;
 	return err;
+}
+
+void xe_bo_runtime_pm_release_mmap_offset(struct xe_bo *bo)
+{
+	struct ttm_buffer_object *tbo = &bo->ttm;
+	struct ttm_device *bdev = tbo->bdev;
+
+	drm_vma_node_unmap(&tbo->base.vma_node, bdev->dev_mapping);
+
+	list_del_init(&bo->vram_userfault_link);
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

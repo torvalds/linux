@@ -112,7 +112,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 	unsigned long *entry, *lower, *upper;
 	unsigned long lower_index, lower_last;
 	unsigned long upper_index, upper_last;
-	int ret;
+	int ret = 0;
 
 	lower = NULL;
 	upper = NULL;
@@ -145,7 +145,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 			upper_index = max + 1;
 			upper_last = mas.last;
 
-			upper = kmemdup(&entry[max + 1],
+			upper = kmemdup(&entry[max - mas.index + 1],
 					((mas.last - max) *
 					 sizeof(unsigned long)),
 					map->alloc_flags);
@@ -244,7 +244,7 @@ static int regcache_maple_sync(struct regmap *map, unsigned int min,
 	unsigned long lmin = min;
 	unsigned long lmax = max;
 	unsigned int r, v, sync_start;
-	int ret;
+	int ret = 0;
 	bool sync_needed = false;
 
 	map->cache_bypass = true;
@@ -294,7 +294,7 @@ static int regcache_maple_exit(struct regmap *map)
 {
 	struct maple_tree *mt = map->cache;
 	MA_STATE(mas, mt, 0, UINT_MAX);
-	unsigned int *entry;;
+	unsigned int *entry;
 
 	/* if we've already been called then just return */
 	if (!mt)

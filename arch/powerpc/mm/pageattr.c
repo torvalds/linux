@@ -14,6 +14,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
+#include <mm/mmu_decl.h>
 
 static pte_basic_t pte_update_delta(pte_t *ptep, unsigned long addr,
 				    unsigned long old, unsigned long new)
@@ -37,6 +38,10 @@ static int change_page_attr(pte_t *ptep, unsigned long addr, void *data)
 	case SET_MEMORY_RO:
 		/* Don't clear DIRTY bit */
 		pte_update_delta(ptep, addr, _PAGE_KERNEL_RW & ~_PAGE_DIRTY, _PAGE_KERNEL_RO);
+		break;
+	case SET_MEMORY_ROX:
+		/* Don't clear DIRTY bit */
+		pte_update_delta(ptep, addr, _PAGE_KERNEL_RW & ~_PAGE_DIRTY, _PAGE_KERNEL_ROX);
 		break;
 	case SET_MEMORY_RW:
 		pte_update_delta(ptep, addr, _PAGE_KERNEL_RO, _PAGE_KERNEL_RW);
@@ -97,3 +102,26 @@ int change_memory_attr(unsigned long addr, int numpages, long action)
 	return apply_to_existing_page_range(&init_mm, start, size,
 					    change_page_attr, (void *)action);
 }
+
+#if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)
+#ifdef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
+void __kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	int err;
+	unsigned long addr = (unsigned long)page_address(page);
+
+	if (PageHighMem(page))
+		return;
+
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !radix_enabled())
+		err = hash__kernel_map_pages(page, numpages, enable);
+	else if (enable)
+		err = set_memory_p(addr, numpages);
+	else
+		err = set_memory_np(addr, numpages);
+
+	if (err)
+		panic("%s: changing memory protections failed\n", __func__);
+}
+#endif
+#endif

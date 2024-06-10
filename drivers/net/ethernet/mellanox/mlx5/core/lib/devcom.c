@@ -220,7 +220,7 @@ mlx5_devcom_register_component(struct mlx5_devcom_dev *devc,
 	struct mlx5_devcom_comp *comp;
 
 	if (IS_ERR_OR_NULL(devc))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&comp_list_lock);
 	comp = devcom_component_get(devc, id, key, handler);

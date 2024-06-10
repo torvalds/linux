@@ -217,6 +217,9 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 	int width, height;
 	unsigned int rel_data_rate;
 
+	if (plane->id == PLANE_CURSOR)
+		return 0;
+
 	if (!plane_state->uapi.visible)
 		return 0;
 
@@ -243,9 +246,6 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 	}
 
 	rel_data_rate = width * height * fb->format->cpp[color_plane];
-
-	if (plane->id == PLANE_CURSOR)
-		return rel_data_rate;
 
 	return intel_adjusted_rate(&plane_state->uapi.src,
 				   &plane_state->uapi.dst,

@@ -19,6 +19,8 @@ echo "Output will be stored in: $tmpdir"
 $PYTHON $pythonvalidator -rule $rulefile -output_dir $tmpdir -wl "${workload}"
 ret=$?
 rm -rf $tmpdir
-
+if [ $ret -ne 0 ]; then
+	echo "Metric validation return with erros. Please check metrics reported with errors."
+fi
 exit $ret
 

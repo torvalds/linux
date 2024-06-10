@@ -4,6 +4,7 @@
  *
  * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -47,8 +48,8 @@ int hashtab_init(struct hashtab *h, u32 nel_hint)
 	return 0;
 }
 
-int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst,
-		     void *key, void *datum)
+int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst, void *key,
+		     void *datum)
 {
 	struct hashtab_node *newnode;
 
@@ -83,8 +84,7 @@ void hashtab_destroy(struct hashtab *h)
 	h->htable = NULL;
 }
 
-int hashtab_map(struct hashtab *h,
-		int (*apply)(void *k, void *d, void *args),
+int hashtab_map(struct hashtab *h, int (*apply)(void *k, void *d, void *args),
 		void *args)
 {
 	u32 i;
@@ -136,12 +136,12 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 }
 #endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
-int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
-		int (*copy)(struct hashtab_node *new,
-			struct hashtab_node *orig, void *args),
-		int (*destroy)(void *k, void *d, void *args),
-		void *args)
+int hashtab_duplicate(struct hashtab *new, const struct hashtab *orig,
+		      int (*copy)(struct hashtab_node *new,
+				  const struct hashtab_node *orig, void *args),
+		      int (*destroy)(void *k, void *d, void *args), void *args)
 {
+	const struct hashtab_node *orig_cur;
 	struct hashtab_node *cur, *tmp, *tail;
 	u32 i;
 	int rc;
@@ -156,12 +156,13 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 
 	for (i = 0; i < orig->size; i++) {
 		tail = NULL;
-		for (cur = orig->htable[i]; cur; cur = cur->next) {
+		for (orig_cur = orig->htable[i]; orig_cur;
+		     orig_cur = orig_cur->next) {
 			tmp = kmem_cache_zalloc(hashtab_node_cachep,
 						GFP_KERNEL);
 			if (!tmp)
 				goto error;
-			rc = copy(tmp, cur, args);
+			rc = copy(tmp, orig_cur, args);
 			if (rc) {
 				kmem_cache_free(hashtab_node_cachep, tmp);
 				goto error;
@@ -178,7 +179,7 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 
 	return 0;
 
- error:
+error:
 	for (i = 0; i < new->size; i++) {
 		for (cur = new->htable[i]; cur; cur = tmp) {
 			tmp = cur->next;
@@ -193,7 +194,7 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 
 void __init hashtab_cache_init(void)
 {
-		hashtab_node_cachep = kmem_cache_create("hashtab_node",
-			sizeof(struct hashtab_node),
-			0, SLAB_PANIC, NULL);
+	hashtab_node_cachep = kmem_cache_create("hashtab_node",
+						sizeof(struct hashtab_node), 0,
+						SLAB_PANIC, NULL);
 }

@@ -576,7 +576,6 @@ static int goya_config_spmu(struct hl_device *hdev,
 		struct hl_debug_params *params)
 {
 	u64 base_reg;
-	struct hl_debug_params_spmu *input = params->input;
 	u64 *output;
 	u32 output_arr_len;
 	u32 events_num;
@@ -592,7 +591,7 @@ static int goya_config_spmu(struct hl_device *hdev,
 	base_reg = debug_spmu_regs[params->reg_idx] - CFG_BASE;
 
 	if (params->enable) {
-		input = params->input;
+		struct hl_debug_params_spmu *input = params->input;
 
 		if (!input)
 			return -EINVAL;

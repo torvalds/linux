@@ -36,12 +36,13 @@
 #include <linux/sched/task_stack.h>
 #include <linux/crash_dump.h>
 #include <linux/kprobes.h>
+#include <asm/access-regs.h>
 #include <asm/asm-offsets.h>
 #include <asm/ctlreg.h>
 #include <asm/pfault.h>
 #include <asm/diag.h>
-#include <asm/switch_to.h>
 #include <asm/facility.h>
+#include <asm/fpu.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
 #include <asm/irq.h>

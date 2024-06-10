@@ -29,6 +29,10 @@
 #include "xfs_attr.h"
 #include "xfs_reflink.h"
 #include "xfs_ag.h"
+#include "xfs_error.h"
+#include "xfs_quota.h"
+#include "xfs_exchmaps.h"
+#include "xfs_rtbitmap.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -82,6 +86,15 @@ __xchk_process_error(
 				sc->ip ? sc->ip : XFS_I(file_inode(sc->file)),
 				sc->sm, *error);
 		break;
+	case -ECANCELED:
+		/*
+		 * ECANCELED here means that the caller set one of the scrub
+		 * outcome flags (corrupt, xfail, xcorrupt) and wants to exit
+		 * quickly.  Set error to zero and do not continue.
+		 */
+		trace_xchk_op_error(sc, agno, bno, *error, ret_ip);
+		*error = 0;
+		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
 		/* Note the badness but don't abort. */
@@ -89,8 +102,7 @@ __xchk_process_error(
 		*error = 0;
 		fallthrough;
 	default:
-		trace_xchk_op_error(sc, agno, bno, *error,
-				ret_ip);
+		trace_xchk_op_error(sc, agno, bno, *error, ret_ip);
 		break;
 	}
 	return false;
@@ -135,6 +147,16 @@ __xchk_fblock_process_error(
 	case -ECHRNG:
 		/* Used to restart an op with deadlock avoidance. */
 		trace_xchk_deadlock_retry(sc->ip, sc->sm, *error);
+		break;
+	case -ECANCELED:
+		/*
+		 * ECANCELED here means that the caller set one of the scrub
+		 * outcome flags (corrupt, xfail, xcorrupt) and wants to exit
+		 * quickly.  Set error to zero and do not continue.
+		 */
+		trace_xchk_file_op_error(sc, whichfork, offset, *error,
+				ret_ip);
+		*error = 0;
 		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
@@ -226,6 +248,19 @@ xchk_block_set_corrupt(
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 	trace_xchk_block_error(sc, xfs_buf_daddr(bp), __return_address);
 }
+
+#ifdef CONFIG_XFS_QUOTA
+/* Record a corrupt quota counter. */
+void
+xchk_qcheck_set_corrupt(
+	struct xfs_scrub	*sc,
+	unsigned int		dqtype,
+	xfs_dqid_t		id)
+{
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+	trace_xchk_qcheck_error(sc, dqtype, id, __return_address);
+}
+#endif
 
 /* Record a corruption while cross-referencing. */
 void
@@ -412,7 +447,7 @@ xchk_perag_read_headers(
 {
 	int			error;
 
-	error = xfs_ialloc_read_agi(sa->pag, sc->tp, &sa->agi_bp);
+	error = xfs_ialloc_read_agi(sa->pag, sc->tp, 0, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
 		return error;
 
@@ -427,7 +462,7 @@ xchk_perag_read_headers(
  * Grab the AG headers for the attached perag structure and wait for pending
  * intents to drain.
  */
-static int
+int
 xchk_perag_drain_and_lock(
 	struct xfs_scrub	*sc)
 {
@@ -555,46 +590,50 @@ xchk_ag_btcur_init(
 {
 	struct xfs_mount	*mp = sc->mp;
 
-	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_BNO)) {
+	if (sa->agf_bp) {
 		/* Set up a bnobt cursor for cross-referencing. */
-		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sa->pag, XFS_BTNUM_BNO);
-	}
-
-	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_CNT)) {
-		/* Set up a cntbt cursor for cross-referencing. */
-		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sa->pag, XFS_BTNUM_CNT);
-	}
-
-	/* Set up a inobt cursor for cross-referencing. */
-	if (sa->agi_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
-		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
-				XFS_BTNUM_INO);
-	}
-
-	/* Set up a finobt cursor for cross-referencing. */
-	if (sa->agi_bp && xfs_has_finobt(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
-		sa->fino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
-				XFS_BTNUM_FINO);
-	}
-
-	/* Set up a rmapbt cursor for cross-referencing. */
-	if (sa->agf_bp && xfs_has_rmapbt(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_RMAP)) {
-		sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, sa->agf_bp,
+		sa->bno_cur = xfs_bnobt_init_cursor(mp, sc->tp, sa->agf_bp,
 				sa->pag);
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->bno_cur,
+				XFS_SCRUB_TYPE_BNOBT);
+
+		/* Set up a cntbt cursor for cross-referencing. */
+		sa->cnt_cur = xfs_cntbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sa->pag);
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->cnt_cur,
+				XFS_SCRUB_TYPE_CNTBT);
+
+		/* Set up a rmapbt cursor for cross-referencing. */
+		if (xfs_has_rmapbt(mp)) {
+			sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp,
+					sa->agf_bp, sa->pag);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->rmap_cur,
+					XFS_SCRUB_TYPE_RMAPBT);
+		}
+
+		/* Set up a refcountbt cursor for cross-referencing. */
+		if (xfs_has_reflink(mp)) {
+			sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
+					sa->agf_bp, sa->pag);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->refc_cur,
+					XFS_SCRUB_TYPE_REFCNTBT);
+		}
 	}
 
-	/* Set up a refcountbt cursor for cross-referencing. */
-	if (sa->agf_bp && xfs_has_reflink(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_REFC)) {
-		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
-				sa->agf_bp, sa->pag);
+	if (sa->agi_bp) {
+		/* Set up a inobt cursor for cross-referencing. */
+		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp,
+				sa->agi_bp);
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->ino_cur,
+				XFS_SCRUB_TYPE_INOBT);
+
+		/* Set up a finobt cursor for cross-referencing. */
+		if (xfs_has_finobt(mp)) {
+			sa->fino_cur = xfs_finobt_init_cursor(sa->pag, sc->tp,
+					sa->agi_bp);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->fino_cur,
+					XFS_SCRUB_TYPE_FINOBT);
+		}
 	}
 }
 
@@ -653,6 +692,13 @@ xchk_trans_cancel(
 	sc->tp = NULL;
 }
 
+int
+xchk_trans_alloc_empty(
+	struct xfs_scrub	*sc)
+{
+	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
+}
+
 /*
  * Grab an empty transaction so that we can re-grab locked buffers if
  * one of our btrees turns out to be cyclic.
@@ -672,7 +718,7 @@ xchk_trans_alloc(
 		return xfs_trans_alloc(sc->mp, &M_RES(sc->mp)->tr_itruncate,
 				resblks, 0, 0, &sc->tp);
 
-	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
+	return xchk_trans_alloc_empty(sc);
 }
 
 /* Set us up with a transaction and an empty context. */
@@ -737,7 +783,7 @@ xchk_iget(
 {
 	ASSERT(sc->tp != NULL);
 
-	return xfs_iget(sc->mp, sc->tp, inum, XFS_IGET_UNTRUSTED, 0, ipp);
+	return xfs_iget(sc->mp, sc->tp, inum, XCHK_IGET_FLAGS, 0, ipp);
 }
 
 /*
@@ -783,13 +829,13 @@ again:
 	 * in the iget cache miss path.
 	 */
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
-	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
+	error = xfs_ialloc_read_agi(pag, tp, 0, agi_bpp);
 	xfs_perag_put(pag);
 	if (error)
 		return error;
 
-	error = xfs_iget(mp, tp, inum,
-			XFS_IGET_NORETRY | XFS_IGET_UNTRUSTED, 0, ipp);
+	error = xfs_iget(mp, tp, inum, XFS_IGET_NORETRY | XCHK_IGET_FLAGS, 0,
+			ipp);
 	if (error == -EAGAIN) {
 		/*
 		 * The inode may be in core but temporarily unavailable and may
@@ -1000,9 +1046,7 @@ xchk_irele(
 	struct xfs_scrub	*sc,
 	struct xfs_inode	*ip)
 {
-	if (current->journal_info != NULL) {
-		ASSERT(current->journal_info == sc->tp);
-
+	if (sc->tp) {
 		/*
 		 * If we are in a transaction, we /cannot/ drop the inode
 		 * ourselves, because the VFS will trigger writeback, which
@@ -1018,12 +1062,6 @@ xchk_irele(
 		spin_lock(&VFS_I(ip)->i_lock);
 		VFS_I(ip)->i_state &= ~I_DONTCACHE;
 		spin_unlock(&VFS_I(ip)->i_lock);
-	} else if (atomic_read(&VFS_I(ip)->i_count) == 1) {
-		/*
-		 * If this is the last reference to the inode and the caller
-		 * permits it, set DONTCACHE to avoid thrashing.
-		 */
-		d_mark_dontcache(VFS_I(ip));
 	}
 
 	xfs_irele(ip);
@@ -1160,27 +1198,12 @@ xchk_metadata_inode_subtype(
 	struct xfs_scrub	*sc,
 	unsigned int		scrub_type)
 {
-	__u32			smtype = sc->sm->sm_type;
-	unsigned int		sick_mask = sc->sick_mask;
+	struct xfs_scrub_subord	*sub;
 	int			error;
 
-	sc->sm->sm_type = scrub_type;
-
-	switch (scrub_type) {
-	case XFS_SCRUB_TYPE_INODE:
-		error = xchk_inode(sc);
-		break;
-	case XFS_SCRUB_TYPE_BMBTD:
-		error = xchk_bmap_data(sc);
-		break;
-	default:
-		ASSERT(0);
-		error = -EFSCORRUPTED;
-		break;
-	}
-
-	sc->sick_mask = sick_mask;
-	sc->sm->sm_type = smtype;
+	sub = xchk_scrub_create_subord(sc, scrub_type);
+	error = sub->sc.ops->scrub(&sub->sc);
+	xchk_scrub_free_subord(sub);
 	return error;
 }
 
@@ -1258,6 +1281,15 @@ xchk_fsgates_enable(
 
 	if (scrub_fsgates & XCHK_FSGATES_DRAIN)
 		xfs_drain_wait_enable();
+
+	if (scrub_fsgates & XCHK_FSGATES_QUOTA)
+		xfs_dqtrx_hook_enable();
+
+	if (scrub_fsgates & XCHK_FSGATES_DIRENTS)
+		xfs_dir_hook_enable();
+
+	if (scrub_fsgates & XCHK_FSGATES_RMAP)
+		xfs_rmap_hook_enable();
 
 	sc->flags |= scrub_fsgates;
 }

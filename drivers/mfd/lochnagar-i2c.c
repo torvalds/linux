@@ -70,7 +70,7 @@ static const struct regmap_config lochnagar1_i2c_regmap = {
 	.use_single_read = true,
 	.use_single_write = true,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct reg_sequence lochnagar1_patch[] = {
@@ -163,7 +163,7 @@ static const struct regmap_config lochnagar2_i2c_regmap = {
 	.readable_reg = lochnagar2_readable_register,
 	.volatile_reg = lochnagar2_volatile_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct reg_sequence lochnagar2_patch[] = {

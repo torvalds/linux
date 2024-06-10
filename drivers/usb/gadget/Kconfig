@@ -190,6 +190,7 @@ config USB_F_MASS_STORAGE
 	tristate
 
 config USB_F_FS
+	select DMA_SHARED_BUFFER
 	tristate
 
 config USB_F_UAC1

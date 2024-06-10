@@ -359,6 +359,9 @@ static void task_fpsimd_load(void)
 	WARN_ON(preemptible());
 	WARN_ON(test_thread_flag(TIF_KERNEL_FPSTATE));
 
+	if (system_supports_fpmr())
+		write_sysreg_s(current->thread.uw.fpmr, SYS_FPMR);
+
 	if (system_supports_sve() || system_supports_sme()) {
 		switch (current->thread.fp_type) {
 		case FP_STATE_FPSIMD:
@@ -445,6 +448,9 @@ static void fpsimd_save_user_state(void)
 
 	if (test_thread_flag(TIF_FOREIGN_FPSTATE))
 		return;
+
+	if (system_supports_fpmr())
+		*(last->fpmr) = read_sysreg_s(SYS_FPMR);
 
 	/*
 	 * If a task is in a syscall the ABI allows us to only
@@ -686,6 +692,12 @@ static void sve_to_fpsimd(struct task_struct *task)
 		p = (__uint128_t const *)ZREG(sst, vq, i);
 		fst->vregs[i] = arm64_le128_to_cpu(*p);
 	}
+}
+
+void cpu_enable_fpmr(const struct arm64_cpu_capabilities *__always_unused p)
+{
+	write_sysreg_s(read_sysreg_s(SYS_SCTLR_EL1) | SCTLR_EL1_EnFPM_MASK,
+		       SYS_SCTLR_EL1);
 }
 
 #ifdef CONFIG_ARM64_SVE
@@ -1134,6 +1146,8 @@ void cpu_enable_sve(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	write_sysreg(read_sysreg(CPACR_EL1) | CPACR_EL1_ZEN_EL1EN, CPACR_EL1);
 	isb();
+
+	write_sysreg_s(0, SYS_ZCR_EL1);
 }
 
 void __init sve_setup(void)
@@ -1244,6 +1258,9 @@ void cpu_enable_sme(const struct arm64_cpu_capabilities *__always_unused p)
 	/* Allow SME in kernel */
 	write_sysreg(read_sysreg(CPACR_EL1) | CPACR_EL1_SMEN_EL1EN, CPACR_EL1);
 	isb();
+
+	/* Ensure all bits in SMCR are set to known values */
+	write_sysreg_s(0, SYS_SMCR_EL1);
 
 	/* Allow EL0 to access TPIDR2 */
 	write_sysreg(read_sysreg(SCTLR_EL1) | SCTLR_ELx_ENTP2, SCTLR_EL1);
@@ -1518,6 +1535,27 @@ static void fpsimd_save_kernel_state(struct task_struct *task)
 	task->thread.kernel_fpsimd_cpu = smp_processor_id();
 }
 
+/*
+ * Invalidate any task's FPSIMD state that is present on this cpu.
+ * The FPSIMD context should be acquired with get_cpu_fpsimd_context()
+ * before calling this function.
+ */
+static void fpsimd_flush_cpu_state(void)
+{
+	WARN_ON(!system_supports_fpsimd());
+	__this_cpu_write(fpsimd_last_state.st, NULL);
+
+	/*
+	 * Leaving streaming mode enabled will cause issues for any kernel
+	 * NEON and leaving streaming mode or ZA enabled may increase power
+	 * consumption.
+	 */
+	if (system_supports_sme())
+		sme_smstop();
+
+	set_thread_flag(TIF_FOREIGN_FPSTATE);
+}
+
 void fpsimd_thread_switch(struct task_struct *next)
 {
 	bool wrong_task, wrong_cpu;
@@ -1535,7 +1573,7 @@ void fpsimd_thread_switch(struct task_struct *next)
 
 	if (test_tsk_thread_flag(next, TIF_KERNEL_FPSTATE)) {
 		fpsimd_load_kernel_state(next);
-		set_tsk_thread_flag(next, TIF_FOREIGN_FPSTATE);
+		fpsimd_flush_cpu_state();
 	} else {
 		/*
 		 * Fix up TIF_FOREIGN_FPSTATE to correctly describe next's
@@ -1696,6 +1734,7 @@ static void fpsimd_bind_task_to_cpu(void)
 	last->sve_vl = task_get_sve_vl(current);
 	last->sme_vl = task_get_sme_vl(current);
 	last->svcr = &current->thread.svcr;
+	last->fpmr = &current->thread.uw.fpmr;
 	last->fp_type = &current->thread.fp_type;
 	last->to_save = FP_STATE_CURRENT;
 	current->thread.fpsimd_cpu = smp_processor_id();
@@ -1822,27 +1861,6 @@ void fpsimd_flush_task_state(struct task_struct *t)
 	set_tsk_thread_flag(t, TIF_FOREIGN_FPSTATE);
 
 	barrier();
-}
-
-/*
- * Invalidate any task's FPSIMD state that is present on this cpu.
- * The FPSIMD context should be acquired with get_cpu_fpsimd_context()
- * before calling this function.
- */
-static void fpsimd_flush_cpu_state(void)
-{
-	WARN_ON(!system_supports_fpsimd());
-	__this_cpu_write(fpsimd_last_state.st, NULL);
-
-	/*
-	 * Leaving streaming mode enabled will cause issues for any kernel
-	 * NEON and leaving streaming mode or ZA enabled may increase power
-	 * consumption.
-	 */
-	if (system_supports_sme())
-		sme_smstop();
-
-	set_thread_flag(TIF_FOREIGN_FPSTATE);
 }
 
 /*

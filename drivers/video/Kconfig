@@ -11,6 +11,10 @@ config APERTURE_HELPERS
 	  Support tracking and hand-over of aperture ownership. Required
 	  by graphics drivers for firmware-provided framebuffers.
 
+config SCREEN_INFO
+	bool
+	default n
+
 config STI_CORE
 	bool
 	depends on PARISC
@@ -18,10 +22,7 @@ config STI_CORE
 	  STI refers to the HP "Standard Text Interface" which is a set of
 	  BIOS routines contained in a ROM chip in HP PA-RISC based machines.
 
-config VIDEO_CMDLINE
-	bool
-
-config VIDEO_NOMODESET
+config VIDEO
 	bool
 	default n
 

@@ -81,10 +81,10 @@
 &main_gpio0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>,
-		    <&pinctrl_gpio_1>,
-		    <&pinctrl_gpio_2>,
-		    <&pinctrl_gpio_3>,
-		    <&pinctrl_gpio_4>;
+		    <&pinctrl_gpio_5>,
+		    <&pinctrl_gpio_6>,
+		    <&pinctrl_gpio_7>,
+		    <&pinctrl_gpio_8>;
 };
 
 /* Verdin I2C_1 */
@@ -127,6 +127,16 @@
 		    <&pinctrl_qspi1_cs2_gpio>;
 	cs-gpios = <0>, <&main_gpio0 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	tpm@1 {
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+		reg = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_qspi1_dqs_gpio>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
+		spi-max-frequency = <18500000>;
+	};
 };
 
 /* Verdin UART_3 */
@@ -137,6 +147,15 @@
 /* Verdin UART_1 */
 &main_uart1 {
 	status = "okay";
+};
+
+&mcu_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio_1>,
+		    <&pinctrl_gpio_2>,
+		    <&pinctrl_gpio_3>,
+		    <&pinctrl_gpio_4>,
+		    <&pinctrl_pcie_1_reset>;
 };
 
 /* Verdin I2C_3_HDMI */
@@ -179,6 +198,11 @@
 
 /* Verdin CTRL_WAKE1_MICO# */
 &verdin_gpio_keys {
+	status = "okay";
+};
+
+/* Verdin PCIE_1_RESET# */
+&verdin_pcie_1_reset_hog {
 	status = "okay";
 };
 

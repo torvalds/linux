@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2013-2014, 2018-2019, 2022-2023 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2019, 2022-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  */
 #include "mvm.h"
@@ -232,6 +232,9 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 	};
 	struct ieee80211_sta *sta = NULL;
 
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_SMART_FIFO_OFFLOAD))
+		return 0;
 	/*
 	 * Ignore the call if we are in HW Restart flow, or if the handled
 	 * vif is a p2p device.

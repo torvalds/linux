@@ -137,6 +137,11 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 	if (link_encoding == DC_LINK_ENCODING_DP_128b_132b)
 		kbps = apply_128b_132b_stream_overhead(timing, kbps);
 
+	if (link_encoding == DC_LINK_ENCODING_HDMI_FRL &&
+			timing->vic == 0 && timing->hdmi_vic == 0 &&
+			timing->frl_uncompressed_video_bandwidth_in_kbps != 0)
+		kbps = timing->frl_uncompressed_video_bandwidth_in_kbps;
+
 	return kbps;
 }
 
@@ -453,7 +458,7 @@ bool dc_dsc_compute_bandwidth_range(
 	bool is_dsc_possible = false;
 	struct dsc_enc_caps dsc_enc_caps;
 	struct dsc_enc_caps dsc_common_caps;
-	struct dc_dsc_config config;
+	struct dc_dsc_config config = {0};
 	struct dc_dsc_config_options options = {0};
 
 	options.dsc_min_slice_height_override = dsc_min_slice_height_override;
@@ -863,9 +868,9 @@ static bool setup_dsc_config(
 		struct dc_dsc_config *dsc_cfg)
 {
 	struct dsc_enc_caps dsc_common_caps;
-	int max_slices_h;
-	int min_slices_h;
-	int num_slices_h;
+	int max_slices_h = 0;
+	int min_slices_h = 0;
+	int num_slices_h = 0;
 	int pic_width;
 	int slice_width;
 	int target_bpp;
@@ -1050,7 +1055,12 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	dsc_cfg->num_slices_v = pic_height/slice_height;
+	if (slice_height > 0) {
+		dsc_cfg->num_slices_v = pic_height / slice_height;
+	} else {
+		is_dsc_possible = false;
+		goto done;
+	}
 
 	if (target_bandwidth_kbps > 0) {
 		is_dsc_possible = decide_dsc_target_bpp_x16(

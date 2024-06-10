@@ -304,7 +304,7 @@
 	};
 
 	arm-pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a72-pmu";
 		interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>,
@@ -601,6 +601,7 @@
 			clocks = <&clock_peric PERIC_PCLK_UART0>,
 				 <&clock_peric PERIC_SCLK_UART0>;
 			clock-names = "uart", "clk_uart_baud0";
+			samsung,uart-fifosize = <64>;
 			status = "disabled";
 		};
 
@@ -613,6 +614,7 @@
 			clocks = <&clock_peric PERIC_PCLK_UART1>,
 				 <&clock_peric PERIC_SCLK_UART1>;
 			clock-names = "uart", "clk_uart_baud0";
+			samsung,uart-fifosize = <64>;
 			status = "disabled";
 		};
 

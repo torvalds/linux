@@ -34,7 +34,7 @@
 #include <linux/security.h>
 #include <linux/memblock.h>
 #include <linux/syscalls.h>
-#include <linux/crash_core.h>
+#include <linux/vmcore_info.h>
 #include <linux/ratelimit.h>
 #include <linux/kmsg_dump.h>
 #include <linux/syslog.h>
@@ -178,9 +178,9 @@ static int __init control_devkmsg(char *str)
 	 * Set sysctl string accordingly:
 	 */
 	if (devkmsg_log == DEVKMSG_LOG_MASK_ON)
-		strcpy(devkmsg_log_str, "on");
+		strscpy(devkmsg_log_str, "on");
 	else if (devkmsg_log == DEVKMSG_LOG_MASK_OFF)
-		strcpy(devkmsg_log_str, "off");
+		strscpy(devkmsg_log_str, "off");
 	/* else "ratelimit" which is set by default. */
 
 	/*
@@ -209,7 +209,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 			return -EINVAL;
 
 		old = devkmsg_log;
-		strncpy(old_str, devkmsg_log_str, DEVKMSG_STR_MAX_SIZE);
+		strscpy(old_str, devkmsg_log_str);
 	}
 
 	err = proc_dostring(table, write, buffer, lenp, ppos);
@@ -227,7 +227,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 
 			/* ... and restore old setting. */
 			devkmsg_log = old;
-			strncpy(devkmsg_log_str, old_str, DEVKMSG_STR_MAX_SIZE);
+			strscpy(devkmsg_log_str, old_str);
 
 			return -EINVAL;
 		}
@@ -347,6 +347,29 @@ static bool panic_in_progress(void)
 	return unlikely(atomic_read(&panic_cpu) != PANIC_CPU_INVALID);
 }
 
+/* Return true if a panic is in progress on the current CPU. */
+bool this_cpu_in_panic(void)
+{
+	/*
+	 * We can use raw_smp_processor_id() here because it is impossible for
+	 * the task to be migrated to the panic_cpu, or away from it. If
+	 * panic_cpu has already been set, and we're not currently executing on
+	 * that CPU, then we never will be.
+	 */
+	return unlikely(atomic_read(&panic_cpu) == raw_smp_processor_id());
+}
+
+/*
+ * Return true if a panic is in progress on a remote CPU.
+ *
+ * On true, the local CPU should immediately release any printing resources
+ * that may be needed by the panic CPU.
+ */
+bool other_cpu_in_panic(void)
+{
+	return (panic_in_progress() && !this_cpu_in_panic());
+}
+
 /*
  * This is used for debugging the mess that is the VT code by
  * keeping track if we have the console semaphore held. It's
@@ -360,9 +383,6 @@ static int console_locked;
 /*
  *	Array of consoles built from command line options (console=)
  */
-
-#define MAX_CMDLINECONSOLES 8
-
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
 
 static int preferred_console = -1;
@@ -439,12 +459,6 @@ static int console_msg_format = MSG_FORMAT_DEFAULT;
 static DEFINE_MUTEX(syslog_lock);
 
 #ifdef CONFIG_PRINTK
-/*
- * During panic, heavy printk by other CPUs can delay the
- * panic and risk deadlock on console resources.
- */
-static int __read_mostly suppress_panic_printk;
-
 DECLARE_WAIT_QUEUE_HEAD(log_wait);
 /* All 3 protected by @syslog_lock. */
 /* the next printk record to read by syslog(READ) or /proc/kmsg */
@@ -598,17 +612,6 @@ static int check_syslog_permissions(int type, int source)
 	if (syslog_action_restricted(type)) {
 		if (capable(CAP_SYSLOG))
 			goto ok;
-		/*
-		 * For historical reasons, accept CAP_SYS_ADMIN too, with
-		 * a warning.
-		 */
-		if (capable(CAP_SYS_ADMIN)) {
-			pr_warn_once("%s (%d): Attempt to access syslog with "
-				     "CAP_SYS_ADMIN but no CAP_SYSLOG "
-				     "(deprecated).\n",
-				 current->comm, task_pid_nr(current));
-			goto ok;
-		}
 		return -EPERM;
 	}
 ok:
@@ -951,7 +954,7 @@ const struct file_operations kmsg_fops = {
 	.release = devkmsg_release,
 };
 
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_VMCORE_INFO
 /*
  * This appends the listed symbols to /proc/vmcore
  *
@@ -1846,10 +1849,23 @@ static bool console_waiter;
  */
 static void console_lock_spinning_enable(void)
 {
+	/*
+	 * Do not use spinning in panic(). The panic CPU wants to keep the lock.
+	 * Non-panic CPUs abandon the flush anyway.
+	 *
+	 * Just keep the lockdep annotation. The panic-CPU should avoid
+	 * taking console_owner_lock because it might cause a deadlock.
+	 * This looks like the easiest way how to prevent false lockdep
+	 * reports without handling races a lockless way.
+	 */
+	if (panic_in_progress())
+		goto lockdep;
+
 	raw_spin_lock(&console_owner_lock);
 	console_owner = current;
 	raw_spin_unlock(&console_owner_lock);
 
+lockdep:
 	/* The waiter may spin on us after setting console_owner */
 	spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
 }
@@ -1873,6 +1889,22 @@ static void console_lock_spinning_enable(void)
 static int console_lock_spinning_disable_and_check(int cookie)
 {
 	int waiter;
+
+	/*
+	 * Ignore spinning waiters during panic() because they might get stopped
+	 * or blocked at any time,
+	 *
+	 * It is safe because nobody is allowed to start spinning during panic
+	 * in the first place. If there has been a waiter then non panic CPUs
+	 * might stay spinning. They would get stopped anyway. The panic context
+	 * will never start spinning and an interrupted spin on panic CPU will
+	 * never continue.
+	 */
+	if (panic_in_progress()) {
+		/* Keep lockdep happy. */
+		spin_release(&console_owner_dep_map, _THIS_IP_);
+		return 0;
+	}
 
 	raw_spin_lock(&console_owner_lock);
 	waiter = READ_ONCE(console_waiter);
@@ -1973,6 +2005,12 @@ static int console_trylock_spinning(void)
 	 * complain.
 	 */
 	mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
+
+	/*
+	 * Update @console_may_schedule for trylock because the previous
+	 * owner may have been schedulable.
+	 */
+	console_may_schedule = 0;
 
 	return 1;
 }
@@ -2270,8 +2308,12 @@ asmlinkage int vprintk_emit(int facility, int level,
 	if (unlikely(suppress_printk))
 		return 0;
 
-	if (unlikely(suppress_panic_printk) &&
-	    atomic_read(&panic_cpu) != raw_smp_processor_id())
+	/*
+	 * The messages on the panic CPU are the most important. If
+	 * non-panic CPUs are generating any messages, they will be
+	 * silently dropped.
+	 */
+	if (other_cpu_in_panic())
 		return 0;
 
 	if (level == LOGLEVEL_SCHED) {
@@ -2458,25 +2500,36 @@ static int __init console_setup(char *str)
 	if (_braille_console_setup(&str, &brl_options))
 		return 1;
 
+	/* Save the console for driver subsystem use */
+	if (console_opt_save(str, brl_options))
+		return 1;
+
+	/* Flag register_console() to not call try_enable_default_console() */
+	console_set_on_cmdline = 1;
+
+	/* Don't attempt to parse a DEVNAME:0.0 style console */
+	if (strchr(str, ':'))
+		return 1;
+
 	/*
 	 * Decode str into name, index, options.
 	 */
-	if (str[0] >= '0' && str[0] <= '9') {
-		strcpy(buf, "ttyS");
-		strncpy(buf + 4, str, sizeof(buf) - 5);
-	} else {
-		strncpy(buf, str, sizeof(buf) - 1);
-	}
-	buf[sizeof(buf) - 1] = 0;
+	if (isdigit(str[0]))
+		scnprintf(buf, sizeof(buf), "ttyS%s", str);
+	else
+		strscpy(buf, str);
+
 	options = strchr(str, ',');
 	if (options)
 		*(options++) = 0;
+
 #ifdef __sparc__
 	if (!strcmp(str, "ttya"))
-		strcpy(buf, "ttyS0");
+		strscpy(buf, "ttyS0");
 	if (!strcmp(str, "ttyb"))
-		strcpy(buf, "ttyS1");
+		strscpy(buf, "ttyS1");
 #endif
+
 	for (s = buf; *s; s++)
 		if (isdigit(*s) || *s == ',')
 			break;
@@ -2487,6 +2540,13 @@ static int __init console_setup(char *str)
 	return 1;
 }
 __setup("console=", console_setup);
+
+/* Only called from add_preferred_console_match() */
+int console_opt_add_preferred_console(const char *name, const short idx,
+				      char *options, char *brl_options)
+{
+	return __add_preferred_console(name, idx, options, brl_options, true);
+}
 
 /**
  * add_preferred_console - add a device to the list of preferred consoles.
@@ -2599,26 +2659,6 @@ static int console_cpu_notify(unsigned int cpu)
 			console_unlock();
 	}
 	return 0;
-}
-
-/*
- * Return true if a panic is in progress on a remote CPU.
- *
- * On true, the local CPU should immediately release any printing resources
- * that may be needed by the panic CPU.
- */
-bool other_cpu_in_panic(void)
-{
-	if (!panic_in_progress())
-		return false;
-
-	/*
-	 * We can use raw_smp_processor_id() here because it is impossible for
-	 * the task to be migrated to the panic_cpu, or away from it. If
-	 * panic_cpu has already been set, and we're not currently executing on
-	 * that CPU, then we never will be.
-	 */
-	return atomic_read(&panic_cpu) != raw_smp_processor_id();
 }
 
 /**
@@ -2776,8 +2816,6 @@ void console_prepend_dropped(struct printk_message *pmsg, unsigned long dropped)
 bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
 			     bool is_extended, bool may_suppress)
 {
-	static int panic_console_dropped;
-
 	struct printk_buffers *pbufs = pmsg->pbufs;
 	const size_t scratchbuf_sz = sizeof(pbufs->scratchbuf);
 	const size_t outbuf_sz = sizeof(pbufs->outbuf);
@@ -2804,17 +2842,6 @@ bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
 
 	pmsg->seq = r.info->seq;
 	pmsg->dropped = r.info->seq - seq;
-
-	/*
-	 * Check for dropped messages in panic here so that printk
-	 * suppression can occur as early as possible if necessary.
-	 */
-	if (pmsg->dropped &&
-	    panic_in_progress() &&
-	    panic_console_dropped++ > 10) {
-		suppress_panic_printk = 1;
-		pr_warn_once("Too many dropped messages. Suppress messages on non-panic CPUs to prevent livelock.\n");
-	}
 
 	/* Skip record that has level above the console loglevel. */
 	if (may_suppress && suppress_message_printing(r.info->level))
@@ -3134,6 +3161,40 @@ void console_unblank(void)
 		pr_flush(1000, true);
 }
 
+/*
+ * Rewind all consoles to the oldest available record.
+ *
+ * IMPORTANT: The function is safe only when called under
+ *            console_lock(). It is not enforced because
+ *            it is used as a best effort in panic().
+ */
+static void __console_rewind_all(void)
+{
+	struct console *c;
+	short flags;
+	int cookie;
+	u64 seq;
+
+	seq = prb_first_valid_seq(prb);
+
+	cookie = console_srcu_read_lock();
+	for_each_console_srcu(c) {
+		flags = console_srcu_read_flags(c);
+
+		if (flags & CON_NBCON) {
+			nbcon_seq_force(c, seq);
+		} else {
+			/*
+			 * This assignment is safe only when called under
+			 * console_lock(). On panic, legacy consoles are
+			 * only best effort.
+			 */
+			c->seq = seq;
+		}
+	}
+	console_srcu_read_unlock(cookie);
+}
+
 /**
  * console_flush_on_panic - flush console content on panic
  * @mode: flush all messages in buffer or just the pending ones
@@ -3162,30 +3223,8 @@ void console_flush_on_panic(enum con_flush_mode mode)
 	 */
 	console_may_schedule = 0;
 
-	if (mode == CONSOLE_REPLAY_ALL) {
-		struct console *c;
-		short flags;
-		int cookie;
-		u64 seq;
-
-		seq = prb_first_valid_seq(prb);
-
-		cookie = console_srcu_read_lock();
-		for_each_console_srcu(c) {
-			flags = console_srcu_read_flags(c);
-
-			if (flags & CON_NBCON) {
-				nbcon_seq_force(c, seq);
-			} else {
-				/*
-				 * This is an unsynchronized assignment. On
-				 * panic legacy consoles are only best effort.
-				 */
-				c->seq = seq;
-			}
-		}
-		console_srcu_read_unlock(cookie);
-	}
+	if (mode == CONSOLE_REPLAY_ALL)
+		__console_rewind_all();
 
 	console_flush_all(false, &next_seq, &handover);
 }
@@ -3263,6 +3302,21 @@ static int __init keep_bootcon_setup(char *str)
 
 early_param("keep_bootcon", keep_bootcon_setup);
 
+static int console_call_setup(struct console *newcon, char *options)
+{
+	int err;
+
+	if (!newcon->setup)
+		return 0;
+
+	/* Synchronize with possible boot console. */
+	console_lock();
+	err = newcon->setup(newcon, options);
+	console_unlock();
+
+	return err;
+}
+
 /*
  * This is called by register_console() to try to match
  * the newly registered console with any of the ones selected
@@ -3298,8 +3352,8 @@ static int try_enable_preferred_console(struct console *newcon,
 			if (_braille_register_console(newcon, c))
 				return 0;
 
-			if (newcon->setup &&
-			    (err = newcon->setup(newcon, c->options)) != 0)
+			err = console_call_setup(newcon, c->options);
+			if (err)
 				return err;
 		}
 		newcon->flags |= CON_ENABLED;
@@ -3325,7 +3379,7 @@ static void try_enable_default_console(struct console *newcon)
 	if (newcon->index < 0)
 		newcon->index = 0;
 
-	if (newcon->setup && newcon->setup(newcon, NULL) != 0)
+	if (console_call_setup(newcon, NULL) != 0)
 		return;
 
 	newcon->flags |= CON_ENABLED;
@@ -3468,7 +3522,7 @@ void register_console(struct console *newcon)
 	 * Note that a console with tty binding will have CON_CONSDEV
 	 * flag set and will be first in the list.
 	 */
-	if (preferred_console < 0) {
+	if (preferred_console < 0 && !console_set_on_cmdline) {
 		if (hlist_empty(&console_list) || !console_first()->device ||
 		    console_first()->flags & CON_BOOT) {
 			try_enable_default_console(newcon);
@@ -3761,7 +3815,7 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 
 	might_sleep();
 
-	seq = prb_next_seq(prb);
+	seq = prb_next_reserve_seq(prb);
 
 	/* Flush the consoles so that records up to @seq are printed. */
 	console_lock();
@@ -4259,6 +4313,23 @@ void kmsg_dump_rewind(struct kmsg_dump_iter *iter)
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
 
+/**
+ * console_replay_all - replay kernel log on consoles
+ *
+ * Try to obtain lock on console subsystem and replay all
+ * available records in printk buffer on the consoles.
+ * Does nothing if lock is not obtained.
+ *
+ * Context: Any context.
+ */
+void console_replay_all(void)
+{
+	if (console_trylock()) {
+		__console_rewind_all();
+		/* Consoles are flushed as part of console_unlock(). */
+		console_unlock();
+	}
+}
 #endif
 
 #ifdef CONFIG_SMP

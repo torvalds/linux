@@ -370,6 +370,7 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 	bi->profile = template->profile ? template->profile : &nop_profile;
 	bi->tuple_size = template->tuple_size;
 	bi->tag_size = template->tag_size;
+	bi->pi_offset = template->pi_offset;
 
 	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, disk->queue);
 

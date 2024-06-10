@@ -18,7 +18,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "internal.h"
 #include "lkc.h"
+
+struct gstr autoconf_cmd;
 
 /* return true if 'path' exists, false otherwise */
 static bool is_present(const char *path)
@@ -293,63 +296,12 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 	return 0;
 }
 
-#define LINE_GROWTH 16
-static int add_byte(int c, char **lineptr, size_t slen, size_t *n)
-{
-	size_t new_size = slen + 1;
-
-	if (new_size > *n) {
-		new_size += LINE_GROWTH - 1;
-		new_size *= 2;
-		*lineptr = xrealloc(*lineptr, new_size);
-		*n = new_size;
-	}
-
-	(*lineptr)[slen] = c;
-
-	return 0;
-}
-
-static ssize_t compat_getline(char **lineptr, size_t *n, FILE *stream)
-{
-	char *line = *lineptr;
-	size_t slen = 0;
-
-	for (;;) {
-		int c = getc(stream);
-
-		switch (c) {
-		case '\n':
-			if (add_byte(c, &line, slen, n) < 0)
-				goto e_out;
-			slen++;
-			/* fall through */
-		case EOF:
-			if (add_byte('\0', &line, slen, n) < 0)
-				goto e_out;
-			*lineptr = line;
-			if (slen == 0)
-				return -1;
-			return slen;
-		default:
-			if (add_byte(c, &line, slen, n) < 0)
-				goto e_out;
-			slen++;
-		}
-	}
-
-e_out:
-	line[slen-1] = '\0';
-	*lineptr = line;
-	return -1;
-}
-
 /* like getline(), but the newline character is stripped away */
 static ssize_t getline_stripped(char **lineptr, size_t *n, FILE *stream)
 {
 	ssize_t len;
 
-	len = compat_getline(lineptr, n, stream);
+	len = getline(lineptr, n, stream);
 
 	if (len > 0 && (*lineptr)[len - 1] == '\n') {
 		len--;
@@ -371,7 +323,7 @@ int conf_read_simple(const char *name, int def)
 	size_t  line_asize = 0;
 	char *p, *val;
 	struct symbol *sym;
-	int i, def_flags;
+	int def_flags;
 	const char *warn_unknown, *sym_name;
 
 	warn_unknown = getenv("KCONFIG_WARN_UNKNOWN_SYMBOLS");
@@ -429,7 +381,7 @@ load:
 	conf_warnings = 0;
 
 	def_flags = SYMBOL_DEF << def;
-	for_all_symbols(i, sym) {
+	for_all_symbols(sym) {
 		sym->flags |= SYMBOL_CHANGED;
 		sym->flags &= ~(def_flags|SYMBOL_VALID);
 		if (sym_is_choice(sym))
@@ -538,7 +490,6 @@ int conf_read(const char *name)
 {
 	struct symbol *sym;
 	int conf_unsaved = 0;
-	int i;
 
 	conf_set_changed(false);
 
@@ -549,9 +500,9 @@ int conf_read(const char *name)
 
 	sym_calc_value(modules_sym);
 
-	for_all_symbols(i, sym) {
+	for_all_symbols(sym) {
 		sym_calc_value(sym);
-		if (sym_is_choice(sym) || (sym->flags & SYMBOL_NO_WRITE))
+		if (sym_is_choice(sym))
 			continue;
 		if (sym_has_value(sym) && (sym->flags & SYMBOL_WRITE)) {
 			/* check that calculated value agrees with saved value */
@@ -573,7 +524,7 @@ int conf_read(const char *name)
 		/* maybe print value in verbose mode... */
 	}
 
-	for_all_symbols(i, sym) {
+	for_all_symbols(sym) {
 		if (sym_has_value(sym) && !sym_is_choice_value(sym)) {
 			/* Reset values of generates values, so they'll appear
 			 * as new, if they should become visible, but that
@@ -842,61 +793,38 @@ int conf_write_defconfig(const char *filename)
 
 	sym_clear_all_valid();
 
-	/* Traverse all menus to find all relevant symbols */
-	menu = rootmenu.list;
+	menu_for_each_entry(menu) {
+		struct menu *choice;
 
-	while (menu != NULL)
-	{
 		sym = menu->sym;
-		if (sym == NULL) {
-			if (!menu_is_visible(menu))
-				goto next_menu;
-		} else if (!sym_is_choice(sym)) {
+		if (sym && !sym_is_choice(sym)) {
 			sym_calc_value(sym);
 			if (!(sym->flags & SYMBOL_WRITE))
-				goto next_menu;
+				continue;
 			sym->flags &= ~SYMBOL_WRITE;
 			/* If we cannot change the symbol - skip */
 			if (!sym_is_changeable(sym))
-				goto next_menu;
+				continue;
 			/* If symbol equals to default value - skip */
 			if (strcmp(sym_get_string_value(sym), sym_get_string_default(sym)) == 0)
-				goto next_menu;
+				continue;
 
 			/*
 			 * If symbol is a choice value and equals to the
 			 * default for a choice - skip.
-			 * But only if value is bool and equal to "y" and
-			 * choice is not "optional".
-			 * (If choice is "optional" then all values can be "n")
 			 */
-			if (sym_is_choice_value(sym)) {
-				struct symbol *cs;
+			choice = sym_get_choice_menu(sym);
+			if (choice) {
 				struct symbol *ds;
 
-				cs = prop_get_symbol(sym_get_choice_prop(sym));
-				ds = sym_choice_default(cs);
-				if (!sym_is_optional(cs) && sym == ds) {
+				ds = sym_choice_default(choice->sym);
+				if (sym == ds) {
 					if ((sym->type == S_BOOLEAN) &&
 					    sym_get_tristate_value(sym) == yes)
-						goto next_menu;
+						continue;
 				}
 			}
 			print_symbol_for_dotconfig(out, sym);
-		}
-next_menu:
-		if (menu->list != NULL) {
-			menu = menu->list;
-		}
-		else if (menu->next != NULL) {
-			menu = menu->next;
-		} else {
-			while ((menu = menu->parent)) {
-				if (menu->next != NULL) {
-					menu = menu->next;
-					break;
-				}
-			}
 		}
 	}
 	fclose(out);
@@ -911,7 +839,6 @@ int conf_write(const char *name)
 	const char *str;
 	char tmpname[PATH_MAX + 1], oldname[PATH_MAX + 1];
 	char *env;
-	int i;
 	bool need_newline = false;
 
 	if (!name)
@@ -959,7 +886,7 @@ int conf_write(const char *name)
 				     "# %s\n"
 				     "#\n", str);
 			need_newline = false;
-		} else if (!(sym->flags & SYMBOL_CHOICE) &&
+		} else if (!sym_is_choice(sym) &&
 			   !(sym->flags & SYMBOL_WRITTEN)) {
 			sym_calc_value(sym);
 			if (!(sym->flags & SYMBOL_WRITE))
@@ -995,7 +922,7 @@ end_check:
 	}
 	fclose(out);
 
-	for_all_symbols(i, sym)
+	for_all_symbols(sym)
 		sym->flags &= ~SYMBOL_WRITTEN;
 
 	if (*tmpname) {
@@ -1023,7 +950,6 @@ end_check:
 static int conf_write_autoconf_cmd(const char *autoconf_name)
 {
 	char name[PATH_MAX], tmp[PATH_MAX];
-	struct file *file;
 	FILE *out;
 	int ret;
 
@@ -1044,15 +970,9 @@ static int conf_write_autoconf_cmd(const char *autoconf_name)
 		return -1;
 	}
 
-	fprintf(out, "deps_config := \\\n");
-	for (file = file_list; file; file = file->next)
-		fprintf(out, "\t%s \\\n", file->name);
+	fprintf(out, "autoconfig := %s\n", autoconf_name);
 
-	fprintf(out, "\n%s: $(deps_config)\n\n", autoconf_name);
-
-	env_write_dep(out, autoconf_name);
-
-	fprintf(out, "\n$(deps_config): ;\n");
+	fputs(str_get(&autoconf_cmd), out);
 
 	fflush(out);
 	ret = ferror(out); /* error check for all fprintf() calls */
@@ -1072,7 +992,7 @@ static int conf_touch_deps(void)
 {
 	const char *name, *tmp;
 	struct symbol *sym;
-	int res, i;
+	int res;
 
 	name = conf_get_autoconfig_name();
 	tmp = strrchr(name, '/');
@@ -1086,9 +1006,9 @@ static int conf_touch_deps(void)
 	conf_read_simple(name, S_DEF_AUTO);
 	sym_calc_value(modules_sym);
 
-	for_all_symbols(i, sym) {
+	for_all_symbols(sym) {
 		sym_calc_value(sym);
-		if ((sym->flags & SYMBOL_NO_WRITE) || !sym->name)
+		if (sym_is_choice(sym))
 			continue;
 		if (sym->flags & SYMBOL_WRITE) {
 			if (sym->flags & SYMBOL_DEF_AUTO) {
@@ -1152,7 +1072,7 @@ static int __conf_write_autoconf(const char *filename,
 	char tmp[PATH_MAX];
 	FILE *file;
 	struct symbol *sym;
-	int ret, i;
+	int ret;
 
 	if (make_parent_dir(filename))
 		return -1;
@@ -1169,7 +1089,7 @@ static int __conf_write_autoconf(const char *filename,
 
 	conf_write_heading(file, comment_style);
 
-	for_all_symbols(i, sym)
+	for_all_symbols(sym)
 		if ((sym->flags & SYMBOL_WRITE) && sym->name)
 			print_symbol(file, sym);
 
@@ -1192,7 +1112,7 @@ int conf_write_autoconf(int overwrite)
 {
 	struct symbol *sym;
 	const char *autoconf_name = conf_get_autoconfig_name();
-	int ret, i;
+	int ret;
 
 	if (!overwrite && is_present(autoconf_name))
 		return 0;
@@ -1204,7 +1124,7 @@ int conf_write_autoconf(int overwrite)
 	if (conf_touch_deps())
 		return 1;
 
-	for_all_symbols(i, sym)
+	for_all_symbols(sym)
 		sym_calc_value(sym);
 
 	ret = __conf_write_autoconf(conf_get_autoheader_name(),

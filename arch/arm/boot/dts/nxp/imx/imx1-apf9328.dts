@@ -54,7 +54,7 @@
 		#size-cells = <1>;
 	};
 
-	eth: eth@4,c00000 {
+	eth: ethernet@4,c00000 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_eth>;
 		compatible = "davicom,dm9000";

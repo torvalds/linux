@@ -2720,6 +2720,17 @@ size_t perf_session__fprintf(struct perf_session *session, FILE *fp)
 	return machine__fprintf(&session->machines.host, fp);
 }
 
+void perf_session__dump_kmaps(struct perf_session *session)
+{
+	int save_verbose = verbose;
+
+	fflush(stdout);
+	fprintf(stderr, "Kernel and module maps:\n");
+	verbose = 0; /* Suppress verbose to print a summary only */
+	maps__fprintf(machine__kernel_maps(&session->machines.host), stderr);
+	verbose = save_verbose;
+}
+
 struct evsel *perf_session__find_first_evtype(struct perf_session *session,
 					      unsigned int type)
 {
@@ -2738,6 +2749,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	int i, err = -1;
 	struct perf_cpu_map *map;
 	int nr_cpus = min(session->header.env.nr_cpus_avail, MAX_NR_CPUS);
+	struct perf_cpu cpu;
 
 	for (i = 0; i < PERF_TYPE_MAX; ++i) {
 		struct evsel *evsel;
@@ -2759,9 +2771,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 		return -1;
 	}
 
-	for (i = 0; i < perf_cpu_map__nr(map); i++) {
-		struct perf_cpu cpu = perf_cpu_map__cpu(map, i);
-
+	perf_cpu_map__for_each_cpu(cpu, i, map) {
 		if (cpu.cpu >= nr_cpus) {
 			pr_err("Requested CPU %d too large. "
 			       "Consider raising MAX_NR_CPUS\n", cpu.cpu);
@@ -2904,5 +2914,26 @@ int perf_event__process_id_index(struct perf_session *session,
 		if (ret)
 			return ret;
 	}
+	return 0;
+}
+
+int perf_session__dsos_hit_all(struct perf_session *session)
+{
+	struct rb_node *nd;
+	int err;
+
+	err = machine__hit_all_dsos(&session->machines.host);
+	if (err)
+		return err;
+
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+
+		err = machine__hit_all_dsos(pos);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }

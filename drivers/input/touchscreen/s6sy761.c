@@ -520,8 +520,8 @@ MODULE_DEVICE_TABLE(of, s6sy761_of_match);
 #endif
 
 static const struct i2c_device_id s6sy761_id[] = {
-	{ "s6sy761", 0 },
-	{ },
+	{ "s6sy761" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, s6sy761_id);
 

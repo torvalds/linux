@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/memblock.h>
 #include <linux/libfdt.h>
-#include <linux/crash_core.h>
+#include <linux/crash_reserve.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <asm/cacheflush.h>
@@ -173,7 +173,7 @@ static __init bool overlaps_region(const void *fdt, u32 start,
 
 static void __init get_crash_kernel(void *fdt, unsigned long size)
 {
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_CRASH_RESERVE
 	unsigned long long crash_size, crash_base;
 	int ret;
 
@@ -376,7 +376,7 @@ notrace void __init kaslr_early_init(void *dt_ptr, phys_addr_t size)
 		create_kaslr_tlb_entry(1, tlb_virt, tlb_phys);
 	}
 
-	/* Copy the kernel to it's new location and run */
+	/* Copy the kernel to its new location and run */
 	memcpy((void *)kernstart_virt_addr, (void *)_stext, kernel_sz);
 	flush_icache_range(kernstart_virt_addr, kernstart_virt_addr + kernel_sz);
 

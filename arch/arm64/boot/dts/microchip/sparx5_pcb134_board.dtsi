@@ -15,234 +15,234 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@0 {
+		led-0 {
 			label = "twr0:green";
 			gpios = <&sgpio_out0 8 0 GPIO_ACTIVE_LOW>;
 		};
-		led@1 {
+		led-1 {
 			label = "twr0:yellow";
 			gpios = <&sgpio_out0 8 1 GPIO_ACTIVE_LOW>;
 		};
-		led@2 {
+		led-2 {
 			label = "twr1:green";
 			gpios = <&sgpio_out0 9 0 GPIO_ACTIVE_LOW>;
 		};
-		led@3 {
+		led-3 {
 			label = "twr1:yellow";
 			gpios = <&sgpio_out0 9 1 GPIO_ACTIVE_LOW>;
 		};
-		led@4 {
+		led-4 {
 			label = "twr2:green";
 			gpios = <&sgpio_out0 10 0 GPIO_ACTIVE_LOW>;
 		};
-		led@5 {
+		led-5 {
 			label = "twr2:yellow";
 			gpios = <&sgpio_out0 10 1 GPIO_ACTIVE_LOW>;
 		};
-		led@6 {
+		led-6 {
 			label = "twr3:green";
 			gpios = <&sgpio_out0 11 0 GPIO_ACTIVE_LOW>;
 		};
-		led@7 {
+		led-7 {
 			label = "twr3:yellow";
 			gpios = <&sgpio_out0 11 1 GPIO_ACTIVE_LOW>;
 		};
-		led@8 {
+		led-8 {
 			label = "eth12:green";
 			gpios = <&sgpio_out0 12 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@9 {
+		led-9 {
 			label = "eth12:yellow";
 			gpios = <&sgpio_out0 12 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@10 {
+		led-10 {
 			label = "eth13:green";
 			gpios = <&sgpio_out0 13 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@11 {
+		led-11 {
 			label = "eth13:yellow";
 			gpios = <&sgpio_out0 13 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@12 {
+		led-12 {
 			label = "eth14:green";
 			gpios = <&sgpio_out0 14 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@13 {
+		led-13 {
 			label = "eth14:yellow";
 			gpios = <&sgpio_out0 14 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@14 {
+		led-14 {
 			label = "eth15:green";
 			gpios = <&sgpio_out0 15 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@15 {
+		led-15 {
 			label = "eth15:yellow";
 			gpios = <&sgpio_out0 15 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@16 {
+		led-16 {
 			label = "eth48:green";
 			gpios = <&sgpio_out1 16 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@17 {
+		led-17 {
 			label = "eth48:yellow";
 			gpios = <&sgpio_out1 16 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@18 {
+		led-18 {
 			label = "eth49:green";
 			gpios = <&sgpio_out1 17 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@19 {
+		led-19 {
 			label = "eth49:yellow";
 			gpios = <&sgpio_out1 17 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@20 {
+		led-20 {
 			label = "eth50:green";
 			gpios = <&sgpio_out1 18 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@21 {
+		led-21 {
 			label = "eth50:yellow";
 			gpios = <&sgpio_out1 18 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@22 {
+		led-22 {
 			label = "eth51:green";
 			gpios = <&sgpio_out1 19 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@23 {
+		led-23 {
 			label = "eth51:yellow";
 			gpios = <&sgpio_out1 19 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@24 {
+		led-24 {
 			label = "eth52:green";
 			gpios = <&sgpio_out1 20 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@25 {
+		led-25 {
 			label = "eth52:yellow";
 			gpios = <&sgpio_out1 20 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@26 {
+		led-26 {
 			label = "eth53:green";
 			gpios = <&sgpio_out1 21 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@27 {
+		led-27 {
 			label = "eth53:yellow";
 			gpios = <&sgpio_out1 21 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@28 {
+		led-28 {
 			label = "eth54:green";
 			gpios = <&sgpio_out1 22 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@29 {
+		led-29 {
 			label = "eth54:yellow";
 			gpios = <&sgpio_out1 22 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@30 {
+		led-30 {
 			label = "eth55:green";
 			gpios = <&sgpio_out1 23 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@31 {
+		led-31 {
 			label = "eth55:yellow";
 			gpios = <&sgpio_out1 23 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@32 {
+		led-32 {
 			label = "eth56:green";
 			gpios = <&sgpio_out1 24 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@33 {
+		led-33 {
 			label = "eth56:yellow";
 			gpios = <&sgpio_out1 24 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@34 {
+		led-34 {
 			label = "eth57:green";
 			gpios = <&sgpio_out1 25 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@35 {
+		led-35 {
 			label = "eth57:yellow";
 			gpios = <&sgpio_out1 25 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@36 {
+		led-36 {
 			label = "eth58:green";
 			gpios = <&sgpio_out1 26 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@37 {
+		led-37 {
 			label = "eth58:yellow";
 			gpios = <&sgpio_out1 26 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@38 {
+		led-38 {
 			label = "eth59:green";
 			gpios = <&sgpio_out1 27 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@39 {
+		led-39 {
 			label = "eth59:yellow";
 			gpios = <&sgpio_out1 27 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@40 {
+		led-40 {
 			label = "eth60:green";
 			gpios = <&sgpio_out1 28 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@41 {
+		led-41 {
 			label = "eth60:yellow";
 			gpios = <&sgpio_out1 28 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@42 {
+		led-42 {
 			label = "eth61:green";
 			gpios = <&sgpio_out1 29 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@43 {
+		led-43 {
 			label = "eth61:yellow";
 			gpios = <&sgpio_out1 29 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@44 {
+		led-44 {
 			label = "eth62:green";
 			gpios = <&sgpio_out1 30 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@45 {
+		led-45 {
 			label = "eth62:yellow";
 			gpios = <&sgpio_out1 30 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@46 {
+		led-46 {
 			label = "eth63:green";
 			gpios = <&sgpio_out1 31 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@47 {
+		led-47 {
 			label = "eth63:yellow";
 			gpios = <&sgpio_out1 31 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
@@ -269,15 +269,6 @@
 	};
 	gpio@1 {
 		ngpios = <64>;
-	};
-};
-
-&spi0 {
-	status = "okay";
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		spi-max-frequency = <8000000>;
-		reg = <0>;
 	};
 };
 
@@ -395,13 +386,13 @@
 };
 
 &axi {
-	i2c0_imux: i2c0-imux@0 {
+	i2c0_imux: i2c-mux-0 {
 		compatible = "i2c-mux-pinctrl";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		i2c-parent = <&i2c0>;
 	};
-	i2c0_emux: i2c0-emux@0 {
+	i2c0_emux: i2c-mux-1 {
 		compatible = "i2c-mux-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -427,62 +418,62 @@
 	pinctrl-10 = <&i2cmux_10>;
 	pinctrl-11 = <&i2cmux_11>;
 	pinctrl-12 = <&i2cmux_pins_i>;
-	i2c_sfp1: i2c_sfp1 {
+	i2c_sfp1: i2c@0 {
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp2: i2c_sfp2 {
+	i2c_sfp2: i2c@1 {
 		reg = <0x1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp3: i2c_sfp3 {
+	i2c_sfp3: i2c@2 {
 		reg = <0x2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp4: i2c_sfp4 {
+	i2c_sfp4: i2c@3 {
 		reg = <0x3>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp5: i2c_sfp5 {
+	i2c_sfp5: i2c@4 {
 		reg = <0x4>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp6: i2c_sfp6 {
+	i2c_sfp6: i2c@5 {
 		reg = <0x5>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp7: i2c_sfp7 {
+	i2c_sfp7: i2c@6 {
 		reg = <0x6>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp8: i2c_sfp8 {
+	i2c_sfp8: i2c@7 {
 		reg = <0x7>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp9: i2c_sfp9 {
+	i2c_sfp9: i2c@8 {
 		reg = <0x8>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp10: i2c_sfp10 {
+	i2c_sfp10: i2c@9 {
 		reg = <0x9>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp11: i2c_sfp11 {
+	i2c_sfp11: i2c@a {
 		reg = <0xa>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp12: i2c_sfp12 {
+	i2c_sfp12: i2c@b {
 		reg = <0xb>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -495,42 +486,42 @@
 		     &gpio 61 GPIO_ACTIVE_HIGH
 		     &gpio 54 GPIO_ACTIVE_HIGH>;
 	idle-state = <0x8>;
-	i2c_sfp13: i2c_sfp13 {
+	i2c_sfp13: i2c@0 {
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp14: i2c_sfp14 {
+	i2c_sfp14: i2c@1 {
 		reg = <0x1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp15: i2c_sfp15 {
+	i2c_sfp15: i2c@2 {
 		reg = <0x2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp16: i2c_sfp16 {
+	i2c_sfp16: i2c@3 {
 		reg = <0x3>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp17: i2c_sfp17 {
+	i2c_sfp17: i2c@4 {
 		reg = <0x4>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp18: i2c_sfp18 {
+	i2c_sfp18: i2c@5 {
 		reg = <0x5>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp19: i2c_sfp19 {
+	i2c_sfp19: i2c@6 {
 		reg = <0x6>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp20: i2c_sfp20 {
+	i2c_sfp20: i2c@7 {
 		reg = <0x7>;
 		#address-cells = <1>;
 		#size-cells = <0>;

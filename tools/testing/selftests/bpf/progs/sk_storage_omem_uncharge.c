@@ -12,8 +12,6 @@ int cookie_found = 0;
 __u64 cookie = 0;
 __u32 omem = 0;
 
-void *bpf_rdonly_cast(void *, __u32) __ksym;
-
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
 	__uint(map_flags, BPF_F_NO_PREALLOC);
@@ -29,7 +27,7 @@ int BPF_PROG(bpf_local_storage_destroy, struct bpf_local_storage *local_storage)
 	if (local_storage_ptr != local_storage)
 		return 0;
 
-	sk = bpf_rdonly_cast(sk_ptr, bpf_core_type_id_kernel(struct sock));
+	sk = bpf_core_cast(sk_ptr, struct sock);
 	if (sk->sk_cookie.counter != cookie)
 		return 0;
 

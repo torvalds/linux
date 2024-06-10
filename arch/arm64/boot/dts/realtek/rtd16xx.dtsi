@@ -109,7 +109,7 @@
 	};
 
 	arm_pmu: pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a55-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>,
 			<&cpu3>, <&cpu4>, <&cpu5>;
@@ -127,7 +127,7 @@
 		#clock-cells = <0>;
 	};
 
-	soc {
+	soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

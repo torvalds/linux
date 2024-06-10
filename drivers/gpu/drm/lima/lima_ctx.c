@@ -19,7 +19,7 @@ int lima_ctx_create(struct lima_device *dev, struct lima_ctx_mgr *mgr, u32 *id)
 	kref_init(&ctx->refcnt);
 
 	for (i = 0; i < lima_pipe_num; i++) {
-		err = lima_sched_context_init(dev->pipe + i, ctx->context + i, &ctx->guilty);
+		err = lima_sched_context_init(dev->pipe + i, ctx->context + i);
 		if (err)
 			goto err_out0;
 	}

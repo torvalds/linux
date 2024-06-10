@@ -189,10 +189,11 @@ static int lm3630a_bank_a_update_status(struct backlight_device *bl)
 	int ret;
 	struct lm3630a_chip *pchip = bl_get_data(bl);
 	enum lm3630a_pwm_ctrl pwm_ctrl = pchip->pdata->pwm_ctrl;
+	int brightness = backlight_get_brightness(bl);
 
 	/* pwm control */
 	if ((pwm_ctrl & LM3630A_PWM_BANK_A) != 0)
-		return lm3630a_pwm_ctrl(pchip, bl->props.brightness,
+		return lm3630a_pwm_ctrl(pchip, brightness,
 					bl->props.max_brightness);
 
 	/* disable sleep */
@@ -201,9 +202,9 @@ static int lm3630a_bank_a_update_status(struct backlight_device *bl)
 		goto out_i2c_err;
 	usleep_range(1000, 2000);
 	/* minimum brightness is 0x04 */
-	ret = lm3630a_write(pchip, REG_BRT_A, bl->props.brightness);
+	ret = lm3630a_write(pchip, REG_BRT_A, brightness);
 
-	if (backlight_is_blank(bl) || (backlight_get_brightness(bl) < 0x4))
+	if (brightness < 0x4)
 		/* turn the string off  */
 		ret |= lm3630a_update(pchip, REG_CTRL, LM3630A_LEDA_ENABLE, 0);
 	else
@@ -233,7 +234,7 @@ static int lm3630a_bank_a_get_brightness(struct backlight_device *bl)
 		if (rval < 0)
 			goto out_i2c_err;
 		brightness |= rval;
-		goto out;
+		return brightness;
 	}
 
 	/* disable sleep */
@@ -244,11 +245,8 @@ static int lm3630a_bank_a_get_brightness(struct backlight_device *bl)
 	rval = lm3630a_read(pchip, REG_BRT_A);
 	if (rval < 0)
 		goto out_i2c_err;
-	brightness = rval;
+	return rval;
 
-out:
-	bl->props.brightness = brightness;
-	return bl->props.brightness;
 out_i2c_err:
 	dev_err(pchip->dev, "i2c failed to access register\n");
 	return 0;
@@ -266,10 +264,11 @@ static int lm3630a_bank_b_update_status(struct backlight_device *bl)
 	int ret;
 	struct lm3630a_chip *pchip = bl_get_data(bl);
 	enum lm3630a_pwm_ctrl pwm_ctrl = pchip->pdata->pwm_ctrl;
+	int brightness = backlight_get_brightness(bl);
 
 	/* pwm control */
 	if ((pwm_ctrl & LM3630A_PWM_BANK_B) != 0)
-		return lm3630a_pwm_ctrl(pchip, bl->props.brightness,
+		return lm3630a_pwm_ctrl(pchip, brightness,
 					bl->props.max_brightness);
 
 	/* disable sleep */
@@ -278,9 +277,9 @@ static int lm3630a_bank_b_update_status(struct backlight_device *bl)
 		goto out_i2c_err;
 	usleep_range(1000, 2000);
 	/* minimum brightness is 0x04 */
-	ret = lm3630a_write(pchip, REG_BRT_B, bl->props.brightness);
+	ret = lm3630a_write(pchip, REG_BRT_B, brightness);
 
-	if (backlight_is_blank(bl) || (backlight_get_brightness(bl) < 0x4))
+	if (brightness < 0x4)
 		/* turn the string off  */
 		ret |= lm3630a_update(pchip, REG_CTRL, LM3630A_LEDB_ENABLE, 0);
 	else
@@ -310,7 +309,7 @@ static int lm3630a_bank_b_get_brightness(struct backlight_device *bl)
 		if (rval < 0)
 			goto out_i2c_err;
 		brightness |= rval;
-		goto out;
+		return brightness;
 	}
 
 	/* disable sleep */
@@ -321,11 +320,8 @@ static int lm3630a_bank_b_get_brightness(struct backlight_device *bl)
 	rval = lm3630a_read(pchip, REG_BRT_B);
 	if (rval < 0)
 		goto out_i2c_err;
-	brightness = rval;
+	return rval;
 
-out:
-	bl->props.brightness = brightness;
-	return bl->props.brightness;
 out_i2c_err:
 	dev_err(pchip->dev, "i2c failed to access register\n");
 	return 0;
@@ -343,6 +339,7 @@ static int lm3630a_backlight_register(struct lm3630a_chip *pchip)
 	struct backlight_properties props;
 	const char *label;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	if (pdata->leda_ctrl != LM3630A_LEDA_DISABLE) {
 		props.brightness = pdata->leda_init_brt;
@@ -543,10 +540,8 @@ static int lm3630a_probe(struct i2c_client *client)
 
 	pchip->enable_gpio = devm_gpiod_get_optional(&client->dev, "enable",
 						GPIOD_OUT_HIGH);
-	if (IS_ERR(pchip->enable_gpio)) {
-		rval = PTR_ERR(pchip->enable_gpio);
-		return rval;
-	}
+	if (IS_ERR(pchip->enable_gpio))
+		return PTR_ERR(pchip->enable_gpio);
 
 	/* chip initialize */
 	rval = lm3630a_chip_init(pchip);
@@ -563,10 +558,9 @@ static int lm3630a_probe(struct i2c_client *client)
 	/* pwm */
 	if (pdata->pwm_ctrl != LM3630A_PWM_DISABLE) {
 		pchip->pwmd = devm_pwm_get(pchip->dev, "lm3630a-pwm");
-		if (IS_ERR(pchip->pwmd)) {
-			dev_err(&client->dev, "fail : get pwm device\n");
-			return PTR_ERR(pchip->pwmd);
-		}
+		if (IS_ERR(pchip->pwmd))
+			return dev_err_probe(&client->dev, PTR_ERR(pchip->pwmd),
+					     "fail : get pwm device\n");
 
 		pwm_init_state(pchip->pwmd, &pchip->pwmd_state);
 	}

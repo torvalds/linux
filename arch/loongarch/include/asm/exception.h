@@ -6,6 +6,8 @@
 #include <asm/ptrace.h>
 #include <linux/kprobes.h>
 
+extern void *exception_table[];
+
 void show_registers(struct pt_regs *regs);
 
 asmlinkage void cache_parity_error(void);

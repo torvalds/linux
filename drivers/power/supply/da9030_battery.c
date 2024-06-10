@@ -530,8 +530,9 @@ static int da9030_battery_probe(struct platform_device *pdev)
 
 	da9030_battery_setup_psy(charger);
 	psy_cfg.drv_data = charger;
-	charger->psy = power_supply_register(&pdev->dev, &charger->psy_desc,
-					     &psy_cfg);
+	charger->psy = devm_power_supply_register(&pdev->dev,
+						  &charger->psy_desc,
+						  &psy_cfg);
 	if (IS_ERR(charger->psy)) {
 		ret = PTR_ERR(charger->psy);
 		goto err_ps_register;
@@ -563,7 +564,6 @@ static void da9030_battery_remove(struct platform_device *dev)
 				   DA9030_EVENT_CHIOVER | DA9030_EVENT_TBAT);
 	cancel_delayed_work_sync(&charger->work);
 	da9030_set_charge(charger, 0);
-	power_supply_unregister(charger->psy);
 }
 
 static struct platform_driver da903x_battery_driver = {

@@ -80,6 +80,7 @@ const char *video_get_options(const char *name)
 }
 EXPORT_SYMBOL(video_get_options);
 
+#if IS_ENABLED(CONFIG_FB_CORE)
 bool __video_get_options(const char *name, const char **options, bool is_of)
 {
 	bool enabled = true;
@@ -96,6 +97,7 @@ bool __video_get_options(const char *name, const char **options, bool is_of)
 	return enabled;
 }
 EXPORT_SYMBOL(__video_get_options);
+#endif
 
 /*
  * Process command line options for video adapters. This function is

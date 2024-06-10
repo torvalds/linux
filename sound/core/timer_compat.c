@@ -115,10 +115,7 @@ static long snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd,
 					unsigned long arg)
 {
 	struct snd_timer_user *tu = file->private_data;
-	long ret;
 
-	mutex_lock(&tu->ioctl_lock);
-	ret = __snd_timer_user_ioctl_compat(file, cmd, arg);
-	mutex_unlock(&tu->ioctl_lock);
-	return ret;
+	guard(mutex)(&tu->ioctl_lock);
+	return __snd_timer_user_ioctl_compat(file, cmd, arg);
 }

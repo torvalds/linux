@@ -194,6 +194,8 @@
 	num-lanes = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_clkreqn_cpm>;
+	vpcie3v3-supply = <&vcc3v3_baseboard>;
+	vpcie12v-supply = <&dc_12v>;
 	status = "okay";
 };
 
@@ -273,11 +275,12 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+	pinctrl-0 = <&uart0_xfer>;
 	status = "okay";
 };
 
 &uart2 {
+	rts-gpios = <&gpio2 RK_PC3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 

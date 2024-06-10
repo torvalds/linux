@@ -56,17 +56,6 @@ KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_CFI), $(KBUILD_CFLAGS))
 # disable LTO
 KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_LTO), $(KBUILD_CFLAGS))
 
-GCOV_PROFILE			:= n
-# Sanitizer runtimes are unavailable and cannot be linked here.
-KASAN_SANITIZE			:= n
-KCSAN_SANITIZE			:= n
-KMSAN_SANITIZE			:= n
-UBSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
-
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
-KCOV_INSTRUMENT			:= n
-
 lib-y				:= efi-stub-helper.o gop.o secureboot.o tpm.o \
 				   file.o mem.o random.o randomalloc.o pci.o \
 				   skip_spaces.o lib-cmdline.o lib-ctype.o \
@@ -105,7 +94,7 @@ lib-y				:= $(patsubst %.o,%.stub.o,$(lib-y))
 # Even when -mbranch-protection=none is set, Clang will generate a
 # .note.gnu.property for code-less object files (like lib/ctype.c),
 # so work around this by explicitly removing the unwanted section.
-# https://bugs.llvm.org/show_bug.cgi?id=46480
+# https://llvm.org/pr46480
 STUBCOPY_FLAGS-y		+= --remove-section=.note.gnu.property
 
 STUBCOPY_RELOC-$(CONFIG_X86_32)	:= R_386_32

@@ -7,9 +7,12 @@ config AMD_IOMMU
 	select PCI_ATS
 	select PCI_PRI
 	select PCI_PASID
+	select MMU_NOTIFIER
 	select IOMMU_API
 	select IOMMU_IOVA
 	select IOMMU_IO_PGTABLE
+	select IOMMU_SVA
+	select IOMMU_IOPF
 	select IOMMUFD_DRIVER if IOMMUFD
 	depends on X86_64 && PCI && ACPI && HAVE_CMPXCHG_DOUBLE
 	help

@@ -22,7 +22,10 @@
 #include <linux/of.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
-#include <linux/iopoll.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/delay.h>
+#include <linux/reset.h>
 
 #define CDNS_UART_TTY_NAME	"ttyPS"
 #define CDNS_UART_NAME		"xuartps"
@@ -193,6 +196,10 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
  * @clk_rate_change_nb:	Notifier block for clock changes
  * @quirks:		Flags for RXBS support.
  * @cts_override:	Modem control state override
+ * @gpiod_rts:		Pointer to the gpio descriptor
+ * @rs485_tx_started:	RS485 tx state
+ * @tx_timer:		Timer for tx
+ * @rstc:		Pointer to the reset control
  */
 struct cdns_uart {
 	struct uart_port	*port;
@@ -203,10 +210,22 @@ struct cdns_uart {
 	struct notifier_block	clk_rate_change_nb;
 	u32			quirks;
 	bool cts_override;
+	struct gpio_desc	*gpiod_rts;
+	bool			rs485_tx_started;
+	struct hrtimer		tx_timer;
+	struct reset_control	*rstc;
 };
 struct cdns_platform_data {
 	u32 quirks;
 };
+
+struct serial_rs485 cdns_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
+		 SER_RS485_RTS_AFTER_SEND,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,
+};
+
 #define to_cdns_uart(_nb) container_of(_nb, struct cdns_uart, \
 		clk_rate_change_nb)
 
@@ -306,32 +325,139 @@ static void cdns_uart_handle_rx(void *dev_id, unsigned int isrstatus)
 }
 
 /**
- * cdns_uart_handle_tx - Handle the bytes to be Txed.
+ * cdns_rts_gpio_enable - Configure RTS/GPIO to high/low
+ * @cdns_uart: Handle to the cdns_uart
+ * @enable: Value to be set to RTS/GPIO
+ */
+static void cdns_rts_gpio_enable(struct cdns_uart *cdns_uart, bool enable)
+{
+	u32 val;
+
+	if (cdns_uart->gpiod_rts) {
+		gpiod_set_value(cdns_uart->gpiod_rts, enable);
+	} else {
+		val = readl(cdns_uart->port->membase + CDNS_UART_MODEMCR);
+		if (enable)
+			val |= CDNS_UART_MODEMCR_RTS;
+		else
+			val &= ~CDNS_UART_MODEMCR_RTS;
+		writel(val, cdns_uart->port->membase + CDNS_UART_MODEMCR);
+	}
+}
+
+/**
+ * cdns_rs485_tx_setup - Tx setup specific to rs485
+ * @cdns_uart: Handle to the cdns_uart
+ */
+static void cdns_rs485_tx_setup(struct cdns_uart *cdns_uart)
+{
+	bool enable;
+
+	enable = cdns_uart->port->rs485.flags & SER_RS485_RTS_ON_SEND;
+	cdns_rts_gpio_enable(cdns_uart, enable);
+
+	cdns_uart->rs485_tx_started = true;
+}
+
+/**
+ * cdns_rs485_rx_setup - Rx setup specific to rs485
+ * @cdns_uart: Handle to the cdns_uart
+ */
+static void cdns_rs485_rx_setup(struct cdns_uart *cdns_uart)
+{
+	bool enable;
+
+	enable = cdns_uart->port->rs485.flags & SER_RS485_RTS_AFTER_SEND;
+	cdns_rts_gpio_enable(cdns_uart, enable);
+
+	cdns_uart->rs485_tx_started = false;
+}
+
+/**
+ * cdns_uart_tx_empty -  Check whether TX is empty
+ * @port: Handle to the uart port structure
+ *
+ * Return: TIOCSER_TEMT on success, 0 otherwise
+ */
+static unsigned int cdns_uart_tx_empty(struct uart_port *port)
+{
+	unsigned int status;
+
+	status = readl(port->membase + CDNS_UART_SR);
+	status &= (CDNS_UART_SR_TXEMPTY | CDNS_UART_SR_TACTIVE);
+	return (status == CDNS_UART_SR_TXEMPTY) ? TIOCSER_TEMT : 0;
+}
+
+/**
+ * cdns_rs485_rx_callback - Timer rx callback handler for rs485.
+ * @t: Handle to the hrtimer structure
+ */
+static enum hrtimer_restart cdns_rs485_rx_callback(struct hrtimer *t)
+{
+	struct cdns_uart *cdns_uart = container_of(t, struct cdns_uart, tx_timer);
+
+	/*
+	 * Default Rx should be setup, because Rx signaling path
+	 * need to enable to receive data.
+	 */
+	cdns_rs485_rx_setup(cdns_uart);
+
+	return HRTIMER_NORESTART;
+}
+
+/**
+ * cdns_calc_after_tx_delay - calculate delay required for after tx.
+ * @cdns_uart: Handle to the cdns_uart
+ */
+static u64 cdns_calc_after_tx_delay(struct cdns_uart *cdns_uart)
+{
+	/*
+	 * Frame time + stop bit time + rs485.delay_rts_after_send
+	 */
+	return cdns_uart->port->frame_time
+	       + DIV_ROUND_UP(cdns_uart->port->frame_time, 7)
+	       + (u64)cdns_uart->port->rs485.delay_rts_after_send * NSEC_PER_MSEC;
+}
+
+/**
+ * cdns_uart_handle_tx - Handle the bytes to be transmitted.
  * @dev_id: Id of the UART port
  * Return: None
  */
 static void cdns_uart_handle_tx(void *dev_id)
 {
 	struct uart_port *port = (struct uart_port *)dev_id;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct cdns_uart *cdns_uart = port->private_data;
+	struct tty_port *tport = &port->state->port;
 	unsigned int numbytes;
+	unsigned char ch;
 
-	if (uart_circ_empty(xmit)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
+		/* Disable the TX Empty interrupt */
 		writel(CDNS_UART_IXR_TXEMPTY, port->membase + CDNS_UART_IDR);
 		return;
 	}
 
 	numbytes = port->fifosize;
-	while (numbytes && !uart_circ_empty(xmit) &&
-	       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL)) {
-
-		writel(xmit->buf[xmit->tail], port->membase + CDNS_UART_FIFO);
-		uart_xmit_advance(port, 1);
+	while (numbytes &&
+	       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL) &&
+	       uart_fifo_get(port, &ch)) {
+		writel(ch, port->membase + CDNS_UART_FIFO);
 		numbytes--;
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
+
+	/* Enable the TX Empty interrupt */
+	writel(CDNS_UART_IXR_TXEMPTY, cdns_uart->port->membase + CDNS_UART_IER);
+
+	if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED &&
+	    (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port))) {
+		cdns_uart->tx_timer.function = &cdns_rs485_rx_callback;
+		hrtimer_start(&cdns_uart->tx_timer,
+			      ns_to_ktime(cdns_calc_after_tx_delay(cdns_uart)), HRTIMER_MODE_REL);
+	}
 }
 
 /**
@@ -565,12 +691,28 @@ static int cdns_uart_clk_notifier_cb(struct notifier_block *nb,
 #endif
 
 /**
+ * cdns_rs485_tx_callback - Timer tx callback handler for rs485.
+ * @t: Handle to the hrtimer structure
+ */
+static enum hrtimer_restart cdns_rs485_tx_callback(struct hrtimer *t)
+{
+	struct cdns_uart *cdns_uart = container_of(t, struct cdns_uart, tx_timer);
+
+	uart_port_lock(cdns_uart->port);
+	cdns_uart_handle_tx(cdns_uart->port);
+	uart_port_unlock(cdns_uart->port);
+
+	return HRTIMER_NORESTART;
+}
+
+/**
  * cdns_uart_start_tx -  Start transmitting bytes
  * @port: Handle to the uart port structure
  */
 static void cdns_uart_start_tx(struct uart_port *port)
 {
 	unsigned int status;
+	struct cdns_uart *cdns_uart = port->private_data;
 
 	if (uart_tx_stopped(port))
 		return;
@@ -584,15 +726,22 @@ static void cdns_uart_start_tx(struct uart_port *port)
 	status |= CDNS_UART_CR_TX_EN;
 	writel(status, port->membase + CDNS_UART_CR);
 
-	if (uart_circ_empty(&port->state->xmit))
+	if (kfifo_is_empty(&port->state->port.xmit_fifo))
 		return;
 
+	/* Clear the TX Empty interrupt */
 	writel(CDNS_UART_IXR_TXEMPTY, port->membase + CDNS_UART_ISR);
 
+	if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED) {
+		if (!cdns_uart->rs485_tx_started) {
+			cdns_uart->tx_timer.function = &cdns_rs485_tx_callback;
+			cdns_rs485_tx_setup(cdns_uart);
+			return hrtimer_start(&cdns_uart->tx_timer,
+					     ms_to_ktime(port->rs485.delay_rts_before_send),
+					     HRTIMER_MODE_REL);
+		}
+	}
 	cdns_uart_handle_tx(port);
-
-	/* Enable the TX Empty interrupt */
-	writel(CDNS_UART_IXR_TXEMPTY, port->membase + CDNS_UART_IER);
 }
 
 /**
@@ -602,6 +751,10 @@ static void cdns_uart_start_tx(struct uart_port *port)
 static void cdns_uart_stop_tx(struct uart_port *port)
 {
 	unsigned int regval;
+	struct cdns_uart *cdns_uart = port->private_data;
+
+	if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED)
+		cdns_rs485_rx_setup(cdns_uart);
 
 	regval = readl(port->membase + CDNS_UART_CR);
 	regval |= CDNS_UART_CR_TX_DIS;
@@ -624,21 +777,6 @@ static void cdns_uart_stop_rx(struct uart_port *port)
 	regval = readl(port->membase + CDNS_UART_CR);
 	regval |= CDNS_UART_CR_RX_DIS;
 	writel(regval, port->membase + CDNS_UART_CR);
-}
-
-/**
- * cdns_uart_tx_empty -  Check whether TX is empty
- * @port: Handle to the uart port structure
- *
- * Return: TIOCSER_TEMT on success, 0 otherwise
- */
-static unsigned int cdns_uart_tx_empty(struct uart_port *port)
-{
-	unsigned int status;
-
-	status = readl(port->membase + CDNS_UART_SR) &
-		       (CDNS_UART_SR_TXEMPTY | CDNS_UART_SR_TACTIVE);
-	return (status == CDNS_UART_SR_TXEMPTY) ? TIOCSER_TEMT : 0;
 }
 
 /**
@@ -813,6 +951,10 @@ static int cdns_uart_startup(struct uart_port *port)
 
 	is_brk_support = cdns_uart->quirks & CDNS_UART_RXBS_SUPPORT;
 
+	ret = reset_control_deassert(cdns_uart->rstc);
+	if (ret)
+		return ret;
+
 	uart_port_lock_irqsave(port, &flags);
 
 	/* Disable the TX and RX */
@@ -828,6 +970,9 @@ static int cdns_uart_startup(struct uart_port *port)
 	while (readl(port->membase + CDNS_UART_CR) &
 		(CDNS_UART_CR_TXRST | CDNS_UART_CR_RXRST))
 		cpu_relax();
+
+	if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED)
+		cdns_rs485_rx_setup(cdns_uart);
 
 	/*
 	 * Clear the RX disable bit and then set the RX enable bit to enable
@@ -888,6 +1033,10 @@ static void cdns_uart_shutdown(struct uart_port *port)
 {
 	int status;
 	unsigned long flags;
+	struct cdns_uart *cdns_uart = port->private_data;
+
+	if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED)
+		hrtimer_cancel(&cdns_uart->tx_timer);
 
 	uart_port_lock_irqsave(port, &flags);
 
@@ -1033,6 +1182,8 @@ static void cdns_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 	if (mctrl & TIOCM_RTS)
 		val |= CDNS_UART_MODEMCR_RTS;
+	if (cdns_uart_data->gpiod_rts)
+		gpiod_set_value(cdns_uart_data->gpiod_rts, !(mctrl & TIOCM_RTS));
 	if (mctrl & TIOCM_DTR)
 		val |= CDNS_UART_MODEMCR_DTR;
 	if (mctrl & TIOCM_LOOP)
@@ -1456,6 +1607,39 @@ MODULE_DEVICE_TABLE(of, cdns_uart_of_match);
 static int instances;
 
 /**
+ * cdns_rs485_config - Called when an application calls TIOCSRS485 ioctl.
+ * @port: Pointer to the uart_port structure
+ * @termios: Pointer to the ktermios structure
+ * @rs485: Pointer to the serial_rs485 structure
+ *
+ * Return: 0
+ */
+static int cdns_rs485_config(struct uart_port *port, struct ktermios *termios,
+			     struct serial_rs485 *rs485)
+{
+	u32 val;
+	struct cdns_uart *cdns_uart = port->private_data;
+
+	if (rs485->flags & SER_RS485_ENABLED) {
+		dev_dbg(port->dev, "Setting UART to RS485\n");
+		/* Make sure auto RTS is disabled */
+		val = readl(port->membase + CDNS_UART_MODEMCR);
+		val &= ~CDNS_UART_MODEMCR_FCM;
+		writel(val, port->membase + CDNS_UART_MODEMCR);
+
+		/* Timer setup */
+		hrtimer_init(&cdns_uart->tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		cdns_uart->tx_timer.function = &cdns_rs485_tx_callback;
+
+		/* Disable transmitter and make Rx setup*/
+		cdns_uart_stop_tx(port);
+	} else {
+		hrtimer_cancel(&cdns_uart->tx_timer);
+	}
+	return 0;
+}
+
+/**
  * cdns_uart_probe - Platform driver probe
  * @pdev: Pointer to the platform device structure
  *
@@ -1544,6 +1728,13 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "clock name 'ref_clk' is deprecated.\n");
 	}
 
+	cdns_uart_data->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(cdns_uart_data->rstc)) {
+		rc = PTR_ERR(cdns_uart_data->rstc);
+		dev_err_probe(&pdev->dev, rc, "Cannot get UART reset\n");
+		goto err_out_unregister_driver;
+	}
+
 	rc = clk_prepare_enable(cdns_uart_data->pclk);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to enable pclk clock.\n");
@@ -1597,8 +1788,22 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	port->private_data = cdns_uart_data;
 	port->read_status_mask = CDNS_UART_IXR_TXEMPTY | CDNS_UART_IXR_RXTRIG |
 			CDNS_UART_IXR_OVERRUN | CDNS_UART_IXR_TOUT;
+	port->rs485_config = cdns_rs485_config;
+	port->rs485_supported = cdns_rs485_supported;
 	cdns_uart_data->port = port;
 	platform_set_drvdata(pdev, port);
+
+	rc = uart_get_rs485_mode(port);
+	if (rc)
+		goto err_out_clk_notifier;
+
+	cdns_uart_data->gpiod_rts = devm_gpiod_get_optional(&pdev->dev, "rts",
+							    GPIOD_OUT_LOW);
+	if (IS_ERR(cdns_uart_data->gpiod_rts)) {
+		rc = PTR_ERR(cdns_uart_data->gpiod_rts);
+		dev_err(port->dev, "xuartps: devm_gpiod_get_optional failed\n");
+		goto err_out_clk_notifier;
+	}
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, UART_AUTOSUSPEND_TIMEOUT);
@@ -1618,6 +1823,8 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		console_port = port;
 	}
 #endif
+	if (cdns_uart_data->port->rs485.flags & SER_RS485_ENABLED)
+		cdns_rs485_rx_setup(cdns_uart_data);
 
 	rc = uart_add_one_port(&cdns_uart_uart_driver, port);
 	if (rc) {
@@ -1646,6 +1853,7 @@ err_out_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
+err_out_clk_notifier:
 #ifdef CONFIG_COMMON_CLK
 	clk_notifier_unregister(cdns_uart_data->uartclk,
 			&cdns_uart_data->clk_rate_change_nb);
@@ -1687,6 +1895,7 @@ static void cdns_uart_remove(struct platform_device *pdev)
 	if (console_port == port)
 		console_port = NULL;
 #endif
+	reset_control_assert(cdns_uart_data->rstc);
 
 	if (!--instances)
 		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);

@@ -19,13 +19,6 @@
 #define NVMF_DEF_FAIL_FAST_TMO		-1
 
 /*
- * Reserved one command for internal usage.  This command is used for sending
- * the connect command, as well as for the keep alive command on the admin
- * queue once live.
- */
-#define NVMF_RESERVED_TAGS	1
-
-/*
  * Define a host as seen by the target.  We allocate one at boot, but also
  * allow the override it when creating controllers.  This is both to provide
  * persistence of the Host NQN over multiple boots, and to allow using
@@ -230,7 +223,7 @@ int nvmf_register_transport(struct nvmf_transport_ops *ops);
 void nvmf_unregister_transport(struct nvmf_transport_ops *ops);
 void nvmf_free_options(struct nvmf_ctrl_options *opts);
 int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size);
-bool nvmf_should_reconnect(struct nvme_ctrl *ctrl);
+bool nvmf_should_reconnect(struct nvme_ctrl *ctrl, int status);
 bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
 		struct nvmf_ctrl_options *opts);
 void nvmf_set_io_queues(struct nvmf_ctrl_options *opts, u32 nr_io_queues,

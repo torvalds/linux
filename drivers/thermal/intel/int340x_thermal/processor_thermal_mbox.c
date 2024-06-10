@@ -156,3 +156,4 @@ unlock:
 EXPORT_SYMBOL_NS_GPL(processor_thermal_mbox_interrupt_config, INT340X_THERMAL);
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Processor Thermal Mail Box Interface");

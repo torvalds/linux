@@ -166,6 +166,7 @@ struct etr_buf {
 
 /**
  * struct tmc_drvdata - specifics associated to an TMC component
+ * @pclk:	APB clock if present, otherwise NULL
  * @base:	memory mapped base address for this component.
  * @csdev:	component vitals needed by the framework.
  * @miscdev:	specifics to handle "/dev/xyz.tmc" entry.
@@ -178,7 +179,6 @@ struct etr_buf {
  * @size:	trace buffer size for this TMC (common for all modes).
  * @max_burst_size: The maximum burst size that can be initiated by
  *		TMC-ETR on AXI bus.
- * @mode:	how this TMC is being used.
  * @config_type: TMC variant, must be of type @tmc_config_type.
  * @memwidth:	width of the memory interface databus, in bytes.
  * @trigger_cntr: amount of words to store after a trigger.
@@ -190,6 +190,7 @@ struct etr_buf {
  * @perf_buf:	PERF buffer for ETR.
  */
 struct tmc_drvdata {
+	struct clk		*pclk;
 	void __iomem		*base;
 	struct coresight_device	*csdev;
 	struct miscdevice	miscdev;
@@ -203,7 +204,6 @@ struct tmc_drvdata {
 	u32			len;
 	u32			size;
 	u32			max_burst_size;
-	u32			mode;
 	enum tmc_config_type	config_type;
 	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;

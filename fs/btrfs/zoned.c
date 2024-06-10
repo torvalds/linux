@@ -12,10 +12,8 @@
 #include "rcu-string.h"
 #include "disk-io.h"
 #include "block-group.h"
-#include "transaction.h"
 #include "dev-replace.h"
 #include "space-info.h"
-#include "super.h"
 #include "fs.h"
 #include "accessors.h"
 #include "bio.h"
@@ -120,7 +118,7 @@ static int sb_write_pointer(struct block_device *bdev, struct blk_zone *zones,
 		return -ENOENT;
 	} else if (full[0] && full[1]) {
 		/* Compare two super blocks */
-		struct address_space *mapping = bdev->bd_inode->i_mapping;
+		struct address_space *mapping = bdev->bd_mapping;
 		struct page *page[BTRFS_NR_SB_LOG_ZONES];
 		struct btrfs_super_block *super[BTRFS_NR_SB_LOG_ZONES];
 		int i;
@@ -824,11 +822,14 @@ static int sb_log_location(struct block_device *bdev, struct blk_zone *zones,
 			reset = &zones[1];
 
 		if (reset && reset->cond != BLK_ZONE_COND_EMPTY) {
+			unsigned int nofs_flags;
+
 			ASSERT(sb_zone_is_full(reset));
 
+			nofs_flags = memalloc_nofs_save();
 			ret = blkdev_zone_mgmt(bdev, REQ_OP_ZONE_RESET,
-					       reset->start, reset->len,
-					       GFP_NOFS);
+					       reset->start, reset->len);
+			memalloc_nofs_restore(nofs_flags);
 			if (ret)
 				return ret;
 
@@ -974,11 +975,14 @@ int btrfs_advance_sb_log(struct btrfs_device *device, int mirror)
 			 * explicit ZONE_FINISH is not necessary.
 			 */
 			if (zone->wp != zone->start + zone->capacity) {
+				unsigned int nofs_flags;
 				int ret;
 
+				nofs_flags = memalloc_nofs_save();
 				ret = blkdev_zone_mgmt(device->bdev,
 						REQ_OP_ZONE_FINISH, zone->start,
-						zone->len, GFP_NOFS);
+						zone->len);
+				memalloc_nofs_restore(nofs_flags);
 				if (ret)
 					return ret;
 			}
@@ -996,11 +1000,13 @@ int btrfs_advance_sb_log(struct btrfs_device *device, int mirror)
 
 int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror)
 {
+	unsigned int nofs_flags;
 	sector_t zone_sectors;
 	sector_t nr_sectors;
 	u8 zone_sectors_shift;
 	u32 sb_zone;
 	u32 nr_zones;
+	int ret;
 
 	zone_sectors = bdev_zone_sectors(bdev);
 	zone_sectors_shift = ilog2(zone_sectors);
@@ -1011,9 +1017,12 @@ int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror)
 	if (sb_zone + 1 >= nr_zones)
 		return -ENOENT;
 
-	return blkdev_zone_mgmt(bdev, REQ_OP_ZONE_RESET,
-				zone_start_sector(sb_zone, bdev),
-				zone_sectors * BTRFS_NR_SB_LOG_ZONES, GFP_NOFS);
+	nofs_flags = memalloc_nofs_save();
+	ret = blkdev_zone_mgmt(bdev, REQ_OP_ZONE_RESET,
+			       zone_start_sector(sb_zone, bdev),
+			       zone_sectors * BTRFS_NR_SB_LOG_ZONES);
+	memalloc_nofs_restore(nofs_flags);
+	return ret;
 }
 
 /*
@@ -1124,12 +1133,14 @@ static void btrfs_dev_clear_active_zone(struct btrfs_device *device, u64 pos)
 int btrfs_reset_device_zone(struct btrfs_device *device, u64 physical,
 			    u64 length, u64 *bytes)
 {
+	unsigned int nofs_flags;
 	int ret;
 
 	*bytes = 0;
+	nofs_flags = memalloc_nofs_save();
 	ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_RESET,
-			       physical >> SECTOR_SHIFT, length >> SECTOR_SHIFT,
-			       GFP_NOFS);
+			       physical >> SECTOR_SHIFT, length >> SECTOR_SHIFT);
+	memalloc_nofs_restore(nofs_flags);
 	if (ret)
 		return ret;
 
@@ -1279,7 +1290,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 				struct btrfs_chunk_map *map)
 {
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
-	struct btrfs_device *device = map->stripes[zone_idx].dev;
+	struct btrfs_device *device;
 	int dev_replace_is_ongoing = 0;
 	unsigned int nofs_flag;
 	struct blk_zone zone;
@@ -1287,7 +1298,11 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 
 	info->physical = map->stripes[zone_idx].physical;
 
+	down_read(&dev_replace->rwsem);
+	device = map->stripes[zone_idx].dev;
+
 	if (!device->bdev) {
+		up_read(&dev_replace->rwsem);
 		info->alloc_offset = WP_MISSING_DEV;
 		return 0;
 	}
@@ -1297,6 +1312,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 		__set_bit(zone_idx, active);
 
 	if (!btrfs_dev_is_sequential(device, info->physical)) {
+		up_read(&dev_replace->rwsem);
 		info->alloc_offset = WP_CONVENTIONAL;
 		return 0;
 	}
@@ -1304,11 +1320,9 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 	/* This zone will be used for allocation, so mark this zone non-empty. */
 	btrfs_dev_clear_zone_empty(device, info->physical);
 
-	down_read(&dev_replace->rwsem);
 	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(dev_replace);
 	if (dev_replace_is_ongoing && dev_replace->tgtdev != NULL)
 		btrfs_dev_clear_zone_empty(dev_replace->tgtdev, info->physical);
-	up_read(&dev_replace->rwsem);
 
 	/*
 	 * The group is mapped to a sequential zone. Get the zone write pointer
@@ -1319,6 +1333,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 	ret = btrfs_get_dev_zone(device, info->physical, &zone);
 	memalloc_nofs_restore(nofs_flag);
 	if (ret) {
+		up_read(&dev_replace->rwsem);
 		if (ret != -EIO && ret != -EOPNOTSUPP)
 			return ret;
 		info->alloc_offset = WP_MISSING_DEV;
@@ -1330,6 +1345,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 		"zoned: unexpected conventional zone %llu on device %s (devid %llu)",
 			zone.start << SECTOR_SHIFT, rcu_str_deref(device->name),
 			device->devid);
+		up_read(&dev_replace->rwsem);
 		return -EIO;
 	}
 
@@ -1356,6 +1372,8 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 		__set_bit(zone_idx, active);
 		break;
 	}
+
+	up_read(&dev_replace->rwsem);
 
 	return 0;
 }
@@ -1563,11 +1581,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	if (!map)
 		return -EINVAL;
 
-	cache->physical_map = btrfs_clone_chunk_map(map, GFP_NOFS);
-	if (!cache->physical_map) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	cache->physical_map = map;
 
 	zone_info = kcalloc(map->num_stripes, sizeof(*zone_info), GFP_NOFS);
 	if (!zone_info) {
@@ -1679,7 +1693,6 @@ out:
 	}
 	bitmap_free(active);
 	kfree(zone_info);
-	btrfs_free_chunk_map(map);
 
 	return ret;
 }
@@ -2164,6 +2177,7 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 	struct btrfs_chunk_map *map;
 	const bool is_metadata = (block_group->flags &
 			(BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_SYSTEM));
+	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 	int ret = 0;
 	int i;
 
@@ -2239,27 +2253,33 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 	btrfs_clear_data_reloc_bg(block_group);
 	spin_unlock(&block_group->lock);
 
+	down_read(&dev_replace->rwsem);
 	map = block_group->physical_map;
 	for (i = 0; i < map->num_stripes; i++) {
 		struct btrfs_device *device = map->stripes[i].dev;
 		const u64 physical = map->stripes[i].physical;
 		struct btrfs_zoned_device_info *zinfo = device->zone_info;
+		unsigned int nofs_flags;
 
 		if (zinfo->max_active_zones == 0)
 			continue;
 
+		nofs_flags = memalloc_nofs_save();
 		ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
 				       physical >> SECTOR_SHIFT,
-				       zinfo->zone_size >> SECTOR_SHIFT,
-				       GFP_NOFS);
+				       zinfo->zone_size >> SECTOR_SHIFT);
+		memalloc_nofs_restore(nofs_flags);
 
-		if (ret)
+		if (ret) {
+			up_read(&dev_replace->rwsem);
 			return ret;
+		}
 
 		if (!(block_group->flags & BTRFS_BLOCK_GROUP_DATA))
 			zinfo->reserved_active_zones++;
 		btrfs_dev_clear_active_zone(device, physical);
 	}
+	up_read(&dev_replace->rwsem);
 
 	if (!fully_written)
 		btrfs_dec_block_group_ro(block_group);

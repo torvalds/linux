@@ -1,5 +1,14 @@
 [
     {
+        "BriefDescription": "Counts the number of cycles when any of the floating point dividers are active.",
+        "CounterMask": "1",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.FPDIV_ACTIVE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "This event counts the cycles the floating point divider is busy.",
         "CounterMask": "1",
         "EventCode": "0xb0",
@@ -26,7 +35,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_0",
+        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_0 [This event is alias to FP_ARITH_DISPATCHED.V0]",
         "EventCode": "0xb3",
         "EventName": "FP_ARITH_DISPATCHED.PORT_0",
         "SampleAfterValue": "2000003",
@@ -34,7 +43,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_1",
+        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_1 [This event is alias to FP_ARITH_DISPATCHED.V1]",
         "EventCode": "0xb3",
         "EventName": "FP_ARITH_DISPATCHED.PORT_1",
         "SampleAfterValue": "2000003",
@@ -42,9 +51,33 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_5",
+        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_5 [This event is alias to FP_ARITH_DISPATCHED.V2]",
         "EventCode": "0xb3",
         "EventName": "FP_ARITH_DISPATCHED.PORT_5",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x4",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "FP_ARITH_DISPATCHED.V0 [This event is alias to FP_ARITH_DISPATCHED.PORT_0]",
+        "EventCode": "0xb3",
+        "EventName": "FP_ARITH_DISPATCHED.V0",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "FP_ARITH_DISPATCHED.V1 [This event is alias to FP_ARITH_DISPATCHED.PORT_1]",
+        "EventCode": "0xb3",
+        "EventName": "FP_ARITH_DISPATCHED.V1",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "FP_ARITH_DISPATCHED.V2 [This event is alias to FP_ARITH_DISPATCHED.PORT_5]",
+        "EventCode": "0xb3",
+        "EventName": "FP_ARITH_DISPATCHED.V2",
         "SampleAfterValue": "2000003",
         "UMask": "0x4",
         "Unit": "cpu_core"
@@ -129,6 +162,53 @@
         "SampleAfterValue": "1000003",
         "UMask": "0xfc",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of all types of floating point operations per uop with all default weighting",
+        "EventCode": "0xc8",
+        "EventName": "FP_FLOPS_RETIRED.ALL",
+        "PEBS": "1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "This event is deprecated. [This event is alias to FP_FLOPS_RETIRED.FP64]",
+        "Deprecated": "1",
+        "EventCode": "0xc8",
+        "EventName": "FP_FLOPS_RETIRED.DP",
+        "PEBS": "1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of floating point operations that produce 32 bit single precision results [This event is alias to FP_FLOPS_RETIRED.SP]",
+        "EventCode": "0xc8",
+        "EventName": "FP_FLOPS_RETIRED.FP32",
+        "PEBS": "1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of floating point operations that produce 64 bit double precision results [This event is alias to FP_FLOPS_RETIRED.DP]",
+        "EventCode": "0xc8",
+        "EventName": "FP_FLOPS_RETIRED.FP64",
+        "PEBS": "1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "This event is deprecated. [This event is alias to FP_FLOPS_RETIRED.FP32]",
+        "Deprecated": "1",
+        "EventCode": "0xc8",
+        "EventName": "FP_FLOPS_RETIRED.SP",
+        "PEBS": "1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of floating point operations retired that required microcode assist.",

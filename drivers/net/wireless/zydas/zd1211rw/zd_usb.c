@@ -380,7 +380,7 @@ static inline void handle_regs_int(struct urb *urb)
 	spin_lock_irqsave(&intr->lock, flags);
 
 	int_num = le16_to_cpu(*(__le16 *)(urb->transfer_buffer+2));
-	if (int_num == CR_INTERRUPT) {
+	if (int_num == (u16)CR_INTERRUPT) {
 		struct zd_mac *mac = zd_hw_mac(zd_usb_to_hw(urb->context));
 		spin_lock(&mac->lock);
 		memcpy(&mac->intr_buffer, urb->transfer_buffer,
@@ -416,7 +416,8 @@ out:
 	spin_unlock_irqrestore(&intr->lock, flags);
 
 	/* CR_INTERRUPT might override read_reg too. */
-	if (int_num == CR_INTERRUPT && atomic_read(&intr->read_regs_enabled))
+	if (int_num == (u16)CR_INTERRUPT &&
+	    atomic_read(&intr->read_regs_enabled))
 		handle_regs_int_override(urb);
 }
 

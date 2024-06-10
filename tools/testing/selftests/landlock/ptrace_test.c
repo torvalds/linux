@@ -314,7 +314,7 @@ TEST_F(hierarchy, trace)
 	ASSERT_EQ(0, pipe2(pipe_parent, O_CLOEXEC));
 	if (variant->domain_both) {
 		create_domain(_metadata);
-		if (!_metadata->passed)
+		if (!__test_passed(_metadata))
 			/* Aborts before forking. */
 			return;
 	}
@@ -375,7 +375,7 @@ TEST_F(hierarchy, trace)
 
 		/* Waits for the parent PTRACE_ATTACH test. */
 		ASSERT_EQ(1, read(pipe_parent[0], &buf_child, 1));
-		_exit(_metadata->passed ? EXIT_SUCCESS : EXIT_FAILURE);
+		_exit(_metadata->exit_code);
 		return;
 	}
 
@@ -430,9 +430,10 @@ TEST_F(hierarchy, trace)
 	/* Signals that the parent PTRACE_ATTACH test is done. */
 	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
 	ASSERT_EQ(child, waitpid(child, &status, 0));
+
 	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
 	    WEXITSTATUS(status) != EXIT_SUCCESS)
-		_metadata->passed = 0;
+		_metadata->exit_code = KSFT_FAIL;
 }
 
 TEST_HARNESS_MAIN

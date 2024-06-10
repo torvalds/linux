@@ -179,7 +179,9 @@ has the old 'iax' device naming in place) ::
 
   # configure wq1.0
 
-  accel-config config-wq --group-id=0 --mode=dedicated --type=kernel --name="iaa_crypto" --device_name="crypto" iax1/wq1.0
+  accel-config config-wq --group-id=0 --mode=dedicated --type=kernel --priority=10 --name="iaa_crypto" --driver-name="crypto" iax1/wq1.0
+
+  accel-config config-engine iax1/engine1.0 --group-id=0
 
   # enable IAA device iax1
 
@@ -321,33 +323,30 @@ driver will generate statistics which can be accessed in debugfs at::
 
   # ls -al /sys/kernel/debug/iaa-crypto/
   total 0
-  drwxr-xr-x  2 root root 0 Mar  3 09:35 .
-  drwx------ 47 root root 0 Mar  3 09:35 ..
-  -rw-r--r--  1 root root 0 Mar  3 09:35 max_acomp_delay_ns
-  -rw-r--r--  1 root root 0 Mar  3 09:35 max_adecomp_delay_ns
-  -rw-r--r--  1 root root 0 Mar  3 09:35 max_comp_delay_ns
-  -rw-r--r--  1 root root 0 Mar  3 09:35 max_decomp_delay_ns
-  -rw-r--r--  1 root root 0 Mar  3 09:35 stats_reset
-  -rw-r--r--  1 root root 0 Mar  3 09:35 total_comp_bytes_out
-  -rw-r--r--  1 root root 0 Mar  3 09:35 total_comp_calls
-  -rw-r--r--  1 root root 0 Mar  3 09:35 total_decomp_bytes_in
-  -rw-r--r--  1 root root 0 Mar  3 09:35 total_decomp_calls
-  -rw-r--r--  1 root root 0 Mar  3 09:35 wq_stats
+  drwxr-xr-x  2 root root 0 Mar  3 07:55 .
+  drwx------ 53 root root 0 Mar  3 07:55 ..
+  -rw-r--r--  1 root root 0 Mar  3 07:55 global_stats
+  -rw-r--r--  1 root root 0 Mar  3 07:55 stats_reset
+  -rw-r--r--  1 root root 0 Mar  3 07:55 wq_stats
 
-Most of the above statisticss are self-explanatory.  The wq_stats file
-shows per-wq stats, a set for each iaa device and wq in addition to
-some global stats::
+The global_stats file shows a set of global statistics collected since
+the driver has been loaded or reset::
 
-  # cat wq_stats
+  # cat global_stats
   global stats:
-    total_comp_calls: 100
-    total_decomp_calls: 100
-    total_comp_bytes_out: 22800
-    total_decomp_bytes_in: 22800
+    total_comp_calls: 4300
+    total_decomp_calls: 4164
+    total_sw_decomp_calls: 0
+    total_comp_bytes_out: 5993989
+    total_decomp_bytes_in: 5993989
     total_completion_einval_errors: 0
     total_completion_timeout_errors: 0
-    total_completion_comp_buf_overflow_errors: 0
+    total_completion_comp_buf_overflow_errors: 136
 
+The wq_stats file shows per-wq stats, a set for each iaa device and wq
+in addition to some global stats::
+
+  # cat wq_stats
   iaa device:
     id: 1
     n_wqs: 1
@@ -379,21 +378,36 @@ some global stats::
   iaa device:
     id: 5
     n_wqs: 1
-    comp_calls: 100
-    comp_bytes: 22800
-    decomp_calls: 100
-    decomp_bytes: 22800
+    comp_calls: 1360
+    comp_bytes: 1999776
+    decomp_calls: 0
+    decomp_bytes: 0
     wqs:
       name: iaa_crypto
-      comp_calls: 100
-      comp_bytes: 22800
-      decomp_calls: 100
-      decomp_bytes: 22800
+      comp_calls: 1360
+      comp_bytes: 1999776
+      decomp_calls: 0
+      decomp_bytes: 0
 
-Writing 0 to 'stats_reset' resets all the stats, including the
+  iaa device:
+    id: 7
+    n_wqs: 1
+    comp_calls: 2940
+    comp_bytes: 3994213
+    decomp_calls: 4164
+    decomp_bytes: 5993989
+    wqs:
+      name: iaa_crypto
+      comp_calls: 2940
+      comp_bytes: 3994213
+      decomp_calls: 4164
+      decomp_bytes: 5993989
+    ...
+
+Writing to 'stats_reset' resets all the stats, including the
 per-device and per-wq stats::
 
-  # echo 0 > stats_reset
+  # echo 1 > stats_reset
   # cat wq_stats
     global stats:
     total_comp_calls: 0
@@ -457,7 +471,6 @@ Use the following commands to enable zswap::
   # echo deflate-iaa > /sys/module/zswap/parameters/compressor
   # echo zsmalloc > /sys/module/zswap/parameters/zpool
   # echo 1 > /sys/module/zswap/parameters/enabled
-  # echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
   # echo 100 > /proc/sys/vm/swappiness
   # echo never > /sys/kernel/mm/transparent_hugepage/enabled
   # echo 1 > /proc/sys/vm/overcommit_memory
@@ -536,12 +549,20 @@ The below script automatically does that::
 
   echo "End Disable IAA"
 
+  echo "Reload iaa_crypto module"
+
+  rmmod iaa_crypto
+  modprobe iaa_crypto
+
+  echo "End Reload iaa_crypto module"
+
   #
   # configure iaa wqs and devices
   #
   echo "Configure IAA"
   for ((i = 1; i < ${num_iaa} * 2; i += 2)); do
-      accel-config config-wq --group-id=0 --mode=dedicated --size=128 --priority=10 --type=kernel --name="iaa_crypto" --driver_name="crypto" iax${i}/wq${i}
+      accel-config config-wq --group-id=0 --mode=dedicated --wq-size=128 --priority=10 --type=kernel --name="iaa_crypto" --driver-name="crypto" iax${i}/wq${i}.0
+      accel-config config-engine iax${i}/engine${i}.0 --group-id=0
   done
 
   echo "End Configure IAA"
@@ -552,10 +573,10 @@ The below script automatically does that::
   echo "Enable IAA"
 
   for ((i = 1; i < ${num_iaa} * 2; i += 2)); do
-      echo enable iaa iaa${i}
-      accel-config enable-device iaa${i}
-      echo enable wq iaa${i}/wq${i}.0
-      accel-config enable-wq iaa${i}/wq${i}.0
+      echo enable iaa iax${i}
+      accel-config enable-device iax${i}
+      echo enable wq iax${i}/wq${i}.0
+      accel-config enable-wq iax${i}/wq${i}.0
   done
 
   echo "End Enable IAA"
@@ -599,7 +620,6 @@ the 'fixed' compression mode::
   echo deflate-iaa > /sys/module/zswap/parameters/compressor
   echo zsmalloc > /sys/module/zswap/parameters/zpool
   echo 1 > /sys/module/zswap/parameters/enabled
-  echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
 
   echo 100 > /proc/sys/vm/swappiness
   echo never > /sys/kernel/mm/transparent_hugepage/enabled

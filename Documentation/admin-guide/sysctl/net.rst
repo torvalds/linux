@@ -72,6 +72,7 @@ two flavors of JITs, the newer eBPF JIT currently supported on:
   - riscv64
   - riscv32
   - loongarch64
+  - arc
 
 And the older cBPF JIT supported on the following archs:
 
@@ -205,6 +206,11 @@ sysctl.net.busy_read globally.
 Will increase power usage.
 
 Default: 0 (off)
+
+mem_pcpu_rsv
+------------
+
+Per-cpu reserved forward alloc cache size in page units. Default 1MB per CPU.
 
 rmem_default
 ------------

@@ -586,8 +586,9 @@ static int max14577_charger_probe(struct platform_device *pdev)
 	}
 
 	psy_cfg.drv_data = chg;
-	chg->charger = power_supply_register(&pdev->dev, &max14577_charger_desc,
-						&psy_cfg);
+	chg->charger = devm_power_supply_register(&pdev->dev,
+						  &max14577_charger_desc,
+						  &psy_cfg);
 	if (IS_ERR(chg->charger)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
 		ret = PTR_ERR(chg->charger);
@@ -608,10 +609,7 @@ err:
 
 static void max14577_charger_remove(struct platform_device *pdev)
 {
-	struct max14577_charger *chg = platform_get_drvdata(pdev);
-
 	device_remove_file(&pdev->dev, &dev_attr_fast_charge_timer);
-	power_supply_unregister(chg->charger);
 }
 
 static const struct platform_device_id max14577_charger_id[] = {

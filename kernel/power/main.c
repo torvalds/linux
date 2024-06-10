@@ -95,19 +95,6 @@ int unregister_pm_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(unregister_pm_notifier);
 
-void pm_report_hw_sleep_time(u64 t)
-{
-	suspend_stats.last_hw_sleep = t;
-	suspend_stats.total_hw_sleep += t;
-}
-EXPORT_SYMBOL_GPL(pm_report_hw_sleep_time);
-
-void pm_report_max_hw_sleep(u64 t)
-{
-	suspend_stats.max_hw_sleep = t;
-}
-EXPORT_SYMBOL_GPL(pm_report_max_hw_sleep);
-
 int pm_notifier_call_chain_robust(unsigned long val_up, unsigned long val_down)
 {
 	int ret;
@@ -319,25 +306,85 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 power_attr(pm_test);
 #endif /* CONFIG_PM_SLEEP_DEBUG */
 
-static char *suspend_step_name(enum suspend_stat_step step)
+#define SUSPEND_NR_STEPS	SUSPEND_RESUME
+#define REC_FAILED_NUM		2
+
+struct suspend_stats {
+	unsigned int step_failures[SUSPEND_NR_STEPS];
+	unsigned int success;
+	unsigned int fail;
+	int last_failed_dev;
+	char failed_devs[REC_FAILED_NUM][40];
+	int last_failed_errno;
+	int errno[REC_FAILED_NUM];
+	int last_failed_step;
+	u64 last_hw_sleep;
+	u64 total_hw_sleep;
+	u64 max_hw_sleep;
+	enum suspend_stat_step failed_steps[REC_FAILED_NUM];
+};
+
+static struct suspend_stats suspend_stats;
+static DEFINE_MUTEX(suspend_stats_lock);
+
+void dpm_save_failed_dev(const char *name)
 {
-	switch (step) {
-	case SUSPEND_FREEZE:
-		return "freeze";
-	case SUSPEND_PREPARE:
-		return "prepare";
-	case SUSPEND_SUSPEND:
-		return "suspend";
-	case SUSPEND_SUSPEND_NOIRQ:
-		return "suspend_noirq";
-	case SUSPEND_RESUME_NOIRQ:
-		return "resume_noirq";
-	case SUSPEND_RESUME:
-		return "resume";
-	default:
-		return "";
-	}
+	mutex_lock(&suspend_stats_lock);
+
+	strscpy(suspend_stats.failed_devs[suspend_stats.last_failed_dev],
+		name, sizeof(suspend_stats.failed_devs[0]));
+	suspend_stats.last_failed_dev++;
+	suspend_stats.last_failed_dev %= REC_FAILED_NUM;
+
+	mutex_unlock(&suspend_stats_lock);
 }
+
+void dpm_save_failed_step(enum suspend_stat_step step)
+{
+	suspend_stats.step_failures[step-1]++;
+	suspend_stats.failed_steps[suspend_stats.last_failed_step] = step;
+	suspend_stats.last_failed_step++;
+	suspend_stats.last_failed_step %= REC_FAILED_NUM;
+}
+
+void dpm_save_errno(int err)
+{
+	if (!err) {
+		suspend_stats.success++;
+		return;
+	}
+
+	suspend_stats.fail++;
+
+	suspend_stats.errno[suspend_stats.last_failed_errno] = err;
+	suspend_stats.last_failed_errno++;
+	suspend_stats.last_failed_errno %= REC_FAILED_NUM;
+}
+
+void pm_report_hw_sleep_time(u64 t)
+{
+	suspend_stats.last_hw_sleep = t;
+	suspend_stats.total_hw_sleep += t;
+}
+EXPORT_SYMBOL_GPL(pm_report_hw_sleep_time);
+
+void pm_report_max_hw_sleep(u64 t)
+{
+	suspend_stats.max_hw_sleep = t;
+}
+EXPORT_SYMBOL_GPL(pm_report_max_hw_sleep);
+
+static const char * const suspend_step_names[] = {
+	[SUSPEND_WORKING] = "",
+	[SUSPEND_FREEZE] = "freeze",
+	[SUSPEND_PREPARE] = "prepare",
+	[SUSPEND_SUSPEND] = "suspend",
+	[SUSPEND_SUSPEND_LATE] = "suspend_late",
+	[SUSPEND_SUSPEND_NOIRQ] = "suspend_noirq",
+	[SUSPEND_RESUME_NOIRQ] = "resume_noirq",
+	[SUSPEND_RESUME_EARLY] = "resume_early",
+	[SUSPEND_RESUME] = "resume",
+};
 
 #define suspend_attr(_name, format_str)				\
 static ssize_t _name##_show(struct kobject *kobj,		\
@@ -347,19 +394,29 @@ static ssize_t _name##_show(struct kobject *kobj,		\
 }								\
 static struct kobj_attribute _name = __ATTR_RO(_name)
 
-suspend_attr(success, "%d\n");
-suspend_attr(fail, "%d\n");
-suspend_attr(failed_freeze, "%d\n");
-suspend_attr(failed_prepare, "%d\n");
-suspend_attr(failed_suspend, "%d\n");
-suspend_attr(failed_suspend_late, "%d\n");
-suspend_attr(failed_suspend_noirq, "%d\n");
-suspend_attr(failed_resume, "%d\n");
-suspend_attr(failed_resume_early, "%d\n");
-suspend_attr(failed_resume_noirq, "%d\n");
+suspend_attr(success, "%u\n");
+suspend_attr(fail, "%u\n");
 suspend_attr(last_hw_sleep, "%llu\n");
 suspend_attr(total_hw_sleep, "%llu\n");
 suspend_attr(max_hw_sleep, "%llu\n");
+
+#define suspend_step_attr(_name, step)		\
+static ssize_t _name##_show(struct kobject *kobj,		\
+		struct kobj_attribute *attr, char *buf)		\
+{								\
+	return sprintf(buf, "%u\n",				\
+		       suspend_stats.step_failures[step-1]);	\
+}								\
+static struct kobj_attribute _name = __ATTR_RO(_name)
+
+suspend_step_attr(failed_freeze, SUSPEND_FREEZE);
+suspend_step_attr(failed_prepare, SUSPEND_PREPARE);
+suspend_step_attr(failed_suspend, SUSPEND_SUSPEND);
+suspend_step_attr(failed_suspend_late, SUSPEND_SUSPEND_LATE);
+suspend_step_attr(failed_suspend_noirq, SUSPEND_SUSPEND_NOIRQ);
+suspend_step_attr(failed_resume, SUSPEND_RESUME);
+suspend_step_attr(failed_resume_early, SUSPEND_RESUME_EARLY);
+suspend_step_attr(failed_resume_noirq, SUSPEND_RESUME_NOIRQ);
 
 static ssize_t last_failed_dev_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
@@ -392,16 +449,14 @@ static struct kobj_attribute last_failed_errno = __ATTR_RO(last_failed_errno);
 static ssize_t last_failed_step_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	int index;
 	enum suspend_stat_step step;
-	char *last_failed_step = NULL;
+	int index;
 
 	index = suspend_stats.last_failed_step + REC_FAILED_NUM - 1;
 	index %= REC_FAILED_NUM;
 	step = suspend_stats.failed_steps[index];
-	last_failed_step = suspend_step_name(step);
 
-	return sprintf(buf, "%s\n", last_failed_step);
+	return sprintf(buf, "%s\n", suspend_step_names[step]);
 }
 static struct kobj_attribute last_failed_step = __ATTR_RO(last_failed_step);
 
@@ -449,6 +504,7 @@ static const struct attribute_group suspend_attr_group = {
 static int suspend_stats_show(struct seq_file *s, void *unused)
 {
 	int i, index, last_dev, last_errno, last_step;
+	enum suspend_stat_step step;
 
 	last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
 	last_dev %= REC_FAILED_NUM;
@@ -456,47 +512,35 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 	last_errno %= REC_FAILED_NUM;
 	last_step = suspend_stats.last_failed_step + REC_FAILED_NUM - 1;
 	last_step %= REC_FAILED_NUM;
-	seq_printf(s, "%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n"
-			"%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n",
-			"success", suspend_stats.success,
-			"fail", suspend_stats.fail,
-			"failed_freeze", suspend_stats.failed_freeze,
-			"failed_prepare", suspend_stats.failed_prepare,
-			"failed_suspend", suspend_stats.failed_suspend,
-			"failed_suspend_late",
-				suspend_stats.failed_suspend_late,
-			"failed_suspend_noirq",
-				suspend_stats.failed_suspend_noirq,
-			"failed_resume", suspend_stats.failed_resume,
-			"failed_resume_early",
-				suspend_stats.failed_resume_early,
-			"failed_resume_noirq",
-				suspend_stats.failed_resume_noirq);
+
+	seq_printf(s, "success: %u\nfail: %u\n",
+		   suspend_stats.success, suspend_stats.fail);
+
+	for (step = SUSPEND_FREEZE; step <= SUSPEND_NR_STEPS; step++)
+		seq_printf(s, "failed_%s: %u\n", suspend_step_names[step],
+			   suspend_stats.step_failures[step-1]);
+
 	seq_printf(s,	"failures:\n  last_failed_dev:\t%-s\n",
-			suspend_stats.failed_devs[last_dev]);
+		   suspend_stats.failed_devs[last_dev]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
 		index = last_dev + REC_FAILED_NUM - i;
 		index %= REC_FAILED_NUM;
-		seq_printf(s, "\t\t\t%-s\n",
-			suspend_stats.failed_devs[index]);
+		seq_printf(s, "\t\t\t%-s\n", suspend_stats.failed_devs[index]);
 	}
 	seq_printf(s,	"  last_failed_errno:\t%-d\n",
 			suspend_stats.errno[last_errno]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
 		index = last_errno + REC_FAILED_NUM - i;
 		index %= REC_FAILED_NUM;
-		seq_printf(s, "\t\t\t%-d\n",
-			suspend_stats.errno[index]);
+		seq_printf(s, "\t\t\t%-d\n", suspend_stats.errno[index]);
 	}
 	seq_printf(s,	"  last_failed_step:\t%-s\n",
-			suspend_step_name(
-				suspend_stats.failed_steps[last_step]));
+		   suspend_step_names[suspend_stats.failed_steps[last_step]]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
 		index = last_step + REC_FAILED_NUM - i;
 		index %= REC_FAILED_NUM;
 		seq_printf(s, "\t\t\t%-s\n",
-			suspend_step_name(
-				suspend_stats.failed_steps[index]));
+			   suspend_step_names[suspend_stats.failed_steps[index]]);
 	}
 
 	return 0;

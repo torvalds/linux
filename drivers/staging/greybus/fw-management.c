@@ -123,8 +123,7 @@ static int fw_mgmt_interface_fw_version_operation(struct fw_mgmt *fw_mgmt,
 	fw_info->major = le16_to_cpu(response.major);
 	fw_info->minor = le16_to_cpu(response.minor);
 
-	strncpy(fw_info->firmware_tag, response.firmware_tag,
-		GB_FIRMWARE_TAG_MAX_SIZE);
+	strscpy_pad(fw_info->firmware_tag, response.firmware_tag);
 
 	/*
 	 * The firmware-tag should be NULL terminated, otherwise throw error but
@@ -153,7 +152,7 @@ static int fw_mgmt_load_and_validate_operation(struct fw_mgmt *fw_mgmt,
 	}
 
 	request.load_method = load_method;
-	strncpy(request.firmware_tag, tag, GB_FIRMWARE_TAG_MAX_SIZE);
+	strscpy_pad(request.firmware_tag, tag);
 
 	/*
 	 * The firmware-tag should be NULL terminated, otherwise throw error and
@@ -165,7 +164,7 @@ static int fw_mgmt_load_and_validate_operation(struct fw_mgmt *fw_mgmt,
 	}
 
 	/* Allocate ids from 1 to 255 (u8-max), 0 is an invalid id */
-	ret = ida_simple_get(&fw_mgmt->id_map, 1, 256, GFP_KERNEL);
+	ret = ida_alloc_range(&fw_mgmt->id_map, 1, 255, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(fw_mgmt->parent, "failed to allocate request id (%d)\n",
 			ret);
@@ -180,8 +179,7 @@ static int fw_mgmt_load_and_validate_operation(struct fw_mgmt *fw_mgmt,
 				GB_FW_MGMT_TYPE_LOAD_AND_VALIDATE_FW, &request,
 				sizeof(request), NULL, 0);
 	if (ret) {
-		ida_simple_remove(&fw_mgmt->id_map,
-				  fw_mgmt->intf_fw_request_id);
+		ida_free(&fw_mgmt->id_map, fw_mgmt->intf_fw_request_id);
 		fw_mgmt->intf_fw_request_id = 0;
 		dev_err(fw_mgmt->parent,
 			"load and validate firmware request failed (%d)\n",
@@ -220,7 +218,7 @@ static int fw_mgmt_interface_fw_loaded_operation(struct gb_operation *op)
 		return -ENODEV;
 	}
 
-	ida_simple_remove(&fw_mgmt->id_map, fw_mgmt->intf_fw_request_id);
+	ida_free(&fw_mgmt->id_map, fw_mgmt->intf_fw_request_id);
 	fw_mgmt->intf_fw_request_id = 0;
 	fw_mgmt->intf_fw_status = request->status;
 	fw_mgmt->intf_fw_major = le16_to_cpu(request->major);
@@ -250,8 +248,7 @@ static int fw_mgmt_backend_fw_version_operation(struct fw_mgmt *fw_mgmt,
 	struct gb_fw_mgmt_backend_fw_version_response response;
 	int ret;
 
-	strncpy(request.firmware_tag, fw_info->firmware_tag,
-		GB_FIRMWARE_TAG_MAX_SIZE);
+	strscpy_pad(request.firmware_tag, fw_info->firmware_tag);
 
 	/*
 	 * The firmware-tag should be NULL terminated, otherwise throw error and
@@ -304,19 +301,19 @@ static int fw_mgmt_backend_fw_update_operation(struct fw_mgmt *fw_mgmt,
 	struct gb_fw_mgmt_backend_fw_update_request request;
 	int ret;
 
-	strncpy(request.firmware_tag, tag, GB_FIRMWARE_TAG_MAX_SIZE);
+	ret = strscpy_pad(request.firmware_tag, tag);
 
 	/*
 	 * The firmware-tag should be NULL terminated, otherwise throw error and
 	 * fail.
 	 */
-	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
+	if (ret == -E2BIG) {
 		dev_err(fw_mgmt->parent, "backend-update: firmware-tag is not NULL terminated\n");
 		return -EINVAL;
 	}
 
 	/* Allocate ids from 1 to 255 (u8-max), 0 is an invalid id */
-	ret = ida_simple_get(&fw_mgmt->id_map, 1, 256, GFP_KERNEL);
+	ret = ida_alloc_range(&fw_mgmt->id_map, 1, 255, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(fw_mgmt->parent, "failed to allocate request id (%d)\n",
 			ret);
@@ -330,8 +327,7 @@ static int fw_mgmt_backend_fw_update_operation(struct fw_mgmt *fw_mgmt,
 				GB_FW_MGMT_TYPE_BACKEND_FW_UPDATE, &request,
 				sizeof(request), NULL, 0);
 	if (ret) {
-		ida_simple_remove(&fw_mgmt->id_map,
-				  fw_mgmt->backend_fw_request_id);
+		ida_free(&fw_mgmt->id_map, fw_mgmt->backend_fw_request_id);
 		fw_mgmt->backend_fw_request_id = 0;
 		dev_err(fw_mgmt->parent,
 			"backend %s firmware update request failed (%d)\n", tag,
@@ -369,7 +365,7 @@ static int fw_mgmt_backend_fw_updated_operation(struct gb_operation *op)
 		return -ENODEV;
 	}
 
-	ida_simple_remove(&fw_mgmt->id_map, fw_mgmt->backend_fw_request_id);
+	ida_free(&fw_mgmt->id_map, fw_mgmt->backend_fw_request_id);
 	fw_mgmt->backend_fw_request_id = 0;
 	fw_mgmt->backend_fw_status = request->status;
 
@@ -617,7 +613,7 @@ int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 	if (ret)
 		goto err_list_del;
 
-	minor = ida_simple_get(&fw_mgmt_minors_map, 0, NUM_MINORS, GFP_KERNEL);
+	minor = ida_alloc_max(&fw_mgmt_minors_map, NUM_MINORS - 1, GFP_KERNEL);
 	if (minor < 0) {
 		ret = minor;
 		goto err_connection_disable;
@@ -645,7 +641,7 @@ int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 err_del_cdev:
 	cdev_del(&fw_mgmt->cdev);
 err_remove_ida:
-	ida_simple_remove(&fw_mgmt_minors_map, minor);
+	ida_free(&fw_mgmt_minors_map, minor);
 err_connection_disable:
 	gb_connection_disable(connection);
 err_list_del:
@@ -669,7 +665,7 @@ void gb_fw_mgmt_connection_exit(struct gb_connection *connection)
 
 	device_destroy(&fw_mgmt_class, fw_mgmt->dev_num);
 	cdev_del(&fw_mgmt->cdev);
-	ida_simple_remove(&fw_mgmt_minors_map, MINOR(fw_mgmt->dev_num));
+	ida_free(&fw_mgmt_minors_map, MINOR(fw_mgmt->dev_num));
 
 	/*
 	 * Disallow any new ioctl operations on the char device and wait for

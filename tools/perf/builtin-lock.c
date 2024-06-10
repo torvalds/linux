@@ -2275,23 +2275,13 @@ setup_args:
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
-		rec_argv[i] = strdup(record_args[i]);
+		rec_argv[i] = record_args[i];
 
 	for (j = 0; j < nr_tracepoints; j++) {
-		const char *ev_name;
-
-		if (has_lock_stat)
-			ev_name = strdup(lock_tracepoints[j].name);
-		else
-			ev_name = strdup(contention_tracepoints[j].name);
-
-		if (!ev_name) {
-			free(rec_argv);
-			return -ENOMEM;
-		}
-
 		rec_argv[i++] = "-e";
-		rec_argv[i++] = ev_name;
+		rec_argv[i++] = has_lock_stat
+			? lock_tracepoints[j].name
+			: contention_tracepoints[j].name;
 	}
 
 	for (j = 0; j < nr_callgraph_args; j++, i++)

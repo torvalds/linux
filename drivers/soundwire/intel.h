@@ -58,6 +58,13 @@ struct sdw_intel {
 #endif
 };
 
+struct sdw_intel_prop {
+	u16 doaise;
+	u16 doais;
+	u16 dodse;
+	u16 dods;
+};
+
 enum intel_pdi_type {
 	INTEL_PDI_IN = 0,
 	INTEL_PDI_OUT = 1,

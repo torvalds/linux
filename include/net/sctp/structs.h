@@ -242,10 +242,7 @@ struct sctp_sock {
 	int do_auto_asconf;
 };
 
-static inline struct sctp_sock *sctp_sk(const struct sock *sk)
-{
-       return (struct sctp_sock *)sk;
-}
+#define sctp_sk(ptr) container_of_const(ptr, struct sctp_sock, inet.sk)
 
 static inline struct sock *sctp_opt2sk(const struct sctp_sock *sp)
 {

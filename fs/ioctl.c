@@ -763,12 +763,42 @@ static int ioctl_fssetxattr(struct file *file, void __user *argp)
 	return err;
 }
 
+static int ioctl_getfsuuid(struct file *file, void __user *argp)
+{
+	struct super_block *sb = file_inode(file)->i_sb;
+	struct fsuuid2 u = { .len = sb->s_uuid_len, };
+
+	if (!sb->s_uuid_len)
+		return -ENOTTY;
+
+	memcpy(&u.uuid[0], &sb->s_uuid, sb->s_uuid_len);
+
+	return copy_to_user(argp, &u, sizeof(u)) ? -EFAULT : 0;
+}
+
+static int ioctl_get_fs_sysfs_path(struct file *file, void __user *argp)
+{
+	struct super_block *sb = file_inode(file)->i_sb;
+
+	if (!strlen(sb->s_sysfs_name))
+		return -ENOTTY;
+
+	struct fs_sysfs_path u = {};
+
+	u.len = scnprintf(u.name, sizeof(u.name), "%s/%s", sb->s_type->name, sb->s_sysfs_name);
+
+	return copy_to_user(argp, &u, sizeof(u)) ? -EFAULT : 0;
+}
+
 /*
  * do_vfs_ioctl() is not for drivers and not intended to be EXPORT_SYMBOL()'d.
  * It's just a simple helper for sys_ioctl and compat_sys_ioctl.
  *
  * When you add any new common ioctls to the switches above and below,
  * please ensure they have compatible arguments in compat mode.
+ *
+ * The LSM mailing list should also be notified of any command additions or
+ * changes, as specific LSMs may be affected.
  */
 static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 			unsigned int cmd, unsigned long arg)
@@ -844,6 +874,12 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 
 	case FS_IOC_FSSETXATTR:
 		return ioctl_fssetxattr(filp, argp);
+
+	case FS_IOC_GETFSUUID:
+		return ioctl_getfsuuid(filp, argp);
+
+	case FS_IOC_GETFSSYSFSPATH:
+		return ioctl_get_fs_sysfs_path(filp, argp);
 
 	default:
 		if (S_ISREG(inode->i_mode))

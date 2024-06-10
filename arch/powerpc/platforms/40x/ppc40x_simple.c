@@ -59,16 +59,13 @@ static const char * const board[] __initconst = {
 
 static int __init ppc40x_probe(void)
 {
-	if (of_device_compatible_match(of_root, board)) {
-		pci_set_flags(PCI_REASSIGN_ALL_RSRC);
-		return 1;
-	}
-
-	return 0;
+	pci_set_flags(PCI_REASSIGN_ALL_RSRC);
+	return 1;
 }
 
 define_machine(ppc40x_simple) {
 	.name = "PowerPC 40x Platform",
+	.compatibles = board,
 	.probe = ppc40x_probe,
 	.progress = udbg_progress,
 	.init_IRQ = uic_init_tree,

@@ -140,7 +140,7 @@ static int snd_proto_probe(struct platform_device *pdev)
 
 
 	dai->dai_fmt = dai_fmt;
-	ret = snd_soc_register_card(&snd_proto);
+	ret = devm_snd_soc_register_card(&pdev->dev, &snd_proto);
 	if (ret)
 		dev_err_probe(&pdev->dev, ret,
 			"snd_soc_register_card() failed\n");
@@ -155,11 +155,6 @@ put_codec_node:
 	return ret;
 }
 
-static void snd_proto_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&snd_proto);
-}
-
 static const struct of_device_id snd_proto_of_match[] = {
 	{ .compatible = "mikroe,mikroe-proto", },
 	{},
@@ -172,7 +167,6 @@ static struct platform_driver snd_proto_driver = {
 		.of_match_table = snd_proto_of_match,
 	},
 	.probe	  = snd_proto_probe,
-	.remove_new	 = snd_proto_remove,
 };
 
 module_platform_driver(snd_proto_driver);

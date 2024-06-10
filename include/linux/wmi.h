@@ -48,7 +48,8 @@ u8 wmidev_instance_count(struct wmi_device *wdev);
  * struct wmi_driver - WMI driver structure
  * @driver: Driver model structure
  * @id_table: List of WMI GUIDs supported by this driver
- * @no_notify_data: WMI events provide no event data
+ * @no_notify_data: Driver supports WMI events which provide no event data
+ * @no_singleton: Driver can be instantiated multiple times
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
  * @notify: Callback for receiving WMI events
@@ -59,6 +60,7 @@ struct wmi_driver {
 	struct device_driver driver;
 	const struct wmi_device_id *id_table;
 	bool no_notify_data;
+	bool no_singleton;
 
 	int (*probe)(struct wmi_device *wdev, const void *context);
 	void (*remove)(struct wmi_device *wdev);

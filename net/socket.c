@@ -88,7 +88,7 @@
 #include <linux/xattr.h>
 #include <linux/nospec.h>
 #include <linux/indirect_call_wrapper.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/net.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -343,7 +343,7 @@ static void init_inodecache(void)
 					      0,
 					      (SLAB_HWCACHE_ALIGN |
 					       SLAB_RECLAIM_ACCOUNT |
-					       SLAB_MEM_SPREAD | SLAB_ACCOUNT),
+					       SLAB_ACCOUNT),
 					      init_once);
 	BUG_ON(sock_inode_cachep == NULL);
 }
@@ -1890,7 +1890,7 @@ SYSCALL_DEFINE2(listen, int, fd, int, backlog)
 	return __sys_listen(fd, backlog);
 }
 
-struct file *do_accept(struct file *file, unsigned file_flags,
+struct file *do_accept(struct file *file, struct proto_accept_arg *arg,
 		       struct sockaddr __user *upeer_sockaddr,
 		       int __user *upeer_addrlen, int flags)
 {
@@ -1926,8 +1926,8 @@ struct file *do_accept(struct file *file, unsigned file_flags,
 	if (err)
 		goto out_fd;
 
-	err = ops->accept(sock, newsock, sock->file->f_flags | file_flags,
-					false);
+	arg->flags |= sock->file->f_flags;
+	err = ops->accept(sock, newsock, arg);
 	if (err < 0)
 		goto out_fd;
 
@@ -1953,6 +1953,7 @@ out_fd:
 static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_sockaddr,
 			      int __user *upeer_addrlen, int flags)
 {
+	struct proto_accept_arg arg = { };
 	struct file *newfile;
 	int newfd;
 
@@ -1966,7 +1967,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
 	if (unlikely(newfd < 0))
 		return newfd;
 
-	newfile = do_accept(file, 0, upeer_sockaddr, upeer_addrlen,
+	newfile = do_accept(file, &arg, upeer_sockaddr, upeer_addrlen,
 			    flags);
 	if (IS_ERR(newfile)) {
 		put_unused_fd(newfd);
@@ -2600,9 +2601,9 @@ out:
 	return err;
 }
 
-int sendmsg_copy_msghdr(struct msghdr *msg,
-			struct user_msghdr __user *umsg, unsigned flags,
-			struct iovec **iov)
+static int sendmsg_copy_msghdr(struct msghdr *msg,
+			       struct user_msghdr __user *umsg, unsigned flags,
+			       struct iovec **iov)
 {
 	int err;
 
@@ -2753,10 +2754,10 @@ SYSCALL_DEFINE4(sendmmsg, int, fd, struct mmsghdr __user *, mmsg,
 	return __sys_sendmmsg(fd, mmsg, vlen, flags, true);
 }
 
-int recvmsg_copy_msghdr(struct msghdr *msg,
-			struct user_msghdr __user *umsg, unsigned flags,
-			struct sockaddr __user **uaddr,
-			struct iovec **iov)
+static int recvmsg_copy_msghdr(struct msghdr *msg,
+			       struct user_msghdr __user *umsg, unsigned flags,
+			       struct sockaddr __user **uaddr,
+			       struct iovec **iov)
 {
 	ssize_t err;
 
@@ -3580,6 +3581,10 @@ int kernel_accept(struct socket *sock, struct socket **newsock, int flags)
 {
 	struct sock *sk = sock->sk;
 	const struct proto_ops *ops = READ_ONCE(sock->ops);
+	struct proto_accept_arg arg = {
+		.flags = flags,
+		.kern = true,
+	};
 	int err;
 
 	err = sock_create_lite(sk->sk_family, sk->sk_type, sk->sk_protocol,
@@ -3587,7 +3592,7 @@ int kernel_accept(struct socket *sock, struct socket **newsock, int flags)
 	if (err < 0)
 		goto done;
 
-	err = ops->accept(sock, *newsock, flags, true);
+	err = ops->accept(sock, *newsock, &arg);
 	if (err < 0) {
 		sock_release(*newsock);
 		*newsock = NULL;

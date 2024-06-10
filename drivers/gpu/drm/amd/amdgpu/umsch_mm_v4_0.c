@@ -60,7 +60,7 @@ static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 
 	umsch->cmd_buf_curr_ptr = umsch->cmd_buf_ptr;
 
-	if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 5)) {
+	if (amdgpu_ip_version(adev, VCN_HWIP, 0) >= IP_VERSION(4, 0, 5)) {
 		WREG32_SOC15(VCN, 0, regUVD_IPX_DLDO_CONFIG,
 			1 << UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT);
 		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_IPX_DLDO_STATUS,
@@ -225,6 +225,8 @@ static int umsch_mm_v4_0_ring_start(struct amdgpu_umsch_mm *umsch)
 
 	WREG32_SOC15(VCN, 0, regVCN_UMSCH_RB_SIZE, ring->ring_size);
 
+	ring->wptr = 0;
+
 	data = RREG32_SOC15(VCN, 0, regVCN_RB_ENABLE);
 	data &= ~(VCN_RB_ENABLE__AUDIO_RB_EN_MASK);
 	WREG32_SOC15(VCN, 0, regVCN_RB_ENABLE, data);
@@ -248,7 +250,7 @@ static int umsch_mm_v4_0_ring_stop(struct amdgpu_umsch_mm *umsch)
 	data = REG_SET_FIELD(data, VCN_UMSCH_RB_DB_CTRL, EN, 0);
 	WREG32_SOC15(VCN, 0, regVCN_UMSCH_RB_DB_CTRL, data);
 
-	if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 5)) {
+	if (amdgpu_ip_version(adev, VCN_HWIP, 0) >= IP_VERSION(4, 0, 5)) {
 		WREG32_SOC15(VCN, 0, regUVD_IPX_DLDO_CONFIG,
 			2 << UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT);
 		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_IPX_DLDO_STATUS,
@@ -271,6 +273,8 @@ static int umsch_mm_v4_0_set_hw_resources(struct amdgpu_umsch_mm *umsch)
 
 	set_hw_resources.vmid_mask_mm_vcn = umsch->vmid_mask_mm_vcn;
 	set_hw_resources.vmid_mask_mm_vpe = umsch->vmid_mask_mm_vpe;
+	set_hw_resources.collaboration_mask_vpe =
+		adev->vpe.collaborate_mode ? 0x3 : 0x0;
 	set_hw_resources.engine_mask = umsch->engine_mask;
 
 	set_hw_resources.vcn0_hqd_mask[0] = umsch->vcn0_hqd_mask;
@@ -346,6 +350,7 @@ static int umsch_mm_v4_0_add_queue(struct amdgpu_umsch_mm *umsch,
 	add_queue.h_queue = input_ptr->h_queue;
 	add_queue.vm_context_cntl = input_ptr->vm_context_cntl;
 	add_queue.is_context_suspended = input_ptr->is_context_suspended;
+	add_queue.collaboration_mode = adev->vpe.collaborate_mode ? 1 : 0;
 
 	add_queue.api_status.api_completion_fence_addr = umsch->ring.fence_drv.gpu_addr;
 	add_queue.api_status.api_completion_fence_value = ++umsch->ring.fence_drv.sync_seq;

@@ -52,6 +52,29 @@ struct file *backing_file_open(const struct path *user_path, int flags,
 }
 EXPORT_SYMBOL_GPL(backing_file_open);
 
+struct file *backing_tmpfile_open(const struct path *user_path, int flags,
+				  const struct path *real_parentpath,
+				  umode_t mode, const struct cred *cred)
+{
+	struct mnt_idmap *real_idmap = mnt_idmap(real_parentpath->mnt);
+	struct file *f;
+	int error;
+
+	f = alloc_empty_backing_file(flags, cred);
+	if (IS_ERR(f))
+		return f;
+
+	path_get(user_path);
+	*backing_file_user_path(f) = *user_path;
+	error = vfs_tmpfile(real_idmap, real_parentpath, f, mode);
+	if (error) {
+		fput(f);
+		f = ERR_PTR(error);
+	}
+	return f;
+}
+EXPORT_SYMBOL(backing_tmpfile_open);
+
 struct backing_aio {
 	struct kiocb iocb;
 	refcount_t ref;
@@ -325,9 +348,7 @@ EXPORT_SYMBOL_GPL(backing_file_mmap);
 
 static int __init backing_aio_init(void)
 {
-	backing_aio_cachep = kmem_cache_create("backing_aio",
-					       sizeof(struct backing_aio),
-					       0, SLAB_HWCACHE_ALIGN, NULL);
+	backing_aio_cachep = KMEM_CACHE(backing_aio, SLAB_HWCACHE_ALIGN);
 	if (!backing_aio_cachep)
 		return -ENOMEM;
 

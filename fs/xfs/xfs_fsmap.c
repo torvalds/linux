@@ -533,7 +533,7 @@ xfs_getfsmap_rtdev_rtbitmap(
 	trace_xfs_fsmap_low_key_linear(mp, info->dev, start_rtb);
 	trace_xfs_fsmap_high_key_linear(mp, info->dev, end_rtb);
 
-	xfs_ilock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
+	xfs_rtbitmap_lock_shared(mp, XFS_RBMLOCK_BITMAP);
 
 	/*
 	 * Set up query parameters to return free rtextents covering the range
@@ -557,7 +557,7 @@ xfs_getfsmap_rtdev_rtbitmap(
 	if (error)
 		goto err;
 err:
-	xfs_iunlock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
+	xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
 	return error;
 }
 #endif /* CONFIG_XFS_RT */
@@ -763,8 +763,8 @@ xfs_getfsmap_datadev_bnobt_query(
 		return xfs_getfsmap_datadev_bnobt_helper(*curpp, &key[1], info);
 
 	/* Allocate cursor for this AG and query_range it. */
-	*curpp = xfs_allocbt_init_cursor(tp->t_mountp, tp, info->agf_bp,
-			info->pag, XFS_BTNUM_BNO);
+	*curpp = xfs_bnobt_init_cursor(tp->t_mountp, tp, info->agf_bp,
+			info->pag);
 	key->ar_startblock = info->low.rm_startblock;
 	key[1].ar_startblock = info->high.rm_startblock;
 	return xfs_alloc_query_range(*curpp, key, &key[1],

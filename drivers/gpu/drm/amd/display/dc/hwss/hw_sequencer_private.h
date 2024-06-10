@@ -120,6 +120,10 @@ struct hwseq_private_funcs {
 			struct dce_hwseq *hws,
 			unsigned int dpp_inst,
 			bool clock_on);
+	void (*dpstream_root_clock_control)(
+			struct dce_hwseq *hws,
+			unsigned int dpp_inst,
+			bool clock_on);
 	void (*dpp_pg_control)(struct dce_hwseq *hws,
 			unsigned int dpp_inst,
 			bool power_on);
@@ -155,7 +159,6 @@ struct hwseq_private_funcs {
 	void (*setup_hpo_hw_control)(const struct dce_hwseq *hws, bool enable);
 	void (*enable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       struct dc_state *context);
-#ifdef CONFIG_DRM_AMD_DC_FP
 	void (*program_mall_pipe_config)(struct dc *dc, struct dc_state *context);
 	void (*update_force_pstate)(struct dc *dc, struct dc_state *context);
 	void (*update_mall_sel)(struct dc *dc, struct dc_state *context);
@@ -170,7 +173,6 @@ struct hwseq_private_funcs {
 			struct dc_state *context,
 			struct dc *dc);
 	bool (*is_dp_dig_pixel_rate_div_policy)(struct pipe_ctx *pipe_ctx);
-#endif
 	void (*reset_back_end_for_pipe)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context);

@@ -13,6 +13,7 @@
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_mmio.h"
+#include "xe_sriov.h"
 
 #define _PAT_ATS				0x47fc
 #define _PAT_INDEX(index)			_PICK_EVEN_2RANGES(index, 8, \
@@ -141,6 +142,7 @@ static const struct xe_pat_table_entry xe2_pat_table[] = {
 
 /* Special PAT values programmed outside the main table */
 static const struct xe_pat_table_entry xe2_pat_ats = XE2_PAT( 0, 0, 0, 0, 3, 3 );
+static const struct xe_pat_table_entry xe2_pat_pta = XE2_PAT( 0, 0, 0, 0, 3, 0 );
 
 u16 xe_pat_index_get_coh_mode(struct xe_device *xe, u16 pat_index)
 {
@@ -173,7 +175,6 @@ static void xelp_dump(struct xe_gt *gt, struct drm_printer *p)
 	struct xe_device *xe = gt_to_xe(gt);
 	int i, err;
 
-	xe_device_mem_access_get(xe);
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (err)
 		goto err_fw;
@@ -191,7 +192,6 @@ static void xelp_dump(struct xe_gt *gt, struct drm_printer *p)
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 err_fw:
 	xe_assert(xe, !err);
-	xe_device_mem_access_put(xe);
 }
 
 static const struct xe_pat_ops xelp_pat_ops = {
@@ -204,7 +204,6 @@ static void xehp_dump(struct xe_gt *gt, struct drm_printer *p)
 	struct xe_device *xe = gt_to_xe(gt);
 	int i, err;
 
-	xe_device_mem_access_get(xe);
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (err)
 		goto err_fw;
@@ -224,7 +223,6 @@ static void xehp_dump(struct xe_gt *gt, struct drm_printer *p)
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 err_fw:
 	xe_assert(xe, !err);
-	xe_device_mem_access_put(xe);
 }
 
 static const struct xe_pat_ops xehp_pat_ops = {
@@ -237,7 +235,6 @@ static void xehpc_dump(struct xe_gt *gt, struct drm_printer *p)
 	struct xe_device *xe = gt_to_xe(gt);
 	int i, err;
 
-	xe_device_mem_access_get(xe);
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (err)
 		goto err_fw;
@@ -255,7 +252,6 @@ static void xehpc_dump(struct xe_gt *gt, struct drm_printer *p)
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 err_fw:
 	xe_assert(xe, !err);
-	xe_device_mem_access_put(xe);
 }
 
 static const struct xe_pat_ops xehpc_pat_ops = {
@@ -268,7 +264,6 @@ static void xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
 	struct xe_device *xe = gt_to_xe(gt);
 	int i, err;
 
-	xe_device_mem_access_get(xe);
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (err)
 		goto err_fw;
@@ -291,7 +286,6 @@ static void xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 err_fw:
 	xe_assert(xe, !err);
-	xe_device_mem_access_put(xe);
 }
 
 /*
@@ -309,6 +303,9 @@ static void xe2lpg_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry
 {
 	program_pat_mcr(gt, table, n_entries);
 	xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_ATS), xe2_pat_ats.value);
+
+	if (IS_DGFX(gt_to_xe(gt)))
+		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_PTA), xe2_pat_pta.value);
 }
 
 static void xe2lpm_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
@@ -316,6 +313,9 @@ static void xe2lpm_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry
 {
 	program_pat(gt, table, n_entries);
 	xe_mmio_write32(gt, XE_REG(_PAT_ATS), xe2_pat_ats.value);
+
+	if (IS_DGFX(gt_to_xe(gt)))
+		xe_mmio_write32(gt, XE_REG(_PAT_PTA), xe2_pat_pta.value);
 }
 
 static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
@@ -324,7 +324,6 @@ static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 	int i, err;
 	u32 pat;
 
-	xe_device_mem_access_get(xe);
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (err)
 		goto err_fw;
@@ -369,7 +368,6 @@ static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 err_fw:
 	xe_assert(xe, !err);
-	xe_device_mem_access_put(xe);
 }
 
 static const struct xe_pat_ops xe2_pat_ops = {
@@ -433,6 +431,14 @@ void xe_pat_init_early(struct xe_device *xe)
 		drm_err(&xe->drm, "Missing PAT table for platform with graphics version %d.%02d!\n",
 			GRAPHICS_VER(xe), GRAPHICS_VERx100(xe) % 100);
 	}
+
+	/* VFs can't program nor dump PAT settings */
+	if (IS_SRIOV_VF(xe))
+		xe->pat.ops = NULL;
+
+	xe_assert(xe, !xe->pat.ops || xe->pat.ops->dump);
+	xe_assert(xe, !xe->pat.ops || xe->pat.ops->program_graphics);
+	xe_assert(xe, !xe->pat.ops || MEDIA_VER(xe) < 13 || xe->pat.ops->program_media);
 }
 
 void xe_pat_init(struct xe_gt *gt)
@@ -452,7 +458,7 @@ void xe_pat_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
-	if (!xe->pat.ops->dump)
+	if (!xe->pat.ops)
 		return;
 
 	xe->pat.ops->dump(gt, p);

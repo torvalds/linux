@@ -6,19 +6,20 @@
 #include "bkey_methods.h"
 #include "opts.h"
 
-enum bkey_invalid_flags;
+enum bch_validate_flags;
 extern const char * const bch2_inode_opts[];
 
 int bch2_inode_invalid(struct bch_fs *, struct bkey_s_c,
-		       enum bkey_invalid_flags, struct printbuf *);
+		       enum bch_validate_flags, struct printbuf *);
 int bch2_inode_v2_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+			  enum bch_validate_flags, struct printbuf *);
 int bch2_inode_v3_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+			  enum bch_validate_flags, struct printbuf *);
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 int bch2_trigger_inode(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_s, unsigned);
+		       struct bkey_s_c, struct bkey_s,
+		       enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_inode ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_invalid,		\
@@ -49,7 +50,7 @@ static inline bool bkey_is_inode(const struct bkey *k)
 }
 
 int bch2_inode_generation_invalid(struct bch_fs *, struct bkey_s_c,
-				  enum bkey_invalid_flags, struct printbuf *);
+				  enum bch_validate_flags, struct printbuf *);
 void bch2_inode_generation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_inode_generation ((struct bkey_ops) {	\
@@ -95,11 +96,13 @@ struct bkey_i *bch2_inode_to_v3(struct btree_trans *, struct bkey_i *);
 
 void bch2_inode_unpacked_to_text(struct printbuf *, struct bch_inode_unpacked *);
 
+int bch2_inode_peek_nowarn(struct btree_trans *, struct btree_iter *,
+		    struct bch_inode_unpacked *, subvol_inum, unsigned);
 int bch2_inode_peek(struct btree_trans *, struct btree_iter *,
 		    struct bch_inode_unpacked *, subvol_inum, unsigned);
 
 int bch2_inode_write_flags(struct btree_trans *, struct btree_iter *,
-		     struct bch_inode_unpacked *, enum btree_update_flags);
+		     struct bch_inode_unpacked *, enum btree_iter_update_trigger_flags);
 
 static inline int bch2_inode_write(struct btree_trans *trans,
 		     struct btree_iter *iter,
@@ -107,6 +110,9 @@ static inline int bch2_inode_write(struct btree_trans *trans,
 {
 	return bch2_inode_write_flags(trans, iter, inode, 0);
 }
+
+int __bch2_fsck_write_inode(struct btree_trans *, struct bch_inode_unpacked *, u32);
+int bch2_fsck_write_inode(struct btree_trans *, struct bch_inode_unpacked *, u32);
 
 void bch2_inode_init_early(struct bch_fs *,
 			   struct bch_inode_unpacked *);
@@ -172,6 +178,20 @@ static inline u8 inode_d_type(struct bch_inode_unpacked *inode)
 	return inode->bi_subvol ? DT_SUBVOL : mode_to_type(inode->bi_mode);
 }
 
+static inline u32 bch2_inode_flags(struct bkey_s_c k)
+{
+	switch (k.k->type) {
+	case KEY_TYPE_inode:
+		return le32_to_cpu(bkey_s_c_to_inode(k).v->bi_flags);
+	case KEY_TYPE_inode_v2:
+		return le64_to_cpu(bkey_s_c_to_inode_v2(k).v->bi_flags);
+	case KEY_TYPE_inode_v3:
+		return le64_to_cpu(bkey_s_c_to_inode_v3(k).v->bi_flags);
+	default:
+		return 0;
+	}
+}
+
 /* i_nlink: */
 
 static inline unsigned nlink_bias(umode_t mode)
@@ -200,6 +220,14 @@ static inline void bch2_inode_nlink_set(struct bch_inode_unpacked *bi,
 
 int bch2_inode_nlink_inc(struct bch_inode_unpacked *);
 void bch2_inode_nlink_dec(struct btree_trans *, struct bch_inode_unpacked *);
+
+static inline bool bch2_inode_should_have_bp(struct bch_inode_unpacked *inode)
+{
+	bool inode_has_bp = inode->bi_dir || inode->bi_dir_offset;
+
+	return S_ISDIR(inode->bi_mode) ||
+		(!inode->bi_nlink && inode_has_bp);
+}
 
 struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *);
 void bch2_inode_opts_get(struct bch_io_opts *, struct bch_fs *,

@@ -90,7 +90,7 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	 */
 	get_page(virt_to_page(rqst->rq_buffer));
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
-	return svc_rdma_send(rdma, sctxt);
+	return svc_rdma_post_send(rdma, sctxt);
 }
 
 /* Server-side transport endpoint wants a whole page for its send

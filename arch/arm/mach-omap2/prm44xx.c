@@ -407,7 +407,7 @@ static bool omap44xx_prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
 }
 
 /**
- * omap44xx_prm_clear_context_lost_flags_old - clear context loss flags
+ * omap44xx_prm_clear_context_loss_flags_old - clear context loss flags
  * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
  * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
  * @idx: CONTEXT register offset

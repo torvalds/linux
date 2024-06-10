@@ -5,10 +5,11 @@
 #include <linux/anon_inodes.h>
 #include <linux/device.h>
 #include <linux/idr.h>
+#include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/uaccess.h>
 #include <linux/uio.h>
 #include <linux/highmem.h>
@@ -201,6 +202,70 @@ struct tee_shm *tee_shm_alloc_priv_buf(struct tee_context *ctx, size_t size)
 	return shm_alloc_helper(ctx, size, sizeof(long) * 2, flags, -1);
 }
 EXPORT_SYMBOL_GPL(tee_shm_alloc_priv_buf);
+
+int tee_dyn_shm_alloc_helper(struct tee_shm *shm, size_t size, size_t align,
+			     int (*shm_register)(struct tee_context *ctx,
+						 struct tee_shm *shm,
+						 struct page **pages,
+						 size_t num_pages,
+						 unsigned long start))
+{
+	size_t nr_pages = roundup(size, PAGE_SIZE) / PAGE_SIZE;
+	struct page **pages;
+	unsigned int i;
+	int rc = 0;
+
+	/*
+	 * Ignore alignment since this is already going to be page aligned
+	 * and there's no need for any larger alignment.
+	 */
+	shm->kaddr = alloc_pages_exact(nr_pages * PAGE_SIZE,
+				       GFP_KERNEL | __GFP_ZERO);
+	if (!shm->kaddr)
+		return -ENOMEM;
+
+	shm->paddr = virt_to_phys(shm->kaddr);
+	shm->size = nr_pages * PAGE_SIZE;
+
+	pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
+	if (!pages) {
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	for (i = 0; i < nr_pages; i++)
+		pages[i] = virt_to_page((u8 *)shm->kaddr + i * PAGE_SIZE);
+
+	shm->pages = pages;
+	shm->num_pages = nr_pages;
+
+	if (shm_register) {
+		rc = shm_register(shm->ctx, shm, pages, nr_pages,
+				  (unsigned long)shm->kaddr);
+		if (rc)
+			goto err;
+	}
+
+	return 0;
+err:
+	free_pages_exact(shm->kaddr, shm->size);
+	shm->kaddr = NULL;
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tee_dyn_shm_alloc_helper);
+
+void tee_dyn_shm_free_helper(struct tee_shm *shm,
+			     int (*shm_unregister)(struct tee_context *ctx,
+						   struct tee_shm *shm))
+{
+	if (shm_unregister)
+		shm_unregister(shm->ctx, shm);
+	free_pages_exact(shm->kaddr, shm->size);
+	shm->kaddr = NULL;
+	kfree(shm->pages);
+	shm->pages = NULL;
+}
+EXPORT_SYMBOL_GPL(tee_dyn_shm_free_helper);
 
 static struct tee_shm *
 register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,

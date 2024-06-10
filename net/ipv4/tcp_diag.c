@@ -222,6 +222,7 @@ static int tcp_diag_destroy(struct sk_buff *in_skb,
 #endif
 
 static const struct inet_diag_handler tcp_diag_handler = {
+	.owner			= THIS_MODULE,
 	.dump			= tcp_diag_dump,
 	.dump_one		= tcp_diag_dump_one,
 	.idiag_get_info		= tcp_diag_get_info,

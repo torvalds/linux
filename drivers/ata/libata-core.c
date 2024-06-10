@@ -1480,19 +1480,19 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_exec_internal_sg - execute libata internal command
+ *	ata_exec_internal - execute libata internal command
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
  *	@cdb: CDB for packet command
  *	@dma_dir: Data transfer direction of the command
- *	@sgl: sg list for the data buffer of the command
- *	@n_elem: Number of sg entries
+ *	@buf: Data buffer of the command
+ *	@buflen: Length of data buffer
  *	@timeout: Timeout in msecs (0 for default)
  *
- *	Executes libata internal command with timeout.  @tf contains
- *	command on entry and result on return.  Timeout and error
- *	conditions are reported via return value.  No recovery action
- *	is taken after a command times out.  It's caller's duty to
+ *	Executes libata internal command with timeout. @tf contains
+ *	the command on entry and the result on return. Timeout and error
+ *	conditions are reported via the return value. No recovery action
+ *	is taken after a command times out. It is the caller's duty to
  *	clean up after timeout.
  *
  *	LOCKING:
@@ -1501,34 +1501,38 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-static unsigned ata_exec_internal_sg(struct ata_device *dev,
-				     struct ata_taskfile *tf, const u8 *cdb,
-				     int dma_dir, struct scatterlist *sgl,
-				     unsigned int n_elem, unsigned int timeout)
+unsigned int ata_exec_internal(struct ata_device *dev, struct ata_taskfile *tf,
+			       const u8 *cdb, enum dma_data_direction dma_dir,
+			       void *buf, unsigned int buflen,
+			       unsigned int timeout)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	u8 command = tf->command;
-	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
+	struct scatterlist sgl;
 	unsigned int preempted_tag;
 	u32 preempted_sactive;
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
+	bool auto_timeout = false;
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
 
+	if (WARN_ON(dma_dir != DMA_NONE && !buf))
+		return AC_ERR_INVALID;
+
 	spin_lock_irqsave(ap->lock, flags);
 
-	/* no internal command while frozen */
+	/* No internal command while frozen */
 	if (ata_port_is_frozen(ap)) {
 		spin_unlock_irqrestore(ap->lock, flags);
 		return AC_ERR_SYSTEM;
 	}
 
-	/* initialize internal qc */
+	/* Initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	qc->tag = ATA_TAG_INTERNAL;
@@ -1547,12 +1551,12 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ap->qc_active = 0;
 	ap->nr_active_links = 0;
 
-	/* prepare & issue qc */
+	/* Prepare and issue qc */
 	qc->tf = *tf;
 	if (cdb)
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
 
-	/* some SATA bridges need us to indicate data xfer direction */
+	/* Some SATA bridges need us to indicate data xfer direction */
 	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
 	    dma_dir == DMA_FROM_DEVICE)
 		qc->tf.feature |= ATAPI_DMADIR;
@@ -1560,13 +1564,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	qc->flags |= ATA_QCFLAG_RESULT_TF;
 	qc->dma_dir = dma_dir;
 	if (dma_dir != DMA_NONE) {
-		unsigned int i, buflen = 0;
-		struct scatterlist *sg;
-
-		for_each_sg(sgl, sg, n_elem, i)
-			buflen += sg->length;
-
-		ata_sg_init(qc, sgl, n_elem);
+		sg_init_one(&sgl, buf, buflen);
+		ata_sg_init(qc, &sgl, 1);
 		qc->nbytes = buflen;
 	}
 
@@ -1578,11 +1577,11 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	if (!timeout) {
-		if (ata_probe_timeout)
+		if (ata_probe_timeout) {
 			timeout = ata_probe_timeout * 1000;
-		else {
+		} else {
 			timeout = ata_internal_cmd_timeout(dev, command);
-			auto_timeout = 1;
+			auto_timeout = true;
 		}
 	}
 
@@ -1595,30 +1594,25 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ata_sff_flush_pio_task(ap);
 
 	if (!rc) {
-		spin_lock_irqsave(ap->lock, flags);
-
-		/* We're racing with irq here.  If we lose, the
-		 * following test prevents us from completing the qc
-		 * twice.  If we win, the port is frozen and will be
-		 * cleaned up by ->post_internal_cmd().
+		/*
+		 * We are racing with irq here. If we lose, the following test
+		 * prevents us from completing the qc twice. If we win, the port
+		 * is frozen and will be cleaned up by ->post_internal_cmd().
 		 */
+		spin_lock_irqsave(ap->lock, flags);
 		if (qc->flags & ATA_QCFLAG_ACTIVE) {
 			qc->err_mask |= AC_ERR_TIMEOUT;
-
 			ata_port_freeze(ap);
-
 			ata_dev_warn(dev, "qc timeout after %u msecs (cmd 0x%x)\n",
 				     timeout, command);
 		}
-
 		spin_unlock_irqrestore(ap->lock, flags);
 	}
 
-	/* do post_internal_cmd */
 	if (ap->ops->post_internal_cmd)
 		ap->ops->post_internal_cmd(qc);
 
-	/* perform minimal error analysis */
+	/* Perform minimal error analysis */
 	if (qc->flags & ATA_QCFLAG_EH) {
 		if (qc->result_tf.status & (ATA_ERR | ATA_DF))
 			qc->err_mask |= AC_ERR_DEV;
@@ -1632,7 +1626,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		qc->result_tf.status |= ATA_SENSE;
 	}
 
-	/* finish up */
+	/* Finish up */
 	spin_lock_irqsave(ap->lock, flags);
 
 	*tf = qc->result_tf;
@@ -1650,44 +1644,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_internal_cmd_timed_out(dev, command);
 
 	return err_mask;
-}
-
-/**
- *	ata_exec_internal - execute libata internal command
- *	@dev: Device to which the command is sent
- *	@tf: Taskfile registers for the command and the result
- *	@cdb: CDB for packet command
- *	@dma_dir: Data transfer direction of the command
- *	@buf: Data buffer of the command
- *	@buflen: Length of data buffer
- *	@timeout: Timeout in msecs (0 for default)
- *
- *	Wrapper around ata_exec_internal_sg() which takes simple
- *	buffer instead of sg list.
- *
- *	LOCKING:
- *	None.  Should be called with kernel context, might sleep.
- *
- *	RETURNS:
- *	Zero on success, AC_ERR_* mask on failure
- */
-unsigned ata_exec_internal(struct ata_device *dev,
-			   struct ata_taskfile *tf, const u8 *cdb,
-			   int dma_dir, void *buf, unsigned int buflen,
-			   unsigned int timeout)
-{
-	struct scatterlist *psg = NULL, sg;
-	unsigned int n_elem = 0;
-
-	if (dma_dir != DMA_NONE) {
-		WARN_ON(!buf);
-		sg_init_one(&sg, buf, buflen);
-		psg = &sg;
-		n_elem++;
-	}
-
-	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
-				    timeout);
 }
 
 /**
@@ -2539,7 +2495,7 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 	bool cdl_enabled;
 	u64 val;
 
-	if (ata_id_major_version(dev->id) < 12)
+	if (ata_id_major_version(dev->id) < 11)
 		goto not_supported;
 
 	if (!ata_log_supported(dev, ATA_LOG_IDENTIFY_DEVICE) ||

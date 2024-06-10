@@ -231,15 +231,135 @@ this documentation.
    For further information on these methods, please see the inline
    documentation in :c:type:`struct phylink_mac_ops <phylink_mac_ops>`.
 
-9. Remove calls to of_parse_phandle() for the PHY,
-   of_phy_register_fixed_link() for fixed links etc. from the probe
-   function, and replace with:
+9. Fill-in the :c:type:`struct phylink_config <phylink_config>` fields with
+   a reference to the :c:type:`struct device <device>` associated to your
+   :c:type:`struct net_device <net_device>`:
 
    .. code-block:: c
 
-	struct phylink *phylink;
 	priv->phylink_config.dev = &dev.dev;
 	priv->phylink_config.type = PHYLINK_NETDEV;
+
+   Fill-in the various speeds, pause and duplex modes your MAC can handle:
+
+   .. code-block:: c
+
+        priv->phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 | MAC_1000FD;
+
+10. Some Ethernet controllers work in pair with a PCS (Physical Coding Sublayer)
+    block, that can handle among other things the encoding/decoding, link
+    establishment detection and autonegotiation. While some MACs have internal
+    PCS whose operation is transparent, some other require dedicated PCS
+    configuration for the link to become functional. In that case, phylink
+    provides a PCS abstraction through :c:type:`struct phylink_pcs <phylink_pcs>`.
+
+    Identify if your driver has one or more internal PCS blocks, and/or if
+    your controller can use an external PCS block that might be internally
+    connected to your controller.
+
+    If your controller doesn't have any internal PCS, you can go to step 11.
+
+    If your Ethernet controller contains one or several PCS blocks, create
+    one :c:type:`struct phylink_pcs <phylink_pcs>` instance per PCS block within
+    your driver's private data structure:
+
+    .. code-block:: c
+
+        struct phylink_pcs pcs;
+
+    Populate the relevant :c:type:`struct phylink_pcs_ops <phylink_pcs_ops>` to
+    configure your PCS. Create a :c:func:`pcs_get_state` function that reports
+    the inband link state, a :c:func:`pcs_config` function to configure your
+    PCS according to phylink-provided parameters, and a :c:func:`pcs_validate`
+    function that report to phylink all accepted configuration parameters for
+    your PCS:
+
+    .. code-block:: c
+
+        struct phylink_pcs_ops foo_pcs_ops = {
+                .pcs_validate = foo_pcs_validate,
+                .pcs_get_state = foo_pcs_get_state,
+                .pcs_config = foo_pcs_config,
+        };
+
+    Arrange for PCS link state interrupts to be forwarded into
+    phylink, via:
+
+    .. code-block:: c
+
+        phylink_pcs_change(pcs, link_is_up);
+
+    where ``link_is_up`` is true if the link is currently up or false
+    otherwise. If a PCS is unable to provide these interrupts, then
+    it should set ``pcs->pcs_poll = true;`` when creating the PCS.
+
+11. If your controller relies on, or accepts the presence of an external PCS
+    controlled through its own driver, add a pointer to a phylink_pcs instance
+    in your driver private data structure:
+
+    .. code-block:: c
+
+        struct phylink_pcs *pcs;
+
+    The way of getting an instance of the actual PCS depends on the platform,
+    some PCS sit on an MDIO bus and are grabbed by passing a pointer to the
+    corresponding :c:type:`struct mii_bus <mii_bus>` and the PCS's address on
+    that bus. In this example, we assume the controller attaches to a Lynx PCS
+    instance:
+
+    .. code-block:: c
+
+        priv->pcs = lynx_pcs_create_mdiodev(bus, 0);
+
+    Some PCS can be recovered based on firmware information:
+
+    .. code-block:: c
+
+        priv->pcs = lynx_pcs_create_fwnode(of_fwnode_handle(node));
+
+12. Populate the :c:func:`mac_select_pcs` callback and add it to your
+    :c:type:`struct phylink_mac_ops <phylink_mac_ops>` set of ops. This function
+    must return a pointer to the relevant :c:type:`struct phylink_pcs <phylink_pcs>`
+    that will be used for the requested link configuration:
+
+    .. code-block:: c
+
+        static struct phylink_pcs *foo_select_pcs(struct phylink_config *config,
+                                                  phy_interface_t interface)
+        {
+                struct foo_priv *priv = container_of(config, struct foo_priv,
+                                                     phylink_config);
+
+                if ( /* 'interface' needs a PCS to function */ )
+                        return priv->pcs;
+
+                return NULL;
+        }
+
+    See :c:func:`mvpp2_select_pcs` for an example of a driver that has multiple
+    internal PCS.
+
+13. Fill-in all the :c:type:`phy_interface_t <phy_interface_t>` (i.e. all MAC to
+    PHY link modes) that your MAC can output. The following example shows a
+    configuration for a MAC that can handle all RGMII modes, SGMII and 1000BaseX.
+    You must adjust these according to what your MAC and all PCS associated
+    with this MAC are capable of, and not just the interface you wish to use:
+
+    .. code-block:: c
+
+       phy_interface_set_rgmii(priv->phylink_config.supported_interfaces);
+        __set_bit(PHY_INTERFACE_MODE_SGMII,
+                  priv->phylink_config.supported_interfaces);
+        __set_bit(PHY_INTERFACE_MODE_1000BASEX,
+                  priv->phylink_config.supported_interfaces);
+
+14. Remove calls to of_parse_phandle() for the PHY,
+    of_phy_register_fixed_link() for fixed links etc. from the probe
+    function, and replace with:
+
+    .. code-block:: c
+
+	struct phylink *phylink;
 
 	phylink = phylink_create(&priv->phylink_config, node, phy_mode, &phylink_ops);
 	if (IS_ERR(phylink)) {
@@ -249,14 +369,14 @@ this documentation.
 
 	priv->phylink = phylink;
 
-   and arrange to destroy the phylink in the probe failure path as
-   appropriate and the removal path too by calling:
+    and arrange to destroy the phylink in the probe failure path as
+    appropriate and the removal path too by calling:
 
-   .. code-block:: c
+    .. code-block:: c
 
 	phylink_destroy(priv->phylink);
 
-10. Arrange for MAC link state interrupts to be forwarded into
+15. Arrange for MAC link state interrupts to be forwarded into
     phylink, via:
 
     .. code-block:: c
@@ -264,17 +384,16 @@ this documentation.
 	phylink_mac_change(priv->phylink, link_is_up);
 
     where ``link_is_up`` is true if the link is currently up or false
-    otherwise. If a MAC is unable to provide these interrupts, then
-    it should set ``priv->phylink_config.pcs_poll = true;`` in step 9.
+    otherwise.
 
-11. Verify that the driver does not call::
+16. Verify that the driver does not call::
 
 	netif_carrier_on()
 	netif_carrier_off()
 
-   as these will interfere with phylink's tracking of the link state,
-   and cause phylink to omit calls via the :c:func:`mac_link_up` and
-   :c:func:`mac_link_down` methods.
+    as these will interfere with phylink's tracking of the link state,
+    and cause phylink to omit calls via the :c:func:`mac_link_up` and
+    :c:func:`mac_link_down` methods.
 
 Network drivers should call phylink_stop() and phylink_start() via their
 suspend/resume paths, which ensures that the appropriate

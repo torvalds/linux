@@ -98,10 +98,8 @@ static void enable_memory_low_power(struct dc *dc)
 		for (i = 0; i < dc->res_pool->stream_enc_count; i++)
 			if (dc->res_pool->stream_enc[i]->vpg)
 				dc->res_pool->stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->stream_enc[i]->vpg);
-#if defined(CONFIG_DRM_AMD_DC_FP)
 		for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++)
 			dc->res_pool->hpo_dp_stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->hpo_dp_stream_enc[i]->vpg);
-#endif
 	}
 
 }
@@ -275,7 +273,7 @@ void dcn31_init_hw(struct dc *dc)
 	// Get DMCUB capabilities
 	dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv);
 	dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
-	dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch;
+	dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver;
 }
 
 void dcn31_dsc_pg_control(
@@ -481,7 +479,7 @@ void dcn31_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool p
 
 int dcn31_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
 {
-	struct dcn_hubbub_phys_addr_config config;
+	struct dcn_hubbub_phys_addr_config config = {0};
 
 	config.system_aperture.fb_top = pa_config->system_aperture.fb_top;
 	config.system_aperture.fb_offset = pa_config->system_aperture.fb_offset;
@@ -616,4 +614,22 @@ void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)
 {
 	if (hws->ctx->dc->debug.hpo_optimization)
 		REG_UPDATE(HPO_TOP_HW_CONTROL, HPO_IO_EN, !!enable);
+}
+
+void dcn31_set_static_screen_control(struct pipe_ctx **pipe_ctx,
+		int num_pipes, const struct dc_static_screen_params *params)
+{
+	unsigned int i;
+	unsigned int triggers = 0;
+
+	if (params->triggers.surface_update)
+		triggers |= 0x100;
+	if (params->triggers.cursor_update)
+		triggers |= 0x8;
+	if (params->triggers.force_trigger)
+		triggers |= 0x1;
+
+	for (i = 0; i < num_pipes; i++)
+		pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(pipe_ctx[i]->stream_res.tg,
+					triggers, params->num_frames);
 }

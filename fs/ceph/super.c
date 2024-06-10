@@ -928,36 +928,36 @@ static int __init init_caches(void)
 	ceph_inode_cachep = kmem_cache_create("ceph_inode_info",
 				      sizeof(struct ceph_inode_info),
 				      __alignof__(struct ceph_inode_info),
-				      SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-				      SLAB_ACCOUNT, ceph_inode_init_once);
+				      SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
+				      ceph_inode_init_once);
 	if (!ceph_inode_cachep)
 		return -ENOMEM;
 
-	ceph_cap_cachep = KMEM_CACHE(ceph_cap, SLAB_MEM_SPREAD);
+	ceph_cap_cachep = KMEM_CACHE(ceph_cap, 0);
 	if (!ceph_cap_cachep)
 		goto bad_cap;
-	ceph_cap_snap_cachep = KMEM_CACHE(ceph_cap_snap, SLAB_MEM_SPREAD);
+	ceph_cap_snap_cachep = KMEM_CACHE(ceph_cap_snap, 0);
 	if (!ceph_cap_snap_cachep)
 		goto bad_cap_snap;
 	ceph_cap_flush_cachep = KMEM_CACHE(ceph_cap_flush,
-					   SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD);
+					   SLAB_RECLAIM_ACCOUNT);
 	if (!ceph_cap_flush_cachep)
 		goto bad_cap_flush;
 
 	ceph_dentry_cachep = KMEM_CACHE(ceph_dentry_info,
-					SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD);
+					SLAB_RECLAIM_ACCOUNT);
 	if (!ceph_dentry_cachep)
 		goto bad_dentry;
 
-	ceph_file_cachep = KMEM_CACHE(ceph_file_info, SLAB_MEM_SPREAD);
+	ceph_file_cachep = KMEM_CACHE(ceph_file_info, 0);
 	if (!ceph_file_cachep)
 		goto bad_file;
 
-	ceph_dir_file_cachep = KMEM_CACHE(ceph_dir_file_info, SLAB_MEM_SPREAD);
+	ceph_dir_file_cachep = KMEM_CACHE(ceph_dir_file_info, 0);
 	if (!ceph_dir_file_cachep)
 		goto bad_dir_file;
 
-	ceph_mds_request_cachep = KMEM_CACHE(ceph_mds_request, SLAB_MEM_SPREAD);
+	ceph_mds_request_cachep = KMEM_CACHE(ceph_mds_request, 0);
 	if (!ceph_mds_request_cachep)
 		goto bad_mds_req;
 

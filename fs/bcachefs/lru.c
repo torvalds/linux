@@ -11,7 +11,7 @@
 
 /* KEY_TYPE_lru is obsolete: */
 int bch2_lru_invalid(struct bch_fs *c, struct bkey_s_c k,
-		     enum bkey_invalid_flags flags,
+		     enum bch_validate_flags flags,
 		     struct printbuf *err)
 {
 	int ret = 0;
@@ -44,8 +44,8 @@ static int __bch2_lru_set(struct btree_trans *trans, u16 lru_id,
 			  u64 dev_bucket, u64 time, bool set)
 {
 	return time
-		? bch2_btree_bit_mod(trans, BTREE_ID_lru,
-				     lru_pos(lru_id, dev_bucket, time), set)
+		? bch2_btree_bit_mod_buffered(trans, BTREE_ID_lru,
+					      lru_pos(lru_id, dev_bucket, time), set)
 		: 0;
 }
 
@@ -125,8 +125,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 			goto out;
 		}
 
-		if (c->opts.reconstruct_alloc ||
-		    fsck_err(c, lru_entry_bad,
+		if (fsck_err(c, lru_entry_bad,
 			     "incorrect lru entry: lru %s time %llu\n"
 			     "  %s\n"
 			     "  for %s",
@@ -150,7 +149,7 @@ int bch2_check_lrus(struct bch_fs *c)
 	struct bpos last_flushed_pos = POS_MIN;
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
-				BTREE_ID_lru, POS_MIN, BTREE_ITER_PREFETCH, k,
+				BTREE_ID_lru, POS_MIN, BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
 			bch2_check_lru_key(trans, &iter, k, &last_flushed_pos)));
 	bch_err_fn(c, ret);

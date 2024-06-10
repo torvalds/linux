@@ -723,5 +723,5 @@ void dm_rh_start_recovery(struct dm_region_hash *rh)
 EXPORT_SYMBOL_GPL(dm_rh_start_recovery);
 
 MODULE_DESCRIPTION(DM_NAME " region hash");
-MODULE_AUTHOR("Joe Thornber/Heinz Mauelshagen <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber/Heinz Mauelshagen <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

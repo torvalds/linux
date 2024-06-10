@@ -148,7 +148,7 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	orb->cmd.i2k = 0;
 	orb->cmd.key = key >> 4;
 	/* issue "Start Subchannel" */
-	orb->cmd.cpa = (u32)virt_to_phys(cpa);
+	orb->cmd.cpa = virt_to_dma32(cpa);
 	ccode = ssch(sch->schid, orb);
 
 	/* process condition code */
@@ -535,7 +535,6 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 	struct subchannel *sch;
 	struct irb *irb;
 
-	set_cpu_flag(CIF_NOHZ_DELAY);
 	tpi_info = &get_irq_regs()->tpi_info;
 	trace_s390_cio_interrupt(tpi_info);
 	irb = this_cpu_ptr(&cio_irb);
@@ -717,7 +716,7 @@ int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key)
 	orb->tm.key = key >> 4;
 	orb->tm.b = 1;
 	orb->tm.lpm = lpm ? lpm : sch->lpm;
-	orb->tm.tcw = (u32)virt_to_phys(tcw);
+	orb->tm.tcw = virt_to_dma32(tcw);
 	cc = ssch(sch->schid, orb);
 	switch (cc) {
 	case 0:

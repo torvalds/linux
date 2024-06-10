@@ -118,7 +118,8 @@ void __init x86_intel_mid_early_setup(void)
 	machine_ops.emergency_restart  = intel_mid_reboot;
 
 	/* Avoid searching for BIOS MP tables */
-	x86_init.mpparse.find_smp_config = x86_init_noop;
-	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
+	x86_init.mpparse.find_mptable		= x86_init_noop;
+	x86_init.mpparse.early_parse_smp_cfg	= x86_init_noop;
+	x86_init.mpparse.parse_smp_cfg		= x86_init_noop;
 	set_bit(MP_BUS_ISA, mp_bus_not_pci);
 }

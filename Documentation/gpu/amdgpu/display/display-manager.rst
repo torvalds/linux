@@ -132,9 +132,6 @@ The DRM blend mode and its elements are then mapped by AMDGPU display manager
 (MPC), as follows:
 
 .. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/mpc.h
-   :doc: mpc-overview
-
-.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/mpc.h
    :functions: mpcc_blnd_cfg
 
 Therefore, the blending configuration for a single MPCC instance on the MPC

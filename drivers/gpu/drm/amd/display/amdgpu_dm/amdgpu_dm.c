@@ -67,6 +67,7 @@
 #include "amdgpu_dm_debugfs.h"
 #endif
 #include "amdgpu_dm_psr.h"
+#include "amdgpu_dm_replay.h"
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 
@@ -146,6 +147,9 @@ MODULE_FIRMWARE(FIRMWARE_NAVI12_DMCU);
 
 #define FIRMWARE_DCN_35_DMUB "amdgpu/dcn_3_5_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_DCN_35_DMUB);
+
+#define FIRMWARE_DCN_351_DMUB "amdgpu/dcn_3_5_1_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_DCN_351_DMUB);
 
 /* Number of bytes in PSP header for firmware. */
 #define PSP_HEADER_BYTES 0x100
@@ -270,7 +274,7 @@ static u32 dm_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 				  u32 *vbl, u32 *position)
 {
-	u32 v_blank_start, v_blank_end, h_position, v_position;
+	u32 v_blank_start = 0, v_blank_end = 0, h_position = 0, v_position = 0;
 	struct amdgpu_crtc *acrtc = NULL;
 	struct dc *dc = adev->dm.dc;
 
@@ -844,7 +848,7 @@ static void dm_handle_hpd_work(struct work_struct *work)
  */
 static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 {
-	struct dmub_notification notify;
+	struct dmub_notification notify = {0};
 	struct common_irq_params *irq_params = interrupt_params;
 	struct amdgpu_device *adev = irq_params->adev;
 	struct amdgpu_display_manager *dm = &adev->dm;
@@ -1218,8 +1222,18 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	case IP_VERSION(3, 1, 3):
 	case IP_VERSION(3, 1, 4):
 	case IP_VERSION(3, 5, 0):
+	case IP_VERSION(3, 5, 1):
 		hw_params.dpia_supported = true;
 		hw_params.disable_dpia = adev->dm.dc->debug.dpia_debug.bits.disable_dpia;
+		break;
+	default:
+		break;
+	}
+
+	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
+	case IP_VERSION(3, 5, 0):
+	case IP_VERSION(3, 5, 1):
+		hw_params.ips_sequential_ono = adev->external_rev_id > 0x10;
 		break;
 	default:
 		break;
@@ -1721,8 +1735,10 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	if (amdgpu_dc_debug_mask & DC_DISABLE_IPS)
 		init_data.flags.disable_ips = DMUB_IPS_DISABLE_ALL;
+	else
+		init_data.flags.disable_ips = DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
 
-	init_data.flags.disable_ips_in_vpb = 1;
+	init_data.flags.disable_ips_in_vpb = 0;
 
 	/* Enable DWB for tested platforms only */
 	if (amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 0, 0))
@@ -1764,6 +1780,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	if (amdgpu_dc_debug_mask & DC_FORCE_SUBVP_MCLK_SWITCH)
 		adev->dm.dc->debug.force_subvp_mclk_switch = true;
+
+	if (amdgpu_dc_debug_mask & DC_ENABLE_DML2)
+		adev->dm.dc->debug.using_dml2 = true;
 
 	adev->dm.dc->debug.visual_confirm = amdgpu_dc_visual_confirm;
 
@@ -1929,17 +1948,15 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 		adev->dm.hdcp_workqueue = NULL;
 	}
 
-	if (adev->dm.dc)
+	if (adev->dm.dc) {
 		dc_deinit_callbacks(adev->dm.dc);
-
-	if (adev->dm.dc)
 		dc_dmub_srv_destroy(&adev->dm.dc->ctx->dmub_srv);
-
-	if (dc_enable_dmub_notifications(adev->dm.dc)) {
-		kfree(adev->dm.dmub_notify);
-		adev->dm.dmub_notify = NULL;
-		destroy_workqueue(adev->dm.delayed_hpd_wq);
-		adev->dm.delayed_hpd_wq = NULL;
+		if (dc_enable_dmub_notifications(adev->dm.dc)) {
+			kfree(adev->dm.dmub_notify);
+			adev->dm.dmub_notify = NULL;
+			destroy_workqueue(adev->dm.delayed_hpd_wq);
+			adev->dm.delayed_hpd_wq = NULL;
+		}
 	}
 
 	if (adev->dm.dmub_bo)
@@ -2041,6 +2058,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
+		case IP_VERSION(3, 5, 1):
 			return 0;
 		default:
 			break;
@@ -2112,6 +2130,17 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	const struct dmcub_firmware_header_v1_0 *hdr;
 	enum dmub_asic dmub_asic;
 	enum dmub_status status;
+	static enum dmub_window_memory_type window_memory_type[DMUB_WINDOW_TOTAL] = {
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_0_INST_CONST
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_1_STACK
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_2_BSS_DATA
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_3_VBIOS
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_4_MAILBOX
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_5_TRACEBUFF
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_6_FW_STATE
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_7_SCRATCH_MEM
+		DMUB_WINDOW_MEMORY_TYPE_FB,		//DMUB_WINDOW_SHARED_STATE
+	};
 	int r;
 
 	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
@@ -2150,6 +2179,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		dmub_asic = DMUB_ASIC_DCN321;
 		break;
 	case IP_VERSION(3, 5, 0):
+	case IP_VERSION(3, 5, 1):
 		dmub_asic = DMUB_ASIC_DCN35;
 		break;
 	default:
@@ -2209,7 +2239,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		adev->dm.dmub_fw->data +
 		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
 		PSP_HEADER_BYTES;
-	region_params.is_mailbox_in_inbox = false;
+	region_params.window_memory_type = window_memory_type;
 
 	status = dmub_srv_calc_region_info(dmub_srv, &region_params,
 					   &region_info);
@@ -2237,6 +2267,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	memory_params.cpu_fb_addr = adev->dm.dmub_bo_cpu_addr;
 	memory_params.gpu_fb_addr = adev->dm.dmub_bo_gpu_addr;
 	memory_params.region_info = &region_info;
+	memory_params.window_memory_type = window_memory_type;
 
 	adev->dm.dmub_fb_info =
 		kzalloc(sizeof(*adev->dm.dmub_fb_info), GFP_KERNEL);
@@ -2609,6 +2640,7 @@ static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 	int i;
 	struct dc_stream_state *del_streams[MAX_PIPES];
 	int del_streams_count = 0;
+	struct dc_commit_streams_params params = {};
 
 	memset(del_streams, 0, sizeof(del_streams));
 
@@ -2635,7 +2667,9 @@ static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 			goto fail;
 	}
 
-	res = dc_commit_streams(dc, context->streams, context->stream_count);
+	params.streams = context->streams;
+	params.stream_count = context->stream_count;
+	res = dc_commit_streams(dc, &params);
 
 fail:
 	dc_state_release(context);
@@ -2857,6 +2891,7 @@ static int dm_resume(void *handle)
 	struct dc_state *dc_state;
 	int i, r, j, ret;
 	bool need_hotplug = false;
+	struct dc_commit_streams_params commit_params = {};
 
 	if (dm->dc->caps.ips_support) {
 		dc_dmub_srv_apply_idle_power_optimizations(dm->dc, false);
@@ -2906,7 +2941,9 @@ static int dm_resume(void *handle)
 			dc_enable_dmub_outbox(adev->dm.dc);
 		}
 
-		WARN_ON(!dc_commit_streams(dm->dc, dc_state->streams, dc_state->stream_count));
+		commit_params.streams = dc_state->streams;
+		commit_params.stream_count = dc_state->stream_count;
+		WARN_ON(!dc_commit_streams(dm->dc, &commit_params));
 
 		dm_gpureset_commit_state(dm->cached_dc_state, dm);
 
@@ -2923,7 +2960,7 @@ static int dm_resume(void *handle)
 	}
 	/* Recreate dc_state - DC invalidates it when setting power state to S3. */
 	dc_state_release(dm_state->context);
-	dm_state->context = dc_state_create(dm->dc);
+	dm_state->context = dc_state_create(dm->dc, NULL);
 	/* TODO: Remove dc_state->dccg, use dc->dccg directly. */
 
 	/* Before powering on DC we need to re-initialize DMUB. */
@@ -3009,6 +3046,7 @@ static int dm_resume(void *handle)
 			dc_stream_release(dm_new_crtc_state->stream);
 			dm_new_crtc_state->stream = NULL;
 		}
+		dm_new_crtc_state->base.color_mgmt_changed = true;
 	}
 
 	for_each_new_plane_in_state(dm->cached_state, plane, new_plane_state, i) {
@@ -3027,6 +3065,10 @@ static int dm_resume(void *handle)
 	/* Do mst topology probing after resuming cached state*/
 	drm_connector_list_iter_begin(ddev, &iter);
 	drm_for_each_connector_iter(connector, &iter) {
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+			continue;
+
 		aconnector = to_amdgpu_dm_connector(connector);
 		if (aconnector->dc_link->type != dc_connection_mst_branch ||
 		    aconnector->mst_root)
@@ -3079,6 +3121,8 @@ static const struct amd_ip_funcs amdgpu_dm_funcs = {
 	.soft_reset = dm_soft_reset,
 	.set_clockgating_state = dm_set_clockgating_state,
 	.set_powergating_state = dm_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version dm_ip_block = {
@@ -4395,6 +4439,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	const struct dc_plane_cap *plane;
 	bool psr_feature_enabled = false;
+	bool replay_feature_enabled = false;
 	int max_overlay = dm->dc->caps.max_slave_planes;
 
 	dm->display_indexes_num = dm->dc->caps.max_streams;
@@ -4477,6 +4522,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case IP_VERSION(3, 2, 1):
 	case IP_VERSION(2, 1, 0):
 	case IP_VERSION(3, 5, 0):
+	case IP_VERSION(3, 5, 1):
 		if (register_outbox_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -4498,10 +4544,32 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
+		case IP_VERSION(3, 5, 1):
 			psr_feature_enabled = true;
 			break;
 		default:
 			psr_feature_enabled = amdgpu_dc_feature_mask & DC_PSR_MASK;
+			break;
+		}
+	}
+
+	/* Determine whether to enable Replay support by default. */
+	if (!(amdgpu_dc_debug_mask & DC_DISABLE_REPLAY)) {
+		switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
+/*
+ * Disabled by default due to https://gitlab.freedesktop.org/drm/amd/-/issues/3344
+ *		case IP_VERSION(3, 1, 4):
+ *		case IP_VERSION(3, 1, 5):
+ *		case IP_VERSION(3, 1, 6):
+ *		case IP_VERSION(3, 2, 0):
+ *		case IP_VERSION(3, 2, 1):
+ *		case IP_VERSION(3, 5, 0):
+ *		case IP_VERSION(3, 5, 1):
+ *			replay_feature_enabled = true;
+ *			break;
+ */
+		default:
+			replay_feature_enabled = amdgpu_dc_feature_mask & DC_REPLAY_MASK;
 			break;
 		}
 	}
@@ -4578,6 +4646,11 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 				amdgpu_dm_update_connector_after_detect(aconnector);
 				setup_backlight_device(dm, aconnector);
 
+				/* Disable PSR if Replay can be enabled */
+				if (replay_feature_enabled)
+					if (amdgpu_dm_set_replay_caps(link, aconnector))
+						psr_feature_enabled = false;
+
 				if (psr_feature_enabled)
 					amdgpu_dm_set_psr_caps(link);
 
@@ -4645,6 +4718,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
+		case IP_VERSION(3, 5, 1):
 			if (dcn10_register_irq_handlers(dm->adev)) {
 				DRM_ERROR("DM: Failed to initialize IRQ\n");
 				goto fail;
@@ -4778,6 +4852,9 @@ static int dm_init_microcode(struct amdgpu_device *adev)
 	case IP_VERSION(3, 5, 0):
 		fw_name_dmub = FIRMWARE_DCN_35_DMUB;
 		break;
+	case IP_VERSION(3, 5, 1):
+		fw_name_dmub = FIRMWARE_DCN_351_DMUB;
+		break;
 	default:
 		/* ASIC doesn't support DMUB. */
 		return 0;
@@ -4901,6 +4978,7 @@ static int dm_early_init(void *handle)
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
+		case IP_VERSION(3, 5, 1):
 			adev->mode_info.num_crtc = 4;
 			adev->mode_info.num_hpd = 4;
 			adev->mode_info.num_dig = 4;
@@ -5201,6 +5279,10 @@ static inline void fill_dc_dirty_rect(struct drm_plane *plane,
  * @new_plane_state: New state of @plane
  * @crtc_state: New state of CRTC connected to the @plane
  * @flip_addrs: DC flip tracking struct, which also tracts dirty rects
+ * @is_psr_su: Flag indicating whether Panel Self Refresh Selective Update (PSR SU) is enabled.
+ *             If PSR SU is enabled and damage clips are available, only the regions of the screen
+ *             that have changed will be updated. If PSR SU is not enabled,
+ *             or if damage clips are not available, the entire screen will be updated.
  * @dirty_regions_changed: dirty regions changed
  *
  * For PSR SU, DC informs the DMUB uController of dirty rectangle regions
@@ -5650,8 +5732,8 @@ static void fill_stream_properties_from_drm_display_mode(
 
 	timing_out->aspect_ratio = get_aspect_ratio(mode_in);
 
-	stream->out_transfer_func->type = TF_TYPE_PREDEFINED;
-	stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
+	stream->out_transfer_func.type = TF_TYPE_PREDEFINED;
+	stream->out_transfer_func.tf = TRANSFER_FUNCTION_SRGB;
 	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
 		if (!adjust_colour_depth_from_display_info(timing_out, info) &&
 		    drm_mode_is_420_also(info, mode_in) &&
@@ -5870,6 +5952,9 @@ get_highest_refresh_rate_mode(struct amdgpu_dm_connector *aconnector,
 	struct list_head *list_head = use_probed_modes ?
 		&aconnector->base.probed_modes :
 		&aconnector->base.modes;
+
+	if (aconnector->base.connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+		return NULL;
 
 	if (aconnector->freesync_vid_base.clock != 0)
 		return &aconnector->freesync_vid_base;
@@ -6195,7 +6280,8 @@ create_stream_for_sink(struct drm_connector *connector,
 		 */
 		DRM_DEBUG_DRIVER("No preferred mode found\n");
 	} else if (aconnector) {
-		recalculate_timing = is_freesync_video_mode(&mode, aconnector);
+		recalculate_timing = amdgpu_freesync_vid_mode &&
+				 is_freesync_video_mode(&mode, aconnector);
 		if (recalculate_timing) {
 			freesync_mode = get_highest_refresh_rate_mode(aconnector, false);
 			drm_mode_copy(&saved_mode, &mode);
@@ -6254,27 +6340,22 @@ create_stream_for_sink(struct drm_connector *connector,
 
 	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		mod_build_hf_vsif_infopacket(stream, &stream->vsp_infopacket);
-	else if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
-			 stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
-			 stream->signal == SIGNAL_TYPE_EDP) {
+
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
+	    stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
+	    stream->signal == SIGNAL_TYPE_EDP) {
 		//
 		// should decide stream support vsc sdp colorimetry capability
 		// before building vsc info packet
 		//
-		stream->use_vsc_sdp_for_colorimetry = false;
-		if (aconnector->dc_sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-			stream->use_vsc_sdp_for_colorimetry =
-				aconnector->dc_sink->is_vsc_sdp_colorimetry_supported;
-		} else {
-			if (stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED)
-				stream->use_vsc_sdp_for_colorimetry = true;
-		}
-		if (stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22)
+		stream->use_vsc_sdp_for_colorimetry = stream->link->dpcd_caps.dpcd_rev.raw >= 0x14 &&
+						      stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED;
+
+		if (stream->out_transfer_func.tf == TRANSFER_FUNCTION_GAMMA22)
 			tf = TRANSFER_FUNC_GAMMA_22;
 		mod_build_vsc_infopacket(stream, &stream->vsc_infopacket, stream->output_color_space, tf);
+		aconnector->psr_skip_count = AMDGPU_DM_PSR_ENTRY_DELAY;
 
-		if (stream->link->psr_settings.psr_feature_enabled)
-			aconnector->psr_skip_count = AMDGPU_DM_PSR_ENTRY_DELAY;
 	}
 finish:
 	dc_sink_release(sink);
@@ -6355,9 +6436,6 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		dm_new_state->underscan_enable = val;
 		ret = 0;
-	} else if (property == adev->mode_info.abm_level_property) {
-		dm_new_state->abm_level = val ?: ABM_LEVEL_IMMEDIATE_DISABLE;
-		ret = 0;
 	}
 
 	return ret;
@@ -6400,18 +6478,86 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		*val = dm_state->underscan_enable;
 		ret = 0;
-	} else if (property == adev->mode_info.abm_level_property) {
-		*val = (dm_state->abm_level != ABM_LEVEL_IMMEDIATE_DISABLE) ?
-			dm_state->abm_level : 0;
-		ret = 0;
 	}
 
 	return ret;
 }
 
+/**
+ * DOC: panel power savings
+ *
+ * The display manager allows you to set your desired **panel power savings**
+ * level (between 0-4, with 0 representing off), e.g. using the following::
+ *
+ *   # echo 3 > /sys/class/drm/card0-eDP-1/amdgpu/panel_power_savings
+ *
+ * Modifying this value can have implications on color accuracy, so tread
+ * carefully.
+ */
+
+static ssize_t panel_power_savings_show(struct device *device,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct drm_connector *connector = dev_get_drvdata(device);
+	struct drm_device *dev = connector->dev;
+	u8 val;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	val = to_dm_connector_state(connector->state)->abm_level ==
+		ABM_LEVEL_IMMEDIATE_DISABLE ? 0 :
+		to_dm_connector_state(connector->state)->abm_level;
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+
+static ssize_t panel_power_savings_store(struct device *device,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct drm_connector *connector = dev_get_drvdata(device);
+	struct drm_device *dev = connector->dev;
+	long val;
+	int ret;
+
+	ret = kstrtol(buf, 0, &val);
+
+	if (ret)
+		return ret;
+
+	if (val < 0 || val > 4)
+		return -EINVAL;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	to_dm_connector_state(connector->state)->abm_level = val ?:
+		ABM_LEVEL_IMMEDIATE_DISABLE;
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+	drm_kms_helper_hotplug_event(dev);
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(panel_power_savings);
+
+static struct attribute *amdgpu_attrs[] = {
+	&dev_attr_panel_power_savings.attr,
+	NULL
+};
+
+static const struct attribute_group amdgpu_group = {
+	.name = "amdgpu",
+	.attrs = amdgpu_attrs
+};
+
 static void amdgpu_dm_connector_unregister(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
+	    amdgpu_dm_abm_level < 0)
+		sysfs_remove_group(&connector->kdev->kobj, &amdgpu_group);
 
 	drm_dp_aux_unregister(&amdgpu_dm_connector->dm_dp_aux.aux);
 }
@@ -6474,9 +6620,12 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->vcpi_slots = 0;
 		state->pbn = 0;
 
-		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-			state->abm_level = amdgpu_dm_abm_level ?:
-				ABM_LEVEL_IMMEDIATE_DISABLE;
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+			if (amdgpu_dm_abm_level <= 0)
+				state->abm_level = ABM_LEVEL_IMMEDIATE_DISABLE;
+			else
+				state->abm_level = amdgpu_dm_abm_level;
+		}
 
 		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
@@ -6513,6 +6662,14 @@ amdgpu_dm_connector_late_register(struct drm_connector *connector)
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 		to_amdgpu_dm_connector(connector);
 	int r;
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
+	    amdgpu_dm_abm_level < 0) {
+		r = sysfs_create_group(&connector->kdev->kobj,
+				       &amdgpu_group);
+		if (r)
+			return r;
+	}
 
 	amdgpu_dm_register_backlight_device(amdgpu_dm_connector);
 
@@ -6665,7 +6822,7 @@ static enum dc_status dm_validate_stream_and_context(struct dc *dc,
 	if (!dc_plane_state)
 		goto cleanup;
 
-	dc_state = dc_state_create(dc);
+	dc_state = dc_state_create(dc, NULL);
 	if (!dc_state)
 		goto cleanup;
 
@@ -7054,7 +7211,7 @@ static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
 	struct amdgpu_dm_connector *aconnector;
 	struct dm_connector_state *dm_conn_state;
 	int i, j, ret;
-	int vcpi, pbn_div, pbn, slot_num = 0;
+	int vcpi, pbn_div, pbn = 0, slot_num = 0;
 
 	for_each_new_connector_in_state(state, connector, new_con_state, i) {
 
@@ -7430,7 +7587,7 @@ static void amdgpu_dm_connector_add_freesync_modes(struct drm_connector *connect
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 		to_amdgpu_dm_connector(connector);
 
-	if (!edid)
+	if (!(amdgpu_freesync_vid_mode && edid))
 		return;
 
 	if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
@@ -7546,12 +7703,6 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 
 	aconnector->base.state->max_bpc = 16;
 	aconnector->base.state->max_requested_bpc = aconnector->base.state->max_bpc;
-
-	if (connector_type == DRM_MODE_CONNECTOR_eDP &&
-	    (dc_is_dmcu_initialized(adev->dm.dc) || adev->dm.dc->ctx->dmub_srv)) {
-		drm_object_attach_property(&aconnector->base.base,
-				adev->mode_info.abm_level_property, 0);
-	}
 
 	if (connector_type == DRM_MODE_CONNECTOR_HDMIA) {
 		/* Content Type is currently only implemented for HDMI. */
@@ -8273,13 +8424,13 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		bundle->surface_updates[planes_count].surface = dc_plane;
 		if (new_pcrtc_state->color_mgmt_changed) {
-			bundle->surface_updates[planes_count].gamma = dc_plane->gamma_correction;
-			bundle->surface_updates[planes_count].in_transfer_func = dc_plane->in_transfer_func;
+			bundle->surface_updates[planes_count].gamma = &dc_plane->gamma_correction;
+			bundle->surface_updates[planes_count].in_transfer_func = &dc_plane->in_transfer_func;
 			bundle->surface_updates[planes_count].gamut_remap_matrix = &dc_plane->gamut_remap_matrix;
 			bundle->surface_updates[planes_count].hdr_mult = dc_plane->hdr_mult;
-			bundle->surface_updates[planes_count].func_shaper = dc_plane->in_shaper_func;
-			bundle->surface_updates[planes_count].lut3d_func = dc_plane->lut3d_func;
-			bundle->surface_updates[planes_count].blend_tf = dc_plane->blend_tf;
+			bundle->surface_updates[planes_count].func_shaper = &dc_plane->in_shaper_func;
+			bundle->surface_updates[planes_count].lut3d_func = &dc_plane->lut3d_func;
+			bundle->surface_updates[planes_count].blend_tf = &dc_plane->blend_tf;
 		}
 
 		amdgpu_dm_plane_fill_dc_scaling_info(dm->adev, new_plane_state,
@@ -8492,7 +8643,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			bundle->stream_update.output_csc_transform =
 				&acrtc_state->stream->csc_color_matrix;
 			bundle->stream_update.out_transfer_func =
-				acrtc_state->stream->out_transfer_func;
+				&acrtc_state->stream->out_transfer_func;
 			bundle->stream_update.lut3d_func =
 				(struct dc_3dlut *) acrtc_state->stream->lut3d_func;
 			bundle->stream_update.func_shaper =
@@ -8546,10 +8697,22 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			dm_update_pflip_irq_state(drm_to_adev(dev),
 						  acrtc_attach);
 
-		if ((acrtc_state->update_type > UPDATE_TYPE_FAST) &&
-				acrtc_state->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED &&
-				!acrtc_state->stream->link->psr_settings.psr_feature_enabled)
-			amdgpu_dm_link_setup_psr(acrtc_state->stream);
+		if (acrtc_state->update_type > UPDATE_TYPE_FAST) {
+			if (acrtc_state->stream->link->replay_settings.config.replay_supported &&
+					!acrtc_state->stream->link->replay_settings.replay_feature_enabled) {
+				struct amdgpu_dm_connector *aconn =
+					(struct amdgpu_dm_connector *)acrtc_state->stream->dm_stream_context;
+				amdgpu_dm_link_setup_replay(acrtc_state->stream->link, aconn);
+			} else if (acrtc_state->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED &&
+					!acrtc_state->stream->link->psr_settings.psr_feature_enabled) {
+
+				struct amdgpu_dm_connector *aconn = (struct amdgpu_dm_connector *)
+					acrtc_state->stream->dm_stream_context;
+
+				if (!aconn->disallow_edp_enter_psr)
+					amdgpu_dm_link_setup_psr(acrtc_state->stream);
+			}
+		}
 
 		/* Decrement skip count when PSR is enabled and we're doing fast updates. */
 		if (acrtc_state->update_type == UPDATE_TYPE_FAST &&
@@ -8576,6 +8739,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			    !amdgpu_dm_crc_window_is_activated(acrtc_state->base.crtc) &&
 #endif
 			    !acrtc_state->stream->link->psr_settings.psr_allow_active &&
+			    !aconn->disallow_edp_enter_psr &&
 			    (timestamp_ns -
 			    acrtc_state->stream->link->psr_settings.psr_dirty_rects_change_timestamp_ns) >
 			    500000000)
@@ -8630,10 +8794,10 @@ static void amdgpu_dm_commit_audio(struct drm_device *dev,
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 			continue;
 
+notify:
 		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
 			continue;
 
-notify:
 		aconnector = to_amdgpu_dm_connector(connector);
 
 		mutex_lock(&adev->dm.audio_lock);
@@ -8713,6 +8877,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 	struct drm_connector *connector;
 	bool mode_set_reset_required = false;
 	u32 i;
+	struct dc_commit_streams_params params = {dc_state->streams, dc_state->stream_count};
 
 	/* Disable writeback */
 	for_each_old_connector_in_state(state, connector, old_con_state, i) {
@@ -8838,17 +9003,18 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 		}
 	} /* for_each_crtc_in_state() */
 
-	/* if there mode set or reset, disable eDP PSR */
+	/* if there mode set or reset, disable eDP PSR, Replay */
 	if (mode_set_reset_required) {
 		if (dm->vblank_control_workqueue)
 			flush_workqueue(dm->vblank_control_workqueue);
 
+		amdgpu_dm_replay_disable_all(dm);
 		amdgpu_dm_psr_disable_all(dm);
 	}
 
 	dm_enable_per_frame_crtc_master_sync(dc_state);
 	mutex_lock(&dm->dc_lock);
-	WARN_ON(!dc_commit_streams(dm->dc, dc_state->streams, dc_state->stream_count));
+	WARN_ON(!dc_commit_streams(dm->dc, &params));
 
 	/* Allow idle optimization when vblank count is 0 for display off */
 	if (dm->active_vblank_irq_count == 0)
@@ -9715,7 +9881,8 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		 * TODO: Refactor this function to allow this check to work
 		 * in all conditions.
 		 */
-		if (dm_new_crtc_state->stream &&
+		if (amdgpu_freesync_vid_mode &&
+		    dm_new_crtc_state->stream &&
 		    is_timing_unchanged_for_freesync(new_crtc_state, old_crtc_state))
 			goto skip_modeset;
 
@@ -9755,7 +9922,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		}
 
 		/* Now check if we should set freesync video mode */
-		if (dm_new_crtc_state->stream &&
+		if (amdgpu_freesync_vid_mode && dm_new_crtc_state->stream &&
 		    dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
 		    dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream) &&
 		    is_timing_unchanged_for_freesync(new_crtc_state,
@@ -9768,7 +9935,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 			set_freesync_fixed_config(dm_new_crtc_state);
 
 			goto skip_modeset;
-		} else if (aconnector &&
+		} else if (amdgpu_freesync_vid_mode && aconnector &&
 			   is_freesync_video_mode(&new_crtc_state->mode,
 						  aconnector)) {
 			struct drm_display_mode *high_mode;
@@ -10451,7 +10618,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
 	struct drm_dp_mst_topology_mgr *mgr;
 	struct drm_dp_mst_topology_state *mst_state;
-	struct dsc_mst_fairness_vars vars[MAX_PIPES];
+	struct dsc_mst_fairness_vars vars[MAX_PIPES] = {0};
 
 	trace_amdgpu_dm_atomic_check_begin(state);
 
@@ -11138,18 +11305,24 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 	if (!adev->dm.freesync_module)
 		goto update;
 
-	if (sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT
-		|| sink->sink_signal == SIGNAL_TYPE_EDP) {
+	if (edid && (sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT ||
+		     sink->sink_signal == SIGNAL_TYPE_EDP)) {
 		bool edid_check_required = false;
 
-		if (edid) {
-			edid_check_required = is_dp_capable_without_timing_msa(
-						adev->dm.dc,
-						amdgpu_dm_connector);
+		if (is_dp_capable_without_timing_msa(adev->dm.dc,
+						     amdgpu_dm_connector)) {
+			if (edid->features & DRM_EDID_FEATURE_CONTINUOUS_FREQ) {
+				freesync_capable = true;
+				amdgpu_dm_connector->min_vfreq = connector->display_info.monitor_range.min_vfreq;
+				amdgpu_dm_connector->max_vfreq = connector->display_info.monitor_range.max_vfreq;
+			} else {
+				edid_check_required = edid->version > 1 ||
+						      (edid->version == 1 &&
+						       edid->revision > 1);
+			}
 		}
 
-		if (edid_check_required == true && (edid->version > 1 ||
-		   (edid->version == 1 && edid->revision > 1))) {
+		if (edid_check_required) {
 			for (i = 0; i < 4; i++) {
 
 				timing	= &edid->detailed_timings[i];

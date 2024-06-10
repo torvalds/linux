@@ -8,13 +8,13 @@ set -e
 
 setup() {
 	# set 1ms delay on lo egress
-	tc qdisc add dev lo root netem delay 1ms
+	tc qdisc add dev lo root netem delay 10ms
 
 	# set 2ms delay on ifb0 egress
 	modprobe ifb
 	ip link add ifb_netem0 type ifb
 	ip link set dev ifb_netem0 up
-	tc qdisc add dev ifb_netem0 root netem delay 2ms
+	tc qdisc add dev ifb_netem0 root netem delay 20ms
 
 	# redirect lo ingress through ifb0 egress
 	tc qdisc add dev lo handle ffff: ingress
@@ -24,9 +24,11 @@ setup() {
 }
 
 run_test_v4v6() {
-	# SND will be delayed 1000us
-	# ACK will be delayed 6000us: 1 + 2 ms round-trip
-	local -r args="$@ -v 1000 -V 6000"
+	# SND will be delayed 10ms
+	# ACK will be delayed 60ms: 10 + 20 ms round-trip
+	# allow +/- tolerance of 8ms
+	# wait for ACK to be queued
+	local -r args="$@ -v 10000 -V 60000 -t 8000 -S 80000"
 
 	./txtimestamp ${args} -4 -L 127.0.0.1
 	./txtimestamp ${args} -6 -L ::1

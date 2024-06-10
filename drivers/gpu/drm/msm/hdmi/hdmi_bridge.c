@@ -236,24 +236,33 @@ static void msm_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 		msm_hdmi_audio_update(hdmi);
 }
 
-static struct edid *msm_hdmi_bridge_get_edid(struct drm_bridge *bridge,
-		struct drm_connector *connector)
+static const struct drm_edid *msm_hdmi_bridge_edid_read(struct drm_bridge *bridge,
+							struct drm_connector *connector)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 	struct hdmi *hdmi = hdmi_bridge->hdmi;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	uint32_t hdmi_ctrl;
 
 	hdmi_ctrl = hdmi_read(hdmi, REG_HDMI_CTRL);
 	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl | HDMI_CTRL_ENABLE);
 
-	edid = drm_get_edid(connector, hdmi->i2c);
+	drm_edid = drm_edid_read_ddc(connector, hdmi->i2c);
 
 	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl);
 
-	hdmi->hdmi_mode = drm_detect_hdmi_monitor(edid);
+	if (drm_edid) {
+		/*
+		 * FIXME: This should use connector->display_info.is_hdmi from a
+		 * path that has read the EDID and called
+		 * drm_edid_connector_update().
+		 */
+		const struct edid *edid = drm_edid_raw(drm_edid);
 
-	return edid;
+		hdmi->hdmi_mode = drm_detect_hdmi_monitor(edid);
+	}
+
+	return drm_edid;
 }
 
 static enum drm_mode_status msm_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
@@ -290,12 +299,12 @@ static enum drm_mode_status msm_hdmi_bridge_mode_valid(struct drm_bridge *bridge
 }
 
 static const struct drm_bridge_funcs msm_hdmi_bridge_funcs = {
-		.pre_enable = msm_hdmi_bridge_pre_enable,
-		.post_disable = msm_hdmi_bridge_post_disable,
-		.mode_set = msm_hdmi_bridge_mode_set,
-		.mode_valid = msm_hdmi_bridge_mode_valid,
-		.get_edid = msm_hdmi_bridge_get_edid,
-		.detect = msm_hdmi_bridge_detect,
+	.pre_enable = msm_hdmi_bridge_pre_enable,
+	.post_disable = msm_hdmi_bridge_post_disable,
+	.mode_set = msm_hdmi_bridge_mode_set,
+	.mode_valid = msm_hdmi_bridge_mode_valid,
+	.edid_read = msm_hdmi_bridge_edid_read,
+	.detect = msm_hdmi_bridge_detect,
 };
 
 static void

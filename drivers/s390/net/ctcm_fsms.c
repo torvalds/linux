@@ -1325,7 +1325,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	clear_normalized_cda(&ch->ccw[1]);
 
 	CTCM_PR_DBGDATA("ccwcda=0x%p data=0x%p\n",
-			(void *)(unsigned long)ch->ccw[1].cda,
+			(void *)(u64)dma32_to_u32(ch->ccw[1].cda),
 			ch->trans_skb->data);
 	ch->ccw[1].count = ch->max_bufsize;
 
@@ -1340,7 +1340,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	}
 
 	CTCM_PR_DBGDATA("ccwcda=0x%p data=0x%p\n",
-			(void *)(unsigned long)ch->ccw[1].cda,
+			(void *)(u64)dma32_to_u32(ch->ccw[1].cda),
 			ch->trans_skb->data);
 
 	ch->ccw[1].count = ch->trans_skb->len;

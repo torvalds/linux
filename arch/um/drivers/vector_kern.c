@@ -141,7 +141,7 @@ static bool get_bpf_flash(struct arglist *def)
 
 	if (allow != NULL) {
 		if (kstrtoul(allow, 10, &result) == 0)
-			return (allow > 0);
+			return result > 0;
 	}
 	return false;
 }
@@ -712,10 +712,8 @@ static struct vector_device *find_device(int n)
 static int vector_parse(char *str, int *index_out, char **str_out,
 			char **error_out)
 {
-	int n, len, err;
+	int n, err;
 	char *start = str;
-
-	len = strlen(str);
 
 	while ((*str != ':') && (strlen(str) > 1))
 		str++;
@@ -1373,7 +1371,7 @@ static void vector_net_poll_controller(struct net_device *dev)
 static void vector_net_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
-	strscpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRIVER_NAME);
 }
 
 static int vector_net_load_bpf_flash(struct net_device *dev,

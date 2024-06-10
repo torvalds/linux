@@ -23,8 +23,6 @@
 
 #define NVME_DISC_SUBSYS_NAME	"nqn.2014-08.org.nvmexpress.discovery"
 
-#define NVME_RDMA_IP_PORT	4420
-
 #define NVME_NSID_ALL		0xffffffff
 
 enum nvme_subsys_type {

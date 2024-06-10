@@ -119,6 +119,7 @@
 #endif
 #include <net/l3mdev.h>
 #include <net/compat.h>
+#include <net/rps.h>
 
 #include <trace/events/sock.h>
 
@@ -757,7 +758,9 @@ void __inet_accept(struct socket *sock, struct socket *newsock, struct sock *new
 	sock_rps_record_flow(newsk);
 	WARN_ON(!((1 << newsk->sk_state) &
 		  (TCPF_ESTABLISHED | TCPF_SYN_RECV |
-		  TCPF_CLOSE_WAIT | TCPF_CLOSE)));
+		   TCPF_FIN_WAIT1 | TCPF_FIN_WAIT2 |
+		   TCPF_CLOSING | TCPF_CLOSE_WAIT |
+		   TCPF_CLOSE)));
 
 	if (test_bit(SOCK_SUPPORT_ZC, &sock->flags))
 		set_bit(SOCK_SUPPORT_ZC, &newsock->flags);
@@ -770,16 +773,16 @@ void __inet_accept(struct socket *sock, struct socket *newsock, struct sock *new
  *	Accept a pending connection. The TCP layer now gives BSD semantics.
  */
 
-int inet_accept(struct socket *sock, struct socket *newsock, int flags,
-		bool kern)
+int inet_accept(struct socket *sock, struct socket *newsock,
+		struct proto_accept_arg *arg)
 {
 	struct sock *sk1 = sock->sk, *sk2;
-	int err = -EINVAL;
 
 	/* IPV6_ADDRFORM can change sk->sk_prot under us. */
-	sk2 = READ_ONCE(sk1->sk_prot)->accept(sk1, flags, &err, kern);
+	arg->err = -EINVAL;
+	sk2 = READ_ONCE(sk1->sk_prot)->accept(sk1, arg);
 	if (!sk2)
-		return err;
+		return arg->err;
 
 	lock_sock(sk2);
 	__inet_accept(sock, newsock, sk2);
@@ -1071,6 +1074,7 @@ const struct proto_ops inet_stream_ops = {
 #endif
 	.splice_eof	   = inet_splice_eof,
 	.splice_read	   = tcp_splice_read,
+	.set_peek_off      = sk_set_peek_off,
 	.read_sock	   = tcp_read_sock,
 	.read_skb	   = tcp_read_skb,
 	.sendmsg_locked    = tcp_sendmsg_locked,
@@ -1103,7 +1107,7 @@ const struct proto_ops inet_dgram_ops = {
 	.recvmsg	   = inet_recvmsg,
 	.mmap		   = sock_no_mmap,
 	.splice_eof	   = inet_splice_eof,
-	.set_peek_off	   = sk_set_peek_off,
+	.set_peek_off	   = udp_set_peek_off,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	   = inet_compat_ioctl,
 #endif
@@ -1305,8 +1309,8 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 
 int inet_sk_rebuild_header(struct sock *sk)
 {
+	struct rtable *rt = dst_rtable(__sk_dst_check(sk, 0));
 	struct inet_sock *inet = inet_sk(sk);
-	struct rtable *rt = (struct rtable *)__sk_dst_check(sk, 0);
 	__be32 daddr;
 	struct ip_options_rcu *inet_opt;
 	struct flowi4 *fl4;
@@ -1326,7 +1330,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	fl4 = &inet->cork.fl.u.ip4;
 	rt = ip_route_output_ports(sock_net(sk), fl4, sk, daddr, inet->inet_saddr,
 				   inet->inet_dport, inet->inet_sport,
-				   sk->sk_protocol, RT_CONN_FLAGS(sk),
+				   sk->sk_protocol, ip_sock_rt_tos(sk),
 				   sk->sk_bound_dev_if);
 	if (!IS_ERR(rt)) {
 		err = 0;
@@ -1480,7 +1484,6 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 	struct sk_buff *p;
 	unsigned int hlen;
 	unsigned int off;
-	unsigned int id;
 	int flush = 1;
 	int proto;
 
@@ -1506,13 +1509,10 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 		goto out;
 
 	NAPI_GRO_CB(skb)->proto = proto;
-	id = ntohl(*(__be32 *)&iph->id);
-	flush = (u16)((ntohl(*(__be32 *)iph) ^ skb_gro_len(skb)) | (id & ~IP_DF));
-	id >>= 16;
+	flush = (u16)((ntohl(*(__be32 *)iph) ^ skb_gro_len(skb)) | (ntohl(*(__be32 *)&iph->id) & ~IP_DF));
 
 	list_for_each_entry(p, head, list) {
 		struct iphdr *iph2;
-		u16 flush_id;
 
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
@@ -1529,48 +1529,10 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
-
-		/* All fields must match except length and checksum. */
-		NAPI_GRO_CB(p)->flush |=
-			(iph->ttl ^ iph2->ttl) |
-			(iph->tos ^ iph2->tos) |
-			((iph->frag_off ^ iph2->frag_off) & htons(IP_DF));
-
-		NAPI_GRO_CB(p)->flush |= flush;
-
-		/* We need to store of the IP ID check to be included later
-		 * when we can verify that this packet does in fact belong
-		 * to a given flow.
-		 */
-		flush_id = (u16)(id - ntohs(iph2->id));
-
-		/* This bit of code makes it much easier for us to identify
-		 * the cases where we are doing atomic vs non-atomic IP ID
-		 * checks.  Specifically an atomic check can return IP ID
-		 * values 0 - 0xFFFF, while a non-atomic check can only
-		 * return 0 or 0xFFFF.
-		 */
-		if (!NAPI_GRO_CB(p)->is_atomic ||
-		    !(iph->frag_off & htons(IP_DF))) {
-			flush_id ^= NAPI_GRO_CB(p)->count;
-			flush_id = flush_id ? 0xFFFF : 0;
-		}
-
-		/* If the previous IP ID value was based on an atomic
-		 * datagram we can overwrite the value and ignore it.
-		 */
-		if (NAPI_GRO_CB(skb)->is_atomic)
-			NAPI_GRO_CB(p)->flush_id = flush_id;
-		else
-			NAPI_GRO_CB(p)->flush_id |= flush_id;
 	}
 
-	NAPI_GRO_CB(skb)->is_atomic = !!(iph->frag_off & htons(IP_DF));
 	NAPI_GRO_CB(skb)->flush |= flush;
-	skb_set_network_header(skb, off);
-	/* The above will be needed by the transport layer if there is one
-	 * immediately following this IP hdr.
-	 */
+	NAPI_GRO_CB(skb)->inner_network_offset = off;
 
 	/* Note : No need to call skb_gro_postpull_rcsum() here,
 	 * as we already checked checksum over ipv4 header was 0
@@ -1751,19 +1713,6 @@ static const struct net_protocol igmp_protocol = {
 };
 #endif
 
-static const struct net_protocol tcp_protocol = {
-	.handler	=	tcp_v4_rcv,
-	.err_handler	=	tcp_v4_err,
-	.no_policy	=	1,
-	.icmp_strict_tag_validation = 1,
-};
-
-static const struct net_protocol udp_protocol = {
-	.handler =	udp_rcv,
-	.err_handler =	udp_err,
-	.no_policy =	1,
-};
-
 static const struct net_protocol icmp_protocol = {
 	.handler =	icmp_rcv,
 	.err_handler =	icmp_err,
@@ -1904,14 +1853,6 @@ static int ipv4_proc_init(void);
  *	IP protocol layer initialiser
  */
 
-static struct packet_offload ip_packet_offload __read_mostly = {
-	.type = cpu_to_be16(ETH_P_IP),
-	.callbacks = {
-		.gso_segment = inet_gso_segment,
-		.gro_receive = inet_gro_receive,
-		.gro_complete = inet_gro_complete,
-	},
-};
 
 static const struct net_offload ipip_offload = {
 	.callbacks = {
@@ -1938,7 +1879,15 @@ static int __init ipv4_offload_init(void)
 	if (ipip_offload_init() < 0)
 		pr_crit("%s: Cannot add IPIP protocol offload\n", __func__);
 
-	dev_add_offload(&ip_packet_offload);
+	net_hotdata.ip_packet_offload = (struct packet_offload) {
+		.type = cpu_to_be16(ETH_P_IP),
+		.callbacks = {
+			.gso_segment = inet_gso_segment,
+			.gro_receive = inet_gro_receive,
+			.gro_complete = inet_gro_complete,
+		},
+	};
+	dev_add_offload(&net_hotdata.ip_packet_offload);
 	return 0;
 }
 
@@ -1992,9 +1941,22 @@ static int __init inet_init(void)
 
 	if (inet_add_protocol(&icmp_protocol, IPPROTO_ICMP) < 0)
 		pr_crit("%s: Cannot add ICMP protocol\n", __func__);
-	if (inet_add_protocol(&udp_protocol, IPPROTO_UDP) < 0)
+
+	net_hotdata.udp_protocol = (struct net_protocol) {
+		.handler =	udp_rcv,
+		.err_handler =	udp_err,
+		.no_policy =	1,
+	};
+	if (inet_add_protocol(&net_hotdata.udp_protocol, IPPROTO_UDP) < 0)
 		pr_crit("%s: Cannot add UDP protocol\n", __func__);
-	if (inet_add_protocol(&tcp_protocol, IPPROTO_TCP) < 0)
+
+	net_hotdata.tcp_protocol = (struct net_protocol) {
+		.handler	=	tcp_v4_rcv,
+		.err_handler	=	tcp_v4_err,
+		.no_policy	=	1,
+		.icmp_strict_tag_validation = 1,
+	};
+	if (inet_add_protocol(&net_hotdata.tcp_protocol, IPPROTO_TCP) < 0)
 		pr_crit("%s: Cannot add TCP protocol\n", __func__);
 #ifdef CONFIG_IP_MULTICAST
 	if (inet_add_protocol(&igmp_protocol, IPPROTO_IGMP) < 0)

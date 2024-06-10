@@ -45,8 +45,16 @@
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_XHCI	0x9d2f
 #define PCI_DEVICE_ID_INTEL_BROXTON_M_XHCI		0x0aa8
 #define PCI_DEVICE_ID_INTEL_BROXTON_B_XHCI		0x1aa8
-#define PCI_DEVICE_ID_INTEL_APL_XHCI			0x5aa8
-#define PCI_DEVICE_ID_INTEL_DNV_XHCI			0x19d0
+#define PCI_DEVICE_ID_INTEL_APOLLO_LAKE_XHCI		0x5aa8
+#define PCI_DEVICE_ID_INTEL_DENVERTON_XHCI		0x19d0
+#define PCI_DEVICE_ID_INTEL_ICE_LAKE_XHCI		0x8a13
+#define PCI_DEVICE_ID_INTEL_TIGER_LAKE_XHCI		0x9a13
+#define PCI_DEVICE_ID_INTEL_COMET_LAKE_XHCI		0xa3af
+#define PCI_DEVICE_ID_INTEL_ALDER_LAKE_PCH_XHCI		0x51ed
+#define PCI_DEVICE_ID_INTEL_ALDER_LAKE_N_PCH_XHCI	0x54ed
+
+/* Thunderbolt */
+#define PCI_DEVICE_ID_INTEL_MAPLE_RIDGE_XHCI		0x1138
 #define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_XHCI	0x15b5
 #define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_XHCI	0x15b6
 #define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_XHCI	0x15c1
@@ -55,12 +63,6 @@
 #define PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_XHCI		0x15e9
 #define PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_XHCI		0x15ec
 #define PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_XHCI		0x15f0
-#define PCI_DEVICE_ID_INTEL_ICE_LAKE_XHCI		0x8a13
-#define PCI_DEVICE_ID_INTEL_CML_XHCI			0xa3af
-#define PCI_DEVICE_ID_INTEL_TIGER_LAKE_XHCI		0x9a13
-#define PCI_DEVICE_ID_INTEL_MAPLE_RIDGE_XHCI		0x1138
-#define PCI_DEVICE_ID_INTEL_ALDER_LAKE_PCH_XHCI		0x51ed
-#define PCI_DEVICE_ID_INTEL_ALDER_LAKE_N_PCH_XHCI	0x54ed
 
 #define PCI_DEVICE_ID_AMD_RENOIR_XHCI			0x1639
 #define PCI_DEVICE_ID_AMD_PROMONTORYA_4			0x43b9
@@ -270,16 +272,11 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 				"QUIRK: Fresco Logic revision %u "
 				"has broken MSI implementation",
 				pdev->revision);
-		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 	}
 
 	if (pdev->vendor == PCI_VENDOR_ID_FRESCO_LOGIC &&
 			pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_FL1009)
 		xhci->quirks |= XHCI_BROKEN_STREAMS;
-
-	if (pdev->vendor == PCI_VENDOR_ID_FRESCO_LOGIC &&
-			pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_FL1100)
-		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 
 	if (pdev->vendor == PCI_VENDOR_ID_NEC)
 		xhci->quirks |= XHCI_NEC_HOST;
@@ -307,8 +304,8 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
 	}
 
-	if (pdev->vendor == PCI_VENDOR_ID_AMD)
-		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
+	if (pdev->vendor == PCI_VENDOR_ID_AMD && pdev->device == 0x43f7)
+		xhci->quirks |= XHCI_DEFAULT_PM_RUNTIME_ALLOW;
 
 	if ((pdev->vendor == PCI_VENDOR_ID_AMD) &&
 		((pdev->device == PCI_DEVICE_ID_AMD_PROMONTORYA_4) ||
@@ -353,9 +350,9 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		 pdev->device == PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI ||
 		 pdev->device == PCI_DEVICE_ID_INTEL_BROXTON_M_XHCI ||
 		 pdev->device == PCI_DEVICE_ID_INTEL_BROXTON_B_XHCI ||
-		 pdev->device == PCI_DEVICE_ID_INTEL_APL_XHCI ||
-		 pdev->device == PCI_DEVICE_ID_INTEL_DNV_XHCI ||
-		 pdev->device == PCI_DEVICE_ID_INTEL_CML_XHCI)) {
+		 pdev->device == PCI_DEVICE_ID_INTEL_APOLLO_LAKE_XHCI ||
+		 pdev->device == PCI_DEVICE_ID_INTEL_DENVERTON_XHCI ||
+		 pdev->device == PCI_DEVICE_ID_INTEL_COMET_LAKE_XHCI)) {
 		xhci->quirks |= XHCI_PME_STUCK_QUIRK;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
@@ -364,14 +361,14 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
 	    (pdev->device == PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI ||
 	     pdev->device == PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_XHCI ||
-	     pdev->device == PCI_DEVICE_ID_INTEL_APL_XHCI))
+	     pdev->device == PCI_DEVICE_ID_INTEL_APOLLO_LAKE_XHCI))
 		xhci->quirks |= XHCI_INTEL_USB_ROLE_SW;
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
 	    (pdev->device == PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI ||
 	     pdev->device == PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_XHCI ||
 	     pdev->device == PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_XHCI ||
-	     pdev->device == PCI_DEVICE_ID_INTEL_APL_XHCI ||
-	     pdev->device == PCI_DEVICE_ID_INTEL_DNV_XHCI))
+	     pdev->device == PCI_DEVICE_ID_INTEL_APOLLO_LAKE_XHCI ||
+	     pdev->device == PCI_DEVICE_ID_INTEL_DENVERTON_XHCI))
 		xhci->quirks |= XHCI_MISSING_CAS;
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
@@ -396,12 +393,10 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_ETRON &&
 			pdev->device == PCI_DEVICE_ID_EJ168) {
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
-		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 		xhci->quirks |= XHCI_BROKEN_STREAMS;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_RENESAS &&
 	    pdev->device == 0x0014) {
-		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 		xhci->quirks |= XHCI_ZERO_64B_REGS;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_RENESAS &&
@@ -431,7 +426,6 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_ASMEDIA &&
 		pdev->device == PCI_DEVICE_ID_ASMEDIA_1042A_XHCI) {
-		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 		xhci->quirks |= XHCI_NO_64BIT_SUPPORT;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_ASMEDIA &&
@@ -820,7 +814,6 @@ static int xhci_pci_poweroff_late(struct usb_hcd *hcd, bool do_wakeup)
 	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
 	struct xhci_port	*port;
 	struct usb_device	*udev;
-	unsigned int		slot_id;
 	u32			portsc;
 	int			i;
 
@@ -843,15 +836,14 @@ static int xhci_pci_poweroff_late(struct usb_hcd *hcd, bool do_wakeup)
 		if ((portsc & PORT_PLS_MASK) != XDEV_U3)
 			continue;
 
-		slot_id = xhci_find_slot_id_by_port(port->rhub->hcd, xhci,
-						    port->hcd_portnum + 1);
-		if (!slot_id || !xhci->devs[slot_id]) {
+		if (!port->slot_id || !xhci->devs[port->slot_id]) {
 			xhci_err(xhci, "No dev for slot_id %d for port %d-%d in U3\n",
-				 slot_id, port->rhub->hcd->self.busnum, port->hcd_portnum + 1);
+				 port->slot_id, port->rhub->hcd->self.busnum,
+				 port->hcd_portnum + 1);
 			continue;
 		}
 
-		udev = xhci->devs[slot_id]->udev;
+		udev = xhci->devs[port->slot_id]->udev;
 
 		/* if wakeup is enabled then don't disable the port */
 		if (udev->do_remote_wakeup && do_wakeup)
@@ -888,10 +880,10 @@ static const struct xhci_driver_data reneses_data = {
 
 /* PCI driver selection metadata; PCI hotplugging uses this */
 static const struct pci_device_id pci_ids[] = {
-	{ PCI_DEVICE(0x1912, 0x0014),
+	{ PCI_DEVICE(PCI_VENDOR_ID_RENESAS, 0x0014),
 		.driver_data =  (unsigned long)&reneses_data,
 	},
-	{ PCI_DEVICE(0x1912, 0x0015),
+	{ PCI_DEVICE(PCI_VENDOR_ID_RENESAS, 0x0015),
 		.driver_data =  (unsigned long)&reneses_data,
 	},
 	/* handle any USB 3.0 xHCI controller */

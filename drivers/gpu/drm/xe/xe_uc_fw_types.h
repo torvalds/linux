@@ -50,7 +50,8 @@ enum xe_uc_fw_status {
 	XE_UC_FIRMWARE_LOADABLE, /* all fw-required objects are ready */
 	XE_UC_FIRMWARE_LOAD_FAIL, /* failed to xfer or init/auth the fw */
 	XE_UC_FIRMWARE_TRANSFERRED, /* dma xfer done */
-	XE_UC_FIRMWARE_RUNNING /* init/auth done */
+	XE_UC_FIRMWARE_RUNNING, /* init/auth done */
+	XE_UC_FIRMWARE_PRELOADED, /* preloaded by the PF driver */
 };
 
 enum xe_uc_fw_type {
@@ -124,11 +125,14 @@ struct xe_uc_fw {
 
 	/** @versions: FW versions wanted and found */
 	struct {
-		/** @wanted: firmware version wanted by platform */
+		/** @versions.wanted: firmware version wanted by platform */
 		struct xe_uc_fw_version wanted;
-		/** @wanted_type: type of firmware version wanted (release vs compatibility) */
+		/**
+		 * @versions.wanted_type: type of firmware version wanted
+		 * (release vs compatibility)
+		 */
 		enum xe_uc_fw_version_types wanted_type;
-		/** @found: fw versions found in firmware blob */
+		/** @versions.found: fw versions found in firmware blob */
 		struct xe_uc_fw_version found[XE_UC_FW_VER_TYPE_COUNT];
 	} versions;
 

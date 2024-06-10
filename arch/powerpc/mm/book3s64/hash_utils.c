@@ -2172,7 +2172,7 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 				     mmu_kernel_ssize, 0);
 }
 
-void hash__kernel_map_pages(struct page *page, int numpages, int enable)
+int hash__kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long flags, vaddr, lmi;
 	int i;
@@ -2189,6 +2189,7 @@ void hash__kernel_map_pages(struct page *page, int numpages, int enable)
 			kernel_unmap_linear_page(vaddr, lmi);
 	}
 	local_irq_restore(flags);
+	return 0;
 }
 #endif /* CONFIG_DEBUG_PAGEALLOC || CONFIG_KFENCE */
 

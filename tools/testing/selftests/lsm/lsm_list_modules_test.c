@@ -31,7 +31,7 @@ TEST(size_null_lsm_list_modules)
 TEST(ids_null_lsm_list_modules)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
-	size_t size = page_size;
+	__u32 size = page_size;
 
 	errno = 0;
 	ASSERT_EQ(-1, lsm_list_modules(NULL, &size, 0));
@@ -43,7 +43,7 @@ TEST(size_too_small_lsm_list_modules)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
 	__u64 *syscall_lsms = calloc(page_size, 1);
-	size_t size = 1;
+	__u32 size = 1;
 
 	ASSERT_NE(NULL, syscall_lsms);
 	errno = 0;
@@ -58,7 +58,7 @@ TEST(flags_set_lsm_list_modules)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
 	__u64 *syscall_lsms = calloc(page_size, 1);
-	size_t size = page_size;
+	__u32 size = page_size;
 
 	ASSERT_NE(NULL, syscall_lsms);
 	errno = 0;
@@ -72,7 +72,7 @@ TEST(flags_set_lsm_list_modules)
 TEST(correct_lsm_list_modules)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
-	size_t size = page_size;
+	__u32 size = page_size;
 	__u64 *syscall_lsms = calloc(page_size, 1);
 	char *sysfs_lsms = calloc(page_size, 1);
 	char *name;
@@ -121,6 +121,12 @@ TEST(correct_lsm_list_modules)
 			break;
 		case LSM_ID_LANDLOCK:
 			name = "landlock";
+			break;
+		case LSM_ID_IMA:
+			name = "ima";
+			break;
+		case LSM_ID_EVM:
+			name = "evm";
 			break;
 		default:
 			name = "INVALID";

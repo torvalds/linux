@@ -1484,12 +1484,9 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state, bool from_irq)
 
 	IWL_WARN(trans, "reporting RF_KILL (radio %s)\n",
 		 state ? "disabled" : "enabled");
-	if (iwl_op_mode_hw_rf_kill(trans->op_mode, state)) {
-		if (trans->trans_cfg->gen2)
-			_iwl_trans_pcie_gen2_stop_device(trans);
-		else
-			_iwl_trans_pcie_stop_device(trans, from_irq);
-	}
+	if (iwl_op_mode_hw_rf_kill(trans->op_mode, state) &&
+	    !WARN_ON(trans->trans_cfg->gen2))
+		_iwl_trans_pcie_stop_device(trans, from_irq);
 }
 
 void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
@@ -1718,6 +1715,7 @@ enable_msi:
 
 static void iwl_pcie_irq_set_affinity(struct iwl_trans *trans)
 {
+#if defined(CONFIG_SMP)
 	int iter_rx_q, i, ret, cpu, offset;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -1738,6 +1736,7 @@ static void iwl_pcie_irq_set_affinity(struct iwl_trans *trans)
 				"Failed to set affinity mask for IRQ %d\n",
 				trans_pcie->msix_entries[i].vector);
 	}
+#endif
 }
 
 static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
@@ -1987,13 +1986,6 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans->command_groups = trans_cfg->command_groups;
 	trans->command_groups_size = trans_cfg->command_groups_size;
 
-	/* Initialize NAPI here - it should be before registering to mac80211
-	 * in the opmode but after the HW struct is allocated.
-	 * As this function may be called again in some corner cases don't
-	 * do anything if NAPI was already initialized.
-	 */
-	if (trans_pcie->napi_dev.reg_state != NETREG_DUMMY)
-		init_dummy_netdev(&trans_pcie->napi_dev);
 
 	trans_pcie->fw_reset_handshake = trans_cfg->fw_reset_handshake;
 }
@@ -2074,6 +2066,8 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	} else {
 		iwl_pcie_free_ict(trans);
 	}
+
+	free_netdev(trans_pcie->napi_dev);
 
 	iwl_pcie_free_invalid_tx_cmd(trans);
 
@@ -3595,7 +3589,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			       const struct pci_device_id *ent,
 			       const struct iwl_cfg_trans_params *cfg_trans)
 {
-	struct iwl_trans_pcie *trans_pcie;
+	struct iwl_trans_pcie *trans_pcie, **priv;
 	struct iwl_trans *trans;
 	int ret, addr_size;
 	const struct iwl_trans_ops *ops = &trans_ops_pcie_gen2;
@@ -3624,6 +3618,18 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
+	/* Initialize NAPI here - it should be before registering to mac80211
+	 * in the opmode but after the HW struct is allocated.
+	 */
+	trans_pcie->napi_dev = alloc_netdev_dummy(sizeof(struct iwl_trans_pcie *));
+	if (!trans_pcie->napi_dev) {
+		ret = -ENOMEM;
+		goto out_free_trans;
+	}
+	/* The private struct in netdev is a pointer to struct iwl_trans_pcie */
+	priv = netdev_priv(trans_pcie->napi_dev);
+	*priv = trans_pcie;
+
 	trans_pcie->trans = trans;
 	trans_pcie->opmode_down = true;
 	spin_lock_init(&trans_pcie->irq_lock);
@@ -3638,7 +3644,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 						   WQ_HIGHPRI | WQ_UNBOUND, 0);
 	if (!trans_pcie->rba.alloc_wq) {
 		ret = -ENOMEM;
-		goto out_free_trans;
+		goto out_free_ndev;
 	}
 	INIT_WORK(&trans_pcie->rba.rx_alloc, iwl_pcie_rx_allocator_work);
 
@@ -3758,6 +3764,8 @@ out_free_ict:
 	iwl_pcie_free_ict(trans);
 out_no_pci:
 	destroy_workqueue(trans_pcie->rba.alloc_wq);
+out_free_ndev:
+	free_netdev(trans_pcie->napi_dev);
 out_free_trans:
 	iwl_trans_free(trans);
 	return ERR_PTR(ret);

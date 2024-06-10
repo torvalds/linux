@@ -33,7 +33,6 @@ enum tb_cfg_pkg_type {
 	TB_CFG_PKG_ICM_EVENT = 10,
 	TB_CFG_PKG_ICM_CMD = 11,
 	TB_CFG_PKG_ICM_RESP = 12,
-	TB_CFG_PKG_PREPARE_TO_SLEEP = 13,
 };
 
 /**
@@ -87,8 +86,8 @@ struct tb {
 };
 
 extern const struct bus_type tb_bus_type;
-extern struct device_type tb_service_type;
-extern struct device_type tb_xdomain_type;
+extern const struct device_type tb_service_type;
+extern const struct device_type tb_xdomain_type;
 
 #define TB_LINKS_PER_PHY_PORT	2
 

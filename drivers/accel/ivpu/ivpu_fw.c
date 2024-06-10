@@ -46,15 +46,13 @@
 
 static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
-MODULE_PARM_DESC(firmware, "VPU firmware binary in /lib/firmware/..");
+MODULE_PARM_DESC(firmware, "NPU firmware binary in /lib/firmware/..");
 
-/* TODO: Remove mtl_vpu.bin from names after transition to generation based FW names */
 static struct {
 	int gen;
 	const char *name;
 } fw_names[] = {
 	{ IVPU_HW_37XX, "vpu_37xx.bin" },
-	{ IVPU_HW_37XX, "mtl_vpu.bin" },
 	{ IVPU_HW_37XX, "intel/vpu/vpu_37xx_v0.0.bin" },
 	{ IVPU_HW_40XX, "vpu_40xx.bin" },
 	{ IVPU_HW_40XX, "intel/vpu/vpu_40xx_v0.0.bin" },
@@ -250,6 +248,7 @@ static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
 static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
+	struct ivpu_addr_range fw_range;
 	int log_verb_size;
 	int ret;
 
@@ -257,16 +256,19 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	if (ret)
 		return ret;
 
-	fw->mem = ivpu_bo_alloc_internal(vdev, fw->runtime_addr, fw->runtime_size, DRM_IVPU_BO_WC);
+	fw_range.start = fw->runtime_addr;
+	fw_range.end = fw->runtime_addr + fw->runtime_size;
+	fw->mem = ivpu_bo_create(vdev, &vdev->gctx, &fw_range, fw->runtime_size,
+				 DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!fw->mem) {
-		ivpu_err(vdev, "Failed to allocate firmware runtime memory\n");
+		ivpu_err(vdev, "Failed to create firmware runtime memory buffer\n");
 		return -ENOMEM;
 	}
 
-	fw->mem_log_crit = ivpu_bo_alloc_internal(vdev, 0, IVPU_FW_CRITICAL_BUFFER_SIZE,
-						  DRM_IVPU_BO_CACHED);
+	fw->mem_log_crit = ivpu_bo_create_global(vdev, IVPU_FW_CRITICAL_BUFFER_SIZE,
+						 DRM_IVPU_BO_CACHED | DRM_IVPU_BO_MAPPABLE);
 	if (!fw->mem_log_crit) {
-		ivpu_err(vdev, "Failed to allocate critical log buffer\n");
+		ivpu_err(vdev, "Failed to create critical log buffer\n");
 		ret = -ENOMEM;
 		goto err_free_fw_mem;
 	}
@@ -276,18 +278,19 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	else
 		log_verb_size = IVPU_FW_VERBOSE_BUFFER_SMALL_SIZE;
 
-	fw->mem_log_verb = ivpu_bo_alloc_internal(vdev, 0, log_verb_size, DRM_IVPU_BO_CACHED);
+	fw->mem_log_verb = ivpu_bo_create_global(vdev, log_verb_size,
+						 DRM_IVPU_BO_CACHED | DRM_IVPU_BO_MAPPABLE);
 	if (!fw->mem_log_verb) {
-		ivpu_err(vdev, "Failed to allocate verbose log buffer\n");
+		ivpu_err(vdev, "Failed to create verbose log buffer\n");
 		ret = -ENOMEM;
 		goto err_free_log_crit;
 	}
 
 	if (fw->shave_nn_size) {
-		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.shave.start,
-							  fw->shave_nn_size, DRM_IVPU_BO_WC);
+		fw->mem_shave_nn = ivpu_bo_create(vdev, &vdev->gctx, &vdev->hw->ranges.shave,
+						  fw->shave_nn_size, DRM_IVPU_BO_WC);
 		if (!fw->mem_shave_nn) {
-			ivpu_err(vdev, "Failed to allocate shavenn buffer\n");
+			ivpu_err(vdev, "Failed to create shavenn buffer\n");
 			ret = -ENOMEM;
 			goto err_free_log_verb;
 		}
@@ -296,11 +299,11 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	return 0;
 
 err_free_log_verb:
-	ivpu_bo_free_internal(fw->mem_log_verb);
+	ivpu_bo_free(fw->mem_log_verb);
 err_free_log_crit:
-	ivpu_bo_free_internal(fw->mem_log_crit);
+	ivpu_bo_free(fw->mem_log_crit);
 err_free_fw_mem:
-	ivpu_bo_free_internal(fw->mem);
+	ivpu_bo_free(fw->mem);
 	return ret;
 }
 
@@ -309,13 +312,13 @@ static void ivpu_fw_mem_fini(struct ivpu_device *vdev)
 	struct ivpu_fw_info *fw = vdev->fw;
 
 	if (fw->mem_shave_nn) {
-		ivpu_bo_free_internal(fw->mem_shave_nn);
+		ivpu_bo_free(fw->mem_shave_nn);
 		fw->mem_shave_nn = NULL;
 	}
 
-	ivpu_bo_free_internal(fw->mem_log_verb);
-	ivpu_bo_free_internal(fw->mem_log_crit);
-	ivpu_bo_free_internal(fw->mem);
+	ivpu_bo_free(fw->mem_log_verb);
+	ivpu_bo_free(fw->mem_log_crit);
+	ivpu_bo_free(fw->mem);
 
 	fw->mem_log_verb = NULL;
 	fw->mem_log_crit = NULL;
@@ -469,6 +472,8 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->d0i3_residency_time_us);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
 		 boot_params->d0i3_entry_vpu_ts);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.system_time_us = %llu\n",
+		 boot_params->system_time_us);
 }
 
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
@@ -480,11 +485,14 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 		boot_params->d0i3_residency_time_us =
 			ktime_us_delta(ktime_get_boottime(), vdev->hw->d0i3_entry_host_ts);
 		boot_params->d0i3_entry_vpu_ts = vdev->hw->d0i3_entry_vpu_ts;
+		boot_params->system_time_us = ktime_to_us(ktime_get_real());
 
 		ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_residency_time_us = %lld\n",
 			 boot_params->d0i3_residency_time_us);
 		ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
 			 boot_params->d0i3_entry_vpu_ts);
+		ivpu_dbg(vdev, FW_BOOT, "boot_params.system_time_us = %llu\n",
+			 boot_params->system_time_us);
 
 		boot_params->save_restore_ret_address = 0;
 		vdev->pm->is_warmboot = true;
@@ -562,6 +570,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->d0i3_residency_time_us = 0;
 	boot_params->d0i3_entry_vpu_ts = 0;
 
+	boot_params->system_time_us = ktime_to_us(ktime_get_real());
 	wmb(); /* Flush WC buffers after writing bootparams */
 
 	ivpu_fw_boot_params_print(vdev, boot_params);

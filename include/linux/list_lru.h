@@ -24,6 +24,8 @@ enum lru_status {
 	LRU_SKIP,		/* item cannot be locked, skip */
 	LRU_RETRY,		/* item not freeable. May drop the lock
 				   internally, but has to return locked. */
+	LRU_STOP,		/* stop lru list walking. May drop the lock
+				   internally, but has to return locked. */
 };
 
 struct list_lru_one {
@@ -62,8 +64,6 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware,
 
 #define list_lru_init(lru)				\
 	__list_lru_init((lru), false, NULL, NULL)
-#define list_lru_init_key(lru, key)			\
-	__list_lru_init((lru), false, (key), NULL)
 #define list_lru_init_memcg(lru, shrinker)		\
 	__list_lru_init((lru), true, NULL, shrinker)
 
@@ -170,22 +170,6 @@ static inline unsigned long list_lru_count(struct list_lru *lru)
 void list_lru_isolate(struct list_lru_one *list, struct list_head *item);
 void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
 			   struct list_head *head);
-/**
- * list_lru_putback: undo list_lru_isolate
- * @lru: the lru pointer.
- * @item: the item to put back.
- * @nid: the node id of the sublist to put the item back to.
- * @memcg: the cgroup of the sublist to put the item back to.
- *
- * Put back an isolated item into its original LRU. Note that unlike
- * list_lru_add, this does not increment the node LRU count (as
- * list_lru_isolate does not originally decrement this count).
- *
- * Since we might have dropped the LRU lock in between, recompute list_lru_one
- * from the node's id and memcg.
- */
-void list_lru_putback(struct list_lru *lru, struct list_head *item, int nid,
-		      struct mem_cgroup *memcg);
 
 typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
 		struct list_lru_one *list, spinlock_t *lock, void *cb_arg);

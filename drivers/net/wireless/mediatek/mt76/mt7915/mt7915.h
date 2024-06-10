@@ -287,6 +287,7 @@ struct mt7915_dev {
 
 	struct list_head sta_rc_list;
 	struct list_head twt_list;
+	spinlock_t reg_lock;
 
 	u32 hw_pattern;
 
@@ -301,6 +302,10 @@ struct mt7915_dev {
 	struct rchan *relay_fwlog;
 
 	void *cal;
+	u32 cur_prek_offset;
+	u8 dpd_chan_num_2g;
+	u8 dpd_chan_num_5g;
+	u8 dpd_chan_num_6g;
 
 	struct {
 		u8 debug_wm;

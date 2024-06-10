@@ -24,7 +24,7 @@
  */
 #include "dc.h"
 #include "reg_helper.h"
-#include "dcn10_dpp.h"
+#include "dcn10/dcn10_dpp.h"
 
 #include "dcn10_cm_common.h"
 #include "custom_float.h"
@@ -60,6 +60,26 @@ void cm_helper_program_color_matrices(
 		i++;
 	}
 
+}
+
+void cm_helper_read_color_matrices(struct dc_context *ctx,
+				   uint16_t *regval,
+				   const struct color_matrices_reg *reg)
+{
+	uint32_t cur_csc_reg, regval0, regval1;
+	unsigned int i = 0;
+
+	for (cur_csc_reg = reg->csc_c11_c12;
+	     cur_csc_reg <= reg->csc_c33_c34; cur_csc_reg++) {
+		REG_GET_2(cur_csc_reg,
+				csc_c11, &regval0,
+				csc_c12, &regval1);
+
+		regval[2 * i] = regval0;
+		regval[(2 * i) + 1] = regval1;
+
+		i++;
+	}
 }
 
 void cm_helper_program_xfer_func(
@@ -382,6 +402,11 @@ bool cm_helper_translate_curve_to_hw_format(struct dc_context *ctx,
 				i += increment) {
 			if (j == hw_points - 1)
 				break;
+			if (i >= TRANSFER_FUNC_POINTS) {
+				DC_LOG_ERROR("Index out of bounds: i=%d, TRANSFER_FUNC_POINTS=%d\n",
+					     i, TRANSFER_FUNC_POINTS);
+				return false;
+			}
 			rgb_resulted[j].red = output_tf->tf_pts.red[i];
 			rgb_resulted[j].green = output_tf->tf_pts.green[i];
 			rgb_resulted[j].blue = output_tf->tf_pts.blue[i];

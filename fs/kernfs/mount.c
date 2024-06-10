@@ -206,7 +206,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 				  struct super_block *sb)
 {
 	struct dentry *dentry;
-	struct kernfs_node *knparent = NULL;
+	struct kernfs_node *knparent;
 
 	BUG_ON(sb->s_op != &kernfs_sops);
 
@@ -358,7 +358,9 @@ int kernfs_get_tree(struct fs_context *fc)
 		}
 		sb->s_flags |= SB_ACTIVE;
 
-		uuid_gen(&sb->s_uuid);
+		uuid_t uuid;
+		uuid_gen(&uuid);
+		super_set_uuid(sb, uuid.b, sizeof(uuid));
 
 		down_write(&root->kernfs_supers_rwsem);
 		list_add(&info->node, &info->root->supers);

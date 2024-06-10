@@ -494,8 +494,13 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_exit;
 
-	if (!early_enable)
-		pm_runtime_put_sync(&pdev->dev);
+	if (!early_enable) {
+		if (pm_runtime_enabled(&pdev->dev)) {
+			ret = pm_runtime_put_sync(&pdev->dev);
+			if (ret)
+				goto err_exit;
+		}
+	}
 
 	return 0;
 
@@ -554,7 +559,10 @@ static int starfive_wdt_resume(struct device *dev)
 	starfive_wdt_set_reload_count(wdt, wdt->reload);
 	starfive_wdt_lock(wdt);
 
-	return starfive_wdt_start(wdt);
+	if (watchdog_active(&wdt->wdd))
+		return starfive_wdt_start(wdt);
+
+	return 0;
 }
 
 static int starfive_wdt_runtime_suspend(struct device *dev)

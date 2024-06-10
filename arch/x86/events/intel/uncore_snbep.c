@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* SandyBridge-EP/IvyTown uncore support */
+#include <asm/cpu_device_id.h>
 #include "uncore.h"
 #include "uncore_discovery.h"
 
@@ -1172,8 +1173,8 @@ static struct intel_uncore_type *snbep_msr_uncores[] = {
 
 void snbep_uncore_cpu_init(void)
 {
-	if (snbep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		snbep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (snbep_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		snbep_uncore_cbox.num_boxes = topology_num_cores_per_package();
 	uncore_msr_uncores = snbep_msr_uncores;
 }
 
@@ -1406,7 +1407,7 @@ static int topology_gidnid_map(int nodeid, u32 gidnid)
 	 */
 	for (i = 0; i < 8; i++) {
 		if (nodeid == GIDNIDMAP(gidnid, i)) {
-			if (topology_max_die_per_package() > 1)
+			if (topology_max_dies_per_package() > 1)
 				die_id = i;
 			else
 				die_id = topology_phys_to_logical_pkg(i);
@@ -1845,8 +1846,8 @@ static struct intel_uncore_type *ivbep_msr_uncores[] = {
 
 void ivbep_uncore_cpu_init(void)
 {
-	if (ivbep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		ivbep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (ivbep_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		ivbep_uncore_cbox.num_boxes = topology_num_cores_per_package();
 	uncore_msr_uncores = ivbep_msr_uncores;
 }
 
@@ -2917,8 +2918,8 @@ static bool hswep_has_limit_sbox(unsigned int device)
 
 void hswep_uncore_cpu_init(void)
 {
-	if (hswep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		hswep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (hswep_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		hswep_uncore_cbox.num_boxes = topology_num_cores_per_package();
 
 	/* Detect 6-8 core systems with only two SBOXes */
 	if (hswep_has_limit_sbox(HSWEP_PCU_DID))
@@ -3280,12 +3281,12 @@ static struct event_constraint bdx_uncore_pcu_constraints[] = {
 
 void bdx_uncore_cpu_init(void)
 {
-	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (bdx_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		bdx_uncore_cbox.num_boxes = topology_num_cores_per_package();
 	uncore_msr_uncores = bdx_msr_uncores;
 
 	/* Detect systems with no SBOXes */
-	if ((boot_cpu_data.x86_model == 86) || hswep_has_limit_sbox(BDX_PCU_DID))
+	if (boot_cpu_data.x86_vfm == INTEL_BROADWELL_D || hswep_has_limit_sbox(BDX_PCU_DID))
 		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 
 	hswep_uncore_pcu.constraints = bdx_uncore_pcu_constraints;
@@ -5394,7 +5395,7 @@ static int icx_iio_get_topology(struct intel_uncore_type *type)
 static void icx_iio_set_mapping(struct intel_uncore_type *type)
 {
 	/* Detect ICX-D system. This case is not supported */
-	if (boot_cpu_data.x86_model == INTEL_FAM6_ICELAKE_D) {
+	if (boot_cpu_data.x86_vfm == INTEL_ICELAKE_D) {
 		pmu_clear_mapping_attr(type->attr_update, &icx_iio_mapping_group);
 		return;
 	}

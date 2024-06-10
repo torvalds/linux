@@ -41,6 +41,7 @@
 #include "ioapic.h"
 #include "trace.h"
 #include "x86.h"
+#include "xen.h"
 #include "cpuid.h"
 #include "hyperv.h"
 #include "smm.h"
@@ -123,6 +124,9 @@ static inline int __apic_test_and_clear_vector(int vec, void *bitmap)
 {
 	return __test_and_clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
 }
+
+__read_mostly DEFINE_STATIC_KEY_FALSE(kvm_has_noapic_vcpu);
+EXPORT_SYMBOL_GPL(kvm_has_noapic_vcpu);
 
 __read_mostly DEFINE_STATIC_KEY_DEFERRED_FALSE(apic_hw_disabled, HZ);
 __read_mostly DEFINE_STATIC_KEY_DEFERRED_FALSE(apic_sw_disabled, HZ);
@@ -499,8 +503,10 @@ static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
 	}
 
 	/* Check if there are APF page ready requests pending */
-	if (enabled)
+	if (enabled) {
 		kvm_make_request(KVM_REQ_APF_READY, apic->vcpu);
+		kvm_xen_sw_enable_lapic(apic->vcpu);
+	}
 }
 
 static inline void kvm_apic_set_xapic_id(struct kvm_lapic *apic, u8 id)
@@ -2466,8 +2472,10 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	if (!vcpu->arch.apic)
+	if (!vcpu->arch.apic) {
+		static_branch_dec(&kvm_has_noapic_vcpu);
 		return;
+	}
 
 	hrtimer_cancel(&apic->lapic_timer.timer);
 
@@ -2768,7 +2776,8 @@ int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type)
 		trig_mode = reg & APIC_LVT_LEVEL_TRIGGER;
 
 		r = __apic_accept_irq(apic, mode, vector, 1, trig_mode, NULL);
-		if (r && lvt_type == APIC_LVTPC)
+		if (r && lvt_type == APIC_LVTPC &&
+		    guest_cpuid_is_intel_compatible(apic->vcpu))
 			kvm_lapic_set_reg(apic, APIC_LVTPC, reg | APIC_LVT_MASKED);
 		return r;
 	}
@@ -2809,13 +2818,21 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 
 	ASSERT(vcpu != NULL);
 
+	if (!irqchip_in_kernel(vcpu->kvm)) {
+		static_branch_inc(&kvm_has_noapic_vcpu);
+		return 0;
+	}
+
 	apic = kzalloc(sizeof(*apic), GFP_KERNEL_ACCOUNT);
 	if (!apic)
 		goto nomem;
 
 	vcpu->arch.apic = apic;
 
-	apic->regs = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
+	if (kvm_x86_ops.alloc_apic_backing_page)
+		apic->regs = static_call(kvm_x86_alloc_apic_backing_page)(vcpu);
+	else
+		apic->regs = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!apic->regs) {
 		printk(KERN_ERR "malloc apic regs error for vcpu %x\n",
 		       vcpu->vcpu_id);
@@ -2843,6 +2860,21 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 	vcpu->arch.apic_base = MSR_IA32_APICBASE_ENABLE;
 	static_branch_inc(&apic_sw_disabled.key); /* sw disabled at reset */
 	kvm_iodevice_init(&apic->dev, &apic_mmio_ops);
+
+	/*
+	 * Defer evaluating inhibits until the vCPU is first run, as this vCPU
+	 * will not get notified of any changes until this vCPU is visible to
+	 * other vCPUs (marked online and added to the set of vCPUs).
+	 *
+	 * Opportunistically mark APICv active as VMX in particularly is highly
+	 * unlikely to have inhibits.  Ignore the current per-VM APICv state so
+	 * that vCPU creation is guaranteed to run with a deterministic value,
+	 * the request will ensure the vCPU gets the correct state before VM-Entry.
+	 */
+	if (enable_apicv) {
+		apic->apicv_active = true;
+		kvm_make_request(KVM_REQ_APICV_UPDATE, vcpu);
+	}
 
 	return 0;
 nomem_free_apic:

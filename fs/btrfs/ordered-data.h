@@ -6,6 +6,21 @@
 #ifndef BTRFS_ORDERED_DATA_H
 #define BTRFS_ORDERED_DATA_H
 
+#include <linux/types.h>
+#include <linux/list.h>
+#include <linux/refcount.h>
+#include <linux/completion.h>
+#include <linux/rbtree.h>
+#include <linux/wait.h>
+#include "async-thread.h"
+
+struct inode;
+struct page;
+struct extent_state;
+struct btrfs_inode;
+struct btrfs_root;
+struct btrfs_fs_info;
+
 struct btrfs_ordered_sum {
 	/*
 	 * Logical start address and length for of the blocks covered by
@@ -188,6 +203,7 @@ bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct extent_state **cached_state);
 struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 			struct btrfs_ordered_extent *ordered, u64 len);
+void btrfs_mark_ordered_extent_error(struct btrfs_ordered_extent *ordered);
 int __init ordered_data_init(void);
 void __cold ordered_data_exit(void);
 

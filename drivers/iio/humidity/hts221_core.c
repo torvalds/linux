@@ -573,7 +573,7 @@ int hts221_probe(struct device *dev, int irq, const char *name,
 	if (!iio_dev)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, (void *)iio_dev);
+	dev_set_drvdata(dev, iio_dev);
 
 	hw = iio_priv(iio_dev);
 	hw->name = name;

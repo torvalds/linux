@@ -107,6 +107,7 @@
 #include "amdgpu_smuio.h"
 #include "amdgpu_fdinfo.h"
 #include "amdgpu_mca.h"
+#include "amdgpu_aca.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_xcp.h"
 #include "amdgpu_seq64.h"
@@ -114,14 +115,12 @@
 
 #define MAX_GPU_INSTANCE		64
 
-struct amdgpu_gpu_instance
-{
+struct amdgpu_gpu_instance {
 	struct amdgpu_device		*adev;
 	int				mgpu_fan_enabled;
 };
 
-struct amdgpu_mgpu_info
-{
+struct amdgpu_mgpu_info {
 	struct amdgpu_gpu_instance	gpu_ins[MAX_GPU_INSTANCE];
 	struct mutex			mutex;
 	uint32_t			num_gpu;
@@ -140,8 +139,15 @@ enum amdgpu_ss {
 	AMDGPU_SS_DRV_UNLOAD
 };
 
-struct amdgpu_watchdog_timer
-{
+struct amdgpu_hwip_reg_entry {
+	u32		hwip;
+	u32		inst;
+	u32		seg;
+	u32		reg_offset;
+	const char	*reg_name;
+};
+
+struct amdgpu_watchdog_timer {
 	bool timeout_fatal_disable;
 	uint32_t period; /* maxCycles = (1 << period), the number of cycles before a timeout */
 };
@@ -196,9 +202,10 @@ extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
 extern int amdgpu_smu_pptable_id;
 extern uint amdgpu_dc_feature_mask;
+extern uint amdgpu_freesync_vid_mode;
 extern uint amdgpu_dc_debug_mask;
 extern uint amdgpu_dc_visual_confirm;
-extern uint amdgpu_dm_abm_level;
+extern int amdgpu_dm_abm_level;
 extern int amdgpu_backlight;
 extern int amdgpu_damage_clips;
 extern struct amdgpu_mgpu_info mgpu_info;
@@ -211,6 +218,7 @@ extern int amdgpu_async_gfx_ring;
 extern int amdgpu_mcbp;
 extern int amdgpu_discovery;
 extern int amdgpu_mes;
+extern int amdgpu_mes_log_enable;
 extern int amdgpu_mes_kiq;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
@@ -494,6 +502,7 @@ struct amdgpu_wb {
 	uint64_t		gpu_addr;
 	u32			num_wb;	/* Number of wb slots actually reserved for amdgpu. */
 	unsigned long		used[DIV_ROUND_UP(AMDGPU_MAX_WB, BITS_PER_LONG)];
+	spinlock_t		lock;
 };
 
 int amdgpu_device_wb_get(struct amdgpu_device *adev, u32 *wb);
@@ -606,7 +615,7 @@ struct amdgpu_asic_funcs {
 	/* PCIe replay counter */
 	uint64_t (*get_pcie_replay_count)(struct amdgpu_device *adev);
 	/* device supports BACO */
-	bool (*supports_baco)(struct amdgpu_device *adev);
+	int (*supports_baco)(struct amdgpu_device *adev);
 	/* pre asic_init quirks */
 	void (*pre_asic_init)(struct amdgpu_device *adev);
 	/* enter/exit umd stable pstate */
@@ -1046,6 +1055,9 @@ struct amdgpu_device {
 	/* MCA */
 	struct amdgpu_mca               mca;
 
+	/* ACA */
+	struct amdgpu_aca		aca;
+
 	struct amdgpu_ip_block          ip_blocks[AMDGPU_MAX_IP_NUM];
 	uint32_t		        harvest_ip_mask;
 	int				num_ip_blocks;
@@ -1095,6 +1107,7 @@ struct amdgpu_device {
 	long				sdma_timeout;
 	long				video_timeout;
 	long				compute_timeout;
+	long				psp_timeout;
 
 	uint64_t			unique_id;
 	uint64_t	df_perfmon_config_assign_mask[AMDGPU_MAX_DF_PERFMONS];
@@ -1332,6 +1345,7 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define WREG32_FIELD_OFFSET(reg, offset, field, val)	\
 	WREG32(mm##reg + offset, (RREG32(mm##reg + offset) & ~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field))
 
+#define AMDGPU_GET_REG_FIELD(x, h, l) (((x) & GENMASK_ULL(h, l)) >> (l))
 /*
  * BIOS helpers.
  */
@@ -1403,7 +1417,8 @@ bool amdgpu_device_supports_atpx(struct drm_device *dev);
 bool amdgpu_device_supports_px(struct drm_device *dev);
 bool amdgpu_device_supports_boco(struct drm_device *dev);
 bool amdgpu_device_supports_smart_shift(struct drm_device *dev);
-bool amdgpu_device_supports_baco(struct drm_device *dev);
+int amdgpu_device_supports_baco(struct drm_device *dev);
+void amdgpu_device_detect_runtime_pm_mode(struct amdgpu_device *adev);
 bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
 				      struct amdgpu_device *peer_adev);
 int amdgpu_device_baco_enter(struct drm_device *dev);

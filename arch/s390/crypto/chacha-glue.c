@@ -15,14 +15,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu.h>
 #include "chacha-s390.h"
 
 static void chacha20_crypt_s390(u32 *state, u8 *dst, const u8 *src,
 				unsigned int nbytes, const u32 *key,
 				u32 *counter)
 {
-	struct kernel_fpu vxstate;
+	DECLARE_KERNEL_FPU_ONSTACK32(vxstate);
 
 	kernel_fpu_begin(&vxstate, KERNEL_VXR);
 	chacha20_vx(dst, src, nbytes, key, counter);

@@ -704,8 +704,7 @@ static void process_queued_bios(struct work_struct *work)
 		return;
 	}
 
-	bio_list_merge(&bios, &m->queued_bios);
-	bio_list_init(&m->queued_bios);
+	bio_list_merge_init(&bios, &m->queued_bios);
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
@@ -2266,5 +2265,5 @@ module_param_named(queue_if_no_path_timeout_secs, queue_if_no_path_timeout_secs,
 MODULE_PARM_DESC(queue_if_no_path_timeout_secs, "No available paths queue IO timeout in seconds");
 
 MODULE_DESCRIPTION(DM_NAME " multipath target");
-MODULE_AUTHOR("Sistina Software <dm-devel@redhat.com>");
+MODULE_AUTHOR("Sistina Software <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

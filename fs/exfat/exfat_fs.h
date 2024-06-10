@@ -431,8 +431,6 @@ int exfat_ent_get(struct super_block *sb, unsigned int loc,
 		unsigned int *content);
 int exfat_ent_set(struct super_block *sb, unsigned int loc,
 		unsigned int content);
-int exfat_count_ext_entries(struct super_block *sb, struct exfat_chain *p_dir,
-		int entry, struct exfat_dentry *p_entry);
 int exfat_chain_cont_cluster(struct super_block *sb, unsigned int chain,
 		unsigned int len);
 int exfat_zeroed_cluster(struct inode *dir, unsigned int clu);
@@ -480,16 +478,14 @@ int exfat_get_cluster(struct inode *inode, unsigned int cluster,
 extern const struct inode_operations exfat_dir_inode_operations;
 extern const struct file_operations exfat_dir_operations;
 unsigned int exfat_get_entry_type(struct exfat_dentry *p_entry);
-int exfat_init_dir_entry(struct inode *inode, struct exfat_chain *p_dir,
-		int entry, unsigned int type, unsigned int start_clu,
-		unsigned long long size);
-int exfat_init_ext_entry(struct inode *inode, struct exfat_chain *p_dir,
-		int entry, int num_entries, struct exfat_uni_name *p_uniname);
-int exfat_remove_entries(struct inode *inode, struct exfat_chain *p_dir,
-		int entry, int order, int num_entries);
-int exfat_update_dir_chksum(struct inode *inode, struct exfat_chain *p_dir,
-		int entry);
-void exfat_update_dir_chksum_with_entry_set(struct exfat_entry_set_cache *es);
+void exfat_init_dir_entry(struct exfat_entry_set_cache *es,
+		unsigned int type, unsigned int start_clu,
+		unsigned long long size, struct timespec64 *ts);
+void exfat_init_ext_entry(struct exfat_entry_set_cache *es, int num_entries,
+		struct exfat_uni_name *p_uniname);
+void exfat_remove_entries(struct inode *inode, struct exfat_entry_set_cache *es,
+		int order);
+void exfat_update_dir_chksum(struct exfat_entry_set_cache *es);
 int exfat_calc_num_entries(struct exfat_uni_name *p_uniname);
 int exfat_find_dir_entry(struct super_block *sb, struct exfat_inode_info *ei,
 		struct exfat_chain *p_dir, struct exfat_uni_name *p_uniname,
@@ -501,7 +497,10 @@ struct exfat_dentry *exfat_get_dentry_cached(struct exfat_entry_set_cache *es,
 		int num);
 int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 		struct super_block *sb, struct exfat_chain *p_dir, int entry,
-		unsigned int type);
+		unsigned int num_entries);
+int exfat_get_empty_dentry_set(struct exfat_entry_set_cache *es,
+		struct super_block *sb, struct exfat_chain *p_dir, int entry,
+		unsigned int num_entries);
 int exfat_put_dentry_set(struct exfat_entry_set_cache *es, int sync);
 int exfat_count_dir_entries(struct super_block *sb, struct exfat_chain *p_dir);
 

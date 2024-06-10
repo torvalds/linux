@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -1327,7 +1328,7 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	    return -EINVAL;
 	}
 	track->num_arrays = c;
-	for (i = 0; i < (c - 1); i+=2, idx+=3) {
+	for (i = 0; i < (c - 1); i += 2, idx += 3) {
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for packet3 %d\n",

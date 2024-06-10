@@ -2411,7 +2411,7 @@ static int cfi_amdstd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 static int __xipram do_erase_chip(struct map_info *map, struct flchip *chip)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	unsigned long timeo = jiffies + HZ;
+	unsigned long timeo;
 	unsigned long int adr;
 	DECLARE_WAITQUEUE(wait, current);
 	int ret;
@@ -2512,7 +2512,7 @@ static int __xipram do_erase_chip(struct map_info *map, struct flchip *chip)
 static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip, unsigned long adr, int len, void *thunk)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	unsigned long timeo = jiffies + HZ;
+	unsigned long timeo;
 	DECLARE_WAITQUEUE(wait, current);
 	int ret;
 	int retry_cnt = 0;

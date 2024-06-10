@@ -13,7 +13,6 @@
  * "DVSEC" redundancies removed. When obvious, abbreviations may be used.
  */
 #define PCI_DVSEC_HEADER1_LENGTH_MASK	GENMASK(31, 20)
-#define PCI_DVSEC_VENDOR_ID_CXL		0x1E98
 
 /* CXL 2.0 8.1.3: PCIe DVSEC for CXL Device */
 #define CXL_DVSEC_PCIE_DEVICE					0
@@ -71,6 +70,15 @@ enum cxl_regloc_type {
 	CXL_REGLOC_RBI_TYPES
 };
 
+/*
+ * Table Access DOE, CDAT Read Entry Response
+ *
+ * Spec refs:
+ *
+ * CXL 3.1 8.1.11, Table 8-14: Read Entry Response
+ * CDAT Specification 1.03: 2 CDAT Data Structures
+ */
+
 struct cdat_header {
 	__le32 length;
 	u8 revision;
@@ -83,6 +91,21 @@ struct cdat_entry_header {
 	u8 type;
 	u8 reserved;
 	__le16 length;
+} __packed;
+
+/*
+ * The DOE CDAT read response contains a CDAT read entry (either the
+ * CDAT header or a structure).
+ */
+union cdat_data {
+	struct cdat_header header;
+	struct cdat_entry_header entry;
+} __packed;
+
+/* There is an additional CDAT response header of 4 bytes. */
+struct cdat_doe_rsp {
+	__le32 doe_header;
+	u8 data[];
 } __packed;
 
 /*

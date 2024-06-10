@@ -23,7 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
 #include "dcn30_clk_mgr_smu_msg.h"
 
 #include "clk_mgr_internal.h"
@@ -54,6 +53,7 @@
  */
 static uint32_t dcn30_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, unsigned int delay_us, unsigned int max_retries)
 {
+	const uint32_t initial_max_retries = max_retries;
 	uint32_t reg = 0;
 
 	do {
@@ -69,7 +69,7 @@ static uint32_t dcn30_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, un
 
 	/* handle DALSMC_Result_CmdRejectedBusy? */
 
-	/* Log? */
+	TRACE_SMU_DELAY(delay_us * (initial_max_retries - max_retries), clk_mgr->base.ctx);
 
 	return reg;
 }
@@ -88,6 +88,8 @@ static bool dcn30_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr, uint
 
 	/* Trigger the message transaction by writing the message ID */
 	REG_WRITE(DAL_MSG_REG, msg_id);
+
+	TRACE_SMU_MSG(msg_id, param_in, clk_mgr->base.ctx);
 
 	result = dcn30_smu_wait_for_response(clk_mgr, 10, 200000);
 

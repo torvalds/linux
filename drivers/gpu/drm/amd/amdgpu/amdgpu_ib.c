@@ -131,7 +131,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 	struct amdgpu_ib *ib = &ibs[0];
 	struct dma_fence *tmp = NULL;
 	bool need_ctx_switch;
-	unsigned int patch_offset = ~0;
 	struct amdgpu_vm *vm;
 	uint64_t fence_ctx;
 	uint32_t status = 0, alloc_size;
@@ -139,10 +138,11 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 	bool secure, init_shadow;
 	u64 shadow_va, csa_va, gds_va;
 	int vmid = AMDGPU_JOB_GET_VMID(job);
+	bool need_pipe_sync = false;
+	unsigned int cond_exec;
 
 	unsigned int i;
 	int r = 0;
-	bool need_pipe_sync = false;
 
 	if (num_ibs == 0)
 		return -EINVAL;
@@ -228,7 +228,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 					    init_shadow, vmid);
 
 	if (ring->funcs->init_cond_exec)
-		patch_offset = amdgpu_ring_init_cond_exec(ring);
+		cond_exec = amdgpu_ring_init_cond_exec(ring,
+						       ring->cond_exe_gpu_addr);
 
 	amdgpu_device_flush_hdp(adev, ring);
 
@@ -278,16 +279,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 				       fence_flags | AMDGPU_FENCE_FLAG_64BIT);
 	}
 
-	if (ring->funcs->emit_gfx_shadow) {
+	if (ring->funcs->emit_gfx_shadow && ring->funcs->init_cond_exec) {
 		amdgpu_ring_emit_gfx_shadow(ring, 0, 0, 0, false, 0);
-
-		if (ring->funcs->init_cond_exec) {
-			unsigned int ce_offset = ~0;
-
-			ce_offset = amdgpu_ring_init_cond_exec(ring);
-			if (ce_offset != ~0 && ring->funcs->patch_cond_exec)
-				amdgpu_ring_patch_cond_exec(ring, ce_offset);
-		}
+		amdgpu_ring_init_cond_exec(ring, ring->cond_exe_gpu_addr);
 	}
 
 	r = amdgpu_fence_emit(ring, f, job, fence_flags);
@@ -302,8 +296,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 	if (ring->funcs->insert_end)
 		ring->funcs->insert_end(ring);
 
-	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
-		amdgpu_ring_patch_cond_exec(ring, patch_offset);
+	amdgpu_ring_patch_cond_exec(ring, cond_exec);
 
 	ring->current_ctx = fence_ctx;
 	if (vm && ring->funcs->emit_switch_buffer)

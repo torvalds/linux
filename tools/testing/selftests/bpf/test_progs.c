@@ -547,24 +547,6 @@ int bpf_find_map(const char *test, struct bpf_object *obj, const char *name)
 	return bpf_map__fd(map);
 }
 
-static bool is_jit_enabled(void)
-{
-	const char *jit_sysctl = "/proc/sys/net/core/bpf_jit_enable";
-	bool enabled = false;
-	int sysctl_fd;
-
-	sysctl_fd = open(jit_sysctl, 0, O_RDONLY);
-	if (sysctl_fd != -1) {
-		char tmpc;
-
-		if (read(sysctl_fd, &tmpc, sizeof(tmpc)) == 1)
-			enabled = (tmpc != '0');
-		close(sysctl_fd);
-	}
-
-	return enabled;
-}
-
 int compare_map_keys(int map1_fd, int map2_fd)
 {
 	__u32 key, next_key;
@@ -701,11 +683,69 @@ static const struct argp_option opts[] = {
 	{},
 };
 
+static FILE *libbpf_capture_stream;
+
+static struct {
+	char *buf;
+	size_t buf_sz;
+} libbpf_output_capture;
+
+/* Creates a global memstream capturing INFO and WARN level output
+ * passed to libbpf_print_fn.
+ * Returns 0 on success, negative value on failure.
+ * On failure the description is printed using PRINT_FAIL and
+ * current test case is marked as fail.
+ */
+int start_libbpf_log_capture(void)
+{
+	if (libbpf_capture_stream) {
+		PRINT_FAIL("%s: libbpf_capture_stream != NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	libbpf_capture_stream = open_memstream(&libbpf_output_capture.buf,
+					       &libbpf_output_capture.buf_sz);
+	if (!libbpf_capture_stream) {
+		PRINT_FAIL("%s: open_memstream failed errno=%d\n", __func__, errno);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* Destroys global memstream created by start_libbpf_log_capture().
+ * Returns a pointer to captured data which has to be freed.
+ * Returned buffer is null terminated.
+ */
+char *stop_libbpf_log_capture(void)
+{
+	char *buf;
+
+	if (!libbpf_capture_stream)
+		return NULL;
+
+	fputc(0, libbpf_capture_stream);
+	fclose(libbpf_capture_stream);
+	libbpf_capture_stream = NULL;
+	/* get 'buf' after fclose(), see open_memstream() documentation */
+	buf = libbpf_output_capture.buf;
+	memset(&libbpf_output_capture, 0, sizeof(libbpf_output_capture));
+	return buf;
+}
+
 static int libbpf_print_fn(enum libbpf_print_level level,
 			   const char *format, va_list args)
 {
+	if (libbpf_capture_stream && level != LIBBPF_DEBUG) {
+		va_list args2;
+
+		va_copy(args2, args);
+		vfprintf(libbpf_capture_stream, format, args2);
+	}
+
 	if (env.verbosity < VERBOSE_VERY && level == LIBBPF_DEBUG)
 		return 0;
+
 	vfprintf(stdout, format, args);
 	return 0;
 }
@@ -1099,6 +1139,7 @@ static void run_one_test(int test_num)
 		cleanup_cgroup_environment();
 
 	stdio_restore();
+	free(stop_libbpf_log_capture());
 
 	dump_test_log(test, state, false, false, NULL);
 }

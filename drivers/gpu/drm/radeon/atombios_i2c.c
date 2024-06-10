@@ -78,7 +78,7 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 	args.ucSlaveAddr = slave_addr << 1;
 	args.ucLineNumber = chan->rec.i2c_id;
 
-	atom_execute_table_scratch_unlocked(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table_scratch_unlocked(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 
 	/* error */
 	if (args.ucStatus != HW_ASSISTED_I2C_STATUS_SUCCESS) {

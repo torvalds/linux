@@ -778,25 +778,26 @@ static int vfio_pci_count_devs(struct pci_dev *pdev, void *data)
 }
 
 struct vfio_pci_fill_info {
-	struct vfio_pci_dependent_device __user *devices;
-	struct vfio_pci_dependent_device __user *devices_end;
 	struct vfio_device *vdev;
+	struct vfio_pci_dependent_device *devices;
+	int nr_devices;
 	u32 count;
 	u32 flags;
 };
 
 static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 {
-	struct vfio_pci_dependent_device info = {
-		.segment = pci_domain_nr(pdev->bus),
-		.bus = pdev->bus->number,
-		.devfn = pdev->devfn,
-	};
+	struct vfio_pci_dependent_device *info;
 	struct vfio_pci_fill_info *fill = data;
 
-	fill->count++;
-	if (fill->devices >= fill->devices_end)
-		return 0;
+	/* The topology changed since we counted devices */
+	if (fill->count >= fill->nr_devices)
+		return -EAGAIN;
+
+	info = &fill->devices[fill->count++];
+	info->segment = pci_domain_nr(pdev->bus);
+	info->bus = pdev->bus->number;
+	info->devfn = pdev->devfn;
 
 	if (fill->flags & VFIO_PCI_HOT_RESET_FLAG_DEV_ID) {
 		struct iommufd_ctx *iommufd = vfio_iommufd_device_ictx(fill->vdev);
@@ -809,19 +810,19 @@ static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 		 */
 		vdev = vfio_find_device_in_devset(dev_set, &pdev->dev);
 		if (!vdev) {
-			info.devid = VFIO_PCI_DEVID_NOT_OWNED;
+			info->devid = VFIO_PCI_DEVID_NOT_OWNED;
 		} else {
 			int id = vfio_iommufd_get_dev_id(vdev, iommufd);
 
 			if (id > 0)
-				info.devid = id;
+				info->devid = id;
 			else if (id == -ENOENT)
-				info.devid = VFIO_PCI_DEVID_OWNED;
+				info->devid = VFIO_PCI_DEVID_OWNED;
 			else
-				info.devid = VFIO_PCI_DEVID_NOT_OWNED;
+				info->devid = VFIO_PCI_DEVID_NOT_OWNED;
 		}
 		/* If devid is VFIO_PCI_DEVID_NOT_OWNED, clear owned flag. */
-		if (info.devid == VFIO_PCI_DEVID_NOT_OWNED)
+		if (info->devid == VFIO_PCI_DEVID_NOT_OWNED)
 			fill->flags &= ~VFIO_PCI_HOT_RESET_FLAG_DEV_ID_OWNED;
 	} else {
 		struct iommu_group *iommu_group;
@@ -830,13 +831,10 @@ static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 		if (!iommu_group)
 			return -EPERM; /* Cannot reset non-isolated devices */
 
-		info.group_id = iommu_group_id(iommu_group);
+		info->group_id = iommu_group_id(iommu_group);
 		iommu_group_put(iommu_group);
 	}
 
-	if (copy_to_user(fill->devices, &info, sizeof(info)))
-		return -EFAULT;
-	fill->devices++;
 	return 0;
 }
 
@@ -1258,10 +1256,11 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 {
 	unsigned long minsz =
 		offsetofend(struct vfio_pci_hot_reset_info, count);
+	struct vfio_pci_dependent_device *devices = NULL;
 	struct vfio_pci_hot_reset_info hdr;
 	struct vfio_pci_fill_info fill = {};
 	bool slot = false;
-	int ret = 0;
+	int ret, count;
 
 	if (copy_from_user(&hdr, arg, minsz))
 		return -EFAULT;
@@ -1277,9 +1276,26 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 	else if (pci_probe_reset_bus(vdev->pdev->bus))
 		return -ENODEV;
 
-	fill.devices = arg->devices;
-	fill.devices_end = arg->devices +
-			   (hdr.argsz - sizeof(hdr)) / sizeof(arg->devices[0]);
+	ret = vfio_pci_for_each_slot_or_bus(vdev->pdev, vfio_pci_count_devs,
+					    &count, slot);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(!count)) /* Should always be at least one */
+		return -ERANGE;
+
+	if (count > (hdr.argsz - sizeof(hdr)) / sizeof(*devices)) {
+		hdr.count = count;
+		ret = -ENOSPC;
+		goto header;
+	}
+
+	devices = kcalloc(count, sizeof(*devices), GFP_KERNEL);
+	if (!devices)
+		return -ENOMEM;
+
+	fill.devices = devices;
+	fill.nr_devices = count;
 	fill.vdev = &vdev->vdev;
 
 	if (vfio_device_cdev_opened(&vdev->vdev))
@@ -1291,16 +1307,23 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 					    &fill, slot);
 	mutex_unlock(&vdev->vdev.dev_set->lock);
 	if (ret)
-		return ret;
+		goto out;
+
+	if (copy_to_user(arg->devices, devices,
+			 sizeof(*devices) * fill.count)) {
+		ret = -EFAULT;
+		goto out;
+	}
 
 	hdr.count = fill.count;
 	hdr.flags = fill.flags;
-	if (copy_to_user(arg, &hdr, minsz))
-		return -EFAULT;
 
-	if (fill.count > fill.devices - arg->devices)
-		return -ENOSPC;
-	return 0;
+header:
+	if (copy_to_user(arg, &hdr, minsz))
+		ret = -EFAULT;
+out:
+	kfree(devices);
+	return ret;
 }
 
 static int
@@ -1862,8 +1885,25 @@ int vfio_pci_core_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma
 	/*
 	 * See remap_pfn_range(), called from vfio_pci_fault() but we can't
 	 * change vm_flags within the fault handler.  Set them now.
+	 *
+	 * VM_ALLOW_ANY_UNCACHED: The VMA flag is implemented for ARM64,
+	 * allowing KVM stage 2 device mapping attributes to use Normal-NC
+	 * rather than DEVICE_nGnRE, which allows guest mappings
+	 * supporting write-combining attributes (WC). ARM does not
+	 * architecturally guarantee this is safe, and indeed some MMIO
+	 * regions like the GICv2 VCPU interface can trigger uncontained
+	 * faults if Normal-NC is used.
+	 *
+	 * To safely use VFIO in KVM the platform must guarantee full
+	 * safety in the guest where no action taken against a MMIO
+	 * mapping can trigger an uncontained failure. The assumption is
+	 * that most VFIO PCI platforms support this for both mapping types,
+	 * at least in common flows, based on some expectations of how
+	 * PCI IP is integrated. Hence VM_ALLOW_ANY_UNCACHED is set in
+	 * the VMA flags.
 	 */
-	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
+	vm_flags_set(vma, VM_ALLOW_ANY_UNCACHED | VM_IO | VM_PFNMAP |
+			VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &vfio_pci_mmap_ops;
 
 	return 0;
@@ -2047,6 +2087,7 @@ static int vfio_pci_bus_notifier(struct notifier_block *nb,
 			 pci_name(pdev));
 		pdev->driver_override = kasprintf(GFP_KERNEL, "%s",
 						  vdev->vdev.ops->name);
+		WARN_ON(!pdev->driver_override);
 	} else if (action == BUS_NOTIFY_BOUND_DRIVER &&
 		   pdev->is_virtfn && physfn == vdev->pdev) {
 		struct pci_driver *drv = pci_dev_driver(pdev);

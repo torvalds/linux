@@ -43,7 +43,7 @@
 		button-setup {
 			debounce-interval = <50>;
 			wakeup-source;
-			linux,code = <KEY_SETUP>;
+			linux,code = <KEY_RESTART>;
 			label = "factory reset";
 			/* Conflict with NAND flash */
 			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
@@ -93,7 +93,7 @@
 		cs-gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
 
-		switch@0 {
+		ethernet-switch@0 {
 			compatible = "vitesse,vsc7385";
 			reg = <0>;
 			/* Specified for 2.5 MHz or below */
@@ -101,27 +101,27 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 
-			ports {
+			ethernet-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				port@0 {
+				ethernet-port@0 {
 					reg = <0>;
 					label = "lan1";
 				};
-				port@1 {
+				ethernet-port@1 {
 					reg = <1>;
 					label = "lan2";
 				};
-				port@2 {
+				ethernet-port@2 {
 					reg = <2>;
 					label = "lan3";
 				};
-				port@3 {
+				ethernet-port@3 {
 					reg = <3>;
 					label = "lan4";
 				};
-				vsc: port@6 {
+				vsc: ethernet-port@6 {
 					reg = <6>;
 					label = "cpu";
 					ethernet = <&gmac1>;

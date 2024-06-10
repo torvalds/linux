@@ -409,29 +409,153 @@ static int _dpu_rm_reserve_ctls(
 	return 0;
 }
 
+static int _dpu_rm_pingpong_next_index(struct dpu_global_state *global_state,
+				       int start,
+				       uint32_t enc_id)
+{
+	int i;
+
+	for (i = start; i < (PINGPONG_MAX - PINGPONG_0); i++) {
+		if (global_state->pingpong_to_enc_id[i] == enc_id)
+			return i;
+	}
+
+	return -ENAVAIL;
+}
+
+static int _dpu_rm_pingpong_dsc_check(int dsc_idx, int pp_idx)
+{
+	/*
+	 * DSC with even index must be used with the PINGPONG with even index
+	 * DSC with odd index must be used with the PINGPONG with odd index
+	 */
+	if ((dsc_idx & 0x01) != (pp_idx & 0x01))
+		return -ENAVAIL;
+
+	return 0;
+}
+
+static int _dpu_rm_dsc_alloc(struct dpu_rm *rm,
+			     struct dpu_global_state *global_state,
+			     uint32_t enc_id,
+			     const struct msm_display_topology *top)
+{
+	int num_dsc = 0;
+	int pp_idx = 0;
+	int dsc_idx;
+	int ret;
+
+	for (dsc_idx = 0; dsc_idx < ARRAY_SIZE(rm->dsc_blks) &&
+	     num_dsc < top->num_dsc; dsc_idx++) {
+		if (!rm->dsc_blks[dsc_idx])
+			continue;
+
+		if (reserved_by_other(global_state->dsc_to_enc_id, dsc_idx, enc_id))
+			continue;
+
+		pp_idx = _dpu_rm_pingpong_next_index(global_state, pp_idx, enc_id);
+		if (pp_idx < 0)
+			return -ENAVAIL;
+
+		ret = _dpu_rm_pingpong_dsc_check(dsc_idx, pp_idx);
+		if (ret)
+			return -ENAVAIL;
+
+		global_state->dsc_to_enc_id[dsc_idx] = enc_id;
+		num_dsc++;
+		pp_idx++;
+	}
+
+	if (num_dsc < top->num_dsc) {
+		DPU_ERROR("DSC allocation failed num_dsc=%d required=%d\n",
+			   num_dsc, top->num_dsc);
+		return -ENAVAIL;
+	}
+
+	return 0;
+}
+
+static int _dpu_rm_dsc_alloc_pair(struct dpu_rm *rm,
+				  struct dpu_global_state *global_state,
+				  uint32_t enc_id,
+				  const struct msm_display_topology *top)
+{
+	int num_dsc = 0;
+	int dsc_idx, pp_idx = 0;
+	int ret;
+
+	/* only start from even dsc index */
+	for (dsc_idx = 0; dsc_idx < ARRAY_SIZE(rm->dsc_blks) &&
+	     num_dsc < top->num_dsc; dsc_idx += 2) {
+		if (!rm->dsc_blks[dsc_idx] ||
+		    !rm->dsc_blks[dsc_idx + 1])
+			continue;
+
+		/* consective dsc index to be paired */
+		if (reserved_by_other(global_state->dsc_to_enc_id, dsc_idx, enc_id) ||
+		    reserved_by_other(global_state->dsc_to_enc_id, dsc_idx + 1, enc_id))
+			continue;
+
+		pp_idx = _dpu_rm_pingpong_next_index(global_state, pp_idx, enc_id);
+		if (pp_idx < 0)
+			return -ENAVAIL;
+
+		ret = _dpu_rm_pingpong_dsc_check(dsc_idx, pp_idx);
+		if (ret) {
+			pp_idx = 0;
+			continue;
+		}
+
+		pp_idx = _dpu_rm_pingpong_next_index(global_state, pp_idx + 1, enc_id);
+		if (pp_idx < 0)
+			return -ENAVAIL;
+
+		ret = _dpu_rm_pingpong_dsc_check(dsc_idx + 1, pp_idx);
+		if (ret) {
+			pp_idx = 0;
+			continue;
+		}
+
+		global_state->dsc_to_enc_id[dsc_idx] = enc_id;
+		global_state->dsc_to_enc_id[dsc_idx + 1] = enc_id;
+		num_dsc += 2;
+		pp_idx++;	/* start for next pair */
+	}
+
+	if (num_dsc < top->num_dsc) {
+		DPU_ERROR("DSC allocation failed num_dsc=%d required=%d\n",
+			   num_dsc, top->num_dsc);
+		return -ENAVAIL;
+	}
+
+	return 0;
+}
+
 static int _dpu_rm_reserve_dsc(struct dpu_rm *rm,
 			       struct dpu_global_state *global_state,
 			       struct drm_encoder *enc,
 			       const struct msm_display_topology *top)
 {
-	int num_dsc = top->num_dsc;
-	int i;
+	uint32_t enc_id = enc->base.id;
 
-	/* check if DSC required are allocated or not */
-	for (i = 0; i < num_dsc; i++) {
-		if (!rm->dsc_blks[i]) {
-			DPU_ERROR("DSC %d does not exist\n", i);
-			return -EIO;
-		}
+	if (!top->num_dsc || !top->num_intf)
+		return 0;
 
-		if (global_state->dsc_to_enc_id[i]) {
-			DPU_ERROR("DSC %d is already allocated\n", i);
-			return -EIO;
-		}
-	}
+	/*
+	 * Facts:
+	 * 1) no pingpong split (two layer mixers shared one pingpong)
+	 * 2) DSC pair starts from even index, such as index(0,1), (2,3), etc
+	 * 3) even PINGPONG connects to even DSC
+	 * 4) odd PINGPONG connects to odd DSC
+	 * 5) pair: encoder +--> pp_idx_0 --> dsc_idx_0
+	 *                  +--> pp_idx_1 --> dsc_idx_1
+	 */
 
-	for (i = 0; i < num_dsc; i++)
-		global_state->dsc_to_enc_id[i] = enc->base.id;
+	/* num_dsc should be either 1, 2 or 4 */
+	if (top->num_dsc > top->num_intf)	/* merge mode */
+		return _dpu_rm_dsc_alloc_pair(rm, global_state, enc_id, top);
+	else
+		return _dpu_rm_dsc_alloc(rm, global_state, enc_id, top);
 
 	return 0;
 }
@@ -633,4 +757,60 @@ int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
 	}
 
 	return num_blks;
+}
+
+static void dpu_rm_print_state_helper(struct drm_printer *p,
+					    struct dpu_hw_blk *blk,
+					    uint32_t mapping)
+{
+	if (!blk)
+		drm_puts(p, "- ");
+	else if (!mapping)
+		drm_puts(p, "# ");
+	else
+		drm_printf(p, "%d ", mapping);
+}
+
+
+void dpu_rm_print_state(struct drm_printer *p,
+			const struct dpu_global_state *global_state)
+{
+	const struct dpu_rm *rm = global_state->rm;
+	int i;
+
+	drm_puts(p, "resource mapping:\n");
+	drm_puts(p, "\tpingpong=");
+	for (i = 0; i < ARRAY_SIZE(global_state->pingpong_to_enc_id); i++)
+		dpu_rm_print_state_helper(p, rm->pingpong_blks[i],
+					  global_state->pingpong_to_enc_id[i]);
+	drm_puts(p, "\n");
+
+	drm_puts(p, "\tmixer=");
+	for (i = 0; i < ARRAY_SIZE(global_state->mixer_to_enc_id); i++)
+		dpu_rm_print_state_helper(p, rm->mixer_blks[i],
+					  global_state->mixer_to_enc_id[i]);
+	drm_puts(p, "\n");
+
+	drm_puts(p, "\tctl=");
+	for (i = 0; i < ARRAY_SIZE(global_state->ctl_to_enc_id); i++)
+		dpu_rm_print_state_helper(p, rm->ctl_blks[i],
+					  global_state->ctl_to_enc_id[i]);
+	drm_puts(p, "\n");
+
+	drm_puts(p, "\tdspp=");
+	for (i = 0; i < ARRAY_SIZE(global_state->dspp_to_enc_id); i++)
+		dpu_rm_print_state_helper(p, rm->dspp_blks[i],
+					  global_state->dspp_to_enc_id[i]);
+	drm_puts(p, "\n");
+
+	drm_puts(p, "\tdsc=");
+	for (i = 0; i < ARRAY_SIZE(global_state->dsc_to_enc_id); i++)
+		dpu_rm_print_state_helper(p, rm->dsc_blks[i],
+					  global_state->dsc_to_enc_id[i]);
+	drm_puts(p, "\n");
+
+	drm_puts(p, "\tcdm=");
+	dpu_rm_print_state_helper(p, rm->cdm_blk,
+				  global_state->cdm_to_enc_id);
+	drm_puts(p, "\n");
 }

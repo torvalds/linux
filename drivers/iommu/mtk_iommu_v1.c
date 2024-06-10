@@ -398,7 +398,8 @@ static const struct iommu_ops mtk_iommu_v1_ops;
  * MTK generation one iommu HW only support one iommu domain, and all the client
  * sharing the same iova address space.
  */
-static int mtk_iommu_v1_create_mapping(struct device *dev, struct of_phandle_args *args)
+static int mtk_iommu_v1_create_mapping(struct device *dev,
+				       const struct of_phandle_args *args)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct mtk_iommu_v1_data *data;
@@ -599,6 +600,7 @@ static const struct of_device_id mtk_iommu_v1_of_ids[] = {
 	{ .compatible = "mediatek,mt2701-m4u", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, mtk_iommu_v1_of_ids);
 
 static const struct component_master_ops mtk_iommu_v1_com_ops = {
 	.bind		= mtk_iommu_v1_bind,
@@ -621,8 +623,8 @@ static int mtk_iommu_v1_probe(struct platform_device *pdev)
 	data->dev = dev;
 
 	/* Protect memory. HW will access here while translation fault.*/
-	protect = devm_kzalloc(dev, MTK_PROTECT_PA_ALIGN * 2,
-			GFP_KERNEL | GFP_DMA);
+	protect = devm_kcalloc(dev, 2, MTK_PROTECT_PA_ALIGN,
+			       GFP_KERNEL | GFP_DMA);
 	if (!protect)
 		return -ENOMEM;
 	data->protect_base = ALIGN(virt_to_phys(protect), MTK_PROTECT_PA_ALIGN);

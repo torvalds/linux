@@ -156,7 +156,7 @@ static const struct attribute_group *mcb_carrier_groups[] = {
 };
 
 
-static struct bus_type mcb_bus_type = {
+static const struct bus_type mcb_bus_type = {
 	.name = "mcb",
 	.match = mcb_match,
 	.uevent = mcb_uevent,
@@ -165,7 +165,7 @@ static struct bus_type mcb_bus_type = {
 	.shutdown = mcb_shutdown,
 };
 
-static struct device_type mcb_carrier_device_type = {
+static const struct device_type mcb_carrier_device_type = {
 	.name = "mcb-carrier",
 	.groups = mcb_carrier_groups,
 };

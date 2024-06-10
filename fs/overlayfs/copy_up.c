@@ -114,7 +114,7 @@ int ovl_copy_xattr(struct super_block *sb, const struct path *oldpath, struct de
 		if (ovl_is_private_xattr(sb, name))
 			continue;
 
-		error = security_inode_copy_up_xattr(name);
+		error = security_inode_copy_up_xattr(old, name);
 		if (error < 0 && error != -EOPNOTSUPP)
 			break;
 		if (error == 1) {
@@ -234,11 +234,11 @@ static int ovl_verify_area(loff_t pos, loff_t pos2, loff_t len, loff_t totlen)
 {
 	loff_t tmp;
 
-	if (WARN_ON_ONCE(pos != pos2))
+	if (pos != pos2)
 		return -EIO;
-	if (WARN_ON_ONCE(pos < 0 || len < 0 || totlen < 0))
+	if (pos < 0 || len < 0 || totlen < 0)
 		return -EIO;
-	if (WARN_ON_ONCE(check_add_overflow(pos, len, &tmp)))
+	if (check_add_overflow(pos, len, &tmp))
 		return -EIO;
 	return 0;
 }

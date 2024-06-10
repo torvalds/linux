@@ -497,21 +497,21 @@ error:
 	 * The other bits are set to 0.
 	 */
 	if (!(errcode & PFERR_RSVD_MASK)) {
-		vcpu->arch.exit_qualification &= (EPT_VIOLATION_GVA_IS_VALID |
-						  EPT_VIOLATION_GVA_TRANSLATED);
+		walker->fault.exit_qualification = 0;
+
 		if (write_fault)
-			vcpu->arch.exit_qualification |= EPT_VIOLATION_ACC_WRITE;
+			walker->fault.exit_qualification |= EPT_VIOLATION_ACC_WRITE;
 		if (user_fault)
-			vcpu->arch.exit_qualification |= EPT_VIOLATION_ACC_READ;
+			walker->fault.exit_qualification |= EPT_VIOLATION_ACC_READ;
 		if (fetch_fault)
-			vcpu->arch.exit_qualification |= EPT_VIOLATION_ACC_INSTR;
+			walker->fault.exit_qualification |= EPT_VIOLATION_ACC_INSTR;
 
 		/*
 		 * Note, pte_access holds the raw RWX bits from the EPTE, not
 		 * ACC_*_MASK flags!
 		 */
-		vcpu->arch.exit_qualification |= (pte_access & VMX_EPT_RWX_MASK) <<
-						 EPT_VIOLATION_RWX_SHIFT;
+		walker->fault.exit_qualification |= (pte_access & VMX_EPT_RWX_MASK) <<
+						     EPT_VIOLATION_RWX_SHIFT;
 	}
 #endif
 	walker->fault.address = addr;
@@ -911,7 +911,7 @@ static int FNAME(sync_spte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int 
 	gpa_t pte_gpa;
 	gfn_t gfn;
 
-	if (WARN_ON_ONCE(!sp->spt[i]))
+	if (WARN_ON_ONCE(sp->spt[i] == SHADOW_NONPRESENT_VALUE))
 		return 0;
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
@@ -933,13 +933,13 @@ static int FNAME(sync_spte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int 
 		return 0;
 
 	/*
-	 * Drop the SPTE if the new protections would result in a RWX=0
-	 * SPTE or if the gfn is changing.  The RWX=0 case only affects
-	 * EPT with execute-only support, i.e. EPT without an effective
-	 * "present" bit, as all other paging modes will create a
-	 * read-only SPTE if pte_access is zero.
+	 * Drop the SPTE if the new protections result in no effective
+	 * "present" bit or if the gfn is changing.  The former case
+	 * only affects EPT with execute-only support with pte_access==0;
+	 * all other paging modes will create a read-only SPTE if
+	 * pte_access is zero.
 	 */
-	if ((!pte_access && !shadow_present_mask) ||
+	if ((pte_access | shadow_present_mask) == SHADOW_NONPRESENT_VALUE ||
 	    gfn != kvm_mmu_page_get_gfn(sp, i)) {
 		drop_spte(vcpu->kvm, &sp->spt[i]);
 		return 1;

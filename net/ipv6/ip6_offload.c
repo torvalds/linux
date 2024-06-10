@@ -67,7 +67,7 @@ static int ipv6_gro_pull_exthdrs(struct sk_buff *skb, int off, int proto)
 		off += len;
 	}
 
-	skb_gro_pull(skb, off - skb_network_offset(skb));
+	skb_gro_pull(skb, off - skb_gro_receive_network_offset(skb));
 	return proto;
 }
 
@@ -236,7 +236,7 @@ INDIRECT_CALLABLE_SCOPE struct sk_buff *ipv6_gro_receive(struct list_head *head,
 	if (unlikely(!iph))
 		goto out;
 
-	skb_set_network_header(skb, off);
+	NAPI_GRO_CB(skb)->inner_network_offset = off;
 
 	flush += ntohs(iph->payload_len) != skb->len - hlen;
 
@@ -259,7 +259,7 @@ INDIRECT_CALLABLE_SCOPE struct sk_buff *ipv6_gro_receive(struct list_head *head,
 	NAPI_GRO_CB(skb)->proto = proto;
 
 	flush--;
-	nlen = skb_network_header_len(skb);
+	nlen = skb_gro_offset(skb) - off;
 
 	list_for_each_entry(p, head, list) {
 		const struct ipv6hdr *iph2;
@@ -290,19 +290,8 @@ not_same_flow:
 				   nlen - sizeof(struct ipv6hdr)))
 				goto not_same_flow;
 		}
-		/* flush if Traffic Class fields are different */
-		NAPI_GRO_CB(p)->flush |= !!((first_word & htonl(0x0FF00000)) |
-			(__force __be32)(iph->hop_limit ^ iph2->hop_limit));
-		NAPI_GRO_CB(p)->flush |= flush;
-
-		/* If the previous IP ID value was based on an atomic
-		 * datagram we can overwrite the value and ignore it.
-		 */
-		if (NAPI_GRO_CB(skb)->is_atomic)
-			NAPI_GRO_CB(p)->flush_id = 0;
 	}
 
-	NAPI_GRO_CB(skb)->is_atomic = true;
 	NAPI_GRO_CB(skb)->flush |= flush;
 
 	skb_gro_postpull_rcsum(skb, iph, nlen);
@@ -419,14 +408,6 @@ static int ip4ip6_gro_complete(struct sk_buff *skb, int nhoff)
 	return inet_gro_complete(skb, nhoff);
 }
 
-static struct packet_offload ipv6_packet_offload __read_mostly = {
-	.type = cpu_to_be16(ETH_P_IPV6),
-	.callbacks = {
-		.gso_segment = ipv6_gso_segment,
-		.gro_receive = ipv6_gro_receive,
-		.gro_complete = ipv6_gro_complete,
-	},
-};
 
 static struct sk_buff *sit_gso_segment(struct sk_buff *skb,
 				       netdev_features_t features)
@@ -486,7 +467,15 @@ static int __init ipv6_offload_init(void)
 	if (ipv6_exthdrs_offload_init() < 0)
 		pr_crit("%s: Cannot add EXTHDRS protocol offload\n", __func__);
 
-	dev_add_offload(&ipv6_packet_offload);
+	net_hotdata.ipv6_packet_offload = (struct packet_offload) {
+		.type = cpu_to_be16(ETH_P_IPV6),
+		.callbacks = {
+			.gso_segment = ipv6_gso_segment,
+			.gro_receive = ipv6_gro_receive,
+			.gro_complete = ipv6_gro_complete,
+		},
+	};
+	dev_add_offload(&net_hotdata.ipv6_packet_offload);
 
 	inet_add_offload(&sit_offload, IPPROTO_IPV6);
 	inet6_add_offload(&ip6ip6_offload, IPPROTO_IPV6);

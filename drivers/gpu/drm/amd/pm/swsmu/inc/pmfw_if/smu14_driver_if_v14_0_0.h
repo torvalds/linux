@@ -144,6 +144,37 @@ typedef struct {
   uint32_t MaxGfxClk;
 } DpmClocks_t;
 
+//Freq in MHz
+//Voltage in milli volts with 2 fractional bits
+typedef struct {
+  uint32_t DcfClocks[NUM_DCFCLK_DPM_LEVELS];
+  uint32_t DispClocks[NUM_DISPCLK_DPM_LEVELS];
+  uint32_t DppClocks[NUM_DPPCLK_DPM_LEVELS];
+  uint32_t SocClocks[NUM_SOCCLK_DPM_LEVELS];
+  uint32_t VClocks0[NUM_VCN_DPM_LEVELS];
+  uint32_t VClocks1[NUM_VCN_DPM_LEVELS];
+  uint32_t DClocks0[NUM_VCN_DPM_LEVELS];
+  uint32_t DClocks1[NUM_VCN_DPM_LEVELS];
+  uint32_t VPEClocks[NUM_VPE_DPM_LEVELS];
+  uint32_t FclkClocks_Freq[NUM_FCLK_DPM_LEVELS];
+  uint32_t FclkClocks_Voltage[NUM_FCLK_DPM_LEVELS];
+  uint32_t SocVoltage[NUM_SOC_VOLTAGE_LEVELS];
+  MemPstateTable_t MemPstateTable[NUM_MEM_PSTATE_LEVELS];
+
+  uint8_t  NumDcfClkLevelsEnabled;
+  uint8_t  NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
+  uint8_t  NumSocClkLevelsEnabled;
+  uint8_t  Vcn0ClkLevelsEnabled;     //Applies to both Vclk0 and Dclk0
+  uint8_t  Vcn1ClkLevelsEnabled;     //Applies to both Vclk1 and Dclk1
+  uint8_t  VpeClkLevelsEnabled;
+  uint8_t  NumMemPstatesEnabled;
+  uint8_t  NumFclkLevelsEnabled;
+  uint8_t  spare;
+
+  uint32_t MinGfxClk;
+  uint32_t MaxGfxClk;
+} DpmClocks_t_v14_0_1;
+
 typedef struct {
   uint16_t CoreFrequency[16];          //Target core frequency [MHz]
   uint16_t CorePower[16];              //CAC calculated core power [mW]
@@ -224,7 +255,7 @@ typedef enum {
 #define TABLE_CUSTOM_DPM            2 // Called by Driver
 #define TABLE_BIOS_GPIO_CONFIG      3 // Called by BIOS
 #define TABLE_DPMCLOCKS             4 // Called by Driver and VBIOS
-#define TABLE_SPARE0                5 // Unused
+#define TABLE_MOMENTARY_PM          5 // Called by Tools
 #define TABLE_MODERN_STDBY          6 // Called by Tools for Modern Standby Log
 #define TABLE_SMU_METRICS           7 // Called by Driver and SMF/PMF
 #define TABLE_COUNT                 8

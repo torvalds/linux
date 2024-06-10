@@ -332,7 +332,7 @@ static int record__aio_complete(struct mmap *md, struct aiocb *cblock)
 	} else {
 		/*
 		 * aio write request may require restart with the
-		 * reminder if the kernel didn't write whole
+		 * remainder if the kernel didn't write whole
 		 * chunk at once.
 		 */
 		rem_off = cblock->aio_offset + written;
@@ -400,7 +400,7 @@ static int record__aio_pushfn(struct mmap *map, void *to, void *buf, size_t size
 	 *
 	 * Coping can be done in two steps in case the chunk of profiling data
 	 * crosses the upper bound of the kernel buffer. In this case we first move
-	 * part of data from map->start till the upper bound and then the reminder
+	 * part of data from map->start till the upper bound and then the remainder
 	 * from the beginning of the kernel buffer till the end of the data chunk.
 	 */
 
@@ -1355,8 +1355,6 @@ static int record__open(struct record *rec)
 	struct record_opts *opts = &rec->opts;
 	int rc = 0;
 
-	evlist__config(evlist, opts, &callchain_param);
-
 	evlist__for_each_entry(evlist, pos) {
 try_again:
 		if (evsel__open(pos, pos->core.cpus, pos->core.threads) < 0) {
@@ -1773,8 +1771,11 @@ record__finish_output(struct record *rec)
 	struct perf_data *data = &rec->data;
 	int fd = perf_data__fd(data);
 
-	if (data->is_pipe)
+	if (data->is_pipe) {
+		/* Just to display approx. size */
+		data->file.size = rec->bytes_written;
 		return;
+	}
 
 	rec->session->header.data_size += rec->bytes_written;
 	data->file.size = lseek(perf_data__fd(data), 0, SEEK_CUR);
@@ -1787,7 +1788,7 @@ record__finish_output(struct record *rec)
 		process_buildids(rec);
 
 		if (rec->buildid_all)
-			dsos__hit_all(rec->session);
+			perf_session__dsos_hit_all(rec->session);
 	}
 	perf_session__write_header(rec->session, rec->evlist, fd, true);
 
@@ -1830,8 +1831,8 @@ static int
 record__switch_output(struct record *rec, bool at_exit)
 {
 	struct perf_data *data = &rec->data;
+	char *new_filename = NULL;
 	int fd, err;
-	char *new_filename;
 
 	/* Same Size:      "2015122520103046"*/
 	char timestamp[] = "InvalidTimestamp";
@@ -1853,16 +1854,17 @@ record__switch_output(struct record *rec, bool at_exit)
 	}
 
 	fd = perf_data__switch(data, timestamp,
-				    rec->session->header.data_offset,
-				    at_exit, &new_filename);
+			       rec->session->header.data_offset,
+			       at_exit, &new_filename);
 	if (fd >= 0 && !at_exit) {
 		rec->bytes_written = 0;
 		rec->session->header.data_size = 0;
 	}
 
-	if (!quiet)
+	if (!quiet) {
 		fprintf(stderr, "[ perf record: Dump %s.%s ]\n",
 			data->path, timestamp);
+	}
 
 	if (rec->switch_output.num_files) {
 		int n = rec->switch_output.cur_file + 1;
@@ -2472,7 +2474,14 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	if (data->is_pipe && rec->evlist->core.nr_entries == 1)
 		rec->opts.sample_id = true;
 
+	if (rec->timestamp_filename && perf_data__is_pipe(data)) {
+		rec->timestamp_filename = false;
+		pr_warning("WARNING: --timestamp-filename option is not available in pipe mode.\n");
+	}
+
 	evlist__uniquify_name(rec->evlist);
+
+	evlist__config(rec->evlist, opts, &callchain_param);
 
 	/* Debug message used by test scripts */
 	pr_debug3("perf record opening and mmapping events\n");
@@ -2872,10 +2881,10 @@ out_delete_session:
 	}
 #endif
 	zstd_fini(&session->zstd_data);
-	perf_session__delete(session);
-
 	if (!opts->no_bpf_event)
 		evlist__stop_sb_thread(rec->sb_evlist);
+
+	perf_session__delete(session);
 	return status;
 }
 

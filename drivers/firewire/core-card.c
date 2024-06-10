@@ -23,6 +23,7 @@
 #include <asm/byteorder.h>
 
 #include "core.h"
+#include <trace/events/firewire.h>
 
 #define define_fw_printk_level(func, kern_level)		\
 void func(const struct fw_card *card, const char *fmt, ...)	\
@@ -221,11 +222,15 @@ static int reset_bus(struct fw_card *card, bool short_reset)
 	int reg = short_reset ? 5 : 1;
 	int bit = short_reset ? PHY_BUS_SHORT_RESET : PHY_BUS_RESET;
 
+	trace_bus_reset_initiate(card->generation, short_reset);
+
 	return card->driver->update_phy_reg(card, reg, 0, bit);
 }
 
 void fw_schedule_bus_reset(struct fw_card *card, bool delayed, bool short_reset)
 {
+	trace_bus_reset_schedule(card->generation, short_reset);
+
 	/* We don't try hard to sort out requests of long vs. short resets. */
 	card->br_short = short_reset;
 
@@ -244,6 +249,8 @@ static void br_work(struct work_struct *work)
 	/* Delay for 2s after last reset per IEEE 1394 clause 8.2.1. */
 	if (card->reset_jiffies != 0 &&
 	    time_before64(get_jiffies_64(), card->reset_jiffies + 2 * HZ)) {
+		trace_bus_reset_postpone(card->generation, card->br_short);
+
 		if (!queue_delayed_work(fw_workqueue, &card->br_work, 2 * HZ))
 			fw_card_put(card);
 		return;

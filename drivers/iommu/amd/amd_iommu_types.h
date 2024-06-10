@@ -8,7 +8,9 @@
 #ifndef _ASM_X86_AMD_IOMMU_TYPES_H
 #define _ASM_X86_AMD_IOMMU_TYPES_H
 
+#include <linux/iommu.h>
 #include <linux/types.h>
+#include <linux/mmu_notifier.h>
 #include <linux/mutex.h>
 #include <linux/msi.h>
 #include <linux/list.h>
@@ -251,6 +253,14 @@
 #define PPR_ENTRY_SIZE		16
 #define PPR_LOG_SIZE		(PPR_ENTRY_SIZE * PPR_LOG_ENTRIES)
 
+/* PAGE_SERVICE_REQUEST PPR Log Buffer Entry flags */
+#define PPR_FLAG_EXEC		0x002	/* Execute permission requested */
+#define PPR_FLAG_READ		0x004	/* Read permission requested */
+#define PPR_FLAG_WRITE		0x020	/* Write permission requested */
+#define PPR_FLAG_US		0x040	/* 1: User, 0: Supervisor */
+#define PPR_FLAG_RVSD		0x080	/* Reserved bit not zero */
+#define PPR_FLAG_GN		0x100	/* GVA and PASID is valid */
+
 #define PPR_REQ_TYPE(x)		(((x) >> 60) & 0xfULL)
 #define PPR_FLAGS(x)		(((x) >> 48) & 0xfffULL)
 #define PPR_DEVID(x)		((x) & 0xffffULL)
@@ -453,15 +463,6 @@
 
 #define MAX_DOMAIN_ID 65536
 
-/* Protection domain flags */
-#define PD_DMA_OPS_MASK		BIT(0) /* domain used for dma_ops */
-#define PD_DEFAULT_MASK		BIT(1) /* domain is a default dma_ops
-					      domain for an IOMMU */
-#define PD_PASSTHROUGH_MASK	BIT(2) /* domain has no page
-					      translation */
-#define PD_IOMMUV2_MASK		BIT(3) /* domain has gcr3 table */
-#define PD_GIOV_MASK		BIT(4) /* domain enable GIOV support */
-
 /* Timeout stuff */
 #define LOOP_TIMEOUT		100000
 #define MMIO_STATUS_TIMEOUT	2000000
@@ -512,14 +513,11 @@ extern struct kmem_cache *amd_iommu_irq_cache;
 	list_for_each_entry((iommu), &amd_iommu_list, list)
 #define for_each_iommu_safe(iommu, next) \
 	list_for_each_entry_safe((iommu), (next), &amd_iommu_list, list)
-
-#define APERTURE_RANGE_SHIFT	27	/* 128 MB */
-#define APERTURE_RANGE_SIZE	(1ULL << APERTURE_RANGE_SHIFT)
-#define APERTURE_RANGE_PAGES	(APERTURE_RANGE_SIZE >> PAGE_SHIFT)
-#define APERTURE_MAX_RANGES	32	/* allows 4GB of DMA address space */
-#define APERTURE_RANGE_INDEX(a)	((a) >> APERTURE_RANGE_SHIFT)
-#define APERTURE_PAGE_INDEX(a)	(((a) >> 21) & 0x3fULL)
-
+/* Making iterating over protection_domain->dev_data_list easier */
+#define for_each_pdom_dev_data(pdom_dev_data, pdom) \
+	list_for_each_entry(pdom_dev_data, &pdom->dev_data_list, list)
+#define for_each_pdom_dev_data_safe(pdom_dev_data, next, pdom) \
+	list_for_each_entry_safe((pdom_dev_data), (next), &pdom->dev_data_list, list)
 
 struct amd_iommu;
 struct iommu_domain;
@@ -541,12 +539,34 @@ struct amd_irte_ops;
 #define io_pgtable_cfg_to_data(x) \
 	container_of((x), struct amd_io_pgtable, pgtbl_cfg)
 
+struct gcr3_tbl_info {
+	u64	*gcr3_tbl;	/* Guest CR3 table */
+	int	glx;		/* Number of levels for GCR3 table */
+	u32	pasid_cnt;	/* Track attached PASIDs */
+	u16	domid;		/* Per device domain ID */
+};
+
 struct amd_io_pgtable {
 	struct io_pgtable_cfg	pgtbl_cfg;
 	struct io_pgtable	iop;
 	int			mode;
 	u64			*root;
 	u64			*pgd;		/* v2 pgtable pgd pointer */
+};
+
+enum protection_domain_mode {
+	PD_MODE_V1 = 1,
+	PD_MODE_V2,
+};
+
+/* Track dev_data/PASID list for the protection domain */
+struct pdom_dev_data {
+	/* Points to attached device data */
+	struct iommu_dev_data *dev_data;
+	/* PASID attached to the protection domain */
+	ioasid_t pasid;
+	/* For protection_domain->dev_data_list */
+	struct list_head list;
 };
 
 /*
@@ -560,13 +580,14 @@ struct protection_domain {
 	struct amd_io_pgtable iop;
 	spinlock_t lock;	/* mostly used to lock the page table*/
 	u16 id;			/* the domain id written to the device table */
-	int glx;		/* Number of levels for GCR3 table */
 	int nid;		/* Node ID */
-	u64 *gcr3_tbl;		/* Guest CR3 table */
-	unsigned long flags;	/* flags to find out type of domain */
+	enum protection_domain_mode pd_mode; /* Track page table type */
 	bool dirty_tracking;	/* dirty tracking is enabled in the domain */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
+
+	struct mmu_notifier mn;	/* mmu notifier for the SVA domain */
+	struct list_head dev_data_list; /* List of pdom_dev_data */
 };
 
 /*
@@ -769,6 +790,10 @@ struct amd_iommu {
 	/* DebugFS Info */
 	struct dentry *debugfs;
 #endif
+
+	/* IOPF support */
+	struct iopf_queue *iopf_queue;
+	unsigned char iopfq_name[32];
 };
 
 static inline struct amd_iommu *dev_to_amd_iommu(struct device *dev)
@@ -816,9 +841,11 @@ struct iommu_dev_data {
 	struct list_head list;		  /* For domain->dev_list */
 	struct llist_node dev_data_list;  /* For global dev_data_list */
 	struct protection_domain *domain; /* Domain the device is bound to */
+	struct gcr3_tbl_info gcr3_info;   /* Per-device GCR3 table */
 	struct device *dev;
 	u16 devid;			  /* PCI Device ID */
 
+	u32 max_pasids;			  /* Max supported PASIDs */
 	u32 flags;			  /* Holds AMD_IOMMU_DEVICE_FLAG_<*> */
 	int ats_qdep;
 	u8 ats_enabled  :1;		  /* ATS state */

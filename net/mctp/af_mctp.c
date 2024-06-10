@@ -350,30 +350,102 @@ static int mctp_getsockopt(struct socket *sock, int level, int optname,
 	return -EINVAL;
 }
 
-static int mctp_ioctl_alloctag(struct mctp_sock *msk, unsigned long arg)
+/* helpers for reading/writing the tag ioc, handling compatibility across the
+ * two versions, and some basic API error checking
+ */
+static int mctp_ioctl_tag_copy_from_user(unsigned long arg,
+					 struct mctp_ioc_tag_ctl2 *ctl,
+					 bool tagv2)
+{
+	struct mctp_ioc_tag_ctl ctl_compat;
+	unsigned long size;
+	void *ptr;
+	int rc;
+
+	if (tagv2) {
+		size = sizeof(*ctl);
+		ptr = ctl;
+	} else {
+		size = sizeof(ctl_compat);
+		ptr = &ctl_compat;
+	}
+
+	rc = copy_from_user(ptr, (void __user *)arg, size);
+	if (rc)
+		return -EFAULT;
+
+	if (!tagv2) {
+		/* compat, using defaults for new fields */
+		ctl->net = MCTP_INITIAL_DEFAULT_NET;
+		ctl->peer_addr = ctl_compat.peer_addr;
+		ctl->local_addr = MCTP_ADDR_ANY;
+		ctl->flags = ctl_compat.flags;
+		ctl->tag = ctl_compat.tag;
+	}
+
+	if (ctl->flags)
+		return -EINVAL;
+
+	if (ctl->local_addr != MCTP_ADDR_ANY &&
+	    ctl->local_addr != MCTP_ADDR_NULL)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int mctp_ioctl_tag_copy_to_user(unsigned long arg,
+				       struct mctp_ioc_tag_ctl2 *ctl,
+				       bool tagv2)
+{
+	struct mctp_ioc_tag_ctl ctl_compat;
+	unsigned long size;
+	void *ptr;
+	int rc;
+
+	if (tagv2) {
+		ptr = ctl;
+		size = sizeof(*ctl);
+	} else {
+		ctl_compat.peer_addr = ctl->peer_addr;
+		ctl_compat.tag = ctl->tag;
+		ctl_compat.flags = ctl->flags;
+
+		ptr = &ctl_compat;
+		size = sizeof(ctl_compat);
+	}
+
+	rc = copy_to_user((void __user *)arg, ptr, size);
+	if (rc)
+		return -EFAULT;
+
+	return 0;
+}
+
+static int mctp_ioctl_alloctag(struct mctp_sock *msk, bool tagv2,
+			       unsigned long arg)
 {
 	struct net *net = sock_net(&msk->sk);
 	struct mctp_sk_key *key = NULL;
-	struct mctp_ioc_tag_ctl ctl;
+	struct mctp_ioc_tag_ctl2 ctl;
 	unsigned long flags;
 	u8 tag;
+	int rc;
 
-	if (copy_from_user(&ctl, (void __user *)arg, sizeof(ctl)))
-		return -EFAULT;
+	rc = mctp_ioctl_tag_copy_from_user(arg, &ctl, tagv2);
+	if (rc)
+		return rc;
 
 	if (ctl.tag)
 		return -EINVAL;
 
-	if (ctl.flags)
-		return -EINVAL;
-
-	key = mctp_alloc_local_tag(msk, ctl.peer_addr, MCTP_ADDR_ANY,
-				   true, &tag);
+	key = mctp_alloc_local_tag(msk, ctl.net, MCTP_ADDR_ANY,
+				   ctl.peer_addr, true, &tag);
 	if (IS_ERR(key))
 		return PTR_ERR(key);
 
 	ctl.tag = tag | MCTP_TAG_OWNER | MCTP_TAG_PREALLOC;
-	if (copy_to_user((void __user *)arg, &ctl, sizeof(ctl))) {
+	rc = mctp_ioctl_tag_copy_to_user(arg, &ctl, tagv2);
+	if (rc) {
 		unsigned long fl2;
 		/* Unwind our key allocation: the keys list lock needs to be
 		 * taken before the individual key locks, and we need a valid
@@ -385,28 +457,27 @@ static int mctp_ioctl_alloctag(struct mctp_sock *msk, unsigned long arg)
 		__mctp_key_remove(key, net, fl2, MCTP_TRACE_KEY_DROPPED);
 		mctp_key_unref(key);
 		spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
-		return -EFAULT;
+		return rc;
 	}
 
 	mctp_key_unref(key);
 	return 0;
 }
 
-static int mctp_ioctl_droptag(struct mctp_sock *msk, unsigned long arg)
+static int mctp_ioctl_droptag(struct mctp_sock *msk, bool tagv2,
+			      unsigned long arg)
 {
 	struct net *net = sock_net(&msk->sk);
-	struct mctp_ioc_tag_ctl ctl;
+	struct mctp_ioc_tag_ctl2 ctl;
 	unsigned long flags, fl2;
 	struct mctp_sk_key *key;
 	struct hlist_node *tmp;
 	int rc;
 	u8 tag;
 
-	if (copy_from_user(&ctl, (void __user *)arg, sizeof(ctl)))
-		return -EFAULT;
-
-	if (ctl.flags)
-		return -EINVAL;
+	rc = mctp_ioctl_tag_copy_from_user(arg, &ctl, tagv2);
+	if (rc)
+		return rc;
 
 	/* Must be a local tag, TO set, preallocated */
 	if ((ctl.tag & ~MCTP_TAG_MASK) != (MCTP_TAG_OWNER | MCTP_TAG_PREALLOC))
@@ -422,6 +493,7 @@ static int mctp_ioctl_droptag(struct mctp_sock *msk, unsigned long arg)
 		 */
 		spin_lock_irqsave(&key->lock, fl2);
 		if (key->manual_alloc &&
+		    ctl.net == key->net &&
 		    ctl.peer_addr == key->peer_addr &&
 		    tag == key->tag) {
 			__mctp_key_remove(key, net, fl2,
@@ -439,12 +511,17 @@ static int mctp_ioctl_droptag(struct mctp_sock *msk, unsigned long arg)
 static int mctp_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct mctp_sock *msk = container_of(sock->sk, struct mctp_sock, sk);
+	bool tagv2 = false;
 
 	switch (cmd) {
+	case SIOCMCTPALLOCTAG2:
 	case SIOCMCTPALLOCTAG:
-		return mctp_ioctl_alloctag(msk, arg);
+		tagv2 = cmd == SIOCMCTPALLOCTAG2;
+		return mctp_ioctl_alloctag(msk, tagv2, arg);
 	case SIOCMCTPDROPTAG:
-		return mctp_ioctl_droptag(msk, arg);
+	case SIOCMCTPDROPTAG2:
+		tagv2 = cmd == SIOCMCTPDROPTAG2;
+		return mctp_ioctl_droptag(msk, tagv2, arg);
 	}
 
 	return -EINVAL;

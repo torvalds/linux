@@ -29,6 +29,7 @@
 #include "xfs_log.h"
 #include "xfs_ag.h"
 #include "xfs_errortag.h"
+#include "xfs_health.h"
 
 
 /*
@@ -387,6 +388,27 @@ xfs_attr3_leaf_verify(
 	return NULL;
 }
 
+xfs_failaddr_t
+xfs_attr3_leaf_header_check(
+	struct xfs_buf		*bp,
+	xfs_ino_t		owner)
+{
+	struct xfs_mount	*mp = bp->b_mount;
+
+	if (xfs_has_crc(mp)) {
+		struct xfs_attr3_leafblock *hdr3 = bp->b_addr;
+
+		if (hdr3->hdr.info.hdr.magic !=
+				cpu_to_be16(XFS_ATTR3_LEAF_MAGIC))
+			return __this_address;
+
+		if (be64_to_cpu(hdr3->hdr.info.owner) != owner)
+			return __this_address;
+	}
+
+	return NULL;
+}
+
 static void
 xfs_attr3_leaf_write_verify(
 	struct xfs_buf	*bp)
@@ -447,16 +469,30 @@ int
 xfs_attr3_leaf_read(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
+	xfs_ino_t		owner,
 	xfs_dablk_t		bno,
 	struct xfs_buf		**bpp)
 {
+	xfs_failaddr_t		fa;
 	int			err;
 
 	err = xfs_da_read_buf(tp, dp, bno, 0, bpp, XFS_ATTR_FORK,
 			&xfs_attr3_leaf_buf_ops);
-	if (!err && tp && *bpp)
+	if (err || !(*bpp))
+		return err;
+
+	fa = xfs_attr3_leaf_header_check(*bpp, owner);
+	if (fa) {
+		__xfs_buf_mark_corrupt(*bpp, fa);
+		xfs_trans_brelse(tp, *bpp);
+		*bpp = NULL;
+		xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
+		return -EFSCORRUPTED;
+	}
+
+	if (tp)
 		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_ATTR_LEAF_BUF);
-	return err;
+	return 0;
 }
 
 /*========================================================================
@@ -471,28 +507,57 @@ xfs_attr3_leaf_read(
  * INCOMPLETE flag will not be set in attr->attr_filter, but rather
  * XFS_DA_OP_RECOVERY will be set in args->op_flags.
  */
+static inline unsigned int xfs_attr_match_mask(const struct xfs_da_args *args)
+{
+	if (args->op_flags & XFS_DA_OP_RECOVERY)
+		return XFS_ATTR_NSP_ONDISK_MASK;
+	return XFS_ATTR_NSP_ONDISK_MASK | XFS_ATTR_INCOMPLETE;
+}
+
+static inline bool
+xfs_attr_parent_match(
+	const struct xfs_da_args	*args,
+	const void			*value,
+	unsigned int			valuelen)
+{
+	ASSERT(args->value != NULL);
+
+	/* Parent pointers do not use remote values */
+	if (!value)
+		return false;
+
+	/*
+	 * The only value we support is a parent rec.  However, we'll accept
+	 * any valuelen so that offline repair can delete ATTR_PARENT values
+	 * that are not parent pointers.
+	 */
+	if (valuelen != args->valuelen)
+		return false;
+
+	return memcmp(args->value, value, valuelen) == 0;
+}
+
 static bool
 xfs_attr_match(
 	struct xfs_da_args	*args,
-	uint8_t			namelen,
-	unsigned char		*name,
-	int			flags)
+	unsigned int		attr_flags,
+	const unsigned char	*name,
+	unsigned int		namelen,
+	const void		*value,
+	unsigned int		valuelen)
 {
+	unsigned int		mask = xfs_attr_match_mask(args);
 
 	if (args->namelen != namelen)
+		return false;
+	if ((args->attr_filter & mask) != (attr_flags & mask))
 		return false;
 	if (memcmp(args->name, name, namelen) != 0)
 		return false;
 
-	/* Recovery ignores the INCOMPLETE flag. */
-	if ((args->op_flags & XFS_DA_OP_RECOVERY) &&
-	    args->attr_filter == (flags & XFS_ATTR_NSP_ONDISK_MASK))
-		return true;
+	if (attr_flags & XFS_ATTR_PARENT)
+		return xfs_attr_parent_match(args, value, valuelen);
 
-	/* All remaining matches need to be filtered by INCOMPLETE state. */
-	if (args->attr_filter !=
-	    (flags & (XFS_ATTR_NSP_ONDISK_MASK | XFS_ATTR_INCOMPLETE)))
-		return false;
 	return true;
 }
 
@@ -502,6 +567,13 @@ xfs_attr_copy_value(
 	unsigned char		*value,
 	int			valuelen)
 {
+	/*
+	 * Parent pointer lookups require the caller to specify the name and
+	 * value, so don't copy anything.
+	 */
+	if (args->attr_filter & XFS_ATTR_PARENT)
+		return 0;
+
 	/*
 	 * No copy if all we have to do is get the length
 	 */
@@ -710,8 +782,9 @@ xfs_attr_sf_findname(
 	for (sfe = xfs_attr_sf_firstentry(sf);
 	     sfe < xfs_attr_sf_endptr(sf);
 	     sfe = xfs_attr_sf_nextentry(sfe)) {
-		if (xfs_attr_match(args, sfe->namelen, sfe->nameval,
-				sfe->flags))
+		if (xfs_attr_match(args, sfe->flags, sfe->nameval,
+				sfe->namelen, &sfe->nameval[sfe->namelen],
+				sfe->valuelen))
 			return sfe;
 	}
 
@@ -818,7 +891,8 @@ xfs_attr_sf_removename(
 	 */
 	if (totsize == sizeof(struct xfs_attr_sf_hdr) && xfs_has_attr2(mp) &&
 	    (dp->i_df.if_format != XFS_DINODE_FMT_BTREE) &&
-	    !(args->op_flags & (XFS_DA_OP_ADDNAME | XFS_DA_OP_REPLACE))) {
+	    !(args->op_flags & (XFS_DA_OP_ADDNAME | XFS_DA_OP_REPLACE)) &&
+	    !xfs_has_parent(mp)) {
 		xfs_attr_fork_remove(dp, args->trans);
 	} else {
 		xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
@@ -827,7 +901,8 @@ xfs_attr_sf_removename(
 		ASSERT(totsize > sizeof(struct xfs_attr_sf_hdr) ||
 				(args->op_flags & XFS_DA_OP_ADDNAME) ||
 				!xfs_has_attr2(mp) ||
-				dp->i_df.if_format == XFS_DINODE_FMT_BTREE);
+				dp->i_df.if_format == XFS_DINODE_FMT_BTREE ||
+				xfs_has_parent(mp));
 		xfs_trans_log_inode(args->trans, dp,
 					XFS_ILOG_CORE | XFS_ILOG_ADATA);
 	}
@@ -879,8 +954,7 @@ xfs_attr_shortform_to_leaf(
 
 	trace_xfs_attr_sf_to_leaf(args);
 
-	tmpbuffer = kmem_alloc(size, 0);
-	ASSERT(tmpbuffer != NULL);
+	tmpbuffer = kmalloc(size, GFP_KERNEL | __GFP_NOFAIL);
 	memcpy(tmpbuffer, ifp->if_data, size);
 	sf = (struct xfs_attr_sf_hdr *)tmpbuffer;
 
@@ -904,6 +978,7 @@ xfs_attr_shortform_to_leaf(
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
 	nargs.op_flags = XFS_DA_OP_OKNOENT;
+	nargs.owner = args->owner;
 
 	sfe = xfs_attr_sf_firstentry(sf);
 	for (i = 0; i < sf->count; i++) {
@@ -911,9 +986,13 @@ xfs_attr_shortform_to_leaf(
 		nargs.namelen = sfe->namelen;
 		nargs.value = &sfe->nameval[nargs.namelen];
 		nargs.valuelen = sfe->valuelen;
-		nargs.hashval = xfs_da_hashname(sfe->nameval,
-						sfe->namelen);
 		nargs.attr_filter = sfe->flags & XFS_ATTR_NSP_ONDISK_MASK;
+		if (!xfs_attr_check_namespace(sfe->flags)) {
+			xfs_da_mark_sick(args);
+			error = -EFSCORRUPTED;
+			goto out;
+		}
+		xfs_attr_sethash(&nargs);
 		error = xfs_attr3_leaf_lookup_int(bp, &nargs); /* set a->index */
 		ASSERT(error == -ENOATTR);
 		error = xfs_attr3_leaf_add(bp, &nargs);
@@ -924,7 +1003,7 @@ xfs_attr_shortform_to_leaf(
 	}
 	error = 0;
 out:
-	kmem_free(tmpbuffer);
+	kfree(tmpbuffer);
 	return error;
 }
 
@@ -1027,7 +1106,7 @@ xfs_attr_shortform_verify(
 		 * one namespace flag per xattr, so we can just count the
 		 * bits (i.e. hweight) here.
 		 */
-		if (hweight8(sfep->flags & XFS_ATTR_NSP_ONDISK_MASK) > 1)
+		if (!xfs_attr_check_namespace(sfep->flags))
 			return __this_address;
 
 		sfep = next_sfep;
@@ -1059,7 +1138,7 @@ xfs_attr3_leaf_to_shortform(
 
 	trace_xfs_attr_leaf_to_sf(args);
 
-	tmpbuffer = kmem_alloc(args->geo->blksize, 0);
+	tmpbuffer = kmalloc(args->geo->blksize, GFP_KERNEL | __GFP_NOFAIL);
 	if (!tmpbuffer)
 		return -ENOMEM;
 
@@ -1106,6 +1185,7 @@ xfs_attr3_leaf_to_shortform(
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
 	nargs.op_flags = XFS_DA_OP_OKNOENT;
+	nargs.owner = args->owner;
 
 	for (i = 0; i < ichdr.count; entry++, i++) {
 		if (entry->flags & XFS_ATTR_INCOMPLETE)
@@ -1125,7 +1205,7 @@ xfs_attr3_leaf_to_shortform(
 	error = 0;
 
 out:
-	kmem_free(tmpbuffer);
+	kfree(tmpbuffer);
 	return error;
 }
 
@@ -1158,7 +1238,7 @@ xfs_attr3_leaf_to_node(
 	error = xfs_da_grow_inode(args, &blkno);
 	if (error)
 		goto out;
-	error = xfs_attr3_leaf_read(args->trans, dp, 0, &bp1);
+	error = xfs_attr3_leaf_read(args->trans, dp, args->owner, 0, &bp1);
 	if (error)
 		goto out;
 
@@ -1237,7 +1317,7 @@ xfs_attr3_leaf_create(
 		ichdr.magic = XFS_ATTR3_LEAF_MAGIC;
 
 		hdr3->blkno = cpu_to_be64(xfs_buf_daddr(bp));
-		hdr3->owner = cpu_to_be64(dp->i_ino);
+		hdr3->owner = cpu_to_be64(args->owner);
 		uuid_copy(&hdr3->uuid, &mp->m_sb.sb_meta_uuid);
 
 		ichdr.freemap[0].base = sizeof(struct xfs_attr3_leaf_hdr);
@@ -1533,7 +1613,7 @@ xfs_attr3_leaf_compact(
 
 	trace_xfs_attr_leaf_compact(args);
 
-	tmpbuffer = kmem_alloc(args->geo->blksize, 0);
+	tmpbuffer = kmalloc(args->geo->blksize, GFP_KERNEL | __GFP_NOFAIL);
 	memcpy(tmpbuffer, bp->b_addr, args->geo->blksize);
 	memset(bp->b_addr, 0, args->geo->blksize);
 	leaf_src = (xfs_attr_leafblock_t *)tmpbuffer;
@@ -1571,7 +1651,7 @@ xfs_attr3_leaf_compact(
 	 */
 	xfs_trans_log_buf(trans, bp, 0, args->geo->blksize - 1);
 
-	kmem_free(tmpbuffer);
+	kfree(tmpbuffer);
 }
 
 /*
@@ -1993,7 +2073,7 @@ xfs_attr3_leaf_toosmall(
 		if (blkno == 0)
 			continue;
 		error = xfs_attr3_leaf_read(state->args->trans, state->args->dp,
-					blkno, &bp);
+					state->args->owner, blkno, &bp);
 		if (error)
 			return error;
 
@@ -2250,7 +2330,8 @@ xfs_attr3_leaf_unbalance(
 		struct xfs_attr_leafblock *tmp_leaf;
 		struct xfs_attr3_icleaf_hdr tmphdr;
 
-		tmp_leaf = kmem_zalloc(state->args->geo->blksize, 0);
+		tmp_leaf = kzalloc(state->args->geo->blksize,
+				GFP_KERNEL | __GFP_NOFAIL);
 
 		/*
 		 * Copy the header into the temp leaf so that all the stuff
@@ -2290,7 +2371,7 @@ xfs_attr3_leaf_unbalance(
 		}
 		memcpy(save_leaf, tmp_leaf, state->args->geo->blksize);
 		savehdr = tmphdr; /* struct copy */
-		kmem_free(tmp_leaf);
+		kfree(tmp_leaf);
 	}
 
 	xfs_attr3_leaf_hdr_to_disk(state->args->geo, save_leaf, &savehdr);
@@ -2343,6 +2424,7 @@ xfs_attr3_leaf_lookup_int(
 	entries = xfs_attr3_leaf_entryp(leaf);
 	if (ichdr.count >= args->geo->blksize / 8) {
 		xfs_buf_mark_corrupt(bp);
+		xfs_da_mark_sick(args);
 		return -EFSCORRUPTED;
 	}
 
@@ -2362,10 +2444,12 @@ xfs_attr3_leaf_lookup_int(
 	}
 	if (!(probe >= 0 && (!ichdr.count || probe < ichdr.count))) {
 		xfs_buf_mark_corrupt(bp);
+		xfs_da_mark_sick(args);
 		return -EFSCORRUPTED;
 	}
 	if (!(span <= 4 || be32_to_cpu(entry->hashval) == hashval)) {
 		xfs_buf_mark_corrupt(bp);
+		xfs_da_mark_sick(args);
 		return -EFSCORRUPTED;
 	}
 
@@ -2397,18 +2481,23 @@ xfs_attr3_leaf_lookup_int(
  */
 		if (entry->flags & XFS_ATTR_LOCAL) {
 			name_loc = xfs_attr3_leaf_name_local(leaf, probe);
-			if (!xfs_attr_match(args, name_loc->namelen,
-					name_loc->nameval, entry->flags))
+			if (!xfs_attr_match(args, entry->flags,
+					name_loc->nameval, name_loc->namelen,
+					&name_loc->nameval[name_loc->namelen],
+					be16_to_cpu(name_loc->valuelen)))
 				continue;
 			args->index = probe;
 			return -EEXIST;
 		} else {
+			unsigned int	valuelen;
+
 			name_rmt = xfs_attr3_leaf_name_remote(leaf, probe);
-			if (!xfs_attr_match(args, name_rmt->namelen,
-					name_rmt->name, entry->flags))
+			valuelen = be32_to_cpu(name_rmt->valuelen);
+			if (!xfs_attr_match(args, entry->flags, name_rmt->name,
+					name_rmt->namelen, NULL, valuelen))
 				continue;
 			args->index = probe;
-			args->rmtvaluelen = be32_to_cpu(name_rmt->valuelen);
+			args->rmtvaluelen = valuelen;
 			args->rmtblkno = be32_to_cpu(name_rmt->valueblk);
 			args->rmtblkcnt = xfs_attr3_rmt_blocks(
 							args->dp->i_mount,
@@ -2711,7 +2800,8 @@ xfs_attr3_leaf_clearflag(
 	/*
 	 * Set up the operation.
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->owner,
+			args->blkno, &bp);
 	if (error)
 		return error;
 
@@ -2775,7 +2865,8 @@ xfs_attr3_leaf_setflag(
 	/*
 	 * Set up the operation.
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->owner,
+			args->blkno, &bp);
 	if (error)
 		return error;
 
@@ -2834,7 +2925,8 @@ xfs_attr3_leaf_flipflags(
 	/*
 	 * Read the block containing the "old" attr
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp1);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->owner,
+			args->blkno, &bp1);
 	if (error)
 		return error;
 
@@ -2842,8 +2934,8 @@ xfs_attr3_leaf_flipflags(
 	 * Read the block containing the "new" attr, if it is different
 	 */
 	if (args->blkno2 != args->blkno) {
-		error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno2,
-					   &bp2);
+		error = xfs_attr3_leaf_read(args->trans, args->dp, args->owner,
+				args->blkno2, &bp2);
 		if (error)
 			return error;
 	} else {

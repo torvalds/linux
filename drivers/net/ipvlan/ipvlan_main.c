@@ -349,7 +349,7 @@ static int ipvlan_get_iflink(const struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 
-	return ipvlan->phy_dev->ifindex;
+	return READ_ONCE(ipvlan->phy_dev->ifindex);
 }
 
 static const struct net_device_ops ipvlan_netdev_ops = {
@@ -735,6 +735,7 @@ static int ipvlan_device_event(struct notifier_block *unused,
 
 	switch (event) {
 	case NETDEV_UP:
+	case NETDEV_DOWN:
 	case NETDEV_CHANGE:
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode)
 			netif_stacked_transfer_operstate(ipvlan->phy_dev,

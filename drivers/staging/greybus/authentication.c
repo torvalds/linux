@@ -324,7 +324,7 @@ int gb_cap_connection_init(struct gb_connection *connection)
 	if (ret)
 		goto err_list_del;
 
-	minor = ida_simple_get(&cap_minors_map, 0, NUM_MINORS, GFP_KERNEL);
+	minor = ida_alloc_max(&cap_minors_map, NUM_MINORS - 1, GFP_KERNEL);
 	if (minor < 0) {
 		ret = minor;
 		goto err_connection_disable;
@@ -351,7 +351,7 @@ int gb_cap_connection_init(struct gb_connection *connection)
 err_del_cdev:
 	cdev_del(&cap->cdev);
 err_remove_ida:
-	ida_simple_remove(&cap_minors_map, minor);
+	ida_free(&cap_minors_map, minor);
 err_connection_disable:
 	gb_connection_disable(connection);
 err_list_del:
@@ -375,7 +375,7 @@ void gb_cap_connection_exit(struct gb_connection *connection)
 
 	device_destroy(&cap_class, cap->dev_num);
 	cdev_del(&cap->cdev);
-	ida_simple_remove(&cap_minors_map, MINOR(cap->dev_num));
+	ida_free(&cap_minors_map, MINOR(cap->dev_num));
 
 	/*
 	 * Disallow any new ioctl operations on the char device and wait for

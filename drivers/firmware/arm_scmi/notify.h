@@ -35,6 +35,8 @@ struct scmi_protocol_handle;
 
 /**
  * struct scmi_event_ops  - Protocol helpers called by the notification core.
+ * @is_notify_supported: Return 0 if the specified notification for the
+ *			 specified resource (src_id) is supported.
  * @get_num_sources: Returns the number of possible events' sources for this
  *		     protocol
  * @set_notify_enabled: Enable/disable the required evt_id/src_id notifications
@@ -50,6 +52,8 @@ struct scmi_protocol_handle;
  *	    process context.
  */
 struct scmi_event_ops {
+	bool (*is_notify_supported)(const struct scmi_protocol_handle *ph,
+				    u8 evt_id, u32 src_id);
 	int (*get_num_sources)(const struct scmi_protocol_handle *ph);
 	int (*set_notify_enabled)(const struct scmi_protocol_handle *ph,
 				  u8 evt_id, u32 src_id, bool enabled);

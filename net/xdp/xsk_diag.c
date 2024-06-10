@@ -194,6 +194,7 @@ static int xsk_diag_handler_dump(struct sk_buff *nlskb, struct nlmsghdr *hdr)
 }
 
 static const struct sock_diag_handler xsk_diag_handler = {
+	.owner = THIS_MODULE,
 	.family = AF_XDP,
 	.dump = xsk_diag_handler_dump,
 };

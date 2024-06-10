@@ -511,7 +511,7 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 		struct addr_location al;
 
 		addr_location__init(&al);
-		al.map = map__get(maps__find(machine__kernel_maps(machine), tp->addr));
+		al.map = maps__find(machine__kernel_maps(machine), tp->addr);
 		if (al.map && map__load(al.map) >= 0) {
 			al.addr = map__map_ip(al.map, tp->addr);
 			al.sym = map__find_symbol(al.map, al.addr);
@@ -641,7 +641,7 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 		return NULL;
 	}
 	al->maps = maps__get(maps);
-	al->map = map__get(maps__find(maps, al->addr));
+	al->map = maps__find(maps, al->addr);
 	if (al->map != NULL) {
 		/*
 		 * Kernel maps might be changed when loading symbols so loading
@@ -726,7 +726,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	dso = al->map ? map__dso(al->map) : NULL;
 	dump_printf(" ...... dso: %s\n",
 		dso
-		? dso->long_name
+		? dso__long_name(dso)
 		: (al->level == 'H' ? "[hypervisor]" : "<not found>"));
 
 	if (thread__is_filtered(thread))
@@ -750,10 +750,10 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	if (al->map) {
 		if (symbol_conf.dso_list &&
 		    (!dso || !(strlist__has_entry(symbol_conf.dso_list,
-						  dso->short_name) ||
-			       (dso->short_name != dso->long_name &&
+						  dso__short_name(dso)) ||
+			       (dso__short_name(dso) != dso__long_name(dso) &&
 				strlist__has_entry(symbol_conf.dso_list,
-						   dso->long_name))))) {
+						   dso__long_name(dso)))))) {
 			al->filtered |= (1 << HIST_FILTER__DSO);
 		}
 

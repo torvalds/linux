@@ -42,6 +42,7 @@
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
 #include <linux/irq.h>
+#include <linux/skbuff_ref.h>
 
 #include <net/ip.h>
 #if IS_ENABLED(CONFIG_IPV6)
@@ -762,7 +763,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		/* Drop packet on bad receive or bad checksum */
 		if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
 						MLX4_CQE_OPCODE_ERROR)) {
-			en_err(priv, "CQE completed in error - vendor syndrom:%d syndrom:%d\n",
+			en_err(priv, "CQE completed in error - vendor syndrome:%d syndrome:%d\n",
 			       ((struct mlx4_err_cqe *)cqe)->vendor_err_syndrome,
 			       ((struct mlx4_err_cqe *)cqe)->syndrome);
 			goto next;

@@ -242,7 +242,7 @@ static int __init intel_uncore_init(void)
 		return -ENODEV;
 
 	uncore_max_entries = topology_max_packages() *
-					topology_max_die_per_package();
+					topology_max_dies_per_package();
 	uncore_instances = kcalloc(uncore_max_entries,
 				   sizeof(*uncore_instances), GFP_KERNEL);
 	if (!uncore_instances)

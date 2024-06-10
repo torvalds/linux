@@ -42,8 +42,11 @@
 
 #define ECCW0_FLIP_CTRL				0x109C
 #define ECCW0_FLIP0_OFFSET			0x10A0
+#define ECCW0_FLIP0_BITS			31
+#define ECCW0_FLIP1_OFFSET			0x10A4
 #define ECCW1_FLIP_CTRL				0x10AC
 #define ECCW1_FLIP0_OFFSET			0x10B0
+#define ECCW1_FLIP1_OFFSET			0x10B4
 #define ECCR0_CERR_STAT_OFFSET			0x10BC
 #define ECCR0_CE_ADDR_LO_OFFSET			0x10C0
 #define ECCR0_CE_ADDR_HI_OFFSET			0x10C4
@@ -116,9 +119,6 @@
 #define XDDR_BUS_WIDTH_32			1
 #define XDDR_BUS_WIDTH_16			2
 
-#define ECC_CEPOISON_MASK			0x1
-#define ECC_UEPOISON_MASK			0x3
-
 #define XDDR_MAX_ROW_CNT			18
 #define XDDR_MAX_COL_CNT			10
 #define XDDR_MAX_RANK_CNT			2
@@ -133,6 +133,7 @@
  * https://docs.xilinx.com/r/en-US/am012-versal-register-reference/PCSR_LOCK-XRAM_SLCR-Register
  */
 #define PCSR_UNLOCK_VAL				0xF9E8D7C6
+#define PCSR_LOCK_VAL				1
 #define XDDR_ERR_TYPE_CE			0
 #define XDDR_ERR_TYPE_UE			1
 
@@ -142,6 +143,7 @@
 #define XILINX_DRAM_SIZE_12G			3
 #define XILINX_DRAM_SIZE_16G			4
 #define XILINX_DRAM_SIZE_32G			5
+#define NUM_UE_BITPOS				2
 
 /**
  * struct ecc_error_info - ECC error log information.
@@ -423,7 +425,7 @@ static void handle_error(struct mem_ctl_info *mci, struct ecc_status *stat)
 			 convert_to_physical(priv, pinf), pinf.burstpos);
 
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
-				     priv->ce_cnt, 0, 0, 0, 0, 0, -1,
+				     1, 0, 0, 0, 0, 0, -1,
 				     priv->message, "");
 	}
 
@@ -436,7 +438,7 @@ static void handle_error(struct mem_ctl_info *mci, struct ecc_status *stat)
 			 convert_to_physical(priv, pinf), pinf.burstpos);
 
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
-				     priv->ue_cnt, 0, 0, 0, 0, 0, -1,
+				     1, 0, 0, 0, 0, 0, -1,
 				     priv->message, "");
 	}
 
@@ -479,7 +481,7 @@ static void err_callback(const u32 *payload, void *data)
 	writel(regval, priv->ddrmc_baseaddr + XDDR_ISR_OFFSET);
 
 	/* Lock the PCSR registers */
-	writel(1, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(PCSR_LOCK_VAL, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
 	edac_dbg(3, "Total error count CE %d UE %d\n",
 		 priv->ce_cnt, priv->ue_cnt);
 }
@@ -650,7 +652,7 @@ static void enable_intr(struct edac_priv *priv)
 	writel(XDDR_IRQ_UE_MASK,
 	       priv->ddrmc_baseaddr + XDDR_IRQ1_EN_OFFSET);
 	/* Lock the PCSR registers */
-	writel(1, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(PCSR_LOCK_VAL, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
 }
 
 static void disable_intr(struct edac_priv *priv)
@@ -663,7 +665,7 @@ static void disable_intr(struct edac_priv *priv)
 	       priv->ddrmc_baseaddr + XDDR_IRQ_DIS_OFFSET);
 
 	/* Lock the PCSR registers */
-	writel(1, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(PCSR_LOCK_VAL, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
 }
 
 #define to_mci(k) container_of(k, struct mem_ctl_info, dev)
@@ -734,38 +736,63 @@ static void poison_setup(struct edac_priv *priv)
 	writel(regval, priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC15_OFFSET);
 }
 
-static ssize_t xddr_inject_data_poison_store(struct mem_ctl_info *mci,
-					     const char __user *data)
+static void xddr_inject_data_ce_store(struct mem_ctl_info *mci, u8 ce_bitpos)
 {
+	u32 ecc0_flip0, ecc1_flip0, ecc0_flip1, ecc1_flip1;
 	struct edac_priv *priv = mci->pvt_info;
 
-	writel(0, priv->ddrmc_baseaddr + ECCW0_FLIP0_OFFSET);
-	writel(0, priv->ddrmc_baseaddr + ECCW1_FLIP0_OFFSET);
-
-	if (strncmp(data, "CE", 2) == 0) {
-		writel(ECC_CEPOISON_MASK, priv->ddrmc_baseaddr +
-		       ECCW0_FLIP0_OFFSET);
-		writel(ECC_CEPOISON_MASK, priv->ddrmc_baseaddr +
-		       ECCW1_FLIP0_OFFSET);
+	if (ce_bitpos < ECCW0_FLIP0_BITS) {
+		ecc0_flip0 = BIT(ce_bitpos);
+		ecc1_flip0 = BIT(ce_bitpos);
+		ecc0_flip1 = 0;
+		ecc1_flip1 = 0;
 	} else {
-		writel(ECC_UEPOISON_MASK, priv->ddrmc_baseaddr +
-		       ECCW0_FLIP0_OFFSET);
-		writel(ECC_UEPOISON_MASK, priv->ddrmc_baseaddr +
-		       ECCW1_FLIP0_OFFSET);
+		ce_bitpos = ce_bitpos - ECCW0_FLIP0_BITS;
+		ecc0_flip1 = BIT(ce_bitpos);
+		ecc1_flip1 = BIT(ce_bitpos);
+		ecc0_flip0 = 0;
+		ecc1_flip0 = 0;
 	}
 
-	/* Lock the PCSR registers */
-	writel(1, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
-
-	return 0;
+	writel(ecc0_flip0, priv->ddrmc_baseaddr + ECCW0_FLIP0_OFFSET);
+	writel(ecc1_flip0, priv->ddrmc_baseaddr + ECCW1_FLIP0_OFFSET);
+	writel(ecc0_flip1, priv->ddrmc_baseaddr + ECCW0_FLIP1_OFFSET);
+	writel(ecc1_flip1, priv->ddrmc_baseaddr + ECCW1_FLIP1_OFFSET);
 }
 
-static ssize_t inject_data_poison_store(struct file *file, const char __user *data,
-					size_t count, loff_t *ppos)
+/*
+ * To inject a correctable error, the following steps are needed:
+ *
+ * - Write the correctable error bit position value:
+ *	echo <bit_pos val> > /sys/kernel/debug/edac/<controller instance>/inject_ce
+ *
+ * poison_setup() derives the row, column, bank, group and rank and
+ * writes to the ADEC registers based on the address given by the user.
+ *
+ * The ADEC12 and ADEC13 are mask registers; write 0 to make sure default
+ * configuration is there and no addresses are masked.
+ *
+ * The row, column, bank, group and rank registers are written to the
+ * match ADEC bit to generate errors at the particular address. ADEC14
+ * and ADEC15 have the match bits.
+ *
+ * xddr_inject_data_ce_store() updates the ECC FLIP registers with the
+ * bits to be corrupted based on the bit position given by the user.
+ *
+ * Upon doing a read to the address the errors are injected.
+ */
+static ssize_t inject_data_ce_store(struct file *file, const char __user *data,
+				    size_t count, loff_t *ppos)
 {
 	struct device *dev = file->private_data;
 	struct mem_ctl_info *mci = to_mci(dev);
 	struct edac_priv *priv = mci->pvt_info;
+	u8 ce_bitpos;
+	int ret;
+
+	ret = kstrtou8_from_user(data, count, 0, &ce_bitpos);
+	if (ret)
+		return ret;
 
 	/* Unlock the PCSR registers */
 	writel(PCSR_UNLOCK_VAL, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
@@ -773,17 +800,113 @@ static ssize_t inject_data_poison_store(struct file *file, const char __user *da
 
 	poison_setup(priv);
 
+	xddr_inject_data_ce_store(mci, ce_bitpos);
+	ret = count;
+
 	/* Lock the PCSR registers */
-	writel(1, priv->ddrmc_noc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(PCSR_LOCK_VAL, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(PCSR_LOCK_VAL, priv->ddrmc_noc_baseaddr + XDDR_PCSR_OFFSET);
 
-	xddr_inject_data_poison_store(mci, data);
+	return ret;
+}
 
+static const struct file_operations xddr_inject_ce_fops = {
+	.open = simple_open,
+	.write = inject_data_ce_store,
+	.llseek = generic_file_llseek,
+};
+
+static void xddr_inject_data_ue_store(struct mem_ctl_info *mci, u32 val0, u32 val1)
+{
+	struct edac_priv *priv = mci->pvt_info;
+
+	writel(val0, priv->ddrmc_baseaddr + ECCW0_FLIP0_OFFSET);
+	writel(val0, priv->ddrmc_baseaddr + ECCW0_FLIP1_OFFSET);
+	writel(val1, priv->ddrmc_baseaddr + ECCW1_FLIP1_OFFSET);
+	writel(val1, priv->ddrmc_baseaddr + ECCW1_FLIP1_OFFSET);
+}
+
+/*
+ * To inject an uncorrectable error, the following steps are needed:
+ *	echo <bit_pos val> > /sys/kernel/debug/edac/<controller instance>/inject_ue
+ *
+ * poison_setup() derives the row, column, bank, group and rank and
+ * writes to the ADEC registers based on the address given by the user.
+ *
+ * The ADEC12 and ADEC13 are mask registers; write 0 so that none of the
+ * addresses are masked. The row, column, bank, group and rank registers
+ * are written to the match ADEC bit to generate errors at the
+ * particular address. ADEC14 and ADEC15 have the match bits.
+ *
+ * xddr_inject_data_ue_store() updates the ECC FLIP registers with the
+ * bits to be corrupted based on the bit position given by the user. For
+ * uncorrectable errors
+ * 2 bit errors are injected.
+ *
+ * Upon doing a read to the address the errors are injected.
+ */
+static ssize_t inject_data_ue_store(struct file *file, const char __user *data,
+				    size_t count, loff_t *ppos)
+{
+	struct device *dev = file->private_data;
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct edac_priv *priv = mci->pvt_info;
+	char buf[6], *pbuf, *token[2];
+	u32 val0 = 0, val1 = 0;
+	u8 len, ue0, ue1;
+	int i, ret;
+
+	len = min_t(size_t, count, sizeof(buf));
+	if (copy_from_user(buf, data, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	pbuf = &buf[0];
+	for (i = 0; i < NUM_UE_BITPOS; i++)
+		token[i] = strsep(&pbuf, ",");
+
+	if (!token[0] || !token[1])
+		return -EFAULT;
+
+	ret = kstrtou8(token[0], 0, &ue0);
+	if (ret)
+		return ret;
+
+	ret = kstrtou8(token[1], 0, &ue1);
+	if (ret)
+		return ret;
+
+	if (ue0 < ECCW0_FLIP0_BITS) {
+		val0 = BIT(ue0);
+	} else {
+		ue0 = ue0 - ECCW0_FLIP0_BITS;
+		val1 = BIT(ue0);
+	}
+
+	if (ue1 < ECCW0_FLIP0_BITS) {
+		val0 |= BIT(ue1);
+	} else {
+		ue1 = ue1 - ECCW0_FLIP0_BITS;
+		val1 |= BIT(ue1);
+	}
+
+	/* Unlock the PCSR registers */
+	writel(PCSR_UNLOCK_VAL, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(PCSR_UNLOCK_VAL, priv->ddrmc_noc_baseaddr + XDDR_PCSR_OFFSET);
+
+	poison_setup(priv);
+
+	xddr_inject_data_ue_store(mci, val0, val1);
+
+	/* Lock the PCSR registers */
+	writel(PCSR_LOCK_VAL, priv->ddrmc_noc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(PCSR_LOCK_VAL, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
 	return count;
 }
 
-static const struct file_operations xddr_inject_enable_fops = {
+static const struct file_operations xddr_inject_ue_fops = {
 	.open = simple_open,
-	.write = inject_data_poison_store,
+	.write = inject_data_ue_store,
 	.llseek = generic_file_llseek,
 };
 
@@ -795,8 +918,17 @@ static void create_debugfs_attributes(struct mem_ctl_info *mci)
 	if (!priv->debugfs)
 		return;
 
-	edac_debugfs_create_file("inject_error", 0200, priv->debugfs,
-				 &mci->dev, &xddr_inject_enable_fops);
+	if (!edac_debugfs_create_file("inject_ce", 0200, priv->debugfs,
+				      &mci->dev, &xddr_inject_ce_fops)) {
+		debugfs_remove_recursive(priv->debugfs);
+		return;
+	}
+
+	if (!edac_debugfs_create_file("inject_ue", 0200, priv->debugfs,
+				      &mci->dev, &xddr_inject_ue_fops)) {
+		debugfs_remove_recursive(priv->debugfs);
+		return;
+	}
 	debugfs_create_x64("address", 0600, priv->debugfs,
 			   &priv->err_inject_addr);
 	mci->debugfs = priv->debugfs;
@@ -1006,8 +1138,7 @@ static int mc_probe(struct platform_device *pdev)
 	}
 
 	rc = xlnx_register_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
-				 XPM_EVENT_ERROR_MASK_DDRMC_CR | XPM_EVENT_ERROR_MASK_DDRMC_NCR |
-				 XPM_EVENT_ERROR_MASK_NOC_CR | XPM_EVENT_ERROR_MASK_NOC_NCR,
+				 XPM_EVENT_ERROR_MASK_DDRMC_CR | XPM_EVENT_ERROR_MASK_DDRMC_NCR,
 				 false, err_callback, mci);
 	if (rc) {
 		if (rc == -EACCES)
@@ -1031,7 +1162,7 @@ free_edac_mc:
 	return rc;
 }
 
-static int mc_remove(struct platform_device *pdev)
+static void mc_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 	struct edac_priv *priv = mci->pvt_info;
@@ -1044,13 +1175,9 @@ static int mc_remove(struct platform_device *pdev)
 
 	xlnx_unregister_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
 			      XPM_EVENT_ERROR_MASK_DDRMC_CR |
-			      XPM_EVENT_ERROR_MASK_NOC_CR |
-			      XPM_EVENT_ERROR_MASK_NOC_NCR |
 			      XPM_EVENT_ERROR_MASK_DDRMC_NCR, err_callback, mci);
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
-
-	return 0;
 }
 
 static struct platform_driver xilinx_ddr_edac_mc_driver = {
@@ -1059,7 +1186,7 @@ static struct platform_driver xilinx_ddr_edac_mc_driver = {
 		.of_match_table = xlnx_edac_match,
 	},
 	.probe = mc_probe,
-	.remove = mc_remove,
+	.remove_new = mc_remove,
 };
 
 module_platform_driver(xilinx_ddr_edac_mc_driver);

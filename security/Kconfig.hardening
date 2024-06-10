@@ -255,6 +255,21 @@ config INIT_ON_FREE_DEFAULT_ON
 	  touching "cold" memory areas. Most cases see 3-5% impact. Some
 	  synthetic workloads have measured as high as 8%.
 
+config INIT_MLOCKED_ON_FREE_DEFAULT_ON
+	bool "Enable mlocked memory zeroing on free"
+	depends on !KMSAN
+	help
+	  This config has the effect of setting "init_mlocked_on_free=1"
+	  on the kernel command line. If it is enabled, all mlocked process
+	  memory is zeroed when freed. This restriction to mlocked memory
+	  improves performance over "init_on_free" but can still be used to
+	  protect confidential data like key material from content exposures
+	  to other processes, as well as live forensics and cold boot attacks.
+	  Any non-mlocked memory is not cleared before it is reassigned. This
+	  configuration can be overwritten by setting "init_mlocked_on_free=0"
+	  on the command line. The "init_on_free" boot option takes
+	  precedence over "init_mlocked_on_free".
+
 config CC_HAS_ZERO_CALL_USED_REGS
 	def_bool $(cc-option,-fzero-call-used-regs=used-gpr)
 	# https://github.com/ClangBuiltLinux/linux/issues/1766

@@ -18,7 +18,12 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
-static struct class *framer_class;
+static void framer_release(struct device *dev);
+static const struct class framer_class = {
+	.name = "framer",
+	.dev_release = framer_release,
+};
+
 static DEFINE_MUTEX(framer_provider_mutex);
 static LIST_HEAD(framer_provider_list);
 static DEFINE_IDA(framer_ida);
@@ -384,7 +389,7 @@ static struct framer_provider *framer_provider_of_lookup(const struct device_nod
 	return ERR_PTR(-EPROBE_DEFER);
 }
 
-static struct framer *framer_of_get_from_provider(struct of_phandle_args *args)
+static struct framer *framer_of_get_from_provider(const struct of_phandle_args *args)
 {
 	struct framer_provider *framer_provider;
 	struct framer *framer;
@@ -627,7 +632,7 @@ struct framer *framer_create(struct device *dev, struct device_node *node,
 	INIT_DELAYED_WORK(&framer->polling_work, framer_polling_work);
 	BLOCKING_INIT_NOTIFIER_HEAD(&framer->notifier_list);
 
-	framer->dev.class = framer_class;
+	framer->dev.class = &framer_class;
 	framer->dev.parent = dev;
 	framer->dev.of_node = node ? node : dev->of_node;
 	framer->id = id;
@@ -735,12 +740,13 @@ EXPORT_SYMBOL_GPL(devm_framer_create);
  * should provide a custom of_xlate function that reads the *args* and returns
  * the appropriate framer.
  */
-struct framer *framer_provider_simple_of_xlate(struct device *dev, struct of_phandle_args *args)
+struct framer *framer_provider_simple_of_xlate(struct device *dev,
+					       const struct of_phandle_args *args)
 {
 	struct class_dev_iter iter;
 	struct framer *framer;
 
-	class_dev_iter_init(&iter, framer_class, NULL, NULL);
+	class_dev_iter_init(&iter, &framer_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		framer = dev_to_framer(dev);
 		if (args->np != framer->dev.of_node)
@@ -768,7 +774,7 @@ EXPORT_SYMBOL_GPL(framer_provider_simple_of_xlate);
 struct framer_provider *
 __framer_provider_of_register(struct device *dev, struct module *owner,
 			      struct framer *(*of_xlate)(struct device *dev,
-							 struct of_phandle_args *args))
+							 const struct of_phandle_args *args))
 {
 	struct framer_provider *framer_provider;
 
@@ -830,7 +836,7 @@ static void devm_framer_provider_of_unregister(struct device *dev, void *res)
 struct framer_provider *
 __devm_framer_provider_of_register(struct device *dev, struct module *owner,
 				   struct framer *(*of_xlate)(struct device *dev,
-							      struct of_phandle_args *args))
+							      const struct of_phandle_args *args))
 {
 	struct framer_provider **ptr, *framer_provider;
 
@@ -869,14 +875,6 @@ static void framer_release(struct device *dev)
 
 static int __init framer_core_init(void)
 {
-	framer_class = class_create("framer");
-	if (IS_ERR(framer_class)) {
-		pr_err("failed to create framer class (%pe)\n", framer_class);
-		return PTR_ERR(framer_class);
-	}
-
-	framer_class->dev_release = framer_release;
-
-	return 0;
+	return class_register(&framer_class);
 }
 device_initcall(framer_core_init);

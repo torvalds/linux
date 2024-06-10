@@ -75,6 +75,7 @@
 
 	memory@40000000 {
 		reg = <0 0x40000000 0 0x40000000>;
+		device_type = "memory";
 	};
 
 	reg_1p8v: regulator-1p8v {
@@ -183,6 +184,18 @@
 				port@4 {
 					reg = <4>;
 					label = "lan3";
+				};
+
+				port@5 {
+					reg = <5>;
+					ethernet = <&gmac1>;
+					phy-mode = "rgmii";
+
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+						pause;
+					};
 				};
 
 				port@6 {

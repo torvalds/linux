@@ -15,10 +15,11 @@ usage() {
 	cat <<EOF
 usage: ${BASH_SOURCE[0]:-$0} [ options ]
 
-  -a: run all tests, including extra ones
+  -a: run all tests, including extra ones (other than destructive ones)
   -t: specify specific categories to tests to run
   -h: display this message
   -n: disable TAP output
+  -d: run destructive tests
 
 The default behavior is to run required tests only.  If -a is specified,
 will run all tests.
@@ -64,6 +65,8 @@ separated by spaces:
 	test copy-on-write semantics
 - thp
 	test transparent huge pages
+- hugetlb
+	test hugetlbfs huge pages
 - migration
 	invoke move_pages(2) to exercise the migration entry code
 	paths in the kernel
@@ -79,6 +82,7 @@ EOF
 }
 
 RUN_ALL=false
+RUN_DESTRUCTIVE=false
 TAP_PREFIX="# "
 
 while getopts "aht:n" OPT; do
@@ -87,6 +91,7 @@ while getopts "aht:n" OPT; do
 		"h") usage ;;
 		"t") VM_SELFTEST_ITEMS=${OPTARG} ;;
 		"n") TAP_PREFIX= ;;
+		"d") RUN_DESTRUCTIVE=true ;;
 	esac
 done
 shift $((OPTIND -1))
@@ -147,9 +152,13 @@ done < /proc/meminfo
 # both of these requirements into account and attempt to increase
 # number of huge pages available.
 nr_cpus=$(nproc)
-hpgsize_MB=$((hpgsize_KB / 1024))
-half_ufd_size_MB=$((((nr_cpus * hpgsize_MB + 127) / 128) * 128))
-needmem_KB=$((half_ufd_size_MB * 2 * 1024))
+uffd_min_KB=$((hpgsize_KB * nr_cpus * 2))
+hugetlb_min_KB=$((256 * 1024))
+if [[ $uffd_min_KB -gt $hugetlb_min_KB ]]; then
+	needmem_KB=$uffd_min_KB
+else
+	needmem_KB=$hugetlb_min_KB
+fi
 
 # set proper nr_hugepages
 if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
@@ -173,7 +182,6 @@ if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
 	if [ "$freepgs" -lt "$needpgs" ]; then
 		printf "Not enough huge pages available (%d < %d)\n" \
 		       "$freepgs" "$needpgs"
-		exit 1
 	fi
 else
 	echo "no hugetlbfs support in kernel?"
@@ -206,6 +214,15 @@ pretty_name() {
 # Usage: run_test [test binary] [arbitrary test arguments...]
 run_test() {
 	if test_selected ${CATEGORY}; then
+		# On memory constrainted systems some tests can fail to allocate hugepages.
+		# perform some cleanup before the test for a higher success rate.
+		if [ ${CATEGORY} == "thp" ] | [ ${CATEGORY} == "hugetlb" ]; then
+			echo 3 > /proc/sys/vm/drop_caches
+			sleep 2
+			echo 1 > /proc/sys/vm/compact_memory
+			sleep 2
+		fi
+
 		local test=$(pretty_name "$*")
 		local title="running $*"
 		local sep=$(echo -n "$title" | tr "[:graph:][:space:]" -)
@@ -253,6 +270,7 @@ nr_hugepages_tmp=$(cat /proc/sys/vm/nr_hugepages)
 # For this test, we need one and just one huge page
 echo 1 > /proc/sys/vm/nr_hugepages
 CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
+CATEGORY="hugetlb" run_test ./hugetlb_madv_vs_map
 # Restore the previous number of huge pages, since further tests rely on it
 echo "$nr_hugepages_tmp" > /proc/sys/vm/nr_hugepages
 
@@ -280,7 +298,8 @@ CATEGORY="userfaultfd" run_test ./uffd-unit-tests
 uffd_stress_bin=./uffd-stress
 CATEGORY="userfaultfd" run_test ${uffd_stress_bin} anon 20 16
 # Hugetlb tests require source and destination huge pages. Pass in half
-# the size ($half_ufd_size_MB), which is used for *each*.
+# the size of the free pages we have, which is used for *each*.
+half_ufd_size_MB=$((freepgs / 2))
 CATEGORY="userfaultfd" run_test ${uffd_stress_bin} hugetlb "$half_ufd_size_MB" 32
 CATEGORY="userfaultfd" run_test ${uffd_stress_bin} hugetlb-private "$half_ufd_size_MB" 32
 CATEGORY="userfaultfd" run_test ${uffd_stress_bin} shmem 20 16
@@ -291,7 +310,12 @@ echo "$nr_hugepgs" > /proc/sys/vm/nr_hugepages
 
 CATEGORY="compaction" run_test ./compaction_test
 
-CATEGORY="mlock" run_test sudo -u nobody ./on-fault-limit
+if command -v sudo &> /dev/null;
+then
+	CATEGORY="mlock" run_test sudo -u nobody ./on-fault-limit
+else
+	echo "# SKIP ./on-fault-limit"
+fi
 
 CATEGORY="mmap" run_test ./map_populate
 
@@ -304,6 +328,11 @@ CATEGORY="process_mrelease" run_test ./mrelease_test
 CATEGORY="mremap" run_test ./mremap_test
 
 CATEGORY="hugetlb" run_test ./thuge-gen
+CATEGORY="hugetlb" run_test ./charge_reserved_hugetlb.sh -cgroup-v2
+CATEGORY="hugetlb" run_test ./hugetlb_reparenting_test.sh -cgroup-v2
+if $RUN_DESTRUCTIVE; then
+CATEGORY="hugetlb" run_test ./hugetlb-read-hwpoison
+fi
 
 if [ $VADDR64 -ne 0 ]; then
 
@@ -361,6 +390,7 @@ CATEGORY="ksm_numa" run_test ./ksm_tests -N -m 0
 CATEGORY="ksm" run_test ./ksm_functional_tests
 
 # protection_keys tests
+nr_hugepgs=$(cat /proc/sys/vm/nr_hugepages)
 if [ -x ./protection_keys_32 ]
 then
 	CATEGORY="pkey" run_test ./protection_keys_32
@@ -370,6 +400,7 @@ if [ -x ./protection_keys_64 ]
 then
 	CATEGORY="pkey" run_test ./protection_keys_64
 fi
+echo "$nr_hugepgs" > /proc/sys/vm/nr_hugepages
 
 if [ -x ./soft-dirty ]
 then
@@ -387,7 +418,27 @@ CATEGORY="thp" run_test ./khugepaged -s 2
 
 CATEGORY="thp" run_test ./transhuge-stress -d 20
 
-CATEGORY="thp" run_test ./split_huge_page_test
+# Try to create XFS if not provided
+if [ -z "${SPLIT_HUGE_PAGE_TEST_XFS_PATH}" ]; then
+    if test_selected "thp"; then
+        if grep xfs /proc/filesystems &>/dev/null; then
+            XFS_IMG=$(mktemp /tmp/xfs_img_XXXXXX)
+            SPLIT_HUGE_PAGE_TEST_XFS_PATH=$(mktemp -d /tmp/xfs_dir_XXXXXX)
+            truncate -s 314572800 ${XFS_IMG}
+            mkfs.xfs -q ${XFS_IMG}
+            mount -o loop ${XFS_IMG} ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+            MOUNTED_XFS=1
+        fi
+    fi
+fi
+
+CATEGORY="thp" run_test ./split_huge_page_test ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+
+if [ -n "${MOUNTED_XFS}" ]; then
+    umount ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+    rmdir ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+    rm -f ${XFS_IMG}
+fi
 
 CATEGORY="migration" run_test ./migration
 

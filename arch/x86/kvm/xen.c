@@ -10,7 +10,7 @@
 #include "x86.h"
 #include "xen.h"
 #include "hyperv.h"
-#include "lapic.h"
+#include "irq.h"
 
 #include <linux/eventfd.h>
 #include <linux/kvm_host.h>
@@ -24,6 +24,7 @@
 #include <xen/interface/sched.h>
 
 #include <asm/xen/cpuid.h>
+#include <asm/pvclock.h>
 
 #include "cpuid.h"
 #include "trace.h"
@@ -34,41 +35,32 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r);
 
 DEFINE_STATIC_KEY_DEFERRED_FALSE(kvm_xen_enabled, HZ);
 
-static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
+static int kvm_xen_shared_info_init(struct kvm *kvm)
 {
 	struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
 	struct pvclock_wall_clock *wc;
-	gpa_t gpa = gfn_to_gpa(gfn);
 	u32 *wc_sec_hi;
 	u32 wc_version;
 	u64 wall_nsec;
 	int ret = 0;
 	int idx = srcu_read_lock(&kvm->srcu);
 
-	if (gfn == KVM_XEN_INVALID_GFN) {
-		kvm_gpc_deactivate(gpc);
-		goto out;
-	}
+	read_lock_irq(&gpc->lock);
+	while (!kvm_gpc_check(gpc, PAGE_SIZE)) {
+		read_unlock_irq(&gpc->lock);
 
-	do {
-		ret = kvm_gpc_activate(gpc, gpa, PAGE_SIZE);
+		ret = kvm_gpc_refresh(gpc, PAGE_SIZE);
 		if (ret)
 			goto out;
 
-		/*
-		 * This code mirrors kvm_write_wall_clock() except that it writes
-		 * directly through the pfn cache and doesn't mark the page dirty.
-		 */
-		wall_nsec = kvm_get_wall_clock_epoch(kvm);
-
-		/* It could be invalid again already, so we need to check */
 		read_lock_irq(&gpc->lock);
+	}
 
-		if (gpc->valid)
-			break;
-
-		read_unlock_irq(&gpc->lock);
-	} while (1);
+	/*
+	 * This code mirrors kvm_write_wall_clock() except that it writes
+	 * directly through the pfn cache and doesn't mark the page dirty.
+	 */
+	wall_nsec = kvm_get_wall_clock_epoch(kvm);
 
 	/* Paranoia checks on the 32-bit struct layout */
 	BUILD_BUG_ON(offsetof(struct compat_shared_info, wc) != 0x900);
@@ -158,8 +150,93 @@ static enum hrtimer_restart xen_timer_callback(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs, s64 delta_ns)
+static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs,
+				bool linux_wa)
 {
+	int64_t kernel_now, delta;
+	uint64_t guest_now;
+
+	/*
+	 * The guest provides the requested timeout in absolute nanoseconds
+	 * of the KVM clock — as *it* sees it, based on the scaled TSC and
+	 * the pvclock information provided by KVM.
+	 *
+	 * The kernel doesn't support hrtimers based on CLOCK_MONOTONIC_RAW
+	 * so use CLOCK_MONOTONIC. In the timescales covered by timers, the
+	 * difference won't matter much as there is no cumulative effect.
+	 *
+	 * Calculate the time for some arbitrary point in time around "now"
+	 * in terms of both kvmclock and CLOCK_MONOTONIC. Calculate the
+	 * delta between the kvmclock "now" value and the guest's requested
+	 * timeout, apply the "Linux workaround" described below, and add
+	 * the resulting delta to the CLOCK_MONOTONIC "now" value, to get
+	 * the absolute CLOCK_MONOTONIC time at which the timer should
+	 * fire.
+	 */
+	if (vcpu->arch.hv_clock.version && vcpu->kvm->arch.use_master_clock &&
+	    static_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
+		uint64_t host_tsc, guest_tsc;
+
+		if (!IS_ENABLED(CONFIG_64BIT) ||
+		    !kvm_get_monotonic_and_clockread(&kernel_now, &host_tsc)) {
+			/*
+			 * Don't fall back to get_kvmclock_ns() because it's
+			 * broken; it has a systemic error in its results
+			 * because it scales directly from host TSC to
+			 * nanoseconds, and doesn't scale first to guest TSC
+			 * and *then* to nanoseconds as the guest does.
+			 *
+			 * There is a small error introduced here because time
+			 * continues to elapse between the ktime_get() and the
+			 * subsequent rdtsc(). But not the systemic drift due
+			 * to get_kvmclock_ns().
+			 */
+			kernel_now = ktime_get(); /* This is CLOCK_MONOTONIC */
+			host_tsc = rdtsc();
+		}
+
+		/* Calculate the guest kvmclock as the guest would do it. */
+		guest_tsc = kvm_read_l1_tsc(vcpu, host_tsc);
+		guest_now = __pvclock_read_cycles(&vcpu->arch.hv_clock,
+						  guest_tsc);
+	} else {
+		/*
+		 * Without CONSTANT_TSC, get_kvmclock_ns() is the only option.
+		 *
+		 * Also if the guest PV clock hasn't been set up yet, as is
+		 * likely to be the case during migration when the vCPU has
+		 * not been run yet. It would be possible to calculate the
+		 * scaling factors properly in that case but there's not much
+		 * point in doing so. The get_kvmclock_ns() drift accumulates
+		 * over time, so it's OK to use it at startup. Besides, on
+		 * migration there's going to be a little bit of skew in the
+		 * precise moment at which timers fire anyway. Often they'll
+		 * be in the "past" by the time the VM is running again after
+		 * migration.
+		 */
+		guest_now = get_kvmclock_ns(vcpu->kvm);
+		kernel_now = ktime_get();
+	}
+
+	delta = guest_abs - guest_now;
+
+	/*
+	 * Xen has a 'Linux workaround' in do_set_timer_op() which checks for
+	 * negative absolute timeout values (caused by integer overflow), and
+	 * for values about 13 days in the future (2^50ns) which would be
+	 * caused by jiffies overflow. For those cases, Xen sets the timeout
+	 * 100ms in the future (not *too* soon, since if a guest really did
+	 * set a long timeout on purpose we don't want to keep churning CPU
+	 * time by waking it up).  Emulate Xen's workaround when starting the
+	 * timer in response to __HYPERVISOR_set_timer_op.
+	 */
+	if (linux_wa &&
+	    unlikely((int64_t)guest_abs < 0 ||
+		     (delta > 0 && (uint32_t) (delta >> 50) != 0))) {
+		delta = 100 * NSEC_PER_MSEC;
+		guest_abs = guest_now + delta;
+	}
+
 	/*
 	 * Avoid races with the old timer firing. Checking timer_expires
 	 * to avoid calling hrtimer_cancel() will only have false positives
@@ -171,14 +248,12 @@ static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs, s64 delta_
 	atomic_set(&vcpu->arch.xen.timer_pending, 0);
 	vcpu->arch.xen.timer_expires = guest_abs;
 
-	if (delta_ns <= 0) {
+	if (delta <= 0)
 		xen_timer_callback(&vcpu->arch.xen.timer);
-	} else {
-		ktime_t ktime_now = ktime_get();
+	else
 		hrtimer_start(&vcpu->arch.xen.timer,
-			      ktime_add_ns(ktime_now, delta_ns),
+			      ktime_add_ns(kernel_now, delta),
 			      HRTIMER_MODE_ABS_HARD);
-	}
 }
 
 static void kvm_xen_stop_timer(struct kvm_vcpu *vcpu)
@@ -452,14 +527,13 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 		smp_wmb();
 	}
 
-	if (user_len2)
+	if (user_len2) {
+		kvm_gpc_mark_dirty_in_slot(gpc2);
 		read_unlock(&gpc2->lock);
+	}
 
+	kvm_gpc_mark_dirty_in_slot(gpc1);
 	read_unlock_irqrestore(&gpc1->lock, flags);
-
-	mark_page_dirty_in_slot(v->kvm, gpc1->memslot, gpc1->gpa >> PAGE_SHIFT);
-	if (user_len2)
-		mark_page_dirty_in_slot(v->kvm, gpc2->memslot, gpc2->gpa >> PAGE_SHIFT);
 }
 
 void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
@@ -493,10 +567,9 @@ void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
 		kvm_xen_update_runstate_guest(v, state == RUNSTATE_runnable);
 }
 
-static void kvm_xen_inject_vcpu_vector(struct kvm_vcpu *v)
+void kvm_xen_inject_vcpu_vector(struct kvm_vcpu *v)
 {
 	struct kvm_lapic_irq irq = { };
-	int r;
 
 	irq.dest_id = v->vcpu_id;
 	irq.vector = v->arch.xen.upcall_vector;
@@ -505,8 +578,7 @@ static void kvm_xen_inject_vcpu_vector(struct kvm_vcpu *v)
 	irq.delivery_mode = APIC_DM_FIXED;
 	irq.level = 1;
 
-	/* The fast version will always work for physical unicast */
-	WARN_ON_ONCE(!kvm_irq_delivery_to_apic_fast(v->kvm, NULL, &irq, &r, NULL));
+	kvm_irq_delivery_to_apic(v->kvm, NULL, &irq, NULL);
 }
 
 /*
@@ -565,13 +637,13 @@ void kvm_xen_inject_pending_events(struct kvm_vcpu *v)
 			     : "0" (evtchn_pending_sel32));
 		WRITE_ONCE(vi->evtchn_upcall_pending, 1);
 	}
+
+	kvm_gpc_mark_dirty_in_slot(gpc);
 	read_unlock_irqrestore(&gpc->lock, flags);
 
 	/* For the per-vCPU lapic vector, deliver it as MSI. */
 	if (v->arch.xen.upcall_vector)
 		kvm_xen_inject_vcpu_vector(v);
-
-	mark_page_dirty_in_slot(v->kvm, gpc->memslot, gpc->gpa >> PAGE_SHIFT);
 }
 
 int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
@@ -635,17 +707,59 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		} else {
 			mutex_lock(&kvm->arch.xen.xen_lock);
 			kvm->arch.xen.long_mode = !!data->u.long_mode;
+
+			/*
+			 * Re-initialize shared_info to put the wallclock in the
+			 * correct place. Whilst it's not necessary to do this
+			 * unless the mode is actually changed, it does no harm
+			 * to make the call anyway.
+			 */
+			r = kvm->arch.xen.shinfo_cache.active ?
+				kvm_xen_shared_info_init(kvm) : 0;
 			mutex_unlock(&kvm->arch.xen.xen_lock);
-			r = 0;
 		}
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO_HVA: {
+		int idx;
+
 		mutex_lock(&kvm->arch.xen.xen_lock);
-		r = kvm_xen_shared_info_init(kvm, data->u.shared_info.gfn);
+
+		idx = srcu_read_lock(&kvm->srcu);
+
+		if (data->type == KVM_XEN_ATTR_TYPE_SHARED_INFO) {
+			gfn_t gfn = data->u.shared_info.gfn;
+
+			if (gfn == KVM_XEN_INVALID_GFN) {
+				kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
+				r = 0;
+			} else {
+				r = kvm_gpc_activate(&kvm->arch.xen.shinfo_cache,
+						     gfn_to_gpa(gfn), PAGE_SIZE);
+			}
+		} else {
+			void __user * hva = u64_to_user_ptr(data->u.shared_info.hva);
+
+			if (!PAGE_ALIGNED(hva) || !access_ok(hva, PAGE_SIZE)) {
+				r = -EINVAL;
+			} else if (!hva) {
+				kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
+				r = 0;
+			} else {
+				r = kvm_gpc_activate_hva(&kvm->arch.xen.shinfo_cache,
+							 (unsigned long)hva, PAGE_SIZE);
+			}
+		}
+
+		srcu_read_unlock(&kvm->srcu, idx);
+
+		if (!r && kvm->arch.xen.shinfo_cache.active)
+			r = kvm_xen_shared_info_init(kvm);
+
 		mutex_unlock(&kvm->arch.xen.xen_lock);
 		break;
-
+	}
 	case KVM_XEN_ATTR_TYPE_UPCALL_VECTOR:
 		if (data->u.vector && data->u.vector < 0x10)
 			r = -EINVAL;
@@ -699,10 +813,18 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
-		if (kvm->arch.xen.shinfo_cache.active)
+		if (kvm_gpc_is_gpa_active(&kvm->arch.xen.shinfo_cache))
 			data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_cache.gpa);
 		else
 			data->u.shared_info.gfn = KVM_XEN_INVALID_GFN;
+		r = 0;
+		break;
+
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO_HVA:
+		if (kvm_gpc_is_hva_active(&kvm->arch.xen.shinfo_cache))
+			data->u.shared_info.hva = kvm->arch.xen.shinfo_cache.uhva;
+		else
+			data->u.shared_info.hva = 0;
 		r = 0;
 		break;
 
@@ -742,20 +864,33 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 	switch (data->type) {
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO:
+	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO_HVA:
 		/* No compat necessary here. */
 		BUILD_BUG_ON(sizeof(struct vcpu_info) !=
 			     sizeof(struct compat_vcpu_info));
 		BUILD_BUG_ON(offsetof(struct vcpu_info, time) !=
 			     offsetof(struct compat_vcpu_info, time));
 
-		if (data->u.gpa == KVM_XEN_INVALID_GPA) {
-			kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_info_cache);
-			r = 0;
-			break;
+		if (data->type == KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO) {
+			if (data->u.gpa == KVM_XEN_INVALID_GPA) {
+				kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_info_cache);
+				r = 0;
+				break;
+			}
+
+			r = kvm_gpc_activate(&vcpu->arch.xen.vcpu_info_cache,
+					     data->u.gpa, sizeof(struct vcpu_info));
+		} else {
+			if (data->u.hva == 0) {
+				kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_info_cache);
+				r = 0;
+				break;
+			}
+
+			r = kvm_gpc_activate_hva(&vcpu->arch.xen.vcpu_info_cache,
+						 data->u.hva, sizeof(struct vcpu_info));
 		}
 
-		r = kvm_gpc_activate(&vcpu->arch.xen.vcpu_info_cache,
-				     data->u.gpa, sizeof(struct vcpu_info));
 		if (!r)
 			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 
@@ -944,9 +1079,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 		/* Start the timer if the new value has a valid vector+expiry. */
 		if (data->u.timer.port && data->u.timer.expires_ns)
-			kvm_xen_start_timer(vcpu, data->u.timer.expires_ns,
-					    data->u.timer.expires_ns -
-					    get_kvmclock_ns(vcpu->kvm));
+			kvm_xen_start_timer(vcpu, data->u.timer.expires_ns, false);
 
 		r = 0;
 		break;
@@ -977,10 +1110,18 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 	switch (data->type) {
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO:
-		if (vcpu->arch.xen.vcpu_info_cache.active)
+		if (kvm_gpc_is_gpa_active(&vcpu->arch.xen.vcpu_info_cache))
 			data->u.gpa = vcpu->arch.xen.vcpu_info_cache.gpa;
 		else
 			data->u.gpa = KVM_XEN_INVALID_GPA;
+		r = 0;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO_HVA:
+		if (kvm_gpc_is_hva_active(&vcpu->arch.xen.vcpu_info_cache))
+			data->u.hva = vcpu->arch.xen.vcpu_info_cache.uhva;
+		else
+			data->u.hva = 0;
 		r = 0;
 		break;
 
@@ -1093,9 +1234,24 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 	u32 page_num = data & ~PAGE_MASK;
 	u64 page_addr = data & PAGE_MASK;
 	bool lm = is_long_mode(vcpu);
+	int r = 0;
 
-	/* Latch long_mode for shared_info pages etc. */
-	vcpu->kvm->arch.xen.long_mode = lm;
+	mutex_lock(&kvm->arch.xen.xen_lock);
+	if (kvm->arch.xen.long_mode != lm) {
+		kvm->arch.xen.long_mode = lm;
+
+		/*
+		 * Re-initialize shared_info to put the wallclock in the
+		 * correct place.
+		 */
+		if (kvm->arch.xen.shinfo_cache.active &&
+		    kvm_xen_shared_info_init(kvm))
+			r = 1;
+	}
+	mutex_unlock(&kvm->arch.xen.xen_lock);
+
+	if (r)
+		return r;
 
 	/*
 	 * If Xen hypercall intercept is enabled, fill the hypercall
@@ -1396,7 +1552,6 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 {
 	struct vcpu_set_singleshot_timer oneshot;
 	struct x86_exception e;
-	s64 delta;
 
 	if (!kvm_xen_timer_enabled(vcpu))
 		return false;
@@ -1430,9 +1585,7 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 			return true;
 		}
 
-		/* A delta <= 0 results in an immediate callback, which is what we want */
-		delta = oneshot.timeout_abs_ns - get_kvmclock_ns(vcpu->kvm);
-		kvm_xen_start_timer(vcpu, oneshot.timeout_abs_ns, delta);
+		kvm_xen_start_timer(vcpu, oneshot.timeout_abs_ns, false);
 		*r = 0;
 		return true;
 
@@ -1455,29 +1608,10 @@ static bool kvm_xen_hcall_set_timer_op(struct kvm_vcpu *vcpu, uint64_t timeout,
 	if (!kvm_xen_timer_enabled(vcpu))
 		return false;
 
-	if (timeout) {
-		uint64_t guest_now = get_kvmclock_ns(vcpu->kvm);
-		int64_t delta = timeout - guest_now;
-
-		/* Xen has a 'Linux workaround' in do_set_timer_op() which
-		 * checks for negative absolute timeout values (caused by
-		 * integer overflow), and for values about 13 days in the
-		 * future (2^50ns) which would be caused by jiffies
-		 * overflow. For those cases, it sets the timeout 100ms in
-		 * the future (not *too* soon, since if a guest really did
-		 * set a long timeout on purpose we don't want to keep
-		 * churning CPU time by waking it up).
-		 */
-		if (unlikely((int64_t)timeout < 0 ||
-			     (delta > 0 && (uint32_t) (delta >> 50) != 0))) {
-			delta = 100 * NSEC_PER_MSEC;
-			timeout = guest_now + delta;
-		}
-
-		kvm_xen_start_timer(vcpu, timeout, delta);
-	} else {
+	if (timeout)
+		kvm_xen_start_timer(vcpu, timeout, true);
+	else
 		kvm_xen_stop_timer(vcpu);
-	}
 
 	*r = 0;
 	return true;
@@ -1621,9 +1755,6 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		WRITE_ONCE(xe->vcpu_idx, vcpu->vcpu_idx);
 	}
 
-	if (!vcpu->arch.xen.vcpu_info_cache.active)
-		return -EINVAL;
-
 	if (xe->port >= max_evtchn_port(kvm))
 		return -EINVAL;
 
@@ -1731,8 +1862,6 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		mm_borrowed = true;
 	}
 
-	mutex_lock(&kvm->arch.xen.xen_lock);
-
 	/*
 	 * It is theoretically possible for the page to be unmapped
 	 * and the MMU notifier to invalidate the shared_info before
@@ -1759,8 +1888,6 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		rc = kvm_gpc_refresh(gpc, PAGE_SIZE);
 		srcu_read_unlock(&kvm->srcu, idx);
 	} while(!rc);
-
-	mutex_unlock(&kvm->arch.xen.xen_lock);
 
 	if (mm_borrowed)
 		kthread_unuse_mm(kvm->mm);
@@ -2109,14 +2236,10 @@ void kvm_xen_init_vcpu(struct kvm_vcpu *vcpu)
 
 	timer_setup(&vcpu->arch.xen.poll_timer, cancel_evtchn_poll, 0);
 
-	kvm_gpc_init(&vcpu->arch.xen.runstate_cache, vcpu->kvm, NULL,
-		     KVM_HOST_USES_PFN);
-	kvm_gpc_init(&vcpu->arch.xen.runstate2_cache, vcpu->kvm, NULL,
-		     KVM_HOST_USES_PFN);
-	kvm_gpc_init(&vcpu->arch.xen.vcpu_info_cache, vcpu->kvm, NULL,
-		     KVM_HOST_USES_PFN);
-	kvm_gpc_init(&vcpu->arch.xen.vcpu_time_info_cache, vcpu->kvm, NULL,
-		     KVM_HOST_USES_PFN);
+	kvm_gpc_init(&vcpu->arch.xen.runstate_cache, vcpu->kvm);
+	kvm_gpc_init(&vcpu->arch.xen.runstate2_cache, vcpu->kvm);
+	kvm_gpc_init(&vcpu->arch.xen.vcpu_info_cache, vcpu->kvm);
+	kvm_gpc_init(&vcpu->arch.xen.vcpu_time_info_cache, vcpu->kvm);
 }
 
 void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
@@ -2159,7 +2282,7 @@ void kvm_xen_init_vm(struct kvm *kvm)
 {
 	mutex_init(&kvm->arch.xen.xen_lock);
 	idr_init(&kvm->arch.xen.evtchn_ports);
-	kvm_gpc_init(&kvm->arch.xen.shinfo_cache, kvm, NULL, KVM_HOST_USES_PFN);
+	kvm_gpc_init(&kvm->arch.xen.shinfo_cache, kvm);
 }
 
 void kvm_xen_destroy_vm(struct kvm *kvm)

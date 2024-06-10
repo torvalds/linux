@@ -43,7 +43,7 @@ int swiotlb_init_late(size_t size, gfp_t gfp_mask,
 extern void __init swiotlb_update_mem_attributes(void);
 
 phys_addr_t swiotlb_tbl_map_single(struct device *hwdev, phys_addr_t phys,
-		size_t mapping_size, size_t alloc_size,
+		size_t mapping_size,
 		unsigned int alloc_aligned_mask, enum dma_data_direction dir,
 		unsigned long attrs);
 
@@ -120,6 +120,8 @@ struct io_tlb_pool {
  *		debugfs.
  * @used_hiwater: The high water mark for total_used.  Used only for reporting
  *		in debugfs.
+ * @transient_nslabs: The total number of slots in all transient pools that
+ *		are currently used across all areas.
  */
 struct io_tlb_mem {
 	struct io_tlb_pool defpool;
@@ -137,6 +139,7 @@ struct io_tlb_mem {
 #ifdef CONFIG_DEBUG_FS
 	atomic_long_t total_used;
 	atomic_long_t used_hiwater;
+	atomic_long_t transient_nslabs;
 #endif
 };
 

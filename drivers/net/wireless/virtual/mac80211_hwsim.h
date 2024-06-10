@@ -3,7 +3,7 @@
  * mac80211_hwsim - software simulator of 802.11 radio(s) for mac80211
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
- * Copyright (C) 2020, 2022-2023 Intel Corporation
+ * Copyright (C) 2020, 2022-2024 Intel Corporation
  */
 
 #ifndef __MAC80211_HWSIM_H
@@ -84,6 +84,8 @@ enum hwsim_tx_control_flags {
  * @HWSIM_CMD_START_PMSR: request to start peer measurement with the
  *	%HWSIM_ATTR_PMSR_REQUEST. Result will be sent back asynchronously
  *	with %HWSIM_CMD_REPORT_PMSR.
+ * @HWSIM_CMD_ABORT_PMSR: Abort previously started peer measurement.
+ * @HWSIM_CMD_REPORT_PMSR: Report peer measurement data.
  * @__HWSIM_CMD_MAX: enum limit
  */
 enum hwsim_commands {
@@ -298,6 +300,7 @@ enum hwsim_vqs {
  * Information about a receiving or transmitting bitrate
  * that can be mapped to struct rate_info
  *
+ * @__HWSIM_RATE_INFO_ATTR_INVALID: reserved, netlink attribute 0 is invalid
  * @HWSIM_RATE_INFO_ATTR_FLAGS: bitflag of flags from &enum rate_info_flags
  * @HWSIM_RATE_INFO_ATTR_MCS: mcs index if struct describes an HT/VHT/HE rate
  * @HWSIM_RATE_INFO_ATTR_LEGACY: bitrate in 100kbit/s for 802.11abg

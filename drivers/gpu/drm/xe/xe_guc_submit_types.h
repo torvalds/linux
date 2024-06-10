@@ -61,17 +61,6 @@ struct guc_submit_parallel_scratch {
 	u32 wq[WQ_SIZE / sizeof(u32)];
 };
 
-struct lrc_snapshot {
-	u32 context_desc;
-	u32 head;
-	struct {
-		u32 internal;
-		u32 memory;
-	} tail;
-	u32 start_seqno;
-	u32 seqno;
-};
-
 struct pending_list_snapshot {
 	u32 seqno;
 	bool fence;
@@ -102,14 +91,14 @@ struct xe_guc_submit_exec_queue_snapshot {
 
 	/** @sched_props: scheduling properties */
 	struct {
-		/** @timeslice_us: timeslice period in micro-seconds */
+		/** @sched_props.timeslice_us: timeslice period in micro-seconds */
 		u32 timeslice_us;
-		/** @preempt_timeout_us: preemption timeout in micro-seconds */
+		/** @sched_props.preempt_timeout_us: preemption timeout in micro-seconds */
 		u32 preempt_timeout_us;
 	} sched_props;
 
 	/** @lrc: LRC Snapshot */
-	struct lrc_snapshot *lrc;
+	struct xe_lrc_snapshot **lrc;
 
 	/** @schedule_state: Schedule State at the moment of Crash */
 	u32 schedule_state;
@@ -118,11 +107,11 @@ struct xe_guc_submit_exec_queue_snapshot {
 
 	/** @guc: GuC Engine Snapshot */
 	struct {
-		/** @wqi_head: work queue item head */
+		/** @guc.wqi_head: work queue item head */
 		u32 wqi_head;
-		/** @wqi_tail: work queue item tail */
+		/** @guc.wqi_tail: work queue item tail */
 		u32 wqi_tail;
-		/** @id: GuC id for this exec_queue */
+		/** @guc.id: GuC id for this exec_queue */
 		u16 id;
 	} guc;
 
@@ -133,13 +122,13 @@ struct xe_guc_submit_exec_queue_snapshot {
 	bool parallel_execution;
 	/** @parallel: snapshot of the useful parallel scratch */
 	struct {
-		/** @wq_desc: Workqueue description */
+		/** @parallel.wq_desc: Workqueue description */
 		struct {
-			/** @head: Workqueue Head */
+			/** @parallel.wq_desc.head: Workqueue Head */
 			u32 head;
-			/** @tail: Workqueue Tail */
+			/** @parallel.wq_desc.tail: Workqueue Tail */
 			u32 tail;
-			/** @status: Workqueue Status */
+			/** @parallel.wq_desc.status: Workqueue Status */
 			u32 status;
 		} wq_desc;
 		/** @wq: Workqueue Items */

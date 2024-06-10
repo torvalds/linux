@@ -429,7 +429,6 @@ struct kasan_cache {
 };
 
 size_t kasan_metadata_size(struct kmem_cache *cache, bool in_object);
-slab_flags_t kasan_never_merge(void);
 void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 			slab_flags_t *flags);
 
@@ -443,11 +442,6 @@ void kasan_record_aux_stack_noalloc(void *ptr);
 /* Tag-based KASAN modes do not use per-object metadata. */
 static inline size_t kasan_metadata_size(struct kmem_cache *cache,
 						bool in_object)
-{
-	return 0;
-}
-/* And thus nothing prevents cache merging. */
-static inline slab_flags_t kasan_never_merge(void)
 {
 	return 0;
 }

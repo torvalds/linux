@@ -61,11 +61,8 @@ SEC("tp_btf/task_newtask")
 __failure __msg("bpf_cpumask_set_cpu args#1 expected pointer to STRUCT bpf_cpumask")
 int BPF_PROG(test_mutate_cpumask, struct task_struct *task, u64 clone_flags)
 {
-	struct bpf_cpumask *cpumask;
-
 	/* Can't set the CPU of a non-struct bpf_cpumask. */
 	bpf_cpumask_set_cpu(0, (struct bpf_cpumask *)task->cpus_ptr);
-	__sink(cpumask);
 
 	return 0;
 }

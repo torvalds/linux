@@ -153,12 +153,17 @@ static const struct crashtype *find_crashtype(const char *name)
 /*
  * This is forced noinline just so it distinctly shows up in the stackdump
  * which makes validation of expected lkdtm crashes easier.
+ *
+ * NOTE: having a valid return value helps prevent the compiler from doing
+ * tail call optimizations and taking this out of the stack trace.
  */
-static noinline void lkdtm_do_action(const struct crashtype *crashtype)
+static noinline int lkdtm_do_action(const struct crashtype *crashtype)
 {
 	if (WARN_ON(!crashtype || !crashtype->func))
-		return;
+		return -EINVAL;
 	crashtype->func();
+
+	return 0;
 }
 
 static int lkdtm_register_cpoint(struct crashpoint *crashpoint,
@@ -167,10 +172,8 @@ static int lkdtm_register_cpoint(struct crashpoint *crashpoint,
 	int ret;
 
 	/* If this doesn't have a symbol, just call immediately. */
-	if (!crashpoint->kprobe.symbol_name) {
-		lkdtm_do_action(crashtype);
-		return 0;
-	}
+	if (!crashpoint->kprobe.symbol_name)
+		return lkdtm_do_action(crashtype);
 
 	if (lkdtm_kprobe != NULL)
 		unregister_kprobe(lkdtm_kprobe);
@@ -216,7 +219,7 @@ static int lkdtm_kprobe_handler(struct kprobe *kp, struct pt_regs *regs)
 	spin_unlock_irqrestore(&crash_count_lock, flags);
 
 	if (do_it)
-		lkdtm_do_action(lkdtm_crashtype);
+		return lkdtm_do_action(lkdtm_crashtype);
 
 	return 0;
 }
@@ -303,6 +306,7 @@ static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 {
 	const struct crashtype *crashtype;
 	char *buf;
+	int err;
 
 	if (count >= PAGE_SIZE)
 		return -EINVAL;
@@ -326,9 +330,11 @@ static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 		return -EINVAL;
 
 	pr_info("Performing direct entry %s\n", crashtype->name);
-	lkdtm_do_action(crashtype);
+	err = lkdtm_do_action(crashtype);
 	*off += count;
 
+	if (err)
+		return err;
 	return count;
 }
 

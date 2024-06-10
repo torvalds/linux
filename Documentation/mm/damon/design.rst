@@ -31,6 +31,8 @@ DAMON subsystem is configured with three layers including
   interfaces for the user space, on top of the core layer.
 
 
+.. _damon_design_configurable_operations_set:
+
 Configurable Operations Set
 ---------------------------
 
@@ -63,6 +65,8 @@ modules that built on top of the core layer using the API, which can be easily
 used by the user space end users.
 
 
+.. _damon_operations_set:
+
 Operations Set Layer
 ====================
 
@@ -71,16 +75,26 @@ The monitoring operations are defined in two parts:
 1. Identification of the monitoring target address range for the address space.
 2. Access check of specific address range in the target space.
 
-DAMON currently provides the implementations of the operations for the physical
-and virtual address spaces. Below two subsections describe how those work.
+DAMON currently provides below three operation sets.  Below two subsections
+describe how those work.
 
+ - vaddr: Monitor virtual address spaces of specific processes
+ - fvaddr: Monitor fixed virtual address ranges
+ - paddr: Monitor the physical address space of the system
+
+
+ .. _damon_design_vaddr_target_regions_construction:
 
 VMA-based Target Address Range Construction
 -------------------------------------------
 
-This is only for the virtual address space monitoring operations
-implementation.  That for the physical address space simply asks users to
-manually set the monitoring target address ranges.
+A mechanism of ``vaddr`` DAMON operations set that automatically initializes
+and updates the monitoring target address regions so that entire memory
+mappings of the target processes can be covered.
+
+This mechanism is only for the ``vaddr`` operations set.  In cases of
+``fvaddr`` and ``paddr`` operation sets, users are asked to manually set the
+monitoring target address ranges.
 
 Only small parts in the super-huge virtual address space of the processes are
 mapped to the physical memory and accessed.  Thus, tracking the unmapped
@@ -294,9 +308,29 @@ not mandated to support all actions of the list.  Hence, the availability of
 specific DAMOS action depends on what operations set is selected to be used
 together.
 
-Applying an action to a region is considered as changing the region's
-characteristics.  Hence, DAMOS resets the age of regions when an action is
-applied to those.
+The list of the supported actions, their meaning, and DAMON operations sets
+that supports each action are as below.
+
+ - ``willneed``: Call ``madvise()`` for the region with ``MADV_WILLNEED``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``cold``: Call ``madvise()`` for the region with ``MADV_COLD``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``pageout``: Reclaim the region.
+   Supported by ``vaddr``, ``fvaddr`` and ``paddr`` operations set.
+ - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``lru_prio``: Prioritize the region on its LRU lists.
+   Supported by ``paddr`` operations set.
+ - ``lru_deprio``: Deprioritize the region on its LRU lists.
+   Supported by ``paddr`` operations set.
+ - ``stat``: Do nothing but count the statistics.
+   Supported by all operations sets.
+
+Applying the actions except ``stat`` to a region is considered as changing the
+region's characteristics.  Hence, DAMOS resets the age of regions when any such
+actions are applied to those.
 
 
 .. _damon_design_damos_access_pattern:
@@ -364,11 +398,27 @@ Aim-oriented Feedback-driven Auto-tuning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Automatic feedback-driven quota tuning.  Instead of setting the absolute quota
-value, users can repeatedly provide numbers representing how much of their goal
-for the scheme is achieved as feedback.  DAMOS then automatically tunes the
+value, users can specify the metric of their interest, and what target value
+they want the metric value to be.  DAMOS then automatically tunes the
 aggressiveness (the quota) of the corresponding scheme.  For example, if DAMOS
 is under achieving the goal, DAMOS automatically increases the quota.  If DAMOS
 is over achieving the goal, it decreases the quota.
+
+The goal can be specified with three parameters, namely ``target_metric``,
+``target_value``, and ``current_value``.  The auto-tuning mechanism tries to
+make ``current_value`` of ``target_metric`` be same to ``target_value``.
+Currently, two ``target_metric`` are provided.
+
+- ``user_input``: User-provided value.  Users could use any metric that they
+  has interest in for the value.  Use space main workload's latency or
+  throughput, system metrics like free memory ratio or memory pressure stall
+  time (PSI) could be examples.  Note that users should explicitly set
+  ``current_value`` on their own in this case.  In other words, users should
+  repeatedly provide the feedback.
+- ``some_mem_psi_us``: System-wide ``some`` memory pressure stall information
+  in microseconds that measured from last quota reset to next quota reset.
+  DAMOS does the measurement on its own, so only ``target_value`` need to be
+  set by users at the initial time.  In other words, DAMOS does self-feedback.
 
 
 .. _damon_design_damos_watermarks:
@@ -411,24 +461,32 @@ number of filters for each scheme.  Each filter specifies the type of target
 memory, and whether it should exclude the memory of the type (filter-out), or
 all except the memory of the type (filter-in).
 
-Currently, anonymous page, memory cgroup, address range, and DAMON monitoring
-target type filters are supported by the feature.  Some filter target types
-require additional arguments.  The memory cgroup filter type asks users to
-specify the file path of the memory cgroup for the filter.  The address range
-type asks the start and end addresses of the range.  The DAMON monitoring
-target type asks the index of the target from the context's monitoring targets
-list.  Hence, users can apply specific schemes to only anonymous pages,
-non-anonymous pages, pages of specific cgroups, all pages excluding those of
-specific cgroups, pages in specific address range, pages in specific DAMON
-monitoring targets, and any combination of those.
+For efficient handling of filters, some types of filters are handled by the
+core layer, while others are handled by operations set.  In the latter case,
+hence, support of the filter types depends on the DAMON operations set.  In
+case of the core layer-handled filters, the memory regions that excluded by the
+filter are not counted as the scheme has tried to the region.  In contrast, if
+a memory regions is filtered by an operations set layer-handled filter, it is
+counted as the scheme has tried.  This difference affects the statistics.
 
-To handle filters efficiently, the address range and DAMON monitoring target
-type filters are handled by the core layer, while others are handled by
-operations set.  If a memory region is filtered by a core layer-handled filter,
-it is not counted as the scheme has tried to the region.  In contrast, if a
-memory regions is filtered by an operations set layer-handled filter, it is
-counted as the scheme has tried.  The difference in accounting leads to changes
-in the statistics.
+Below types of filters are currently supported.
+
+- anonymous page
+    - Applied to pages that containing data that not stored in files.
+    - Handled by operations set layer.  Supported by only ``paddr`` set.
+- memory cgroup
+    - Applied to pages that belonging to a given cgroup.
+    - Handled by operations set layer.  Supported by only ``paddr`` set.
+- young page
+    - Applied to pages that are accessed after the last access check from the
+      scheme.
+    - Handled by operations set layer.  Supported by only ``paddr`` set.
+- address range
+    - Applied to pages that belonging to a given address range.
+    - Handled by the core logic.
+- DAMON monitoring target
+    - Applied to pages that belonging to a given DAMON monitoring target.
+    - Handled by the core logic.
 
 
 Application Programming Interface

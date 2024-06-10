@@ -552,3 +552,37 @@ Description:
 		attribute is only visible for devices supporting the
 		capability. The retrieved errors are logged as kernel
 		events when cxl_poison event tracing is enabled.
+
+
+What:		/sys/bus/cxl/devices/regionZ/accessY/read_bandwidth
+		/sys/bus/cxl/devices/regionZ/accessY/write_banwidth
+Date:		Jan, 2024
+KernelVersion:	v6.9
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) The aggregated read or write bandwidth of the region. The
+		number is the accumulated read or write bandwidth of all CXL memory
+		devices that contributes to the region in MB/s. It is
+		identical data that should appear in
+		/sys/devices/system/node/nodeX/accessY/initiators/read_bandwidth or
+		/sys/devices/system/node/nodeX/accessY/initiators/write_bandwidth.
+		See Documentation/ABI/stable/sysfs-devices-node. access0 provides
+		the number to the closest initiator and access1 provides the
+		number to the closest CPU.
+
+
+What:		/sys/bus/cxl/devices/regionZ/accessY/read_latency
+		/sys/bus/cxl/devices/regionZ/accessY/write_latency
+Date:		Jan, 2024
+KernelVersion:	v6.9
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) The read or write latency of the region. The number is
+		the worst read or write latency of all CXL memory devices that
+		contributes to the region in nanoseconds. It is identical data
+		that should appear in
+		/sys/devices/system/node/nodeX/accessY/initiators/read_latency or
+		/sys/devices/system/node/nodeX/accessY/initiators/write_latency.
+		See Documentation/ABI/stable/sysfs-devices-node. access0 provides
+		the number to the closest initiator and access1 provides the
+		number to the closest CPU.

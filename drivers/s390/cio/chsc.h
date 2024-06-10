@@ -22,6 +22,11 @@ struct cmg_entry {
 	u32 values[NR_MEASUREMENT_ENTRIES];
 };
 
+#define NR_EXT_MEASUREMENT_ENTRIES 16
+struct cmg_ext_entry {
+	u32 values[NR_EXT_MEASUREMENT_ENTRIES];
+};
+
 struct channel_path_desc_fmt1 {
 	u8 flags;
 	u8 lsn;
@@ -91,8 +96,8 @@ struct chsc_scssc_area {
 	u16:16;
 	u32:32;
 	u32:32;
-	u64 summary_indicator_addr;
-	u64 subchannel_indicator_addr;
+	dma64_t summary_indicator_addr;
+	dma64_t subchannel_indicator_addr;
 	u32 ks:4;
 	u32 kc:4;
 	u32:21;
@@ -164,7 +169,7 @@ void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);
 int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd);
 int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
-	      u64 summary_indicator_addr, u64 subchannel_indicator_addr,
+	      dma64_t summary_indicator_addr, dma64_t subchannel_indicator_addr,
 	      u8 isc);
 int chsc_sgib(u32 origin);
 int chsc_error_from_response(int response);

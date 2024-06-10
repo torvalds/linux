@@ -787,7 +787,7 @@ static int __init fat_init_inodecache(void)
 	fat_inode_cachep = kmem_cache_create("fat_inode_cache",
 					     sizeof(struct msdos_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+						SLAB_ACCOUNT),
 					     init_once);
 	if (fat_inode_cachep == NULL)
 		return -ENOMEM;
@@ -1761,6 +1761,9 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		sbi->vol_id = bpb.fat32_vol_id;
 	else /* fat 16 or 12 */
 		sbi->vol_id = bpb.fat16_vol_id;
+
+	__le32 vol_id_le = cpu_to_le32(sbi->vol_id);
+	super_set_uuid(sb, (void *) &vol_id_le, sizeof(vol_id_le));
 
 	sbi->dir_per_block = sb->s_blocksize / sizeof(struct msdos_dir_entry);
 	sbi->dir_per_block_bits = ffs(sbi->dir_per_block) - 1;

@@ -17,6 +17,15 @@
 #include "../kselftest_harness.h"
 #include "../clone3/clone3_selftests.h"
 
+
+#ifndef F_LINUX_SPECIFIC_BASE
+#define F_LINUX_SPECIFIC_BASE 1024
+#endif
+
+#ifndef F_DUPFD_QUERY
+#define F_DUPFD_QUERY (F_LINUX_SPECIFIC_BASE + 3)
+#endif
+
 static inline int sys_close_range(unsigned int fd, unsigned int max_fd,
 				  unsigned int flags)
 {
@@ -43,6 +52,15 @@ TEST(core_close_range)
 	EXPECT_EQ(-1, sys_close_range(open_fds[0], open_fds[100], -1)) {
 		if (errno == ENOSYS)
 			SKIP(return, "close_range() syscall not supported");
+	}
+
+	for (i = 0; i < 100; i++) {
+		ret = fcntl(open_fds[i], F_DUPFD_QUERY, open_fds[i + 1]);
+		if (ret < 0) {
+			EXPECT_EQ(errno, EINVAL);
+		} else {
+			EXPECT_EQ(ret, 0);
+		}
 	}
 
 	EXPECT_EQ(0, sys_close_range(open_fds[0], open_fds[50], 0));
@@ -358,7 +376,7 @@ TEST(close_range_cloexec_unshare)
  */
 TEST(close_range_cloexec_syzbot)
 {
-	int fd1, fd2, fd3, flags, ret, status;
+	int fd1, fd2, fd3, fd4, flags, ret, status;
 	pid_t pid;
 	struct __clone_args args = {
 		.flags = CLONE_FILES,
@@ -371,6 +389,13 @@ TEST(close_range_cloexec_syzbot)
 
 	fd2 = dup2(fd1, 1000);
 	EXPECT_GT(fd2, 0);
+
+	flags = fcntl(fd1, F_DUPFD_QUERY, fd2);
+	if (flags < 0) {
+		EXPECT_EQ(errno, EINVAL);
+	} else {
+		EXPECT_EQ(flags, 1);
+	}
 
 	pid = sys_clone3(&args, sizeof(args));
 	ASSERT_GE(pid, 0);
@@ -395,6 +420,15 @@ TEST(close_range_cloexec_syzbot)
 
 		fd3 = dup2(fd1, 42);
 		EXPECT_GT(fd3, 0);
+
+		flags = fcntl(fd1, F_DUPFD_QUERY, fd3);
+		if (flags < 0) {
+			EXPECT_EQ(errno, EINVAL);
+		} else {
+			EXPECT_EQ(flags, 1);
+		}
+
+
 
 		/*
 			 * Duplicating the file descriptor must remove the
@@ -426,6 +460,24 @@ TEST(close_range_cloexec_syzbot)
 	fd3 = dup2(fd1, 42);
 	EXPECT_GT(fd3, 0);
 
+	flags = fcntl(fd1, F_DUPFD_QUERY, fd3);
+	if (flags < 0) {
+		EXPECT_EQ(errno, EINVAL);
+	} else {
+		EXPECT_EQ(flags, 1);
+	}
+
+	fd4 = open("/dev/null", O_RDWR);
+	EXPECT_GT(fd4, 0);
+
+	/* Same inode, different file pointers. */
+	flags = fcntl(fd1, F_DUPFD_QUERY, fd4);
+	if (flags < 0) {
+		EXPECT_EQ(errno, EINVAL);
+	} else {
+		EXPECT_EQ(flags, 0);
+	}
+
 	flags = fcntl(fd3, F_GETFD);
 	EXPECT_GT(flags, -1);
 	EXPECT_EQ(flags & FD_CLOEXEC, 0);
@@ -433,6 +485,7 @@ TEST(close_range_cloexec_syzbot)
 	EXPECT_EQ(close(fd1), 0);
 	EXPECT_EQ(close(fd2), 0);
 	EXPECT_EQ(close(fd3), 0);
+	EXPECT_EQ(close(fd4), 0);
 }
 
 /*

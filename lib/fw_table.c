@@ -127,6 +127,7 @@ static __init_or_fwtbl_lib int call_handler(struct acpi_subtable_proc *proc,
  *
  * @id: table id (for debugging purposes)
  * @table_size: size of the root table
+ * @max_length: maximum size of the table (ignore if 0)
  * @table_header: where does the table start?
  * @proc: array of acpi_subtable_proc struct containing entry id
  *        and associated handler with it
@@ -148,18 +149,21 @@ static __init_or_fwtbl_lib int call_handler(struct acpi_subtable_proc *proc,
 int __init_or_fwtbl_lib
 acpi_parse_entries_array(char *id, unsigned long table_size,
 			 union fw_table_header *table_header,
+			 unsigned long max_length,
 			 struct acpi_subtable_proc *proc,
 			 int proc_num, unsigned int max_entries)
 {
-	unsigned long table_end, subtable_len, entry_len;
+	unsigned long table_len, table_end, subtable_len, entry_len;
 	struct acpi_subtable_entry entry;
 	enum acpi_subtable_type type;
 	int count = 0;
 	int i;
 
 	type = acpi_get_subtable_type(id);
-	table_end = (unsigned long)table_header +
-		    acpi_table_get_length(type, table_header);
+	table_len = acpi_table_get_length(type, table_header);
+	if (max_length && max_length < table_len)
+		table_len = max_length;
+	table_end = (unsigned long)table_header + table_len;
 
 	/* Parse all entries looking for a match. */
 
@@ -208,7 +212,8 @@ int __init_or_fwtbl_lib
 cdat_table_parse(enum acpi_cdat_type type,
 		 acpi_tbl_entry_handler_arg handler_arg,
 		 void *arg,
-		 struct acpi_table_cdat *table_header)
+		 struct acpi_table_cdat *table_header,
+		 unsigned long length)
 {
 	struct acpi_subtable_proc proc = {
 		.id		= type,
@@ -222,6 +227,6 @@ cdat_table_parse(enum acpi_cdat_type type,
 	return acpi_parse_entries_array(ACPI_SIG_CDAT,
 					sizeof(struct acpi_table_cdat),
 					(union fw_table_header *)table_header,
-					&proc, 1, 0);
+					length, &proc, 1, 0);
 }
 EXPORT_SYMBOL_FWTBL_LIB(cdat_table_parse);

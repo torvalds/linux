@@ -124,7 +124,7 @@ static int i2c_mux_probe(struct platform_device *pdev)
 			goto err_children;
 		}
 
-		ret = i2c_mux_add_adapter(muxc, 0, chan, 0);
+		ret = i2c_mux_add_adapter(muxc, 0, chan);
 		if (ret)
 			goto err_children;
 	}

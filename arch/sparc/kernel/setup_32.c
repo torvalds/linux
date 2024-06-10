@@ -67,7 +67,7 @@ static void prom_sync_me(void)
 	__asm__ __volatile__("wr %0, 0x0, %%tbr\n\t"
 			     "nop\n\t"
 			     "nop\n\t"
-			     "nop\n\t" : : "r" (&trapbase));
+			     "nop\n\t" : : "r" (&trapbase[0]));
 
 	prom_printf("PROM SYNC COMMAND...\n");
 	show_mem();
@@ -285,7 +285,7 @@ void __init setup_arch(char **cmdline_p)
 	int i;
 	unsigned long highest_paddr;
 
-	sparc_ttable = &trapbase;
+	sparc_ttable = &trapbase[0];
 
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();

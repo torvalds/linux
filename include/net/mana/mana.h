@@ -39,7 +39,6 @@ enum TRI_STATE {
 #define COMP_ENTRY_SIZE 64
 
 #define RX_BUFFERS_PER_QUEUE 512
-#define MANA_RX_DATA_ALIGN 64
 
 #define MAX_SEND_BUFFERS_PER_QUEUE 256
 
@@ -671,6 +670,7 @@ struct mana_cfg_rx_steer_req_v2 {
 	u8 hashkey[MANA_HASH_KEY_SIZE];
 	u8 cqe_coalescing_enable;
 	u8 reserved2[7];
+	mana_handle_t indir_tab[] __counted_by(num_indir_entries);
 }; /* HW DATA */
 
 struct mana_cfg_rx_steer_resp {

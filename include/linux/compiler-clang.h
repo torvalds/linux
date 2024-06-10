@@ -9,7 +9,7 @@
  * Clang prior to 17 is being silly and considers many __cleanup() variables
  * as unused (because they are, their sole purpose is to go out of scope).
  *
- * https://reviews.llvm.org/D152180
+ * https://github.com/llvm/llvm-project/commit/877210faa447f4cc7db87812f8ed80e398fedd61
  */
 #undef __cleanup
 #define __cleanup(func) __maybe_unused __attribute__((__cleanup__(func)))
@@ -114,11 +114,17 @@
 #define __diag_str(s)		__diag_str1(s)
 #define __diag(s)		_Pragma(__diag_str(clang diagnostic s))
 
-#if CONFIG_CLANG_VERSION >= 110000
-#define __diag_clang_11(s)	__diag(s)
-#else
-#define __diag_clang_11(s)
-#endif
+#define __diag_clang_13(s)	__diag(s)
 
 #define __diag_ignore_all(option, comment) \
-	__diag_clang(11, ignore, option)
+	__diag_clang(13, ignore, option)
+
+/*
+ * clang has horrible behavior with "g" or "rm" constraints for asm
+ * inputs, turning them into something worse than "m". Avoid using
+ * constraints with multiple possible uses (but "ir" seems to be ok):
+ *
+ *	https://github.com/llvm/llvm-project/issues/20571
+ */
+#define ASM_INPUT_G "ir"
+#define ASM_INPUT_RM "r"

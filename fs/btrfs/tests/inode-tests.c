@@ -258,7 +258,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 
 	/* First with no extents */
 	BTRFS_I(inode)->root = root;
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, 0, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, sectorsize);
 	if (IS_ERR(em)) {
 		em = NULL;
 		test_err("got an error when we shouldn't have");
@@ -278,7 +278,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	 */
 	setup_file_extents(root, sectorsize);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, 0, (u64)-1);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, (u64)-1);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -316,7 +316,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -339,7 +339,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	free_extent_map(em);
 
 	/* Regular extent */
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -367,7 +367,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	free_extent_map(em);
 
 	/* The next 3 are split extents */
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -396,7 +396,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -418,7 +418,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -452,7 +452,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	free_extent_map(em);
 
 	/* Prealloc extent */
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -481,7 +481,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	free_extent_map(em);
 
 	/* The next 3 are a half written prealloc extent */
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -511,7 +511,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -544,7 +544,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -579,7 +579,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	free_extent_map(em);
 
 	/* Now for the compressed extent */
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -613,7 +613,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	free_extent_map(em);
 
 	/* Split compressed extent */
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -648,7 +648,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -675,7 +675,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -710,7 +710,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	free_extent_map(em);
 
 	/* A hole between regular extents but no hole extent */
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset + 6, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset + 6, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -737,7 +737,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, SZ_4M);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, SZ_4M);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -770,7 +770,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -850,7 +850,7 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 	insert_inode_item_key(root);
 	insert_extent(root, sectorsize, sectorsize, sectorsize, 0, sectorsize,
 		      sectorsize, BTRFS_FILE_EXTENT_REG, 0, 1);
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, 0, 2 * sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, 2 * sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;
@@ -872,7 +872,7 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 	}
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, sectorsize, 2 * sectorsize);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, sectorsize, 2 * sectorsize);
 	if (IS_ERR(em)) {
 		test_err("got an error when we shouldn't have");
 		goto out;

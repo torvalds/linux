@@ -1,37 +1,31 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 #ifndef _IPA_H_
 #define _IPA_H_
 
-#include <linux/types.h>
-#include <linux/device.h>
 #include <linux/notifier.h>
-#include <linux/pm_wakeup.h>
+#include <linux/types.h>
 
-#include "ipa_version.h"
 #include "gsi.h"
+#include "ipa_endpoint.h"
 #include "ipa_mem.h"
 #include "ipa_qmi.h"
-#include "ipa_endpoint.h"
-#include "ipa_interrupt.h"
+#include "ipa_version.h"
 
-struct clk;
-struct icc_path;
 struct net_device;
-struct platform_device;
 
+struct ipa_interrupt;
 struct ipa_power;
 struct ipa_smp2p;
-struct ipa_interrupt;
 
 /**
  * struct ipa - IPA information
  * @gsi:		Embedded GSI structure
  * @version:		IPA hardware version
- * @pdev:		Platform device
+ * @dev:		IPA device pointer
  * @completion:		Used to signal pipeline clear transfer complete
  * @nb:			Notifier block used for remoteproc SSR
  * @notifier:		Remoteproc SSR notifier
@@ -79,7 +73,7 @@ struct ipa_interrupt;
 struct ipa {
 	struct gsi gsi;
 	enum ipa_version version;
-	struct platform_device *pdev;
+	struct device *dev;
 	struct completion completion;
 	struct notifier_block nb;
 	void *notifier;

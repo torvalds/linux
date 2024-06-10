@@ -207,6 +207,7 @@ static struct wmi_driver inspur_wmi_driver = {
 	.id_table = inspur_wmi_id_table,
 	.probe = inspur_wmi_probe,
 	.remove = inspur_wmi_remove,
+	.no_singleton = true,
 };
 
 module_wmi_driver(inspur_wmi_driver);

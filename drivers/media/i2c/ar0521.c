@@ -314,7 +314,7 @@ static void ar0521_calc_pll(struct ar0521_dev *sensor)
 	 * In the clock tree:
 	 * MIPI_CLK = PIXEL_CLOCK * bpp / 2 / 2
 	 *
-	 * Generic pixel_rate to bus clock frequencey equation:
+	 * Generic pixel_rate to bus clock frequency equation:
 	 * MIPI_CLK = V4L2_CID_PIXEL_RATE * bpp / lanes / 2
 	 *
 	 * From which we derive the PIXEL_CLOCK to use in the clock tree:
@@ -327,7 +327,7 @@ static void ar0521_calc_pll(struct ar0521_dev *sensor)
 	 *
 	 * TODO: in case we have less data lanes we have to reduce the desired
 	 * VCO not to exceed the limits specified by the datasheet and
-	 * consequentially reduce the obtained pixel clock.
+	 * consequently reduce the obtained pixel clock.
 	 */
 	pixel_clock = AR0521_PIXEL_CLOCK_RATE * 2 / sensor->lane_count;
 	bpp = ar0521_code_to_bpp(sensor);
@@ -806,7 +806,7 @@ static const struct initial_reg {
 	REGS(be(0x3F00),
 	     be(0x0017),  /* 3F00: BM_T0 */
 	     be(0x02DD),  /* 3F02: BM_T1 */
-	     /* 3F04: if Ana_gain less than 2, use noise_floor0, multipl */
+	     /* 3F04: if Ana_gain less than 2, use noise_floor0, multiply */
 	     be(0x0020),
 	     /* 3F06: if Ana_gain between 4 and 7, use noise_floor2 and */
 	     be(0x0040),

@@ -222,9 +222,9 @@ Use the following calls to access GPIOs from an atomic context::
 	int gpiod_get_value(const struct gpio_desc *desc);
 	void gpiod_set_value(struct gpio_desc *desc, int value);
 
-The values are boolean, zero for low, nonzero for high. When reading the value
-of an output pin, the value returned should be what's seen on the pin. That
-won't always match the specified output value, because of issues including
+The values are boolean, zero for inactive, nonzero for active. When reading the
+value of an output pin, the value returned should be what's seen on the pin.
+That won't always match the specified output value, because of issues including
 open-drain signaling and output latencies.
 
 The get/set calls do not return errors because "invalid GPIO" should have been
@@ -277,11 +277,11 @@ switch their output to a high impedance value. The consumer should not need to
 care. (For details read about open drain in driver.rst.)
 
 With this, all the gpiod_set_(array)_value_xxx() functions interpret the
-parameter "value" as "asserted" ("1") or "de-asserted" ("0"). The physical line
+parameter "value" as "active" ("1") or "inactive" ("0"). The physical line
 level will be driven accordingly.
 
 As an example, if the active low property for a dedicated GPIO is set, and the
-gpiod_set_(array)_value_xxx() passes "asserted" ("1"), the physical line level
+gpiod_set_(array)_value_xxx() passes "active" ("1"), the physical line level
 will be driven low.
 
 To summarize::

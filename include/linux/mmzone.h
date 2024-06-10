@@ -76,9 +76,12 @@ extern const char * const migratetype_names[MIGRATE_TYPES];
 #ifdef CONFIG_CMA
 #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
 #  define is_migrate_cma_page(_page) (get_pageblock_migratetype(_page) == MIGRATE_CMA)
+#  define is_migrate_cma_folio(folio, pfn)	(MIGRATE_CMA ==		\
+	get_pfnblock_flags_mask(&folio->page, pfn, MIGRATETYPE_MASK))
 #else
 #  define is_migrate_cma(migratetype) false
 #  define is_migrate_cma_page(_page) false
+#  define is_migrate_cma_folio(folio, pfn) false
 #endif
 
 static inline bool is_migrate_movable(int mt)
@@ -202,7 +205,10 @@ enum node_stat_item {
 	NR_KERNEL_SCS_KB,	/* measured in KiB */
 #endif
 	NR_PAGETABLE,		/* used for pagetables */
-	NR_SECONDARY_PAGETABLE, /* secondary pagetables, e.g. KVM pagetables */
+	NR_SECONDARY_PAGETABLE, /* secondary pagetables, KVM & IOMMU */
+#ifdef CONFIG_IOMMU_SUPPORT
+	NR_IOMMU_PAGES,		/* # of pages allocated by IOMMU */
+#endif
 #ifdef CONFIG_SWAP
 	NR_SWAPCACHE,
 #endif
@@ -464,7 +470,7 @@ enum {
 #define NR_BLOOM_FILTERS	2
 
 struct lru_gen_mm_state {
-	/* set to max_seq after each iteration */
+	/* synced with max_seq after each iteration */
 	unsigned long seq;
 	/* where the current iteration continues after */
 	struct list_head *head;
@@ -479,8 +485,8 @@ struct lru_gen_mm_state {
 struct lru_gen_mm_walk {
 	/* the lruvec under reclaim */
 	struct lruvec *lruvec;
-	/* unstable max_seq from lru_gen_folio */
-	unsigned long max_seq;
+	/* max_seq from lru_gen_folio: can be out of date */
+	unsigned long seq;
 	/* the next address within an mm to scan */
 	unsigned long next_addr;
 	/* to batch promoted pages */

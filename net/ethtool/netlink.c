@@ -477,11 +477,7 @@ out:
 	return ret;
 }
 
-/* Default ->dumpit() handler for GET requests. Device iteration copied from
- * rtnl_dump_ifinfo(); we have to be more careful about device hashtable
- * persistence as we cannot guarantee to hold RTNL lock through the whole
- * function as rtnetnlink does.
- */
+/* Default ->dumpit() handler for GET requests. */
 static int ethnl_default_dumpit(struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
@@ -490,14 +486,14 @@ static int ethnl_default_dumpit(struct sk_buff *skb,
 	struct net_device *dev;
 	int ret = 0;
 
-	rtnl_lock();
+	rcu_read_lock();
 	for_each_netdev_dump(net, dev, ctx->pos_ifindex) {
 		dev_hold(dev);
-		rtnl_unlock();
+		rcu_read_unlock();
 
 		ret = ethnl_default_dump_one(skb, dev, ctx, genl_info_dump(cb));
 
-		rtnl_lock();
+		rcu_read_lock();
 		dev_put(dev);
 
 		if (ret < 0 && ret != -EOPNOTSUPP) {
@@ -507,7 +503,7 @@ static int ethnl_default_dumpit(struct sk_buff *skb,
 		}
 		ret = 0;
 	}
-	rtnl_unlock();
+	rcu_read_unlock();
 
 	return ret;
 }

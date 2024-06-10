@@ -198,7 +198,7 @@
 		clocks = <&saif0>;
 	};
 
-	at24@51 {
+	eeprom@51 {
 		compatible = "atmel,24c32";
 		pagesize = <32>;
 		reg = <0x51>;

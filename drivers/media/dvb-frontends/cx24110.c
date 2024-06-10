@@ -224,13 +224,13 @@ static enum fe_code_rate cx24110_get_fec(struct cx24110_state *state)
 	}
 }
 
-static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
+static int cx24110_set_symbolrate (struct cx24110_state *state, u32 srate)
 {
 /* fixme (low): add error handling */
 	u32 ratio;
 	u32 tmp, fclk, BDRI;
 
-	static const u32 bands[]={5000000UL,15000000UL,90999000UL/2};
+	static const u32 bands[] = {5000000UL, 15000000UL, 90999000UL/2};
 	int i;
 
 	dprintk("cx24110 debug: entering %s(%d)\n",__func__,srate);

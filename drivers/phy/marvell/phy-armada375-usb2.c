@@ -61,7 +61,7 @@ static const struct phy_ops armada375_usb_phy_ops = {
  * USB3 case it still optional and we use ENODEV.
  */
 static struct phy *armada375_usb_phy_xlate(struct device *dev,
-					struct of_phandle_args *args)
+					const struct of_phandle_args *args)
 {
 	struct armada375_cluster_phy *cluster_phy = dev_get_drvdata(dev);
 

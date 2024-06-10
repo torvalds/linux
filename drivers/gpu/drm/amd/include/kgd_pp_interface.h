@@ -150,6 +150,7 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_VCN_POWER_STATE,
 	AMDGPU_PP_SENSOR_PEAK_PSTATE_SCLK,
 	AMDGPU_PP_SENSOR_PEAK_PSTATE_MCLK,
+	AMDGPU_PP_SENSOR_VCN_LOAD,
 };
 
 enum amd_pp_task {
@@ -244,8 +245,7 @@ enum pp_df_cstate {
  * @PP_PWR_LIMIT_DEFAULT: Default Power Limit
  * @PP_PWR_LIMIT_MAX: Maximum Power Limit
  */
-enum pp_power_limit_level
-{
+enum pp_power_limit_level {
 	PP_PWR_LIMIT_MIN = -1,
 	PP_PWR_LIMIT_CURRENT,
 	PP_PWR_LIMIT_DEFAULT,
@@ -260,8 +260,7 @@ enum pp_power_limit_level
  * @PP_PWR_TYPE_FAST: manages the ~10 ms moving average of APU power,
  * where supported.
  */
-enum pp_power_type
-{
+enum pp_power_type {
 	PP_PWR_TYPE_SUSTAINED,
 	PP_PWR_TYPE_FAST,
 };
@@ -422,7 +421,7 @@ struct amd_pm_funcs {
 	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
-	bool (*get_asic_baco_capability)(void *handle);
+	int (*get_asic_baco_capability)(void *handle);
 	int (*get_asic_baco_state)(void *handle, int *state);
 	int (*set_asic_baco_state)(void *handle, int state);
 	int (*get_ppfeature_status)(void *handle, char *buf);

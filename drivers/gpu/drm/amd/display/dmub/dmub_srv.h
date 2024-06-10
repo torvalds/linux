@@ -71,12 +71,20 @@
 extern "C" {
 #endif
 
+#define DMUB_PC_SNAPSHOT_COUNT 10
+
 /* Forward declarations */
 struct dmub_srv;
 struct dmub_srv_common_regs;
 struct dmub_srv_dcn31_regs;
 
 struct dmcub_trace_buf_entry;
+
+/* enum dmub_window_memory_type - memory location type specification for windows */
+enum dmub_window_memory_type {
+	DMUB_WINDOW_MEMORY_TYPE_FB = 0,
+	DMUB_WINDOW_MEMORY_TYPE_GART
+};
 
 /* enum dmub_status - return code for dmcub functions */
 enum dmub_status {
@@ -106,6 +114,7 @@ enum dmub_asic {
 	DMUB_ASIC_DCN32,
 	DMUB_ASIC_DCN321,
 	DMUB_ASIC_DCN35,
+	DMUB_ASIC_DCN351,
 	DMUB_ASIC_MAX,
 };
 
@@ -119,6 +128,7 @@ enum dmub_window_id {
 	DMUB_WINDOW_5_TRACEBUFF,
 	DMUB_WINDOW_6_FW_STATE,
 	DMUB_WINDOW_7_SCRATCH_MEM,
+	DMUB_WINDOW_SHARED_STATE,
 	DMUB_WINDOW_TOTAL,
 };
 
@@ -203,7 +213,7 @@ struct dmub_srv_region_params {
 	uint32_t vbios_size;
 	const uint8_t *fw_inst_const;
 	const uint8_t *fw_bss_data;
-	bool is_mailbox_in_inbox;
+	const enum dmub_window_memory_type *window_memory_type;
 };
 
 /**
@@ -223,7 +233,7 @@ struct dmub_srv_region_params {
  */
 struct dmub_srv_region_info {
 	uint32_t fb_size;
-	uint32_t inbox_size;
+	uint32_t gart_size;
 	uint8_t num_regions;
 	struct dmub_region regions[DMUB_WINDOW_TOTAL];
 };
@@ -239,9 +249,10 @@ struct dmub_srv_region_info {
 struct dmub_srv_memory_params {
 	const struct dmub_srv_region_info *region_info;
 	void *cpu_fb_addr;
-	void *cpu_inbox_addr;
+	void *cpu_gart_addr;
 	uint64_t gpu_fb_addr;
-	uint64_t gpu_inbox_addr;
+	uint64_t gpu_gart_addr;
+	const enum dmub_window_memory_type *window_memory_type;
 };
 
 /**
@@ -286,8 +297,20 @@ struct dmub_srv_hw_params {
 	bool dpia_hpd_int_enable_supported;
 	bool disable_clock_gate;
 	bool disallow_dispclk_dppclk_ds;
+	bool ips_sequential_ono;
 	enum dmub_memory_access_type mem_access_type;
 	enum dmub_ips_disable_type disable_ips;
+};
+
+/**
+ * struct dmub_srv_debug - Debug info for dmub_srv
+ * @timeout_occured: Indicates a timeout occured on any message from driver to dmub
+ * @timeout_cmd: first cmd sent from driver that timed out - subsequent timeouts are not stored
+ */
+struct dmub_srv_debug {
+	bool timeout_occured;
+	union dmub_rb_cmd timeout_cmd;
+	unsigned long long timestamp;
 };
 
 /**
@@ -297,7 +320,7 @@ struct dmub_srv_hw_params {
 struct dmub_diagnostic_data {
 	uint32_t dmcub_version;
 	uint32_t scratch[17];
-	uint32_t pc;
+	uint32_t pc[DMUB_PC_SNAPSHOT_COUNT];
 	uint32_t undefined_address_fault_addr;
 	uint32_t inst_fetch_fault_addr;
 	uint32_t data_write_fault_addr;
@@ -308,6 +331,7 @@ struct dmub_diagnostic_data {
 	uint32_t inbox0_wptr;
 	uint32_t inbox0_size;
 	uint32_t gpint_datain0;
+	struct dmub_srv_debug timeout_info;
 	uint8_t is_dmcub_enabled : 1;
 	uint8_t is_dmcub_soft_reset : 1;
 	uint8_t is_dmcub_secure_reset : 1;
@@ -361,7 +385,8 @@ struct dmub_srv_hw_funcs {
 			      const struct dmub_window *cw3,
 			      const struct dmub_window *cw4,
 			      const struct dmub_window *cw5,
-			      const struct dmub_window *cw6);
+			      const struct dmub_window *cw6,
+			      const struct dmub_window *region6);
 
 	void (*setup_mailbox)(struct dmub_srv *dmub,
 			      const struct dmub_region *inbox1);
@@ -443,7 +468,6 @@ struct dmub_srv_create_params {
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs *hw_funcs;
 	void *user_ctx;
-	struct dc_context *dc_ctx;
 	enum dmub_asic asic;
 	uint32_t fw_version;
 	bool is_virtual;
@@ -455,6 +479,7 @@ struct dmub_srv_create_params {
  * @user_ctx: user provided context for the dmub_srv
  * @fw_version: the current firmware version, if any
  * @is_virtual: false if hardware support only
+ * @shared_state: dmub shared state between firmware and driver
  * @fw_state: dmub firmware state pointer
  */
 struct dmub_srv {
@@ -463,6 +488,7 @@ struct dmub_srv {
 	uint32_t fw_version;
 	bool is_virtual;
 	struct dmub_fb scratch_mem_fb;
+	volatile struct dmub_shared_state_feature_block *shared_state;
 	volatile const struct dmub_fw_state *fw_state;
 
 	/* private: internal use only */
@@ -495,6 +521,7 @@ struct dmub_srv {
 	struct dmub_visual_confirm_color visual_confirm_color;
 
 	enum dmub_srv_power_state_type power_state;
+	struct dmub_srv_debug debug;
 };
 
 /**

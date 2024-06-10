@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -127,14 +126,12 @@ static const struct of_device_id st_accel_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, st_accel_of_match);
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id st_accel_acpi_match[] = {
 	{"SMO8840", (kernel_ulong_t)LIS2DH12_ACCEL_DEV_NAME},
 	{"SMO8A90", (kernel_ulong_t)LNG2DM_ACCEL_DEV_NAME},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, st_accel_acpi_match);
-#endif
 
 static const struct i2c_device_id st_accel_id_table[] = {
 	{ LSM303DLH_ACCEL_DEV_NAME },
@@ -204,7 +201,7 @@ static struct i2c_driver st_accel_driver = {
 	.driver = {
 		.name = "st-accel-i2c",
 		.of_match_table = st_accel_of_match,
-		.acpi_match_table = ACPI_PTR(st_accel_acpi_match),
+		.acpi_match_table = st_accel_acpi_match,
 	},
 	.probe = st_accel_i2c_probe,
 	.id_table = st_accel_id_table,

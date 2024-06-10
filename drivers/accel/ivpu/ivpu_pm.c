@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <linux/highmem.h>
@@ -22,7 +22,7 @@
 
 static bool ivpu_disable_recovery;
 module_param_named_unsafe(disable_recovery, ivpu_disable_recovery, bool, 0644);
-MODULE_PARM_DESC(disable_recovery, "Disables recovery when VPU hang is detected");
+MODULE_PARM_DESC(disable_recovery, "Disables recovery when NPU hang is detected");
 
 static unsigned long ivpu_tdr_timeout_ms;
 module_param_named(tdr_timeout_ms, ivpu_tdr_timeout_ms, ulong, 0644);
@@ -58,14 +58,11 @@ static int ivpu_suspend(struct ivpu_device *vdev)
 {
 	int ret;
 
-	/* Save PCI state before powering down as it sometimes gets corrupted if NPU hangs */
-	pci_save_state(to_pci_dev(vdev->drm.dev));
+	ivpu_prepare_for_reset(vdev);
 
 	ret = ivpu_shutdown(vdev);
 	if (ret)
-		ivpu_err(vdev, "Failed to shutdown VPU: %d\n", ret);
-
-	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
+		ivpu_err(vdev, "Failed to shutdown NPU: %d\n", ret);
 
 	return ret;
 }
@@ -74,10 +71,10 @@ static int ivpu_resume(struct ivpu_device *vdev)
 {
 	int ret;
 
-	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D0);
-	pci_restore_state(to_pci_dev(vdev->drm.dev));
-
 retry:
+	pci_restore_state(to_pci_dev(vdev->drm.dev));
+	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D0);
+
 	ret = ivpu_hw_power_up(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to power up HW: %d\n", ret);
@@ -100,6 +97,7 @@ err_mmu_disable:
 	ivpu_mmu_disable(vdev);
 err_power_down:
 	ivpu_hw_power_down(vdev);
+	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 
 	if (!ivpu_fw_is_cold_boot(vdev)) {
 		ivpu_pm_prepare_cold_boot(vdev);
@@ -118,11 +116,11 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 	char *evt[2] = {"IVPU_PM_EVENT=IVPU_RECOVER", NULL};
 	int ret;
 
-	ivpu_err(vdev, "Recovering the VPU (reset #%d)\n", atomic_read(&vdev->pm->reset_counter));
+	ivpu_err(vdev, "Recovering the NPU (reset #%d)\n", atomic_read(&vdev->pm->reset_counter));
 
 	ret = pm_runtime_resume_and_get(vdev->drm.dev);
 	if (ret)
-		ivpu_err(vdev, "Failed to resume VPU: %d\n", ret);
+		ivpu_err(vdev, "Failed to resume NPU: %d\n", ret);
 
 	ivpu_fw_log_dump(vdev);
 
@@ -260,10 +258,10 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 
 	ret = ivpu_suspend(vdev);
 	if (ret)
-		ivpu_err(vdev, "Failed to set suspend VPU: %d\n", ret);
+		ivpu_err(vdev, "Failed to suspend NPU: %d\n", ret);
 
 	if (!hw_is_idle) {
-		ivpu_err(vdev, "VPU failed to enter idle, force suspended.\n");
+		ivpu_err(vdev, "NPU failed to enter idle, force suspended.\n");
 		ivpu_fw_log_dump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
@@ -309,7 +307,7 @@ int ivpu_rpm_get_if_active(struct ivpu_device *vdev)
 {
 	int ret;
 
-	ret = pm_runtime_get_if_active(vdev->drm.dev, false);
+	ret = pm_runtime_get_if_in_use(vdev->drm.dev);
 	drm_WARN_ON(&vdev->drm, ret < 0);
 
 	return ret;

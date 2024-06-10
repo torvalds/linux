@@ -242,6 +242,7 @@ static struct tc_action_ops act_connmark_ops = {
 	.cleanup	=	tcf_connmark_cleanup,
 	.size		=	sizeof(struct tcf_connmark_info),
 };
+MODULE_ALIAS_NET_ACT("connmark");
 
 static __net_init int connmark_init_net(struct net *net)
 {

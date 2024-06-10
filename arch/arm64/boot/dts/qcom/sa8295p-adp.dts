@@ -108,6 +108,13 @@
 			};
 		};
 	};
+
+	reserved-memory {
+		gpu_mem: gpu-mem@8bf00000 {
+			reg = <0 0x8bf00000 0 0x2000>;
+			no-map;
+		};
+	};
 };
 
 &apps_rsc {
@@ -263,6 +270,48 @@
 };
 
 &dispcc1 {
+	status = "okay";
+};
+
+&i2c12 {
+	pinctrl-0 = <&qup1_i2c4_state>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	vdd_gfx: regulator@39 {
+		compatible = "maxim,max20411";
+		reg = <0x39>;
+
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+
+		enable-gpios = <&pmm8540a_gpios 2 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&max20411_en>;
+		pinctrl-names = "default";
+	};
+};
+
+&gpucc {
+	vdd-gfx-supply = <&vdd_gfx>;
+	status = "okay";
+};
+
+&gmu {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+
+	zap-shader {
+		memory-region = <&gpu_mem>;
+		firmware-name = "qcom/sa8295p/a690_zap.mbn";
+	};
+};
+
+&gpu_smmu {
 	status = "okay";
 };
 
@@ -476,6 +525,10 @@
 	status = "okay";
 };
 
+&qup1 {
+	status = "okay";
+};
+
 &qup2 {
 	status = "okay";
 };
@@ -636,6 +689,14 @@
 
 /* PINCTRL */
 
+&pmm8540a_gpios {
+	max20411_en: max20411-en-state {
+		pins = "gpio2";
+		function = "normal";
+		output-enable;
+	};
+};
+
 &tlmm {
 	pcie2a_default: pcie2a-default-state {
 		clkreq-n-pins {
@@ -727,5 +788,12 @@
 			drive-strength = <2>;
 			bias-pull-up;
 		};
+	};
+
+	qup1_i2c4_state: qup1-i2c4-state {
+		pins = "gpio0", "gpio1";
+		function = "qup12";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 };

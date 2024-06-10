@@ -87,7 +87,7 @@ struct mctp_sock {
 };
 
 /* Key for matching incoming packets to sockets or reassembly contexts.
- * Packets are matched on (src,dest,tag).
+ * Packets are matched on (peer EID, local EID, tag).
  *
  * Lifetime / locking requirements:
  *
@@ -133,6 +133,7 @@ struct mctp_sock {
  *    - through an expiry timeout, on a per-socket timer
  */
 struct mctp_sk_key {
+	unsigned int	net;
 	mctp_eid_t	peer_addr;
 	mctp_eid_t	local_addr; /* MCTP_ADDR_ANY for local owned tags */
 	__u8		tag; /* incoming tag match; invert TO for local */
@@ -255,7 +256,8 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 
 void mctp_key_unref(struct mctp_sk_key *key);
 struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
-					 mctp_eid_t daddr, mctp_eid_t saddr,
+					 unsigned int netid,
+					 mctp_eid_t local, mctp_eid_t peer,
 					 bool manual, u8 *tagp);
 
 /* routing <--> device interface */

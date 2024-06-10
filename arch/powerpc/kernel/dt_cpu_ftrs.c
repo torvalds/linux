@@ -458,6 +458,14 @@ static int __init feat_enable_mce_power10(struct dt_cpu_feature *f)
 	return 1;
 }
 
+static int __init feat_enable_mce_power11(struct dt_cpu_feature *f)
+{
+	cur_cpu_spec->platform = "power11";
+	cur_cpu_spec->machine_check_early = __machine_check_early_realmode_p10;
+
+	return 1;
+}
+
 static int __init feat_enable_tm(struct dt_cpu_feature *f)
 {
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -648,8 +656,10 @@ static struct dt_cpu_feature_match __initdata
 	{"pc-relative-addressing", feat_enable, 0},
 	{"machine-check-power9", feat_enable_mce_power9, 0},
 	{"machine-check-power10", feat_enable_mce_power10, 0},
+	{"machine-check-power11", feat_enable_mce_power11, 0},
 	{"performance-monitor-power9", feat_enable_pmu_power9, 0},
 	{"performance-monitor-power10", feat_enable_pmu_power10, 0},
+	{"performance-monitor-power11", feat_enable_pmu_power10, 0},
 	{"event-based-branch-v3", feat_enable, 0},
 	{"random-number-generator", feat_enable, 0},
 	{"system-call-vectored", feat_disable, 0},

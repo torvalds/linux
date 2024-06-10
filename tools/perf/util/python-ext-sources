@@ -31,6 +31,7 @@ util/counts.c
 util/print_binary.c
 util/strlist.c
 util/trace-event.c
+util/trace-event-parse.c
 ../lib/rbtree.c
 util/string.c
 util/symbol_fprintf.c

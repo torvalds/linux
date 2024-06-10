@@ -21,6 +21,7 @@
 #define LAN743X_PTP_N_EXTTS		4
 #define LAN743X_PTP_N_PPS		0
 #define PCI11X1X_PTP_IO_MAX_CHANNELS	8
+#define PTP_CMD_CTL_TIMEOUT_CNT		50
 
 struct lan743x_adapter;
 

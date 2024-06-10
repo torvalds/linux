@@ -460,11 +460,11 @@ static int x25_getsockopt(struct socket *sock, int level, int optname,
 	if (get_user(len, optlen))
 		goto out;
 
-	len = min_t(unsigned int, len, sizeof(int));
-
 	rc = -EINVAL;
 	if (len < 0)
 		goto out;
+
+	len = min_t(unsigned int, len, sizeof(int));
 
 	rc = -EFAULT;
 	if (put_user(len, optlen))
@@ -871,8 +871,8 @@ static int x25_wait_for_data(struct sock *sk, long timeout)
 	return rc;
 }
 
-static int x25_accept(struct socket *sock, struct socket *newsock, int flags,
-		      bool kern)
+static int x25_accept(struct socket *sock, struct socket *newsock,
+		      struct proto_accept_arg *arg)
 {
 	struct sock *sk = sock->sk;
 	struct sock *newsk;

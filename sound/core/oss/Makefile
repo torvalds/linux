@@ -4,7 +4,7 @@
 # Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
 #
 
-snd-mixer-oss-objs := mixer_oss.o
+snd-mixer-oss-y := mixer_oss.o
 
 snd-pcm-oss-y := pcm_oss.o
 snd-pcm-oss-$(CONFIG_SND_PCM_OSS_PLUGINS) += pcm_plugin.o \

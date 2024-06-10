@@ -75,7 +75,6 @@ patternProperties:
           in the PMIC-specific files in include/dt-bindings/iio/.
 
       label:
-        $ref: /schemas/types.yaml#/definitions/string
         description: |
             ADC input of the platform as seen in the schematics.
             For thermistor inputs connected to generic AMUX or GPIO inputs

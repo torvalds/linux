@@ -5,7 +5,9 @@
  * Register definitions taken from original Realtek rtl8723au driver
  */
 
-#include <asm/byteorder.h>
+#include <linux/average.h>
+#include <linux/usb.h>
+#include <net/mac80211.h>
 
 #define RTL8XXXU_DEBUG_REG_WRITE	0x01
 #define RTL8XXXU_DEBUG_REG_READ		0x02
@@ -119,6 +121,15 @@ enum rtl8xxxu_rx_type {
 	RX_TYPE_DATA_PKT = 0,
 	RX_TYPE_C2H = 1,
 	RX_TYPE_ERROR = -1
+};
+
+enum rtl8xxxu_rx_desc_enc {
+	RX_DESC_ENC_NONE	= 0,
+	RX_DESC_ENC_WEP40	= 1,
+	RX_DESC_ENC_TKIP_WO_MIC	= 2,
+	RX_DESC_ENC_TKIP_MIC	= 3,
+	RX_DESC_ENC_AES		= 4,
+	RX_DESC_ENC_WEP104	= 5,
 };
 
 struct rtl8xxxu_rxdesc16 {
@@ -498,6 +509,7 @@ struct rtl8xxxu_txdesc40 {
 #define DESC_RATE_ID_SHIFT		16
 #define DESC_RATE_ID_MASK		0xf
 #define TXDESC_NAVUSEHDR		BIT(20)
+#define TXDESC_EN_DESC_ID		BIT(21)
 #define TXDESC_SEC_RC4			0x00400000
 #define TXDESC_SEC_AES			0x00c00000
 #define TXDESC_PKT_OFFSET_SHIFT		26
@@ -1774,6 +1786,8 @@ struct rtl8xxxu_cfo_tracking {
 #define RTL8XXXU_HW_LED_CONTROL	2
 #define RTL8XXXU_MAX_MAC_ID_NUM	128
 #define RTL8XXXU_BC_MC_MACID	0
+#define RTL8XXXU_BC_MC_MACID1	1
+#define RTL8XXXU_MAX_SEC_CAM_NUM	64
 
 struct rtl8xxxu_priv {
 	struct ieee80211_hw *hw;
@@ -1855,6 +1869,8 @@ struct rtl8xxxu_priv {
 	int next_mbox;
 	int nr_out_eps;
 
+	/* Ensure no added or deleted stas while iterating */
+	struct mutex sta_mutex;
 	struct mutex h2c_mutex;
 	/* Protect the indirect register accesses of RTL8710BU. */
 	struct mutex syson_indirect_access_mutex;
@@ -1889,18 +1905,14 @@ struct rtl8xxxu_priv {
 	u8 pi_enabled:1;
 	u8 no_pape:1;
 	u8 int_buf[USB_INTR_CONTENT_LENGTH];
-	u8 rssi_level;
 	DECLARE_BITMAP(tx_aggr_started, IEEE80211_NUM_TIDS);
 	DECLARE_BITMAP(tid_tx_operational, IEEE80211_NUM_TIDS);
-	/*
-	 * Only one virtual interface permitted because only STA mode
-	 * is supported and no iface_combinations are provided.
-	 */
-	struct ieee80211_vif *vif;
+
+	struct ieee80211_vif *vifs[2];
 	struct delayed_work ra_watchdog;
 	struct work_struct c2hcmd_work;
 	struct sk_buff_head c2hcmd_queue;
-	struct work_struct update_beacon_work;
+	struct delayed_work update_beacon_work;
 	struct rtl8xxxu_btcoex bt_coex;
 	struct rtl8xxxu_ra_report ra_report;
 	struct rtl8xxxu_cfo_tracking cfo_tracking;
@@ -1910,13 +1922,23 @@ struct rtl8xxxu_priv {
 	char led_name[32];
 	struct led_classdev led_cdev;
 	DECLARE_BITMAP(mac_id_map, RTL8XXXU_MAX_MAC_ID_NUM);
+	DECLARE_BITMAP(cam_map, RTL8XXXU_MAX_SEC_CAM_NUM);
 };
+
+DECLARE_EWMA(rssi, 10, 16);
 
 struct rtl8xxxu_sta_info {
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
 
 	u8 macid;
+	struct ewma_rssi avg_rssi;
+	u8 rssi_level;
+};
+
+struct rtl8xxxu_vif {
+	int port_num;
+	u8 hw_key_idx;
 };
 
 struct rtl8xxxu_rx_urb {
@@ -1986,11 +2008,13 @@ struct rtl8xxxu_fileops {
 	u8 init_reg_rxfltmap:1;
 	u8 init_reg_pkt_life_time:1;
 	u8 init_reg_hmtfr:1;
+	u8 supports_concurrent:1;
 	u8 ampdu_max_time;
 	u8 ustime_tsf_edca;
 	u16 max_aggr_num;
 	u8 supports_ap:1;
 	u16 max_macid_num;
+	u16 max_sec_cam_num;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
 	u32 adda_2t_path_on_a;
@@ -2008,7 +2032,6 @@ struct rtl8xxxu_fileops {
 
 extern int rtl8xxxu_debug;
 
-extern const struct rtl8xxxu_reg8val rtl8xxxu_gen1_mac_init_table[];
 extern const u32 rtl8xxxu_iqk_phy_iq_bb_reg[];
 u8 rtl8xxxu_read8(struct rtl8xxxu_priv *priv, u16 addr);
 u16 rtl8xxxu_read16(struct rtl8xxxu_priv *priv, u16 addr);

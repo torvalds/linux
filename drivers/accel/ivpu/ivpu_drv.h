@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __IVPU_DRV_H__
@@ -35,6 +35,9 @@
 #define IVPU_RESERVED_CONTEXT_MMU_SSID 1
 #define IVPU_USER_CONTEXT_MIN_SSID     2
 #define IVPU_USER_CONTEXT_MAX_SSID     (IVPU_USER_CONTEXT_MIN_SSID + 63)
+
+#define IVPU_MIN_DB 1
+#define IVPU_MAX_DB 255
 
 #define IVPU_NUM_ENGINES 2
 
@@ -87,7 +90,6 @@
 struct ivpu_wa_table {
 	bool punit_disabled;
 	bool clear_runtime_mem;
-	bool d3hot_after_power_off;
 	bool interrupt_clear_with_0;
 	bool disable_clock_relinquish;
 	bool disable_d0i3_msg;
@@ -118,6 +120,8 @@ struct ivpu_device {
 	struct mutex context_list_lock; /* Protects user context addition/removal */
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
+
+	struct xarray db_xa;
 
 	struct mutex bo_list_lock; /* Protects bo_list */
 	struct list_head bo_list;
@@ -189,7 +193,7 @@ static inline int ivpu_hw_gen(struct ivpu_device *vdev)
 	case PCI_DEVICE_ID_LNL:
 		return IVPU_HW_40XX;
 	default:
-		ivpu_err(vdev, "Unknown VPU device\n");
+		ivpu_err(vdev, "Unknown NPU device\n");
 		return 0;
 	}
 }

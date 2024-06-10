@@ -495,7 +495,7 @@ static void serdes_am654_release(struct phy *x)
 }
 
 static struct phy *serdes_am654_xlate(struct device *dev,
-				      struct of_phandle_args *args)
+				      const struct of_phandle_args *args)
 {
 	struct serdes_am654 *am654_phy;
 	struct phy *phy;

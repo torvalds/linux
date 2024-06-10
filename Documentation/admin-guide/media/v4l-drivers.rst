@@ -16,6 +16,7 @@ Video4Linux (V4L) driver-specific documentation
 	imx
 	imx7
 	ipu3
+	ipu6-isys
 	ivtv
 	mgb4
 	omap3isp

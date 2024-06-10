@@ -19,6 +19,7 @@
 #define MLX5_IRQ_CTRL_SF_MAX 8
 /* min num of vectors for SFs to be enabled */
 #define MLX5_IRQ_VEC_COMP_BASE_SF 2
+#define MLX5_IRQ_VEC_COMP_BASE 1
 
 #define MLX5_EQ_SHARE_IRQ_MAX_COMP (8)
 #define MLX5_EQ_SHARE_IRQ_MAX_CTRL (UINT_MAX)
@@ -246,6 +247,7 @@ static void irq_set_name(struct mlx5_irq_pool *pool, char *name, int vecidx)
 		return;
 	}
 
+	vecidx -= MLX5_IRQ_VEC_COMP_BASE;
 	snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", vecidx);
 }
 
@@ -506,58 +508,6 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
 }
 
 /**
- * mlx5_msix_alloc - allocate msix interrupt
- * @dev: mlx5 device from which to request
- * @handler: interrupt handler
- * @affdesc: affinity descriptor
- * @name: interrupt name
- *
- * Returns: struct msi_map with result encoded.
- * Note: the caller must make sure to release the irq by calling
- *       mlx5_msix_free() if shutdown was initiated.
- */
-struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
-			       irqreturn_t (*handler)(int, void *),
-			       const struct irq_affinity_desc *affdesc,
-			       const char *name)
-{
-	struct msi_map map;
-	int err;
-
-	if (!dev->pdev) {
-		map.virq = 0;
-		map.index = -EINVAL;
-		return map;
-	}
-
-	map = pci_msix_alloc_irq_at(dev->pdev, MSI_ANY_INDEX, affdesc);
-	if (!map.virq)
-		return map;
-
-	err = request_irq(map.virq, handler, 0, name, NULL);
-	if (err) {
-		mlx5_core_warn(dev, "err %d\n", err);
-		pci_msix_free_irq(dev->pdev, map);
-		map.virq = 0;
-		map.index = -ENOMEM;
-	}
-	return map;
-}
-EXPORT_SYMBOL(mlx5_msix_alloc);
-
-/**
- * mlx5_msix_free - free a previously allocated msix interrupt
- * @dev: mlx5 device associated with interrupt
- * @map: map previously returned by mlx5_msix_alloc()
- */
-void mlx5_msix_free(struct mlx5_core_dev *dev, struct msi_map map)
-{
-	free_irq(map.virq, NULL);
-	pci_msix_free_irq(dev->pdev, map);
-}
-EXPORT_SYMBOL(mlx5_msix_free);
-
-/**
  * mlx5_irq_release_vector - release one IRQ back to the system.
  * @irq: the irq to release.
  */
@@ -585,7 +535,7 @@ struct mlx5_irq *mlx5_irq_request_vector(struct mlx5_core_dev *dev, u16 cpu,
 	struct mlx5_irq_table *table = mlx5_irq_table_get(dev);
 	struct mlx5_irq_pool *pool = table->pcif_pool;
 	struct irq_affinity_desc af_desc;
-	int offset = 1;
+	int offset = MLX5_IRQ_VEC_COMP_BASE;
 
 	if (!pool->xa_num_irqs.max)
 		offset = 0;

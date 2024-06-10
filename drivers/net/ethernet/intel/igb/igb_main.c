@@ -106,8 +106,6 @@ static int igb_setup_all_rx_resources(struct igb_adapter *);
 static void igb_free_all_tx_resources(struct igb_adapter *);
 static void igb_free_all_rx_resources(struct igb_adapter *);
 static void igb_setup_mrqc(struct igb_adapter *);
-static int igb_probe(struct pci_dev *, const struct pci_device_id *);
-static void igb_remove(struct pci_dev *pdev);
 static void igb_init_queue_configuration(struct igb_adapter *adapter);
 static int igb_sw_init(struct igb_adapter *);
 int igb_open(struct net_device *);
@@ -178,20 +176,6 @@ static int igb_vf_configure(struct igb_adapter *adapter, int vf);
 static int igb_disable_sriov(struct pci_dev *dev, bool reinit);
 #endif
 
-static int igb_suspend(struct device *);
-static int igb_resume(struct device *);
-static int igb_runtime_suspend(struct device *dev);
-static int igb_runtime_resume(struct device *dev);
-static int igb_runtime_idle(struct device *dev);
-#ifdef CONFIG_PM
-static const struct dev_pm_ops igb_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(igb_suspend, igb_resume)
-	SET_RUNTIME_PM_OPS(igb_runtime_suspend, igb_runtime_resume,
-			igb_runtime_idle)
-};
-#endif
-static void igb_shutdown(struct pci_dev *);
-static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs);
 #ifdef CONFIG_IGB_DCA
 static int igb_notify_dca(struct notifier_block *, unsigned long, void *);
 static struct notifier_block dca_notifier = {
@@ -202,7 +186,7 @@ static struct notifier_block dca_notifier = {
 #endif
 #ifdef CONFIG_PCI_IOV
 static unsigned int max_vfs;
-module_param(max_vfs, uint, 0);
+module_param(max_vfs, uint, 0444);
 MODULE_PARM_DESC(max_vfs, "Maximum number of virtual functions to allocate per physical function");
 #endif /* CONFIG_PCI_IOV */
 
@@ -218,19 +202,6 @@ static const struct pci_error_handlers igb_err_handler = {
 };
 
 static void igb_init_dmac(struct igb_adapter *adapter, u32 pba);
-
-static struct pci_driver igb_driver = {
-	.name     = igb_driver_name,
-	.id_table = igb_pci_tbl,
-	.probe    = igb_probe,
-	.remove   = igb_remove,
-#ifdef CONFIG_PM
-	.driver.pm = &igb_pm_ops,
-#endif
-	.shutdown = igb_shutdown,
-	.sriov_configure = igb_pci_sriov_configure,
-	.err_handler = &igb_err_handler
-};
 
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Ethernet Network Driver");
@@ -646,6 +617,8 @@ struct net_device *igb_get_hw_dev(struct e1000_hw *hw)
 	struct igb_adapter *adapter = hw->back;
 	return adapter->netdev;
 }
+
+static struct pci_driver igb_driver;
 
 /**
  *  igb_init_module - Driver Registration Routine
@@ -2538,7 +2511,7 @@ igb_features_check(struct sk_buff *skb, struct net_device *dev,
 	unsigned int network_hdr_len, mac_hdr_len;
 
 	/* Make certain the headers can be described by a context descriptor */
-	mac_hdr_len = skb_network_header(skb) - skb->data;
+	mac_hdr_len = skb_network_offset(skb);
 	if (unlikely(mac_hdr_len > IGB_MAX_MAC_HDR_LEN))
 		return features & ~(NETIF_F_HW_CSUM |
 				    NETIF_F_SCTP_CRC |
@@ -2623,6 +2596,9 @@ static int igb_parse_cls_flower(struct igb_adapter *adapter,
 				   "Unsupported key used, only BASIC, CONTROL, ETH_ADDRS and VLAN are supported");
 		return -EOPNOTSUPP;
 	}
+
+	if (flow_rule_match_has_control_flags(rule, extack))
+		return -EOPNOTSUPP;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match;
@@ -6668,7 +6644,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 
 	netdev_dbg(netdev, "changing MTU from %d to %d\n",
 		   netdev->mtu, new_mtu);
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (netif_running(netdev))
 		igb_up(adapter);
@@ -6985,44 +6961,31 @@ static void igb_extts(struct igb_adapter *adapter, int tsintr_tt)
 static void igb_tsync_interrupt(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 ack = 0, tsicr = rd32(E1000_TSICR);
+	u32 tsicr = rd32(E1000_TSICR);
 	struct ptp_clock_event event;
 
 	if (tsicr & TSINTR_SYS_WRAP) {
 		event.type = PTP_CLOCK_PPS;
 		if (adapter->ptp_caps.pps)
 			ptp_clock_event(adapter->ptp_clock, &event);
-		ack |= TSINTR_SYS_WRAP;
 	}
 
 	if (tsicr & E1000_TSICR_TXTS) {
 		/* retrieve hardware timestamp */
 		schedule_work(&adapter->ptp_tx_work);
-		ack |= E1000_TSICR_TXTS;
 	}
 
-	if (tsicr & TSINTR_TT0) {
+	if (tsicr & TSINTR_TT0)
 		igb_perout(adapter, 0);
-		ack |= TSINTR_TT0;
-	}
 
-	if (tsicr & TSINTR_TT1) {
+	if (tsicr & TSINTR_TT1)
 		igb_perout(adapter, 1);
-		ack |= TSINTR_TT1;
-	}
 
-	if (tsicr & TSINTR_AUTT0) {
+	if (tsicr & TSINTR_AUTT0)
 		igb_extts(adapter, 0);
-		ack |= TSINTR_AUTT0;
-	}
 
-	if (tsicr & TSINTR_AUTT1) {
+	if (tsicr & TSINTR_AUTT1)
 		igb_extts(adapter, 1);
-		ack |= TSINTR_AUTT1;
-	}
-
-	/* acknowledge the interrupts */
-	wr32(E1000_TSICR, ack);
 }
 
 static irqreturn_t igb_msix_other(int irq, void *data)
@@ -9466,12 +9429,12 @@ static void igb_deliver_wake_packet(struct net_device *netdev)
 	netif_rx(skb);
 }
 
-static int __maybe_unused igb_suspend(struct device *dev)
+static int igb_suspend(struct device *dev)
 {
 	return __igb_shutdown(to_pci_dev(dev), NULL, 0);
 }
 
-static int __maybe_unused __igb_resume(struct device *dev, bool rpm)
+static int __igb_resume(struct device *dev, bool rpm)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -9527,12 +9490,12 @@ static int __maybe_unused __igb_resume(struct device *dev, bool rpm)
 	return err;
 }
 
-static int __maybe_unused igb_resume(struct device *dev)
+static int igb_resume(struct device *dev)
 {
 	return __igb_resume(dev, false);
 }
 
-static int __maybe_unused igb_runtime_idle(struct device *dev)
+static int igb_runtime_idle(struct device *dev)
 {
 	struct net_device *netdev = dev_get_drvdata(dev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -9543,12 +9506,12 @@ static int __maybe_unused igb_runtime_idle(struct device *dev)
 	return -EBUSY;
 }
 
-static int __maybe_unused igb_runtime_suspend(struct device *dev)
+static int igb_runtime_suspend(struct device *dev)
 {
 	return __igb_shutdown(to_pci_dev(dev), NULL, 1);
 }
 
-static int __maybe_unused igb_runtime_resume(struct device *dev)
+static int igb_runtime_resume(struct device *dev)
 {
 	return __igb_resume(dev, true);
 }
@@ -10170,4 +10133,20 @@ static void igb_nfc_filter_restore(struct igb_adapter *adapter)
 
 	spin_unlock(&adapter->nfc_lock);
 }
+
+static _DEFINE_DEV_PM_OPS(igb_pm_ops, igb_suspend, igb_resume,
+			  igb_runtime_suspend, igb_runtime_resume,
+			  igb_runtime_idle);
+
+static struct pci_driver igb_driver = {
+	.name     = igb_driver_name,
+	.id_table = igb_pci_tbl,
+	.probe    = igb_probe,
+	.remove   = igb_remove,
+	.driver.pm = pm_ptr(&igb_pm_ops),
+	.shutdown = igb_shutdown,
+	.sriov_configure = igb_pci_sriov_configure,
+	.err_handler = &igb_err_handler
+};
+
 /* igb_main.c */

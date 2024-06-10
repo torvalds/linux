@@ -222,15 +222,18 @@ struct fscrypt_inode_info {
 	struct fscrypt_prepared_key ci_enc_key;
 
 	/* True if ci_enc_key should be freed when this struct is freed */
-	bool ci_owns_key;
+	u8 ci_owns_key : 1;
 
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
 	/*
 	 * True if this inode will use inline encryption (blk-crypto) instead of
 	 * the traditional filesystem-layer encryption.
 	 */
-	bool ci_inlinecrypt;
+	u8 ci_inlinecrypt : 1;
 #endif
+
+	/* True if ci_dirhash_key is initialized */
+	u8 ci_dirhash_key_initialized : 1;
 
 	/*
 	 * log2 of the data unit size (granularity of contents encryption) of
@@ -241,6 +244,9 @@ struct fscrypt_inode_info {
 
 	/* Cached value: log2 of number of data units per FS block */
 	u8 ci_data_units_per_block_bits;
+
+	/* Hashed inode number.  Only set for IV_INO_LBLK_32 */
+	u32 ci_hashed_ino;
 
 	/*
 	 * Encryption mode used for this inode.  It corresponds to either the
@@ -276,16 +282,12 @@ struct fscrypt_inode_info {
 	 * the plaintext filenames -- currently just casefolded directories.
 	 */
 	siphash_key_t ci_dirhash_key;
-	bool ci_dirhash_key_initialized;
 
 	/* The encryption policy used by this inode */
 	union fscrypt_policy ci_policy;
 
 	/* This inode's nonce, copied from the fscrypt_context */
 	u8 ci_nonce[FSCRYPT_FILE_NONCE_SIZE];
-
-	/* Hashed inode number.  Only set for IV_INO_LBLK_32 */
-	u32 ci_hashed_ino;
 };
 
 typedef enum {

@@ -139,8 +139,13 @@ static bool adf_handle_ras_int(struct adf_accel_dev *accel_dev)
 
 	if (ras_ops->handle_interrupt &&
 	    ras_ops->handle_interrupt(accel_dev, &reset_required)) {
-		if (reset_required)
+		if (reset_required) {
 			dev_err(&GET_DEV(accel_dev), "Fatal error, reset required\n");
+			if (adf_notify_fatal_error(accel_dev))
+				dev_err(&GET_DEV(accel_dev),
+					"Failed to notify fatal error\n");
+		}
+
 		return true;
 	}
 
@@ -272,7 +277,7 @@ static int adf_isr_alloc_msix_vectors_data(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->pf.vf_info)
 		msix_num_entries += hw_data->num_banks;
 
-	irqs = kzalloc_node(msix_num_entries * sizeof(*irqs),
+	irqs = kcalloc_node(msix_num_entries, sizeof(*irqs),
 			    GFP_KERNEL, dev_to_node(&GET_DEV(accel_dev)));
 	if (!irqs)
 		return -ENOMEM;
@@ -374,8 +379,6 @@ EXPORT_SYMBOL_GPL(adf_isr_resource_alloc);
 
 /**
  * adf_init_misc_wq() - Init misc workqueue
- *
- * Function init workqueue 'qat_misc_wq' for general purpose.
  *
  * Return: 0 on success, error code otherwise.
  */

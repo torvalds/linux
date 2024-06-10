@@ -343,12 +343,12 @@ int
 i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_set_tiling *args = data;
 	struct drm_i915_gem_object *obj;
 	int err;
 
-	if (!to_gt(dev_priv)->ggtt->num_fences)
+	if (!to_gt(i915)->ggtt->num_fences)
 		return -EOPNOTSUPP;
 
 	obj = i915_gem_object_lookup(file, args->handle);
@@ -374,9 +374,9 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		args->stride = 0;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
-			args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_x;
+			args->swizzle_mode = to_gt(i915)->ggtt->bit_6_swizzle_x;
 		else
-			args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_y;
+			args->swizzle_mode = to_gt(i915)->ggtt->bit_6_swizzle_y;
 
 		/* Hide bit 17 swizzling from the user.  This prevents old Mesa
 		 * from aborting the application on sw fallbacks to bit 17,
@@ -427,11 +427,11 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file)
 {
 	struct drm_i915_gem_get_tiling *args = data;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 	int err = -ENOENT;
 
-	if (!to_gt(dev_priv)->ggtt->num_fences)
+	if (!to_gt(i915)->ggtt->num_fences)
 		return -EOPNOTSUPP;
 
 	rcu_read_lock();
@@ -447,10 +447,10 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->tiling_mode) {
 	case I915_TILING_X:
-		args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_x;
+		args->swizzle_mode = to_gt(i915)->ggtt->bit_6_swizzle_x;
 		break;
 	case I915_TILING_Y:
-		args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_y;
+		args->swizzle_mode = to_gt(i915)->ggtt->bit_6_swizzle_y;
 		break;
 	default:
 	case I915_TILING_NONE:
@@ -459,7 +459,7 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	}
 
 	/* Hide bit 17 from the user -- see comment in i915_gem_set_tiling */
-	if (dev_priv->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES)
+	if (i915->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES)
 		args->phys_swizzle_mode = I915_BIT_6_SWIZZLE_UNKNOWN;
 	else
 		args->phys_swizzle_mode = args->swizzle_mode;

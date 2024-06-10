@@ -1241,12 +1241,11 @@ error_free:
 	return rc;
 }
 
-static int virtio_uml_remove(struct platform_device *pdev)
+static void virtio_uml_remove(struct platform_device *pdev)
 {
 	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
 
 	unregister_virtio_device(&vu_dev->vdev);
-	return 0;
 }
 
 /* Command line device list */
@@ -1445,7 +1444,7 @@ static int virtio_uml_resume(struct platform_device *pdev)
 
 static struct platform_driver virtio_uml_driver = {
 	.probe = virtio_uml_probe,
-	.remove = virtio_uml_remove,
+	.remove_new = virtio_uml_remove,
 	.driver = {
 		.name = "virtio-uml",
 		.of_match_table = virtio_uml_match,

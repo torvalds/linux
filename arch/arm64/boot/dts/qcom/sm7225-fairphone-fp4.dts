@@ -68,6 +68,14 @@
 		};
 	};
 
+	/* Dummy regulator until PM6150L has LCDB VSP/VSN support */
+	lcdb_dummy: regulator-lcdb-dummy {
+		compatible = "regulator-fixed";
+		regulator-name = "lcdb_dummy";
+		regulator-min-microvolt = <5500000>;
+		regulator-max-microvolt = <5500000>;
+	};
+
 	reserved-memory {
 		/*
 		 * The rmtfs memory region in downstream is 'dynamically allocated'
@@ -116,7 +124,7 @@
 };
 
 &adsp {
-	firmware-name = "qcom/sm7225/fairphone4/adsp.mdt";
+	firmware-name = "qcom/sm7225/fairphone4/adsp.mbn";
 	status = "okay";
 };
 
@@ -361,7 +369,7 @@
 };
 
 &cdsp {
-	firmware-name = "qcom/sm7225/fairphone4/cdsp.mdt";
+	firmware-name = "qcom/sm7225/fairphone4/cdsp.mbn";
 	status = "okay";
 };
 
@@ -371,6 +379,14 @@
 
 &gpi_dma1 {
 	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
+&gpu_zap_shader {
+	firmware-name = "qcom/sm7225/fairphone4/a615_zap.mbn";
 };
 
 &i2c0 {
@@ -400,12 +416,49 @@
 &ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&pil_ipa_fw_mem>;
-	firmware-name = "qcom/sm7225/fairphone4/ipa_fws.mdt";
+	firmware-name = "qcom/sm7225/fairphone4/ipa_fws.mbn";
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l22a>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "djn,9a-3r063-1102b";
+		reg = <0>;
+
+		backlight = <&pm6150l_wled>;
+		reset-gpios = <&pm6150l_gpios 9 GPIO_ACTIVE_LOW>;
+
+		vdd1-supply = <&vreg_l1e>;
+		vsn-supply = <&lcdb_dummy>;
+		vsp-supply = <&lcdb_dummy>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l18a>;
 	status = "okay";
 };
 
 &mpss {
-	firmware-name = "qcom/sm7225/fairphone4/modem.mdt";
+	firmware-name = "qcom/sm7225/fairphone4/modem.mbn";
 	status = "okay";
 };
 

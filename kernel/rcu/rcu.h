@@ -522,11 +522,23 @@ static inline void show_rcu_tasks_gp_kthreads(void) {}
 
 #ifdef CONFIG_TASKS_RCU
 struct task_struct *get_rcu_tasks_gp_kthread(void);
+void rcu_tasks_get_gp_data(int *flags, unsigned long *gp_seq);
 #endif // # ifdef CONFIG_TASKS_RCU
 
 #ifdef CONFIG_TASKS_RUDE_RCU
 struct task_struct *get_rcu_tasks_rude_gp_kthread(void);
+void rcu_tasks_rude_get_gp_data(int *flags, unsigned long *gp_seq);
 #endif // # ifdef CONFIG_TASKS_RUDE_RCU
+
+#ifdef CONFIG_TASKS_TRACE_RCU
+void rcu_tasks_trace_get_gp_data(int *flags, unsigned long *gp_seq);
+#endif
+
+#ifdef CONFIG_TASKS_RCU_GENERIC
+void tasks_cblist_init_generic(void);
+#else /* #ifdef CONFIG_TASKS_RCU_GENERIC */
+static inline void tasks_cblist_init_generic(void) { }
+#endif /* #else #ifdef CONFIG_TASKS_RCU_GENERIC */
 
 #define RCU_SCHEDULER_INACTIVE	0
 #define RCU_SCHEDULER_INIT	1
@@ -543,16 +555,15 @@ enum rcutorture_type {
 };
 
 #if defined(CONFIG_RCU_LAZY)
-unsigned long rcu_lazy_get_jiffies_till_flush(void);
-void rcu_lazy_set_jiffies_till_flush(unsigned long j);
+unsigned long rcu_get_jiffies_lazy_flush(void);
+void rcu_set_jiffies_lazy_flush(unsigned long j);
 #else
-static inline unsigned long rcu_lazy_get_jiffies_till_flush(void) { return 0; }
-static inline void rcu_lazy_set_jiffies_till_flush(unsigned long j) { }
+static inline unsigned long rcu_get_jiffies_lazy_flush(void) { return 0; }
+static inline void rcu_set_jiffies_lazy_flush(unsigned long j) { }
 #endif
 
 #if defined(CONFIG_TREE_RCU)
-void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
-			    unsigned long *gp_seq);
+void rcutorture_get_gp_data(int *flags, unsigned long *gp_seq);
 void do_trace_rcu_torture_read(const char *rcutorturename,
 			       struct rcu_head *rhp,
 			       unsigned long secs,
@@ -560,8 +571,7 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 			       unsigned long c);
 void rcu_gp_set_torture_wait(int duration);
 #else
-static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
-					  int *flags, unsigned long *gp_seq)
+static inline void rcutorture_get_gp_data(int *flags, unsigned long *gp_seq)
 {
 	*flags = 0;
 	*gp_seq = 0;
@@ -581,20 +591,16 @@ static inline void rcu_gp_set_torture_wait(int duration) { }
 
 #ifdef CONFIG_TINY_SRCU
 
-static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
-					   struct srcu_struct *sp, int *flags,
+static inline void srcutorture_get_gp_data(struct srcu_struct *sp, int *flags,
 					   unsigned long *gp_seq)
 {
-	if (test_type != SRCU_FLAVOR)
-		return;
 	*flags = 0;
 	*gp_seq = sp->srcu_idx;
 }
 
 #elif defined(CONFIG_TREE_SRCU)
 
-void srcutorture_get_gp_data(enum rcutorture_type test_type,
-			     struct srcu_struct *sp, int *flags,
+void srcutorture_get_gp_data(struct srcu_struct *sp, int *flags,
 			     unsigned long *gp_seq);
 
 #endif
@@ -623,12 +629,7 @@ int rcu_get_gp_kthreads_prio(void);
 void rcu_fwd_progress_check(unsigned long j);
 void rcu_force_quiescent_state(void);
 extern struct workqueue_struct *rcu_gp_wq;
-#ifdef CONFIG_RCU_EXP_KTHREAD
 extern struct kthread_worker *rcu_exp_gp_kworker;
-extern struct kthread_worker *rcu_exp_par_gp_kworker;
-#else /* !CONFIG_RCU_EXP_KTHREAD */
-extern struct workqueue_struct *rcu_par_gp_wq;
-#endif /* CONFIG_RCU_EXP_KTHREAD */
 void rcu_gp_slow_register(atomic_t *rgssp);
 void rcu_gp_slow_unregister(atomic_t *rgssp);
 #endif /* #else #ifdef CONFIG_TINY_RCU */

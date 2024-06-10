@@ -45,28 +45,28 @@
 #define LNB_HIGH_FREQ		10600000	/* transition frequency */
 
 static unsigned int drop_tslock_prob_on_low_snr;
-module_param(drop_tslock_prob_on_low_snr, uint, 0);
+module_param(drop_tslock_prob_on_low_snr, uint, 0444);
 MODULE_PARM_DESC(drop_tslock_prob_on_low_snr,
 		 "Probability of losing the TS lock if the signal quality is bad");
 
 static unsigned int recover_tslock_prob_on_good_snr;
-module_param(recover_tslock_prob_on_good_snr, uint, 0);
+module_param(recover_tslock_prob_on_good_snr, uint, 0444);
 MODULE_PARM_DESC(recover_tslock_prob_on_good_snr,
 		 "Probability recovering the TS lock when the signal improves");
 
 static unsigned int mock_power_up_delay_msec;
-module_param(mock_power_up_delay_msec, uint, 0);
+module_param(mock_power_up_delay_msec, uint, 0444);
 MODULE_PARM_DESC(mock_power_up_delay_msec, "Simulate a power up delay");
 
 static unsigned int mock_tune_delay_msec;
-module_param(mock_tune_delay_msec, uint, 0);
+module_param(mock_tune_delay_msec, uint, 0444);
 MODULE_PARM_DESC(mock_tune_delay_msec, "Simulate a tune delay");
 
 static unsigned int vidtv_valid_dvb_t_freqs[NUM_VALID_TUNER_FREQS] = {
 	474000000
 };
 
-module_param_array(vidtv_valid_dvb_t_freqs, uint, NULL, 0);
+module_param_array(vidtv_valid_dvb_t_freqs, uint, NULL, 0444);
 MODULE_PARM_DESC(vidtv_valid_dvb_t_freqs,
 		 "Valid DVB-T frequencies to simulate, in Hz");
 
@@ -74,19 +74,19 @@ static unsigned int vidtv_valid_dvb_c_freqs[NUM_VALID_TUNER_FREQS] = {
 	474000000
 };
 
-module_param_array(vidtv_valid_dvb_c_freqs, uint, NULL, 0);
+module_param_array(vidtv_valid_dvb_c_freqs, uint, NULL, 0444);
 MODULE_PARM_DESC(vidtv_valid_dvb_c_freqs,
 		 "Valid DVB-C frequencies to simulate, in Hz");
 
 static unsigned int vidtv_valid_dvb_s_freqs[NUM_VALID_TUNER_FREQS] = {
 	11362000
 };
-module_param_array(vidtv_valid_dvb_s_freqs, uint, NULL, 0);
+module_param_array(vidtv_valid_dvb_s_freqs, uint, NULL, 0444);
 MODULE_PARM_DESC(vidtv_valid_dvb_s_freqs,
 		 "Valid DVB-S/S2 frequencies to simulate at Ku-Band, in kHz");
 
 static unsigned int max_frequency_shift_hz;
-module_param(max_frequency_shift_hz, uint, 0);
+module_param(max_frequency_shift_hz, uint, 0444);
 MODULE_PARM_DESC(max_frequency_shift_hz,
 		 "Maximum shift in HZ allowed when tuning in a channel");
 
@@ -96,24 +96,24 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nums);
  * Influences the signal acquisition time. See ISO/IEC 13818-1 : 2000. p. 113.
  */
 static unsigned int si_period_msec = 40;
-module_param(si_period_msec, uint, 0);
+module_param(si_period_msec, uint, 0444);
 MODULE_PARM_DESC(si_period_msec, "How often to send SI packets. Default: 40ms");
 
 static unsigned int pcr_period_msec = 40;
-module_param(pcr_period_msec, uint, 0);
+module_param(pcr_period_msec, uint, 0444);
 MODULE_PARM_DESC(pcr_period_msec,
 		 "How often to send PCR packets. Default: 40ms");
 
 static unsigned int mux_rate_kbytes_sec = 4096;
-module_param(mux_rate_kbytes_sec, uint, 0);
+module_param(mux_rate_kbytes_sec, uint, 0444);
 MODULE_PARM_DESC(mux_rate_kbytes_sec, "Mux rate: will pad stream if below");
 
 static unsigned int pcr_pid = 0x200;
-module_param(pcr_pid, uint, 0);
+module_param(pcr_pid, uint, 0444);
 MODULE_PARM_DESC(pcr_pid, "PCR PID for all channels: defaults to 0x200");
 
 static unsigned int mux_buf_sz_pkts;
-module_param(mux_buf_sz_pkts, uint, 0);
+module_param(mux_buf_sz_pkts, uint, 0444);
 MODULE_PARM_DESC(mux_buf_sz_pkts,
 		 "Size for the internal mux buffer in multiples of 188 bytes");
 

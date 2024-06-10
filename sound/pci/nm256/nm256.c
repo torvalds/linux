@@ -1356,7 +1356,6 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * APM event handler, so the card is properly reinitialized after a power
  * event.
@@ -1400,11 +1399,7 @@ static int nm256_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(nm256_pm, nm256_suspend, nm256_resume);
-#define NM256_PM_OPS	&nm256_pm
-#else
-#define NM256_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(nm256_pm, nm256_suspend, nm256_resume);
 
 static void snd_nm256_free(struct snd_card *card)
 {
@@ -1660,7 +1655,7 @@ static struct pci_driver nm256_driver = {
 	.id_table = snd_nm256_ids,
 	.probe = snd_nm256_probe,
 	.driver = {
-		.pm = NM256_PM_OPS,
+		.pm = &nm256_pm,
 	},
 };
 

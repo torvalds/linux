@@ -376,14 +376,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie2a_default>;
 
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie2a_phy {
 	vdda-phy-supply = <&vreg_l11a>;
 	vdda-pll-supply = <&vreg_l3a>;
 
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie3a {

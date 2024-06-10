@@ -23,6 +23,12 @@
 /* Max retries on the same chunk */
 #define MAX_IFS_RETRIES  5
 
+struct run_params {
+	struct ifs_data *ifsd;
+	union ifs_scan *activate;
+	union ifs_status status;
+};
+
 /*
  * Number of TSC cycles that a logical CPU will wait for the other
  * logical CPU on the core in the WRMSR(ACTIVATE_SCAN).
@@ -63,6 +69,19 @@ static const char * const scan_test_status[] = {
 
 static void message_not_tested(struct device *dev, int cpu, union ifs_status status)
 {
+	struct ifs_data *ifsd = ifs_get_data(dev);
+
+	/*
+	 * control_error is set when the microcode runs into a problem
+	 * loading the image from the reserved BIOS memory, or it has
+	 * been corrupted. Reloading the image may fix this issue.
+	 */
+	if (status.control_error) {
+		dev_warn(dev, "CPU(s) %*pbl: Scan controller error. Batch: %02x version: 0x%x\n",
+			 cpumask_pr_args(cpu_smt_mask(cpu)), ifsd->cur_batch, ifsd->loaded_version);
+		return;
+	}
+
 	if (status.error_code < ARRAY_SIZE(scan_test_status)) {
 		dev_info(dev, "CPU(s) %*pbl: SCAN operation did not start. %s\n",
 			 cpumask_pr_args(cpu_smt_mask(cpu)),
@@ -83,16 +102,6 @@ static void message_not_tested(struct device *dev, int cpu, union ifs_status sta
 static void message_fail(struct device *dev, int cpu, union ifs_status status)
 {
 	struct ifs_data *ifsd = ifs_get_data(dev);
-
-	/*
-	 * control_error is set when the microcode runs into a problem
-	 * loading the image from the reserved BIOS memory, or it has
-	 * been corrupted. Reloading the image may fix this issue.
-	 */
-	if (status.control_error) {
-		dev_err(dev, "CPU(s) %*pbl: could not execute from loaded scan image. Batch: %02x version: 0x%x\n",
-			cpumask_pr_args(cpu_smt_mask(cpu)), ifsd->cur_batch, ifsd->loaded_version);
-	}
 
 	/*
 	 * signature_error is set when the output from the scan chains does not
@@ -134,18 +143,55 @@ static bool can_restart(union ifs_status status)
 	return false;
 }
 
+#define SPINUNIT 100 /* 100 nsec */
+static atomic_t array_cpus_in;
+static atomic_t scan_cpus_in;
+
+/*
+ * Simplified cpu sibling rendezvous loop based on microcode loader __wait_for_cpus()
+ */
+static void wait_for_sibling_cpu(atomic_t *t, long long timeout)
+{
+	int cpu = smp_processor_id();
+	const struct cpumask *smt_mask = cpu_smt_mask(cpu);
+	int all_cpus = cpumask_weight(smt_mask);
+
+	atomic_inc(t);
+	while (atomic_read(t) < all_cpus) {
+		if (timeout < SPINUNIT)
+			return;
+		ndelay(SPINUNIT);
+		timeout -= SPINUNIT;
+		touch_nmi_watchdog();
+	}
+}
+
 /*
  * Execute the scan. Called "simultaneously" on all threads of a core
  * at high priority using the stop_cpus mechanism.
  */
 static int doscan(void *data)
 {
-	int cpu = smp_processor_id();
-	u64 *msrs = data;
+	int cpu = smp_processor_id(), start, stop;
+	struct run_params *params = data;
+	union ifs_status status;
+	struct ifs_data *ifsd;
 	int first;
+
+	ifsd = params->ifsd;
+
+	if (ifsd->generation) {
+		start = params->activate->gen2.start;
+		stop = params->activate->gen2.stop;
+	} else {
+		start = params->activate->gen0.start;
+		stop = params->activate->gen0.stop;
+	}
 
 	/* Only the first logical CPU on a core reports result */
 	first = cpumask_first(cpu_smt_mask(cpu));
+
+	wait_for_sibling_cpu(&scan_cpus_in, NSEC_PER_SEC);
 
 	/*
 	 * This WRMSR will wait for other HT threads to also write
@@ -155,12 +201,14 @@ static int doscan(void *data)
 	 * take up to 200 milliseconds (in the case where all chunks
 	 * are processed in a single pass) before it retires.
 	 */
-	wrmsrl(MSR_ACTIVATE_SCAN, msrs[0]);
+	wrmsrl(MSR_ACTIVATE_SCAN, params->activate->data);
+	rdmsrl(MSR_SCAN_STATUS, status.data);
 
-	if (cpu == first) {
-		/* Pass back the result of the scan */
-		rdmsrl(MSR_SCAN_STATUS, msrs[1]);
-	}
+	trace_ifs_status(ifsd->cur_batch, start, stop, status.data);
+
+	/* Pass back the result of the scan */
+	if (cpu == first)
+		params->status = status;
 
 	return 0;
 }
@@ -179,7 +227,7 @@ static void ifs_test_core(int cpu, struct device *dev)
 	struct ifs_data *ifsd;
 	int to_start, to_stop;
 	int status_chunk;
-	u64 msrvals[2];
+	struct run_params params;
 	int retries;
 
 	ifsd = ifs_get_data(dev);
@@ -189,6 +237,8 @@ static void ifs_test_core(int cpu, struct device *dev)
 	activate.sigmce = 0;
 	to_start = 0;
 	to_stop = ifsd->valid_chunks - 1;
+
+	params.ifsd = ifs_get_data(dev);
 
 	if (ifsd->generation) {
 		activate.gen2.start = to_start;
@@ -207,12 +257,11 @@ static void ifs_test_core(int cpu, struct device *dev)
 			break;
 		}
 
-		msrvals[0] = activate.data;
-		stop_core_cpuslocked(cpu, doscan, msrvals);
+		params.activate = &activate;
+		atomic_set(&scan_cpus_in, 0);
+		stop_core_cpuslocked(cpu, doscan, &params);
 
-		status.data = msrvals[1];
-
-		trace_ifs_status(cpu, to_start, to_stop, status.data);
+		status = params.status;
 
 		/* Some cases can be retried, give up for others */
 		if (!can_restart(status))
@@ -239,36 +288,14 @@ static void ifs_test_core(int cpu, struct device *dev)
 	/* Update status for this core */
 	ifsd->scan_details = status.data;
 
-	if (status.control_error || status.signature_error) {
+	if (status.signature_error) {
 		ifsd->status = SCAN_TEST_FAIL;
 		message_fail(dev, cpu, status);
-	} else if (status.error_code) {
+	} else if (status.control_error || status.error_code) {
 		ifsd->status = SCAN_NOT_TESTED;
 		message_not_tested(dev, cpu, status);
 	} else {
 		ifsd->status = SCAN_TEST_PASS;
-	}
-}
-
-#define SPINUNIT 100 /* 100 nsec */
-static atomic_t array_cpus_out;
-
-/*
- * Simplified cpu sibling rendezvous loop based on microcode loader __wait_for_cpus()
- */
-static void wait_for_sibling_cpu(atomic_t *t, long long timeout)
-{
-	int cpu = smp_processor_id();
-	const struct cpumask *smt_mask = cpu_smt_mask(cpu);
-	int all_cpus = cpumask_weight(smt_mask);
-
-	atomic_inc(t);
-	while (atomic_read(t) < all_cpus) {
-		if (timeout < SPINUNIT)
-			return;
-		ndelay(SPINUNIT);
-		timeout -= SPINUNIT;
-		touch_nmi_watchdog();
 	}
 }
 
@@ -277,6 +304,8 @@ static int do_array_test(void *data)
 	union ifs_array *command = data;
 	int cpu = smp_processor_id();
 	int first;
+
+	wait_for_sibling_cpu(&array_cpus_in, NSEC_PER_SEC);
 
 	/*
 	 * Only one logical CPU on a core needs to trigger the Array test via MSR write.
@@ -288,9 +317,6 @@ static int do_array_test(void *data)
 		/* Pass back the result of the test */
 		rdmsrl(MSR_ARRAY_BIST, command->data);
 	}
-
-	/* Tests complete faster if the sibling is spinning here */
-	wait_for_sibling_cpu(&array_cpus_out, NSEC_PER_SEC);
 
 	return 0;
 }
@@ -312,7 +338,7 @@ static void ifs_array_test_core(int cpu, struct device *dev)
 			timed_out = true;
 			break;
 		}
-		atomic_set(&array_cpus_out, 0);
+		atomic_set(&array_cpus_in, 0);
 		stop_core_cpuslocked(cpu, do_array_test, &command);
 
 		if (command.ctrl_result)

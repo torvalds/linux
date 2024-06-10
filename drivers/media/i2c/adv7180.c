@@ -1057,11 +1057,11 @@ static int adv7182_init(struct adv7180_state *state)
 					      ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
 					      0x17);
 			}
-		}
-		else
+		} else {
 			adv7180_write(state,
 				      ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
 				      0x07);
+		}
 		adv7180_write(state, ADV7180_REG_OUTPUT_CONTROL, 0x0c);
 		adv7180_write(state, ADV7180_REG_CTRL_2, 0x40);
 	}
@@ -1486,7 +1486,7 @@ static int adv7180_probe(struct i2c_client *client)
 	if (ret)
 		goto err_media_entity_cleanup;
 
-	if (state->irq) {
+	if (state->irq > 0) {
 		ret = request_threaded_irq(client->irq, NULL, adv7180_irq,
 					   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
 					   KBUILD_MODNAME, state);

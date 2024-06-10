@@ -1029,9 +1029,11 @@ static void __init pseries_add_hw_description(void)
 		return;
 	}
 
-	if (of_property_read_bool(of_root, "ibm,powervm-partition") ||
-	    of_property_read_bool(of_root, "ibm,fw-net-version"))
+	dn = of_find_node_by_path("/");
+	if (of_property_read_bool(dn, "ibm,powervm-partition") ||
+	    of_property_read_bool(dn, "ibm,fw-net-version"))
 		seq_buf_printf(&ppc_hw_desc, "hv:phyp ");
+	of_node_put(dn);
 }
 
 /*
@@ -1091,7 +1093,11 @@ static void pseries_power_off(void)
 
 static int __init pSeries_probe(void)
 {
-	if (!of_node_is_type(of_root, "chrp"))
+	struct device_node *root = of_find_node_by_path("/");
+	bool ret = of_node_is_type(root, "chrp");
+
+	of_node_put(root);
+	if (!ret)
 		return 0;
 
 	/* Cell blades firmware claims to be chrp while it's not. Until this

@@ -2301,7 +2301,7 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 	netdev_update_features(netdev);
 
 	jme_restart_rx_engine(jme);

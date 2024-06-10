@@ -477,10 +477,7 @@ static int __init ti_clk_divider_populate(struct device_node *node,
 	if (ret)
 		return ret;
 
-	if (!of_property_read_u32(node, "ti,bit-shift", &val))
-		div->shift = val;
-	else
-		div->shift = 0;
+	div->shift = div->reg.bit;
 
 	if (!of_property_read_u32(node, "ti,latch-bit", &val))
 		div->latch = val;

@@ -433,7 +433,7 @@ static void nfs_invalidate_folio(struct folio *folio, size_t offset,
 		return;
 	/* Cancel any unstarted writes on this page */
 	nfs_wb_folio_cancel(inode, folio);
-	folio_wait_fscache(folio);
+	folio_wait_private_2(folio); /* [DEPRECATED] */
 	trace_nfs_invalidate_folio(inode, folio);
 }
 
@@ -500,7 +500,7 @@ static int nfs_launder_folio(struct folio *folio)
 	dfprintk(PAGECACHE, "NFS: launder_folio(%ld, %llu)\n",
 		inode->i_ino, folio_pos(folio));
 
-	folio_wait_fscache(folio);
+	folio_wait_private_2(folio); /* [DEPRECATED] */
 	ret = nfs_wb_folio(inode, folio);
 	trace_nfs_launder_folio_done(inode, folio, ret);
 	return ret;
@@ -593,8 +593,8 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 	sb_start_pagefault(inode->i_sb);
 
 	/* make sure the cache has finished storing the page */
-	if (folio_test_fscache(folio) &&
-	    folio_wait_fscache_killable(folio) < 0) {
+	if (folio_test_private_2(folio) && /* [DEPRECATED] */
+	    folio_wait_private_2_killable(folio) < 0) {
 		ret = VM_FAULT_RETRY;
 		goto out;
 	}
@@ -720,15 +720,15 @@ do_getlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 {
 	struct inode *inode = filp->f_mapping->host;
 	int status = 0;
-	unsigned int saved_type = fl->fl_type;
+	unsigned int saved_type = fl->c.flc_type;
 
 	/* Try local locking first */
 	posix_test_lock(filp, fl);
-	if (fl->fl_type != F_UNLCK) {
+	if (fl->c.flc_type != F_UNLCK) {
 		/* found a conflict */
 		goto out;
 	}
-	fl->fl_type = saved_type;
+	fl->c.flc_type = saved_type;
 
 	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
 		goto out_noconflict;
@@ -740,7 +740,7 @@ do_getlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 out:
 	return status;
 out_noconflict:
-	fl->fl_type = F_UNLCK;
+	fl->c.flc_type = F_UNLCK;
 	goto out;
 }
 
@@ -765,7 +765,7 @@ do_unlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 		 * 	If we're signalled while cleaning up locks on process exit, we
 		 * 	still need to complete the unlock.
 		 */
-		if (status < 0 && !(fl->fl_flags & FL_CLOSE))
+		if (status < 0 && !(fl->c.flc_flags & FL_CLOSE))
 			return status;
 	}
 
@@ -832,12 +832,12 @@ int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	int is_local = 0;
 
 	dprintk("NFS: lock(%pD2, t=%x, fl=%x, r=%lld:%lld)\n",
-			filp, fl->fl_type, fl->fl_flags,
+			filp, fl->c.flc_type, fl->c.flc_flags,
 			(long long)fl->fl_start, (long long)fl->fl_end);
 
 	nfs_inc_stats(inode, NFSIOS_VFSLOCK);
 
-	if (fl->fl_flags & FL_RECLAIM)
+	if (fl->c.flc_flags & FL_RECLAIM)
 		return -ENOGRACE;
 
 	if (NFS_SERVER(inode)->flags & NFS_MOUNT_LOCAL_FCNTL)
@@ -851,7 +851,7 @@ int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 
 	if (IS_GETLK(cmd))
 		ret = do_getlk(filp, cmd, fl, is_local);
-	else if (fl->fl_type == F_UNLCK)
+	else if (lock_is_unlock(fl))
 		ret = do_unlk(filp, cmd, fl, is_local);
 	else
 		ret = do_setlk(filp, cmd, fl, is_local);
@@ -869,16 +869,16 @@ int nfs_flock(struct file *filp, int cmd, struct file_lock *fl)
 	int is_local = 0;
 
 	dprintk("NFS: flock(%pD2, t=%x, fl=%x)\n",
-			filp, fl->fl_type, fl->fl_flags);
+			filp, fl->c.flc_type, fl->c.flc_flags);
 
-	if (!(fl->fl_flags & FL_FLOCK))
+	if (!(fl->c.flc_flags & FL_FLOCK))
 		return -ENOLCK;
 
 	if (NFS_SERVER(inode)->flags & NFS_MOUNT_LOCAL_FLOCK)
 		is_local = 1;
 
 	/* We're simulating flock() locks using posix locks on the server */
-	if (fl->fl_type == F_UNLCK)
+	if (lock_is_unlock(fl))
 		return do_unlk(filp, cmd, fl, is_local);
 	return do_setlk(filp, cmd, fl, is_local);
 }

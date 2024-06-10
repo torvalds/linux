@@ -3,6 +3,7 @@
 
 #include "idpf.h"
 #include "idpf_lan_vf_regs.h"
+#include "idpf_virtchnl.h"
 
 #define IDPF_VF_ITR_IDX_SPACING		0x40
 
@@ -137,7 +138,7 @@ static void idpf_vf_trigger_reset(struct idpf_adapter *adapter,
 	/* Do not send VIRTCHNL2_OP_RESET_VF message on driver unload */
 	if (trig_cause == IDPF_HR_FUNC_RESET &&
 	    !test_bit(IDPF_REMOVE_IN_PROG, adapter->flags))
-		idpf_send_mb_msg(adapter, VIRTCHNL2_OP_RESET_VF, 0, NULL);
+		idpf_send_mb_msg(adapter, VIRTCHNL2_OP_RESET_VF, 0, NULL, 0);
 }
 
 /**

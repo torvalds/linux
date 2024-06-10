@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Nehalem-EX/Westmere-EX uncore support */
+#include <asm/cpu_device_id.h>
 #include "uncore.h"
 
 /* NHM-EX event control */
@@ -1217,12 +1218,12 @@ static struct intel_uncore_type *nhmex_msr_uncores[] = {
 
 void nhmex_uncore_cpu_init(void)
 {
-	if (boot_cpu_data.x86_model == 46)
+	if (boot_cpu_data.x86_vfm == INTEL_NEHALEM_EX)
 		uncore_nhmex = true;
 	else
 		nhmex_uncore_mbox.event_descs = wsmex_uncore_mbox_events;
-	if (nhmex_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		nhmex_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (nhmex_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		nhmex_uncore_cbox.num_boxes = topology_num_cores_per_package();
 	uncore_msr_uncores = nhmex_msr_uncores;
 }
 /* end of Nehalem-EX uncore support */

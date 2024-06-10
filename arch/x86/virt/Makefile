@@ -1,2 +1,2 @@
 # SPDX-License-Identifier: GPL-2.0-only
-obj-y	+= vmx/
+obj-y	+= svm/ vmx/

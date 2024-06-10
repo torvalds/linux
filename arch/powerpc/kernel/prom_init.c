@@ -817,8 +817,8 @@ static void __init early_cmdline_parse(void)
 		opt += 4;
 		prom_memory_limit = prom_memparse(opt, (const char **)&opt);
 #ifdef CONFIG_PPC64
-		/* Align to 16 MB == size of ppc64 large page */
-		prom_memory_limit = ALIGN(prom_memory_limit, 0x1000000);
+		/* Align down to 16 MB which is large page size with hash page translation */
+		prom_memory_limit = ALIGN_DOWN(prom_memory_limit, SZ_16M);
 #endif
 	}
 
@@ -947,7 +947,7 @@ struct option_vector7 {
 } __packed;
 
 struct ibm_arch_vec {
-	struct { __be32 mask, val; } pvrs[14];
+	struct { __be32 mask, val; } pvrs[16];
 
 	u8 num_vectors;
 
@@ -1006,6 +1006,14 @@ static const struct ibm_arch_vec ibm_architecture_vec_template __initconst = {
 		{
 			.mask = cpu_to_be32(0xffff0000), /* POWER10 */
 			.val  = cpu_to_be32(0x00800000),
+		},
+		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER11 */
+			.val  = cpu_to_be32(0x00820000),
+		},
+		{
+			.mask = cpu_to_be32(0xffffffff), /* P11 compliant */
+			.val  = cpu_to_be32(0x0f000007),
 		},
 		{
 			.mask = cpu_to_be32(0xffffffff), /* all 3.1-compliant */

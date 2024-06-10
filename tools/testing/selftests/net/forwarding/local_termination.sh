@@ -155,25 +155,30 @@ run_test()
 		"$smac > $MACVLAN_ADDR, ethertype IPv4 (0x0800)" \
 		true
 
-	check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address" \
-		"$smac > $UNKNOWN_UC_ADDR1, ethertype IPv4 (0x0800)" \
-		false
+	xfail_on_veth $h1 \
+		check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address" \
+			"$smac > $UNKNOWN_UC_ADDR1, ethertype IPv4 (0x0800)" \
+			false
 
 	check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address, promisc" \
 		"$smac > $UNKNOWN_UC_ADDR2, ethertype IPv4 (0x0800)" \
 		true
 
-	check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address, allmulti" \
-		"$smac > $UNKNOWN_UC_ADDR3, ethertype IPv4 (0x0800)" \
-		false
+	xfail_on_veth $h1 \
+		check_rcv $rcv_if_name \
+			"Unicast IPv4 to unknown MAC address, allmulti" \
+			"$smac > $UNKNOWN_UC_ADDR3, ethertype IPv4 (0x0800)" \
+			false
 
 	check_rcv $rcv_if_name "Multicast IPv4 to joined group" \
 		"$smac > $JOINED_MACV4_MC_ADDR, ethertype IPv4 (0x0800)" \
 		true
 
-	check_rcv $rcv_if_name "Multicast IPv4 to unknown group" \
-		"$smac > $UNKNOWN_MACV4_MC_ADDR1, ethertype IPv4 (0x0800)" \
-		false
+	xfail_on_veth $h1 \
+		check_rcv $rcv_if_name \
+			"Multicast IPv4 to unknown group" \
+			"$smac > $UNKNOWN_MACV4_MC_ADDR1, ethertype IPv4 (0x0800)" \
+			false
 
 	check_rcv $rcv_if_name "Multicast IPv4 to unknown group, promisc" \
 		"$smac > $UNKNOWN_MACV4_MC_ADDR2, ethertype IPv4 (0x0800)" \
@@ -187,9 +192,10 @@ run_test()
 		"$smac > $JOINED_MACV6_MC_ADDR, ethertype IPv6 (0x86dd)" \
 		true
 
-	check_rcv $rcv_if_name "Multicast IPv6 to unknown group" \
-		"$smac > $UNKNOWN_MACV6_MC_ADDR1, ethertype IPv6 (0x86dd)" \
-		false
+	xfail_on_veth $h1 \
+		check_rcv $rcv_if_name "Multicast IPv6 to unknown group" \
+			"$smac > $UNKNOWN_MACV6_MC_ADDR1, ethertype IPv6 (0x86dd)" \
+			false
 
 	check_rcv $rcv_if_name "Multicast IPv6 to unknown group, promisc" \
 		"$smac > $UNKNOWN_MACV6_MC_ADDR2, ethertype IPv6 (0x86dd)" \

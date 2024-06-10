@@ -6,6 +6,7 @@
 //                    Cirrus Logic International Semiconductor Ltd.
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -23,6 +24,7 @@
 #include <linux/soundwire/sdw.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <sound/cs-amp-lib.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -453,8 +455,13 @@ static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int f
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(codec_dai->component);
 	unsigned int val;
+	int ret;
 
 	dev_dbg(cs35l56->base.dev, "%s: %#x\n", __func__, fmt);
+
+	ret = cs35l56_init_asp1_regs_for_driver_control(&cs35l56->base);
+	if (ret)
+		return ret;
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBC_CFC:
@@ -529,6 +536,11 @@ static int cs35l56_asp_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx
 					unsigned int rx_mask, int slots, int slot_width)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
+	int ret;
+
+	ret = cs35l56_init_asp1_regs_for_driver_control(&cs35l56->base);
+	if (ret)
+		return ret;
 
 	if ((slots == 0) || (slot_width == 0)) {
 		dev_dbg(cs35l56->base.dev, "tdm config cleared\n");
@@ -577,6 +589,11 @@ static int cs35l56_asp_dai_hw_params(struct snd_pcm_substream *substream,
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
 	unsigned int rate = params_rate(params);
 	u8 asp_width, asp_wl;
+	int ret;
+
+	ret = cs35l56_init_asp1_regs_for_driver_control(&cs35l56->base);
+	if (ret)
+		return ret;
 
 	asp_wl = params_width(params);
 	if (cs35l56->asp_slot_width)
@@ -633,7 +650,11 @@ static int cs35l56_asp_dai_set_sysclk(struct snd_soc_dai *dai,
 				      int clk_id, unsigned int freq, int dir)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
-	int freq_id;
+	int freq_id, ret;
+
+	ret = cs35l56_init_asp1_regs_for_driver_control(&cs35l56->base);
+	if (ret)
+		return ret;
 
 	if (freq == 0) {
 		cs35l56->sysclk_set = false;
@@ -802,16 +823,44 @@ static struct snd_soc_dai_driver cs35l56_dai[] = {
 	}
 };
 
+static int cs35l56_write_cal(struct cs35l56_private *cs35l56)
+{
+	int ret;
+
+	if (cs35l56->base.secured || !cs35l56->base.cal_data_valid)
+		return -ENODATA;
+
+	ret = wm_adsp_run(&cs35l56->dsp);
+	if (ret)
+		return ret;
+
+	ret = cs_amp_write_cal_coeffs(&cs35l56->dsp.cs_dsp,
+				      &cs35l56_calibration_controls,
+				      &cs35l56->base.cal_data);
+
+	wm_adsp_stop(&cs35l56->dsp);
+
+	if (ret == 0)
+		dev_info(cs35l56->base.dev, "Calibration applied\n");
+
+	return ret;
+}
+
 static void cs35l56_reinit_patch(struct cs35l56_private *cs35l56)
 {
 	int ret;
 
 	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
 	ret = wm_adsp_power_up(&cs35l56->dsp, true);
-	if (ret)
+	if (ret) {
 		dev_dbg(cs35l56->base.dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
-	else
-		cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
+		return;
+	}
+
+	cs35l56_write_cal(cs35l56);
+
+	/* Always REINIT after applying patch or coefficients */
+	cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 }
 
 static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing)
@@ -873,6 +922,9 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing
 	regmap_clear_bits(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS,
 			  CS35L56_FIRMWARE_MISSING);
 	cs35l56->base.fw_patched = true;
+
+	if (cs35l56_write_cal(cs35l56) == 0)
+		cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 
 err_unlock:
 	mutex_unlock(&cs35l56->base.irq_lock);
@@ -972,6 +1024,10 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 		return -ENODEV;
 	}
 
+	cs35l56->dsp.part = kasprintf(GFP_KERNEL, "cs35l%02x", cs35l56->base.type);
+	if (!cs35l56->dsp.part)
+		return -ENOMEM;
+
 	cs35l56->component = component;
 	wm_adsp2_component_probe(&cs35l56->dsp, component);
 
@@ -1001,6 +1057,9 @@ static void cs35l56_component_remove(struct snd_soc_component *component)
 		wm_adsp_power_down(&cs35l56->dsp);
 
 	wm_adsp2_component_remove(&cs35l56->dsp, component);
+
+	kfree(cs35l56->dsp.part);
+	cs35l56->dsp.part = NULL;
 
 	kfree(cs35l56->dsp.fwf_name);
 	cs35l56->dsp.fwf_name = NULL;
@@ -1221,7 +1280,12 @@ static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 
 	dsp = &cs35l56->dsp;
 	cs35l56_init_cs_dsp(&cs35l56->base, &dsp->cs_dsp);
-	dsp->part = "cs35l56";
+
+	/*
+	 * dsp->part is filled in later as it is based on the DEVID. In a
+	 * SoundWire system that cannot be read until enumeration has occurred
+	 * and the device has attached.
+	 */
 	dsp->fw = 12;
 	dsp->wmfw_optional = true;
 
@@ -1297,6 +1361,7 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 				    "spk-id-gpios", ACPI_TYPE_PACKAGE, &obj);
 	if (ret) {
 		dev_dbg(cs35l56->base.dev, "Could not get spk-id-gpios package: %d\n", ret);
+		fwnode_handle_put(af01_fwnode);
 		return -ENOENT;
 	}
 
@@ -1304,6 +1369,7 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 	if (obj->package.count != 4) {
 		dev_warn(cs35l56->base.dev, "Unexpected spk-id element count %d\n",
 			 obj->package.count);
+		fwnode_handle_put(af01_fwnode);
 		return -ENOENT;
 	}
 
@@ -1318,6 +1384,7 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 		 */
 		ret = acpi_dev_add_driver_gpios(adev, cs35l56_af01_spkid_gpios_mapping);
 		if (ret) {
+			fwnode_handle_put(af01_fwnode);
 			return dev_err_probe(cs35l56->base.dev, ret,
 					     "Failed to add gpio mapping to AF01\n");
 		}
@@ -1325,14 +1392,17 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 		ret = devm_add_action_or_reset(cs35l56->base.dev,
 					       cs35l56_acpi_dev_release_driver_gpios,
 					       adev);
-		if (ret)
+		if (ret) {
+			fwnode_handle_put(af01_fwnode);
 			return ret;
+		}
 
 		dev_dbg(cs35l56->base.dev, "Added spk-id-gpios mapping to AF01\n");
 	}
 
 	desc = fwnode_gpiod_get_index(af01_fwnode, "spk-id", 0, GPIOD_IN, NULL);
 	if (IS_ERR(desc)) {
+		fwnode_handle_put(af01_fwnode);
 		ret = PTR_ERR(desc);
 		return dev_err_probe(cs35l56->base.dev, ret, "Get GPIO from AF01 failed\n");
 	}
@@ -1341,9 +1411,12 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 	gpiod_put(desc);
 
 	if (ret < 0) {
+		fwnode_handle_put(af01_fwnode);
 		dev_err_probe(cs35l56->base.dev, ret, "Error reading spk-id GPIO\n");
 		return ret;
-		}
+	}
+
+	fwnode_handle_put(af01_fwnode);
 
 	dev_info(cs35l56->base.dev, "Got spk-id from AF01\n");
 
@@ -1356,7 +1429,11 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 
 	init_completion(&cs35l56->init_completion);
 	mutex_init(&cs35l56->base.irq_lock);
+	cs35l56->base.cal_index = -1;
 	cs35l56->speaker_id = -ENOENT;
+
+	/* Assume that the firmware owns ASP1 until we know different */
+	cs35l56->base.fw_owns_asp1 = true;
 
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
@@ -1457,6 +1534,10 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 	if (ret)
 		return ret;
 
+	ret = cs35l56_get_calibration(&cs35l56->base);
+	if (ret)
+		return ret;
+
 	if (!cs35l56->base.reset_gpio) {
 		dev_dbg(cs35l56->base.dev, "No reset gpio: using soft reset\n");
 		cs35l56->soft_resetting = true;
@@ -1482,6 +1563,8 @@ post_soft_reset:
 			return ret;
 
 		dev_dbg(cs35l56->base.dev, "Firmware rebooted after soft reset\n");
+
+		regcache_cache_only(cs35l56->base.regmap, false);
 	}
 
 	/* Disable auto-hibernate so that runtime_pm has control */
@@ -1541,6 +1624,7 @@ EXPORT_NS_GPL_DEV_PM_OPS(cs35l56_pm_ops_i2c_spi, SND_SOC_CS35L56_CORE) = {
 
 MODULE_DESCRIPTION("ASoC CS35L56 driver");
 MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
+MODULE_IMPORT_NS(SND_SOC_CS_AMP_LIB);
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

@@ -610,6 +610,38 @@ struct atom_firmware_info_v3_4 {
         uint32_t reserved[2];
 };
 
+struct atom_firmware_info_v3_5 {
+  struct atom_common_table_header table_header;
+  uint32_t firmware_revision;
+  uint32_t bootup_clk_reserved[2];
+  uint32_t firmware_capability;             // enum atombios_firmware_capability
+  uint32_t fw_protect_region_size_in_kb;    /* FW allocate a write protect region at top of FB. */
+  uint32_t bios_scratch_reg_startaddr;      // 1st bios scratch register dword address
+  uint32_t bootup_voltage_reserved[2];
+  uint8_t  mem_module_id;
+  uint8_t  coolingsolution_id;              /*0: Air cooling; 1: Liquid cooling ... */
+  uint8_t  hw_blt_mode;                     //0:HW_BLT_DMA_PIO_MODE; 1:HW_BLT_LITE_SDMA_MODE; 2:HW_BLT_PCI_IO_MODE
+  uint8_t  reserved1;
+  uint32_t mc_baseaddr_high;
+  uint32_t mc_baseaddr_low;
+  uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
+  uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
+  uint8_t  board_i2c_feature_slave_addr;
+  uint8_t  ras_rom_i2c_slave_addr;
+  uint32_t bootup_voltage_reserved1;
+  uint32_t zfb_reserved;
+  // if pplib_pptable_id!=0, pplib get powerplay table inside driver instead of from VBIOS
+  uint32_t pplib_pptable_id;
+  uint32_t hw_voltage_reserved[3];
+  uint32_t maco_pwrlimit_mw;                // bomaco mode power limit in unit of m-watt
+  uint32_t usb_pwrlimit_mw;                 // power limit when USB is enable in unit of m-watt
+  uint32_t fw_reserved_size_in_kb;          // VBIOS reserved extra fw size in unit of kb.
+  uint32_t pspbl_init_reserved[3];
+  uint32_t spi_rom_size;                    // GPU spi rom size
+  uint16_t support_dev_in_objinfo;
+  uint16_t disp_phy_tunning_size;
+  uint32_t reserved[16];
+};
 /* 
   ***************************************************************************
     Data Table lcd_info  structure
@@ -1623,6 +1655,49 @@ struct atom_integrated_system_info_v2_2
 	struct atom_external_display_connection_info extdispconninfo;
 
 	uint32_t  reserved4[189];
+};
+
+struct uma_carveout_option {
+  char       optionName[29];        //max length of string is 28chars + '\0'. Current design is for "minimum", "Medium", "High". This makes entire struct size 64bits
+  uint8_t    memoryCarvedGb;        //memory carved out with setting
+  uint8_t    memoryRemainingGb;     //memory remaining on system
+  union {
+    struct _flags {
+      uint8_t Auto     : 1;
+      uint8_t Custom   : 1;
+      uint8_t Reserved : 6;
+    } flags;
+    uint8_t all8;
+  } uma_carveout_option_flags;
+};
+
+struct atom_integrated_system_info_v2_3 {
+  struct  atom_common_table_header table_header;
+  uint32_t  vbios_misc; // enum of atom_system_vbiosmisc_def
+  uint32_t  gpucapinfo; // enum of atom_system_gpucapinf_def
+  uint32_t  system_config;
+  uint32_t  cpucapinfo;
+  uint16_t  gpuclk_ss_percentage; // unit of 0.001%,   1000 mean 1%
+  uint16_t  gpuclk_ss_type;
+  uint16_t  dpphy_override;  // bit vector, enum of atom_sysinfo_dpphy_override_def
+  uint8_t memorytype;       // enum of atom_dmi_t17_mem_type_def, APU memory type indication.
+  uint8_t umachannelnumber; // number of memory channels
+  uint8_t htc_hyst_limit;
+  uint8_t htc_tmp_limit;
+  uint8_t reserved1; // dp_ss_control
+  uint8_t gpu_package_id;
+  struct  edp_info_table  edp1_info;
+  struct  edp_info_table  edp2_info;
+  uint32_t  reserved2[8];
+  struct  atom_external_display_connection_info extdispconninfo;
+  uint8_t UMACarveoutVersion;
+  uint8_t UMACarveoutIndexMax;
+  uint8_t UMACarveoutTypeDefault;
+  uint8_t UMACarveoutIndexDefault;
+  uint8_t UMACarveoutType;           //Auto or Custom
+  uint8_t UMACarveoutIndex;
+  struct  uma_carveout_option UMASizeControlOption[20];
+  uint8_t reserved3[110];
 };
 
 // system_config

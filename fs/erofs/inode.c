@@ -26,7 +26,7 @@ static void *erofs_read_inode(struct erofs_buf *buf,
 	blkaddr = erofs_blknr(sb, inode_loc);
 	*ofs = erofs_blkoff(sb, inode_loc);
 
-	kaddr = erofs_read_metabuf(buf, sb, blkaddr, EROFS_KMAP);
+	kaddr = erofs_read_metabuf(buf, sb, erofs_pos(sb, blkaddr), EROFS_KMAP);
 	if (IS_ERR(kaddr)) {
 		erofs_err(sb, "failed to get inode (nid: %llu) page, err %ld",
 			  vi->nid, PTR_ERR(kaddr));
@@ -66,7 +66,7 @@ static void *erofs_read_inode(struct erofs_buf *buf,
 				goto err_out;
 			}
 			memcpy(copied, dic, gotten);
-			kaddr = erofs_read_metabuf(buf, sb, blkaddr + 1,
+			kaddr = erofs_read_metabuf(buf, sb, erofs_pos(sb, blkaddr + 1),
 						   EROFS_KMAP);
 			if (IS_ERR(kaddr)) {
 				erofs_err(sb, "failed to get inode payload block (nid: %llu), err %ld",
@@ -259,14 +259,12 @@ static int erofs_fill_inode(struct inode *inode)
 
 	if (erofs_inode_is_data_compressed(vi->datalayout)) {
 #ifdef CONFIG_EROFS_FS_ZIP
-		if (!erofs_is_fscache_mode(inode->i_sb)) {
-			DO_ONCE_LITE_IF(inode->i_sb->s_blocksize != PAGE_SIZE,
-				  erofs_info, inode->i_sb,
-				  "EXPERIMENTAL EROFS subpage compressed block support in use. Use at your own risk!");
-			inode->i_mapping->a_ops = &z_erofs_aops;
-			err = 0;
-			goto out_unlock;
-		}
+		DO_ONCE_LITE_IF(inode->i_blkbits != PAGE_SHIFT,
+			  erofs_info, inode->i_sb,
+			  "EXPERIMENTAL EROFS subpage compressed block support in use. Use at your own risk!");
+		inode->i_mapping->a_ops = &z_erofs_aops;
+		err = 0;
+		goto out_unlock;
 #endif
 		err = -EOPNOTSUPP;
 		goto out_unlock;

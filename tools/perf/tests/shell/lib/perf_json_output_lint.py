@@ -15,6 +15,7 @@ ap.add_argument('--event', action='store_true')
 ap.add_argument('--per-core', action='store_true')
 ap.add_argument('--per-thread', action='store_true')
 ap.add_argument('--per-cache', action='store_true')
+ap.add_argument('--per-cluster', action='store_true')
 ap.add_argument('--per-die', action='store_true')
 ap.add_argument('--per-node', action='store_true')
 ap.add_argument('--per-socket', action='store_true')
@@ -49,6 +50,7 @@ def check_json_output(expected_items):
       'cgroup': lambda x: True,
       'cpu': lambda x: isint(x),
       'cache': lambda x: True,
+      'cluster': lambda x: True,
       'die': lambda x: True,
       'event': lambda x: True,
       'event-runtime': lambda x: isfloat(x),
@@ -88,7 +90,7 @@ try:
     expected_items = 7
   elif args.interval or args.per_thread or args.system_wide_no_aggr:
     expected_items = 8
-  elif args.per_core or args.per_socket or args.per_node or args.per_die or args.per_cache:
+  elif args.per_core or args.per_socket or args.per_node or args.per_die or args.per_cluster or args.per_cache:
     expected_items = 9
   else:
     # If no option is specified, don't check the number of items.

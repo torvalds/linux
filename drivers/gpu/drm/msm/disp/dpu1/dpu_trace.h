@@ -113,7 +113,7 @@ TRACE_EVENT(tracing_mark_write,
 	),
 	TP_fast_assign(
 			__entry->pid = pid;
-			__assign_str(trace_name, name);
+			__assign_str(trace_name);
 			__entry->trace_begin = trace_begin;
 	),
 	TP_printk("%s|%d|%s", __entry->trace_begin ? "B" : "E",
@@ -130,7 +130,7 @@ TRACE_EVENT(dpu_trace_counter,
 	),
 	TP_fast_assign(
 			__entry->pid = current->tgid;
-			__assign_str(counter_name, name);
+			__assign_str(counter_name);
 			__entry->value = value;
 	),
 	TP_printk("%d|%s|%d", __entry->pid,
@@ -273,6 +273,14 @@ DEFINE_EVENT(dpu_drm_obj_template, dpu_crtc_runtime_resume,
 	TP_PROTO(uint32_t drm_id),
 	TP_ARGS(drm_id)
 );
+DEFINE_EVENT(dpu_drm_obj_template, dpu_enc_rc_enable,
+	TP_PROTO(uint32_t drm_id),
+	TP_ARGS(drm_id)
+);
+DEFINE_EVENT(dpu_drm_obj_template, dpu_enc_rc_disable,
+	TP_PROTO(uint32_t drm_id),
+	TP_ARGS(drm_id)
+);
 
 TRACE_EVENT(dpu_enc_enable,
 	TP_PROTO(uint32_t drm_id, int hdisplay, int vdisplay),
@@ -342,10 +350,6 @@ DECLARE_EVENT_CLASS(dpu_enc_id_enable_template,
 	TP_printk("id=%u, enable=%s",
 		  __entry->drm_id, __entry->enable ? "true" : "false")
 );
-DEFINE_EVENT(dpu_enc_id_enable_template, dpu_enc_rc_helper,
-	TP_PROTO(uint32_t drm_id, bool enable),
-	TP_ARGS(drm_id, enable)
-);
 DEFINE_EVENT(dpu_enc_id_enable_template, dpu_enc_vblank_cb,
 	TP_PROTO(uint32_t drm_id, bool enable),
 	TP_ARGS(drm_id, enable)
@@ -375,7 +379,7 @@ TRACE_EVENT(dpu_enc_rc,
 		__entry->sw_event = sw_event;
 		__entry->idle_pc_supported = idle_pc_supported;
 		__entry->rc_state = rc_state;
-		__assign_str(stage_str, stage);
+		__assign_str(stage_str);
 	),
 	TP_printk("%s: id:%u, sw_event:%d, idle_pc_supported:%s, rc_state:%d",
 		  __get_str(stage_str), __entry->drm_id, __entry->sw_event,
@@ -397,7 +401,7 @@ TRACE_EVENT(dpu_enc_frame_done_cb_not_busy,
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->event = event;
-		__assign_str(intf_mode_str, intf_mode);
+		__assign_str(intf_mode_str);
 		__entry->intf_idx = intf_idx;
 		__entry->wb_idx = wb_idx;
 	),
@@ -442,7 +446,7 @@ TRACE_EVENT(dpu_enc_trigger_flush,
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
-		__assign_str(intf_mode_str, intf_mode);
+		__assign_str(intf_mode_str);
 		__entry->intf_idx = intf_idx;
 		__entry->wb_idx = wb_idx;
 		__entry->pending_kickoff_cnt = pending_kickoff_cnt;
@@ -514,24 +518,41 @@ TRACE_EVENT(dpu_enc_wait_event_timeout,
 		  __entry->expected_time, __entry->atomic_cnt)
 );
 
-TRACE_EVENT(dpu_enc_phys_cmd_irq_ctrl,
-	TP_PROTO(uint32_t drm_id, enum dpu_pingpong pp, bool enable,
+TRACE_EVENT(dpu_enc_phys_cmd_irq_enable,
+	TP_PROTO(uint32_t drm_id, enum dpu_pingpong pp,
 		 int refcnt),
-	TP_ARGS(drm_id, pp, enable, refcnt),
+	TP_ARGS(drm_id, pp, refcnt),
 	TP_STRUCT__entry(
 		__field(	uint32_t,		drm_id	)
 		__field(	enum dpu_pingpong,	pp	)
-		__field(	bool,			enable	)
 		__field(	int,			refcnt	)
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->pp = pp;
-		__entry->enable = enable;
 		__entry->refcnt = refcnt;
 	),
-	TP_printk("id=%u, pp=%d, enable=%s, refcnt=%d", __entry->drm_id,
-		  __entry->pp, __entry->enable ? "true" : "false",
+	TP_printk("id=%u, pp=%d, refcnt=%d", __entry->drm_id,
+		  __entry->pp,
+		  __entry->refcnt)
+);
+
+TRACE_EVENT(dpu_enc_phys_cmd_irq_disable,
+	TP_PROTO(uint32_t drm_id, enum dpu_pingpong pp,
+		 int refcnt),
+	TP_ARGS(drm_id, pp, refcnt),
+	TP_STRUCT__entry(
+		__field(	uint32_t,		drm_id	)
+		__field(	enum dpu_pingpong,	pp	)
+		__field(	int,			refcnt	)
+	),
+	TP_fast_assign(
+		__entry->drm_id = drm_id;
+		__entry->pp = pp;
+		__entry->refcnt = refcnt;
+	),
+	TP_printk("id=%u, pp=%d, refcnt=%d", __entry->drm_id,
+		  __entry->pp,
 		  __entry->refcnt)
 );
 
@@ -592,24 +613,41 @@ TRACE_EVENT(dpu_enc_phys_vid_post_kickoff,
 	TP_printk("id=%u, intf_idx=%d", __entry->drm_id, __entry->intf_idx)
 );
 
-TRACE_EVENT(dpu_enc_phys_vid_irq_ctrl,
-	TP_PROTO(uint32_t drm_id, enum dpu_intf intf_idx, bool enable,
+TRACE_EVENT(dpu_enc_phys_vid_irq_enable,
+	TP_PROTO(uint32_t drm_id, enum dpu_intf intf_idx,
 		 int refcnt),
-	TP_ARGS(drm_id, intf_idx, enable, refcnt),
+	TP_ARGS(drm_id, intf_idx, refcnt),
 	TP_STRUCT__entry(
 		__field(	uint32_t,	drm_id		)
 		__field(	enum dpu_intf,	intf_idx	)
-		__field(	bool,		enable		)
 		__field(	int,		refcnt		)
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->intf_idx = intf_idx;
-		__entry->enable = enable;
 		__entry->refcnt = refcnt;
 	),
-	TP_printk("id=%u, intf_idx=%d enable=%s refcnt=%d", __entry->drm_id,
-		  __entry->intf_idx, __entry->enable ? "true" : "false",
+	TP_printk("id=%u, intf_idx=%d refcnt=%d", __entry->drm_id,
+		  __entry->intf_idx,
+		  __entry->drm_id)
+);
+
+TRACE_EVENT(dpu_enc_phys_vid_irq_disable,
+	TP_PROTO(uint32_t drm_id, enum dpu_intf intf_idx,
+		 int refcnt),
+	TP_ARGS(drm_id, intf_idx, refcnt),
+	TP_STRUCT__entry(
+		__field(	uint32_t,	drm_id		)
+		__field(	enum dpu_intf,	intf_idx	)
+		__field(	int,		refcnt		)
+	),
+	TP_fast_assign(
+		__entry->drm_id = drm_id;
+		__entry->intf_idx = intf_idx;
+		__entry->refcnt = refcnt;
+	),
+	TP_printk("id=%u, intf_idx=%d refcnt=%d", __entry->drm_id,
+		  __entry->intf_idx,
 		  __entry->drm_id)
 );
 
@@ -908,7 +946,7 @@ TRACE_EVENT(dpu_core_perf_update_clk,
 		__field(	u64,			clk_rate	)
 	),
 	TP_fast_assign(
-		__assign_str(dev_name, dev->unique);
+		__assign_str(dev_name);
 		__entry->stop_req = stop_req;
 		__entry->clk_rate = clk_rate;
 	),

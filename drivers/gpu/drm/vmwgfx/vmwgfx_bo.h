@@ -55,6 +55,8 @@ struct vmw_bo_params {
 	enum ttm_bo_type bo_type;
 	size_t size;
 	bool pin;
+	struct dma_resv *resv;
+	struct sg_table *sg;
 };
 
 /**

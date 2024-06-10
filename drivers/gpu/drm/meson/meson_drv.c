@@ -312,7 +312,7 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	/* Encoder Initialization */
 
-	ret = meson_encoder_cvbs_init(priv);
+	ret = meson_encoder_cvbs_probe(priv);
 	if (ret)
 		goto exit_afbcd;
 
@@ -326,12 +326,12 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 		}
 	}
 
-	ret = meson_encoder_hdmi_init(priv);
+	ret = meson_encoder_hdmi_probe(priv);
 	if (ret)
 		goto exit_afbcd;
 
 	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A)) {
-		ret = meson_encoder_dsi_init(priv);
+		ret = meson_encoder_dsi_probe(priv);
 		if (ret)
 			goto exit_afbcd;
 	}

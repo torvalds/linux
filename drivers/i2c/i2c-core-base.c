@@ -701,7 +701,7 @@ const struct bus_type i2c_bus_type = {
 };
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 
-struct device_type i2c_client_type = {
+const struct device_type i2c_client_type = {
 	.groups		= i2c_dev_groups,
 	.uevent		= i2c_device_uevent,
 	.release	= i2c_client_dev_release,
@@ -1343,7 +1343,7 @@ static struct attribute *i2c_adapter_attrs[] = {
 };
 ATTRIBUTE_GROUPS(i2c_adapter);
 
-struct device_type i2c_adapter_type = {
+const struct device_type i2c_adapter_type = {
 	.groups		= i2c_adapter_groups,
 	.release	= i2c_adapter_dev_release,
 };
@@ -2200,12 +2200,17 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
  * Returns negative errno, else the number of messages executed.
  *
  * Adapter lock must be held when calling this function. No debug logging
- * takes place. adap->algo->master_xfer existence isn't checked.
+ * takes place.
  */
 int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	unsigned long orig_jiffies;
 	int ret, try;
+
+	if (!adap->algo->master_xfer) {
+		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (WARN_ON(!msgs || num < 1))
 		return -EINVAL;
@@ -2272,11 +2277,6 @@ EXPORT_SYMBOL(__i2c_transfer);
 int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	int ret;
-
-	if (!adap->algo->master_xfer) {
-		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
-		return -EOPNOTSUPP;
-	}
 
 	/* REVISIT the fault reporting model here is weak:
 	 *

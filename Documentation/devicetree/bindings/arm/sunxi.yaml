@@ -56,6 +56,21 @@ properties:
           - const: anbernic,rg-nano
           - const: allwinner,sun8i-v3s
 
+      - description: Anbernic RG35XX (2024)
+      - items:
+          - const: anbernic,rg35xx-2024
+          - const: allwinner,sun50i-h700
+
+      - description: Anbernic RG35XX Plus
+      - items:
+          - const: anbernic,rg35xx-plus
+          - const: allwinner,sun50i-h700
+
+      - description: Anbernic RG35XX H
+      - items:
+          - const: anbernic,rg35xx-h
+          - const: allwinner,sun50i-h700
+
       - description: Amarula A64 Relic
         items:
           - const: amarula,a64-relic
@@ -774,6 +789,11 @@ properties:
           - const: pocketbook,touch-lux-3
           - const: allwinner,sun5i-a13
 
+      - description: PocketBook 614 Plus
+        items:
+          - const: pocketbook,614-plus
+          - const: allwinner,sun5i-a13
+
       - description: Point of View Protab2-IPS9
         items:
           - const: pov,protab2-ips9
@@ -815,6 +835,12 @@ properties:
           - const: allwinner,r7-tv-dongle
           - const: allwinner,sun5i-a10s
 
+      - description: Remix Mini PC
+        items:
+          - const: jide,remix-mini-pc
+          - const: allwinner,sun50i-h64
+          - const: allwinner,sun50i-a64
+
       - description: RerVision H3-DVK
         items:
           - const: rervision,h3-dvk
@@ -835,6 +861,12 @@ properties:
           - const: sinlinx,sina33
           - const: allwinner,sun8i-a33
 
+      - description: Sipeed Longan Pi 3H board for the Sipeed Longan Module 3H
+        items:
+          - const: sipeed,longan-pi-3h
+          - const: sipeed,longan-module-3h
+          - const: allwinner,sun50i-h618
+
       - description: SourceParts PopStick v1.1
         items:
           - const: sourceparts,popstick-v1.1
@@ -847,6 +879,11 @@ properties:
           - const: allwinner,sl631-imx179
           - const: allwinner,sl631
           - const: allwinner,sun8i-v3
+
+      - description: Tanix TX1
+        items:
+          - const: oranth,tanix-tx1
+          - const: allwinner,sun50i-h616
 
       - description: Tanix TX6
         items:

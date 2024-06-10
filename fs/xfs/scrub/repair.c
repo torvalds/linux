@@ -30,12 +30,20 @@
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_reflink.h"
+#include "xfs_health.h"
+#include "xfs_buf_mem.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
+#include "xfs_attr.h"
+#include "xfs_dir2.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
 #include "scrub/repair.h"
 #include "scrub/bitmap.h"
 #include "scrub/stats.h"
+#include "scrub/xfile.h"
+#include "scrub/attr_repair.h"
 
 /*
  * Attempt to repair some metadata, if the metadata is corrupt and userspace
@@ -287,7 +295,7 @@ xrep_calc_ag_resblks(
 		icount = pag->pagi_count;
 	} else {
 		/* Try to get the actual counters from disk. */
-		error = xfs_ialloc_read_agi(pag, NULL, &bp);
+		error = xfs_ialloc_read_agi(pag, NULL, 0, &bp);
 		if (!error) {
 			icount = pag->pagi_count;
 			xfs_buf_relse(bp);
@@ -400,7 +408,7 @@ xrep_calc_ag_resblks(
 int
 xrep_fix_freelist(
 	struct xfs_scrub	*sc,
-	bool			can_shrink)
+	int			alloc_flags)
 {
 	struct xfs_alloc_arg	args = {0};
 
@@ -410,8 +418,7 @@ xrep_fix_freelist(
 	args.alignment = 1;
 	args.pag = sc->sa.pag;
 
-	return xfs_alloc_fix_freelist(&args,
-			can_shrink ? 0 : XFS_ALLOC_FLAG_NOSHRINK);
+	return xfs_alloc_fix_freelist(&args, alloc_flags);
 }
 
 /*
@@ -687,6 +694,44 @@ xrep_find_ag_btree_roots(
 }
 
 #ifdef CONFIG_XFS_QUOTA
+/* Update some quota flags in the superblock. */
+void
+xrep_update_qflags(
+	struct xfs_scrub	*sc,
+	unsigned int		clear_flags,
+	unsigned int		set_flags)
+{
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_buf		*bp;
+
+	mutex_lock(&mp->m_quotainfo->qi_quotaofflock);
+	if ((mp->m_qflags & clear_flags) == 0 &&
+	    (mp->m_qflags & set_flags) == set_flags)
+		goto no_update;
+
+	mp->m_qflags &= ~clear_flags;
+	mp->m_qflags |= set_flags;
+
+	spin_lock(&mp->m_sb_lock);
+	mp->m_sb.sb_qflags &= ~clear_flags;
+	mp->m_sb.sb_qflags |= set_flags;
+	spin_unlock(&mp->m_sb_lock);
+
+	/*
+	 * Update the quota flags in the ondisk superblock without touching
+	 * the summary counters.  We have not quiesced inode chunk allocation,
+	 * so we cannot coordinate with updates to the icount and ifree percpu
+	 * counters.
+	 */
+	bp = xfs_trans_getsb(sc->tp);
+	xfs_sb_to_disk(bp->b_addr, &mp->m_sb);
+	xfs_trans_buf_set_type(sc->tp, bp, XFS_BLFT_SB_BUF);
+	xfs_trans_log_buf(sc->tp, bp, 0, sizeof(struct xfs_dsb) - 1);
+
+no_update:
+	mutex_unlock(&mp->m_quotainfo->qi_quotaofflock);
+}
+
 /* Force a quotacheck the next time we mount. */
 void
 xrep_force_quotacheck(
@@ -699,13 +744,7 @@ xrep_force_quotacheck(
 	if (!(flag & sc->mp->m_qflags))
 		return;
 
-	mutex_lock(&sc->mp->m_quotainfo->qi_quotaofflock);
-	sc->mp->m_qflags &= ~flag;
-	spin_lock(&sc->mp->m_sb_lock);
-	sc->mp->m_sb.sb_qflags &= ~flag;
-	spin_unlock(&sc->mp->m_sb_lock);
-	xfs_log_sb(sc->tp);
-	mutex_unlock(&sc->mp->m_quotainfo->qi_quotaofflock);
+	xrep_update_qflags(sc, flag, 0);
 }
 
 /*
@@ -799,20 +838,20 @@ xrep_ag_btcur_init(
 	/* Set up a bnobt cursor for cross-referencing. */
 	if (sc->sm->sm_type != XFS_SCRUB_TYPE_BNOBT &&
 	    sc->sm->sm_type != XFS_SCRUB_TYPE_CNTBT) {
-		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sc->sa.pag, XFS_BTNUM_BNO);
-		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sc->sa.pag, XFS_BTNUM_CNT);
+		sa->bno_cur = xfs_bnobt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sc->sa.pag);
+		sa->cnt_cur = xfs_cntbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sc->sa.pag);
 	}
 
 	/* Set up a inobt cursor for cross-referencing. */
 	if (sc->sm->sm_type != XFS_SCRUB_TYPE_INOBT &&
 	    sc->sm->sm_type != XFS_SCRUB_TYPE_FINOBT) {
 		sa->ino_cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
-				sa->agi_bp, XFS_BTNUM_INO);
+				sa->agi_bp);
 		if (xfs_has_finobt(mp))
-			sa->fino_cur = xfs_inobt_init_cursor(sc->sa.pag,
-					sc->tp, sa->agi_bp, XFS_BTNUM_FINO);
+			sa->fino_cur = xfs_finobt_init_cursor(sc->sa.pag,
+					sc->tp, sa->agi_bp);
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */
@@ -874,7 +913,7 @@ xrep_reinit_pagi(
 	ASSERT(xfs_perag_initialised_agi(pag));
 
 	clear_bit(XFS_AGSTATE_AGI_INIT, &pag->pag_opstate);
-	error = xfs_ialloc_read_agi(pag, sc->tp, &bp);
+	error = xfs_ialloc_read_agi(pag, sc->tp, 0, &bp);
 	if (error)
 		return error;
 
@@ -900,7 +939,7 @@ xrep_ag_init(
 
 	ASSERT(!sa->pag);
 
-	error = xfs_ialloc_read_agi(pag, sc->tp, &sa->agi_bp);
+	error = xfs_ialloc_read_agi(pag, sc->tp, 0, &sa->agi_bp);
 	if (error)
 		return error;
 
@@ -929,9 +968,7 @@ xrep_reset_perag_resv(
 	ASSERT(sc->tp);
 
 	sc->flags &= ~XREP_RESET_PERAG_RESV;
-	error = xfs_ag_resv_free(sc->sa.pag);
-	if (error)
-		goto out;
+	xfs_ag_resv_free(sc->sa.pag);
 	error = xfs_ag_resv_init(sc->sa.pag, sc->tp);
 	if (error == -ENOSPC) {
 		xfs_err(sc->mp,
@@ -940,7 +977,6 @@ xrep_reset_perag_resv(
 		error = 0;
 	}
 
-out:
 	return error;
 }
 
@@ -970,55 +1006,27 @@ xrep_metadata_inode_subtype(
 	struct xfs_scrub	*sc,
 	unsigned int		scrub_type)
 {
-	__u32			smtype = sc->sm->sm_type;
-	__u32			smflags = sc->sm->sm_flags;
-	unsigned int		sick_mask = sc->sick_mask;
+	struct xfs_scrub_subord	*sub;
 	int			error;
 
 	/*
-	 * Let's see if the inode needs repair.  We're going to open-code calls
-	 * to the scrub and repair functions so that we can hang on to the
+	 * Let's see if the inode needs repair.  Use a subordinate scrub context
+	 * to call the scrub and repair functions so that we can hang on to the
 	 * resources that we already acquired instead of using the standard
 	 * setup/teardown routines.
 	 */
-	sc->sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
-	sc->sm->sm_type = scrub_type;
-
-	switch (scrub_type) {
-	case XFS_SCRUB_TYPE_INODE:
-		error = xchk_inode(sc);
-		break;
-	case XFS_SCRUB_TYPE_BMBTD:
-		error = xchk_bmap_data(sc);
-		break;
-	case XFS_SCRUB_TYPE_BMBTA:
-		error = xchk_bmap_attr(sc);
-		break;
-	default:
-		ASSERT(0);
-		error = -EFSCORRUPTED;
-	}
+	sub = xchk_scrub_create_subord(sc, scrub_type);
+	error = sub->sc.ops->scrub(&sub->sc);
 	if (error)
 		goto out;
-
-	if (!xrep_will_attempt(sc))
+	if (!xrep_will_attempt(&sub->sc))
 		goto out;
 
 	/*
 	 * Repair some part of the inode.  This will potentially join the inode
 	 * to the transaction.
 	 */
-	switch (scrub_type) {
-	case XFS_SCRUB_TYPE_INODE:
-		error = xrep_inode(sc);
-		break;
-	case XFS_SCRUB_TYPE_BMBTD:
-		error = xrep_bmap(sc, XFS_DATA_FORK, false);
-		break;
-	case XFS_SCRUB_TYPE_BMBTA:
-		error = xrep_bmap(sc, XFS_ATTR_FORK, false);
-		break;
-	}
+	error = sub->sc.ops->repair(&sub->sc);
 	if (error)
 		goto out;
 
@@ -1027,10 +1035,10 @@ xrep_metadata_inode_subtype(
 	 * that the inode will not be joined to the transaction when we exit
 	 * the function.
 	 */
-	error = xfs_defer_finish(&sc->tp);
+	error = xfs_defer_finish(&sub->sc.tp);
 	if (error)
 		goto out;
-	error = xfs_trans_roll(&sc->tp);
+	error = xfs_trans_roll(&sub->sc.tp);
 	if (error)
 		goto out;
 
@@ -1038,31 +1046,18 @@ xrep_metadata_inode_subtype(
 	 * Clear the corruption flags and re-check the metadata that we just
 	 * repaired.
 	 */
-	sc->sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
-
-	switch (scrub_type) {
-	case XFS_SCRUB_TYPE_INODE:
-		error = xchk_inode(sc);
-		break;
-	case XFS_SCRUB_TYPE_BMBTD:
-		error = xchk_bmap_data(sc);
-		break;
-	case XFS_SCRUB_TYPE_BMBTA:
-		error = xchk_bmap_attr(sc);
-		break;
-	}
+	sub->sc.sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
+	error = sub->sc.ops->scrub(&sub->sc);
 	if (error)
 		goto out;
 
 	/* If corruption persists, the repair has failed. */
-	if (xchk_needs_repair(sc->sm)) {
+	if (xchk_needs_repair(sub->sc.sm)) {
 		error = -EFSCORRUPTED;
 		goto out;
 	}
 out:
-	sc->sick_mask = sick_mask;
-	sc->sm->sm_type = smtype;
-	sc->sm->sm_flags = smflags;
+	xchk_scrub_free_subord(sub);
 	return error;
 }
 
@@ -1102,6 +1097,17 @@ xrep_metadata_inode_forks(
 			return error;
 	}
 
+	/* Clear the attr forks since metadata shouldn't have that. */
+	if (xfs_inode_hasattr(sc->ip)) {
+		if (!dirty) {
+			dirty = true;
+			xfs_trans_ijoin(sc->tp, sc->ip, 0);
+		}
+		error = xrep_xattr_reset_fork(sc);
+		if (error)
+			return error;
+	}
+
 	/*
 	 * If we modified the inode, roll the transaction but don't rejoin the
 	 * inode to the new transaction because xrep_bmap_data can do that.
@@ -1114,4 +1120,87 @@ xrep_metadata_inode_forks(
 	}
 
 	return 0;
+}
+
+/*
+ * Set up an in-memory buffer cache so that we can use the xfbtree.  Allocating
+ * a shmem file might take loks, so we cannot be in transaction context.  Park
+ * our resources in the scrub context and let the teardown function take care
+ * of them at the right time.
+ */
+int
+xrep_setup_xfbtree(
+	struct xfs_scrub	*sc,
+	const char		*descr)
+{
+	ASSERT(sc->tp == NULL);
+
+	return xmbuf_alloc(sc->mp, descr, &sc->xmbtp);
+}
+
+/*
+ * Create a dummy transaction for use in a live update hook function.  This
+ * function MUST NOT be called from regular repair code because the current
+ * process' transaction is saved via the cookie.
+ */
+int
+xrep_trans_alloc_hook_dummy(
+	struct xfs_mount	*mp,
+	void			**cookiep,
+	struct xfs_trans	**tpp)
+{
+	int			error;
+
+	*cookiep = current->journal_info;
+	current->journal_info = NULL;
+
+	error = xfs_trans_alloc_empty(mp, tpp);
+	if (!error)
+		return 0;
+
+	current->journal_info = *cookiep;
+	*cookiep = NULL;
+	return error;
+}
+
+/* Cancel a dummy transaction used by a live update hook function. */
+void
+xrep_trans_cancel_hook_dummy(
+	void			**cookiep,
+	struct xfs_trans	*tp)
+{
+	xfs_trans_cancel(tp);
+	current->journal_info = *cookiep;
+	*cookiep = NULL;
+}
+
+/*
+ * See if this buffer can pass the given ->verify_struct() function.
+ *
+ * If the buffer already has ops attached and they're not the ones that were
+ * passed in, we reject the buffer.  Otherwise, we perform the structure test
+ * (note that we do not check CRCs) and return the outcome of the test.  The
+ * buffer ops and error state are left unchanged.
+ */
+bool
+xrep_buf_verify_struct(
+	struct xfs_buf			*bp,
+	const struct xfs_buf_ops	*ops)
+{
+	const struct xfs_buf_ops	*old_ops = bp->b_ops;
+	xfs_failaddr_t			fa;
+	int				old_error;
+
+	if (old_ops) {
+		if (old_ops != ops)
+			return false;
+	}
+
+	old_error = bp->b_error;
+	bp->b_ops = ops;
+	fa = bp->b_ops->verify_struct(bp);
+	bp->b_ops = old_ops;
+	bp->b_error = old_error;
+
+	return fa == NULL;
 }

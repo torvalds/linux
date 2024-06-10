@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -567,7 +567,7 @@ static struct snd_soc_dai_driver bdw_dai[] = {
 };
 
 /* broadwell ops */
-static struct snd_sof_dsp_ops sof_bdw_ops = {
+static const struct snd_sof_dsp_ops sof_bdw_ops = {
 	/*Device init */
 	.probe          = bdw_probe,
 

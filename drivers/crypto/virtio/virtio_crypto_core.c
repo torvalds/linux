@@ -42,8 +42,6 @@ static void virtcrypto_ctrlq_callback(struct virtqueue *vq)
 			virtio_crypto_ctrlq_callback(vc_ctrl_req);
 			spin_lock_irqsave(&vcrypto->ctrl_lock, flags);
 		}
-		if (unlikely(virtqueue_is_broken(vq)))
-			break;
 	} while (!virtqueue_enable_cb(vq));
 	spin_unlock_irqrestore(&vcrypto->ctrl_lock, flags);
 }
@@ -583,7 +581,6 @@ static const struct virtio_device_id id_table[] = {
 
 static struct virtio_driver virtio_crypto_driver = {
 	.driver.name         = KBUILD_MODNAME,
-	.driver.owner        = THIS_MODULE,
 	.feature_table       = features,
 	.feature_table_size  = ARRAY_SIZE(features),
 	.id_table            = id_table,

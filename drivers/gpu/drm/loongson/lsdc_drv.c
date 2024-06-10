@@ -184,7 +184,7 @@ static int lsdc_get_dedicated_vram(struct lsdc_device *ldev,
 	drm_info(ddev, "Dedicated vram start: 0x%llx, size: %uMiB\n",
 		 (u64)base, (u32)(size >> 20));
 
-	return 0;
+	return (size > SZ_1M) ? 0 : -ENODEV;
 }
 
 static struct lsdc_device *

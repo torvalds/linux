@@ -12,6 +12,7 @@
 #include "xe_hw_engine_types.h"
 
 struct xe_device;
+struct xe_gt;
 
 /**
  * struct xe_devcoredump_snapshot - Crash snapshot
@@ -26,13 +27,23 @@ struct xe_devcoredump_snapshot {
 	/** @boot_time:  Relative boot time so the uptime can be calculated. */
 	ktime_t boot_time;
 
+	/** @gt: Affected GT, used by forcewake for delayed capture */
+	struct xe_gt *gt;
+	/** @work: Workqueue for deferred capture outside of signaling context */
+	struct work_struct work;
+
 	/* GuC snapshots */
 	/** @ct: GuC CT snapshot */
 	struct xe_guc_ct_snapshot *ct;
 	/** @ge: Guc Engine snapshot */
 	struct xe_guc_submit_exec_queue_snapshot *ge;
+
 	/** @hwe: HW Engine snapshot array */
 	struct xe_hw_engine_snapshot *hwe[XE_NUM_HW_ENGINES];
+	/** @job: Snapshot of job state */
+	struct xe_sched_job_snapshot *job;
+	/** @vm: Snapshot of VM state */
+	struct xe_vm_snapshot *vm;
 };
 
 /**
@@ -44,8 +55,6 @@ struct xe_devcoredump_snapshot {
  * for reading the information.
  */
 struct xe_devcoredump {
-	/** @xe: Xe device. */
-	struct xe_device *xe;
 	/** @captured: The snapshot of the first hang has already been taken. */
 	bool captured;
 	/** @snapshot: Snapshot is captured at time of the first crash */

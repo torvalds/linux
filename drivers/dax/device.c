@@ -329,14 +329,14 @@ static unsigned long dax_get_unmapped_area(struct file *filp,
 	if ((off + len_align) < off)
 		goto out;
 
-	addr_align = current->mm->get_unmapped_area(filp, addr, len_align,
-			pgoff, flags);
+	addr_align = mm_get_unmapped_area(current->mm, filp, addr, len_align,
+					  pgoff, flags);
 	if (!IS_ERR_VALUE(addr_align)) {
 		addr_align += (off - addr_align) & (align - 1);
 		return addr_align;
 	}
  out:
-	return current->mm->get_unmapped_area(filp, addr, len, pgoff, flags);
+	return mm_get_unmapped_area(current->mm, filp, addr, len, pgoff, flags);
 }
 
 static const struct address_space_operations dev_dax_aops = {
@@ -377,7 +377,7 @@ static const struct file_operations dax_fops = {
 	.release = dax_release,
 	.get_unmapped_area = dax_get_unmapped_area,
 	.mmap = dax_mmap,
-	.mmap_supported_flags = MAP_SYNC,
+	.fop_flags = FOP_MMAP_SYNC,
 };
 
 static void dev_dax_cdev_del(void *cdev)

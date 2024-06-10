@@ -412,7 +412,8 @@ static void __ssp_receive_chars(struct sifive_serial_port *ssp)
 			break;
 
 		ssp->port.icount.rx++;
-		uart_insert_char(&ssp->port, 0, 0, ch, TTY_NORMAL);
+		if (!uart_prepare_sysrq_char(&ssp->port, ch))
+			uart_insert_char(&ssp->port, 0, 0, ch, TTY_NORMAL);
 	}
 
 	tty_flip_buffer_push(&ssp->port.state->port);
@@ -534,7 +535,7 @@ static irqreturn_t sifive_serial_irq(int irq, void *dev_id)
 	if (ip & SIFIVE_SERIAL_IP_TXWM_MASK)
 		__ssp_transmit_chars(ssp);
 
-	uart_port_unlock(&ssp->port);
+	uart_unlock_and_check_sysrq(&ssp->port);
 
 	return IRQ_HANDLED;
 }
@@ -760,7 +761,7 @@ static int __init early_sifive_serial_setup(struct earlycon_device *dev,
 }
 
 OF_EARLYCON_DECLARE(sifive, "sifive,uart0", early_sifive_serial_setup);
-OF_EARLYCON_DECLARE(sifive, "sifive,fu540-c000-uart0",
+OF_EARLYCON_DECLARE(sifive, "sifive,fu540-c000-uart",
 		    early_sifive_serial_setup);
 #endif /* CONFIG_SERIAL_EARLYCON */
 
@@ -791,13 +792,10 @@ static void sifive_serial_console_write(struct console *co, const char *s,
 	if (!ssp)
 		return;
 
-	local_irq_save(flags);
-	if (ssp->port.sysrq)
-		locked = 0;
-	else if (oops_in_progress)
-		locked = uart_port_trylock(&ssp->port);
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(&ssp->port, &flags);
 	else
-		uart_port_lock(&ssp->port);
+		uart_port_lock_irqsave(&ssp->port, &flags);
 
 	ier = __ssp_readl(ssp, SIFIVE_SERIAL_IE_OFFS);
 	__ssp_writel(0, SIFIVE_SERIAL_IE_OFFS, ssp);
@@ -807,8 +805,7 @@ static void sifive_serial_console_write(struct console *co, const char *s,
 	__ssp_writel(ier, SIFIVE_SERIAL_IE_OFFS, ssp);
 
 	if (locked)
-		uart_port_unlock(&ssp->port);
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(&ssp->port, flags);
 }
 
 static int sifive_serial_console_setup(struct console *co, char *options)
@@ -1035,7 +1032,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(sifive_uart_pm_ops, sifive_serial_suspend,
 				sifive_serial_resume);
 
 static const struct of_device_id sifive_serial_of_match[] = {
-	{ .compatible = "sifive,fu540-c000-uart0" },
+	{ .compatible = "sifive,fu540-c000-uart" },
 	{ .compatible = "sifive,uart0" },
 	{},
 };

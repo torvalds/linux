@@ -206,9 +206,11 @@ static void gmap_free(struct gmap *gmap)
 
 	/* Free additional data for a shadow gmap */
 	if (gmap_is_shadow(gmap)) {
+		struct ptdesc *ptdesc, *n;
+
 		/* Free all page tables. */
-		list_for_each_entry_safe(page, next, &gmap->pt_list, lru)
-			page_table_free_pgste(page);
+		list_for_each_entry_safe(ptdesc, n, &gmap->pt_list, pt_list)
+			page_table_free_pgste(ptdesc);
 		gmap_rmap_radix_tree_free(&gmap->host_to_rmap);
 		/* Release reference to the parent */
 		gmap_put(gmap->parent);
@@ -596,12 +598,12 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	pud = pud_offset(p4d, vmaddr);
 	VM_BUG_ON(pud_none(*pud));
 	/* large puds cannot yet be handled */
-	if (pud_large(*pud))
+	if (pud_leaf(*pud))
 		return -EFAULT;
 	pmd = pmd_offset(pud, vmaddr);
 	VM_BUG_ON(pmd_none(*pmd));
 	/* Are we allowed to use huge pages? */
-	if (pmd_large(*pmd) && !gmap->mm->context.allow_gmap_hpage_1m)
+	if (pmd_leaf(*pmd) && !gmap->mm->context.allow_gmap_hpage_1m)
 		return -EFAULT;
 	/* Link gmap segment table entry location to page table. */
 	rc = radix_tree_preload(GFP_KERNEL_ACCOUNT);
@@ -613,7 +615,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		rc = radix_tree_insert(&gmap->host_to_guest,
 				       vmaddr >> PMD_SHIFT, table);
 		if (!rc) {
-			if (pmd_large(*pmd)) {
+			if (pmd_leaf(*pmd)) {
 				*table = (pmd_val(*pmd) &
 					  _SEGMENT_ENTRY_HARDWARE_BITS_LARGE)
 					| _SEGMENT_ENTRY_GMAP_UC;
@@ -943,7 +945,7 @@ static inline pmd_t *gmap_pmd_op_walk(struct gmap *gmap, unsigned long gaddr)
 	}
 
 	/* 4k page table entries are locked via the pte (pte_alloc_map_lock). */
-	if (!pmd_large(*pmdp))
+	if (!pmd_leaf(*pmdp))
 		spin_unlock(&gmap->guest_table_lock);
 	return pmdp;
 }
@@ -955,7 +957,7 @@ static inline pmd_t *gmap_pmd_op_walk(struct gmap *gmap, unsigned long gaddr)
  */
 static inline void gmap_pmd_op_end(struct gmap *gmap, pmd_t *pmdp)
 {
-	if (pmd_large(*pmdp))
+	if (pmd_leaf(*pmdp))
 		spin_unlock(&gmap->guest_table_lock);
 }
 
@@ -1066,7 +1068,7 @@ static int gmap_protect_range(struct gmap *gmap, unsigned long gaddr,
 		rc = -EAGAIN;
 		pmdp = gmap_pmd_op_walk(gmap, gaddr);
 		if (pmdp) {
-			if (!pmd_large(*pmdp)) {
+			if (!pmd_leaf(*pmdp)) {
 				rc = gmap_protect_pte(gmap, gaddr, pmdp, prot,
 						      bits);
 				if (!rc) {
@@ -1348,7 +1350,7 @@ static void gmap_unshadow_pgt(struct gmap *sg, unsigned long raddr)
 {
 	unsigned long *ste;
 	phys_addr_t sto, pgt;
-	struct page *page;
+	struct ptdesc *ptdesc;
 
 	BUG_ON(!gmap_is_shadow(sg));
 	ste = gmap_table_walk(sg, raddr, 1); /* get segment pointer */
@@ -1361,9 +1363,9 @@ static void gmap_unshadow_pgt(struct gmap *sg, unsigned long raddr)
 	*ste = _SEGMENT_ENTRY_EMPTY;
 	__gmap_unshadow_pgt(sg, raddr, __va(pgt));
 	/* Free page table */
-	page = phys_to_page(pgt);
-	list_del(&page->lru);
-	page_table_free_pgste(page);
+	ptdesc = page_ptdesc(phys_to_page(pgt));
+	list_del(&ptdesc->pt_list);
+	page_table_free_pgste(ptdesc);
 }
 
 /**
@@ -1377,7 +1379,7 @@ static void gmap_unshadow_pgt(struct gmap *sg, unsigned long raddr)
 static void __gmap_unshadow_sgt(struct gmap *sg, unsigned long raddr,
 				unsigned long *sgt)
 {
-	struct page *page;
+	struct ptdesc *ptdesc;
 	phys_addr_t pgt;
 	int i;
 
@@ -1389,9 +1391,9 @@ static void __gmap_unshadow_sgt(struct gmap *sg, unsigned long raddr,
 		sgt[i] = _SEGMENT_ENTRY_EMPTY;
 		__gmap_unshadow_pgt(sg, raddr, __va(pgt));
 		/* Free page table */
-		page = phys_to_page(pgt);
-		list_del(&page->lru);
-		page_table_free_pgste(page);
+		ptdesc = page_ptdesc(phys_to_page(pgt));
+		list_del(&ptdesc->pt_list);
+		page_table_free_pgste(ptdesc);
 	}
 }
 
@@ -2058,19 +2060,19 @@ int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt,
 {
 	unsigned long raddr, origin;
 	unsigned long *table;
-	struct page *page;
+	struct ptdesc *ptdesc;
 	phys_addr_t s_pgt;
 	int rc;
 
 	BUG_ON(!gmap_is_shadow(sg) || (pgt & _SEGMENT_ENTRY_LARGE));
 	/* Allocate a shadow page table */
-	page = page_table_alloc_pgste(sg->mm);
-	if (!page)
+	ptdesc = page_table_alloc_pgste(sg->mm);
+	if (!ptdesc)
 		return -ENOMEM;
-	page->index = pgt & _SEGMENT_ENTRY_ORIGIN;
+	ptdesc->pt_index = pgt & _SEGMENT_ENTRY_ORIGIN;
 	if (fake)
-		page->index |= GMAP_SHADOW_FAKE_TABLE;
-	s_pgt = page_to_phys(page);
+		ptdesc->pt_index |= GMAP_SHADOW_FAKE_TABLE;
+	s_pgt = page_to_phys(ptdesc_page(ptdesc));
 	/* Install shadow page table */
 	spin_lock(&sg->guest_table_lock);
 	table = gmap_table_walk(sg, saddr, 1); /* get segment pointer */
@@ -2088,7 +2090,7 @@ int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt,
 	/* mark as invalid as long as the parent table is not protected */
 	*table = (unsigned long) s_pgt | _SEGMENT_ENTRY |
 		 (pgt & _SEGMENT_ENTRY_PROTECT) | _SEGMENT_ENTRY_INVALID;
-	list_add(&page->lru, &sg->pt_list);
+	list_add(&ptdesc->pt_list, &sg->pt_list);
 	if (fake) {
 		/* nothing to protect for fake tables */
 		*table &= ~_SEGMENT_ENTRY_INVALID;
@@ -2114,7 +2116,7 @@ int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt,
 	return rc;
 out_free:
 	spin_unlock(&sg->guest_table_lock);
-	page_table_free_pgste(page);
+	page_table_free_pgste(ptdesc);
 	return rc;
 
 }
@@ -2498,7 +2500,7 @@ void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long bitmap[4],
 	if (!pmdp)
 		return;
 
-	if (pmd_large(*pmdp)) {
+	if (pmd_leaf(*pmdp)) {
 		if (gmap_test_and_clear_dirty_pmd(gmap, pmdp, gaddr))
 			bitmap_fill(bitmap, _PAGE_ENTRIES);
 	} else {
@@ -2548,41 +2550,6 @@ static inline void thp_split_mm(struct mm_struct *mm)
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
- * Remove all empty zero pages from the mapping for lazy refaulting
- * - This must be called after mm->context.has_pgste is set, to avoid
- *   future creation of zero pages
- * - This must be called after THP was disabled.
- *
- * mm contracts with s390, that even if mm were to remove a page table,
- * racing with the loop below and so causing pte_offset_map_lock() to fail,
- * it will never insert a page table containing empty zero pages once
- * mm_forbids_zeropage(mm) i.e. mm->context.has_pgste is set.
- */
-static int __zap_zero_pages(pmd_t *pmd, unsigned long start,
-			   unsigned long end, struct mm_walk *walk)
-{
-	unsigned long addr;
-
-	for (addr = start; addr != end; addr += PAGE_SIZE) {
-		pte_t *ptep;
-		spinlock_t *ptl;
-
-		ptep = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
-		if (!ptep)
-			break;
-		if (is_zero_pfn(pte_pfn(*ptep)))
-			ptep_xchg_direct(walk->mm, addr, ptep, __pte(_PAGE_INVALID));
-		pte_unmap_unlock(ptep, ptl);
-	}
-	return 0;
-}
-
-static const struct mm_walk_ops zap_zero_walk_ops = {
-	.pmd_entry	= __zap_zero_pages,
-	.walk_lock	= PGWALK_WRLOCK,
-};
-
-/*
  * switch on pgstes for its userspace process (for kvm)
  */
 int s390_enable_sie(void)
@@ -2599,22 +2566,142 @@ int s390_enable_sie(void)
 	mm->context.has_pgste = 1;
 	/* split thp mappings and disable thp for future mappings */
 	thp_split_mm(mm);
-	walk_page_range(mm, 0, TASK_SIZE, &zap_zero_walk_ops, NULL);
 	mmap_write_unlock(mm);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
 
-int gmap_mark_unmergeable(void)
+static int find_zeropage_pte_entry(pte_t *pte, unsigned long addr,
+				   unsigned long end, struct mm_walk *walk)
 {
+	unsigned long *found_addr = walk->private;
+
+	/* Return 1 of the page is a zeropage. */
+	if (is_zero_pfn(pte_pfn(*pte))) {
+		/*
+		 * Shared zeropage in e.g., a FS DAX mapping? We cannot do the
+		 * right thing and likely don't care: FAULT_FLAG_UNSHARE
+		 * currently only works in COW mappings, which is also where
+		 * mm_forbids_zeropage() is checked.
+		 */
+		if (!is_cow_mapping(walk->vma->vm_flags))
+			return -EFAULT;
+
+		*found_addr = addr;
+		return 1;
+	}
+	return 0;
+}
+
+static const struct mm_walk_ops find_zeropage_ops = {
+	.pte_entry	= find_zeropage_pte_entry,
+	.walk_lock	= PGWALK_WRLOCK,
+};
+
+/*
+ * Unshare all shared zeropages, replacing them by anonymous pages. Note that
+ * we cannot simply zap all shared zeropages, because this could later
+ * trigger unexpected userfaultfd missing events.
+ *
+ * This must be called after mm->context.allow_cow_sharing was
+ * set to 0, to avoid future mappings of shared zeropages.
+ *
+ * mm contracts with s390, that even if mm were to remove a page table,
+ * and racing with walk_page_range_vma() calling pte_offset_map_lock()
+ * would fail, it will never insert a page table containing empty zero
+ * pages once mm_forbids_zeropage(mm) i.e.
+ * mm->context.allow_cow_sharing is set to 0.
+ */
+static int __s390_unshare_zeropages(struct mm_struct *mm)
+{
+	struct vm_area_struct *vma;
+	VMA_ITERATOR(vmi, mm, 0);
+	unsigned long addr;
+	vm_fault_t fault;
+	int rc;
+
+	for_each_vma(vmi, vma) {
+		/*
+		 * We could only look at COW mappings, but it's more future
+		 * proof to catch unexpected zeropages in other mappings and
+		 * fail.
+		 */
+		if ((vma->vm_flags & VM_PFNMAP) || is_vm_hugetlb_page(vma))
+			continue;
+		addr = vma->vm_start;
+
+retry:
+		rc = walk_page_range_vma(vma, addr, vma->vm_end,
+					 &find_zeropage_ops, &addr);
+		if (rc < 0)
+			return rc;
+		else if (!rc)
+			continue;
+
+		/* addr was updated by find_zeropage_pte_entry() */
+		fault = handle_mm_fault(vma, addr,
+					FAULT_FLAG_UNSHARE | FAULT_FLAG_REMOTE,
+					NULL);
+		if (fault & VM_FAULT_OOM)
+			return -ENOMEM;
+		/*
+		 * See break_ksm(): even after handle_mm_fault() returned 0, we
+		 * must start the lookup from the current address, because
+		 * handle_mm_fault() may back out if there's any difficulty.
+		 *
+		 * VM_FAULT_SIGBUS and VM_FAULT_SIGSEGV are unexpected but
+		 * maybe they could trigger in the future on concurrent
+		 * truncation. In that case, the shared zeropage would be gone
+		 * and we can simply retry and make progress.
+		 */
+		cond_resched();
+		goto retry;
+	}
+
+	return 0;
+}
+
+static int __s390_disable_cow_sharing(struct mm_struct *mm)
+{
+	int rc;
+
+	if (!mm->context.allow_cow_sharing)
+		return 0;
+
+	mm->context.allow_cow_sharing = 0;
+
+	/* Replace all shared zeropages by anonymous pages. */
+	rc = __s390_unshare_zeropages(mm);
 	/*
 	 * Make sure to disable KSM (if enabled for the whole process or
 	 * individual VMAs). Note that nothing currently hinders user space
 	 * from re-enabling it.
 	 */
-	return ksm_disable(current->mm);
+	if (!rc)
+		rc = ksm_disable(mm);
+	if (rc)
+		mm->context.allow_cow_sharing = 1;
+	return rc;
 }
-EXPORT_SYMBOL_GPL(gmap_mark_unmergeable);
+
+/*
+ * Disable most COW-sharing of memory pages for the whole process:
+ * (1) Disable KSM and unmerge/unshare any KSM pages.
+ * (2) Disallow shared zeropages and unshare any zerpages that are mapped.
+ *
+ * Not that we currently don't bother with COW-shared pages that are shared
+ * with parent/child processes due to fork().
+ */
+int s390_disable_cow_sharing(void)
+{
+	int rc;
+
+	mmap_write_lock(current->mm);
+	rc = __s390_disable_cow_sharing(current->mm);
+	mmap_write_unlock(current->mm);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(s390_disable_cow_sharing);
 
 /*
  * Enable storage key handling from now on and initialize the storage
@@ -2659,7 +2746,7 @@ static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
 		return 0;
 
 	start = pmd_val(*pmd) & HPAGE_MASK;
-	end = start + HPAGE_SIZE - 1;
+	end = start + HPAGE_SIZE;
 	__storage_key_init_range(start, end);
 	set_bit(PG_arch_1, &page->flags);
 	cond_resched();
@@ -2683,7 +2770,7 @@ int s390_enable_skey(void)
 		goto out_up;
 
 	mm->context.uses_skeys = 1;
-	rc = gmap_mark_unmergeable();
+	rc = __s390_disable_cow_sharing(mm);
 	if (rc) {
 		mm->context.uses_skeys = 0;
 		goto out_up;

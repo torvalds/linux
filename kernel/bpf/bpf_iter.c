@@ -548,7 +548,7 @@ int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
 		return -ENOENT;
 
 	/* Only allow sleepable program for resched-able iterator */
-	if (prog->aux->sleepable && !bpf_iter_target_support_resched(tinfo))
+	if (prog->sleepable && !bpf_iter_target_support_resched(tinfo))
 		return -EINVAL;
 
 	link = kzalloc(sizeof(*link), GFP_USER | __GFP_NOWARN);
@@ -697,7 +697,7 @@ int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 	struct bpf_run_ctx run_ctx, *old_run_ctx;
 	int ret;
 
-	if (prog->aux->sleepable) {
+	if (prog->sleepable) {
 		rcu_read_lock_trace();
 		migrate_disable();
 		might_fault();

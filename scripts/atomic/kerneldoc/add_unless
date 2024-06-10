@@ -10,6 +10,7 @@ cat <<EOF
  * @u: ${int} value to compare with
  *
  * If (@v != @u), atomically updates @v to (@v + @a) with ${desc_order} ordering.
+ * Otherwise, @v is not modified and relaxed ordering is provided.
  *
  * ${desc_noinstr}
  *

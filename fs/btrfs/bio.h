@@ -7,12 +7,14 @@
 #ifndef BTRFS_BIO_H
 #define BTRFS_BIO_H
 
+#include <linux/types.h>
 #include <linux/bio.h>
 #include <linux/workqueue.h>
 #include "tree-checker.h"
 
 struct btrfs_bio;
 struct btrfs_fs_info;
+struct btrfs_inode;
 
 #define BTRFS_BIO_INLINE_CSUM_SIZE	64
 

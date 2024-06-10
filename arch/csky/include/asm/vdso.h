@@ -5,11 +5,6 @@
 
 #include <linux/types.h>
 
-#ifndef GENERIC_TIME_VSYSCALL
-struct vdso_data {
-};
-#endif
-
 /*
  * The VDSO symbols are mapped into Linux so we can just use regular symbol
  * addressing to get their offsets in userspace.  The symbols are mapped at an

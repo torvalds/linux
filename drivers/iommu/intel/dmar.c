@@ -32,6 +32,7 @@
 
 #include "iommu.h"
 #include "../irq_remapping.h"
+#include "../iommu-pages.h"
 #include "perf.h"
 #include "trace.h"
 #include "perfmon.h"
@@ -1067,7 +1068,6 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 		goto error_free_seq_id;
 	}
 
-	err = -EINVAL;
 	if (!cap_sagaw(iommu->cap) &&
 	    (!ecap_smts(iommu->ecap) || ecap_slts(iommu->ecap))) {
 		pr_info("%s: No supported address widths. Not attempting DMA translation.\n",
@@ -1095,7 +1095,9 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->agaw = agaw;
 	iommu->msagaw = msagaw;
 	iommu->segment = drhd->segment;
-
+	iommu->device_rbtree = RB_ROOT;
+	spin_lock_init(&iommu->device_rbtree_lock);
+	mutex_init(&iommu->iopf_lock);
 	iommu->node = NUMA_NO_NODE;
 
 	ver = readl(iommu->reg + DMAR_VER_REG);
@@ -1185,7 +1187,7 @@ static void free_iommu(struct intel_iommu *iommu)
 	}
 
 	if (iommu->qi) {
-		free_page((unsigned long)iommu->qi->desc);
+		iommu_free_page(iommu->qi->desc);
 		kfree(iommu->qi->desc_status);
 		kfree(iommu->qi);
 	}
@@ -1271,6 +1273,8 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 {
 	u32 fault;
 	int head, tail;
+	struct device *dev;
+	u64 iqe_err, ite_sid;
 	struct q_inval *qi = iommu->qi;
 	int shift = qi_shift(iommu);
 
@@ -1315,6 +1319,13 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 		tail = readl(iommu->reg + DMAR_IQT_REG);
 		tail = ((tail >> shift) - 1 + QI_LENGTH) % QI_LENGTH;
 
+		/*
+		 * SID field is valid only when the ITE field is Set in FSTS_REG
+		 * see Intel VT-d spec r4.1, section 11.4.9.9
+		 */
+		iqe_err = dmar_readq(iommu->reg + DMAR_IQER_REG);
+		ite_sid = DMAR_IQER_REG_ITESID(iqe_err);
+
 		writel(DMA_FSTS_ITE, iommu->reg + DMAR_FSTS_REG);
 		pr_info("Invalidation Time-out Error (ITE) cleared\n");
 
@@ -1324,6 +1335,19 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 			head = (head - 2 + QI_LENGTH) % QI_LENGTH;
 		} while (head != tail);
 
+		/*
+		 * If device was released or isn't present, no need to retry
+		 * the ATS invalidate request anymore.
+		 *
+		 * 0 value of ite_sid means old VT-d device, no ite_sid value.
+		 * see Intel VT-d spec r4.1, section 11.4.9.9
+		 */
+		if (ite_sid) {
+			dev = device_rbtree_find(iommu, ite_sid);
+			if (!dev || !dev_is_pci(dev) ||
+			    !pci_device_is_present(to_pci_dev(dev)))
+				return -ETIMEDOUT;
+		}
 		if (qi->desc_status[wait_index] == QI_ABORT)
 			return -EAGAIN;
 	}
@@ -1731,7 +1755,8 @@ static void __dmar_enable_qi(struct intel_iommu *iommu)
 int dmar_enable_qi(struct intel_iommu *iommu)
 {
 	struct q_inval *qi;
-	struct page *desc_page;
+	void *desc;
+	int order;
 
 	if (!ecap_qis(iommu->ecap))
 		return -ENOENT;
@@ -1752,19 +1777,19 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	 * Need two pages to accommodate 256 descriptors of 256 bits each
 	 * if the remapping hardware supports scalable mode translation.
 	 */
-	desc_page = alloc_pages_node(iommu->node, GFP_ATOMIC | __GFP_ZERO,
-				     !!ecap_smts(iommu->ecap));
-	if (!desc_page) {
+	order = ecap_smts(iommu->ecap) ? 1 : 0;
+	desc = iommu_alloc_pages_node(iommu->node, GFP_ATOMIC, order);
+	if (!desc) {
 		kfree(qi);
 		iommu->qi = NULL;
 		return -ENOMEM;
 	}
 
-	qi->desc = page_address(desc_page);
+	qi->desc = desc;
 
 	qi->desc_status = kcalloc(QI_LENGTH, sizeof(int), GFP_ATOMIC);
 	if (!qi->desc_status) {
-		free_page((unsigned long) qi->desc);
+		iommu_free_page(qi->desc);
 		kfree(qi);
 		iommu->qi = NULL;
 		return -ENOMEM;
@@ -2098,7 +2123,7 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 	return ret;
 }
 
-int __init enable_drhd_fault_handling(void)
+int enable_drhd_fault_handling(unsigned int cpu)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
@@ -2108,7 +2133,12 @@ int __init enable_drhd_fault_handling(void)
 	 */
 	for_each_iommu(iommu, drhd) {
 		u32 fault_status;
-		int ret = dmar_set_interrupt(iommu);
+		int ret;
+
+		if (iommu->irq || iommu->node != cpu_to_node(cpu))
+			continue;
+
+		ret = dmar_set_interrupt(iommu);
 
 		if (ret) {
 			pr_err("DRHD %Lx: failed to enable fault, interrupt, ret %d\n",

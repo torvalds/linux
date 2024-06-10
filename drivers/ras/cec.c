@@ -480,9 +480,15 @@ DEFINE_SHOW_ATTRIBUTE(array);
 
 static int __init create_debugfs_nodes(void)
 {
-	struct dentry *d, *pfn, *decay, *count, *array;
+	struct dentry *d, *pfn, *decay, *count, *array, *dfs;
 
-	d = debugfs_create_dir("cec", ras_debugfs_dir);
+	dfs = ras_get_debugfs_root();
+	if (!dfs) {
+		pr_warn("Error getting RAS debugfs root!\n");
+		return -1;
+	}
+
+	d = debugfs_create_dir("cec", dfs);
 	if (!d) {
 		pr_warn("Error creating cec debugfs node!\n");
 		return -1;

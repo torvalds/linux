@@ -46,3 +46,6 @@ gup_longterm
 mkdirty
 va_high_addr_switch
 hugetlb_fault_after_madv
+hugetlb_madv_vs_map
+mseal_test
+seal_elf

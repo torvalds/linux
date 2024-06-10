@@ -105,7 +105,7 @@ check_per_thread()
 		echo "[Skip] paranoia and not root"
 		return
 	fi
-	perf stat -j --per-thread -a -o "${stat_output}" true
+	perf stat -j --per-thread -p $$ -o "${stat_output}" true
 	$PYTHON $pythonchecker --per-thread --file "${stat_output}"
 	echo "[Success]"
 }
@@ -119,6 +119,18 @@ check_per_cache_instance()
 		return
 	fi
 	perf stat -j --per-cache -a true 2>&1 | $PYTHON $pythonchecker --per-cache
+	echo "[Success]"
+}
+
+check_per_cluster()
+{
+	echo -n "Checking json output: per cluster "
+	if ParanoidAndNotRoot 0
+	then
+		echo "[Skip] paranoia and not root"
+		return
+	fi
+	perf stat -j --per-cluster -a true 2>&1 | $PYTHON $pythonchecker --per-cluster
 	echo "[Success]"
 }
 
@@ -200,6 +212,7 @@ then
 	check_system_wide_no_aggr
 	check_per_core
 	check_per_cache_instance
+	check_per_cluster
 	check_per_die
 	check_per_socket
 else

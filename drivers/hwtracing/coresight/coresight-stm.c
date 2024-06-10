@@ -29,6 +29,7 @@
 #include <linux/perf_event.h>
 #include <linux/pm_runtime.h>
 #include <linux/stm.h>
+#include <linux/platform_device.h>
 
 #include "coresight-priv.h"
 #include "coresight-trace-id.h"
@@ -115,11 +116,11 @@ DEFINE_CORESIGHT_DEVLIST(stm_devs, "stm");
  * struct stm_drvdata - specifics associated to an STM component
  * @base:		memory mapped base address for this component.
  * @atclk:		optional clock for the core parts of the STM.
+ * @pclk:		APB clock if present, otherwise NULL
  * @csdev:		component vitals needed by the framework.
  * @spinlock:		only one at a time pls.
  * @chs:		the channels accociated to this STM.
  * @stm:		structure associated to the generic STM interface.
- * @mode:		this tracer's mode (enum cs_mode), i.e sysFS, or disabled.
  * @traceid:		value of the current ID for this component.
  * @write_bytes:	Maximus bytes this STM can write at a time.
  * @stmsper:		settings for register STMSPER.
@@ -132,11 +133,11 @@ DEFINE_CORESIGHT_DEVLIST(stm_devs, "stm");
 struct stm_drvdata {
 	void __iomem		*base;
 	struct clk		*atclk;
+	struct clk		*pclk;
 	struct coresight_device	*csdev;
 	spinlock_t		spinlock;
 	struct channel_space	chs;
 	struct stm_data		stm;
-	local_t			mode;
 	u8			traceid;
 	u32			write_bytes;
 	u32			stmsper;
@@ -195,17 +196,15 @@ static void stm_enable_hw(struct stm_drvdata *drvdata)
 static int stm_enable(struct coresight_device *csdev, struct perf_event *event,
 		      enum cs_mode mode)
 {
-	u32 val;
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	if (mode != CS_MODE_SYSFS)
 		return -EINVAL;
 
-	val = local_cmpxchg(&drvdata->mode, CS_MODE_DISABLED, mode);
-
-	/* Someone is already using the tracer */
-	if (val)
+	if (!coresight_take_mode(csdev, mode)) {
+		/* Someone is already using the tracer */
 		return -EBUSY;
+	}
 
 	pm_runtime_get_sync(csdev->dev.parent);
 
@@ -266,7 +265,7 @@ static void stm_disable(struct coresight_device *csdev,
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
-	if (local_read(&drvdata->mode) == CS_MODE_SYSFS) {
+	if (coresight_get_mode(csdev) == CS_MODE_SYSFS) {
 		spin_lock(&drvdata->spinlock);
 		stm_disable_hw(drvdata);
 		spin_unlock(&drvdata->spinlock);
@@ -276,7 +275,7 @@ static void stm_disable(struct coresight_device *csdev,
 
 		pm_runtime_put(csdev->dev.parent);
 
-		local_set(&drvdata->mode, CS_MODE_DISABLED);
+		coresight_set_mode(csdev, CS_MODE_DISABLED);
 		dev_dbg(&csdev->dev, "STM tracing disabled\n");
 	}
 }
@@ -334,7 +333,7 @@ static int stm_generic_link(struct stm_data *stm_data,
 	if (!drvdata || !drvdata->csdev)
 		return -EINVAL;
 
-	return coresight_enable(drvdata->csdev);
+	return coresight_enable_sysfs(drvdata->csdev);
 }
 
 static void stm_generic_unlink(struct stm_data *stm_data,
@@ -345,7 +344,7 @@ static void stm_generic_unlink(struct stm_data *stm_data,
 	if (!drvdata || !drvdata->csdev)
 		return;
 
-	coresight_disable(drvdata->csdev);
+	coresight_disable_sysfs(drvdata->csdev);
 }
 
 static phys_addr_t
@@ -373,7 +372,7 @@ static long stm_generic_set_options(struct stm_data *stm_data,
 {
 	struct stm_drvdata *drvdata = container_of(stm_data,
 						   struct stm_drvdata, stm);
-	if (!(drvdata && local_read(&drvdata->mode)))
+	if (!(drvdata && coresight_get_mode(drvdata->csdev)))
 		return -EINVAL;
 
 	if (channel >= drvdata->numsp)
@@ -408,7 +407,7 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 						   struct stm_drvdata, stm);
 	unsigned int stm_flags;
 
-	if (!(drvdata && local_read(&drvdata->mode)))
+	if (!(drvdata && coresight_get_mode(drvdata->csdev)))
 		return -EACCES;
 
 	if (channel >= drvdata->numsp)
@@ -515,7 +514,7 @@ static ssize_t port_select_show(struct device *dev,
 	struct stm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val;
 
-	if (!local_read(&drvdata->mode)) {
+	if (!coresight_get_mode(drvdata->csdev)) {
 		val = drvdata->stmspscr;
 	} else {
 		spin_lock(&drvdata->spinlock);
@@ -541,7 +540,7 @@ static ssize_t port_select_store(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	drvdata->stmspscr = val;
 
-	if (local_read(&drvdata->mode)) {
+	if (coresight_get_mode(drvdata->csdev)) {
 		CS_UNLOCK(drvdata->base);
 		/* Process as per ARM's TRM recommendation */
 		stmsper = readl_relaxed(drvdata->base + STMSPER);
@@ -562,7 +561,7 @@ static ssize_t port_enable_show(struct device *dev,
 	struct stm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val;
 
-	if (!local_read(&drvdata->mode)) {
+	if (!coresight_get_mode(drvdata->csdev)) {
 		val = drvdata->stmsper;
 	} else {
 		spin_lock(&drvdata->spinlock);
@@ -588,7 +587,7 @@ static ssize_t port_enable_store(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	drvdata->stmsper = val;
 
-	if (local_read(&drvdata->mode)) {
+	if (coresight_get_mode(drvdata->csdev)) {
 		CS_UNLOCK(drvdata->base);
 		writel_relaxed(drvdata->stmsper, drvdata->base + STMSPER);
 		CS_LOCK(drvdata->base);
@@ -804,14 +803,22 @@ static void stm_init_generic_data(struct stm_drvdata *drvdata,
 	drvdata->stm.set_options = stm_generic_set_options;
 }
 
-static int stm_probe(struct amba_device *adev, const struct amba_id *id)
+static const struct amba_id stm_ids[];
+
+static char *stm_csdev_name(struct coresight_device *csdev)
+{
+	u32 stm_pid = coresight_get_pid(&csdev->access);
+	void *uci_data = coresight_get_uci_data_from_amba(stm_ids, stm_pid);
+
+	return uci_data ? (char *)uci_data : "STM";
+}
+
+static int __stm_probe(struct device *dev, struct resource *res)
 {
 	int ret, trace_id;
 	void __iomem *base;
-	struct device *dev = &adev->dev;
 	struct coresight_platform_data *pdata = NULL;
 	struct stm_drvdata *drvdata;
-	struct resource *res = &adev->res;
 	struct resource ch_res;
 	struct coresight_desc desc = { 0 };
 
@@ -823,12 +830,16 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 	if (!drvdata)
 		return -ENOMEM;
 
-	drvdata->atclk = devm_clk_get(&adev->dev, "atclk"); /* optional */
+	drvdata->atclk = devm_clk_get(dev, "atclk"); /* optional */
 	if (!IS_ERR(drvdata->atclk)) {
 		ret = clk_prepare_enable(drvdata->atclk);
 		if (ret)
 			return ret;
 	}
+
+	drvdata->pclk = coresight_get_enable_apb_pclk(dev);
+	if (IS_ERR(drvdata->pclk))
+		return -ENODEV;
 	dev_set_drvdata(dev, drvdata);
 
 	base = devm_ioremap_resource(dev, res);
@@ -876,7 +887,7 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = PTR_ERR(pdata);
 		goto stm_unregister;
 	}
-	adev->dev.platform_data = pdata;
+	dev->platform_data = pdata;
 
 	desc.type = CORESIGHT_DEV_TYPE_SOURCE;
 	desc.subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE;
@@ -897,10 +908,8 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 	drvdata->traceid = (u8)trace_id;
 
-	pm_runtime_put(&adev->dev);
-
 	dev_info(&drvdata->csdev->dev, "%s initialized\n",
-		 (char *)coresight_get_uci_data(id));
+		 stm_csdev_name(drvdata->csdev));
 	return 0;
 
 cs_unregister:
@@ -911,14 +920,30 @@ stm_unregister:
 	return ret;
 }
 
-static void stm_remove(struct amba_device *adev)
+static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 {
-	struct stm_drvdata *drvdata = dev_get_drvdata(&adev->dev);
+	int ret;
+
+	ret = __stm_probe(&adev->dev, &adev->res);
+	if (!ret)
+		pm_runtime_put(&adev->dev);
+
+	return ret;
+}
+
+static void __stm_remove(struct device *dev)
+{
+	struct stm_drvdata *drvdata = dev_get_drvdata(dev);
 
 	coresight_trace_id_put_system_id(drvdata->traceid);
 	coresight_unregister(drvdata->csdev);
 
 	stm_unregister_device(&drvdata->stm);
+}
+
+static void stm_remove(struct amba_device *adev)
+{
+	__stm_remove(&adev->dev);
 }
 
 #ifdef CONFIG_PM
@@ -929,6 +954,8 @@ static int stm_runtime_suspend(struct device *dev)
 	if (drvdata && !IS_ERR(drvdata->atclk))
 		clk_disable_unprepare(drvdata->atclk);
 
+	if (drvdata && !IS_ERR_OR_NULL(drvdata->pclk))
+		clk_disable_unprepare(drvdata->pclk);
 	return 0;
 }
 
@@ -939,6 +966,8 @@ static int stm_runtime_resume(struct device *dev)
 	if (drvdata && !IS_ERR(drvdata->atclk))
 		clk_prepare_enable(drvdata->atclk);
 
+	if (drvdata && !IS_ERR_OR_NULL(drvdata->pclk))
+		clk_prepare_enable(drvdata->pclk);
 	return 0;
 }
 #endif
@@ -950,7 +979,7 @@ static const struct dev_pm_ops stm_dev_pm_ops = {
 static const struct amba_id stm_ids[] = {
 	CS_AMBA_ID_DATA(0x000bb962, "STM32"),
 	CS_AMBA_ID_DATA(0x000bb963, "STM500"),
-	{ 0, 0},
+	{ 0, 0, NULL },
 };
 
 MODULE_DEVICE_TABLE(amba, stm_ids);
@@ -958,7 +987,6 @@ MODULE_DEVICE_TABLE(amba, stm_ids);
 static struct amba_driver stm_driver = {
 	.drv = {
 		.name   = "coresight-stm",
-		.owner	= THIS_MODULE,
 		.pm	= &stm_dev_pm_ops,
 		.suppress_bind_attrs = true,
 	},
@@ -967,7 +995,66 @@ static struct amba_driver stm_driver = {
 	.id_table	= stm_ids,
 };
 
-module_amba_driver(stm_driver);
+static int stm_platform_probe(struct platform_device *pdev)
+{
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	int ret = 0;
+
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
+	ret = __stm_probe(&pdev->dev, res);
+	pm_runtime_put(&pdev->dev);
+	if (ret)
+		pm_runtime_disable(&pdev->dev);
+
+	return ret;
+}
+
+static void stm_platform_remove(struct platform_device *pdev)
+{
+	struct stm_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
+
+	if (WARN_ON(!drvdata))
+		return;
+
+	__stm_remove(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+	if (!IS_ERR_OR_NULL(drvdata->pclk))
+		clk_put(drvdata->pclk);
+}
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id stm_acpi_ids[] = {
+	{"ARMHC502", 0, 0, 0}, /* ARM CoreSight STM */
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, stm_acpi_ids);
+#endif
+
+static struct platform_driver stm_platform_driver = {
+	.probe	= stm_platform_probe,
+	.remove_new = stm_platform_remove,
+	.driver	= {
+		.name			= "coresight-stm-platform",
+		.acpi_match_table	= ACPI_PTR(stm_acpi_ids),
+		.suppress_bind_attrs	= true,
+		.pm			= &stm_dev_pm_ops,
+	},
+};
+
+static int __init stm_init(void)
+{
+	return coresight_init_driver("stm", &stm_driver, &stm_platform_driver);
+}
+
+static void __exit stm_exit(void)
+{
+	coresight_remove_driver(&stm_driver, &stm_platform_driver);
+}
+module_init(stm_init);
+module_exit(stm_exit);
 
 MODULE_AUTHOR("Pratik Patel <pratikp@codeaurora.org>");
 MODULE_DESCRIPTION("Arm CoreSight System Trace Macrocell driver");

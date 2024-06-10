@@ -28,9 +28,13 @@ properties:
       - ti,ina231
       - ti,ina237
       - ti,ina238
+      - ti,ina260
 
   reg:
     maxItems: 1
+
+  "#io-channel-cells":
+    const: 1
 
   shunt-resistor:
     description:
@@ -66,7 +70,10 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: hwmon-common.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -77,6 +84,8 @@ examples:
         power-sensor@44 {
             compatible = "ti,ina220";
             reg = <0x44>;
+            #io-channel-cells = <1>;
+            label = "vdd_3v0";
             shunt-resistor = <1000>;
             vs-supply = <&vdd_3v0>;
         };

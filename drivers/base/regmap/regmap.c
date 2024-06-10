@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(regmap_check_range_table);
 
 bool regmap_writeable(struct regmap *map, unsigned int reg)
 {
-	if (map->max_register && reg > map->max_register)
+	if (map->max_register_is_set && reg > map->max_register)
 		return false;
 
 	if (map->writeable_reg)
@@ -112,7 +112,7 @@ bool regmap_cached(struct regmap *map, unsigned int reg)
 	if (!map->cache_ops)
 		return false;
 
-	if (map->max_register && reg > map->max_register)
+	if (map->max_register_is_set && reg > map->max_register)
 		return false;
 
 	map->lock(map->lock_arg);
@@ -129,7 +129,7 @@ bool regmap_readable(struct regmap *map, unsigned int reg)
 	if (!map->reg_read)
 		return false;
 
-	if (map->max_register && reg > map->max_register)
+	if (map->max_register_is_set && reg > map->max_register)
 		return false;
 
 	if (map->format.format_write)
@@ -787,6 +787,7 @@ struct regmap *__regmap_init(struct device *dev,
 	map->bus = bus;
 	map->bus_context = bus_context;
 	map->max_register = config->max_register;
+	map->max_register_is_set = map->max_register ?: config->max_register_is_0;
 	map->wr_table = config->wr_table;
 	map->rd_table = config->rd_table;
 	map->volatile_table = config->volatile_table;
@@ -1412,6 +1413,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	regmap_debugfs_exit(map);
 
 	map->max_register = config->max_register;
+	map->max_register_is_set = map->max_register ?: config->max_register_is_0;
 	map->writeable_reg = config->writeable_reg;
 	map->readable_reg = config->readable_reg;
 	map->volatile_reg = config->volatile_reg;
@@ -2837,6 +2839,43 @@ int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val)
 EXPORT_SYMBOL_GPL(regmap_read);
 
 /**
+ * regmap_read_bypassed() - Read a value from a single register direct
+ *			    from the device, bypassing the cache
+ *
+ * @map: Register map to read from
+ * @reg: Register to be read from
+ * @val: Pointer to store read value
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_read_bypassed(struct regmap *map, unsigned int reg, unsigned int *val)
+{
+	int ret;
+	bool bypass, cache_only;
+
+	if (!IS_ALIGNED(reg, map->reg_stride))
+		return -EINVAL;
+
+	map->lock(map->lock_arg);
+
+	bypass = map->cache_bypass;
+	cache_only = map->cache_only;
+	map->cache_bypass = true;
+	map->cache_only = false;
+
+	ret = _regmap_read(map, reg, val);
+
+	map->cache_bypass = bypass;
+	map->cache_only = cache_only;
+
+	map->unlock(map->lock_arg);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regmap_read_bypassed);
+
+/**
  * regmap_raw_read() - Read raw data from the device
  *
  * @map: Register map to read from
@@ -3383,7 +3422,7 @@ EXPORT_SYMBOL_GPL(regmap_get_val_bytes);
  */
 int regmap_get_max_register(struct regmap *map)
 {
-	return map->max_register ? map->max_register : -EINVAL;
+	return map->max_register_is_set ? map->max_register : -EINVAL;
 }
 EXPORT_SYMBOL_GPL(regmap_get_max_register);
 

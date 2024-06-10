@@ -309,23 +309,15 @@ static void msp_wake_thread(struct i2c_client *client)
 	wake_up_interruptible(&state->wq);
 }
 
-int msp_sleep(struct msp_state *state, int timeout)
+int msp_sleep(struct msp_state *state, int msec)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	long timeout;
 
-	add_wait_queue(&state->wq, &wait);
-	if (!kthread_should_stop()) {
-		if (timeout < 0) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-		} else {
-			schedule_timeout_interruptible
-						(msecs_to_jiffies(timeout));
-		}
-	}
+	timeout = msec < 0 ? MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(msec);
 
-	remove_wait_queue(&state->wq, &wait);
-	try_to_freeze();
+	wait_event_freezable_timeout(state->wq, kthread_should_stop() ||
+				     state->restart, timeout);
+
 	return state->restart;
 }
 

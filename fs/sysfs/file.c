@@ -463,6 +463,8 @@ struct kernfs_node *sysfs_break_active_protection(struct kobject *kobj,
 	kn = kernfs_find_and_get(kobj->sd, attr->name);
 	if (kn)
 		kernfs_break_active_protection(kn);
+	else
+		kobject_put(kobj);
 	return kn;
 }
 EXPORT_SYMBOL_GPL(sysfs_break_active_protection);
@@ -783,3 +785,30 @@ int sysfs_emit_at(char *buf, int at, const char *fmt, ...)
 	return len;
 }
 EXPORT_SYMBOL_GPL(sysfs_emit_at);
+
+/**
+ *	sysfs_bin_attr_simple_read - read callback to simply copy from memory.
+ *	@file:	attribute file which is being read.
+ *	@kobj:	object to which the attribute belongs.
+ *	@attr:	attribute descriptor.
+ *	@buf:	destination buffer.
+ *	@off:	offset in bytes from which to read.
+ *	@count:	maximum number of bytes to read.
+ *
+ * Simple ->read() callback for bin_attributes backed by a buffer in memory.
+ * The @private and @size members in struct bin_attribute must be set to the
+ * buffer's location and size before the bin_attribute is created in sysfs.
+ *
+ * Bounds check for @off and @count is done in sysfs_kf_bin_read().
+ * Negative value check for @off is done in vfs_setpos() and default_llseek().
+ *
+ * Returns number of bytes written to @buf.
+ */
+ssize_t sysfs_bin_attr_simple_read(struct file *file, struct kobject *kobj,
+				   struct bin_attribute *attr, char *buf,
+				   loff_t off, size_t count)
+{
+	memcpy(buf, attr->private + off, count);
+	return count;
+}
+EXPORT_SYMBOL_GPL(sysfs_bin_attr_simple_read);

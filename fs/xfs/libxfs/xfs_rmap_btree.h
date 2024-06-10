@@ -10,6 +10,7 @@ struct xfs_buf;
 struct xfs_btree_cur;
 struct xfs_mount;
 struct xbtree_afakeroot;
+struct xfbtree;
 
 /* rmaps only exist on crc enabled filesystems */
 #define XFS_RMAP_BLOCK_LEN	XFS_BTREE_SBLOCK_CRC_LEN
@@ -44,8 +45,6 @@ struct xbtree_afakeroot;
 struct xfs_btree_cur *xfs_rmapbt_init_cursor(struct xfs_mount *mp,
 				struct xfs_trans *tp, struct xfs_buf *bp,
 				struct xfs_perag *pag);
-struct xfs_btree_cur *xfs_rmapbt_stage_cursor(struct xfs_mount *mp,
-		struct xbtree_afakeroot *afake, struct xfs_perag *pag);
 void xfs_rmapbt_commit_staged_btree(struct xfs_btree_cur *cur,
 		struct xfs_trans *tp, struct xfs_buf *agbp);
 int xfs_rmapbt_maxrecs(int blocklen, int leaf);
@@ -63,5 +62,10 @@ unsigned int xfs_rmapbt_maxlevels_ondisk(void);
 
 int __init xfs_rmapbt_init_cur_cache(void);
 void xfs_rmapbt_destroy_cur_cache(void);
+
+struct xfs_btree_cur *xfs_rmapbt_mem_cursor(struct xfs_perag *pag,
+		struct xfs_trans *tp, struct xfbtree *xfbtree);
+int xfs_rmapbt_mem_init(struct xfs_mount *mp, struct xfbtree *xfbtree,
+		struct xfs_buftarg *btp, xfs_agnumber_t agno);
 
 #endif /* __XFS_RMAP_BTREE_H__ */

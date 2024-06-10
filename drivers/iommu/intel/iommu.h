@@ -35,6 +35,8 @@
 #define VTD_PAGE_MASK		(((u64)-1) << VTD_PAGE_SHIFT)
 #define VTD_PAGE_ALIGN(addr)	(((addr) + VTD_PAGE_SIZE - 1) & VTD_PAGE_MASK)
 
+#define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
+
 #define VTD_STRIDE_SHIFT        (9)
 #define VTD_STRIDE_MASK         (((u64)-1) << VTD_STRIDE_SHIFT)
 
@@ -455,7 +457,6 @@ enum {
 
 /* Page group response descriptor QW0 */
 #define QI_PGRP_PASID_P(p)	(((u64)(p)) << 4)
-#define QI_PGRP_PDP(p)		(((u64)(p)) << 5)
 #define QI_PGRP_RESP_CODE(res)	(((u64)(res)) << 12)
 #define QI_PGRP_DID(rid)	(((u64)(rid)) << 16)
 #define QI_PGRP_PASID(pasid)	(((u64)(pasid)) << 32)
@@ -607,6 +608,9 @@ struct dmar_domain {
 	struct list_head devices;	/* all devices' list */
 	struct list_head dev_pasids;	/* all attached pasids */
 
+	spinlock_t cache_lock;		/* Protect the cache tag list */
+	struct list_head cache_tags;	/* Cache tag list */
+
 	int		iommu_superpage;/* Level of superpages supported:
 					   0 == 4KiB (no superpages), 1 == 2MiB,
 					   2 == 1GiB, 3 == 512GiB, 4 == 1TiB */
@@ -643,6 +647,11 @@ struct dmar_domain {
 			struct iommu_hwpt_vtd_s1 s1_cfg;
 			/* link to parent domain siblings */
 			struct list_head s2_link;
+		};
+
+		/* SVA domain */
+		struct {
+			struct mmu_notifier notifier;
 		};
 	};
 
@@ -719,8 +728,15 @@ struct intel_iommu {
 #endif
 	struct iopf_queue *iopf_queue;
 	unsigned char iopfq_name[16];
+	/* Synchronization between fault report and iommu device release. */
+	struct mutex iopf_lock;
 	struct q_inval  *qi;            /* Queued invalidation info */
 	u32 iommu_state[MAX_SR_DMAR_REGS]; /* Store iommu states between suspend and resume.*/
+
+	/* rb tree for all probed devices */
+	struct rb_root device_rbtree;
+	/* protect the device_rbtree */
+	spinlock_t device_rbtree_lock;
 
 #ifdef CONFIG_IRQ_REMAP
 	struct ir_table *ir_table;	/* Interrupt remapping info */
@@ -755,6 +771,8 @@ struct device_domain_info {
 	struct intel_iommu *iommu; /* IOMMU used by this device */
 	struct dmar_domain *domain; /* pointer to domain */
 	struct pasid_table *pasid_table; /* pasid table */
+	/* device tracking node(lookup by PCI RID) */
+	struct rb_node node;
 #ifdef CONFIG_INTEL_IOMMU_DEBUGFS
 	struct dentry *debugfs_dentry; /* pointer to device directory dentry */
 #endif
@@ -1029,6 +1047,19 @@ static inline void context_set_sm_pre(struct context_entry *context)
 	context->lo |= BIT_ULL(4);
 }
 
+/* Returns a number of VTD pages, but aligned to MM page size */
+static inline unsigned long aligned_nrpages(unsigned long host_addr, size_t size)
+{
+	host_addr &= ~PAGE_MASK;
+	return PAGE_ALIGN(host_addr + size) >> VTD_PAGE_SHIFT;
+}
+
+/* Return a size from number of VTD pages. */
+static inline unsigned long nrpages_to_size(unsigned long npages)
+{
+	return npages << VTD_PAGE_SHIFT;
+}
+
 /* Convert value to context PASID directory size field coding. */
 #define context_pdts(pds)	(((pds) & 0x7) << 9)
 
@@ -1076,47 +1107,60 @@ void domain_update_iommu_cap(struct dmar_domain *domain);
 
 int dmar_ir_support(void);
 
-void *alloc_pgtable_page(int node, gfp_t gfp);
-void free_pgtable_page(void *vaddr);
 void iommu_flush_write_buffer(struct intel_iommu *iommu);
 struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
 					       const struct iommu_user_data *user_data);
+struct device *device_rbtree_find(struct intel_iommu *iommu, u16 rid);
+
+enum cache_tag_type {
+	CACHE_TAG_IOTLB,
+	CACHE_TAG_DEVTLB,
+	CACHE_TAG_NESTING_IOTLB,
+	CACHE_TAG_NESTING_DEVTLB,
+};
+
+struct cache_tag {
+	struct list_head node;
+	enum cache_tag_type type;
+	struct intel_iommu *iommu;
+	/*
+	 * The @dev field represents the location of the cache. For IOTLB, it
+	 * resides on the IOMMU hardware. @dev stores the device pointer to
+	 * the IOMMU hardware. For DevTLB, it locates in the PCIe endpoint.
+	 * @dev stores the device pointer to that endpoint.
+	 */
+	struct device *dev;
+	u16 domain_id;
+	ioasid_t pasid;
+	unsigned int users;
+};
+
+int cache_tag_assign_domain(struct dmar_domain *domain,
+			    struct device *dev, ioasid_t pasid);
+void cache_tag_unassign_domain(struct dmar_domain *domain,
+			       struct device *dev, ioasid_t pasid);
+void cache_tag_flush_range(struct dmar_domain *domain, unsigned long start,
+			   unsigned long end, int ih);
+void cache_tag_flush_all(struct dmar_domain *domain);
+void cache_tag_flush_range_np(struct dmar_domain *domain, unsigned long start,
+			      unsigned long end);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 void intel_svm_check(struct intel_iommu *iommu);
 int intel_svm_enable_prq(struct intel_iommu *iommu);
 int intel_svm_finish_prq(struct intel_iommu *iommu);
-int intel_svm_page_response(struct device *dev, struct iommu_fault_event *evt,
-			    struct iommu_page_response *msg);
-struct iommu_domain *intel_svm_domain_alloc(void);
-void intel_svm_remove_dev_pasid(struct device *dev, ioasid_t pasid);
+void intel_svm_page_response(struct device *dev, struct iopf_fault *evt,
+			     struct iommu_page_response *msg);
+struct iommu_domain *intel_svm_domain_alloc(struct device *dev,
+					    struct mm_struct *mm);
 void intel_drain_pasid_prq(struct device *dev, u32 pasid);
-
-struct intel_svm_dev {
-	struct list_head list;
-	struct rcu_head rcu;
-	struct device *dev;
-	struct intel_iommu *iommu;
-	u16 did;
-	u16 sid, qdep;
-};
-
-struct intel_svm {
-	struct mmu_notifier notifier;
-	struct mm_struct *mm;
-	u32 pasid;
-	struct list_head devs;
-};
 #else
 static inline void intel_svm_check(struct intel_iommu *iommu) {}
 static inline void intel_drain_pasid_prq(struct device *dev, u32 pasid) {}
-static inline struct iommu_domain *intel_svm_domain_alloc(void)
+static inline struct iommu_domain *intel_svm_domain_alloc(struct device *dev,
+							  struct mm_struct *mm)
 {
-	return NULL;
-}
-
-static inline void intel_svm_remove_dev_pasid(struct device *dev, ioasid_t pasid)
-{
+	return ERR_PTR(-ENODEV);
 }
 #endif
 

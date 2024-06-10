@@ -222,6 +222,16 @@ extern int
 __ethtool_get_link_ksettings(struct net_device *dev,
 			     struct ethtool_link_ksettings *link_ksettings);
 
+struct ethtool_keee {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertised);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertised);
+	u32	tx_lpi_timer;
+	bool	tx_lpi_enabled;
+	bool	eee_active;
+	bool	eee_enabled;
+};
+
 struct kernel_ethtool_coalesce {
 	u8 use_cqe_mode_tx;
 	u8 use_cqe_mode_rx;
@@ -467,6 +477,26 @@ struct ethtool_rmon_stats {
 
 		u64 hist[ETHTOOL_RMON_HIST_MAX];
 		u64 hist_tx[ETHTOOL_RMON_HIST_MAX];
+	);
+};
+
+/**
+ * struct ethtool_ts_stats - HW timestamping statistics
+ * @pkts: Number of packets successfully timestamped by the hardware.
+ * @lost: Number of hardware timestamping requests where the timestamping
+ *	information from the hardware never arrived for submission with
+ *	the skb.
+ * @err: Number of arbitrary timestamp generation error events that the
+ *	hardware encountered, exclusive of @lost statistics. Cases such
+ *	as resource exhaustion, unavailability, firmware errors, and
+ *	detected illogical timestamp values not submitted with the skb
+ *	are inclusive to this counter.
+ */
+struct ethtool_ts_stats {
+	struct_group(tx_stats,
+		u64 pkts;
+		u64 lost;
+		u64 err;
 	);
 };
 
@@ -745,7 +775,10 @@ struct ethtool_rxfh_param {
  * @get_ts_info: Get the time stamping and PTP hardware clock capabilities.
  *	It may be called with RCU, or rtnl or reference on the device.
  *	Drivers supporting transmit time stamps in software should set this to
- *	ethtool_op_get_ts_info().
+ *	ethtool_op_get_ts_info(). Drivers must not zero statistics which they
+ *	don't report. The stats	structure is initialized to ETHTOOL_STAT_NOT_SET
+ *	indicating driver does not report statistics.
+ * @get_ts_stats: Query the device hardware timestamping statistics.
  * @get_module_info: Get the size and type of the eeprom contained within
  *	a plug-in module.
  * @get_module_eeprom: Get the eeprom information from the plug-in module
@@ -888,12 +921,14 @@ struct ethtool_ops {
 				 struct ethtool_dump *, void *);
 	int	(*set_dump)(struct net_device *, struct ethtool_dump *);
 	int	(*get_ts_info)(struct net_device *, struct ethtool_ts_info *);
+	void	(*get_ts_stats)(struct net_device *dev,
+				struct ethtool_ts_stats *ts_stats);
 	int     (*get_module_info)(struct net_device *,
 				   struct ethtool_modinfo *);
 	int     (*get_module_eeprom)(struct net_device *,
 				     struct ethtool_eeprom *, u8 *);
-	int	(*get_eee)(struct net_device *, struct ethtool_eee *);
-	int	(*set_eee)(struct net_device *, struct ethtool_eee *);
+	int	(*get_eee)(struct net_device *dev, struct ethtool_keee *eee);
+	int	(*set_eee)(struct net_device *dev, struct ethtool_keee *eee);
 	int	(*get_tunable)(struct net_device *,
 			       const struct ethtool_tunable *, void *);
 	int	(*set_tunable)(struct net_device *,

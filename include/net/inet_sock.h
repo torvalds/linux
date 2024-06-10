@@ -274,6 +274,7 @@ enum {
 	INET_FLAGS_REPFLOW	= 27,
 	INET_FLAGS_RTALERT_ISOLATE = 28,
 	INET_FLAGS_SNDFLOW	= 29,
+	INET_FLAGS_RTALERT	= 30,
 };
 
 /* cmsg flags for inet */

@@ -167,6 +167,7 @@
         "plugins": {
             "requires": "nsPlugin"
         },
+        "dependsOn": "echo '' | jq",
         "setup": [
             "echo \"1 1 8\" > /sys/bus/netdevsim/new_device",
             "$TC qdisc replace dev $ETH handle 8001: parent root stab overhead 24 taprio num_tc 8 map 0 1 2 3 4 5 6 7 queues 1@0 1@1 1@2 1@3 1@4 1@5 1@6 1@7 base-time 0 sched-entry S ff 20000000 clockid CLOCK_TAI",
@@ -192,6 +193,7 @@
         "plugins": {
             "requires": "nsPlugin"
         },
+        "dependsOn": "echo '' | jq",
         "setup": [
             "echo \"1 1 8\" > /sys/bus/netdevsim/new_device",
             "$TC qdisc replace dev $ETH handle 8001: parent root stab overhead 24 taprio num_tc 8 map 0 1 2 3 4 5 6 7 queues 1@0 1@1 1@2 1@3 1@4 1@5 1@6 1@7 base-time 0 sched-entry S ff 20000000 flags 0x2",

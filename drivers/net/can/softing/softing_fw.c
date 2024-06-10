@@ -436,7 +436,7 @@ int softing_startstop(struct net_device *dev, int up)
 		return ret;
 
 	bus_bitmask_start = 0;
-	if (dev && up)
+	if (up)
 		/* prepare to start this bus as well */
 		bus_bitmask_start |= (1 << priv->index);
 	/* bring netdevs down */

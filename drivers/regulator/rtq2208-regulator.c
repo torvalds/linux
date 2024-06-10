@@ -26,6 +26,7 @@
 #define RTQ2208_REG_BUCK_H_CFG0			0xA2
 #define RTQ2208_REG_LDO1_CFG			0xB1
 #define RTQ2208_REG_LDO2_CFG			0xC1
+#define RTQ2208_REG_LDO_DVS_CTRL		0xD0
 
 /* Mask */
 #define RTQ2208_BUCK_NR_MTP_SEL_MASK		GENMASK(7, 0)
@@ -40,6 +41,10 @@
 #define RTQ2208_EN_DIS_MASK			BIT(0)
 #define RTQ2208_BUCK_RAMP_SEL_MASK		GENMASK(2, 0)
 #define RTQ2208_HD_INT_MASK			BIT(0)
+#define RTQ2208_LDO1_DISCHG_EN_MASK		BIT(4)
+#define RTQ2208_LDO1_VOSEL_SD_MASK		BIT(5)
+#define RTQ2208_LDO2_DISCHG_EN_MASK		BIT(6)
+#define RTQ2208_LDO2_VOSEL_SD_MASK		BIT(7)
 
 /* Size */
 #define RTQ2208_VOUT_MAXNUM			256
@@ -48,7 +53,7 @@
 
 /* Value */
 #define RTQ2208_RAMP_VALUE_MIN_uV		500
-#define RTQ2208_RAMP_VALUE_MAX_uV		64000
+#define RTQ2208_RAMP_VALUE_MAX_uV		16000
 
 #define RTQ2208_BUCK_MASK(uv_irq, ov_irq)	(1 << ((uv_irq) % 8) | 1 << ((ov_irq) % 8))
 
@@ -142,12 +147,11 @@ static int rtq2208_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	 * Because the relation of seleltion and value is like that
 	 *
 	 * seletion: value
-	 * 000: 64mv
-	 * 001: 32mv
+	 * 010: 16mv
 	 * ...
 	 * 111: 0.5mv
 	 *
-	 * For example, if I would like to select 64mv, the fls(ramp_delay) - 1 will be 0b111,
+	 * For example, if I would like to select 16mv, the fls(ramp_delay) - 1 will be 0b010,
 	 * and I need to use 0b111 - sel to do the shifting
 	 */
 
@@ -318,23 +322,6 @@ static irqreturn_t rtq2208_irq_handler(int irqno, void *devid)
 	return IRQ_HANDLED;
 }
 
-#define RTQ2208_REGULATOR_INFO(_name, _base) \
-{ \
-	.name = #_name, \
-	.base = _base, \
-}
-#define BUCK_RG_BASE(_id)	RTQ2208_REG_BUCK_##_id##_CFG0
-#define BUCK_RG_SHIFT(_base, _shift)	(_base + _shift)
-#define LDO_RG_BASE(_id)	RTQ2208_REG_LDO##_id##_CFG
-#define LDO_RG_SHIFT(_base, _shift)	(_base + _shift)
-#define	VSEL_SHIFT(_sel)	(_sel ? 3 : 1)
-#define MTP_SEL_MASK(_sel)	RTQ2208_BUCK_EN_NR_MTP_SEL##_sel##_MASK
-
-static const struct linear_range rtq2208_vout_range[] = {
-	REGULATOR_LINEAR_RANGE(400000, 0, 180, 5000),
-	REGULATOR_LINEAR_RANGE(1310000, 181, 255, 10000),
-};
-
 static int rtq2208_of_get_fixed_voltage(struct device *dev,
 					struct of_regulator_match *rtq2208_ldo_match, int n_fixed)
 {
@@ -373,6 +360,34 @@ static int rtq2208_of_get_fixed_voltage(struct device *dev,
 	return 0;
 }
 
+
+#define BUCK_INFO(_name, _id)						\
+{									\
+	.name = _name,							\
+	.base = RTQ2208_REG_BUCK_##_id##_CFG0,				\
+	.enable_reg = BUCK_RG_SHIFT(RTQ2208_REG_BUCK_##_id##_CFG0, 2),	\
+	.dis_reg = RTQ2208_REG_BUCK_##_id##_CFG0,			\
+}
+
+#define LDO_INFO(_name, _id)						\
+{									\
+	.name = _name,							\
+	.base = RTQ2208_REG_LDO##_id##_CFG,				\
+	.enable_reg = RTQ2208_REG_LDO##_id##_CFG,			\
+	.dis_mask = RTQ2208_LDO##_id##_DISCHG_EN_MASK,			\
+	.dis_on = RTQ2208_LDO##_id##_DISCHG_EN_MASK,			\
+	.vsel_mask = RTQ2208_LDO##_id##_VOSEL_SD_MASK,			\
+}
+
+#define BUCK_RG_SHIFT(_base, _shift)	(_base + _shift)
+#define	VSEL_SHIFT(_sel)	(_sel ? 3 : 1)
+#define MTP_SEL_MASK(_sel)	RTQ2208_BUCK_EN_NR_MTP_SEL##_sel##_MASK
+
+static const struct linear_range rtq2208_vout_range[] = {
+	REGULATOR_LINEAR_RANGE(400000, 0, 180, 5000),
+	REGULATOR_LINEAR_RANGE(1310000, 181, 255, 10000),
+};
+
 static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, int mtp_sel,
 					int idx, struct of_regulator_match *rtq2208_ldo_match, int *ldo_idx)
 {
@@ -380,17 +395,22 @@ static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, in
 	static const struct {
 		char *name;
 		int base;
+		int enable_reg;
+		int dis_reg;
+		int dis_mask;
+		int dis_on;
+		int vsel_mask;
 	} regulator_info[] = {
-		RTQ2208_REGULATOR_INFO(buck-b, BUCK_RG_BASE(B)),
-		RTQ2208_REGULATOR_INFO(buck-c, BUCK_RG_BASE(C)),
-		RTQ2208_REGULATOR_INFO(buck-d, BUCK_RG_BASE(D)),
-		RTQ2208_REGULATOR_INFO(buck-a, BUCK_RG_BASE(A)),
-		RTQ2208_REGULATOR_INFO(buck-f, BUCK_RG_BASE(F)),
-		RTQ2208_REGULATOR_INFO(buck-g, BUCK_RG_BASE(G)),
-		RTQ2208_REGULATOR_INFO(buck-h, BUCK_RG_BASE(H)),
-		RTQ2208_REGULATOR_INFO(buck-e, BUCK_RG_BASE(E)),
-		RTQ2208_REGULATOR_INFO(ldo2, LDO_RG_BASE(2)),
-		RTQ2208_REGULATOR_INFO(ldo1, LDO_RG_BASE(1)),
+		BUCK_INFO("buck-b", B),
+		BUCK_INFO("buck-c", C),
+		BUCK_INFO("buck-d", D),
+		BUCK_INFO("buck-a", A),
+		BUCK_INFO("buck-f", F),
+		BUCK_INFO("buck-g", G),
+		BUCK_INFO("buck-h", H),
+		BUCK_INFO("buck-e", E),
+		LDO_INFO("ldo2", 2),
+		LDO_INFO("ldo1", 1),
 	}, *curr_info;
 
 	curr_info = regulator_info + idx;
@@ -402,15 +422,13 @@ static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, in
 	desc->owner = THIS_MODULE;
 	desc->type = REGULATOR_VOLTAGE;
 	desc->enable_mask = mtp_sel ? MTP_SEL_MASK(1) : MTP_SEL_MASK(0);
-	desc->active_discharge_on = RTQ2208_EN_DIS_MASK;
+	desc->enable_reg = curr_info->enable_reg;
 	desc->active_discharge_off = 0;
-	desc->active_discharge_mask = RTQ2208_EN_DIS_MASK;
 
 	rdesc->mode_mask = RTQ2208_BUCK_NRMODE_MASK;
 
 	if (idx >= RTQ2208_BUCK_B && idx <= RTQ2208_BUCK_E) {
 		/* init buck desc */
-		desc->enable_reg = BUCK_RG_SHIFT(curr_info->base, 2);
 		desc->ops = &rtq2208_regulator_buck_ops;
 		desc->vsel_reg = curr_info->base + VSEL_SHIFT(mtp_sel);
 		desc->vsel_mask = RTQ2208_BUCK_NR_MTP_SEL_MASK;
@@ -418,8 +436,10 @@ static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, in
 		desc->linear_ranges = rtq2208_vout_range;
 		desc->n_linear_ranges = ARRAY_SIZE(rtq2208_vout_range);
 		desc->ramp_reg = BUCK_RG_SHIFT(curr_info->base, 5);
-		desc->active_discharge_reg = curr_info->base;
 		desc->of_map_mode = rtq2208_of_map_mode;
+		desc->active_discharge_reg = curr_info->dis_reg;
+		desc->active_discharge_on = RTQ2208_EN_DIS_MASK;
+		desc->active_discharge_mask = RTQ2208_EN_DIS_MASK;
 
 		rdesc->mode_reg = BUCK_RG_SHIFT(curr_info->base, 2);
 		rdesc->suspend_config_reg = BUCK_RG_SHIFT(curr_info->base, 4);
@@ -427,14 +447,11 @@ static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, in
 		rdesc->suspend_mode_mask = RTQ2208_BUCK_STRMODE_MASK;
 	} else {
 		/* init ldo desc */
-		desc->enable_reg = curr_info->base;
-		desc->ops = &rtq2208_regulator_ldo_ops;
-		desc->n_voltages = 1;
-		desc->active_discharge_reg = LDO_RG_SHIFT(curr_info->base, 2);
-
-		rtq2208_ldo_match[*ldo_idx].name = desc->name;
-		rtq2208_ldo_match[*ldo_idx].driver_data = rdesc;
-		rtq2208_ldo_match[(*ldo_idx)++].desc = desc;
+		desc->active_discharge_reg = RTQ2208_REG_LDO_DVS_CTRL;
+		desc->active_discharge_on = curr_info->dis_on;
+		desc->active_discharge_mask = curr_info->dis_mask;
+		desc->vsel_reg = RTQ2208_REG_LDO_DVS_CTRL;
+		desc->vsel_mask = curr_info->vsel_mask;
 
 		rdesc->suspend_config_reg = curr_info->base;
 		rdesc->suspend_enable_mask = RTQ2208_LDO_EN_STR_MASK;
@@ -458,6 +475,10 @@ static int rtq2208_parse_regulator_dt_data(int n_regulator, const unsigned int *
 			return -ENOMEM;
 
 		rtq2208_init_regulator_desc(rdesc[i], mtp_sel, idx, rtq2208_ldo_match, &ldo_idx);
+
+		/* init ldo dvs ability */
+		if (idx >= RTQ2208_LDO2)
+			rtq2208_ldo_match[idx - RTQ2208_LDO2].desc = &rdesc[i]->desc;
 	}
 
 	/* init ldo fixed_uV */

@@ -12,13 +12,13 @@
 #include <linux/list.h>
 #include <linux/bitmap.h>
 #include <linux/sched/signal.h>
+#include <linux/io.h>
 
 #include <asm/gmap.h>
 #include <asm/mmu_context.h>
 #include <asm/sclp.h>
 #include <asm/nmi.h>
 #include <asm/dis.h>
-#include <asm/fpu/api.h>
 #include <asm/facility.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
@@ -362,7 +362,7 @@ end:
 	case -EACCES:
 		return set_validity_icpt(scb_s, 0x003CU);
 	}
-	scb_s->crycbd = ((__u32)(__u64) &vsie_page->crycb) | CRYCB_FORMAT2;
+	scb_s->crycbd = (u32)virt_to_phys(&vsie_page->crycb) | CRYCB_FORMAT2;
 	return 0;
 }
 
@@ -1006,7 +1006,7 @@ static int handle_stfle(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (read_guest_real(vcpu, fac, &vsie_page->fac,
 				    stfle_size() * sizeof(u64)))
 			return set_validity_icpt(scb_s, 0x1090U);
-		scb_s->fac = (__u32)(__u64) &vsie_page->fac;
+		scb_s->fac = (u32)virt_to_phys(&vsie_page->fac);
 	}
 	return 0;
 }
@@ -1149,8 +1149,6 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	 */
 	vcpu->arch.sie_block->prog0c |= PROG_IN_SIE;
 	barrier();
-	if (test_cpu_flag(CIF_FPU))
-		load_fpu_regs();
 	if (!kvm_s390_vcpu_sie_inhibited(vcpu))
 		rc = sie64a(scb_s, vcpu->run->s.regs.gprs);
 	barrier();

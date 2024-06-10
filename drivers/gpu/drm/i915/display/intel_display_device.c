@@ -17,6 +17,9 @@
 #include "intel_display_reg_defs.h"
 #include "intel_fbc.h"
 
+__diag_push();
+__diag_ignore_all("-Woverride-init", "Allow field initialization overrides for display info");
+
 static const struct intel_display_device_info no_display = {};
 
 #define PIPE_A_OFFSET		0x70000
@@ -768,6 +771,8 @@ static const struct intel_display_device_info xe2_lpd_display = {
 		BIT(INTEL_FBC_C) | BIT(INTEL_FBC_D),
 };
 
+__diag_pop();
+
 /*
  * Separate detection for no display cases to keep the display id array simple.
  *
@@ -922,6 +927,9 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	const struct intel_display_device_info *info;
 	u16 ver, rel, step;
 
+	/* Add drm device backpointer as early as possible. */
+	i915->display.drm = &i915->drm;
+
 	if (HAS_GMD_ID(i915))
 		info = probe_gmdid_display(i915, &ver, &rel, &step);
 	else
@@ -1012,7 +1020,7 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		goto display_fused_off;
 	}
 
-	if (IS_GRAPHICS_VER(i915, 7, 8) && HAS_PCH_SPLIT(i915)) {
+	if (IS_DISPLAY_VER(i915, 7, 8) && HAS_PCH_SPLIT(i915)) {
 		u32 fuse_strap = intel_de_read(i915, FUSE_STRAP);
 		u32 sfuse_strap = intel_de_read(i915, SFUSE_STRAP);
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD ALSA SoC Pink Sardine SoundWire DMA Driver
  *
@@ -218,7 +218,7 @@ static int acp63_sdw_dma_open(struct snd_soc_component *component,
 	struct acp_sdw_dma_stream *stream;
 	struct snd_soc_dai *cpu_dai;
 	struct amd_sdw_manager *amd_manager;
-	struct snd_soc_pcm_runtime *prtd = substream->private_data;
+	struct snd_soc_pcm_runtime *prtd = snd_soc_substream_to_rtd(substream);
 	int ret;
 
 	runtime = substream->runtime;

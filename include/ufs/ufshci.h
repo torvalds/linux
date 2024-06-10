@@ -282,6 +282,9 @@ enum {
 /* UTMRLRSR - UTP Task Management Request Run-Stop Register 80h */
 #define UTP_TASK_REQ_LIST_RUN_STOP_BIT		0x1
 
+/* REG_UFS_MEM_CFG - Global Config Registers 300h */
+#define MCQ_MODE_SELECT	BIT(0)
+
 /* CQISy - CQ y Interrupt Status Register  */
 #define UFSHCD_MCQ_CQIS_TAIL_ENT_PUSH_STS	0x1
 
@@ -352,12 +355,8 @@ enum {
 
 /* Interrupt disable masks */
 enum {
-	/* Interrupt disable mask for UFSHCI v1.0 */
-	INTERRUPT_MASK_ALL_VER_10	= 0x30FFF,
-	INTERRUPT_MASK_RW_VER_10	= 0x30000,
-
 	/* Interrupt disable mask for UFSHCI v1.1 */
-	INTERRUPT_MASK_ALL_VER_11	= 0x31FFF,
+	INTERRUPT_MASK_ALL_VER_11       = 0x31FFF,
 
 	/* Interrupt disable mask for UFSHCI v2.1 */
 	INTERRUPT_MASK_ALL_VER_21	= 0x71FFF,
@@ -421,13 +420,6 @@ union ufs_crypto_cfg_entry {
 /*
  * Request Descriptor Definitions
  */
-
-/* Transfer request command type */
-enum {
-	UTP_CMD_TYPE_SCSI		= 0x0,
-	UTP_CMD_TYPE_UFS		= 0x1,
-	UTP_CMD_TYPE_DEV_MANAGE		= 0x2,
-};
 
 /* To accommodate UFS2.0 required Command type */
 enum {

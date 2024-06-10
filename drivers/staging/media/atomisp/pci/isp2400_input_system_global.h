@@ -19,7 +19,7 @@
 #define		N_CSI_PORTS (3)
 //AM: Use previous define for this.
 
-//MIPI allows upto 4 channels.
+//MIPI allows up to 4 channels.
 #define		N_CHANNELS  (4)
 // 12KB = 256bit x 384 words
 #define		IB_CAPACITY_IN_WORDS (384)
@@ -35,7 +35,6 @@ typedef enum {
 typedef enum {
 	INPUT_SYSTEM_SOURCE_SENSOR = 0,
 	INPUT_SYSTEM_SOURCE_FIFO,
-	INPUT_SYSTEM_SOURCE_TPG,
 	INPUT_SYSTEM_SOURCE_PRBS,
 	INPUT_SYSTEM_SOURCE_MEMORY,
 	N_INPUT_SYSTEM_SOURCE

@@ -2920,23 +2920,22 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	struct superblock_security_struct *sbsec;
 	struct xattr *xattr = lsm_get_xattr_slot(xattrs, xattr_count);
 	u32 newsid, clen;
+	u16 newsclass;
 	int rc;
 	char *context;
 
 	sbsec = selinux_superblock(dir->i_sb);
 
 	newsid = tsec->create_sid;
-
-	rc = selinux_determine_inode_label(tsec, dir, qstr,
-		inode_mode_to_security_class(inode->i_mode),
-		&newsid);
+	newsclass = inode_mode_to_security_class(inode->i_mode);
+	rc = selinux_determine_inode_label(tsec, dir, qstr, newsclass, &newsid);
 	if (rc)
 		return rc;
 
 	/* Possibly defer initialization to selinux_complete_init. */
 	if (sbsec->flags & SE_SBINITIALIZED) {
 		struct inode_security_struct *isec = selinux_inode(inode);
-		isec->sclass = inode_mode_to_security_class(inode->i_mode);
+		isec->sclass = newsclass;
 		isec->sid = newsid;
 		isec->initialized = LABEL_INITIALIZED;
 	}
@@ -2962,7 +2961,7 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 					    const struct qstr *name,
 					    const struct inode *context_inode)
 {
-	const struct task_security_struct *tsec = selinux_cred(current_cred());
+	u32 sid = current_sid();
 	struct common_audit_data ad;
 	struct inode_security_struct *isec;
 	int rc;
@@ -2991,7 +2990,7 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 	} else {
 		isec->sclass = SECCLASS_ANON_INODE;
 		rc = security_transition_sid(
-			tsec->sid, tsec->sid,
+			sid, sid,
 			isec->sclass, name, &isec->sid);
 		if (rc)
 			return rc;
@@ -3006,7 +3005,7 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 	ad.type = LSM_AUDIT_DATA_ANONINODE;
 	ad.u.anonclass = name ? (const char *)name->name : "?";
 
-	return avc_has_perm(tsec->sid,
+	return avc_has_perm(sid,
 			    isec->sid,
 			    isec->sclass,
 			    FILE__CREATE,
@@ -3064,14 +3063,12 @@ static int selinux_inode_readlink(struct dentry *dentry)
 static int selinux_inode_follow_link(struct dentry *dentry, struct inode *inode,
 				     bool rcu)
 {
-	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
 	struct inode_security_struct *isec;
-	u32 sid;
+	u32 sid = current_sid();
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
-	sid = cred_sid(cred);
 	isec = inode_security_rcu(inode, rcu);
 	if (IS_ERR(isec))
 		return PTR_ERR(isec);
@@ -3095,12 +3092,11 @@ static noinline int audit_inode_permission(struct inode *inode,
 
 static int selinux_inode_permission(struct inode *inode, int mask)
 {
-	const struct cred *cred = current_cred();
 	u32 perms;
 	bool from_access;
 	bool no_block = mask & MAY_NOT_BLOCK;
 	struct inode_security_struct *isec;
-	u32 sid;
+	u32 sid = current_sid();
 	struct av_decision avd;
 	int rc, rc2;
 	u32 audited, denied;
@@ -3117,7 +3113,6 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 
 	perms = file_mask_to_av(inode->i_mode, mask);
 
-	sid = cred_sid(cred);
 	isec = inode_security_rcu(inode, no_block);
 	if (IS_ERR(isec))
 		return PTR_ERR(isec);
@@ -3136,7 +3131,8 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	return rc;
 }
 
-static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
+static int selinux_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+				 struct iattr *iattr)
 {
 	const struct cred *cred = current_cred();
 	struct inode *inode = d_backing_inode(dentry);
@@ -3530,13 +3526,14 @@ static int selinux_inode_copy_up(struct dentry *src, struct cred **new)
 	return 0;
 }
 
-static int selinux_inode_copy_up_xattr(const char *name)
+static int selinux_inode_copy_up_xattr(struct dentry *dentry, const char *name)
 {
 	/* The copy_up hook above sets the initial context on an inode, but we
 	 * don't then want to overwrite it by blindly copying all the lower
-	 * xattrs up.  Instead, we have to filter out SELinux-related xattrs.
+	 * xattrs up.  Instead, filter out SELinux-related xattrs following
+	 * policy load.
 	 */
-	if (strcmp(name, XATTR_NAME_SELINUX) == 0)
+	if (selinux_initialized() && strcmp(name, XATTR_NAME_SELINUX) == 0)
 		return 1; /* Discard */
 	/*
 	 * Any other attribute apart from SELINUX is not claimed, supported
@@ -5194,11 +5191,11 @@ out_len:
 	return err;
 }
 
-static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
+static int selinux_socket_getpeersec_dgram(struct socket *sock,
+					   struct sk_buff *skb, u32 *secid)
 {
 	u32 peer_secid = SECSID_NULL;
 	u16 family;
-	struct inode_security_struct *isec;
 
 	if (skb && skb->protocol == htons(ETH_P_IP))
 		family = PF_INET;
@@ -5206,19 +5203,21 @@ static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *
 		family = PF_INET6;
 	else if (sock)
 		family = sock->sk->sk_family;
-	else
-		goto out;
+	else {
+		*secid = SECSID_NULL;
+		return -EINVAL;
+	}
 
 	if (sock && family == PF_UNIX) {
+		struct inode_security_struct *isec;
 		isec = inode_security_novalidate(SOCK_INODE(sock));
 		peer_secid = isec->sid;
 	} else if (skb)
 		selinux_skb_peerlbl_sid(skb, family, &peer_secid);
 
-out:
 	*secid = peer_secid;
 	if (peer_secid == SECSID_NULL)
-		return -EINVAL;
+		return -ENOPROTOOPT;
 	return 0;
 }
 
@@ -5561,13 +5560,7 @@ static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 
 static int selinux_secmark_relabel_packet(u32 sid)
 {
-	const struct task_security_struct *tsec;
-	u32 tsid;
-
-	tsec = selinux_cred(current_cred());
-	tsid = tsec->sid;
-
-	return avc_has_perm(tsid, sid, SECCLASS_PACKET, PACKET__RELABELTO,
+	return avc_has_perm(current_sid(), sid, SECCLASS_PACKET, PACKET__RELABELTO,
 			    NULL);
 }
 
@@ -6345,55 +6338,55 @@ static void selinux_d_instantiate(struct dentry *dentry, struct inode *inode)
 static int selinux_lsm_getattr(unsigned int attr, struct task_struct *p,
 			       char **value)
 {
-	const struct task_security_struct *__tsec;
-	u32 sid;
+	const struct task_security_struct *tsec;
 	int error;
-	unsigned len;
+	u32 sid;
+	u32 len;
 
 	rcu_read_lock();
-	__tsec = selinux_cred(__task_cred(p));
-
-	if (current != p) {
-		error = avc_has_perm(current_sid(), __tsec->sid,
+	tsec = selinux_cred(__task_cred(p));
+	if (p != current) {
+		error = avc_has_perm(current_sid(), tsec->sid,
 				     SECCLASS_PROCESS, PROCESS__GETATTR, NULL);
 		if (error)
-			goto bad;
+			goto err_unlock;
 	}
-
 	switch (attr) {
 	case LSM_ATTR_CURRENT:
-		sid = __tsec->sid;
+		sid = tsec->sid;
 		break;
 	case LSM_ATTR_PREV:
-		sid = __tsec->osid;
+		sid = tsec->osid;
 		break;
 	case LSM_ATTR_EXEC:
-		sid = __tsec->exec_sid;
+		sid = tsec->exec_sid;
 		break;
 	case LSM_ATTR_FSCREATE:
-		sid = __tsec->create_sid;
+		sid = tsec->create_sid;
 		break;
 	case LSM_ATTR_KEYCREATE:
-		sid = __tsec->keycreate_sid;
+		sid = tsec->keycreate_sid;
 		break;
 	case LSM_ATTR_SOCKCREATE:
-		sid = __tsec->sockcreate_sid;
+		sid = tsec->sockcreate_sid;
 		break;
 	default:
 		error = -EOPNOTSUPP;
-		goto bad;
+		goto err_unlock;
 	}
 	rcu_read_unlock();
 
-	if (!sid)
+	if (sid == SECSID_NULL) {
+		*value = NULL;
 		return 0;
+	}
 
 	error = security_sid_to_context(sid, value, &len);
 	if (error)
 		return error;
 	return len;
 
-bad:
+err_unlock:
 	rcu_read_unlock();
 	return error;
 }
@@ -6556,7 +6549,7 @@ abort_change:
  * There will only ever be one attribute.
  */
 static int selinux_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
-			       size_t *size, u32 flags)
+			       u32 *size, u32 flags)
 {
 	int rc;
 	char *val = NULL;
@@ -6571,7 +6564,7 @@ static int selinux_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
 }
 
 static int selinux_setselfattr(unsigned int attr, struct lsm_ctx *ctx,
-			       size_t size, u32 flags)
+			       u32 size, u32 flags)
 {
 	int rc;
 
@@ -6920,7 +6913,8 @@ static int selinux_bpf_prog(struct bpf_prog *prog)
 			    BPF__PROG_RUN, NULL);
 }
 
-static int selinux_bpf_map_alloc(struct bpf_map *map)
+static int selinux_bpf_map_create(struct bpf_map *map, union bpf_attr *attr,
+				  struct bpf_token *token)
 {
 	struct bpf_security_struct *bpfsec;
 
@@ -6942,7 +6936,8 @@ static void selinux_bpf_map_free(struct bpf_map *map)
 	kfree(bpfsec);
 }
 
-static int selinux_bpf_prog_alloc(struct bpf_prog_aux *aux)
+static int selinux_bpf_prog_load(struct bpf_prog *prog, union bpf_attr *attr,
+				 struct bpf_token *token)
 {
 	struct bpf_security_struct *bpfsec;
 
@@ -6951,16 +6946,39 @@ static int selinux_bpf_prog_alloc(struct bpf_prog_aux *aux)
 		return -ENOMEM;
 
 	bpfsec->sid = current_sid();
-	aux->security = bpfsec;
+	prog->aux->security = bpfsec;
 
 	return 0;
 }
 
-static void selinux_bpf_prog_free(struct bpf_prog_aux *aux)
+static void selinux_bpf_prog_free(struct bpf_prog *prog)
 {
-	struct bpf_security_struct *bpfsec = aux->security;
+	struct bpf_security_struct *bpfsec = prog->aux->security;
 
-	aux->security = NULL;
+	prog->aux->security = NULL;
+	kfree(bpfsec);
+}
+
+static int selinux_bpf_token_create(struct bpf_token *token, union bpf_attr *attr,
+				    struct path *path)
+{
+	struct bpf_security_struct *bpfsec;
+
+	bpfsec = kzalloc(sizeof(*bpfsec), GFP_KERNEL);
+	if (!bpfsec)
+		return -ENOMEM;
+
+	bpfsec->sid = current_sid();
+	token->security = bpfsec;
+
+	return 0;
+}
+
+static void selinux_bpf_token_free(struct bpf_token *token)
+{
+	struct bpf_security_struct *bpfsec = token->security;
+
+	token->security = NULL;
 	kfree(bpfsec);
 }
 #endif
@@ -7324,8 +7342,9 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(bpf, selinux_bpf),
 	LSM_HOOK_INIT(bpf_map, selinux_bpf_map),
 	LSM_HOOK_INIT(bpf_prog, selinux_bpf_prog),
-	LSM_HOOK_INIT(bpf_map_free_security, selinux_bpf_map_free),
-	LSM_HOOK_INIT(bpf_prog_free_security, selinux_bpf_prog_free),
+	LSM_HOOK_INIT(bpf_map_free, selinux_bpf_map_free),
+	LSM_HOOK_INIT(bpf_prog_free, selinux_bpf_prog_free),
+	LSM_HOOK_INIT(bpf_token_free, selinux_bpf_token_free),
 #endif
 
 #ifdef CONFIG_PERF_EVENTS
@@ -7382,8 +7401,9 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(audit_rule_init, selinux_audit_rule_init),
 #endif
 #ifdef CONFIG_BPF_SYSCALL
-	LSM_HOOK_INIT(bpf_map_alloc_security, selinux_bpf_map_alloc),
-	LSM_HOOK_INIT(bpf_prog_alloc_security, selinux_bpf_prog_alloc),
+	LSM_HOOK_INIT(bpf_map_create, selinux_bpf_map_create),
+	LSM_HOOK_INIT(bpf_prog_load, selinux_bpf_prog_load),
+	LSM_HOOK_INIT(bpf_token_create, selinux_bpf_token_create),
 #endif
 #ifdef CONFIG_PERF_EVENTS
 	LSM_HOOK_INIT(perf_event_alloc, selinux_perf_event_alloc),

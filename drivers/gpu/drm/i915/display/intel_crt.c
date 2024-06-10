@@ -42,6 +42,7 @@
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_fdi_regs.h"
@@ -347,16 +348,13 @@ intel_crt_mode_valid(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int max_dotclk = dev_priv->max_dotclk_freq;
+	int max_dotclk = dev_priv->display.cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 	int max_clock;
 
 	status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
 	if (status != MODE_OK)
 		return status;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
 
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
@@ -846,6 +844,9 @@ intel_crt_detect(struct drm_connector *connector,
 	if (!intel_display_device_enabled(dev_priv))
 		return connector_status_disconnected;
 
+	if (!intel_display_driver_check_access(dev_priv))
+		return connector->status;
+
 	if (dev_priv->display.params.load_detect_test) {
 		wakeref = intel_display_power_get(dev_priv,
 						  intel_encoder->power_domain);
@@ -928,6 +929,9 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	intel_wakeref_t wakeref;
 	struct i2c_adapter *ddc;
 	int ret;
+
+	if (!intel_display_driver_check_access(dev_priv))
+		return drm_edid_connector_add_modes(connector);
 
 	wakeref = intel_display_power_get(dev_priv,
 					  intel_encoder->power_domain);
@@ -1069,6 +1073,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	} else {
 		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	}
+	intel_connector->base.polled = intel_connector->polled;
 
 	if (HAS_DDI(dev_priv)) {
 		assert_port_valid(dev_priv, PORT_E);

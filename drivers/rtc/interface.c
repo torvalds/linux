@@ -696,7 +696,7 @@ struct rtc_device *rtc_class_open(const char *name)
 	struct device *dev;
 	struct rtc_device *rtc = NULL;
 
-	dev = class_find_device_by_name(rtc_class, name);
+	dev = class_find_device_by_name(&rtc_class, name);
 	if (dev)
 		rtc = to_rtc_device(dev);
 

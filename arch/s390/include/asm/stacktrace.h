@@ -2,9 +2,9 @@
 #ifndef _ASM_S390_STACKTRACE_H
 #define _ASM_S390_STACKTRACE_H
 
+#include <linux/stacktrace.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
-#include <asm/switch_to.h>
 
 struct stack_frame_user {
 	unsigned long back_chain;
@@ -12,6 +12,17 @@ struct stack_frame_user {
 	unsigned long gprs[10];
 	unsigned long empty2[4];
 };
+
+struct stack_frame_vdso_wrapper {
+	struct stack_frame_user sf;
+	unsigned long return_address;
+};
+
+struct perf_callchain_entry_ctx;
+
+void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *cookie,
+				 struct perf_callchain_entry_ctx *entry,
+				 const struct pt_regs *regs, bool perf);
 
 enum stack_type {
 	STACK_TYPE_UNKNOWN,

@@ -40,7 +40,9 @@ enum replay_enable_option {
 
 
 bool amdgpu_dm_replay_enable(struct dc_stream_state *stream, bool enable);
-bool amdgpu_dm_setup_replay(struct dc_link *link, struct amdgpu_dm_connector *aconnector);
+bool amdgpu_dm_set_replay_caps(struct dc_link *link, struct amdgpu_dm_connector *aconnector);
+bool amdgpu_dm_link_setup_replay(struct dc_link *link, struct amdgpu_dm_connector *aconnector);
 bool amdgpu_dm_replay_disable(struct dc_stream_state *stream);
+bool amdgpu_dm_replay_disable_all(struct amdgpu_display_manager *dm);
 
 #endif /* AMDGPU_DM_AMDGPU_DM_REPLAY_H_ */

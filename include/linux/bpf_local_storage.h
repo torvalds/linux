@@ -129,10 +129,36 @@ bpf_local_storage_map_alloc(union bpf_attr *attr,
 			    struct bpf_local_storage_cache *cache,
 			    bool bpf_ma);
 
-struct bpf_local_storage_data *
+void __bpf_local_storage_insert_cache(struct bpf_local_storage *local_storage,
+				      struct bpf_local_storage_map *smap,
+				      struct bpf_local_storage_elem *selem);
+/* If cacheit_lockit is false, this lookup function is lockless */
+static inline struct bpf_local_storage_data *
 bpf_local_storage_lookup(struct bpf_local_storage *local_storage,
 			 struct bpf_local_storage_map *smap,
-			 bool cacheit_lockit);
+			 bool cacheit_lockit)
+{
+	struct bpf_local_storage_data *sdata;
+	struct bpf_local_storage_elem *selem;
+
+	/* Fast path (cache hit) */
+	sdata = rcu_dereference_check(local_storage->cache[smap->cache_idx],
+				      bpf_rcu_lock_held());
+	if (sdata && rcu_access_pointer(sdata->smap) == smap)
+		return sdata;
+
+	/* Slow path (cache miss) */
+	hlist_for_each_entry_rcu(selem, &local_storage->list, snode,
+				  rcu_read_lock_trace_held())
+		if (rcu_access_pointer(SDATA(selem)->smap) == smap)
+			break;
+
+	if (!selem)
+		return NULL;
+	if (cacheit_lockit)
+		__bpf_local_storage_insert_cache(local_storage, smap, selem);
+	return SDATA(selem);
+}
 
 void bpf_local_storage_destroy(struct bpf_local_storage *local_storage);
 

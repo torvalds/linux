@@ -291,7 +291,8 @@ xlog_recover_inode_commit_pass2(
 	if (item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format)) {
 		in_f = item->ri_buf[0].i_addr;
 	} else {
-		in_f = kmem_alloc(sizeof(struct xfs_inode_log_format), 0);
+		in_f = kmalloc(sizeof(struct xfs_inode_log_format),
+				GFP_KERNEL | __GFP_NOFAIL);
 		need_free = 1;
 		error = xfs_inode_item_format_convert(&item->ri_buf[0], in_f);
 		if (error)
@@ -553,7 +554,7 @@ out_release:
 	xfs_buf_relse(bp);
 error:
 	if (need_free)
-		kmem_free(in_f);
+		kfree(in_f);
 	return error;
 }
 

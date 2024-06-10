@@ -2068,8 +2068,6 @@ static void hns3_tx_push_bd(struct hns3_enet_ring *ring, int num)
 	__iowrite64_copy(ring->tqp->mem_base, desc,
 			 (sizeof(struct hns3_desc) * HNS3_MAX_PUSH_BD_NUM) /
 			 HNS3_BYTES_PER_64BIT);
-
-	io_stop_wc();
 }
 
 static void hns3_tx_mem_doorbell(struct hns3_enet_ring *ring)
@@ -2088,8 +2086,6 @@ static void hns3_tx_mem_doorbell(struct hns3_enet_ring *ring)
 	u64_stats_update_begin(&ring->syncp);
 	ring->stats.tx_mem_doorbell += ring->pending_buf;
 	u64_stats_update_end(&ring->syncp);
-
-	io_stop_wc();
 }
 
 static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
@@ -2473,9 +2469,9 @@ static netdev_features_t hns3_features_check(struct sk_buff *skb,
 		return features;
 
 	if (skb->encapsulation)
-		len = skb_inner_transport_header(skb) - skb->data;
+		len = skb_inner_transport_offset(skb);
 	else
-		len = skb_transport_header(skb) - skb->data;
+		len = skb_transport_offset(skb);
 
 	/* Assume L4 is 60 byte as TCP is the only protocol with a
 	 * a flexible value, and it's max len is 60 bytes.
@@ -2761,7 +2757,7 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 		netdev_err(netdev, "failed to change MTU in hardware %d\n",
 			   ret);
 	else
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 
 	return ret;
 }

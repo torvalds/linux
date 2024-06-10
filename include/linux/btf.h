@@ -137,6 +137,7 @@ struct btf_struct_metas {
 
 extern const struct file_operations btf_fops;
 
+const char *btf_get_name(const struct btf *btf);
 void btf_get(struct btf *btf);
 void btf_put(struct btf *btf);
 int btf_new_fd(const union bpf_attr *attr, bpfptr_t uattr, u32 uattr_sz);
@@ -494,7 +495,25 @@ static inline void *btf_id_set8_contains(const struct btf_id_set8 *set, u32 id)
 	return bsearch(&id, set->pairs, set->cnt, sizeof(set->pairs[0]), btf_id_cmp_func);
 }
 
+bool btf_param_match_suffix(const struct btf *btf,
+			    const struct btf_param *arg,
+			    const char *suffix);
+int btf_ctx_arg_offset(const struct btf *btf, const struct btf_type *func_proto,
+		       u32 arg_no);
+
 struct bpf_verifier_log;
+
+#if defined(CONFIG_BPF_JIT) && defined(CONFIG_BPF_SYSCALL)
+struct bpf_struct_ops;
+int __register_bpf_struct_ops(struct bpf_struct_ops *st_ops);
+const struct bpf_struct_ops_desc *bpf_struct_ops_find_value(struct btf *btf, u32 value_id);
+const struct bpf_struct_ops_desc *bpf_struct_ops_find(struct btf *btf, u32 type_id);
+#else
+static inline const struct bpf_struct_ops_desc *bpf_struct_ops_find(struct btf *btf, u32 type_id)
+{
+	return NULL;
+}
+#endif
 
 #ifdef CONFIG_BPF_SYSCALL
 const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);
@@ -512,10 +531,9 @@ s32 btf_find_dtor_kfunc(struct btf *btf, u32 btf_id);
 int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dtors, u32 add_cnt,
 				struct module *owner);
 struct btf_struct_meta *btf_find_struct_meta(const struct btf *btf, u32 btf_id);
-const struct btf_type *
-btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
-		      const struct btf_type *t, enum bpf_prog_type prog_type,
-		      int arg);
+bool btf_is_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
+			   const struct btf_type *t, enum bpf_prog_type prog_type,
+			   int arg);
 int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_type);
 bool btf_types_are_same(const struct btf *btf1, u32 id1,
 			const struct btf *btf2, u32 id2);
@@ -555,12 +573,12 @@ static inline struct btf_struct_meta *btf_find_struct_meta(const struct btf *btf
 {
 	return NULL;
 }
-static inline const struct btf_member *
-btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
-		      const struct btf_type *t, enum bpf_prog_type prog_type,
-		      int arg)
+static inline bool
+btf_is_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
+		     const struct btf_type *t, enum bpf_prog_type prog_type,
+		     int arg)
 {
-	return NULL;
+	return false;
 }
 static inline int get_kern_ctx_btf_id(struct bpf_verifier_log *log,
 				      enum bpf_prog_type prog_type) {

@@ -398,7 +398,7 @@ int usbnet_change_mtu (struct net_device *net, int new_mtu)
 	// no second zero-length packet read wanted after mtu-sized packets
 	if ((ll_mtu % dev->maxpacket) == 0)
 		return -EDOM;
-	net->mtu = new_mtu;
+	WRITE_ONCE(net->mtu, new_mtu);
 
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 	if (dev->rx_urb_size == old_hard_mtu) {
@@ -1633,7 +1633,6 @@ void usbnet_disconnect (struct usb_interface *intf)
 	usb_free_urb(dev->interrupt);
 	kfree(dev->padding_pkt);
 
-	free_percpu(net->tstats);
 	free_netdev(net);
 }
 EXPORT_SYMBOL_GPL(usbnet_disconnect);
@@ -1645,7 +1644,6 @@ static const struct net_device_ops usbnet_netdev_ops = {
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_set_rx_mode	= usbnet_set_rx_mode,
 	.ndo_change_mtu		= usbnet_change_mtu,
-	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1654,11 +1652,11 @@ static const struct net_device_ops usbnet_netdev_ops = {
 
 // precondition: never called in_interrupt
 
-static struct device_type wlan_type = {
+static const struct device_type wlan_type = {
 	.name	= "wlan",
 };
 
-static struct device_type wwan_type = {
+static const struct device_type wwan_type = {
 	.name	= "wwan",
 };
 
@@ -1710,10 +1708,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->rx_speed = SPEED_UNSET;
 	dev->tx_speed = SPEED_UNSET;
 
-	net->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!net->tstats)
-		goto out0;
-
 	dev->msg_enable = netif_msg_init (msg_level, NETIF_MSG_DRV
 				| NETIF_MSG_PROBE | NETIF_MSG_LINK);
 	init_waitqueue_head(&dev->wait);
@@ -1739,10 +1733,12 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 	net->min_mtu = 0;
 	net->max_mtu = ETH_MAX_MTU;
+	net->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	net->netdev_ops = &usbnet_netdev_ops;
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	net->ethtool_ops = &usbnet_ethtool_ops;
+	net->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	// allow device-specific bind/init procedures
 	// NOTE net->name still not usable ...
@@ -1861,8 +1857,6 @@ out1:
 	 */
 	cancel_work_sync(&dev->kevent);
 	del_timer_sync(&dev->delay);
-	free_percpu(net->tstats);
-out0:
 	free_netdev(net);
 out:
 	return status;

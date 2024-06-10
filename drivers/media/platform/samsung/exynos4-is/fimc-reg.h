@@ -302,16 +302,16 @@ void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx);
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx);
 void fimc_hw_set_input_path(struct fimc_ctx *ctx);
 void fimc_hw_set_output_path(struct fimc_ctx *ctx);
-void fimc_hw_set_input_addr(struct fimc_dev *fimc, struct fimc_addr *addr);
-void fimc_hw_set_output_addr(struct fimc_dev *fimc, struct fimc_addr *addr,
+void fimc_hw_set_input_addr(struct fimc_dev *fimc, const struct fimc_addr *addr);
+void fimc_hw_set_output_addr(struct fimc_dev *fimc, const struct fimc_addr *addr,
 			     int index);
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			      struct fimc_source_info *cam);
-void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f);
+void fimc_hw_set_camera_offset(struct fimc_dev *fimc, const struct fimc_frame *f);
 int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct fimc_source_info *cam);
+				const struct fimc_source_info *cam);
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct fimc_source_info *cam);
+			    const struct fimc_source_info *cam);
 void fimc_hw_clear_irq(struct fimc_dev *dev);
 void fimc_hw_enable_scaler(struct fimc_dev *dev, bool on);
 void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on);

@@ -13,6 +13,7 @@
 
 #include "lkc.h"
 #include "internal.h"
+#include "preprocess.h"
 
 #define printd(mask, fmt...) if (cdebug & (mask)) printf(fmt)
 
@@ -27,9 +28,9 @@ static void zconf_error(const char *err, ...);
 static bool zconf_endtoken(const char *tokenname,
 			   const char *expected_tokenname);
 
-struct symbol *symbol_hash[SYMBOL_HASHSIZE];
-
 struct menu *current_menu, *current_entry;
+
+static bool inside_choice = false;
 
 %}
 
@@ -70,7 +71,6 @@ struct menu *current_menu, *current_entry;
 %token T_MODULES
 %token T_ON
 %token T_OPEN_PAREN
-%token T_OPTIONAL
 %token T_PLUS_EQUAL
 %token T_PROMPT
 %token T_RANGE
@@ -95,12 +95,12 @@ struct menu *current_menu, *current_entry;
 %type <expr> if_expr
 %type <string> end
 %type <menu> if_entry menu_entry choice_entry
-%type <string> word_opt assign_val
+%type <string> assign_val
 %type <flavor> assign_op
 
 %destructor {
 	fprintf(stderr, "%s:%d: missing end statement for this entry\n",
-		$$->file->name, $$->lineno);
+		$$->filename, $$->lineno);
 	if (current_menu == $$)
 		menu_end_menu();
 } if_entry menu_entry choice_entry
@@ -141,21 +141,27 @@ stmt_list_in_choice:
 
 config_entry_start: T_CONFIG nonconst_symbol T_EOL
 {
-	$2->flags |= SYMBOL_OPTIONAL;
 	menu_add_entry($2);
-	printd(DEBUG_PARSE, "%s:%d:config %s\n", zconf_curname(), zconf_lineno(), $2->name);
+	printd(DEBUG_PARSE, "%s:%d:config %s\n", cur_filename, cur_lineno, $2->name);
 };
 
 config_stmt: config_entry_start config_option_list
 {
-	printd(DEBUG_PARSE, "%s:%d:endconfig\n", zconf_curname(), zconf_lineno());
+	if (inside_choice) {
+		if (!current_entry->prompt) {
+			fprintf(stderr, "%s:%d: error: choice member must have a prompt\n",
+				current_entry->filename, current_entry->lineno);
+			yynerrs++;
+		}
+	}
+
+	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
 };
 
 menuconfig_entry_start: T_MENUCONFIG nonconst_symbol T_EOL
 {
-	$2->flags |= SYMBOL_OPTIONAL;
 	menu_add_entry($2);
-	printd(DEBUG_PARSE, "%s:%d:menuconfig %s\n", zconf_curname(), zconf_lineno(), $2->name);
+	printd(DEBUG_PARSE, "%s:%d:menuconfig %s\n", cur_filename, cur_lineno, $2->name);
 };
 
 menuconfig_stmt: menuconfig_entry_start config_option_list
@@ -164,7 +170,7 @@ menuconfig_stmt: menuconfig_entry_start config_option_list
 		current_entry->prompt->type = P_MENU;
 	else
 		zconfprint("warning: menuconfig statement without prompt");
-	printd(DEBUG_PARSE, "%s:%d:endconfig\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
 };
 
 config_option_list:
@@ -177,15 +183,13 @@ config_option_list:
 config_option: type prompt_stmt_opt T_EOL
 {
 	menu_set_type($1);
-	printd(DEBUG_PARSE, "%s:%d:type(%u)\n",
-		zconf_curname(), zconf_lineno(),
-		$1);
+	printd(DEBUG_PARSE, "%s:%d:type(%u)\n", cur_filename, cur_lineno, $1);
 };
 
 config_option: T_PROMPT T_WORD_QUOTE if_expr T_EOL
 {
 	menu_add_prompt(P_PROMPT, $2, $3);
-	printd(DEBUG_PARSE, "%s:%d:prompt\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:prompt\n", cur_filename, cur_lineno);
 };
 
 config_option: default expr if_expr T_EOL
@@ -193,27 +197,26 @@ config_option: default expr if_expr T_EOL
 	menu_add_expr(P_DEFAULT, $2, $3);
 	if ($1 != S_UNKNOWN)
 		menu_set_type($1);
-	printd(DEBUG_PARSE, "%s:%d:default(%u)\n",
-		zconf_curname(), zconf_lineno(),
+	printd(DEBUG_PARSE, "%s:%d:default(%u)\n", cur_filename, cur_lineno,
 		$1);
 };
 
 config_option: T_SELECT nonconst_symbol if_expr T_EOL
 {
 	menu_add_symbol(P_SELECT, $2, $3);
-	printd(DEBUG_PARSE, "%s:%d:select\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:select\n", cur_filename, cur_lineno);
 };
 
 config_option: T_IMPLY nonconst_symbol if_expr T_EOL
 {
 	menu_add_symbol(P_IMPLY, $2, $3);
-	printd(DEBUG_PARSE, "%s:%d:imply\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:imply\n", cur_filename, cur_lineno);
 };
 
 config_option: T_RANGE symbol symbol if_expr T_EOL
 {
 	menu_add_expr(P_RANGE, expr_alloc_comp(E_RANGE,$2, $3), $4);
-	printd(DEBUG_PARSE, "%s:%d:range\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:range\n", cur_filename, cur_lineno);
 };
 
 config_option: T_MODULES T_EOL
@@ -226,26 +229,35 @@ config_option: T_MODULES T_EOL
 
 /* choice entry */
 
-choice: T_CHOICE word_opt T_EOL
+choice: T_CHOICE T_EOL
 {
-	struct symbol *sym = sym_lookup($2, SYMBOL_CHOICE);
-	sym->flags |= SYMBOL_NO_WRITE;
+	struct symbol *sym = sym_lookup(NULL, 0);
+
 	menu_add_entry(sym);
 	menu_add_expr(P_CHOICE, NULL, NULL);
-	free($2);
-	printd(DEBUG_PARSE, "%s:%d:choice\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:choice\n", cur_filename, cur_lineno);
 };
 
 choice_entry: choice choice_option_list
 {
+	if (!current_entry->prompt) {
+		fprintf(stderr, "%s:%d: error: choice must have a prompt\n",
+			current_entry->filename, current_entry->lineno);
+		yynerrs++;
+	}
+
 	$$ = menu_add_menu();
+
+	inside_choice = true;
 };
 
 choice_end: end
 {
+	inside_choice = false;
+
 	if (zconf_endtoken($1, "choice")) {
 		menu_end_menu();
-		printd(DEBUG_PARSE, "%s:%d:endchoice\n", zconf_curname(), zconf_lineno());
+		printd(DEBUG_PARSE, "%s:%d:endchoice\n", cur_filename, cur_lineno);
 	}
 };
 
@@ -262,27 +274,19 @@ choice_option_list:
 choice_option: T_PROMPT T_WORD_QUOTE if_expr T_EOL
 {
 	menu_add_prompt(P_PROMPT, $2, $3);
-	printd(DEBUG_PARSE, "%s:%d:prompt\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:prompt\n", cur_filename, cur_lineno);
 };
 
 choice_option: logic_type prompt_stmt_opt T_EOL
 {
 	menu_set_type($1);
-	printd(DEBUG_PARSE, "%s:%d:type(%u)\n",
-	       zconf_curname(), zconf_lineno(), $1);
-};
-
-choice_option: T_OPTIONAL T_EOL
-{
-	current_entry->sym->flags |= SYMBOL_OPTIONAL;
-	printd(DEBUG_PARSE, "%s:%d:optional\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:type(%u)\n", cur_filename, cur_lineno, $1);
 };
 
 choice_option: T_DEFAULT nonconst_symbol if_expr T_EOL
 {
 	menu_add_symbol(P_DEFAULT, $2, $3);
-	printd(DEBUG_PARSE, "%s:%d:default\n",
-	       zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:default\n", cur_filename, cur_lineno);
 };
 
 type:
@@ -304,7 +308,7 @@ default:
 
 if_entry: T_IF expr T_EOL
 {
-	printd(DEBUG_PARSE, "%s:%d:if\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:if\n", cur_filename, cur_lineno);
 	menu_add_entry(NULL);
 	menu_add_dep($2);
 	$$ = menu_add_menu();
@@ -314,7 +318,7 @@ if_end: end
 {
 	if (zconf_endtoken($1, "if")) {
 		menu_end_menu();
-		printd(DEBUG_PARSE, "%s:%d:endif\n", zconf_curname(), zconf_lineno());
+		printd(DEBUG_PARSE, "%s:%d:endif\n", cur_filename, cur_lineno);
 	}
 };
 
@@ -330,7 +334,7 @@ menu: T_MENU T_WORD_QUOTE T_EOL
 {
 	menu_add_entry(NULL);
 	menu_add_prompt(P_MENU, $2, NULL);
-	printd(DEBUG_PARSE, "%s:%d:menu\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:menu\n", cur_filename, cur_lineno);
 };
 
 menu_entry: menu menu_option_list
@@ -342,7 +346,7 @@ menu_end: end
 {
 	if (zconf_endtoken($1, "menu")) {
 		menu_end_menu();
-		printd(DEBUG_PARSE, "%s:%d:endmenu\n", zconf_curname(), zconf_lineno());
+		printd(DEBUG_PARSE, "%s:%d:endmenu\n", cur_filename, cur_lineno);
 	}
 };
 
@@ -357,7 +361,7 @@ menu_option_list:
 
 source_stmt: T_SOURCE T_WORD_QUOTE T_EOL
 {
-	printd(DEBUG_PARSE, "%s:%d:source %s\n", zconf_curname(), zconf_lineno(), $2);
+	printd(DEBUG_PARSE, "%s:%d:source %s\n", cur_filename, cur_lineno, $2);
 	zconf_nextfile($2);
 	free($2);
 };
@@ -368,7 +372,7 @@ comment: T_COMMENT T_WORD_QUOTE T_EOL
 {
 	menu_add_entry(NULL);
 	menu_add_prompt(P_COMMENT, $2, NULL);
-	printd(DEBUG_PARSE, "%s:%d:comment\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:comment\n", cur_filename, cur_lineno);
 };
 
 comment_stmt: comment comment_option_list
@@ -383,7 +387,7 @@ comment_option_list:
 
 help_start: T_HELP T_EOL
 {
-	printd(DEBUG_PARSE, "%s:%d:help\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:help\n", cur_filename, cur_lineno);
 	zconf_starthelp();
 };
 
@@ -408,7 +412,7 @@ help: help_start T_HELPTEXT
 depends: T_DEPENDS T_ON expr T_EOL
 {
 	menu_add_dep($3);
-	printd(DEBUG_PARSE, "%s:%d:depends on\n", zconf_curname(), zconf_lineno());
+	printd(DEBUG_PARSE, "%s:%d:depends on\n", cur_filename, cur_lineno);
 };
 
 /* visibility option */
@@ -455,9 +459,6 @@ symbol:	  nonconst_symbol
 	| T_WORD_QUOTE	{ $$ = sym_lookup($1, SYMBOL_CONST); free($1); }
 ;
 
-word_opt: /* empty */			{ $$ = NULL; }
-	| T_WORD
-
 /* assignment statement */
 
 assignment_stmt:  T_WORD assign_op assign_val T_EOL	{ variable_add($1, $3, $2); free($1); free($3); }
@@ -475,10 +476,45 @@ assign_val:
 
 %%
 
+/**
+ * choice_check_sanity - check sanity of a choice member
+ *
+ * @menu: menu of the choice member
+ *
+ * Return: -1 if an error is found, 0 otherwise.
+ */
+static int choice_check_sanity(struct menu *menu)
+{
+	struct property *prop;
+	int ret = 0;
+
+	for (prop = menu->sym->prop; prop; prop = prop->next) {
+		if (prop->type == P_DEFAULT) {
+			fprintf(stderr, "%s:%d: error: %s",
+				prop->filename, prop->lineno,
+				"defaults for choice values not supported\n");
+			ret = -1;
+		}
+
+		if (prop->menu != menu && prop->type == P_PROMPT &&
+		    prop->menu->parent != menu->parent) {
+			fprintf(stderr, "%s:%d: error: %s",
+				prop->filename, prop->lineno,
+				"choice value has a prompt outside its choice group\n");
+			ret = -1;
+		}
+	}
+
+	return ret;
+}
+
 void conf_parse(const char *name)
 {
-	struct symbol *sym;
-	int i;
+	struct menu *menu;
+
+	autoconf_cmd = str_new();
+
+	str_printf(&autoconf_cmd, "\ndeps_config := \\\n");
 
 	zconf_initscan(name);
 
@@ -488,24 +524,49 @@ void conf_parse(const char *name)
 		yydebug = 1;
 	yyparse();
 
+	/*
+	 * FIXME:
+	 * cur_filename and cur_lineno are used even after yyparse();
+	 * menu_finalize() calls menu_add_symbol(). This should be fixed.
+	 */
+	cur_filename = "<none>";
+	cur_lineno = 0;
+
+	str_printf(&autoconf_cmd,
+		   "\n"
+		   "$(autoconfig): $(deps_config)\n"
+		   "$(deps_config): ;\n");
+
+	env_write_dep(&autoconf_cmd);
+
 	/* Variables are expanded in the parse phase. We can free them here. */
 	variable_all_del();
 
 	if (yynerrs)
 		exit(1);
 	if (!modules_sym)
-		modules_sym = sym_find( "n" );
+		modules_sym = &symbol_no;
 
 	if (!menu_has_prompt(&rootmenu)) {
 		current_entry = &rootmenu;
 		menu_add_prompt(P_MENU, "Main menu", NULL);
 	}
 
-	menu_finalize(&rootmenu);
-	for_all_symbols(i, sym) {
-		if (sym_check_deps(sym))
+	menu_finalize();
+
+	menu_for_each_entry(menu) {
+		struct menu *child;
+
+		if (menu->sym && sym_check_deps(menu->sym))
 			yynerrs++;
+
+		if (menu->sym && sym_is_choice(menu->sym)) {
+			menu_for_each_sub_entry(child, menu)
+				if (child->sym && choice_check_sanity(child))
+					yynerrs++;
+		}
 	}
+
 	if (yynerrs)
 		exit(1);
 	conf_set_changed(true);
@@ -520,11 +581,11 @@ static bool zconf_endtoken(const char *tokenname,
 		yynerrs++;
 		return false;
 	}
-	if (current_menu->file != current_file) {
+	if (strcmp(current_menu->filename, cur_filename)) {
 		zconf_error("'%s' in different file than '%s'",
 			    tokenname, expected_tokenname);
 		fprintf(stderr, "%s:%d: location of the '%s'\n",
-			current_menu->file->name, current_menu->lineno,
+			current_menu->filename, current_menu->lineno,
 			expected_tokenname);
 		yynerrs++;
 		return false;
@@ -536,7 +597,7 @@ static void zconfprint(const char *err, ...)
 {
 	va_list ap;
 
-	fprintf(stderr, "%s:%d: ", zconf_curname(), zconf_lineno());
+	fprintf(stderr, "%s:%d: ", cur_filename, cur_lineno);
 	va_start(ap, err);
 	vfprintf(stderr, err, ap);
 	va_end(ap);
@@ -548,7 +609,7 @@ static void zconf_error(const char *err, ...)
 	va_list ap;
 
 	yynerrs++;
-	fprintf(stderr, "%s:%d: ", zconf_curname(), zconf_lineno());
+	fprintf(stderr, "%s:%d: ", cur_filename, cur_lineno);
 	va_start(ap, err);
 	vfprintf(stderr, err, ap);
 	va_end(ap);
@@ -557,7 +618,7 @@ static void zconf_error(const char *err, ...)
 
 static void yyerror(const char *err)
 {
-	fprintf(stderr, "%s:%d: %s\n", zconf_curname(), zconf_lineno() + 1, err);
+	fprintf(stderr, "%s:%d: %s\n", cur_filename, cur_lineno, err);
 }
 
 static void print_quoted_string(FILE *out, const char *str)

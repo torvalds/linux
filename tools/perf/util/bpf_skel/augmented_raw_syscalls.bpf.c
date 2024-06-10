@@ -6,7 +6,7 @@
  * payload expected by the 'perf trace' beautifiers.
  */
 
-#include <linux/bpf.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <linux/limits.h>
 
@@ -21,19 +21,6 @@
 #define is_power_of_2(n) (n != 0 && ((n & (n - 1)) == 0))
 
 #define MAX_CPUS  4096
-
-// FIXME: These should come from system headers
-#ifndef bool
-typedef char bool;
-#endif
-typedef int pid_t;
-typedef long long int __s64;
-typedef __s64 time64_t;
-
-struct timespec64 {
-	time64_t	tv_sec;
-	long int	tv_nsec;
-};
 
 /* bpf-output associated map */
 struct __augmented_syscalls__ {
@@ -348,6 +335,27 @@ int sys_enter_clock_nanosleep(struct syscall_enter_args *args)
                 goto failure;
 
 	bpf_probe_read_user(&augmented_args->__data, size, rqtp_arg);
+
+	return augmented__output(args, augmented_args, len + size);
+failure:
+	return 1; /* Failure: don't filter */
+}
+
+SEC("tp/syscalls/sys_enter_nanosleep")
+int sys_enter_nanosleep(struct syscall_enter_args *args)
+{
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
+	const void *req_arg = (const void *)args->args[0];
+	unsigned int len = sizeof(augmented_args->args);
+	__u32 size = sizeof(struct timespec64);
+
+        if (augmented_args == NULL)
+		goto failure;
+
+	if (size > sizeof(augmented_args->__data))
+                goto failure;
+
+	bpf_probe_read_user(&augmented_args->__data, size, req_arg);
 
 	return augmented__output(args, augmented_args, len + size);
 failure:

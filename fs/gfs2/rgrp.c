@@ -814,11 +814,11 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 	bi = rgd->rd_bits + (length - 1);
 	if ((bi->bi_start + bi->bi_bytes) * GFS2_NBBY != rgd->rd_data) {
 		gfs2_lm(sdp,
-			"ri_addr = %llu\n"
-			"ri_length = %u\n"
-			"ri_data0 = %llu\n"
-			"ri_data = %u\n"
-			"ri_bitbytes = %u\n"
+			"ri_addr=%llu "
+			"ri_length=%u "
+			"ri_data0=%llu "
+			"ri_data=%u "
+			"ri_bitbytes=%u "
 			"start=%u len=%u offset=%u\n",
 			(unsigned long long)rgd->rd_addr,
 			rgd->rd_length,

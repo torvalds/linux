@@ -610,7 +610,7 @@ int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
 	struct netlbl_lsm_catmap *iter;
 	u32 idx;
 	u32 bit;
-	NETLBL_CATMAP_MAPTYPE bitmap;
+	u64 bitmap;
 
 	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
 	if (iter == NULL)
@@ -666,8 +666,8 @@ int netlbl_catmap_walkrng(struct netlbl_lsm_catmap *catmap, u32 offset)
 	struct netlbl_lsm_catmap *prev = NULL;
 	u32 idx;
 	u32 bit;
-	NETLBL_CATMAP_MAPTYPE bitmask;
-	NETLBL_CATMAP_MAPTYPE bitmap;
+	u64 bitmask;
+	u64 bitmap;
 
 	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
 	if (iter == NULL)
@@ -857,7 +857,7 @@ int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
 
 	offset -= iter->startbit;
 	idx = offset / NETLBL_CATMAP_MAPSIZE;
-	iter->bitmap[idx] |= (NETLBL_CATMAP_MAPTYPE)bitmap
+	iter->bitmap[idx] |= (u64)bitmap
 			     << (offset % NETLBL_CATMAP_MAPSIZE);
 
 	return 0;
@@ -876,7 +876,7 @@ int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
  * Description:
  * Starting at @offset, walk the bitmap from left to right until either the
  * desired bit is found or we reach the end.  Return the bit offset, -1 if
- * not found, or -2 if error.
+ * not found.
  */
 int netlbl_bitmap_walk(const unsigned char *bitmap, u32 bitmap_len,
 		       u32 offset, u8 state)
@@ -965,6 +965,7 @@ int netlbl_enabled(void)
  * @sk: the socket to label
  * @family: protocol family
  * @secattr: the security attributes
+ * @sk_locked: true if caller holds the socket lock
  *
  * Description:
  * Attach the correct label to the given socket using the security attributes
@@ -977,7 +978,8 @@ int netlbl_enabled(void)
  */
 int netlbl_sock_setattr(struct sock *sk,
 			u16 family,
-			const struct netlbl_lsm_secattr *secattr)
+			const struct netlbl_lsm_secattr *secattr,
+			bool sk_locked)
 {
 	int ret_val;
 	struct netlbl_dom_map *dom_entry;
@@ -997,7 +999,7 @@ int netlbl_sock_setattr(struct sock *sk,
 		case NETLBL_NLTYPE_CIPSOV4:
 			ret_val = cipso_v4_sock_setattr(sk,
 							dom_entry->def.cipso,
-							secattr);
+							secattr, sk_locked);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
 			ret_val = 0;
@@ -1091,6 +1093,28 @@ int netlbl_sock_getattr(struct sock *sk,
 }
 
 /**
+ * netlbl_sk_lock_check - Check if the socket lock has been acquired.
+ * @sk: the socket to be checked
+ *
+ * Return: true if socket @sk is locked or if lock debugging is disabled at
+ * runtime or compile-time; false otherwise
+ *
+ */
+#ifdef CONFIG_LOCKDEP
+bool netlbl_sk_lock_check(struct sock *sk)
+{
+	if (debug_locks)
+		return lockdep_sock_is_held(sk);
+	return true;
+}
+#else
+bool netlbl_sk_lock_check(struct sock *sk)
+{
+	return true;
+}
+#endif
+
+/**
  * netlbl_conn_setattr - Label a connected socket using the correct protocol
  * @sk: the socket to label
  * @addr: the destination address
@@ -1126,7 +1150,8 @@ int netlbl_conn_setattr(struct sock *sk,
 		switch (entry->type) {
 		case NETLBL_NLTYPE_CIPSOV4:
 			ret_val = cipso_v4_sock_setattr(sk,
-							entry->cipso, secattr);
+							entry->cipso, secattr,
+							netlbl_sk_lock_check(sk));
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
 			/* just delete the protocols we support for right now

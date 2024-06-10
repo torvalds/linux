@@ -47,7 +47,7 @@
 		clock-output-names = "osc27M";
 	};
 
-	soc {
+	soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

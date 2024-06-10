@@ -157,7 +157,7 @@ Returns 0 on success and an appropriate error value on failure.
   int rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
 
 
-sends a message across to the remote processor from a given endoint,
+sends a message across to the remote processor from a given endpoint,
 to a destination address provided by the user.
 
 The user should specify the channel, the data it wants to send,

@@ -200,6 +200,7 @@ UnsignedEnum	27:24	PerfMon
 	0b0110	PMUv3p5
 	0b0111	PMUv3p7
 	0b1000	PMUv3p8
+	0b1001	PMUv3p9
 	0b1111	IMPDEF
 EndEnum
 Enum	23:20	MProfDbg
@@ -231,6 +232,7 @@ Enum	3:0	CopDbg
 	0b1000	Debugv8p2
 	0b1001	Debugv8p4
 	0b1010	Debugv8p8
+	0b1011	Debugv8p9
 EndEnum
 EndSysreg
 
@@ -1221,6 +1223,7 @@ UnsignedEnum	35:32	PMSVer
 	0b0010	V1P1
 	0b0011	V1P2
 	0b0100	V1P3
+	0b0101	V1P4
 EndEnum
 Field	31:28	CTX_CMPs
 Res0	27:24
@@ -1247,11 +1250,41 @@ UnsignedEnum	3:0	DebugVer
 	0b1000	V8P2
 	0b1001	V8P4
 	0b1010	V8P8
+	0b1011	V8P9
 EndEnum
 EndSysreg
 
 Sysreg	ID_AA64DFR1_EL1	3	0	0	5	1
-Res0	63:0
+Field	63:56	ABL_CMPs
+UnsignedEnum	55:52	DPFZS
+	0b0000	IGNR
+	0b0001	FRZN
+EndEnum
+UnsignedEnum	51:48	EBEP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	47:44	ITE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	43:40	ABLE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	39:36	PMICNTR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	35:32	SPMU
+	0b0000	NI
+	0b0001	IMP
+	0b0010	IMP_SPMZR
+EndEnum
+Field	31:24	CTX_CMPs
+Field	23:16	WRPs
+Field	15:8	BRPs
+Field	7:0	SYSPMUID
 EndSysreg
 
 Sysreg	ID_AA64AFR0_EL1	3	0	0	5	4
@@ -1366,6 +1399,7 @@ EndEnum
 UnsignedEnum	43:40	SPECRES
 	0b0000	NI
 	0b0001	IMP
+	0b0010	COSP_RCTX
 EndEnum
 UnsignedEnum	39:36	SB
 	0b0000	NI
@@ -1492,7 +1526,12 @@ EndEnum
 EndSysreg
 
 Sysreg	ID_AA64ISAR3_EL1	3	0	0	6	3
-Res0	63:12
+Res0	63:16
+UnsignedEnum	15:12	PACM
+	0b0000	NI
+	0b0001	TRIVIAL_IMP
+	0b0010	FULL_IMP
+EndEnum
 UnsignedEnum	11:8	TLBIW
 	0b0000	NI
 	0b0001	IMP
@@ -1540,16 +1579,16 @@ Enum	35:32	TGRAN16_2
 	0b0010	IMP
 	0b0011	52_BIT
 EndEnum
-Enum	31:28	TGRAN4
+SignedEnum	31:28	TGRAN4
 	0b0000	IMP
 	0b0001	52_BIT
 	0b1111	NI
 EndEnum
-Enum	27:24	TGRAN64
+SignedEnum	27:24	TGRAN64
 	0b0000	IMP
 	0b1111	NI
 EndEnum
-Enum	23:20	TGRAN16
+UnsignedEnum	23:20	TGRAN16
 	0b0000	NI
 	0b0001	IMP
 	0b0010	52_BIT
@@ -1697,7 +1736,7 @@ Enum	23:20	CCIDX
 	0b0000	32
 	0b0001	64
 EndEnum
-Enum	19:16	VARange
+UnsignedEnum	19:16	VARange
 	0b0000	48
 	0b0001	52
 EndEnum
@@ -1789,6 +1828,43 @@ UnsignedEnum	3:0	TCRX
 	0b0000	NI
 	0b0001	IMP
 EndEnum
+EndSysreg
+
+Sysreg	ID_AA64MMFR4_EL1	3	0	0	7	4
+Res0	63:40
+UnsignedEnum	39:36	E3DSE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	35:28
+SignedEnum	27:24	E2H0
+	0b0000	IMP
+	0b1110	NI_NV1
+	0b1111	NI
+EndEnum
+UnsignedEnum	23:20	NV_frac
+	0b0000	NV_NV2
+	0b0001	NV2_ONLY
+EndEnum
+UnsignedEnum	19:16	FGWTE3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	HACDBS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	ASID2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+SignedEnum	7:4	EIESB
+	0b0000	NI
+	0b0001	ToEL3
+	0b0010	ToELx
+	0b1111	ANY
+EndEnum
+Res0	3:0
 EndSysreg
 
 Sysreg	SCTLR_EL1	3	0	1	0	0

@@ -8,12 +8,21 @@
 #define _ASM_RISCV_PGALLOC_H
 
 #include <linux/mm.h>
+#include <asm/sbi.h>
 #include <asm/tlb.h>
 
 #ifdef CONFIG_MMU
 #define __HAVE_ARCH_PUD_ALLOC_ONE
 #define __HAVE_ARCH_PUD_FREE
 #include <asm-generic/pgalloc.h>
+
+static inline void riscv_tlb_remove_ptdesc(struct mmu_gather *tlb, void *pt)
+{
+	if (riscv_use_sbi_for_rfence())
+		tlb_remove_ptdesc(tlb, pt);
+	else
+		tlb_remove_page_ptdesc(tlb, pt);
+}
 
 static inline void pmd_populate_kernel(struct mm_struct *mm,
 	pmd_t *pmd, pte_t *pte)
@@ -95,13 +104,16 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 		__pud_free(mm, pud);
 }
 
-#define __pud_free_tlb(tlb, pud, addr)					\
-do {									\
-	if (pgtable_l4_enabled) {					\
-		pagetable_pud_dtor(virt_to_ptdesc(pud));		\
-		tlb_remove_page_ptdesc((tlb), virt_to_ptdesc(pud));	\
-	}								\
-} while (0)
+static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
+				  unsigned long addr)
+{
+	if (pgtable_l4_enabled) {
+		struct ptdesc *ptdesc = virt_to_ptdesc(pud);
+
+		pagetable_pud_dtor(ptdesc);
+		riscv_tlb_remove_ptdesc(tlb, ptdesc);
+	}
+}
 
 #define p4d_alloc_one p4d_alloc_one
 static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long addr)
@@ -130,11 +142,12 @@ static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
 		__p4d_free(mm, p4d);
 }
 
-#define __p4d_free_tlb(tlb, p4d, addr)					\
-do {									\
-	if (pgtable_l5_enabled)						\
-		tlb_remove_page_ptdesc((tlb), virt_to_ptdesc(p4d));	\
-} while (0)
+static inline void __p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
+				  unsigned long addr)
+{
+	if (pgtable_l5_enabled)
+		riscv_tlb_remove_ptdesc(tlb, virt_to_ptdesc(p4d));
+}
 #endif /* __PAGETABLE_PMD_FOLDED */
 
 static inline void sync_kernel_mappings(pgd_t *pgd)
@@ -159,19 +172,25 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 #ifndef __PAGETABLE_PMD_FOLDED
 
-#define __pmd_free_tlb(tlb, pmd, addr)				\
-do {								\
-	pagetable_pmd_dtor(virt_to_ptdesc(pmd));		\
-	tlb_remove_page_ptdesc((tlb), virt_to_ptdesc(pmd));	\
-} while (0)
+static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
+				  unsigned long addr)
+{
+	struct ptdesc *ptdesc = virt_to_ptdesc(pmd);
+
+	pagetable_pmd_dtor(ptdesc);
+	riscv_tlb_remove_ptdesc(tlb, ptdesc);
+}
 
 #endif /* __PAGETABLE_PMD_FOLDED */
 
-#define __pte_free_tlb(tlb, pte, buf)			\
-do {							\
-	pagetable_pte_dtor(page_ptdesc(pte));		\
-	tlb_remove_page_ptdesc((tlb), page_ptdesc(pte));\
-} while (0)
+static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+				  unsigned long addr)
+{
+	struct ptdesc *ptdesc = page_ptdesc(pte);
+
+	pagetable_pte_dtor(ptdesc);
+	riscv_tlb_remove_ptdesc(tlb, ptdesc);
+}
 #endif /* CONFIG_MMU */
 
 #endif /* _ASM_RISCV_PGALLOC_H */

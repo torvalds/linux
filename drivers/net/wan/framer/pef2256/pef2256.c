@@ -838,7 +838,7 @@ static int pef2256_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pef2256_remove(struct platform_device *pdev)
+static void pef2256_remove(struct platform_device *pdev)
 {
 	struct pef2256 *pef2256 = platform_get_drvdata(pdev);
 
@@ -849,8 +849,6 @@ static int pef2256_remove(struct platform_device *pdev)
 	pef2256_write8(pef2256, PEF2256_IMR3, 0xff);
 	pef2256_write8(pef2256, PEF2256_IMR4, 0xff);
 	pef2256_write8(pef2256, PEF2256_IMR5, 0xff);
-
-	return 0;
 }
 
 static const struct of_device_id pef2256_id_table[] = {
@@ -865,7 +863,7 @@ static struct platform_driver pef2256_driver = {
 		.of_match_table = pef2256_id_table,
 	},
 	.probe = pef2256_probe,
-	.remove = pef2256_remove,
+	.remove_new = pef2256_remove,
 };
 module_platform_driver(pef2256_driver);
 

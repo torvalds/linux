@@ -1289,6 +1289,7 @@ static int adis16475_config_sync_mode(struct adis16475 *st)
 	struct device *dev = &st->adis.spi->dev;
 	const struct adis16475_sync *sync;
 	u32 sync_mode;
+	u16 val;
 
 	/* default to internal clk */
 	st->clk_freq = st->info->int_clk * 1000;
@@ -1350,8 +1351,9 @@ static int adis16475_config_sync_mode(struct adis16475 *st)
 	 * I'm keeping this for simplicity and avoiding extra variables
 	 * in chip_info.
 	 */
+	val = ADIS16475_SYNC_MODE(sync->sync_mode);
 	ret = __adis_update_bits(&st->adis, ADIS16475_REG_MSG_CTRL,
-				 ADIS16475_SYNC_MODE_MASK, sync->sync_mode);
+				 ADIS16475_SYNC_MODE_MASK, val);
 	if (ret)
 		return ret;
 
@@ -1363,22 +1365,16 @@ static int adis16475_config_sync_mode(struct adis16475 *st)
 static int adis16475_config_irq_pin(struct adis16475 *st)
 {
 	int ret;
-	struct irq_data *desc;
 	u32 irq_type;
 	u16 val = 0;
 	u8 polarity;
 	struct spi_device *spi = st->adis.spi;
 
-	desc = irq_get_irq_data(spi->irq);
-	if (!desc) {
-		dev_err(&spi->dev, "Could not find IRQ %d\n", spi->irq);
-		return -EINVAL;
-	}
 	/*
 	 * It is possible to configure the data ready polarity. Furthermore, we
 	 * need to update the adis struct if we want data ready as active low.
 	 */
-	irq_type = irqd_get_trigger_type(desc);
+	irq_type = irq_get_trigger_type(spi->irq);
 	if (irq_type == IRQ_TYPE_EDGE_RISING) {
 		polarity = 1;
 		st->adis.irq_flag = IRQF_TRIGGER_RISING;

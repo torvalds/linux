@@ -3401,6 +3401,12 @@ static const struct blk_mq_ops mtip_mq_ops = {
  */
 static int mtip_block_initialize(struct driver_data *dd)
 {
+	struct queue_limits lim = {
+		.physical_block_size	= 4096,
+		.max_hw_sectors		= 0xffff,
+		.max_segments		= MTIP_MAX_SG,
+		.max_segment_size	= 0x400000,
+	};
 	int rv = 0, wait_for_rebuild = 0;
 	sector_t capacity;
 	unsigned int index = 0;
@@ -3431,7 +3437,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 		goto block_queue_alloc_tag_error;
 	}
 
-	dd->disk = blk_mq_alloc_disk(&dd->tags, dd);
+	dd->disk = blk_mq_alloc_disk(&dd->tags, &lim, dd);
 	if (IS_ERR(dd->disk)) {
 		dev_err(&dd->pdev->dev,
 			"Unable to allocate request queue\n");
@@ -3481,12 +3487,7 @@ skip_create_disk:
 	/* Set device limits. */
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, dd->queue);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, dd->queue);
-	blk_queue_max_segments(dd->queue, MTIP_MAX_SG);
-	blk_queue_physical_block_size(dd->queue, 4096);
-	blk_queue_max_hw_sectors(dd->queue, 0xffff);
-	blk_queue_max_segment_size(dd->queue, 0x400000);
 	dma_set_max_seg_size(&dd->pdev->dev, 0x400000);
-	blk_queue_io_min(dd->queue, 4096);
 
 	/* Set the capacity of the device in 512 byte sectors. */
 	if (!(mtip_hw_get_capacity(dd, &capacity))) {

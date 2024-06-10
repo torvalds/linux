@@ -913,7 +913,7 @@ static void drop_mm_ref_this_cpu(void *info)
 	struct mm_struct *mm = info;
 
 	if (this_cpu_read(cpu_tlbstate.loaded_mm) == mm)
-		leave_mm(smp_processor_id());
+		leave_mm();
 
 	/*
 	 * If this cpu still has a stale cr3 reference, then make sure
@@ -1059,7 +1059,7 @@ static void __init xen_cleanmfnmap_pmd(pmd_t *pmd, bool unpin)
 	pte_t *pte_tbl;
 	int i;
 
-	if (pmd_large(*pmd)) {
+	if (pmd_leaf(*pmd)) {
 		pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
 		xen_free_ro_pages(pa, PMD_SIZE);
 		return;
@@ -1082,7 +1082,7 @@ static void __init xen_cleanmfnmap_pud(pud_t *pud, bool unpin)
 	pmd_t *pmd_tbl;
 	int i;
 
-	if (pud_large(*pud)) {
+	if (pud_leaf(*pud)) {
 		pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
 		xen_free_ro_pages(pa, PUD_SIZE);
 		return;
@@ -1104,7 +1104,7 @@ static void __init xen_cleanmfnmap_p4d(p4d_t *p4d, bool unpin)
 	pud_t *pud_tbl;
 	int i;
 
-	if (p4d_large(*p4d)) {
+	if (p4d_leaf(*p4d)) {
 		pa = p4d_val(*p4d) & PHYSICAL_PAGE_MASK;
 		xen_free_ro_pages(pa, P4D_SIZE);
 		return;
@@ -1863,7 +1863,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
 	if (!pud_present(pud))
 		return 0;
 	pa = pud_val(pud) & PTE_PFN_MASK;
-	if (pud_large(pud))
+	if (pud_leaf(pud))
 		return pa + (vaddr & ~PUD_MASK);
 
 	pmd = native_make_pmd(xen_read_phys_ulong(pa + pmd_index(vaddr) *
@@ -1871,7 +1871,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
 	if (!pmd_present(pmd))
 		return 0;
 	pa = pmd_val(pmd) & PTE_PFN_MASK;
-	if (pmd_large(pmd))
+	if (pmd_leaf(pmd))
 		return pa + (vaddr & ~PMD_MASK);
 
 	pte = native_make_pte(xen_read_phys_ulong(pa + pte_index(vaddr) *
@@ -2520,7 +2520,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(xen_remap_pfn);
 
-#ifdef CONFIG_KEXEC_CORE
+#ifdef CONFIG_VMCORE_INFO
 phys_addr_t paddr_vmcoreinfo_note(void)
 {
 	if (xen_pv_domain())

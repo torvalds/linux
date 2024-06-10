@@ -45,6 +45,13 @@ test_content() {
 source ./_chk_dependency.sh
 
 damon_onoff="$DBGFS/monitor_on"
+if [ -f "$DBGFS/monitor_on_DEPRECATED" ]
+then
+	damon_onoff="$DBGFS/monitor_on_DEPRECATED"
+else
+	damon_onoff="$DBGFS/monitor_on"
+fi
+
 if [ $(cat "$damon_onoff") = "on" ]
 then
 	echo "monitoring is on"

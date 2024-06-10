@@ -1264,9 +1264,6 @@ static int npcm_i2c_reg_slave(struct i2c_client *client)
 
 	bus->slave = client;
 
-	if (!bus->slave)
-		return -EINVAL;
-
 	if (client->flags & I2C_CLIENT_TEN)
 		return -EAFNOSUPPORT;
 

@@ -75,14 +75,9 @@ config VT_CONSOLE_SLEEP
 	def_bool y
 	depends on VT_CONSOLE && PM_SLEEP
 
-config HW_CONSOLE
-	bool
-	depends on VT
-	default y
-
 config VT_HW_CONSOLE_BINDING
 	bool "Support for binding and unbinding console drivers"
-	depends on HW_CONSOLE
+	depends on VT
 	help
 	  The virtual terminal is the device that interacts with the physical
 	  terminal through console drivers. On these systems, at least one

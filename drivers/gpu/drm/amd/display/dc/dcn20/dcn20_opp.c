@@ -337,6 +337,19 @@ bool opp2_dpg_is_blanked(struct output_pixel_processor *opp)
 		(double_buffer_pending == 0);
 }
 
+bool opp2_dpg_is_pending(struct output_pixel_processor *opp)
+{
+	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
+	uint32_t double_buffer_pending;
+	uint32_t dpg_en;
+
+	REG_GET(DPG_CONTROL, DPG_EN, &dpg_en);
+
+	REG_GET(DPG_STATUS, DPG_DOUBLE_BUFFER_PENDING, &double_buffer_pending);
+
+	return (dpg_en == 1 && double_buffer_pending == 1);
+}
+
 void opp2_program_left_edge_extra_pixel (
 		struct output_pixel_processor *opp,
 		bool count)
@@ -363,6 +376,7 @@ static struct opp_funcs dcn20_opp_funcs = {
 		.opp_set_disp_pattern_generator = opp2_set_disp_pattern_generator,
 		.opp_program_dpg_dimensions = opp2_program_dpg_dimensions,
 		.dpg_is_blanked = opp2_dpg_is_blanked,
+		.dpg_is_pending = opp2_dpg_is_pending,
 		.opp_dpg_set_blank_color = opp2_dpg_set_blank_color,
 		.opp_destroy = opp1_destroy,
 		.opp_program_left_edge_extra_pixel = opp2_program_left_edge_extra_pixel,

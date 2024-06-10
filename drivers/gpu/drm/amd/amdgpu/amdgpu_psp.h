@@ -73,8 +73,10 @@ enum psp_bootloader_cmd {
 	PSP_BL__LOAD_KEY_DATABASE	= 0x80000,
 	PSP_BL__LOAD_SOCDRV             = 0xB0000,
 	PSP_BL__LOAD_DBGDRV             = 0xC0000,
+	PSP_BL__LOAD_HADDRV		= PSP_BL__LOAD_DBGDRV,
 	PSP_BL__LOAD_INTFDRV		= 0xD0000,
-	PSP_BL__LOAD_RASDRV		    = 0xE0000,
+	PSP_BL__LOAD_RASDRV		= 0xE0000,
+	PSP_BL__LOAD_IPKEYMGRDRV	= 0xF0000,
 	PSP_BL__DRAM_LONG_TRAIN		= 0x100000,
 	PSP_BL__DRAM_SHORT_TRAIN	= 0x200000,
 	PSP_BL__LOAD_TOS_SPL_TABLE	= 0x10000000,
@@ -117,6 +119,7 @@ struct psp_funcs {
 	int (*bootloader_load_intf_drv)(struct psp_context *psp);
 	int (*bootloader_load_dbg_drv)(struct psp_context *psp);
 	int (*bootloader_load_ras_drv)(struct psp_context *psp);
+	int (*bootloader_load_ipkeymgr_drv)(struct psp_context *psp);
 	int (*bootloader_load_sos)(struct psp_context *psp);
 	int (*ring_create)(struct psp_context *psp,
 			   enum psp_ring_type ring_type);
@@ -134,7 +137,7 @@ struct psp_funcs {
 	int (*update_spirom)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
 	int (*vbflash_stat)(struct psp_context *psp);
 	int (*fatal_error_recovery_quirk)(struct psp_context *psp);
-	int (*query_boot_status)(struct psp_context *psp);
+	bool (*get_ras_capability)(struct psp_context *psp);
 };
 
 struct ta_funcs {
@@ -203,7 +206,7 @@ struct psp_ras_context {
 #define GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES	0x1000
 #define GDDR6_MEM_TRAINING_OFFSET		0x8000
 /*Define the VRAM size that will be encroached by BIST training.*/
-#define GDDR6_MEM_TRAINING_ENCROACHED_SIZE	0x2000000
+#define BIST_MEM_TRAINING_ENCROACHED_SIZE	0x2000000
 
 enum psp_memory_training_init_flag {
 	PSP_MEM_TRAIN_NOT_SUPPORT	= 0x0,
@@ -336,6 +339,7 @@ struct psp_context {
 	struct psp_bin_desc		intf_drv;
 	struct psp_bin_desc		dbg_drv;
 	struct psp_bin_desc		ras_drv;
+	struct psp_bin_desc		ipkeymgr_drv;
 
 	/* tmr buffer */
 	struct amdgpu_bo		*tmr_bo;
@@ -364,6 +368,8 @@ struct psp_context {
 	atomic_t			fence_value;
 	/* flag to mark whether gfx fw autoload is supported or not */
 	bool				autoload_supported;
+	/* flag to mark whether psp use runtime TMR or boottime TMR */
+	bool				boot_time_tmr;
 	/* flag to mark whether df cstate management centralized to PMFW */
 	bool				pmfw_centralized_cstate_management;
 
@@ -422,6 +428,9 @@ struct amdgpu_psp_funcs {
 #define psp_bootloader_load_ras_drv(psp) \
 		((psp)->funcs->bootloader_load_ras_drv ? \
 		(psp)->funcs->bootloader_load_ras_drv((psp)) : 0)
+#define psp_bootloader_load_ipkeymgr_drv(psp) \
+		((psp)->funcs->bootloader_load_ipkeymgr_drv ? \
+		 (psp)->funcs->bootloader_load_ipkeymgr_drv((psp)) : 0)
 #define psp_bootloader_load_sos(psp) \
 		((psp)->funcs->bootloader_load_sos ? (psp)->funcs->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \
@@ -463,6 +472,7 @@ extern const struct amdgpu_ip_block_version psp_v11_0_8_ip_block;
 extern const struct amdgpu_ip_block_version psp_v12_0_ip_block;
 extern const struct amdgpu_ip_block_version psp_v13_0_ip_block;
 extern const struct amdgpu_ip_block_version psp_v13_0_4_ip_block;
+extern const struct amdgpu_ip_block_version psp_v14_0_ip_block;
 
 extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, bool check_changed);
@@ -502,6 +512,9 @@ int psp_ras_enable_features(struct psp_context *psp,
 int psp_ras_trigger_error(struct psp_context *psp,
 			  struct ta_ras_trigger_error_input *info, uint32_t instance_mask);
 int psp_ras_terminate(struct psp_context *psp);
+int psp_ras_query_address(struct psp_context *psp,
+			  struct ta_ras_query_address_input *addr_in,
+			  struct ta_ras_query_address_output *addr_out);
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
@@ -538,7 +551,5 @@ int psp_spatial_partition(struct psp_context *psp, int mode);
 int is_psp_fw_valid(struct psp_bin_desc bin);
 
 int amdgpu_psp_wait_for_bootloader(struct amdgpu_device *adev);
-
-int amdgpu_psp_query_boot_status(struct amdgpu_device *adev);
-
+bool amdgpu_psp_get_ras_capability(struct psp_context *psp);
 #endif

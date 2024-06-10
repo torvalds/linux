@@ -3937,7 +3937,9 @@ void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m)
 	lte_coex = rtw_coex_read_indirect_reg(rtwdev, 0x38);
 	bt_coex = rtw_coex_read_indirect_reg(rtwdev, 0x54);
 
-	if (!coex_stat->bt_disabled && !coex_stat->bt_mailbox_reply) {
+	if (!coex_stat->wl_under_ips &&
+	    (!coex_stat->wl_under_lps || coex_stat->wl_force_lps_ctrl) &&
+	    !coex_stat->bt_disabled && !coex_stat->bt_mailbox_reply) {
 		rtw_coex_get_bt_supported_version(rtwdev,
 				&coex_stat->bt_supported_version);
 		rtw_coex_get_bt_patch_version(rtwdev, &coex_stat->patch_ver);

@@ -16,7 +16,7 @@ static void sdw_slave_release(struct device *dev)
 	kfree(slave);
 }
 
-struct device_type sdw_slave_type = {
+const struct device_type sdw_slave_type = {
 	.name =		"sdw_slave",
 	.release =	sdw_slave_release,
 	.uevent =	sdw_slave_uevent,

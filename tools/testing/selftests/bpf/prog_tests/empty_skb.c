@@ -94,6 +94,8 @@ void test_empty_skb(void)
 
 	SYS(out, "ip netns add empty_skb");
 	tok = open_netns("empty_skb");
+	if (!ASSERT_OK_PTR(tok, "setns"))
+		goto out;
 	SYS(out, "ip link add veth0 type veth peer veth1");
 	SYS(out, "ip link set dev veth0 up");
 	SYS(out, "ip link set dev veth1 up");

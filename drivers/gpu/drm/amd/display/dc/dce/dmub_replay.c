@@ -244,7 +244,7 @@ static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
 	uint16_t param = (uint16_t)(panel_inst << 8);
 
 	if (is_alpm)
-		param |= REPLAY_RESIDENCY_MODE_ALPM;
+		param |= REPLAY_RESIDENCY_FIELD_MODE_ALPM;
 
 	if (is_start)
 		param |= REPLAY_RESIDENCY_ENABLE;
@@ -258,7 +258,7 @@ static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
 		*residency = 0;
 }
 
-/**
+/*
  * Set REPLAY power optimization flags and coasting vtotal.
  */
 static void dmub_replay_set_power_opt_and_coasting_vtotal(struct dmub_replay *dmub,
@@ -280,7 +280,7 @@ static void dmub_replay_set_power_opt_and_coasting_vtotal(struct dmub_replay *dm
 	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
-/**
+/*
  * send Replay general cmd to DMUB.
  */
 static void dmub_replay_send_cmd(struct dmub_replay *dmub,

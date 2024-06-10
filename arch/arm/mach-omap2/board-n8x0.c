@@ -79,10 +79,8 @@ static struct musb_hdrc_platform_data tusb_data = {
 static struct gpiod_lookup_table tusb_gpio_table = {
 	.dev_id = "musb-tusb",
 	.table = {
-		GPIO_LOOKUP("gpio-0-15", 0, "enable",
-			    GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("gpio-48-63", 10, "int",
-			    GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-0-31", 0, "enable", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-32-63", 26, "int", GPIO_ACTIVE_HIGH),
 		{ }
 	},
 };
@@ -140,12 +138,11 @@ static int slot1_cover_open;
 static int slot2_cover_open;
 static struct device *mmc_device;
 
-static struct gpiod_lookup_table nokia8xx_mmc_gpio_table = {
+static struct gpiod_lookup_table nokia800_mmc_gpio_table = {
 	.dev_id = "mmci-omap.0",
 	.table = {
 		/* Slot switch, GPIO 96 */
-		GPIO_LOOKUP("gpio-80-111", 16,
-			    "switch", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-96-127", 0, "switch", GPIO_ACTIVE_HIGH),
 		{ }
 	},
 };
@@ -153,12 +150,12 @@ static struct gpiod_lookup_table nokia8xx_mmc_gpio_table = {
 static struct gpiod_lookup_table nokia810_mmc_gpio_table = {
 	.dev_id = "mmci-omap.0",
 	.table = {
+		/* Slot switch, GPIO 96 */
+		GPIO_LOOKUP("gpio-96-127", 0, "switch", GPIO_ACTIVE_HIGH),
 		/* Slot index 1, VSD power, GPIO 23 */
-		GPIO_LOOKUP_IDX("gpio-16-31", 7,
-				"vsd", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-0-31", 23, "vsd", 1, GPIO_ACTIVE_HIGH),
 		/* Slot index 1, VIO power, GPIO 9 */
-		GPIO_LOOKUP_IDX("gpio-0-15", 9,
-				"vio", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-0-31", 9, "vio", 1, GPIO_ACTIVE_HIGH),
 		{ }
 	},
 };
@@ -415,8 +412,6 @@ static struct omap_mmc_platform_data *mmc_data[OMAP24XX_NR_MMC];
 
 static void __init n8x0_mmc_init(void)
 {
-	gpiod_add_lookup_table(&nokia8xx_mmc_gpio_table);
-
 	if (board_is_n810()) {
 		mmc1_data.slots[0].name = "external";
 
@@ -429,6 +424,8 @@ static void __init n8x0_mmc_init(void)
 		mmc1_data.slots[1].name = "internal";
 		mmc1_data.slots[1].ban_openended = 1;
 		gpiod_add_lookup_table(&nokia810_mmc_gpio_table);
+	} else {
+		gpiod_add_lookup_table(&nokia800_mmc_gpio_table);
 	}
 
 	mmc1_data.nr_slots = 2;

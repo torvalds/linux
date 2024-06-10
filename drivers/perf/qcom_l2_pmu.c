@@ -801,9 +801,8 @@ static int l2cache_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 
 static int l2cache_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
-	struct cluster_pmu *cluster;
 	struct l2cache_pmu *l2cache_pmu;
-	cpumask_t cluster_online_cpus;
+	struct cluster_pmu *cluster;
 	unsigned int target;
 
 	l2cache_pmu = hlist_entry_safe(node, struct l2cache_pmu, node);
@@ -820,9 +819,8 @@ static int l2cache_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	cluster->on_cpu = -1;
 
 	/* Any other CPU for this cluster which is still online */
-	cpumask_and(&cluster_online_cpus, &cluster->cluster_cpus,
-		    cpu_online_mask);
-	target = cpumask_any_but(&cluster_online_cpus, cpu);
+	target = cpumask_any_and_but(&cluster->cluster_cpus,
+				     cpu_online_mask, cpu);
 	if (target >= nr_cpu_ids) {
 		disable_irq(cluster->irq);
 		return 0;
@@ -904,6 +902,7 @@ static int l2_cache_pmu_probe(struct platform_device *pdev)
 	l2cache_pmu->pmu = (struct pmu) {
 		/* suffix is instance id for future use with multiple sockets */
 		.name		= "l2cache_0",
+		.parent		= &pdev->dev,
 		.task_ctx_nr    = perf_invalid_context,
 		.pmu_enable	= l2_cache_pmu_enable,
 		.pmu_disable	= l2_cache_pmu_disable,
@@ -965,7 +964,7 @@ out_unregister:
 	return err;
 }
 
-static int l2_cache_pmu_remove(struct platform_device *pdev)
+static void l2_cache_pmu_remove(struct platform_device *pdev)
 {
 	struct l2cache_pmu *l2cache_pmu =
 		to_l2cache_pmu(platform_get_drvdata(pdev));
@@ -973,7 +972,6 @@ static int l2_cache_pmu_remove(struct platform_device *pdev)
 	perf_pmu_unregister(&l2cache_pmu->pmu);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_QCOM_L2_ONLINE,
 				    &l2cache_pmu->node);
-	return 0;
 }
 
 static struct platform_driver l2_cache_pmu_driver = {
@@ -983,7 +981,7 @@ static struct platform_driver l2_cache_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = l2_cache_pmu_probe,
-	.remove = l2_cache_pmu_remove,
+	.remove_new = l2_cache_pmu_remove,
 };
 
 static int __init register_l2_cache_pmu_driver(void)

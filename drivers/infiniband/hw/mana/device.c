@@ -15,6 +15,7 @@ static const struct ib_device_ops mana_ib_dev_ops = {
 	.driver_id = RDMA_DRIVER_MANA,
 	.uverbs_abi_ver = MANA_IB_UVERBS_ABI_VERSION,
 
+	.add_gid = mana_ib_gd_add_gid,
 	.alloc_pd = mana_ib_alloc_pd,
 	.alloc_ucontext = mana_ib_alloc_ucontext,
 	.create_cq = mana_ib_create_cq,
@@ -23,18 +24,21 @@ static const struct ib_device_ops mana_ib_dev_ops = {
 	.create_wq = mana_ib_create_wq,
 	.dealloc_pd = mana_ib_dealloc_pd,
 	.dealloc_ucontext = mana_ib_dealloc_ucontext,
+	.del_gid = mana_ib_gd_del_gid,
 	.dereg_mr = mana_ib_dereg_mr,
 	.destroy_cq = mana_ib_destroy_cq,
 	.destroy_qp = mana_ib_destroy_qp,
 	.destroy_rwq_ind_table = mana_ib_destroy_rwq_ind_table,
 	.destroy_wq = mana_ib_destroy_wq,
 	.disassociate_ucontext = mana_ib_disassociate_ucontext,
+	.get_link_layer = mana_ib_get_link_layer,
 	.get_port_immutable = mana_ib_get_port_immutable,
 	.mmap = mana_ib_mmap,
 	.modify_qp = mana_ib_modify_qp,
 	.modify_wq = mana_ib_modify_wq,
 	.query_device = mana_ib_query_device,
 	.query_gid = mana_ib_query_gid,
+	.query_pkey = mana_ib_query_pkey,
 	.query_port = mana_ib_query_port,
 	.reg_user_mr = mana_ib_reg_user_mr,
 
@@ -51,8 +55,10 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 {
 	struct mana_adev *madev = container_of(adev, struct mana_adev, adev);
 	struct gdma_dev *mdev = madev->mdev;
+	struct net_device *upper_ndev;
 	struct mana_context *mc;
 	struct mana_ib_dev *dev;
+	u8 mac_addr[ETH_ALEN];
 	int ret;
 
 	mc = mdev->driver_data;
@@ -74,8 +80,24 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	 * num_comp_vectors needs to set to the max MSIX index
 	 * when interrupts and event queues are implemented
 	 */
-	dev->ib_dev.num_comp_vectors = 1;
+	dev->ib_dev.num_comp_vectors = mdev->gdma_context->max_num_queues;
 	dev->ib_dev.dev.parent = mdev->gdma_context->dev;
+
+	rcu_read_lock(); /* required to get upper dev */
+	upper_ndev = netdev_master_upper_dev_get_rcu(mc->ports[0]);
+	if (!upper_ndev) {
+		rcu_read_unlock();
+		ret = -ENODEV;
+		ibdev_err(&dev->ib_dev, "Failed to get master netdev");
+		goto free_ib_device;
+	}
+	ether_addr_copy(mac_addr, upper_ndev->dev_addr);
+	ret = ib_device_set_netdev(&dev->ib_dev, upper_ndev, 1);
+	rcu_read_unlock();
+	if (ret) {
+		ibdev_err(&dev->ib_dev, "Failed to set ib netdev, ret %d", ret);
+		goto free_ib_device;
+	}
 
 	ret = mana_gd_register_device(&mdev->gdma_context->mana_ib);
 	if (ret) {
@@ -92,15 +114,36 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 		goto deregister_device;
 	}
 
+	ret = mana_ib_create_eqs(dev);
+	if (ret) {
+		ibdev_err(&dev->ib_dev, "Failed to create EQs, ret %d", ret);
+		goto deregister_device;
+	}
+
+	ret = mana_ib_gd_create_rnic_adapter(dev);
+	if (ret)
+		goto destroy_eqs;
+
+	ret = mana_ib_gd_config_mac(dev, ADDR_OP_ADD, mac_addr);
+	if (ret) {
+		ibdev_err(&dev->ib_dev, "Failed to add Mac address, ret %d",
+			  ret);
+		goto destroy_rnic;
+	}
+
 	ret = ib_register_device(&dev->ib_dev, "mana_%d",
 				 mdev->gdma_context->dev);
 	if (ret)
-		goto deregister_device;
+		goto destroy_rnic;
 
 	dev_set_drvdata(&adev->dev, dev);
 
 	return 0;
 
+destroy_rnic:
+	mana_ib_gd_destroy_rnic_adapter(dev);
+destroy_eqs:
+	mana_ib_destroy_eqs(dev);
 deregister_device:
 	mana_gd_deregister_device(dev->gdma_dev);
 free_ib_device:
@@ -113,9 +156,9 @@ static void mana_ib_remove(struct auxiliary_device *adev)
 	struct mana_ib_dev *dev = dev_get_drvdata(&adev->dev);
 
 	ib_unregister_device(&dev->ib_dev);
-
+	mana_ib_gd_destroy_rnic_adapter(dev);
+	mana_ib_destroy_eqs(dev);
 	mana_gd_deregister_device(dev->gdma_dev);
-
 	ib_dealloc_device(&dev->ib_dev);
 }
 

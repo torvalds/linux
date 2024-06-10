@@ -94,9 +94,6 @@
 
 static const struct atmdev_ops   fore200e_ops;
 
-static LIST_HEAD(fore200e_boards);
-
-
 MODULE_AUTHOR("Christophe Lizzi - credits to Uwe Dannowski and Heikki Vatiainen");
 MODULE_DESCRIPTION("FORE Systems 200E-series ATM driver - version " FORE200E_VERSION);
 
@@ -2550,14 +2547,12 @@ static int fore200e_sba_probe(struct platform_device *op)
 	return 0;
 }
 
-static int fore200e_sba_remove(struct platform_device *op)
+static void fore200e_sba_remove(struct platform_device *op)
 {
 	struct fore200e *fore200e = dev_get_drvdata(&op->dev);
 
 	fore200e_shutdown(fore200e);
 	kfree(fore200e);
-
-	return 0;
 }
 
 static const struct of_device_id fore200e_sba_match[] = {
@@ -2574,7 +2569,7 @@ static struct platform_driver fore200e_sba_driver = {
 		.of_match_table = fore200e_sba_match,
 	},
 	.probe		= fore200e_sba_probe,
-	.remove		= fore200e_sba_remove,
+	.remove_new	= fore200e_sba_remove,
 };
 #endif
 

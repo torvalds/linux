@@ -42,7 +42,7 @@ static int tps546d24_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps546d24_id[] = {
-	{"tps546d24", 0},
+	{"tps546d24"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, tps546d24_id);

@@ -23,3 +23,9 @@ Date:		Feb 2021
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
 		the number of pages CMA API failed to allocate
+
+What:		/sys/kernel/mm/cma/<cma-heap-name>/release_pages_success
+Date:		Feb 2024
+Contact:	Anshuman Khandual <anshuman.khandual@arm.com>
+Description:
+		the number of pages CMA API succeeded to release

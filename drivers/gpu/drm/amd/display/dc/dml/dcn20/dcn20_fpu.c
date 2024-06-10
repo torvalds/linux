@@ -1085,6 +1085,9 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 		int minmum_z8_residency = dc->debug.minimum_z8_residency_time > 0 ? dc->debug.minimum_z8_residency_time : 1000;
 		bool allow_z8 = context->bw_ctx.dml.vba.StutterPeriod > (double)minmum_z8_residency;
 		bool is_pwrseq0 = link->link_index == 0;
+		bool is_psr = (link && (link->psr_settings.psr_version == DC_PSR_VERSION_1 ||
+						link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) && !link->panel_config.psr.disable_psr);
+		bool is_replay = link && link->replay_settings.replay_feature_enabled;
 
 		/* Don't support multi-plane configurations */
 		if (stream_status->plane_count > 1)
@@ -1092,8 +1095,8 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 
 		if (is_pwrseq0 && context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
 			return DCN_ZSTATE_SUPPORT_ALLOW;
-		else if (is_pwrseq0 && link->psr_settings.psr_version == DC_PSR_VERSION_1 && !link->panel_config.psr.disable_psr)
-			return allow_z8 ? DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY : DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY;
+		else if (is_pwrseq0 && (is_psr || is_replay))
+			return DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY;
 		else
 			return allow_z8 ? DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY : DCN_ZSTATE_SUPPORT_DISALLOW;
 	} else {
@@ -2369,7 +2372,7 @@ validate_out:
 
 static struct _vcs_dpi_voltage_scaling_st construct_low_pstate_lvl(struct clk_limit_table *clk_table, unsigned int high_voltage_lvl)
 {
-	struct _vcs_dpi_voltage_scaling_st low_pstate_lvl;
+	struct _vcs_dpi_voltage_scaling_st low_pstate_lvl = {0};
 	int i;
 
 	low_pstate_lvl.state = 1;
@@ -2474,7 +2477,7 @@ void dcn201_populate_dml_writeback_from_context_fpu(struct dc *dc,
 	int pipe_cnt, i, j;
 	double max_calc_writeback_dispclk;
 	double writeback_dispclk;
-	struct writeback_st dout_wb;
+	struct writeback_st dout_wb = {0};
 
 	dc_assert_fp_enabled();
 

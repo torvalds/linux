@@ -211,9 +211,15 @@ Documentation/networking/net_dim.rst
 
 RX copybreak
 ============
+
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
 and can be configured by the ETHTOOL_STUNABLE command of the
 SIOCETHTOOL ioctl.
+
+This option controls the maximum packet length for which the RX
+descriptor it was received on would be recycled. When a packet smaller
+than RX copybreak bytes is received, it is copied into a new memory
+buffer and the RX descriptor is returned to HW.
 
 Statistics
 ==========

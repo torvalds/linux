@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/perf/arm,coresight-pmu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Arm Coresight Performance Monitoring Unit Architecture
+
+maintainers:
+  - Robin Murphy <robin.murphy@arm.com>
+
+properties:
+  compatible:
+    const: arm,coresight-pmu
+
+  reg:
+    items:
+      - description: Register page 0
+      - description: Register page 1, if the PMU implements the dual-page extension
+    minItems: 1
+
+  interrupts:
+    items:
+      - description: Overflow interrupt
+
+  cpus:
+    description: If the PMU is associated with a particular CPU or subset of CPUs,
+      array of phandles to the appropriate CPU node(s)
+
+  reg-io-width:
+    description: Granularity at which PMU register accesses are single-copy atomic
+    default: 4
+    enum: [4, 8]
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false

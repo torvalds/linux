@@ -34,7 +34,7 @@ static void test_stream_connection_reset(const struct test_opts *opts)
 	} addr = {
 		.svm = {
 			.svm_family = AF_VSOCK,
-			.svm_port = 1234,
+			.svm_port = opts->peer_port,
 			.svm_cid = opts->peer_cid,
 		},
 	};
@@ -70,7 +70,7 @@ static void test_stream_bind_only_client(const struct test_opts *opts)
 	} addr = {
 		.svm = {
 			.svm_family = AF_VSOCK,
-			.svm_port = 1234,
+			.svm_port = opts->peer_port,
 			.svm_cid = opts->peer_cid,
 		},
 	};
@@ -112,7 +112,7 @@ static void test_stream_bind_only_server(const struct test_opts *opts)
 	} addr = {
 		.svm = {
 			.svm_family = AF_VSOCK,
-			.svm_port = 1234,
+			.svm_port = opts->peer_port,
 			.svm_cid = VMADDR_CID_ANY,
 		},
 	};
@@ -138,7 +138,7 @@ static void test_stream_client_close_client(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -152,7 +152,7 @@ static void test_stream_client_close_server(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -173,7 +173,7 @@ static void test_stream_server_close_client(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -194,7 +194,7 @@ static void test_stream_server_close_server(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -215,7 +215,7 @@ static void test_stream_multiconn_client(const struct test_opts *opts)
 	int i;
 
 	for (i = 0; i < MULTICONN_NFDS; i++) {
-		fds[i] = vsock_stream_connect(opts->peer_cid, 1234);
+		fds[i] = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 		if (fds[i] < 0) {
 			perror("connect");
 			exit(EXIT_FAILURE);
@@ -239,7 +239,7 @@ static void test_stream_multiconn_server(const struct test_opts *opts)
 	int i;
 
 	for (i = 0; i < MULTICONN_NFDS; i++) {
-		fds[i] = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+		fds[i] = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 		if (fds[i] < 0) {
 			perror("accept");
 			exit(EXIT_FAILURE);
@@ -267,9 +267,9 @@ static void test_msg_peek_client(const struct test_opts *opts,
 	int i;
 
 	if (seqpacket)
-		fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+		fd = vsock_seqpacket_connect(opts->peer_cid, opts->peer_port);
 	else
-		fd = vsock_stream_connect(opts->peer_cid, 1234);
+		fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 
 	if (fd < 0) {
 		perror("connect");
@@ -295,9 +295,9 @@ static void test_msg_peek_server(const struct test_opts *opts,
 	int fd;
 
 	if (seqpacket)
-		fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+		fd = vsock_seqpacket_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	else
-		fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+		fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 
 	if (fd < 0) {
 		perror("accept");
@@ -363,7 +363,7 @@ static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 	int msg_count;
 	int fd;
 
-	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	fd = vsock_seqpacket_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -434,7 +434,7 @@ static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 	struct msghdr msg = {0};
 	struct iovec iov = {0};
 
-	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -505,7 +505,7 @@ static void test_seqpacket_msg_trunc_client(const struct test_opts *opts)
 	int fd;
 	char buf[MESSAGE_TRUNC_SZ];
 
-	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	fd = vsock_seqpacket_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -524,7 +524,7 @@ static void test_seqpacket_msg_trunc_server(const struct test_opts *opts)
 	struct msghdr msg = {0};
 	struct iovec iov = {0};
 
-	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -575,7 +575,7 @@ static void test_seqpacket_timeout_client(const struct test_opts *opts)
 	time_t read_enter_ns;
 	time_t read_overhead_ns;
 
-	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	fd = vsock_seqpacket_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -620,7 +620,7 @@ static void test_seqpacket_timeout_server(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -639,7 +639,7 @@ static void test_seqpacket_bigmsg_client(const struct test_opts *opts)
 
 	len = sizeof(sock_buf_size);
 
-	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	fd = vsock_seqpacket_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -671,7 +671,7 @@ static void test_seqpacket_bigmsg_server(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -692,7 +692,7 @@ static void test_seqpacket_invalid_rec_buffer_client(const struct test_opts *opt
 	unsigned char *buf2;
 	int buf_size = getpagesize() * 3;
 
-	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	fd = vsock_seqpacket_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -732,7 +732,7 @@ static void test_seqpacket_invalid_rec_buffer_server(const struct test_opts *opt
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 	int i;
 
-	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -808,7 +808,7 @@ static void test_stream_poll_rcvlowat_server(const struct test_opts *opts)
 	int fd;
 	int i;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -839,7 +839,7 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 	short poll_flags;
 	int fd;
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -906,9 +906,9 @@ static void test_inv_buf_client(const struct test_opts *opts, bool stream)
 	int fd;
 
 	if (stream)
-		fd = vsock_stream_connect(opts->peer_cid, 1234);
+		fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	else
-		fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+		fd = vsock_seqpacket_connect(opts->peer_cid, opts->peer_port);
 
 	if (fd < 0) {
 		perror("connect");
@@ -941,9 +941,9 @@ static void test_inv_buf_server(const struct test_opts *opts, bool stream)
 	int fd;
 
 	if (stream)
-		fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+		fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	else
-		fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+		fd = vsock_seqpacket_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 
 	if (fd < 0) {
 		perror("accept");
@@ -986,7 +986,7 @@ static void test_stream_virtio_skb_merge_client(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -1015,7 +1015,7 @@ static void test_stream_virtio_skb_merge_server(const struct test_opts *opts)
 	unsigned char buf[64];
 	int fd;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -1108,7 +1108,7 @@ static void test_stream_shutwr_client(const struct test_opts *opts)
 
 	sigaction(SIGPIPE, &act, NULL);
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -1130,7 +1130,7 @@ static void test_stream_shutwr_server(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -1151,7 +1151,7 @@ static void test_stream_shutrd_client(const struct test_opts *opts)
 
 	sigaction(SIGPIPE, &act, NULL);
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -1170,7 +1170,7 @@ static void test_stream_shutrd_server(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -1193,7 +1193,7 @@ static void test_double_bind_connect_server(const struct test_opts *opts)
 	struct sockaddr_vm sa_client;
 	socklen_t socklen_client = sizeof(sa_client);
 
-	listen_fd = vsock_stream_listen(VMADDR_CID_ANY, 1234);
+	listen_fd = vsock_stream_listen(VMADDR_CID_ANY, opts->peer_port);
 
 	for (i = 0; i < 2; i++) {
 		control_writeln("LISTENING");
@@ -1226,7 +1226,13 @@ static void test_double_bind_connect_client(const struct test_opts *opts)
 		/* Wait until server is ready to accept a new connection */
 		control_expectln("LISTENING");
 
-		client_fd = vsock_bind_connect(opts->peer_cid, 1234, 4321, SOCK_STREAM);
+		/* We use 'peer_port + 1' as "some" port for the 'bind()'
+		 * call. It is safe for overflow, but must be considered,
+		 * when running multiple test applications simultaneously
+		 * where 'peer-port' argument differs by 1.
+		 */
+		client_fd = vsock_bind_connect(opts->peer_cid, opts->peer_port,
+					       opts->peer_port + 1, SOCK_STREAM);
 
 		close(client_fd);
 	}
@@ -1246,7 +1252,7 @@ static void test_stream_rcvlowat_def_cred_upd_client(const struct test_opts *opt
 	void *buf;
 	int fd;
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -1282,7 +1288,7 @@ static void test_stream_credit_update_test(const struct test_opts *opts,
 	void *buf;
 	int fd;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);
@@ -1543,6 +1549,11 @@ static const struct option longopts[] = {
 		.val = 'p',
 	},
 	{
+		.name = "peer-port",
+		.has_arg = required_argument,
+		.val = 'q',
+	},
+	{
 		.name = "list",
 		.has_arg = no_argument,
 		.val = 'l',
@@ -1562,7 +1573,7 @@ static const struct option longopts[] = {
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: vsock_test [--help] [--control-host=<host>] --control-port=<port> --mode=client|server --peer-cid=<cid> [--list] [--skip=<test_id>]\n"
+	fprintf(stderr, "Usage: vsock_test [--help] [--control-host=<host>] --control-port=<port> --mode=client|server --peer-cid=<cid> [--peer-port=<port>] [--list] [--skip=<test_id>]\n"
 		"\n"
 		"  Server: vsock_test --control-port=1234 --mode=server --peer-cid=3\n"
 		"  Client: vsock_test --control-host=192.168.0.1 --control-port=1234 --mode=client --peer-cid=2\n"
@@ -1577,6 +1588,9 @@ static void usage(void)
 		"connect to.\n"
 		"\n"
 		"The CID of the other side must be given with --peer-cid=<cid>.\n"
+		"During the test, two AF_VSOCK ports will be used: the port\n"
+		"specified with --peer-port=<port> (or the default port)\n"
+		"and the next one.\n"
 		"\n"
 		"Options:\n"
 		"  --help                 This help message\n"
@@ -1584,9 +1598,11 @@ static void usage(void)
 		"  --control-port <port>  Server port to listen on/connect to\n"
 		"  --mode client|server   Server or client mode\n"
 		"  --peer-cid <cid>       CID of the other side\n"
+		"  --peer-port <port>     AF_VSOCK port used for the test [default: %d]\n"
 		"  --list                 List of tests that will be executed\n"
 		"  --skip <test_id>       Test ID to skip;\n"
-		"                         use multiple --skip options to skip more tests\n"
+		"                         use multiple --skip options to skip more tests\n",
+		DEFAULT_PEER_PORT
 		);
 	exit(EXIT_FAILURE);
 }
@@ -1598,6 +1614,7 @@ int main(int argc, char **argv)
 	struct test_opts opts = {
 		.mode = TEST_MODE_UNSET,
 		.peer_cid = VMADDR_CID_ANY,
+		.peer_port = DEFAULT_PEER_PORT,
 	};
 
 	srand(time(NULL));
@@ -1625,6 +1642,9 @@ int main(int argc, char **argv)
 			break;
 		case 'p':
 			opts.peer_cid = parse_cid(optarg);
+			break;
+		case 'q':
+			opts.peer_port = parse_port(optarg);
 			break;
 		case 'P':
 			control_port = optarg;

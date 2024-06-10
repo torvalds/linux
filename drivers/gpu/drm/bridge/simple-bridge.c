@@ -51,18 +51,20 @@ drm_connector_to_simple_bridge(struct drm_connector *connector)
 static int simple_bridge_get_modes(struct drm_connector *connector)
 {
 	struct simple_bridge *sbridge = drm_connector_to_simple_bridge(connector);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
 	if (sbridge->next_bridge->ops & DRM_BRIDGE_OP_EDID) {
-		edid = drm_bridge_get_edid(sbridge->next_bridge, connector);
-		if (!edid)
+		drm_edid = drm_bridge_edid_read(sbridge->next_bridge, connector);
+		if (!drm_edid)
 			DRM_INFO("EDID read failed. Fallback to standard modes\n");
 	} else {
-		edid = NULL;
+		drm_edid = NULL;
 	}
 
-	if (!edid) {
+	drm_edid_connector_update(connector, drm_edid);
+
+	if (!drm_edid) {
 		/*
 		 * In case we cannot retrieve the EDIDs (missing or broken DDC
 		 * bus from the next bridge), fallback on the XGA standards and
@@ -73,9 +75,8 @@ static int simple_bridge_get_modes(struct drm_connector *connector)
 		return ret;
 	}
 
-	drm_connector_update_edid_property(connector, edid);
-	ret = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	ret = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return ret;
 }

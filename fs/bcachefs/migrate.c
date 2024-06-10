@@ -31,7 +31,7 @@ static int drop_dev_ptrs(struct bch_fs *c, struct bkey_s k,
 	nr_good = bch2_bkey_durability(c, k.s_c);
 	if ((!nr_good && !(flags & lost)) ||
 	    (nr_good < replicas && !(flags & degraded)))
-		return -EINVAL;
+		return -BCH_ERR_remove_would_lose_data;
 
 	return 0;
 }
@@ -49,7 +49,7 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 	if (!bch2_bkey_has_device_c(k, dev_idx))
 		return 0;
 
-	n = bch2_bkey_make_mut(trans, iter, &k, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+	n = bch2_bkey_make_mut(trans, iter, &k, BTREE_UPDATE_internal_snapshot_node);
 	ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
 		return ret;
@@ -67,7 +67,7 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 
 	/*
 	 * Since we're not inserting through an extent iterator
-	 * (BTREE_ITER_ALL_SNAPSHOTS iterators aren't extent iterators),
+	 * (BTREE_ITER_all_snapshots iterators aren't extent iterators),
 	 * we aren't using the extent overwrite path to delete, we're
 	 * just using the normal key deletion path:
 	 */
@@ -87,7 +87,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 			continue;
 
 		ret = for_each_btree_key_commit(trans, iter, id, POS_MIN,
-				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			bch2_dev_usrdata_drop_key(trans, &iter, k, dev_idx, flags));
 		if (ret)
@@ -111,7 +111,7 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 	/* don't handle this yet: */
 	if (flags & BCH_FORCE_IF_METADATA_LOST)
-		return -EINVAL;
+		return -BCH_ERR_remove_with_metadata_missing_unimplemented;
 
 	trans = bch2_trans_get(c);
 	bch2_bkey_buf_init(&k);
@@ -119,7 +119,7 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		bch2_trans_node_iter_init(trans, &iter, id, POS_MIN, 0, 0,
-					  BTREE_ITER_PREFETCH);
+					  BTREE_ITER_prefetch);
 retry:
 		ret = 0;
 		while (bch2_trans_begin(trans),
@@ -132,10 +132,8 @@ retry:
 
 			ret = drop_dev_ptrs(c, bkey_i_to_s(k.k),
 					    dev_idx, flags, true);
-			if (ret) {
-				bch_err(c, "Cannot drop device without losing data");
+			if (ret)
 				break;
-			}
 
 			ret = bch2_btree_node_update_key(trans, &iter, b, k.k, 0, false);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {

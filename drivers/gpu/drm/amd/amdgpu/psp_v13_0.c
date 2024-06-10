@@ -27,6 +27,7 @@
 #include "amdgpu_ucode.h"
 #include "soc15_common.h"
 #include "psp_v13_0.h"
+#include "amdgpu_ras.h"
 
 #include "mp/mp_13_0_2_offset.h"
 #include "mp/mp_13_0_2_sh_mask.h"
@@ -52,6 +53,8 @@ MODULE_FIRMWARE("amdgpu/psp_13_0_6_sos.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_6_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_0_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_0_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_1_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_1_ta.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
@@ -100,6 +103,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	case IP_VERSION(13, 0, 8):
 	case IP_VERSION(13, 0, 11):
 	case IP_VERSION(14, 0, 0):
+	case IP_VERSION(14, 0, 1):
 		err = psp_init_toc_microcode(psp, ucode_prefix);
 		if (err)
 			return err;
@@ -187,11 +191,18 @@ static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 static int psp_v13_0_wait_for_bootloader_steady_state(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
+	int ret;
 
 	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) {
-		psp_v13_0_wait_for_vmbx_ready(psp);
+		ret = psp_v13_0_wait_for_vmbx_ready(psp);
+		if (ret)
+			amdgpu_ras_query_boot_status(adev, 4);
 
-		return psp_v13_0_wait_for_bootloader(psp);
+		ret = psp_v13_0_wait_for_bootloader(psp);
+		if (ret)
+			amdgpu_ras_query_boot_status(adev, 4);
+
+		return ret;
 	}
 
 	return 0;
@@ -553,7 +564,7 @@ static int psp_v13_0_memory_training(struct psp_context *psp, uint32_t ops)
 		 * before training, and restore it after training to avoid
 		 * VRAM corruption.
 		 */
-		sz = GDDR6_MEM_TRAINING_ENCROACHED_SIZE;
+		sz = BIST_MEM_TRAINING_ENCROACHED_SIZE;
 
 		if (adev->gmc.visible_vram_size < sz || !adev->mman.aper_base_kaddr) {
 			dev_err(adev->dev, "visible_vram_size %llx or aper_base_kaddr %p is not initialized.\n",
@@ -763,81 +774,28 @@ static int psp_v13_0_fatal_error_recovery_quirk(struct psp_context *psp)
 	return 0;
 }
 
-
-static void psp_v13_0_boot_error_reporting(struct amdgpu_device *adev,
-					   uint32_t inst,
-					   uint32_t boot_error)
-{
-	uint32_t socket_id;
-	uint32_t aid_id;
-	uint32_t hbm_id;
-	uint32_t reg_data;
-
-	socket_id = REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, SOCKET_ID);
-	aid_id = REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, AID_ID);
-	hbm_id = REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, HBM_ID);
-
-	reg_data = RREG32_SOC15(MP0, inst, regMP0_SMN_C2PMSG_109);
-	dev_info(adev->dev, "socket: %d, aid: %d, firmware boot failed, fw status is 0x%x\n",
-		 socket_id, aid_id, reg_data);
-
-	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_MEM_TRAINING))
-		dev_info(adev->dev, "socket: %d, aid: %d, hbm: %d, memory training failed\n",
-			 socket_id, aid_id, hbm_id);
-
-	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_FW_LOAD))
-		dev_info(adev->dev, "socket: %d, aid: %d, firmware load failed at boot time\n",
-			 socket_id, aid_id);
-
-	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_WAFL_LINK_TRAINING))
-		dev_info(adev->dev, "socket: %d, aid: %d, wafl link training failed\n",
-			 socket_id, aid_id);
-
-	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_XGMI_LINK_TRAINING))
-		dev_info(adev->dev, "socket: %d, aid: %d, xgmi link training failed\n",
-			 socket_id, aid_id);
-
-	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_USR_CP_LINK_TRAINING))
-		dev_info(adev->dev, "socket: %d, aid: %d, usr cp link training failed\n",
-			 socket_id, aid_id);
-
-	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_USR_DP_LINK_TRAINING))
-		dev_info(adev->dev, "socket: %d, aid: %d, usr dp link training failed\n",
-			 socket_id, aid_id);
-
-	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_HBM_MEM_TEST))
-		dev_info(adev->dev, "socket: %d, aid: %d, hbm: %d, hbm memory test failed\n",
-			 socket_id, aid_id, hbm_id);
-
-	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_HBM_BIST_TEST))
-		dev_info(adev->dev, "socket: %d, aid: %d, hbm: %d, hbm bist test failed\n",
-			 socket_id, aid_id, hbm_id);
-}
-
-static int psp_v13_0_query_boot_status(struct psp_context *psp)
+static bool psp_v13_0_get_ras_capability(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
-	int inst_mask = adev->aid_mask;
-	uint32_t reg_data;
-	uint32_t i;
-	int ret = 0;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	u32 reg_data;
 
-	if (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 6))
-		return 0;
+	/* query ras cap should be done from host side */
+	if (amdgpu_sriov_vf(adev))
+		return false;
 
-	if (RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_59) < 0x00a10109)
-		return 0;
+	if (!con)
+		return false;
 
-	for_each_inst(i, inst_mask) {
-		reg_data = RREG32_SOC15(MP0, i, regMP0_SMN_C2PMSG_126);
-		if (!REG_GET_FIELD(reg_data, MP0_SMN_C2PMSG_126, BOOT_STATUS)) {
-			psp_v13_0_boot_error_reporting(adev, i, reg_data);
-			ret = -EINVAL;
-			break;
-		}
+	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) &&
+	    (!(adev->flags & AMD_IS_APU))) {
+		reg_data = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_127);
+		adev->ras_hw_enabled = (reg_data & GENMASK_ULL(23, 0));
+		con->poison_supported = ((reg_data & GENMASK_ULL(24, 24)) >> 24) ? true : false;
+		return true;
+	} else {
+		return false;
 	}
-
-	return ret;
 }
 
 static const struct psp_funcs psp_v13_0_funcs = {
@@ -862,7 +820,7 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.update_spirom = psp_v13_0_update_spirom,
 	.vbflash_stat = psp_v13_0_vbflash_status,
 	.fatal_error_recovery_quirk = psp_v13_0_fatal_error_recovery_quirk,
-	.query_boot_status = psp_v13_0_query_boot_status,
+	.get_ras_capability = psp_v13_0_get_ras_capability,
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

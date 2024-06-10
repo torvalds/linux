@@ -999,11 +999,9 @@ static ssize_t rvu_dbg_qsize_write(struct file *filp,
 	u16 pcifunc;
 	int ret, lf;
 
-	cmd_buf = memdup_user(buffer, count + 1);
+	cmd_buf = memdup_user_nul(buffer, count);
 	if (IS_ERR(cmd_buf))
 		return -ENOMEM;
-
-	cmd_buf[count] = '\0';
 
 	cmd_buf_tmp = strchr(cmd_buf, '\n');
 	if (cmd_buf_tmp) {
@@ -2869,6 +2867,10 @@ static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
 		case NPC_DPORT_SCTP:
 			seq_printf(s, "%d ", ntohs(rule->packet.dport));
 			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.dport));
+			break;
+		case NPC_TCP_FLAGS:
+			seq_printf(s, "%d ", rule->packet.tcp_flags);
+			seq_printf(s, "mask 0x%x\n", rule->mask.tcp_flags);
 			break;
 		case NPC_IPSEC_SPI:
 			seq_printf(s, "0x%x ", ntohl(rule->packet.spi));

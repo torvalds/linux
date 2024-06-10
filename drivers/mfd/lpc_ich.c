@@ -38,6 +38,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/align.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -1321,7 +1322,7 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 	case INTEL_SPI_BYT:
 		pci_read_config_dword(dev, SPIBASE_BYT, &spi_base);
 		if (spi_base & SPIBASE_BYT_EN) {
-			res->start = spi_base & ~(SPIBASE_BYT_SZ - 1);
+			res->start = ALIGN_DOWN(spi_base, SPIBASE_BYT_SZ);
 			res->end = res->start + SPIBASE_BYT_SZ - 1;
 
 			info->set_writeable = lpc_ich_byt_set_writeable;

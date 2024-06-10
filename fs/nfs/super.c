@@ -516,8 +516,16 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	else
 		nfs_show_nfsv4_options(m, nfss, showdefaults);
 
-	if (nfss->options & NFS_OPTION_FSCACHE)
+	if (nfss->options & NFS_OPTION_FSCACHE) {
+#ifdef CONFIG_NFS_FSCACHE
+		if (nfss->fscache_uniq)
+			seq_printf(m, ",fsc=%s", nfss->fscache_uniq);
+		else
+			seq_puts(m, ",fsc");
+#else
 		seq_puts(m, ",fsc");
+#endif
+	}
 
 	if (nfss->options & NFS_OPTION_MIGRATION)
 		seq_puts(m, ",migration");
@@ -893,6 +901,16 @@ static struct nfs_server *nfs_try_mount_request(struct fs_context *fc)
 	rpc_authflavor_t authlist[NFS_MAX_SECFLAVORS];
 	unsigned int authlist_len = ARRAY_SIZE(authlist);
 
+	/* make sure 'nolock'/'lock' override the 'local_lock' mount option */
+	if (ctx->lock_status) {
+		if (ctx->lock_status == NFS_LOCK_NOLOCK) {
+			ctx->flags |= NFS_MOUNT_NONLM;
+			ctx->flags |= (NFS_MOUNT_LOCAL_FLOCK | NFS_MOUNT_LOCAL_FCNTL);
+		} else {
+			ctx->flags &= ~NFS_MOUNT_NONLM;
+			ctx->flags &= ~(NFS_MOUNT_LOCAL_FLOCK | NFS_MOUNT_LOCAL_FCNTL);
+		}
+	}
 	status = nfs_request_mount(fc, ctx->mntfh, authlist, &authlist_len);
 	if (status)
 		return ERR_PTR(status);

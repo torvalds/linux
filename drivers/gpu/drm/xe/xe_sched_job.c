@@ -5,6 +5,7 @@
 
 #include "xe_sched_job.h"
 
+#include <drm/xe_drm.h>
 #include <linux/dma-fence-array.h>
 #include <linux/slab.h>
 
@@ -15,6 +16,8 @@
 #include "xe_hw_fence.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
+#include "xe_pm.h"
+#include "xe_sync_types.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
 
@@ -157,7 +160,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 
 	/* All other jobs require a VM to be open which has a ref */
 	if (unlikely(q->flags & EXEC_QUEUE_FLAG_KERNEL))
-		xe_device_mem_access_get(job_to_xe(job));
+		xe_pm_runtime_get_noresume(job_to_xe(job));
 	xe_device_assert_mem_access(job_to_xe(job));
 
 	trace_xe_sched_job_create(job);
@@ -190,7 +193,7 @@ void xe_sched_job_destroy(struct kref *ref)
 		container_of(ref, struct xe_sched_job, refcount);
 
 	if (unlikely(job->q->flags & EXEC_QUEUE_FLAG_KERNEL))
-		xe_device_mem_access_put(job_to_xe(job));
+		xe_pm_runtime_put(job_to_xe(job));
 	xe_exec_queue_put(job->q);
 	dma_fence_put(job->fence);
 	drm_sched_job_cleanup(&job->drm);
@@ -250,6 +253,16 @@ bool xe_sched_job_completed(struct xe_sched_job *job)
 
 void xe_sched_job_arm(struct xe_sched_job *job)
 {
+	struct xe_exec_queue *q = job->q;
+	struct xe_vm *vm = q->vm;
+
+	if (vm && !xe_sched_job_is_migration(q) && !xe_vm_in_lr_mode(vm) &&
+	    (vm->batch_invalidate_tlb || vm->tlb_flush_seqno != q->tlb_flush_seqno)) {
+		xe_vm_assert_held(vm);
+		q->tlb_flush_seqno = vm->tlb_flush_seqno;
+		job->ring_ops_flush_tlb = true;
+	}
+
 	drm_sched_job_arm(&job->drm);
 }
 
@@ -276,4 +289,58 @@ int xe_sched_job_last_fence_add_dep(struct xe_sched_job *job, struct xe_vm *vm)
 	fence = xe_exec_queue_last_fence_get(job->q, vm);
 
 	return drm_sched_job_add_dependency(&job->drm, fence);
+}
+
+/**
+ * xe_sched_job_init_user_fence - Initialize user_fence for the job
+ * @job: job whose user_fence needs an init
+ * @sync: sync to be use to init user_fence
+ */
+void xe_sched_job_init_user_fence(struct xe_sched_job *job,
+				  struct xe_sync_entry *sync)
+{
+	if (sync->type != DRM_XE_SYNC_TYPE_USER_FENCE)
+		return;
+
+	job->user_fence.used = true;
+	job->user_fence.addr = sync->addr;
+	job->user_fence.value = sync->timeline_value;
+}
+
+struct xe_sched_job_snapshot *
+xe_sched_job_snapshot_capture(struct xe_sched_job *job)
+{
+	struct xe_exec_queue *q = job->q;
+	struct xe_device *xe = q->gt->tile->xe;
+	struct xe_sched_job_snapshot *snapshot;
+	size_t len = sizeof(*snapshot) + (sizeof(u64) * q->width);
+	u16 i;
+
+	snapshot = kzalloc(len, GFP_ATOMIC);
+	if (!snapshot)
+		return NULL;
+
+	snapshot->batch_addr_len = q->width;
+	for (i = 0; i < q->width; i++)
+		snapshot->batch_addr[i] = xe_device_uncanonicalize_addr(xe, job->batch_addr[i]);
+
+	return snapshot;
+}
+
+void xe_sched_job_snapshot_free(struct xe_sched_job_snapshot *snapshot)
+{
+	kfree(snapshot);
+}
+
+void
+xe_sched_job_snapshot_print(struct xe_sched_job_snapshot *snapshot,
+			    struct drm_printer *p)
+{
+	u16 i;
+
+	if (!snapshot)
+		return;
+
+	for (i = 0; i < snapshot->batch_addr_len; i++)
+		drm_printf(p, "batch_addr[%u]: 0x%016llx\n", i, snapshot->batch_addr[i]);
 }

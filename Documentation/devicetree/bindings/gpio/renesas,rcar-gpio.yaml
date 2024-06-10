@@ -53,6 +53,7 @@ properties:
               - renesas,gpio-r8a779a0     # R-Car V3U
               - renesas,gpio-r8a779f0     # R-Car S4-8
               - renesas,gpio-r8a779g0     # R-Car V4H
+              - renesas,gpio-r8a779h0     # R-Car V4M
           - const: renesas,rcar-gen4-gpio # R-Car Gen4
 
   reg:

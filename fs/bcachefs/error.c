@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
 #include "error.h"
+#include "journal.h"
+#include "recovery_passes.h"
 #include "super.h"
 #include "thread_with_file.h"
 
@@ -15,7 +17,8 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 		return false;
 	case BCH_ON_ERROR_ro:
 		if (bch2_fs_emergency_read_only(c))
-			bch_err(c, "inconsistency detected - emergency read only");
+			bch_err(c, "inconsistency detected - emergency read only at journal seq %llu",
+				journal_cur_seq(&c->journal));
 		return true;
 	case BCH_ON_ERROR_panic:
 		panic(bch2_fmt(c, "panic after error"));
@@ -25,11 +28,16 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 	}
 }
 
-void bch2_topology_error(struct bch_fs *c)
+int bch2_topology_error(struct bch_fs *c)
 {
 	set_bit(BCH_FS_topology_error, &c->flags);
-	if (!test_bit(BCH_FS_fsck_running, &c->flags))
+	if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
 		bch2_inconsistent_error(c);
+		return -BCH_ERR_btree_need_topology_repair;
+	} else {
+		return bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?:
+			-BCH_ERR_btree_node_read_validate_error;
+	}
 }
 
 void bch2_fatal_error(struct bch_fs *c)
@@ -168,6 +176,21 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 	return s;
 }
 
+/* s/fix?/fixing/ s/recreate?/recreating/ */
+static void prt_actioning(struct printbuf *out, const char *action)
+{
+	unsigned len = strlen(action);
+
+	BUG_ON(action[len - 1] != '?');
+	--len;
+
+	if (action[len - 1] == 'e')
+		--len;
+
+	prt_bytes(out, action, len);
+	prt_str(out, "ing");
+}
+
 int bch2_fsck_err(struct bch_fs *c,
 		  enum bch_fsck_flags flags,
 		  enum bch_sb_error_id err,
@@ -178,6 +201,7 @@ int bch2_fsck_err(struct bch_fs *c,
 	bool print = true, suppressing = false, inconsistent = false;
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
+	const char *action_orig = "fix?", *action = action_orig;
 
 	if ((flags & FSCK_CAN_FIX) &&
 	    test_bit(err, c->sb.errors_silent))
@@ -188,6 +212,19 @@ int bch2_fsck_err(struct bch_fs *c,
 	va_start(args, fmt);
 	prt_vprintf(out, fmt, args);
 	va_end(args);
+
+	/* Custom fix/continue/recreate/etc.? */
+	if (out->buf[out->pos - 1] == '?') {
+		const char *p = strrchr(out->buf, ',');
+		if (p) {
+			out->pos = p - out->buf;
+			action = kstrdup(p + 2, GFP_KERNEL);
+			if (!action) {
+				ret = -ENOMEM;
+				goto err;
+			}
+		}
+	}
 
 	mutex_lock(&c->fsck_error_msgs_lock);
 	s = fsck_err_get(c, fmt);
@@ -200,12 +237,16 @@ int bch2_fsck_err(struct bch_fs *c,
 		if (s->last_msg && !strcmp(buf.buf, s->last_msg)) {
 			ret = s->ret;
 			mutex_unlock(&c->fsck_error_msgs_lock);
-			printbuf_exit(&buf);
-			return ret;
+			goto err;
 		}
 
 		kfree(s->last_msg);
 		s->last_msg = kstrdup(buf.buf, GFP_KERNEL);
+		if (!s->last_msg) {
+			mutex_unlock(&c->fsck_error_msgs_lock);
+			ret = -ENOMEM;
+			goto err;
+		}
 
 		if (c->opts.ratelimit_errors &&
 		    !(flags & FSCK_NO_RATELIMIT) &&
@@ -231,7 +272,8 @@ int bch2_fsck_err(struct bch_fs *c,
 			inconsistent = true;
 			ret = -BCH_ERR_fsck_errors_not_fixed;
 		} else if (flags & FSCK_CAN_FIX) {
-			prt_str(out, ", fixing");
+			prt_str(out, ", ");
+			prt_actioning(out, action);
 			ret = -BCH_ERR_fsck_fix;
 		} else {
 			prt_str(out, ", continuing");
@@ -246,16 +288,16 @@ int bch2_fsck_err(struct bch_fs *c,
 			: c->opts.fix_errors;
 
 		if (fix == FSCK_FIX_ask) {
-			int ask;
+			prt_str(out, ", ");
+			prt_str(out, action);
 
-			prt_str(out, ": fix?");
 			if (bch2_fs_stdio_redirect(c))
 				bch2_print(c, "%s", out->buf);
 			else
 				bch2_print_string_as_lines(KERN_ERR, out->buf);
 			print = false;
 
-			ask = bch2_fsck_ask_yn(c);
+			int ask = bch2_fsck_ask_yn(c);
 
 			if (ask >= YN_ALLNO && s)
 				s->fix = ask == YN_ALLNO
@@ -268,10 +310,12 @@ int bch2_fsck_err(struct bch_fs *c,
 		} else if (fix == FSCK_FIX_yes ||
 			   (c->opts.nochanges &&
 			    !(flags & FSCK_CAN_IGNORE))) {
-			prt_str(out, ", fixing");
+			prt_str(out, ", ");
+			prt_actioning(out, action);
 			ret = -BCH_ERR_fsck_fix;
 		} else {
-			prt_str(out, ", not fixing");
+			prt_str(out, ", not ");
+			prt_actioning(out, action);
 		}
 	} else if (flags & FSCK_NEED_FSCK) {
 		prt_str(out, " (run fsck to correct)");
@@ -303,8 +347,6 @@ int bch2_fsck_err(struct bch_fs *c,
 
 	mutex_unlock(&c->fsck_error_msgs_lock);
 
-	printbuf_exit(&buf);
-
 	if (inconsistent)
 		bch2_inconsistent_error(c);
 
@@ -314,7 +356,10 @@ int bch2_fsck_err(struct bch_fs *c,
 		set_bit(BCH_FS_errors_not_fixed, &c->flags);
 		set_bit(BCH_FS_error, &c->flags);
 	}
-
+err:
+	if (action != action_orig)
+		kfree(action);
+	printbuf_exit(&buf);
 	return ret;
 }
 

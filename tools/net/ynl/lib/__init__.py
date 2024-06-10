@@ -2,7 +2,7 @@
 
 from .nlspec import SpecAttr, SpecAttrSet, SpecEnumEntry, SpecEnumSet, \
     SpecFamily, SpecOperation
-from .ynl import YnlFamily, Netlink
+from .ynl import YnlFamily, Netlink, NlError
 
 __all__ = ["SpecAttr", "SpecAttrSet", "SpecEnumEntry", "SpecEnumSet",
-           "SpecFamily", "SpecOperation", "YnlFamily", "Netlink"]
+           "SpecFamily", "SpecOperation", "YnlFamily", "Netlink", "NlError"]

@@ -156,10 +156,10 @@ int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_nexthop_eth_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 				struct mlxsw_sp_nexthop *nh, bool force,
 				char *ratr_pl);
-void mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_nexthop *nh);
-void mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_nexthop *nh);
+void mlxsw_sp_nexthop_counter_disable(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_nexthop *nh);
 
 static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 				      const union mlxsw_sp_l3addr *addr2)

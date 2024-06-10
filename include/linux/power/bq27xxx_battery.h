@@ -47,21 +47,12 @@ struct bq27xxx_access_methods {
 };
 
 struct bq27xxx_reg_cache {
-	int temperature;
-	int time_to_empty;
-	int time_to_empty_avg;
-	int time_to_full;
-	int charge_full;
-	int cycle_count;
 	int capacity;
-	int energy;
 	int flags;
-	int health;
 };
 
 struct bq27xxx_device_info {
 	struct device *dev;
-	int id;
 	enum bq27xxx_chip chip;
 	u32 opts;
 	const char *name;

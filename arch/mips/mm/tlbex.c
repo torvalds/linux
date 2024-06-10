@@ -32,7 +32,9 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cpu-type.h>
+#include <asm/mipsregs.h>
 #include <asm/mmu_context.h>
+#include <asm/regdef.h>
 #include <asm/uasm.h>
 #include <asm/setup.h>
 #include <asm/tlbex.h>
@@ -276,27 +278,6 @@ static inline void dump_handler(const char *symbol, const void *start, const voi
 	pr_debug("\tEND(%s)\n", symbol);
 }
 
-/* The only general purpose registers allowed in TLB handlers. */
-#define K0		26
-#define K1		27
-
-/* Some CP0 registers */
-#define C0_INDEX	0, 0
-#define C0_ENTRYLO0	2, 0
-#define C0_TCBIND	2, 2
-#define C0_ENTRYLO1	3, 0
-#define C0_CONTEXT	4, 0
-#define C0_PAGEMASK	5, 0
-#define C0_PWBASE	5, 5
-#define C0_PWFIELD	5, 6
-#define C0_PWSIZE	5, 7
-#define C0_PWCTL	6, 6
-#define C0_BADVADDR	8, 0
-#define C0_PGD		9, 7
-#define C0_ENTRYHI	10, 0
-#define C0_EPC		14, 0
-#define C0_XCONTEXT	20, 0
-
 #ifdef CONFIG_64BIT
 # define GET_CONTEXT(buf, reg) UASM_i_MFC0(buf, reg, C0_XCONTEXT)
 #else
@@ -356,30 +337,30 @@ static struct work_registers build_get_work_registers(u32 **p)
 	if (scratch_reg >= 0) {
 		/* Save in CPU local C0_KScratch? */
 		UASM_i_MTC0(p, 1, c0_kscratch(), scratch_reg);
-		r.r1 = K0;
-		r.r2 = K1;
-		r.r3 = 1;
+		r.r1 = GPR_K0;
+		r.r2 = GPR_K1;
+		r.r3 = GPR_AT;
 		return r;
 	}
 
 	if (num_possible_cpus() > 1) {
 		/* Get smp_processor_id */
-		UASM_i_CPUID_MFC0(p, K0, SMP_CPUID_REG);
-		UASM_i_SRL_SAFE(p, K0, K0, SMP_CPUID_REGSHIFT);
+		UASM_i_CPUID_MFC0(p, GPR_K0, SMP_CPUID_REG);
+		UASM_i_SRL_SAFE(p, GPR_K0, GPR_K0, SMP_CPUID_REGSHIFT);
 
-		/* handler_reg_save index in K0 */
-		UASM_i_SLL(p, K0, K0, ilog2(sizeof(struct tlb_reg_save)));
+		/* handler_reg_save index in GPR_K0 */
+		UASM_i_SLL(p, GPR_K0, GPR_K0, ilog2(sizeof(struct tlb_reg_save)));
 
-		UASM_i_LA(p, K1, (long)&handler_reg_save);
-		UASM_i_ADDU(p, K0, K0, K1);
+		UASM_i_LA(p, GPR_K1, (long)&handler_reg_save);
+		UASM_i_ADDU(p, GPR_K0, GPR_K0, GPR_K1);
 	} else {
-		UASM_i_LA(p, K0, (long)&handler_reg_save);
+		UASM_i_LA(p, GPR_K0, (long)&handler_reg_save);
 	}
-	/* K0 now points to save area, save $1 and $2  */
-	UASM_i_SW(p, 1, offsetof(struct tlb_reg_save, a), K0);
-	UASM_i_SW(p, 2, offsetof(struct tlb_reg_save, b), K0);
+	/* GPR_K0 now points to save area, save $1 and $2  */
+	UASM_i_SW(p, 1, offsetof(struct tlb_reg_save, a), GPR_K0);
+	UASM_i_SW(p, 2, offsetof(struct tlb_reg_save, b), GPR_K0);
 
-	r.r1 = K1;
+	r.r1 = GPR_K1;
 	r.r2 = 1;
 	r.r3 = 2;
 	return r;
@@ -392,9 +373,9 @@ static void build_restore_work_registers(u32 **p)
 		UASM_i_MFC0(p, 1, c0_kscratch(), scratch_reg);
 		return;
 	}
-	/* K0 already points to save area, restore $1 and $2  */
-	UASM_i_LW(p, 1, offsetof(struct tlb_reg_save, a), K0);
-	UASM_i_LW(p, 2, offsetof(struct tlb_reg_save, b), K0);
+	/* GPR_K0 already points to save area, restore $1 and $2  */
+	UASM_i_LW(p, 1, offsetof(struct tlb_reg_save, a), GPR_K0);
+	UASM_i_LW(p, 2, offsetof(struct tlb_reg_save, b), GPR_K0);
 }
 
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
@@ -413,22 +394,22 @@ static void build_r3000_tlb_refill_handler(void)
 	memset(tlb_handler, 0, sizeof(tlb_handler));
 	p = tlb_handler;
 
-	uasm_i_mfc0(&p, K0, C0_BADVADDR);
-	uasm_i_lui(&p, K1, uasm_rel_hi(pgdc)); /* cp0 delay */
-	uasm_i_lw(&p, K1, uasm_rel_lo(pgdc), K1);
-	uasm_i_srl(&p, K0, K0, 22); /* load delay */
-	uasm_i_sll(&p, K0, K0, 2);
-	uasm_i_addu(&p, K1, K1, K0);
-	uasm_i_mfc0(&p, K0, C0_CONTEXT);
-	uasm_i_lw(&p, K1, 0, K1); /* cp0 delay */
-	uasm_i_andi(&p, K0, K0, 0xffc); /* load delay */
-	uasm_i_addu(&p, K1, K1, K0);
-	uasm_i_lw(&p, K0, 0, K1);
+	uasm_i_mfc0(&p, GPR_K0, C0_BADVADDR);
+	uasm_i_lui(&p, GPR_K1, uasm_rel_hi(pgdc)); /* cp0 delay */
+	uasm_i_lw(&p, GPR_K1, uasm_rel_lo(pgdc), GPR_K1);
+	uasm_i_srl(&p, GPR_K0, GPR_K0, 22); /* load delay */
+	uasm_i_sll(&p, GPR_K0, GPR_K0, 2);
+	uasm_i_addu(&p, GPR_K1, GPR_K1, GPR_K0);
+	uasm_i_mfc0(&p, GPR_K0, C0_CONTEXT);
+	uasm_i_lw(&p, GPR_K1, 0, GPR_K1); /* cp0 delay */
+	uasm_i_andi(&p, GPR_K0, GPR_K0, 0xffc); /* load delay */
+	uasm_i_addu(&p, GPR_K1, GPR_K1, GPR_K0);
+	uasm_i_lw(&p, GPR_K0, 0, GPR_K1);
 	uasm_i_nop(&p); /* load delay */
-	uasm_i_mtc0(&p, K0, C0_ENTRYLO0);
-	uasm_i_mfc0(&p, K1, C0_EPC); /* cp0 delay */
+	uasm_i_mtc0(&p, GPR_K0, C0_ENTRYLO0);
+	uasm_i_mfc0(&p, GPR_K1, C0_EPC); /* cp0 delay */
 	uasm_i_tlbwr(&p); /* cp0 delay */
-	uasm_i_jr(&p, K1);
+	uasm_i_jr(&p, GPR_K1);
 	uasm_i_rfe(&p); /* branch delay */
 
 	if (p > tlb_handler + 32)
@@ -1276,11 +1257,11 @@ static void build_r4000_tlb_refill_handler(void)
 	memset(final_handler, 0, sizeof(final_handler));
 
 	if (IS_ENABLED(CONFIG_64BIT) && (scratch_reg >= 0 || scratchpad_available()) && use_bbit_insns()) {
-		htlb_info = build_fast_tlb_refill_handler(&p, &l, &r, K0, K1,
+		htlb_info = build_fast_tlb_refill_handler(&p, &l, &r, GPR_K0, GPR_K1,
 							  scratch_reg);
 		vmalloc_mode = refill_scratch;
 	} else {
-		htlb_info.huge_pte = K0;
+		htlb_info.huge_pte = GPR_K0;
 		htlb_info.restore_scratch = 0;
 		htlb_info.need_reload_pte = true;
 		vmalloc_mode = refill_noscratch;
@@ -1290,29 +1271,29 @@ static void build_r4000_tlb_refill_handler(void)
 		if (bcm1250_m3_war()) {
 			unsigned int segbits = 44;
 
-			uasm_i_dmfc0(&p, K0, C0_BADVADDR);
-			uasm_i_dmfc0(&p, K1, C0_ENTRYHI);
-			uasm_i_xor(&p, K0, K0, K1);
-			uasm_i_dsrl_safe(&p, K1, K0, 62);
-			uasm_i_dsrl_safe(&p, K0, K0, 12 + 1);
-			uasm_i_dsll_safe(&p, K0, K0, 64 + 12 + 1 - segbits);
-			uasm_i_or(&p, K0, K0, K1);
-			uasm_il_bnez(&p, &r, K0, label_leave);
+			uasm_i_dmfc0(&p, GPR_K0, C0_BADVADDR);
+			uasm_i_dmfc0(&p, GPR_K1, C0_ENTRYHI);
+			uasm_i_xor(&p, GPR_K0, GPR_K0, GPR_K1);
+			uasm_i_dsrl_safe(&p, GPR_K1, GPR_K0, 62);
+			uasm_i_dsrl_safe(&p, GPR_K0, GPR_K0, 12 + 1);
+			uasm_i_dsll_safe(&p, GPR_K0, GPR_K0, 64 + 12 + 1 - segbits);
+			uasm_i_or(&p, GPR_K0, GPR_K0, GPR_K1);
+			uasm_il_bnez(&p, &r, GPR_K0, label_leave);
 			/* No need for uasm_i_nop */
 		}
 
 #ifdef CONFIG_64BIT
-		build_get_pmde64(&p, &l, &r, K0, K1); /* get pmd in K1 */
+		build_get_pmde64(&p, &l, &r, GPR_K0, GPR_K1); /* get pmd in GPR_K1 */
 #else
-		build_get_pgde32(&p, K0, K1); /* get pgd in K1 */
+		build_get_pgde32(&p, GPR_K0, GPR_K1); /* get pgd in GPR_K1 */
 #endif
 
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
-		build_is_huge_pte(&p, &r, K0, K1, label_tlb_huge_update);
+		build_is_huge_pte(&p, &r, GPR_K0, GPR_K1, label_tlb_huge_update);
 #endif
 
-		build_get_ptep(&p, K0, K1);
-		build_update_entries(&p, K0, K1);
+		build_get_ptep(&p, GPR_K0, GPR_K1);
+		build_update_entries(&p, GPR_K0, GPR_K1);
 		build_tlb_write_entry(&p, &l, &r, tlb_random);
 		uasm_l_leave(&l, p);
 		uasm_i_eret(&p); /* return from trap */
@@ -1320,14 +1301,14 @@ static void build_r4000_tlb_refill_handler(void)
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	uasm_l_tlb_huge_update(&l, p);
 	if (htlb_info.need_reload_pte)
-		UASM_i_LW(&p, htlb_info.huge_pte, 0, K1);
-	build_huge_update_entries(&p, htlb_info.huge_pte, K1);
-	build_huge_tlb_write_entry(&p, &l, &r, K0, tlb_random,
+		UASM_i_LW(&p, htlb_info.huge_pte, 0, GPR_K1);
+	build_huge_update_entries(&p, htlb_info.huge_pte, GPR_K1);
+	build_huge_tlb_write_entry(&p, &l, &r, GPR_K0, tlb_random,
 				   htlb_info.restore_scratch);
 #endif
 
 #ifdef CONFIG_64BIT
-	build_get_pgd_vmalloc64(&p, &l, &r, K0, K1, vmalloc_mode);
+	build_get_pgd_vmalloc64(&p, &l, &r, GPR_K0, GPR_K1, vmalloc_mode);
 #endif
 
 	/*
@@ -1500,34 +1481,35 @@ static void build_loongson3_tlb_refill_handler(void)
 	memset(tlb_handler, 0, sizeof(tlb_handler));
 
 	if (check_for_high_segbits) {
-		uasm_i_dmfc0(&p, K0, C0_BADVADDR);
-		uasm_i_dsrl_safe(&p, K1, K0, PGDIR_SHIFT + PGD_TABLE_ORDER + PAGE_SHIFT - 3);
-		uasm_il_beqz(&p, &r, K1, label_vmalloc);
+		uasm_i_dmfc0(&p, GPR_K0, C0_BADVADDR);
+		uasm_i_dsrl_safe(&p, GPR_K1, GPR_K0,
+				PGDIR_SHIFT + PGD_TABLE_ORDER + PAGE_SHIFT - 3);
+		uasm_il_beqz(&p, &r, GPR_K1, label_vmalloc);
 		uasm_i_nop(&p);
 
-		uasm_il_bgez(&p, &r, K0, label_large_segbits_fault);
+		uasm_il_bgez(&p, &r, GPR_K0, label_large_segbits_fault);
 		uasm_i_nop(&p);
 		uasm_l_vmalloc(&l, p);
 	}
 
-	uasm_i_dmfc0(&p, K1, C0_PGD);
+	uasm_i_dmfc0(&p, GPR_K1, C0_PGD);
 
-	uasm_i_lddir(&p, K0, K1, 3);  /* global page dir */
+	uasm_i_lddir(&p, GPR_K0, GPR_K1, 3);  /* global page dir */
 #ifndef __PAGETABLE_PMD_FOLDED
-	uasm_i_lddir(&p, K1, K0, 1);  /* middle page dir */
+	uasm_i_lddir(&p, GPR_K1, GPR_K0, 1);  /* middle page dir */
 #endif
-	uasm_i_ldpte(&p, K1, 0);      /* even */
-	uasm_i_ldpte(&p, K1, 1);      /* odd */
+	uasm_i_ldpte(&p, GPR_K1, 0);      /* even */
+	uasm_i_ldpte(&p, GPR_K1, 1);      /* odd */
 	uasm_i_tlbwr(&p);
 
 	/* restore page mask */
 	if (PM_DEFAULT_MASK >> 16) {
-		uasm_i_lui(&p, K0, PM_DEFAULT_MASK >> 16);
-		uasm_i_ori(&p, K0, K0, PM_DEFAULT_MASK & 0xffff);
-		uasm_i_mtc0(&p, K0, C0_PAGEMASK);
+		uasm_i_lui(&p, GPR_K0, PM_DEFAULT_MASK >> 16);
+		uasm_i_ori(&p, GPR_K0, GPR_K0, PM_DEFAULT_MASK & 0xffff);
+		uasm_i_mtc0(&p, GPR_K0, C0_PAGEMASK);
 	} else if (PM_DEFAULT_MASK) {
-		uasm_i_ori(&p, K0, 0, PM_DEFAULT_MASK);
-		uasm_i_mtc0(&p, K0, C0_PAGEMASK);
+		uasm_i_ori(&p, GPR_K0, 0, PM_DEFAULT_MASK);
+		uasm_i_mtc0(&p, GPR_K0, C0_PAGEMASK);
 	} else {
 		uasm_i_mtc0(&p, 0, C0_PAGEMASK);
 	}
@@ -1536,8 +1518,8 @@ static void build_loongson3_tlb_refill_handler(void)
 
 	if (check_for_high_segbits) {
 		uasm_l_large_segbits_fault(&l, p);
-		UASM_i_LA(&p, K1, (unsigned long)tlb_do_page_fault_0);
-		uasm_i_jr(&p, K1);
+		UASM_i_LA(&p, GPR_K1, (unsigned long)tlb_do_page_fault_0);
+		uasm_i_jr(&p, GPR_K1);
 		uasm_i_nop(&p);
 	}
 
@@ -1903,11 +1885,11 @@ static void build_r3000_tlb_load_handler(void)
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
-	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_present(&p, &r, K0, K1, -1, label_nopage_tlbl);
+	build_r3000_tlbchange_handler_head(&p, GPR_K0, GPR_K1);
+	build_pte_present(&p, &r, GPR_K0, GPR_K1, -1, label_nopage_tlbl);
 	uasm_i_nop(&p); /* load delay */
-	build_make_valid(&p, &r, K0, K1, -1);
-	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
+	build_make_valid(&p, &r, GPR_K0, GPR_K1, -1);
+	build_r3000_tlb_reload_write(&p, &l, &r, GPR_K0, GPR_K1);
 
 	uasm_l_nopage_tlbl(&l, p);
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
@@ -1933,11 +1915,11 @@ static void build_r3000_tlb_store_handler(void)
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
-	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_writable(&p, &r, K0, K1, -1, label_nopage_tlbs);
+	build_r3000_tlbchange_handler_head(&p, GPR_K0, GPR_K1);
+	build_pte_writable(&p, &r, GPR_K0, GPR_K1, -1, label_nopage_tlbs);
 	uasm_i_nop(&p); /* load delay */
-	build_make_write(&p, &r, K0, K1, -1);
-	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
+	build_make_write(&p, &r, GPR_K0, GPR_K1, -1);
+	build_r3000_tlb_reload_write(&p, &l, &r, GPR_K0, GPR_K1);
 
 	uasm_l_nopage_tlbs(&l, p);
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
@@ -1963,11 +1945,11 @@ static void build_r3000_tlb_modify_handler(void)
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
-	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_modifiable(&p, &r, K0, K1,  -1, label_nopage_tlbm);
+	build_r3000_tlbchange_handler_head(&p, GPR_K0, GPR_K1);
+	build_pte_modifiable(&p, &r, GPR_K0, GPR_K1,  -1, label_nopage_tlbm);
 	uasm_i_nop(&p); /* load delay */
-	build_make_write(&p, &r, K0, K1, -1);
-	build_r3000_pte_reload_tlbwi(&p, K0, K1);
+	build_make_write(&p, &r, GPR_K0, GPR_K1, -1);
+	build_r3000_pte_reload_tlbwi(&p, GPR_K0, GPR_K1);
 
 	uasm_l_nopage_tlbm(&l, p);
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
@@ -2083,14 +2065,14 @@ static void build_r4000_tlb_load_handler(void)
 	if (bcm1250_m3_war()) {
 		unsigned int segbits = 44;
 
-		uasm_i_dmfc0(&p, K0, C0_BADVADDR);
-		uasm_i_dmfc0(&p, K1, C0_ENTRYHI);
-		uasm_i_xor(&p, K0, K0, K1);
-		uasm_i_dsrl_safe(&p, K1, K0, 62);
-		uasm_i_dsrl_safe(&p, K0, K0, 12 + 1);
-		uasm_i_dsll_safe(&p, K0, K0, 64 + 12 + 1 - segbits);
-		uasm_i_or(&p, K0, K0, K1);
-		uasm_il_bnez(&p, &r, K0, label_leave);
+		uasm_i_dmfc0(&p, GPR_K0, C0_BADVADDR);
+		uasm_i_dmfc0(&p, GPR_K1, C0_ENTRYHI);
+		uasm_i_xor(&p, GPR_K0, GPR_K0, GPR_K1);
+		uasm_i_dsrl_safe(&p, GPR_K1, GPR_K0, 62);
+		uasm_i_dsrl_safe(&p, GPR_K0, GPR_K0, 12 + 1);
+		uasm_i_dsll_safe(&p, GPR_K0, GPR_K0, 64 + 12 + 1 - segbits);
+		uasm_i_or(&p, GPR_K0, GPR_K0, GPR_K1);
+		uasm_il_bnez(&p, &r, GPR_K0, label_leave);
 		/* No need for uasm_i_nop */
 	}
 
@@ -2233,9 +2215,9 @@ static void build_r4000_tlb_load_handler(void)
 	build_restore_work_registers(&p);
 #ifdef CONFIG_CPU_MICROMIPS
 	if ((unsigned long)tlb_do_page_fault_0 & 1) {
-		uasm_i_lui(&p, K0, uasm_rel_hi((long)tlb_do_page_fault_0));
-		uasm_i_addiu(&p, K0, K0, uasm_rel_lo((long)tlb_do_page_fault_0));
-		uasm_i_jr(&p, K0);
+		uasm_i_lui(&p, GPR_K0, uasm_rel_hi((long)tlb_do_page_fault_0));
+		uasm_i_addiu(&p, GPR_K0, GPR_K0, uasm_rel_lo((long)tlb_do_page_fault_0));
+		uasm_i_jr(&p, GPR_K0);
 	} else
 #endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
@@ -2289,9 +2271,9 @@ static void build_r4000_tlb_store_handler(void)
 	build_restore_work_registers(&p);
 #ifdef CONFIG_CPU_MICROMIPS
 	if ((unsigned long)tlb_do_page_fault_1 & 1) {
-		uasm_i_lui(&p, K0, uasm_rel_hi((long)tlb_do_page_fault_1));
-		uasm_i_addiu(&p, K0, K0, uasm_rel_lo((long)tlb_do_page_fault_1));
-		uasm_i_jr(&p, K0);
+		uasm_i_lui(&p, GPR_K0, uasm_rel_hi((long)tlb_do_page_fault_1));
+		uasm_i_addiu(&p, GPR_K0, GPR_K0, uasm_rel_lo((long)tlb_do_page_fault_1));
+		uasm_i_jr(&p, GPR_K0);
 	} else
 #endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
@@ -2346,9 +2328,9 @@ static void build_r4000_tlb_modify_handler(void)
 	build_restore_work_registers(&p);
 #ifdef CONFIG_CPU_MICROMIPS
 	if ((unsigned long)tlb_do_page_fault_1 & 1) {
-		uasm_i_lui(&p, K0, uasm_rel_hi((long)tlb_do_page_fault_1));
-		uasm_i_addiu(&p, K0, K0, uasm_rel_lo((long)tlb_do_page_fault_1));
-		uasm_i_jr(&p, K0);
+		uasm_i_lui(&p, GPR_K0, uasm_rel_hi((long)tlb_do_page_fault_1));
+		uasm_i_addiu(&p, GPR_K0, GPR_K0, uasm_rel_lo((long)tlb_do_page_fault_1));
+		uasm_i_jr(&p, GPR_K0);
 	} else
 #endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);

@@ -17,6 +17,7 @@
 #include <linux/kvm_host.h>
 
 #include <asm/cpufeature.h>
+#include <asm/debugreg.h>
 #include <asm/hardirq.h>
 #include <asm/intel-family.h>
 #include <asm/intel_pt.h>
@@ -5644,18 +5645,11 @@ lbr_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 
 static char pmu_name_str[30];
 
-static ssize_t pmu_name_show(struct device *cdev,
-			     struct device_attribute *attr,
-			     char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", pmu_name_str);
-}
-
-static DEVICE_ATTR_RO(pmu_name);
+static DEVICE_STRING_ATTR_RO(pmu_name, 0444, pmu_name_str);
 
 static struct attribute *intel_pmu_caps_attrs[] = {
-       &dev_attr_pmu_name.attr,
-       NULL
+	&dev_attr_pmu_name.attr.attr,
+	NULL
 };
 
 static DEVICE_ATTR(allow_tsx_force_abort, 0644,

@@ -125,16 +125,6 @@ static inline void vcpu_set_wfx_traps(struct kvm_vcpu *vcpu)
 	vcpu->arch.hcr_el2 |= HCR_TWI;
 }
 
-static inline void vcpu_ptrauth_enable(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.hcr_el2 |= (HCR_API | HCR_APK);
-}
-
-static inline void vcpu_ptrauth_disable(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.hcr_el2 &= ~(HCR_API | HCR_APK);
-}
-
 static inline unsigned long vcpu_get_vsesr(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.vsesr_el2;
@@ -209,7 +199,8 @@ static inline bool vcpu_is_el2(const struct kvm_vcpu *vcpu)
 
 static inline bool __vcpu_el2_e2h_is_set(const struct kvm_cpu_context *ctxt)
 {
-	return ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H;
+	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
+		(ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H));
 }
 
 static inline bool vcpu_el2_e2h_is_set(const struct kvm_vcpu *vcpu)
@@ -425,15 +416,9 @@ static __always_inline bool kvm_vcpu_abt_issea(const struct kvm_vcpu *vcpu)
 {
 	switch (kvm_vcpu_trap_get_fault(vcpu)) {
 	case ESR_ELx_FSC_EXTABT:
-	case ESR_ELx_FSC_SEA_TTW0:
-	case ESR_ELx_FSC_SEA_TTW1:
-	case ESR_ELx_FSC_SEA_TTW2:
-	case ESR_ELx_FSC_SEA_TTW3:
+	case ESR_ELx_FSC_SEA_TTW(-1) ... ESR_ELx_FSC_SEA_TTW(3):
 	case ESR_ELx_FSC_SECC:
-	case ESR_ELx_FSC_SECC_TTW0:
-	case ESR_ELx_FSC_SECC_TTW1:
-	case ESR_ELx_FSC_SECC_TTW2:
-	case ESR_ELx_FSC_SECC_TTW3:
+	case ESR_ELx_FSC_SECC_TTW(-1) ... ESR_ELx_FSC_SECC_TTW(3):
 		return true;
 	default:
 		return false;
@@ -592,16 +577,14 @@ static __always_inline u64 kvm_get_reset_cptr_el2(struct kvm_vcpu *vcpu)
 	} else if (has_hvhe()) {
 		val = (CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN);
 
-		if (!vcpu_has_sve(vcpu) ||
-		    (vcpu->arch.fp_state != FP_STATE_GUEST_OWNED))
+		if (!vcpu_has_sve(vcpu) || !guest_owns_fp_regs())
 			val |= CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN;
 		if (cpus_have_final_cap(ARM64_SME))
 			val |= CPACR_EL1_SMEN_EL1EN | CPACR_EL1_SMEN_EL0EN;
 	} else {
 		val = CPTR_NVHE_EL2_RES1;
 
-		if (vcpu_has_sve(vcpu) &&
-		    (vcpu->arch.fp_state == FP_STATE_GUEST_OWNED))
+		if (vcpu_has_sve(vcpu) && guest_owns_fp_regs())
 			val |= CPTR_EL2_TZ;
 		if (cpus_have_final_cap(ARM64_SME))
 			val &= ~CPTR_EL2_TSM;

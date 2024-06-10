@@ -11,28 +11,73 @@ ifneq (,$(filter-out parallel=1,$(filter parallel=%,$(DEB_BUILD_OPTIONS))))
     MAKEFLAGS += -j$(NUMJOBS)
 endif
 
+# When KBUILD_VERBOSE is undefined (presumably you are directly working with
+# the debianized tree), show verbose logs unless DEB_BUILD_OPTION=terse is set.
+ifeq ($(origin KBUILD_VERBOSE),undefined)
+    ifeq (,$(filter terse,$(DEB_BUILD_OPTIONS)))
+        export KBUILD_VERBOSE := 1
+    else
+        Q := @
+    endif
+endif
+
 revision = $(lastword $(subst -, ,$(shell dpkg-parsechangelog -S Version)))
 CROSS_COMPILE ?= $(filter-out $(DEB_BUILD_GNU_TYPE)-, $(DEB_HOST_GNU_TYPE)-)
 make-opts = ARCH=$(ARCH) KERNELRELEASE=$(KERNELRELEASE) KBUILD_BUILD_VERSION=$(revision) $(addprefix CROSS_COMPILE=,$(CROSS_COMPILE))
 
+binary-targets := $(addprefix binary-, image image-dbg headers libc-dev)
+
+all-packages = $(shell dh_listpackages)
+image-package = $(filter linux-image-% user-%, $(filter-out %-dbg, $(all-packages)))
+image-dbg-package = $(filter %-dbg, $(all-packages))
+libc-dev-package = $(filter linux-libc-dev, $(all-packages))
+headers-package = $(filter linux-headers-%, $(all-packages))
+
+mk-files = $(patsubst binary-%,debian/%.files,$1)
+package = $($(@:binary-%=%-package))
+
+# DH_OPTION is an environment variable common for all debhelper commands.
+# We could 'export' it, but here it is passed from the command line to clarify
+# which package is being processed in the build log.
+DH_OPTIONS = -p$(package)
+
+define binary
+	$(Q)dh_testdir $(DH_OPTIONS)
+	$(Q)dh_testroot $(DH_OPTIONS)
+	$(Q)dh_prep $(DH_OPTIONS)
+	$(Q)+$(MAKE) $(make-opts) run-command KBUILD_RUN_COMMAND='+$$(srctree)/scripts/package/builddeb $(package)'
+	$(Q)dh_installdocs $(DH_OPTIONS)
+	$(Q)dh_installchangelogs $(DH_OPTIONS)
+	$(Q)dh_compress $(DH_OPTIONS)
+	$(Q)dh_fixperms $(DH_OPTIONS)
+	$(Q)dh_gencontrol $(DH_OPTIONS) -- -f$(call mk-files,$@)
+	$(Q)dh_md5sums $(DH_OPTIONS)
+	$(Q)dh_builddeb $(DH_OPTIONS) -- $(addprefix -Z,$(KDEB_COMPRESS))
+endef
+
+.PHONY: $(binary-targets)
+$(binary-targets): build-arch
+	$(Q)truncate -s0 $(call mk-files,$@)
+	$(if $(package),$(binary))
+
 .PHONY: binary binary-indep binary-arch
 binary: binary-arch binary-indep
 binary-indep: build-indep
-binary-arch: build-arch
-	$(MAKE) $(make-opts) \
-	run-command KBUILD_RUN_COMMAND='+$$(srctree)/scripts/package/builddeb'
+binary-arch: $(binary-targets)
+	$(Q)cat $(call mk-files,$^) > debian/files
 
 .PHONY: build build-indep build-arch
 build: build-arch build-indep
 build-indep:
 build-arch:
-	$(MAKE) $(make-opts) olddefconfig
-	$(MAKE) $(make-opts) $(if $(filter um,$(ARCH)),,headers) all
+	$(Q)$(MAKE) $(make-opts) olddefconfig
+	$(Q)$(MAKE) $(make-opts) $(if $(filter um,$(ARCH)),,headers) all
 
 .PHONY: clean
 clean:
-	rm -rf debian/files debian/linux-* debian/deb-env.vars*
-	$(MAKE) ARCH=$(ARCH) clean
+	$(Q)dh_clean
+	$(Q)rm -rf debian/deb-env.vars* debian/*.files
+	$(Q)$(MAKE) ARCH=$(ARCH) clean
 
 # If DEB_HOST_ARCH is empty, it is likely that debian/rules was executed
 # directly. Run 'dpkg-architecture --print-set --print-format=make' to
@@ -41,6 +86,6 @@ ifndef DEB_HOST_ARCH
 include debian/deb-env.vars
 
 debian/deb-env.vars:
-	dpkg-architecture -a$$(cat debian/arch) --print-set --print-format=make > $@.tmp
-	mv $@.tmp $@
+	$(Q)dpkg-architecture -a$$(cat debian/arch) --print-set --print-format=make > $@.tmp
+	$(Q)mv $@.tmp $@
 endif

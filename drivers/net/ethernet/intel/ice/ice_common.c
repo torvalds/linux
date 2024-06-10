@@ -154,10 +154,22 @@ static int ice_set_mac_type(struct ice_hw *hw)
 	case ICE_DEV_ID_E823L_SFP:
 		hw->mac_type = ICE_MAC_GENERIC;
 		break;
-	case ICE_DEV_ID_E830_BACKPLANE:
-	case ICE_DEV_ID_E830_QSFP56:
-	case ICE_DEV_ID_E830_SFP:
-	case ICE_DEV_ID_E830_SFP_DD:
+	case ICE_DEV_ID_E825C_BACKPLANE:
+	case ICE_DEV_ID_E825C_QSFP:
+	case ICE_DEV_ID_E825C_SFP:
+	case ICE_DEV_ID_E825C_SGMII:
+		hw->mac_type = ICE_MAC_GENERIC_3K_E825;
+		break;
+	case ICE_DEV_ID_E830CC_BACKPLANE:
+	case ICE_DEV_ID_E830CC_QSFP56:
+	case ICE_DEV_ID_E830CC_SFP:
+	case ICE_DEV_ID_E830CC_SFP_DD:
+	case ICE_DEV_ID_E830C_BACKPLANE:
+	case ICE_DEV_ID_E830_XXV_BACKPLANE:
+	case ICE_DEV_ID_E830C_QSFP:
+	case ICE_DEV_ID_E830_XXV_QSFP:
+	case ICE_DEV_ID_E830C_SFP:
+	case ICE_DEV_ID_E830_XXV_SFP:
 		hw->mac_type = ICE_MAC_E830;
 		break;
 	default:
@@ -167,6 +179,18 @@ static int ice_set_mac_type(struct ice_hw *hw)
 
 	ice_debug(hw, ICE_DBG_INIT, "mac_type: %d\n", hw->mac_type);
 	return 0;
+}
+
+/**
+ * ice_is_generic_mac - check if device's mac_type is generic
+ * @hw: pointer to the hardware structure
+ *
+ * Return: true if mac_type is generic (with SBQ support), false if not
+ */
+bool ice_is_generic_mac(struct ice_hw *hw)
+{
+	return (hw->mac_type == ICE_MAC_GENERIC ||
+		hw->mac_type == ICE_MAC_GENERIC_3K_E825);
 }
 
 /**
@@ -234,6 +258,25 @@ bool ice_is_e823(struct ice_hw *hw)
 	case ICE_DEV_ID_E823C_SFP:
 	case ICE_DEV_ID_E823C_10G_BASE_T:
 	case ICE_DEV_ID_E823C_SGMII:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/**
+ * ice_is_e825c - Check if a device is E825C family device
+ * @hw: pointer to the hardware structure
+ *
+ * Return: true if the device is E825-C based, false if not.
+ */
+bool ice_is_e825c(struct ice_hw *hw)
+{
+	switch (hw->device_id) {
+	case ICE_DEV_ID_E825C_BACKPLANE:
+	case ICE_DEV_ID_E825C_QSFP:
+	case ICE_DEV_ID_E825C_SFP:
+	case ICE_DEV_ID_E825C_SGMII:
 		return true;
 	default:
 		return false;
@@ -965,9 +1008,9 @@ static void ice_get_itr_intrl_gran(struct ice_hw *hw)
  */
 int ice_init_hw(struct ice_hw *hw)
 {
-	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
+	void *mac_buf __free(kfree) = NULL;
 	u16 mac_buf_len;
-	void *mac_buf;
 	int status;
 
 	/* Set MAC type based on DeviceID */
@@ -1045,7 +1088,7 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_sched;
 
-	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps) {
 		status = -ENOMEM;
 		goto err_unroll_sched;
@@ -1055,7 +1098,6 @@ int ice_init_hw(struct ice_hw *hw)
 	status = ice_aq_get_phy_caps(hw->port_info, false,
 				     ICE_AQC_REPORT_TOPO_CAP_MEDIA, pcaps,
 				     NULL);
-	devm_kfree(ice_hw_to_dev(hw), pcaps);
 	if (status)
 		dev_warn(ice_hw_to_dev(hw), "Get PHY capabilities failed status = %d, continuing anyway\n",
 			 status);
@@ -1082,18 +1124,15 @@ int ice_init_hw(struct ice_hw *hw)
 
 	/* Get MAC information */
 	/* A single port can report up to two (LAN and WoL) addresses */
-	mac_buf = devm_kcalloc(ice_hw_to_dev(hw), 2,
-			       sizeof(struct ice_aqc_manage_mac_read_resp),
-			       GFP_KERNEL);
-	mac_buf_len = 2 * sizeof(struct ice_aqc_manage_mac_read_resp);
-
+	mac_buf = kcalloc(2, sizeof(struct ice_aqc_manage_mac_read_resp),
+			  GFP_KERNEL);
 	if (!mac_buf) {
 		status = -ENOMEM;
 		goto err_unroll_fltr_mgmt_struct;
 	}
 
+	mac_buf_len = 2 * sizeof(struct ice_aqc_manage_mac_read_resp);
 	status = ice_aq_manage_mac_read(hw, mac_buf, mac_buf_len, NULL);
-	devm_kfree(ice_hw_to_dev(hw), mac_buf);
 
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
@@ -1109,6 +1148,8 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
 	mutex_init(&hw->tnl_lock);
+	ice_init_chk_recipe_reuse_support(hw);
+
 	return 0;
 
 err_unroll_fltr_mgmt_struct:
@@ -1362,9 +1403,8 @@ static const struct ice_ctx_ele ice_rlan_ctx_info[] = {
  * it to HW register space and enables the hardware to prefetch descriptors
  * instead of only fetching them on demand
  */
-int
-ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
-		  u32 rxq_index)
+int ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
+		      u32 rxq_index)
 {
 	u8 ctx_buf[ICE_RXQ_CTX_SZ] = { 0 };
 
@@ -1583,6 +1623,8 @@ ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf,
 	case ice_aqc_opc_set_port_params:
 	case ice_aqc_opc_get_vlan_mode_parameters:
 	case ice_aqc_opc_set_vlan_mode_parameters:
+	case ice_aqc_opc_set_tx_topo:
+	case ice_aqc_opc_get_tx_topo:
 	case ice_aqc_opc_add_recipe:
 	case ice_aqc_opc_recipe_to_profile:
 	case ice_aqc_opc_get_recipe:
@@ -2138,6 +2180,9 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 		caps->sriov_lag = !!(number & ICE_AQC_BIT_SRIOV_LAG);
 		ice_debug(hw, ICE_DBG_INIT, "%s: sriov_lag = %u\n",
 			  prefix, caps->sriov_lag);
+		break;
+	case ICE_AQC_CAPS_TX_SCHED_TOPO_COMP_MODE:
+		caps->tx_sched_topo_comp_mode_en = (number == 1);
 		break;
 	default:
 		/* Not one of the recognized common capabilities */
@@ -3240,19 +3285,14 @@ int ice_update_link_info(struct ice_port_info *pi)
 		return status;
 
 	if (li->link_info & ICE_AQ_MEDIA_AVAILABLE) {
-		struct ice_aqc_get_phy_caps_data *pcaps;
-		struct ice_hw *hw;
+		struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
 
-		hw = pi->hw;
-		pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps),
-				     GFP_KERNEL);
+		pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 		if (!pcaps)
 			return -ENOMEM;
 
 		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
 					     pcaps, NULL);
-
-		devm_kfree(ice_hw_to_dev(hw), pcaps);
 	}
 
 	return status;
@@ -3393,8 +3433,8 @@ ice_cfg_phy_fc(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 int
 ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 {
+	struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
 	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
-	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_hw *hw;
 	int status;
 
@@ -3404,7 +3444,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	*aq_failures = 0;
 	hw = pi->hw;
 
-	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -3456,7 +3496,6 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	}
 
 out:
-	devm_kfree(ice_hw_to_dev(hw), pcaps);
 	return status;
 }
 
@@ -3535,7 +3574,7 @@ int
 ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 		enum ice_fec_mode fec)
 {
-	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
 	struct ice_hw *hw;
 	int status;
 
@@ -3604,8 +3643,6 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 	}
 
 out:
-	kfree(pcaps);
-
 	return status;
 }
 
@@ -4325,13 +4362,13 @@ ice_aq_add_rdma_qsets(struct ice_hw *hw, u8 num_qset_grps,
 /* End of FW Admin Queue command wrappers */
 
 /**
- * ice_write_byte - write a byte to a packed context structure
- * @src_ctx:  the context structure to read from
- * @dest_ctx: the context to be written to
- * @ce_info:  a description of the struct to be filled
+ * ice_pack_ctx_byte - write a byte to a packed context structure
+ * @src_ctx: unpacked source context structure
+ * @dest_ctx: packed destination context data
+ * @ce_info: context element description
  */
-static void
-ice_write_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+static void ice_pack_ctx_byte(u8 *src_ctx, u8 *dest_ctx,
+			      const struct ice_ctx_ele *ce_info)
 {
 	u8 src_byte, dest_byte, mask;
 	u8 *from, *dest;
@@ -4342,14 +4379,11 @@ ice_write_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-	mask = (u8)(BIT(ce_info->width) - 1);
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	src_byte = *from;
-	src_byte &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_byte <<= shift_width;
+	src_byte &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4364,13 +4398,13 @@ ice_write_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 }
 
 /**
- * ice_write_word - write a word to a packed context structure
- * @src_ctx:  the context structure to read from
- * @dest_ctx: the context to be written to
- * @ce_info:  a description of the struct to be filled
+ * ice_pack_ctx_word - write a word to a packed context structure
+ * @src_ctx: unpacked source context structure
+ * @dest_ctx: packed destination context data
+ * @ce_info: context element description
  */
-static void
-ice_write_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+static void ice_pack_ctx_word(u8 *src_ctx, u8 *dest_ctx,
+			      const struct ice_ctx_ele *ce_info)
 {
 	u16 src_word, mask;
 	__le16 dest_word;
@@ -4382,17 +4416,14 @@ ice_write_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-	mask = BIT(ce_info->width) - 1;
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_word = *(u16 *)from;
-	src_word &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_word <<= shift_width;
+	src_word &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4407,13 +4438,13 @@ ice_write_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 }
 
 /**
- * ice_write_dword - write a dword to a packed context structure
- * @src_ctx:  the context structure to read from
- * @dest_ctx: the context to be written to
- * @ce_info:  a description of the struct to be filled
+ * ice_pack_ctx_dword - write a dword to a packed context structure
+ * @src_ctx: unpacked source context structure
+ * @dest_ctx: packed destination context data
+ * @ce_info: context element description
  */
-static void
-ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+static void ice_pack_ctx_dword(u8 *src_ctx, u8 *dest_ctx,
+			       const struct ice_ctx_ele *ce_info)
 {
 	u32 src_dword, mask;
 	__le32 dest_dword;
@@ -4425,25 +4456,14 @@ ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-
-	/* if the field width is exactly 32 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 5 bits so the shift will do nothing
-	 */
-	if (ce_info->width < 32)
-		mask = BIT(ce_info->width) - 1;
-	else
-		mask = (u32)~0;
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_dword = *(u32 *)from;
-	src_dword &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_dword <<= shift_width;
+	src_dword &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4458,13 +4478,13 @@ ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 }
 
 /**
- * ice_write_qword - write a qword to a packed context structure
- * @src_ctx:  the context structure to read from
- * @dest_ctx: the context to be written to
- * @ce_info:  a description of the struct to be filled
+ * ice_pack_ctx_qword - write a qword to a packed context structure
+ * @src_ctx: unpacked source context structure
+ * @dest_ctx: packed destination context data
+ * @ce_info: context element description
  */
-static void
-ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+static void ice_pack_ctx_qword(u8 *src_ctx, u8 *dest_ctx,
+			       const struct ice_ctx_ele *ce_info)
 {
 	u64 src_qword, mask;
 	__le64 dest_qword;
@@ -4476,25 +4496,14 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-
-	/* if the field width is exactly 64 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 6 bits so the shift will do nothing
-	 */
-	if (ce_info->width < 64)
-		mask = BIT_ULL(ce_info->width) - 1;
-	else
-		mask = (u64)~0;
+	mask = GENMASK_ULL(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_qword = *(u64 *)from;
-	src_qword &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_qword <<= shift_width;
+	src_qword &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4513,11 +4522,10 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
  * @hw: pointer to the hardware structure
  * @src_ctx:  pointer to a generic non-packed context structure
  * @dest_ctx: pointer to memory for the packed structure
- * @ce_info:  a description of the structure to be transformed
+ * @ce_info: List of Rx context elements
  */
-int
-ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
-	    const struct ice_ctx_ele *ce_info)
+int ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
+		const struct ice_ctx_ele *ce_info)
 {
 	int f;
 
@@ -4533,16 +4541,16 @@ ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
 		}
 		switch (ce_info[f].size_of) {
 		case sizeof(u8):
-			ice_write_byte(src_ctx, dest_ctx, &ce_info[f]);
+			ice_pack_ctx_byte(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		case sizeof(u16):
-			ice_write_word(src_ctx, dest_ctx, &ce_info[f]);
+			ice_pack_ctx_word(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		case sizeof(u32):
-			ice_write_dword(src_ctx, dest_ctx, &ce_info[f]);
+			ice_pack_ctx_dword(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		case sizeof(u64):
-			ice_write_qword(src_ctx, dest_ctx, &ce_info[f]);
+			ice_pack_ctx_qword(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		default:
 			return -EINVAL;
@@ -4700,7 +4708,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 		enum ice_disq_rst_src rst_src, u16 vmvf_num,
 		struct ice_sq_cd *cd)
 {
-	DEFINE_FLEX(struct ice_aqc_dis_txq_item, qg_list, q_id, 1);
+	DEFINE_RAW_FLEX(struct ice_aqc_dis_txq_item, qg_list, q_id, 1);
 	u16 i, buf_size = __struct_size(qg_list);
 	struct ice_q_ctx *q_ctx;
 	int status = -ENOENT;
@@ -4922,7 +4930,7 @@ int
 ice_dis_vsi_rdma_qset(struct ice_port_info *pi, u16 count, u32 *qset_teid,
 		      u16 *q_id)
 {
-	DEFINE_FLEX(struct ice_aqc_dis_txq_item, qg_list, q_id, 1);
+	DEFINE_RAW_FLEX(struct ice_aqc_dis_txq_item, qg_list, q_id, 1);
 	u16 qg_size = __struct_size(qg_list);
 	struct ice_hw *hw;
 	int status = 0;

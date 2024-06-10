@@ -251,7 +251,7 @@ static u8 get_input_rep(u8 current_index, int sensor_idx, int report_id,
 		break;
 	case HPD_IDX:
 		get_common_inputs(&hpd_input.common_property, report_id);
-		hpdstatus.val = readl(mp2->mmio + AMD_C2P_MSG(4));
+		hpdstatus.val = readl(mp2->mmio + amd_get_c2p_val(mp2, 4));
 		hpd_input.human_presence = hpdstatus.shpd.presence;
 		report_size = sizeof(hpd_input);
 		memcpy(input_report, &hpd_input, sizeof(hpd_input));

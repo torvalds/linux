@@ -53,7 +53,7 @@ OpenCAPI定义了一个在物理链路层上实现的数据链路层（TL）和�
 
   Processor：处理器
   Memory：内存
-  Accelerated Function Unit：加速函数单元
+  Accelerated Function Unit：加速功能单元
 
 
 
@@ -97,7 +97,7 @@ OpenCAPI拥有AFU向主机进程发送中断的可能性。它通过定义在传
 ========
 
 驱动为每个在物理设备上发现的AFU创建一个字符设备。一个物理设备可能拥有多个
-函数，一个函数可以拥有多个AFU。不过编写这篇文档之时，只对导出一个AFU的设备
+功能，一个功能可以拥有多个AFU。不过编写这篇文档之时，只对导出一个AFU的设备
 测试过。
 
 字符设备可以在 /dev/ocxl/ 中被找到，其命名为：

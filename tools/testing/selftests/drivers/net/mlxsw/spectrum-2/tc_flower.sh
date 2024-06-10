@@ -869,7 +869,7 @@ bloom_simple_test()
 bloom_complex_test()
 {
 	# Bloom filter index computation is affected from region ID, eRP
-	# ID and from the region key size. In order to excercise those parts
+	# ID and from the region key size. In order to exercise those parts
 	# of the Bloom filter code, use a series of regions, each with a
 	# different key size and send packet that should hit all of them.
 	local index

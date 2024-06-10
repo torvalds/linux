@@ -47,7 +47,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (image->type == KEXEC_TYPE_CRASH) {
+	if (IS_ENABLED(CONFIG_CRASH_DUMP) && image->type == KEXEC_TYPE_CRASH) {
 		/* min & max buffer values for kdump case */
 		kbuf.buf_min = pbuf.buf_min = crashk_res.start;
 		kbuf.buf_max = pbuf.buf_max =
@@ -70,7 +70,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	kexec_dprintk("Loaded purgatory at 0x%lx\n", pbuf.mem);
 
 	/* Load additional segments needed for panic kernel */
-	if (image->type == KEXEC_TYPE_CRASH) {
+	if (IS_ENABLED(CONFIG_CRASH_DUMP) && image->type == KEXEC_TYPE_CRASH) {
 		ret = load_crashdump_segments_ppc64(image, &kbuf);
 		if (ret) {
 			pr_err("Failed to load kdump kernel segments\n");
@@ -116,7 +116,8 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	if (ret)
 		goto out_free_fdt;
 
-	fdt_pack(fdt);
+	if (!IS_ENABLED(CONFIG_CRASH_HOTPLUG) || image->type != KEXEC_TYPE_CRASH)
+		fdt_pack(fdt);
 
 	kbuf.buffer = fdt;
 	kbuf.bufsz = kbuf.memsz = fdt_totalsize(fdt);

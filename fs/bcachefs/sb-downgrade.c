@@ -7,7 +7,7 @@
 
 #include "bcachefs.h"
 #include "darray.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "sb-downgrade.h"
 #include "sb-errors.h"
 #include "super-io.h"
@@ -45,7 +45,16 @@
 	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
 	  BCH_FSCK_ERR_unlinked_inode_not_on_deleted_list)	\
 	x(rebalance_work,					\
-	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))
+	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))	\
+	x(subvolume_fs_parent,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_dirents),		\
+	  BCH_FSCK_ERR_subvol_fs_path_parent_wrong)		\
+	x(btree_subvolume_children,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_subvols),		\
+	  BCH_FSCK_ERR_subvol_children_not_set)			\
+	x(mi_btree_bitmap,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_btree_bitmap_not_marked)
 
 #define DOWNGRADE_TABLE()
 
@@ -125,15 +134,25 @@ downgrade_entry_next_c(const struct bch_sb_field_downgrade_entry *e)
 #define for_each_downgrade_entry(_d, _i)						\
 	for (const struct bch_sb_field_downgrade_entry *_i = (_d)->entries;		\
 	     (void *) _i	< vstruct_end(&(_d)->field) &&				\
-	     (void *) &_i->errors[0] < vstruct_end(&(_d)->field);			\
+	     (void *) &_i->errors[0] <= vstruct_end(&(_d)->field) &&			\
+	     (void *) downgrade_entry_next_c(_i) <= vstruct_end(&(_d)->field);		\
 	     _i = downgrade_entry_next_c(_i))
 
 static int bch2_sb_downgrade_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				      struct printbuf *err)
+				      enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_downgrade *e = field_to_type(f, downgrade);
 
-	for_each_downgrade_entry(e, i) {
+	for (const struct bch_sb_field_downgrade_entry *i = e->entries;
+	     (void *) i	< vstruct_end(&e->field);
+	     i = downgrade_entry_next_c(i)) {
+		if (flags & BCH_VALIDATE_write &&
+		    ((void *) &i->errors[0] > vstruct_end(&e->field) ||
+		     (void *) downgrade_entry_next_c(i) > vstruct_end(&e->field))) {
+			prt_printf(err, "downgrade entry overruns end of superblock section)");
+			return -BCH_ERR_invalid_sb_downgrade;
+		}
+
 		if (BCH_VERSION_MAJOR(le16_to_cpu(i->version)) !=
 		    BCH_VERSION_MAJOR(le16_to_cpu(sb->version))) {
 			prt_printf(err, "downgrade entry with mismatched major version (%u != %u)",
@@ -155,19 +174,16 @@ static void bch2_sb_downgrade_to_text(struct printbuf *out, struct bch_sb *sb,
 		printbuf_tabstop_push(out, 16);
 
 	for_each_downgrade_entry(e, i) {
-		prt_str(out, "version:");
-		prt_tab(out);
+		prt_str(out, "version:\t");
 		bch2_version_to_text(out, le16_to_cpu(i->version));
 		prt_newline(out);
 
-		prt_str(out, "recovery passes:");
-		prt_tab(out);
+		prt_str(out, "recovery passes:\t");
 		prt_bitflags(out, bch2_recovery_passes,
 			     bch2_recovery_passes_from_stable(le64_to_cpu(i->recovery_passes[0])));
 		prt_newline(out);
 
-		prt_str(out, "errors:");
-		prt_tab(out);
+		prt_str(out, "errors:\t");
 		bool first = true;
 		for (unsigned j = 0; j < le16_to_cpu(i->nr_errors); j++) {
 			if (!first)
@@ -253,7 +269,7 @@ void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_minor, unsigned old_mi
 				if (e < BCH_SB_ERR_MAX)
 					__set_bit(e, c->sb.errors_silent);
 				if (e < sizeof(ext->errors_silent) * 8)
-					ext->errors_silent[e / 64] |= cpu_to_le64(BIT_ULL(e % 64));
+					__set_bit_le64(e, ext->errors_silent);
 			}
 		}
 	}

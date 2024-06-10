@@ -872,7 +872,7 @@ error:
 	return NETDEV_TX_OK;
 }
 
-/* dev_base_lock rwlock held, nominally process context */
+/* rcu_read_lock potentially held, nominally process context */
 static void enic_get_stats(struct net_device *netdev,
 			   struct rtnl_link_stats64 *net_stats)
 {
@@ -2027,7 +2027,7 @@ static int _enic_change_mtu(struct net_device *netdev, int new_mtu)
 			return err;
 	}
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (running) {
 		err = enic_open(netdev);

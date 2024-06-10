@@ -178,7 +178,7 @@ static int gve_alloc_page_dqo(struct gve_rx_ring *rx,
 			return err;
 	} else {
 		idx = rx->dqo.next_qpl_page_idx;
-		if (idx >= priv->rx_pages_per_qpl) {
+		if (idx >= gve_get_rx_pages_per_qpl_dqo(priv->rx_desc_cnt)) {
 			net_err_ratelimited("%s: Out of QPL pages\n",
 					    priv->dev->name);
 			return -ENOMEM;
@@ -199,19 +199,119 @@ static int gve_alloc_page_dqo(struct gve_rx_ring *rx,
 	return 0;
 }
 
-static void gve_rx_free_ring_dqo(struct gve_priv *priv, int idx)
+static void gve_rx_free_hdr_bufs(struct gve_priv *priv, struct gve_rx_ring *rx)
+{
+	struct device *hdev = &priv->pdev->dev;
+	int buf_count = rx->dqo.bufq.mask + 1;
+
+	if (rx->dqo.hdr_bufs.data) {
+		dma_free_coherent(hdev, priv->header_buf_size * buf_count,
+				  rx->dqo.hdr_bufs.data, rx->dqo.hdr_bufs.addr);
+		rx->dqo.hdr_bufs.data = NULL;
+	}
+}
+
+static void gve_rx_init_ring_state_dqo(struct gve_rx_ring *rx,
+				       const u32 buffer_queue_slots,
+				       const u32 completion_queue_slots)
+{
+	int i;
+
+	/* Set buffer queue state */
+	rx->dqo.bufq.mask = buffer_queue_slots - 1;
+	rx->dqo.bufq.head = 0;
+	rx->dqo.bufq.tail = 0;
+
+	/* Set completion queue state */
+	rx->dqo.complq.num_free_slots = completion_queue_slots;
+	rx->dqo.complq.mask = completion_queue_slots - 1;
+	rx->dqo.complq.cur_gen_bit = 0;
+	rx->dqo.complq.head = 0;
+
+	/* Set RX SKB context */
+	rx->ctx.skb_head = NULL;
+	rx->ctx.skb_tail = NULL;
+
+	/* Set up linked list of buffer IDs */
+	if (rx->dqo.buf_states) {
+		for (i = 0; i < rx->dqo.num_buf_states - 1; i++)
+			rx->dqo.buf_states[i].next = i + 1;
+		rx->dqo.buf_states[rx->dqo.num_buf_states - 1].next = -1;
+	}
+
+	rx->dqo.free_buf_states = 0;
+	rx->dqo.recycled_buf_states.head = -1;
+	rx->dqo.recycled_buf_states.tail = -1;
+	rx->dqo.used_buf_states.head = -1;
+	rx->dqo.used_buf_states.tail = -1;
+}
+
+static void gve_rx_reset_ring_dqo(struct gve_priv *priv, int idx)
 {
 	struct gve_rx_ring *rx = &priv->rx[idx];
+	size_t size;
+	int i;
+
+	const u32 buffer_queue_slots = priv->rx_desc_cnt;
+	const u32 completion_queue_slots = priv->rx_desc_cnt;
+
+	/* Reset buffer queue */
+	if (rx->dqo.bufq.desc_ring) {
+		size = sizeof(rx->dqo.bufq.desc_ring[0]) *
+			buffer_queue_slots;
+		memset(rx->dqo.bufq.desc_ring, 0, size);
+	}
+
+	/* Reset completion queue */
+	if (rx->dqo.complq.desc_ring) {
+		size = sizeof(rx->dqo.complq.desc_ring[0]) *
+			completion_queue_slots;
+		memset(rx->dqo.complq.desc_ring, 0, size);
+	}
+
+	/* Reset q_resources */
+	if (rx->q_resources)
+		memset(rx->q_resources, 0, sizeof(*rx->q_resources));
+
+	/* Reset buf states */
+	if (rx->dqo.buf_states) {
+		for (i = 0; i < rx->dqo.num_buf_states; i++) {
+			struct gve_rx_buf_state_dqo *bs = &rx->dqo.buf_states[i];
+
+			if (bs->page_info.page)
+				gve_free_page_dqo(priv, bs, !rx->dqo.qpl);
+		}
+	}
+
+	gve_rx_init_ring_state_dqo(rx, buffer_queue_slots,
+				   completion_queue_slots);
+}
+
+void gve_rx_stop_ring_dqo(struct gve_priv *priv, int idx)
+{
+	int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
+
+	if (!gve_rx_was_added_to_block(priv, idx))
+		return;
+
+	gve_remove_napi(priv, ntfy_idx);
+	gve_rx_remove_from_block(priv, idx);
+	gve_rx_reset_ring_dqo(priv, idx);
+}
+
+void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
+			  struct gve_rx_alloc_rings_cfg *cfg)
+{
 	struct device *hdev = &priv->pdev->dev;
 	size_t completion_queue_slots;
 	size_t buffer_queue_slots;
+	int idx = rx->q_num;
 	size_t size;
+	u32 qpl_id;
 	int i;
 
 	completion_queue_slots = rx->dqo.complq.mask + 1;
 	buffer_queue_slots = rx->dqo.bufq.mask + 1;
-
-	gve_rx_remove_from_block(priv, idx);
 
 	if (rx->q_resources) {
 		dma_free_coherent(hdev, sizeof(*rx->q_resources),
@@ -225,8 +325,10 @@ static void gve_rx_free_ring_dqo(struct gve_priv *priv, int idx)
 		if (bs->page_info.page)
 			gve_free_page_dqo(priv, bs, !rx->dqo.qpl);
 	}
+
 	if (rx->dqo.qpl) {
-		gve_unassign_qpl(priv, rx->dqo.qpl->id);
+		qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
+		gve_free_queue_page_list(priv, rx->dqo.qpl, qpl_id);
 		rx->dqo.qpl = NULL;
 	}
 
@@ -248,50 +350,64 @@ static void gve_rx_free_ring_dqo(struct gve_priv *priv, int idx)
 	kvfree(rx->dqo.buf_states);
 	rx->dqo.buf_states = NULL;
 
+	gve_rx_free_hdr_bufs(priv, rx);
+
 	netif_dbg(priv, drv, priv->dev, "freed rx ring %d\n", idx);
 }
 
-static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
+static int gve_rx_alloc_hdr_bufs(struct gve_priv *priv, struct gve_rx_ring *rx,
+				 const u32 buf_count)
 {
-	struct gve_rx_ring *rx = &priv->rx[idx];
 	struct device *hdev = &priv->pdev->dev;
-	size_t size;
-	int i;
 
-	const u32 buffer_queue_slots =
-		priv->queue_format == GVE_DQO_RDA_FORMAT ?
-		priv->options_dqo_rda.rx_buff_ring_entries : priv->rx_desc_cnt;
-	const u32 completion_queue_slots = priv->rx_desc_cnt;
+	rx->dqo.hdr_bufs.data = dma_alloc_coherent(hdev, priv->header_buf_size * buf_count,
+						   &rx->dqo.hdr_bufs.addr, GFP_KERNEL);
+	if (!rx->dqo.hdr_bufs.data)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void gve_rx_start_ring_dqo(struct gve_priv *priv, int idx)
+{
+	int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
+
+	gve_rx_add_to_block(priv, idx);
+	gve_add_napi(priv, ntfy_idx, gve_napi_poll_dqo);
+}
+
+int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
+			  struct gve_rx_alloc_rings_cfg *cfg,
+			  struct gve_rx_ring *rx,
+			  int idx)
+{
+	struct device *hdev = &priv->pdev->dev;
+	int qpl_page_cnt;
+	size_t size;
+	u32 qpl_id;
+
+	const u32 buffer_queue_slots = cfg->ring_size;
+	const u32 completion_queue_slots = cfg->ring_size;
 
 	netif_dbg(priv, drv, priv->dev, "allocating rx ring DQO\n");
 
 	memset(rx, 0, sizeof(*rx));
 	rx->gve = priv;
 	rx->q_num = idx;
-	rx->dqo.bufq.mask = buffer_queue_slots - 1;
-	rx->dqo.complq.num_free_slots = completion_queue_slots;
-	rx->dqo.complq.mask = completion_queue_slots - 1;
-	rx->ctx.skb_head = NULL;
-	rx->ctx.skb_tail = NULL;
 
-	rx->dqo.num_buf_states = priv->queue_format == GVE_DQO_RDA_FORMAT ?
+	rx->dqo.num_buf_states = cfg->raw_addressing ?
 		min_t(s16, S16_MAX, buffer_queue_slots * 4) :
-		priv->rx_pages_per_qpl;
+		gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
 	rx->dqo.buf_states = kvcalloc(rx->dqo.num_buf_states,
 				      sizeof(rx->dqo.buf_states[0]),
 				      GFP_KERNEL);
 	if (!rx->dqo.buf_states)
 		return -ENOMEM;
 
-	/* Set up linked list of buffer IDs */
-	for (i = 0; i < rx->dqo.num_buf_states - 1; i++)
-		rx->dqo.buf_states[i].next = i + 1;
-
-	rx->dqo.buf_states[rx->dqo.num_buf_states - 1].next = -1;
-	rx->dqo.recycled_buf_states.head = -1;
-	rx->dqo.recycled_buf_states.tail = -1;
-	rx->dqo.used_buf_states.head = -1;
-	rx->dqo.used_buf_states.tail = -1;
+	/* Allocate header buffers for header-split */
+	if (cfg->enable_header_split)
+		if (gve_rx_alloc_hdr_bufs(priv, rx, buffer_queue_slots))
+			goto err;
 
 	/* Allocate RX completion queue */
 	size = sizeof(rx->dqo.complq.desc_ring[0]) *
@@ -308,8 +424,12 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 	if (!rx->dqo.bufq.desc_ring)
 		goto err;
 
-	if (priv->queue_format != GVE_DQO_RDA_FORMAT) {
-		rx->dqo.qpl = gve_assign_rx_qpl(priv, rx->q_num);
+	if (!cfg->raw_addressing) {
+		qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
+		qpl_page_cnt = gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
+
+		rx->dqo.qpl = gve_alloc_queue_page_list(priv, qpl_id,
+							qpl_page_cnt);
 		if (!rx->dqo.qpl)
 			goto err;
 		rx->dqo.next_qpl_page_idx = 0;
@@ -320,12 +440,13 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 	if (!rx->q_resources)
 		goto err;
 
-	gve_rx_add_to_block(priv, idx);
+	gve_rx_init_ring_state_dqo(rx, buffer_queue_slots,
+				   completion_queue_slots);
 
 	return 0;
 
 err:
-	gve_rx_free_ring_dqo(priv, idx);
+	gve_rx_free_ring_dqo(priv, rx, cfg);
 	return -ENOMEM;
 }
 
@@ -337,13 +458,20 @@ void gve_rx_write_doorbell_dqo(const struct gve_priv *priv, int queue_idx)
 	iowrite32(rx->dqo.bufq.tail, &priv->db_bar2[index]);
 }
 
-int gve_rx_alloc_rings_dqo(struct gve_priv *priv)
+int gve_rx_alloc_rings_dqo(struct gve_priv *priv,
+			   struct gve_rx_alloc_rings_cfg *cfg)
 {
-	int err = 0;
+	struct gve_rx_ring *rx;
+	int err;
 	int i;
 
-	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
-		err = gve_rx_alloc_ring_dqo(priv, i);
+	rx = kvcalloc(cfg->qcfg->max_queues, sizeof(struct gve_rx_ring),
+		      GFP_KERNEL);
+	if (!rx)
+		return -ENOMEM;
+
+	for (i = 0; i < cfg->qcfg->num_queues; i++) {
+		err = gve_rx_alloc_ring_dqo(priv, cfg, &rx[i], i);
 		if (err) {
 			netif_err(priv, drv, priv->dev,
 				  "Failed to alloc rx ring=%d: err=%d\n",
@@ -352,21 +480,30 @@ int gve_rx_alloc_rings_dqo(struct gve_priv *priv)
 		}
 	}
 
+	cfg->rx = rx;
 	return 0;
 
 err:
 	for (i--; i >= 0; i--)
-		gve_rx_free_ring_dqo(priv, i);
-
+		gve_rx_free_ring_dqo(priv, &rx[i], cfg);
+	kvfree(rx);
 	return err;
 }
 
-void gve_rx_free_rings_dqo(struct gve_priv *priv)
+void gve_rx_free_rings_dqo(struct gve_priv *priv,
+			   struct gve_rx_alloc_rings_cfg *cfg)
 {
+	struct gve_rx_ring *rx = cfg->rx;
 	int i;
 
-	for (i = 0; i < priv->rx_cfg.num_queues; i++)
-		gve_rx_free_ring_dqo(priv, i);
+	if (!rx)
+		return;
+
+	for (i = 0; i < cfg->qcfg->num_queues;  i++)
+		gve_rx_free_ring_dqo(priv, &rx[i], cfg);
+
+	kvfree(rx);
+	cfg->rx = NULL;
 }
 
 void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx)
@@ -404,6 +541,10 @@ void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx)
 		desc->buf_id = cpu_to_le16(buf_state - rx->dqo.buf_states);
 		desc->buf_addr = cpu_to_le64(buf_state->addr +
 					     buf_state->page_info.page_offset);
+		if (rx->dqo.hdr_bufs.data)
+			desc->header_buf_addr =
+				cpu_to_le64(rx->dqo.hdr_bufs.addr +
+					    priv->header_buf_size * bufq->tail);
 
 		bufq->tail = (bufq->tail + 1) & bufq->mask;
 		complq->num_free_slots--;
@@ -419,7 +560,7 @@ void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx)
 static void gve_try_recycle_buf(struct gve_priv *priv, struct gve_rx_ring *rx,
 				struct gve_rx_buf_state_dqo *buf_state)
 {
-	const int data_buffer_size = priv->data_buffer_size_dqo;
+	const u16 data_buffer_size = priv->data_buffer_size_dqo;
 	int pagecount;
 
 	/* Can't reuse if we only fit one buffer per page */
@@ -606,13 +747,16 @@ static int gve_rx_append_frags(struct napi_struct *napi,
  */
 static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 		      const struct gve_rx_compl_desc_dqo *compl_desc,
-		      int queue_idx)
+		      u32 desc_idx, int queue_idx)
 {
 	const u16 buffer_id = le16_to_cpu(compl_desc->buf_id);
+	const bool hbo = compl_desc->header_buffer_overflow;
 	const bool eop = compl_desc->end_of_packet != 0;
+	const bool hsplit = compl_desc->split_header;
 	struct gve_rx_buf_state_dqo *buf_state;
 	struct gve_priv *priv = rx->gve;
 	u16 buf_len;
+	u16 hdr_len;
 
 	if (unlikely(buffer_id >= rx->dqo.num_buf_states)) {
 		net_err_ratelimited("%s: Invalid RX buffer_id=%u\n",
@@ -633,11 +777,34 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	}
 
 	buf_len = compl_desc->packet_len;
+	hdr_len = compl_desc->header_len;
 
 	/* Page might have not been used for awhile and was likely last written
 	 * by a different thread.
 	 */
 	prefetch(buf_state->page_info.page);
+
+	/* Copy the header into the skb in the case of header split */
+	if (hsplit) {
+		int unsplit = 0;
+
+		if (hdr_len && !hbo) {
+			rx->ctx.skb_head = gve_rx_copy_data(priv->dev, napi,
+							    rx->dqo.hdr_bufs.data +
+							    desc_idx * priv->header_buf_size,
+							    hdr_len);
+			if (unlikely(!rx->ctx.skb_head))
+				goto error;
+			rx->ctx.skb_tail = rx->ctx.skb_head;
+		} else {
+			unsplit = 1;
+		}
+		u64_stats_update_begin(&rx->statss);
+		rx->rx_hsplit_pkt++;
+		rx->rx_hsplit_unsplit_pkt += unsplit;
+		rx->rx_hsplit_bytes += hdr_len;
+		u64_stats_update_end(&rx->statss);
+	}
 
 	/* Sync the portion of dma buffer for CPU to read. */
 	dma_sync_single_range_for_cpu(&priv->pdev->dev, buf_state->addr,
@@ -781,7 +948,7 @@ int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 		/* Do not read data until we own the descriptor */
 		dma_rmb();
 
-		err = gve_rx_dqo(napi, rx, compl_desc, rx->q_num);
+		err = gve_rx_dqo(napi, rx, compl_desc, complq->head, rx->q_num);
 		if (err < 0) {
 			gve_rx_free_skb(rx);
 			u64_stats_update_begin(&rx->statss);

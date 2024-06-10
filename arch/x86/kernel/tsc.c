@@ -26,7 +26,7 @@
 #include <asm/x86_init.h>
 #include <asm/geode.h>
 #include <asm/apic.h>
-#include <asm/intel-family.h>
+#include <asm/cpu_device_id.h>
 #include <asm/i8259.h>
 #include <asm/uv/uv.h>
 
@@ -44,7 +44,7 @@ EXPORT_SYMBOL(tsc_khz);
 static int __read_mostly tsc_unstable;
 static unsigned int __initdata tsc_early_khz;
 
-static DEFINE_STATIC_KEY_FALSE(__use_tsc);
+static DEFINE_STATIC_KEY_FALSE_RO(__use_tsc);
 
 int tsc_clocksource_reliable;
 
@@ -53,7 +53,7 @@ static int __read_mostly tsc_force_recalibrate;
 static u32 art_to_tsc_numerator;
 static u32 art_to_tsc_denominator;
 static u64 art_to_tsc_offset;
-static struct clocksource *art_related_clocksource;
+static bool have_art;
 
 struct cyc2ns {
 	struct cyc2ns_data data[2];	/*  0 + 2*16 = 32 */
@@ -652,7 +652,7 @@ success:
 }
 
 /**
- * native_calibrate_tsc
+ * native_calibrate_tsc - determine TSC frequency
  * Determine TSC frequency via CPUID, else return 0.
  */
 unsigned long native_calibrate_tsc(void)
@@ -682,7 +682,7 @@ unsigned long native_calibrate_tsc(void)
 	 * clock.
 	 */
 	if (crystal_khz == 0 &&
-			boot_cpu_data.x86_model == INTEL_FAM6_ATOM_GOLDMONT_D)
+			boot_cpu_data.x86_vfm == INTEL_ATOM_GOLDMONT_D)
 		crystal_khz = 25000;
 
 	/*
@@ -713,7 +713,7 @@ unsigned long native_calibrate_tsc(void)
 	 * For Atom SoCs TSC is the only reliable clocksource.
 	 * Mark TSC reliable so no watchdog on it.
 	 */
-	if (boot_cpu_data.x86_model == INTEL_FAM6_ATOM_GOLDMONT)
+	if (boot_cpu_data.x86_vfm == INTEL_ATOM_GOLDMONT)
 		setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -1168,6 +1168,7 @@ static struct clocksource clocksource_tsc_early = {
 	.mask			= CLOCKSOURCE_MASK(64),
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_MUST_VERIFY,
+	.id			= CSID_X86_TSC_EARLY,
 	.vdso_clock_mode	= VDSO_CLOCKMODE_TSC,
 	.enable			= tsc_cs_enable,
 	.resume			= tsc_resume,
@@ -1190,6 +1191,7 @@ static struct clocksource clocksource_tsc = {
 				  CLOCK_SOURCE_VALID_FOR_HRES |
 				  CLOCK_SOURCE_MUST_VERIFY |
 				  CLOCK_SOURCE_VERIFY_PERCPU,
+	.id			= CSID_X86_TSC,
 	.vdso_clock_mode	= VDSO_CLOCKMODE_TSC,
 	.enable			= tsc_cs_enable,
 	.resume			= tsc_resume,
@@ -1309,8 +1311,10 @@ struct system_counterval_t convert_art_to_tsc(u64 art)
 	do_div(tmp, art_to_tsc_denominator);
 	res += tmp + art_to_tsc_offset;
 
-	return (struct system_counterval_t) {.cs = art_related_clocksource,
-			.cycles = res};
+	return (struct system_counterval_t) {
+		.cs_id	= have_art ? CSID_X86_TSC : CSID_GENERIC,
+		.cycles	= res,
+	};
 }
 EXPORT_SYMBOL(convert_art_to_tsc);
 
@@ -1327,12 +1331,10 @@ EXPORT_SYMBOL(convert_art_to_tsc);
  * that this flag is set before conversion to TSC is attempted.
  *
  * Return:
- * struct system_counterval_t - system counter value with the pointer to the
- *	corresponding clocksource
- *	@cycles:	System counter value
- *	@cs:		Clocksource corresponding to system counter value. Used
- *			by timekeeping code to verify comparability of two cycle
- *			values.
+ * struct system_counterval_t - system counter value with the ID of the
+ *	corresponding clocksource:
+ *	cycles:		System counter value
+ *	cs_id:		The clocksource ID for validating comparability
  */
 
 struct system_counterval_t convert_art_ns_to_tsc(u64 art_ns)
@@ -1347,8 +1349,10 @@ struct system_counterval_t convert_art_ns_to_tsc(u64 art_ns)
 	do_div(tmp, USEC_PER_SEC);
 	res += tmp;
 
-	return (struct system_counterval_t) { .cs = art_related_clocksource,
-					      .cycles = res};
+	return (struct system_counterval_t) {
+		.cs_id	= have_art ? CSID_X86_TSC : CSID_GENERIC,
+		.cycles	= res,
+	};
 }
 EXPORT_SYMBOL(convert_art_ns_to_tsc);
 
@@ -1357,7 +1361,7 @@ static void tsc_refine_calibration_work(struct work_struct *work);
 static DECLARE_DELAYED_WORK(tsc_irqwork, tsc_refine_calibration_work);
 /**
  * tsc_refine_calibration_work - Further refine tsc freq calibration
- * @work - ignored.
+ * @work: ignored.
  *
  * This functions uses delayed work over a period of a
  * second to further refine the TSC freq value. Since this is
@@ -1455,7 +1459,7 @@ out:
 		goto unreg;
 
 	if (boot_cpu_has(X86_FEATURE_ART))
-		art_related_clocksource = &clocksource_tsc;
+		have_art = true;
 	clocksource_register_khz(&clocksource_tsc, tsc_khz);
 unreg:
 	clocksource_unregister(&clocksource_tsc_early);
@@ -1481,7 +1485,7 @@ static int __init init_tsc_clocksource(void)
 	 */
 	if (boot_cpu_has(X86_FEATURE_TSC_KNOWN_FREQ)) {
 		if (boot_cpu_has(X86_FEATURE_ART))
-			art_related_clocksource = &clocksource_tsc;
+			have_art = true;
 		clocksource_register_khz(&clocksource_tsc, tsc_khz);
 		clocksource_unregister(&clocksource_tsc_early);
 

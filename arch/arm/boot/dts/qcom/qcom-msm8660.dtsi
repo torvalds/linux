@@ -47,7 +47,7 @@
 
 	cpu-pmu {
 		compatible = "qcom,scorpion-mp-pmu";
-		interrupts = <1 9 0x304>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
 	clocks {
@@ -89,12 +89,11 @@
 
 		timer@2000000 {
 			compatible = "qcom,scss-timer", "qcom,msm-timer";
-			interrupts = <1 0 0x301>,
-				     <1 1 0x301>,
-				     <1 2 0x301>;
+			interrupts = <GIC_PPI 0 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+				     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+				     <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 			reg = <0x02000000 0x100>;
-			clock-frequency = <27000000>,
-					  <32768>;
+			clock-frequency = <27000000>;
 			cpu-offset = <0x40000>;
 		};
 
@@ -105,7 +104,7 @@
 			gpio-controller;
 			gpio-ranges = <&tlmm 0 0 173>;
 			#gpio-cells = <2>;
-			interrupts = <0 16 0x4>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
@@ -283,7 +282,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x19c40000 0x1000>,
 				      <0x19c00000 0x1000>;
-				interrupts = <0 195 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI12_UART_CLK>, <&gcc GSBI12_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -292,7 +291,7 @@
 			gsbi12_i2c: i2c@19c80000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x19c80000 0x1000>;
-				interrupts = <0 196 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI12_QUP_CLK>, <&gcc GSBI12_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;

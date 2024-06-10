@@ -266,7 +266,7 @@ int ap_sb_available(void);
 bool ap_is_se_guest(void);
 void ap_wait(enum ap_sm_wait wait);
 void ap_request_timeout(struct timer_list *t);
-void ap_bus_force_rescan(void);
+bool ap_bus_force_rescan(void);
 
 int ap_test_config_usage_domain(unsigned int domain);
 int ap_test_config_ctrl_domain(unsigned int domain);
@@ -344,6 +344,28 @@ int ap_parse_mask_str(const char *str,
 		      struct mutex *lock);
 
 /*
+ * ap_hex2bitmap() - Convert a string containing a hexadecimal number (str)
+ * into a bitmap (bitmap) with bits set that correspond to the bits represented
+ * by the hex string. Input and output data is in big endian order.
+ *
+ * str - Input hex string of format "0x1234abcd". The leading "0x" is optional.
+ * At least one digit is required. Must be large enough to hold the number of
+ * bits represented by the bits parameter.
+ *
+ * bitmap - Pointer to a bitmap. Upon successful completion of this function,
+ * this bitmap will have bits set to match the value of str. If bitmap is longer
+ * than str, then the rightmost bits of bitmap are padded with zeros. Must be
+ * large enough to hold the number of bits represented by the bits parameter.
+ *
+ * bits - Length, in bits, of the bitmap represented by str. Must be a multiple
+ * of 8.
+ *
+ * Returns: 0		On success
+ *	    -EINVAL	If str format is invalid or bits is not a multiple of 8.
+ */
+int ap_hex2bitmap(const char *str, unsigned long *bitmap, int bits);
+
+/*
  * Interface to wait for the AP bus to have done one initial ap bus
  * scan and all detected APQNs have been bound to device drivers.
  * If these both conditions are not fulfilled, this function blocks
@@ -352,8 +374,12 @@ int ap_parse_mask_str(const char *str,
  * the return value is 0. If the timeout (in jiffies) hits instead
  * -ETIME is returned. On failures negative return values are
  * returned to the caller.
+ * It may be that the AP bus scan finds new devices. Then the
+ * condition that all APQNs are bound to their device drivers
+ * is reset to false and this call again blocks until either all
+ * APQNs are bound to a device driver or the timeout hits again.
  */
-int ap_wait_init_apqn_bindings_complete(unsigned long timeout);
+int ap_wait_apqn_bindings_complete(unsigned long timeout);
 
 void ap_send_config_uevent(struct ap_device *ap_dev, bool cfg);
 void ap_send_online_uevent(struct ap_device *ap_dev, int online);

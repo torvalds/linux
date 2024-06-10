@@ -74,6 +74,7 @@
 #include <linux/err.h>
 #include <linux/filter.h>
 #include <linux/kernel.h>
+#include <linux/list_sort.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
@@ -946,6 +947,15 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [1] = STRARRAY(op, epoll_ctl_ops), }, },
 	{ .name	    = "eventfd2",
 	  .arg = { [1] = { .scnprintf = SCA_EFD_FLAGS, /* flags */ }, }, },
+	{ .name     = "faccessat",
+	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
+		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [2] = { .scnprintf = SCA_ACCMODE,	  /* mode */ }, }, },
+	{ .name     = "faccessat2",
+	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
+		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [2] = { .scnprintf = SCA_ACCMODE,	  /* mode */ },
+		   [3] = { .scnprintf = SCA_FACCESSAT2_FLAGS, /* flags */ }, }, },
 	{ .name	    = "fchmodat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
 	{ .name	    = "fchownat",
@@ -968,7 +978,6 @@ static const struct syscall_fmt syscall_fmts[] = {
 		   [1] = { .scnprintf = SCA_FILENAME,	  /* path */ },
 		   [2] = { .scnprintf = SCA_FSPICK_FLAGS, /* flags */ }, }, },
 	{ .name	    = "fstat", .alias = "newfstat", },
-	{ .name	    = "fstatat", .alias = "newfstatat", },
 	{ .name	    = "futex",
 	  .arg = { [1] = { .scnprintf = SCA_FUTEX_OP, /* op */ },
 		   [5] = { .scnprintf = SCA_FUTEX_VAL3, /* val3 */ }, }, },
@@ -1048,8 +1057,12 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [3] = { .scnprintf = SCA_MREMAP_FLAGS, /* flags */ }, }, },
 	{ .name	    = "name_to_handle_at",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
-	{ .name	    = "newfstatat",
-	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
+	{ .name	    = "nanosleep",
+	  .arg = { [0] = { .scnprintf = SCA_TIMESPEC,  /* req */ }, }, },
+	{ .name	    = "newfstatat", .alias = "fstatat",
+	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
+		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [3] = { .scnprintf = SCA_FS_AT_FLAGS, /* flags */ }, }, },
 	{ .name	    = "open",
 	  .arg = { [1] = { .scnprintf = SCA_OPEN_FLAGS, /* flags */ }, }, },
 	{ .name	    = "open_by_handle_at",
@@ -1141,7 +1154,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	{ .name	    = "stat", .alias = "newstat", },
 	{ .name	    = "statx",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	 /* fdat */ },
-		   [2] = { .scnprintf = SCA_STATX_FLAGS, /* flags */ } ,
+		   [2] = { .scnprintf = SCA_FS_AT_FLAGS, /* flags */ } ,
 		   [3] = { .scnprintf = SCA_STATX_MASK,	 /* mask */ }, }, },
 	{ .name	    = "swapoff",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* specialfile */ }, }, },
@@ -1159,7 +1172,9 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* name */ }, }, },
 	{ .name	    = "uname", .alias = "newuname", },
 	{ .name	    = "unlinkat",
-	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
+	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dfd */ },
+		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [2] = { .scnprintf = SCA_FS_AT_FLAGS,  /* flags */ }, }, },
 	{ .name	    = "utimensat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dirfd */ }, }, },
 	{ .name	    = "wait4",	    .errpid = true,
@@ -2902,7 +2917,7 @@ static void print_location(FILE *f, struct perf_sample *sample,
 {
 
 	if ((verbose > 0 || print_dso) && al->map)
-		fprintf(f, "%s@", map__dso(al->map)->long_name);
+		fprintf(f, "%s@", dso__long_name(map__dso(al->map)));
 
 	if ((verbose > 0 || print_sym) && al->sym)
 		fprintf(f, "%s+0x%" PRIx64, al->sym->name,
@@ -4312,34 +4327,38 @@ static unsigned long thread__nr_events(struct thread_trace *ttrace)
 	return ttrace ? ttrace->nr_events : 0;
 }
 
-DEFINE_RESORT_RB(threads,
-		(thread__nr_events(thread__priv(a->thread)) <
-		 thread__nr_events(thread__priv(b->thread))),
-	struct thread *thread;
-)
+static int trace_nr_events_cmp(void *priv __maybe_unused,
+			       const struct list_head *la,
+			       const struct list_head *lb)
 {
-	entry->thread = rb_entry(nd, struct thread_rb_node, rb_node)->thread;
+	struct thread_list *a = list_entry(la, struct thread_list, list);
+	struct thread_list *b = list_entry(lb, struct thread_list, list);
+	unsigned long a_nr_events = thread__nr_events(thread__priv(a->thread));
+	unsigned long b_nr_events = thread__nr_events(thread__priv(b->thread));
+
+	if (a_nr_events != b_nr_events)
+		return a_nr_events < b_nr_events ? -1 : 1;
+
+	/* Identical number of threads, place smaller tids first. */
+	return thread__tid(a->thread) < thread__tid(b->thread)
+		? -1
+		: (thread__tid(a->thread) > thread__tid(b->thread) ? 1 : 0);
 }
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 {
 	size_t printed = trace__fprintf_threads_header(fp);
-	struct rb_node *nd;
-	int i;
+	LIST_HEAD(threads);
 
-	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
-		DECLARE_RESORT_RB_MACHINE_THREADS(threads, trace->host, i);
+	if (machine__thread_list(trace->host, &threads) == 0) {
+		struct thread_list *pos;
 
-		if (threads == NULL) {
-			fprintf(fp, "%s", "Error sorting output by nr_events!\n");
-			return 0;
-		}
+		list_sort(NULL, &threads, trace_nr_events_cmp);
 
-		resort_rb__for_each_entry(nd, threads)
-			printed += trace__fprintf_thread(fp, threads_entry->thread, trace);
-
-		resort_rb__delete(threads);
+		list_for_each_entry(pos, &threads, list)
+			printed += trace__fprintf_thread(fp, pos->thread, trace);
 	}
+	thread_list__delete(&threads);
 	return printed;
 }
 
@@ -4864,6 +4883,11 @@ int cmd_trace(int argc, const char **argv)
 	if (!trace.trace_syscalls)
 		goto skip_augmentation;
 
+	if ((argc >= 1) && (strcmp(argv[0], "record") == 0)) {
+		pr_debug("Syscall augmentation fails with record, disabling augmentation");
+		goto skip_augmentation;
+	}
+
 	trace.skel = augmented_raw_syscalls_bpf__open();
 	if (!trace.skel) {
 		pr_debug("Failed to open augmented syscalls BPF skeleton");
@@ -4897,7 +4921,7 @@ int cmd_trace(int argc, const char **argv)
 		goto out;
 	}
 	trace.syscalls.events.bpf_output = evlist__last(trace.evlist);
-	assert(!strcmp(evsel__name(trace.syscalls.events.bpf_output), "__augmented_syscalls__"));
+	assert(evsel__name_is(trace.syscalls.events.bpf_output, "__augmented_syscalls__"));
 skip_augmentation:
 #endif
 	err = -1;
@@ -4954,7 +4978,7 @@ skip_augmentation:
 	 */
 	if (trace.syscalls.events.bpf_output) {
 		evlist__for_each_entry(trace.evlist, evsel) {
-			bool raw_syscalls_sys_exit = strcmp(evsel__name(evsel), "raw_syscalls:sys_exit") == 0;
+			bool raw_syscalls_sys_exit = evsel__name_is(evsel, "raw_syscalls:sys_exit");
 
 			if (raw_syscalls_sys_exit) {
 				trace.raw_augmented_syscalls = true;

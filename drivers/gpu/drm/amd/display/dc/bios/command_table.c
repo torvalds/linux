@@ -37,7 +37,7 @@
 #define EXEC_BIOS_CMD_TABLE(command, params)\
 	(amdgpu_atom_execute_table(((struct amdgpu_device *)bp->base.ctx->driver_context)->mode_info.atom_context, \
 		GetIndexIntoMasterTable(COMMAND, command), \
-		(uint32_t *)&params) == 0)
+		(uint32_t *)&params, sizeof(params)) == 0)
 
 #define BIOS_CMD_TABLE_REVISION(command, frev, crev)\
 	amdgpu_atom_parse_cmd_header(((struct amdgpu_device *)bp->base.ctx->driver_context)->mode_info.atom_context, \
@@ -399,7 +399,7 @@ static enum bp_result transmitter_control_v1_6(
 static void init_transmitter_control(struct bios_parser *bp)
 {
 	uint8_t frev;
-	uint8_t crev;
+	uint8_t crev = 0;
 
 	if (BIOS_CMD_TABLE_REVISION(UNIPHYTransmitterControl,
 			frev, crev) == false)

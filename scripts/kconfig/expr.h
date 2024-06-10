@@ -12,17 +12,12 @@ extern "C" {
 
 #include <assert.h>
 #include <stdio.h>
-#include "list.h"
+#include "list_types.h"
 #ifndef __cplusplus
 #include <stdbool.h>
 #endif
 
-struct file {
-	struct file *next;
-	struct file *parent;
-	const char *name;
-	int lineno;
-};
+#include "list_types.h"
 
 typedef enum tristate {
 	no, mod, yes
@@ -77,12 +72,11 @@ enum {
 /*
  * Represents a configuration symbol.
  *
- * Choices are represented as a special kind of symbol and have the
- * SYMBOL_CHOICE bit set in 'flags'.
+ * Choices are represented as a special kind of symbol with null name.
  */
 struct symbol {
-	/* The next symbol in the same bucket in the symbol hash table */
-	struct symbol *next;
+	/* link node for the hash table */
+	struct hlist_node node;
 
 	/* The name of the symbol, e.g. "FOO" for 'config FOO' */
 	char *name;
@@ -113,6 +107,9 @@ struct symbol {
 	 */
 	tristate visible;
 
+	/* config entries associated with this symbol */
+	struct list_head menus;
+
 	/* SYMBOL_* flags */
 	int flags;
 
@@ -131,18 +128,13 @@ struct symbol {
 	struct expr_value implied;
 };
 
-#define for_all_symbols(i, sym) for (i = 0; i < SYMBOL_HASHSIZE; i++) for (sym = symbol_hash[i]; sym; sym = sym->next)
-
 #define SYMBOL_CONST      0x0001  /* symbol is const */
 #define SYMBOL_CHECK      0x0008  /* used during dependency checking */
-#define SYMBOL_CHOICE     0x0010  /* start of a choice block (null name) */
 #define SYMBOL_CHOICEVAL  0x0020  /* used as a value in a choice block */
 #define SYMBOL_VALID      0x0080  /* set when symbol.curr is calculated */
-#define SYMBOL_OPTIONAL   0x0100  /* choice is optional - values can be 'n' */
 #define SYMBOL_WRITE      0x0200  /* write symbol to file (KCONFIG_CONFIG) */
 #define SYMBOL_CHANGED    0x0400  /* ? */
 #define SYMBOL_WRITTEN    0x0800  /* track info to avoid double-write to .config */
-#define SYMBOL_NO_WRITE   0x1000  /* Symbol for internal use only; it will not be written */
 #define SYMBOL_CHECKED    0x2000  /* used during dependency checking */
 #define SYMBOL_WARNED     0x8000  /* warning has been issued */
 
@@ -157,7 +149,6 @@ struct symbol {
 #define SYMBOL_NEED_SET_CHOICE_VALUES  0x100000
 
 #define SYMBOL_MAXLENGTH	256
-#define SYMBOL_HASHSIZE		9973
 
 /* A property represent the config options that can be associated
  * with a config "symbol".
@@ -195,7 +186,7 @@ struct property {
 	struct menu *menu;         /* the menu the property are associated with
 	                            * valid for: P_SELECT, P_RANGE, P_CHOICE,
 	                            * P_PROMPT, P_DEFAULT, P_MENU, P_COMMENT */
-	struct file *file;         /* what file was this property defined */
+	const char *filename;      /* what file was this property defined */
 	int lineno;                /* what lineno was this property defined */
 };
 
@@ -230,6 +221,8 @@ struct menu {
 	 */
 	struct symbol *sym;
 
+	struct list_head link;	/* link to symbol::menus */
+
 	/*
 	 * The prompt associated with the node. This holds the prompt for a
 	 * symbol as well as the text for a menu or comment, along with the
@@ -256,7 +249,7 @@ struct menu {
 	char *help;
 
 	/* The location where the menu node appears in the Kconfig files */
-	struct file *file;
+	const char *filename;
 	int lineno;
 
 	/* For use by front ends that need to store auxiliary data */
@@ -276,10 +269,6 @@ struct jump_key {
 	size_t offset;
 	struct menu *target;
 };
-
-extern struct file *file_list;
-extern struct file *current_file;
-struct file *lookup_file(const char *name);
 
 extern struct symbol symbol_yes, symbol_no, symbol_mod;
 extern struct symbol *modules_sym;

@@ -828,7 +828,8 @@ struct hclge_dev_specs_1_cmd {
 	__le16 mc_mac_size;
 	u8 rsv1[6];
 	u8 tnl_num;
-	u8 rsv2[5];
+	u8 hilink_version;
+	u8 rsv2[4];
 };
 
 /* mac speed type defined in firmware command */

@@ -478,5 +478,16 @@ config BT_NXPUART
 	  Say Y here to compile support for NXP Bluetooth UART device into
 	  the kernel, or say M here to compile as a module (btnxpuart).
 
+config BT_INTEL_PCIE
+	tristate "Intel HCI PCIe driver"
+	depends on PCI
+	select BT_INTEL
+	select FW_LOADER
+	help
+	  Intel Bluetooth transport driver for PCIe.
+	  This driver is required if you want to use Intel Bluetooth device
+	  with PCIe interface.
 
+	  Say Y here to compiler support for Intel Bluetooth PCIe device into
+	  the kernel or say M to compile it as module (btintel_pcie)
 endmenu

@@ -111,6 +111,28 @@ Description:	QM debug registers(regs) read hardware register value. This
 		node is used to show the change of the qm register values. This
 		node can be help users to check the change of register values.
 
+What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/qm_state
+Date:		Jan 2024
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the state of the device.
+		0: busy, 1: idle.
+		Only available for PF, and take no other effect on HPRE.
+
+What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/dev_timeout
+Date:		Feb 2024
+Contact:	linux-crypto@vger.kernel.org
+Description:	Set the wait time when stop queue fails. Available for both PF
+		and VF, and take no other effect on HPRE.
+		0: not wait(default), others value: wait dev_timeout * 20 microsecond.
+
+What:		/sys/kernel/debug/hisi_hpre/<bdf>/qm/dev_state
+Date:		Feb 2024
+Contact:	linux-crypto@vger.kernel.org
+Description:	Dump the stop queue status of the QM. The default value is 0,
+		if dev_timeout is set, when stop queue fails, the dev_state
+		will return non-zero value. Available for both PF and VF,
+		and take no other effect on HPRE.
+
 What:		/sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/diff_regs
 Date:		Mar 2022
 Contact:	linux-crypto@vger.kernel.org

@@ -399,7 +399,20 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 		return ret;
 
 	priv->pci.ep.ops = &uniphier_pcie_ep_ops;
-	return dw_pcie_ep_init(&priv->pci.ep);
+	ret = dw_pcie_ep_init(&priv->pci.ep);
+	if (ret)
+		return ret;
+
+	ret = dw_pcie_ep_init_registers(&priv->pci.ep);
+	if (ret) {
+		dev_err(dev, "Failed to initialize DWC endpoint registers\n");
+		dw_pcie_ep_deinit(&priv->pci.ep);
+		return ret;
+	}
+
+	dw_pcie_ep_init_notify(&priv->pci.ep);
+
+	return 0;
 }
 
 static const struct uniphier_pcie_ep_soc_data uniphier_pro5_data = {
@@ -411,8 +424,12 @@ static const struct uniphier_pcie_ep_soc_data uniphier_pro5_data = {
 		.msi_capable = true,
 		.msix_capable = false,
 		.align = 1 << 16,
-		.bar_fixed_64bit = BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
-		.reserved_bar =  BIT(BAR_4),
+		.bar[BAR_0] = { .only_64bit = true, },
+		.bar[BAR_1] = { .type = BAR_RESERVED, },
+		.bar[BAR_2] = { .only_64bit = true, },
+		.bar[BAR_3] = { .type = BAR_RESERVED, },
+		.bar[BAR_4] = { .type = BAR_RESERVED, },
+		.bar[BAR_5] = { .type = BAR_RESERVED, },
 	},
 };
 
@@ -425,7 +442,12 @@ static const struct uniphier_pcie_ep_soc_data uniphier_nx1_data = {
 		.msi_capable = true,
 		.msix_capable = false,
 		.align = 1 << 12,
-		.bar_fixed_64bit = BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
+		.bar[BAR_0] = { .only_64bit = true, },
+		.bar[BAR_1] = { .type = BAR_RESERVED, },
+		.bar[BAR_2] = { .only_64bit = true, },
+		.bar[BAR_3] = { .type = BAR_RESERVED, },
+		.bar[BAR_4] = { .only_64bit = true, },
+		.bar[BAR_5] = { .type = BAR_RESERVED, },
 	},
 };
 

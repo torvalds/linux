@@ -1755,5 +1755,4 @@ module_platform_driver(samsung_i2s_driver);
 /* Module information */
 MODULE_AUTHOR("Jaswinder Singh, <jassisinghbrar@gmail.com>");
 MODULE_DESCRIPTION("Samsung I2S Interface");
-MODULE_ALIAS("platform:samsung-i2s");
 MODULE_LICENSE("GPL");

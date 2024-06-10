@@ -76,6 +76,11 @@ config SFP
 
 comment "MII PHY device drivers"
 
+config AIR_EN8811H_PHY
+	tristate "Airoha EN8811H 2.5 Gigabit PHY"
+	help
+	  Currently supports the Airoha EN8811H PHY.
+
 config AMD_PHY
 	tristate "AMD and Altima PHYs"
 	help
@@ -232,6 +237,7 @@ config MARVELL_10G_PHY
 
 config MARVELL_88Q2XXX_PHY
 	tristate "Marvell 88Q2XXX PHY"
+	depends on HWMON || HWMON=n
 	help
 	  Support for the Marvell 88Q2XXX 100/1000BASE-T1 Automotive Ethernet
 	  PHYs.
@@ -335,12 +341,7 @@ config NCN26000_PHY
 	  Currently supports the NCN26000 10BASE-T1S Industrial PHY
 	  with MII interface.
 
-config AT803X_PHY
-	tristate "Qualcomm Atheros AR803X PHYs and QCA833x PHYs"
-	depends on REGULATOR
-	help
-	  Currently supports the AR8030, AR8031, AR8033, AR8035 and internal
-	  QCA8337(Internal qca8k PHY) model
+source "drivers/net/phy/qcom/Kconfig"
 
 config QSEMI_PHY
 	tristate "Quality Semiconductor PHYs"

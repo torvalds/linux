@@ -30,8 +30,8 @@ struct inotify_event {
 #define IN_ACCESS		0x00000001	/* File was accessed */
 #define IN_MODIFY		0x00000002	/* File was modified */
 #define IN_ATTRIB		0x00000004	/* Metadata changed */
-#define IN_CLOSE_WRITE		0x00000008	/* Writtable file was closed */
-#define IN_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
+#define IN_CLOSE_WRITE		0x00000008	/* Writable file was closed */
+#define IN_CLOSE_NOWRITE	0x00000010	/* Unwritable file closed */
 #define IN_OPEN			0x00000020	/* File was opened */
 #define IN_MOVED_FROM		0x00000040	/* File was moved from X */
 #define IN_MOVED_TO		0x00000080	/* File was moved to Y */

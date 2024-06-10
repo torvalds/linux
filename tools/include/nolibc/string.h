@@ -123,7 +123,7 @@ char *strcpy(char *dst, const char *src)
  * thus itself, hence the asm() statement below that's meant to disable this
  * confusing practice.
  */
-static __attribute__((unused))
+__attribute__((weak,unused,section(".text.nolibc_strlen")))
 size_t strlen(const char *str)
 {
 	size_t len;
@@ -187,21 +187,25 @@ char *strndup(const char *str, size_t maxlen)
 static __attribute__((unused))
 size_t strlcat(char *dst, const char *src, size_t size)
 {
-	size_t len;
-	char c;
+	size_t len = strnlen(dst, size);
 
-	for (len = 0; dst[len];	len++)
-		;
-
-	for (;;) {
-		c = *src;
-		if (len < size)
-			dst[len] = c;
-		if (!c)
+	/*
+	 * We want len < size-1. But as size is unsigned and can wrap
+	 * around, we use len + 1 instead.
+	 */
+	while (len + 1 < size) {
+		dst[len] = *src;
+		if (*src == '\0')
 			break;
 		len++;
 		src++;
 	}
+
+	if (len < size)
+		dst[len] = '\0';
+
+	while (*src++)
+		len++;
 
 	return len;
 }
@@ -210,16 +214,18 @@ static __attribute__((unused))
 size_t strlcpy(char *dst, const char *src, size_t size)
 {
 	size_t len;
-	char c;
 
-	for (len = 0;;) {
-		c = src[len];
-		if (len < size)
-			dst[len] = c;
-		if (!c)
-			break;
-		len++;
+	for (len = 0; len < size; len++) {
+		dst[len] = src[len];
+		if (!dst[len])
+			return len;
 	}
+	if (size)
+		dst[size-1] = '\0';
+
+	while (src[len])
+		len++;
+
 	return len;
 }
 

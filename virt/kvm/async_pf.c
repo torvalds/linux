@@ -46,8 +46,8 @@ static void async_pf_execute(struct work_struct *work)
 {
 	struct kvm_async_pf *apf =
 		container_of(work, struct kvm_async_pf, work);
-	struct mm_struct *mm = apf->mm;
 	struct kvm_vcpu *vcpu = apf->vcpu;
+	struct mm_struct *mm = vcpu->kvm->mm;
 	unsigned long addr = apf->addr;
 	gpa_t cr2_or_gpa = apf->cr2_or_gpa;
 	int locked = 1;
@@ -56,15 +56,24 @@ static void async_pf_execute(struct work_struct *work)
 	might_sleep();
 
 	/*
-	 * This work is run asynchronously to the task which owns
-	 * mm and might be done in another context, so we must
-	 * access remotely.
+	 * Attempt to pin the VM's host address space, and simply skip gup() if
+	 * acquiring a pin fail, i.e. if the process is exiting.  Note, KVM
+	 * holds a reference to its associated mm_struct until the very end of
+	 * kvm_destroy_vm(), i.e. the struct itself won't be freed before this
+	 * work item is fully processed.
 	 */
-	mmap_read_lock(mm);
-	get_user_pages_remote(mm, addr, 1, FOLL_WRITE, NULL, &locked);
-	if (locked)
-		mmap_read_unlock(mm);
+	if (mmget_not_zero(mm)) {
+		mmap_read_lock(mm);
+		get_user_pages_remote(mm, addr, 1, FOLL_WRITE, NULL, &locked);
+		if (locked)
+			mmap_read_unlock(mm);
+		mmput(mm);
+	}
 
+	/*
+	 * Notify and kick the vCPU even if faulting in the page failed, e.g.
+	 * so that the vCPU can retry the fault synchronously.
+	 */
 	if (IS_ENABLED(CONFIG_KVM_ASYNC_PF_SYNC))
 		kvm_arch_async_page_present(vcpu, apf);
 
@@ -74,20 +83,39 @@ static void async_pf_execute(struct work_struct *work)
 	apf->vcpu = NULL;
 	spin_unlock(&vcpu->async_pf.lock);
 
+	/*
+	 * The apf struct may be freed by kvm_check_async_pf_completion() as
+	 * soon as the lock is dropped.  Nullify it to prevent improper usage.
+	 */
+	apf = NULL;
+
 	if (!IS_ENABLED(CONFIG_KVM_ASYNC_PF_SYNC) && first)
 		kvm_arch_async_page_present_queued(vcpu);
-
-	/*
-	 * apf may be freed by kvm_check_async_pf_completion() after
-	 * this point
-	 */
 
 	trace_kvm_async_pf_completed(addr, cr2_or_gpa);
 
 	__kvm_vcpu_wake_up(vcpu);
+}
 
-	mmput(mm);
-	kvm_put_kvm(vcpu->kvm);
+static void kvm_flush_and_free_async_pf_work(struct kvm_async_pf *work)
+{
+	/*
+	 * The async #PF is "done", but KVM must wait for the work item itself,
+	 * i.e. async_pf_execute(), to run to completion.  If KVM is a module,
+	 * KVM must ensure *no* code owned by the KVM (the module) can be run
+	 * after the last call to module_put().  Note, flushing the work item
+	 * is always required when the item is taken off the completion queue.
+	 * E.g. even if the vCPU handles the item in the "normal" path, the VM
+	 * could be terminated before async_pf_execute() completes.
+	 *
+	 * Wake all events skip the queue and go straight done, i.e. don't
+	 * need to be flushed (but sanity check that the work wasn't queued).
+	 */
+	if (work->wakeup_all)
+		WARN_ON_ONCE(work->work.func);
+	else
+		flush_work(&work->work);
+	kmem_cache_free(async_pf_cache, work);
 }
 
 void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
@@ -112,11 +140,8 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_KVM_ASYNC_PF_SYNC
 		flush_work(&work->work);
 #else
-		if (cancel_work_sync(&work->work)) {
-			mmput(work->mm);
-			kvm_put_kvm(vcpu->kvm); /* == work->vcpu->kvm */
+		if (cancel_work_sync(&work->work))
 			kmem_cache_free(async_pf_cache, work);
-		}
 #endif
 		spin_lock(&vcpu->async_pf.lock);
 	}
@@ -126,7 +151,10 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 			list_first_entry(&vcpu->async_pf.done,
 					 typeof(*work), link);
 		list_del(&work->link);
-		kmem_cache_free(async_pf_cache, work);
+
+		spin_unlock(&vcpu->async_pf.lock);
+		kvm_flush_and_free_async_pf_work(work);
+		spin_lock(&vcpu->async_pf.lock);
 	}
 	spin_unlock(&vcpu->async_pf.lock);
 
@@ -151,7 +179,7 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 
 		list_del(&work->queue);
 		vcpu->async_pf.queued--;
-		kmem_cache_free(async_pf_cache, work);
+		kvm_flush_and_free_async_pf_work(work);
 	}
 }
 
@@ -184,9 +212,6 @@ bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	work->cr2_or_gpa = cr2_or_gpa;
 	work->addr = hva;
 	work->arch = *arch;
-	work->mm = current->mm;
-	mmget(work->mm);
-	kvm_get_kvm(work->vcpu->kvm);
 
 	INIT_WORK(&work->work, async_pf_execute);
 

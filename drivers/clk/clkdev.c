@@ -144,7 +144,7 @@ void clkdev_add_table(struct clk_lookup *cl, size_t num)
 	mutex_unlock(&clocks_mutex);
 }
 
-#define MAX_DEV_ID	20
+#define MAX_DEV_ID	24
 #define MAX_CON_ID	16
 
 struct clk_lookup_alloc {

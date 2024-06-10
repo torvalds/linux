@@ -8,6 +8,7 @@
  *
  * Copyright (C) 2018 Red Hat, Inc.
  */
+
 #ifndef _SS_SIDTAB_H_
 #define _SS_SIDTAB_H_
 
@@ -29,25 +30,26 @@ struct sidtab_entry {
 
 union sidtab_entry_inner {
 	struct sidtab_node_inner *ptr_inner;
-	struct sidtab_node_leaf  *ptr_leaf;
+	struct sidtab_node_leaf *ptr_leaf;
 };
 
 /* align node size to page boundary */
 #define SIDTAB_NODE_ALLOC_SHIFT PAGE_SHIFT
-#define SIDTAB_NODE_ALLOC_SIZE  PAGE_SIZE
+#define SIDTAB_NODE_ALLOC_SIZE	PAGE_SIZE
 
-#define size_to_shift(size) ((size) == 1 ? 1 : (const_ilog2((size) - 1) + 1))
+#define size_to_shift(size) ((size) == 1 ? 1 : (const_ilog2((size)-1) + 1))
 
-#define SIDTAB_INNER_SHIFT \
-	(SIDTAB_NODE_ALLOC_SHIFT - size_to_shift(sizeof(union sidtab_entry_inner)))
+#define SIDTAB_INNER_SHIFT         \
+	(SIDTAB_NODE_ALLOC_SHIFT - \
+	 size_to_shift(sizeof(union sidtab_entry_inner)))
 #define SIDTAB_INNER_ENTRIES ((size_t)1 << SIDTAB_INNER_SHIFT)
 #define SIDTAB_LEAF_ENTRIES \
 	(SIDTAB_NODE_ALLOC_SIZE / sizeof(struct sidtab_entry))
 
 #define SIDTAB_MAX_BITS 32
-#define SIDTAB_MAX U32_MAX
+#define SIDTAB_MAX	U32_MAX
 /* ensure enough tree levels for SIDTAB_MAX entries */
-#define SIDTAB_MAX_LEVEL \
+#define SIDTAB_MAX_LEVEL                                                   \
 	DIV_ROUND_UP(SIDTAB_MAX_BITS - size_to_shift(SIDTAB_LEAF_ENTRIES), \
 		     SIDTAB_INNER_SHIFT)
 
@@ -69,7 +71,7 @@ struct sidtab_convert_params {
 	struct sidtab *target;
 };
 
-#define SIDTAB_HASH_BITS CONFIG_SECURITY_SELINUX_SIDTAB_HASH_BITS
+#define SIDTAB_HASH_BITS    CONFIG_SECURITY_SELINUX_SIDTAB_HASH_BITS
 #define SIDTAB_HASH_BUCKETS (1 << SIDTAB_HASH_BITS)
 
 struct sidtab {
@@ -125,8 +127,10 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params);
 
 void sidtab_cancel_convert(struct sidtab *s);
 
-void sidtab_freeze_begin(struct sidtab *s, unsigned long *flags) __acquires(&s->lock);
-void sidtab_freeze_end(struct sidtab *s, unsigned long *flags) __releases(&s->lock);
+void sidtab_freeze_begin(struct sidtab *s, unsigned long *flags)
+	__acquires(&s->lock);
+void sidtab_freeze_end(struct sidtab *s, unsigned long *flags)
+	__releases(&s->lock);
 
 int sidtab_context_to_sid(struct sidtab *s, struct context *context, u32 *sid);
 
@@ -137,8 +141,8 @@ int sidtab_hash_stats(struct sidtab *sidtab, char *page);
 #if CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0
 void sidtab_sid2str_put(struct sidtab *s, struct sidtab_entry *entry,
 			const char *str, u32 str_len);
-int sidtab_sid2str_get(struct sidtab *s, struct sidtab_entry *entry,
-		       char **out, u32 *out_len);
+int sidtab_sid2str_get(struct sidtab *s, struct sidtab_entry *entry, char **out,
+		       u32 *out_len);
 #else
 static inline void sidtab_sid2str_put(struct sidtab *s,
 				      struct sidtab_entry *entry,
@@ -146,13 +150,11 @@ static inline void sidtab_sid2str_put(struct sidtab *s,
 {
 }
 static inline int sidtab_sid2str_get(struct sidtab *s,
-				     struct sidtab_entry *entry,
-				     char **out, u32 *out_len)
+				     struct sidtab_entry *entry, char **out,
+				     u32 *out_len)
 {
 	return -ENOENT;
 }
 #endif /* CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0 */
 
-#endif	/* _SS_SIDTAB_H_ */
-
-
+#endif /* _SS_SIDTAB_H_ */

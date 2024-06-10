@@ -236,10 +236,7 @@ static bool intel_vsec_walk_header(struct pci_dev *pdev,
 
 	for ( ; *header; header++) {
 		ret = intel_vsec_add_dev(pdev, *header, info);
-		if (ret)
-			dev_info(&pdev->dev, "Could not add device for VSEC id %d\n",
-				 (*header)->id);
-		else
+		if (!ret)
 			have_devices = true;
 	}
 

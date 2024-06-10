@@ -4,7 +4,7 @@
 
 #include <linux/atomic.h>
 #include <linux/cache.h>
-#include <linux/kernel.h>
+#include <linux/limits.h>
 #include <asm/page.h>
 
 struct page_counter {

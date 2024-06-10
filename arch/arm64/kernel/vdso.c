@@ -69,10 +69,7 @@ static struct vdso_abi_info vdso_info[] __ro_after_init = {
 /*
  * The vDSO data page.
  */
-static union {
-	struct vdso_data	data[CS_BASES];
-	u8			page[PAGE_SIZE];
-} vdso_data_store __page_aligned_data;
+static union vdso_data_store vdso_data_store __page_aligned_data;
 struct vdso_data *vdso_data = vdso_data_store.data;
 
 static int vdso_mremap(const struct vm_special_mapping *sm,

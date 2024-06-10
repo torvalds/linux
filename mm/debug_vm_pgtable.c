@@ -30,6 +30,7 @@
 #include <linux/start_kernel.h>
 #include <linux/sched/mm.h>
 #include <linux/io.h>
+#include <linux/vmalloc.h>
 
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
@@ -981,6 +982,7 @@ static void __init pmd_thp_tests(struct pgtable_debug_args *args)
 #ifndef __HAVE_ARCH_PMDP_INVALIDATE
 	WARN_ON(!pmd_trans_huge(pmd_mkinvalid(pmd_mkhuge(pmd))));
 	WARN_ON(!pmd_present(pmd_mkinvalid(pmd_mkhuge(pmd))));
+	WARN_ON(!pmd_leaf(pmd_mkinvalid(pmd_mkhuge(pmd))));
 #endif /* __HAVE_ARCH_PMDP_INVALIDATE */
 }
 

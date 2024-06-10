@@ -161,7 +161,7 @@ static void cpufreq_add_device(const char *name)
 
 	pdev = platform_device_register_simple(name, PLATFORM_DEVID_NONE, NULL, 0);
 	if (IS_ERR(pdev))
-		pr_info("%s device creation failed: %ld\n", name, PTR_ERR(pdev));
+		pr_info("%s device creation failed: %pe\n", name, pdev);
 }
 
 #ifdef CONFIG_X86
@@ -380,6 +380,9 @@ static int acpi_processor_add(struct acpi_device *device,
 	struct acpi_processor *pr;
 	struct device *dev;
 	int result = 0;
+
+	if (!acpi_device_is_enabled(device))
+		return -ENODEV;
 
 	pr = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
 	if (!pr)

@@ -1,0 +1,99 @@
+[
+  {
+    "MetricName": "total_dispatch_slots",
+    "BriefDescription": "Total dispatch slots (up to 8 instructions can be dispatched in each cycle).",
+    "MetricExpr": "8 * ls_not_halted_cyc",
+    "ScaleUnit": "1slots"
+  },
+  {
+    "MetricName": "frontend_bound",
+    "BriefDescription": "Percentage of dispatch slots that remained unused because the frontend did not supply enough instructions/ops.",
+    "MetricExpr": "d_ratio(de_no_dispatch_per_slot.no_ops_from_frontend, total_dispatch_slots)",
+    "MetricGroup": "PipelineL1",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "bad_speculation",
+    "BriefDescription": "Percentage of dispatched ops that did not retire.",
+    "MetricExpr": "d_ratio(de_src_op_disp.all - ex_ret_ops, total_dispatch_slots)",
+    "MetricGroup": "PipelineL1",
+    "ScaleUnit": "100%ops"
+  },
+  {
+    "MetricName": "backend_bound",
+    "BriefDescription": "Percentage of dispatch slots that remained unused because of backend stalls.",
+    "MetricExpr": "d_ratio(de_no_dispatch_per_slot.backend_stalls, total_dispatch_slots)",
+    "MetricGroup": "PipelineL1",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "smt_contention",
+    "BriefDescription": "Percentage of dispatch slots that remained unused because the other thread was selected.",
+    "MetricExpr": "d_ratio(de_no_dispatch_per_slot.smt_contention, total_dispatch_slots)",
+    "MetricGroup": "PipelineL1",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "retiring",
+    "BriefDescription": "Percentage of dispatch slots used by ops that retired.",
+    "MetricExpr": "d_ratio(ex_ret_ops, total_dispatch_slots)",
+    "MetricGroup": "PipelineL1",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "frontend_bound_by_latency",
+    "BriefDescription": "Percentage of dispatch slots that remained unused because of a latency bottleneck in the frontend (such as instruction cache or TLB misses).",
+    "MetricExpr": "d_ratio((8 * cpu@de_no_dispatch_per_slot.no_ops_from_frontend\\,cmask\\=0x8@), total_dispatch_slots)",
+    "MetricGroup": "PipelineL2;frontend_bound_group",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "frontend_bound_by_bandwidth",
+    "BriefDescription": "Percentage of dispatch slots that remained unused because of a bandwidth bottleneck in the frontend (such as decode or op cache fetch bandwidth).",
+    "MetricExpr": "d_ratio(de_no_dispatch_per_slot.no_ops_from_frontend - (8 * cpu@de_no_dispatch_per_slot.no_ops_from_frontend\\,cmask\\=0x8@), total_dispatch_slots)",
+    "MetricGroup": "PipelineL2;frontend_bound_group",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "bad_speculation_from_mispredicts",
+    "BriefDescription": "Percentage of dispatched ops that were flushed due to branch mispredicts.",
+    "MetricExpr": "d_ratio(bad_speculation * ex_ret_brn_misp, ex_ret_brn_misp + bp_redirects.resync)",
+    "MetricGroup": "PipelineL2;bad_speculation_group",
+    "ScaleUnit": "100%ops"
+  },
+  {
+    "MetricName": "bad_speculation_from_pipeline_restarts",
+    "BriefDescription": "Percentage of dispatched ops that were flushed due to pipeline restarts (resyncs).",
+    "MetricExpr": "d_ratio(bad_speculation * bp_redirects.resync, ex_ret_brn_misp + bp_redirects.resync)",
+    "MetricGroup": "PipelineL2;bad_speculation_group",
+    "ScaleUnit": "100%ops"
+  },
+  {
+    "MetricName": "backend_bound_by_memory",
+    "BriefDescription": "Percentage of dispatch slots that remained unused because of stalls due to the memory subsystem.",
+    "MetricExpr": "backend_bound * d_ratio(ex_no_retire.load_not_complete, ex_no_retire.not_complete)",
+    "MetricGroup": "PipelineL2;backend_bound_group",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "backend_bound_by_cpu",
+    "BriefDescription": "Percentage of dispatch slots that remained unused because of stalls not related to the memory subsystem.",
+    "MetricExpr": "backend_bound * (1 - d_ratio(ex_no_retire.load_not_complete, ex_no_retire.not_complete))",
+    "MetricGroup": "PipelineL2;backend_bound_group",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "retiring_from_fastpath",
+    "BriefDescription": "Percentage of dispatch slots used by fastpath ops that retired.",
+    "MetricExpr": "retiring * (1 - d_ratio(ex_ret_ucode_ops, ex_ret_ops))",
+    "MetricGroup": "PipelineL2;retiring_group",
+    "ScaleUnit": "100%slots"
+  },
+  {
+    "MetricName": "retiring_from_microcode",
+    "BriefDescription": "Percentage of dispatch slots used by microcode ops that retired.",
+    "MetricExpr": "retiring * d_ratio(ex_ret_ucode_ops, ex_ret_ops)",
+    "MetricGroup": "PipelineL2;retiring_group",
+    "ScaleUnit": "100%slots"
+  }
+]

@@ -441,6 +441,9 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 	u64 timeout = nsecs_to_jiffies64(DRM_SYNCOBJ_WAIT_FOR_SUBMIT_TIMEOUT);
 	int ret;
 
+	if (flags & ~DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT)
+		return -EINVAL;
+
 	if (!syncobj)
 		return -ENOENT;
 
@@ -1041,8 +1044,10 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 	uint32_t signaled_count, i;
 
 	if (flags & (DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT |
-		     DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE))
+		     DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE)) {
+		might_sleep();
 		lockdep_assert_none_held_once();
+	}
 
 	points = kmalloc_array(count, sizeof(*points), GFP_KERNEL);
 	if (points == NULL)

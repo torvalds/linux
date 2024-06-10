@@ -395,6 +395,7 @@ static struct Qdisc_ops multiq_qdisc_ops __read_mostly = {
 	.dump		=	multiq_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("multiq");
 
 static int __init multiq_module_init(void)
 {

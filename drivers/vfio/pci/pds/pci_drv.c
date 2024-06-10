@@ -21,16 +21,13 @@
 
 static void pds_vfio_recovery(struct pds_vfio_pci_device *pds_vfio)
 {
-	bool deferred_reset_needed = false;
-
 	/*
 	 * Documentation states that the kernel migration driver must not
 	 * generate asynchronous device state transitions outside of
 	 * manipulation by the user or the VFIO_DEVICE_RESET ioctl.
 	 *
 	 * Since recovery is an asynchronous event received from the device,
-	 * initiate a deferred reset. Issue a deferred reset in the following
-	 * situations:
+	 * initiate a reset in the following situations:
 	 *   1. Migration is in progress, which will cause the next step of
 	 *	the migration to fail.
 	 *   2. If the device is in a state that will be set to
@@ -42,24 +39,8 @@ static void pds_vfio_recovery(struct pds_vfio_pci_device *pds_vfio)
 	     pds_vfio->state != VFIO_DEVICE_STATE_ERROR) ||
 	    (pds_vfio->state == VFIO_DEVICE_STATE_RUNNING &&
 	     pds_vfio_dirty_is_enabled(pds_vfio)))
-		deferred_reset_needed = true;
+		pds_vfio_reset(pds_vfio, VFIO_DEVICE_STATE_ERROR);
 	mutex_unlock(&pds_vfio->state_mutex);
-
-	/*
-	 * On the next user initiated state transition, the device will
-	 * transition to the VFIO_DEVICE_STATE_ERROR. At this point it's the user's
-	 * responsibility to reset the device.
-	 *
-	 * If a VFIO_DEVICE_RESET is requested post recovery and before the next
-	 * state transition, then the deferred reset state will be set to
-	 * VFIO_DEVICE_STATE_RUNNING.
-	 */
-	if (deferred_reset_needed) {
-		mutex_lock(&pds_vfio->reset_mutex);
-		pds_vfio->deferred_reset = true;
-		pds_vfio->deferred_reset_state = VFIO_DEVICE_STATE_ERROR;
-		mutex_unlock(&pds_vfio->reset_mutex);
-	}
 }
 
 static int pds_vfio_pci_notify_handler(struct notifier_block *nb,
@@ -185,7 +166,9 @@ static void pds_vfio_pci_aer_reset_done(struct pci_dev *pdev)
 {
 	struct pds_vfio_pci_device *pds_vfio = pds_vfio_pci_drvdata(pdev);
 
-	pds_vfio_reset(pds_vfio);
+	mutex_lock(&pds_vfio->state_mutex);
+	pds_vfio_reset(pds_vfio, VFIO_DEVICE_STATE_RUNNING);
+	mutex_unlock(&pds_vfio->state_mutex);
 }
 
 static const struct pci_error_handlers pds_vfio_pci_err_handlers = {

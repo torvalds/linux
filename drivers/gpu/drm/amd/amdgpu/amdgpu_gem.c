@@ -187,7 +187,40 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 	else
 		++bo_va->ref_count;
 	amdgpu_bo_unreserve(abo);
-	return 0;
+
+	/* Validate and add eviction fence to DMABuf imports with dynamic
+	 * attachment in compute VMs. Re-validation will be done by
+	 * amdgpu_vm_validate. Fences are on the reservation shared with the
+	 * export, which is currently required to be validated and fenced
+	 * already by amdgpu_amdkfd_gpuvm_restore_process_bos.
+	 *
+	 * Nested locking below for the case that a GEM object is opened in
+	 * kfd_mem_export_dmabuf. Since the lock below is only taken for imports,
+	 * but not for export, this is a different lock class that cannot lead to
+	 * circular lock dependencies.
+	 */
+	if (!vm->is_compute_context || !vm->process_info)
+		return 0;
+	if (!obj->import_attach ||
+	    !dma_buf_is_dynamic(obj->import_attach->dmabuf))
+		return 0;
+	mutex_lock_nested(&vm->process_info->lock, 1);
+	if (!WARN_ON(!vm->process_info->eviction_fence)) {
+		r = amdgpu_amdkfd_bo_validate_and_fence(abo, AMDGPU_GEM_DOMAIN_GTT,
+							&vm->process_info->eviction_fence->base);
+		if (r) {
+			struct amdgpu_task_info *ti = amdgpu_vm_get_task_info_vm(vm);
+
+			dev_warn(adev->dev, "validate_and_fence failed: %d\n", r);
+			if (ti) {
+				dev_warn(adev->dev, "pid %d\n", ti->pid);
+				amdgpu_vm_put_task_info(ti);
+			}
+		}
+	}
+	mutex_unlock(&vm->process_info->lock);
+
+	return r;
 }
 
 static void amdgpu_gem_object_close(struct drm_gem_object *obj,
@@ -682,10 +715,10 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	uint64_t vm_size;
 	int r = 0;
 
-	if (args->va_address < AMDGPU_VA_RESERVED_SIZE) {
+	if (args->va_address < AMDGPU_VA_RESERVED_BOTTOM) {
 		dev_dbg(dev->dev,
 			"va_address 0x%llx is in reserved area 0x%llx\n",
-			args->va_address, AMDGPU_VA_RESERVED_SIZE);
+			args->va_address, AMDGPU_VA_RESERVED_BOTTOM);
 		return -EINVAL;
 	}
 
@@ -701,7 +734,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	args->va_address &= AMDGPU_GMC_HOLE_MASK;
 
 	vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
-	vm_size -= AMDGPU_VA_RESERVED_SIZE;
+	vm_size -= AMDGPU_VA_RESERVED_TOP;
 	if (args->va_address + args->map_size > vm_size) {
 		dev_dbg(dev->dev,
 			"va_address 0x%llx is in top reserved area 0x%llx\n",

@@ -214,7 +214,8 @@ struct xilinx_dpdma_tx_desc {
  * @running: true if the channel is running
  * @first_frame: flag for the first frame of stream
  * @video_group: flag if multi-channel operation is needed for video channels
- * @lock: lock to access struct xilinx_dpdma_chan
+ * @lock: lock to access struct xilinx_dpdma_chan. Must be taken before
+ *        @vchan.lock, if both are to be held.
  * @desc_pool: descriptor allocation pool
  * @err_task: error IRQ bottom half handler
  * @desc: References to descriptors being processed
@@ -1042,9 +1043,8 @@ static int xilinx_dpdma_chan_stop(struct xilinx_dpdma_chan *chan)
 static void xilinx_dpdma_chan_done_irq(struct xilinx_dpdma_chan *chan)
 {
 	struct xilinx_dpdma_tx_desc *active;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chan->lock, flags);
+	spin_lock(&chan->lock);
 
 	xilinx_dpdma_debugfs_desc_done_irq(chan);
 
@@ -1056,7 +1056,7 @@ static void xilinx_dpdma_chan_done_irq(struct xilinx_dpdma_chan *chan)
 			 "chan%u: DONE IRQ with no active descriptor!\n",
 			 chan->id);
 
-	spin_unlock_irqrestore(&chan->lock, flags);
+	spin_unlock(&chan->lock);
 }
 
 /**
@@ -1071,10 +1071,9 @@ static void xilinx_dpdma_chan_vsync_irq(struct  xilinx_dpdma_chan *chan)
 {
 	struct xilinx_dpdma_tx_desc *pending;
 	struct xilinx_dpdma_sw_desc *sw_desc;
-	unsigned long flags;
 	u32 desc_id;
 
-	spin_lock_irqsave(&chan->lock, flags);
+	spin_lock(&chan->lock);
 
 	pending = chan->desc.pending;
 	if (!chan->running || !pending)
@@ -1097,15 +1096,17 @@ static void xilinx_dpdma_chan_vsync_irq(struct  xilinx_dpdma_chan *chan)
 	 * Complete the active descriptor, if any, promote the pending
 	 * descriptor to active, and queue the next transfer, if any.
 	 */
+	spin_lock(&chan->vchan.lock);
 	if (chan->desc.active)
 		vchan_cookie_complete(&chan->desc.active->vdesc);
 	chan->desc.active = pending;
 	chan->desc.pending = NULL;
 
 	xilinx_dpdma_chan_queue_transfer(chan);
+	spin_unlock(&chan->vchan.lock);
 
 out:
-	spin_unlock_irqrestore(&chan->lock, flags);
+	spin_unlock(&chan->lock);
 }
 
 /**
@@ -1264,10 +1265,12 @@ static void xilinx_dpdma_issue_pending(struct dma_chan *dchan)
 	struct xilinx_dpdma_chan *chan = to_xilinx_chan(dchan);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chan->vchan.lock, flags);
+	spin_lock_irqsave(&chan->lock, flags);
+	spin_lock(&chan->vchan.lock);
 	if (vchan_issue_pending(&chan->vchan))
 		xilinx_dpdma_chan_queue_transfer(chan);
-	spin_unlock_irqrestore(&chan->vchan.lock, flags);
+	spin_unlock(&chan->vchan.lock);
+	spin_unlock_irqrestore(&chan->lock, flags);
 }
 
 static int xilinx_dpdma_config(struct dma_chan *dchan,
@@ -1495,7 +1498,9 @@ static void xilinx_dpdma_chan_err_task(struct tasklet_struct *t)
 		    XILINX_DPDMA_EINTR_CHAN_ERR_MASK << chan->id);
 
 	spin_lock_irqsave(&chan->lock, flags);
+	spin_lock(&chan->vchan.lock);
 	xilinx_dpdma_chan_queue_transfer(chan);
+	spin_unlock(&chan->vchan.lock);
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
 

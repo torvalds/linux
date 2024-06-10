@@ -27,6 +27,7 @@
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_trans_priv.h"
+#include "xfs_exchmaps.h"
 
 static struct kmem_cache	*xfs_defer_pending_cache;
 
@@ -819,16 +820,16 @@ xfs_defer_can_append(
 /* Create a new pending item at the end of the transaction list. */
 static inline struct xfs_defer_pending *
 xfs_defer_alloc(
-	struct xfs_trans		*tp,
+	struct list_head		*dfops,
 	const struct xfs_defer_op_type	*ops)
 {
 	struct xfs_defer_pending	*dfp;
 
 	dfp = kmem_cache_zalloc(xfs_defer_pending_cache,
-			GFP_NOFS | __GFP_NOFAIL);
+			GFP_KERNEL | __GFP_NOFAIL);
 	dfp->dfp_ops = ops;
 	INIT_LIST_HEAD(&dfp->dfp_work);
-	list_add_tail(&dfp->dfp_list, &tp->t_dfops);
+	list_add_tail(&dfp->dfp_list, dfops);
 
 	return dfp;
 }
@@ -846,7 +847,7 @@ xfs_defer_add(
 
 	dfp = xfs_defer_find_last(tp, ops);
 	if (!dfp || !xfs_defer_can_append(dfp, ops))
-		dfp = xfs_defer_alloc(tp, ops);
+		dfp = xfs_defer_alloc(&tp->t_dfops, ops);
 
 	xfs_defer_add_item(dfp, li);
 	trace_xfs_defer_add_item(tp->t_mountp, dfp, li);
@@ -870,7 +871,7 @@ xfs_defer_add_barrier(
 	if (dfp)
 		return;
 
-	xfs_defer_alloc(tp, &xfs_barrier_defer_type);
+	xfs_defer_alloc(&tp->t_dfops, &xfs_barrier_defer_type);
 
 	trace_xfs_defer_add_item(tp->t_mountp, dfp, NULL);
 }
@@ -885,14 +886,9 @@ xfs_defer_start_recovery(
 	struct list_head		*r_dfops,
 	const struct xfs_defer_op_type	*ops)
 {
-	struct xfs_defer_pending	*dfp;
+	struct xfs_defer_pending	*dfp = xfs_defer_alloc(r_dfops, ops);
 
-	dfp = kmem_cache_zalloc(xfs_defer_pending_cache,
-			GFP_NOFS | __GFP_NOFAIL);
-	dfp->dfp_ops = ops;
 	dfp->dfp_intent = lip;
-	INIT_LIST_HEAD(&dfp->dfp_work);
-	list_add_tail(&dfp->dfp_list, r_dfops);
 }
 
 /*
@@ -979,7 +975,7 @@ xfs_defer_ops_capture(
 		return ERR_PTR(error);
 
 	/* Create an object to capture the defer ops. */
-	dfc = kmem_zalloc(sizeof(*dfc), KM_NOFS);
+	dfc = kzalloc(sizeof(*dfc), GFP_KERNEL | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&dfc->dfc_list);
 	INIT_LIST_HEAD(&dfc->dfc_dfops);
 
@@ -1011,7 +1007,7 @@ xfs_defer_ops_capture(
 	 * transaction.
 	 */
 	for (i = 0; i < dfc->dfc_held.dr_inos; i++) {
-		ASSERT(xfs_isilocked(dfc->dfc_held.dr_ip[i], XFS_ILOCK_EXCL));
+		xfs_assert_ilocked(dfc->dfc_held.dr_ip[i], XFS_ILOCK_EXCL);
 		ihold(VFS_I(dfc->dfc_held.dr_ip[i]));
 	}
 
@@ -1038,7 +1034,7 @@ xfs_defer_ops_capture_abort(
 	for (i = 0; i < dfc->dfc_held.dr_inos; i++)
 		xfs_irele(dfc->dfc_held.dr_ip[i]);
 
-	kmem_free(dfc);
+	kfree(dfc);
 }
 
 /*
@@ -1096,7 +1092,11 @@ xfs_defer_ops_continue(
 	ASSERT(!(tp->t_flags & XFS_TRANS_DIRTY));
 
 	/* Lock the captured resources to the new transaction. */
-	if (dfc->dfc_held.dr_inos == 2)
+	if (dfc->dfc_held.dr_inos > 2) {
+		xfs_sort_inodes(dfc->dfc_held.dr_ip, dfc->dfc_held.dr_inos);
+		xfs_lock_inodes(dfc->dfc_held.dr_ip, dfc->dfc_held.dr_inos,
+				XFS_ILOCK_EXCL);
+	} else if (dfc->dfc_held.dr_inos == 2)
 		xfs_lock_two_inodes(dfc->dfc_held.dr_ip[0], XFS_ILOCK_EXCL,
 				    dfc->dfc_held.dr_ip[1], XFS_ILOCK_EXCL);
 	else if (dfc->dfc_held.dr_inos == 1)
@@ -1114,7 +1114,7 @@ xfs_defer_ops_continue(
 	list_splice_init(&dfc->dfc_dfops, &tp->t_dfops);
 	tp->t_flags |= dfc->dfc_tpflags;
 
-	kmem_free(dfc);
+	kfree(dfc);
 }
 
 /* Release the resources captured and continued during recovery. */
@@ -1181,6 +1181,10 @@ xfs_defer_init_item_caches(void)
 	error = xfs_attr_intent_init_cache();
 	if (error)
 		goto err;
+	error = xfs_exchmaps_intent_init_cache();
+	if (error)
+		goto err;
+
 	return 0;
 err:
 	xfs_defer_destroy_item_caches();
@@ -1191,6 +1195,7 @@ err:
 void
 xfs_defer_destroy_item_caches(void)
 {
+	xfs_exchmaps_intent_destroy_cache();
 	xfs_attr_intent_destroy_cache();
 	xfs_extfree_intent_destroy_cache();
 	xfs_bmap_intent_destroy_cache();

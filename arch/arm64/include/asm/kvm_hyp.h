@@ -70,7 +70,7 @@ DECLARE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 /*
  * Without an __arch_swab32(), we fall back to ___constant_swab32(), but the
  * static inline can allow the compiler to out-of-line this. KVM always wants
- * the macro version as its always inlined.
+ * the macro version as it's always inlined.
  */
 #define __kvm_swab32(x)	___constant_swab32(x)
 
@@ -80,8 +80,8 @@ void __vgic_v3_save_state(struct vgic_v3_cpu_if *cpu_if);
 void __vgic_v3_restore_state(struct vgic_v3_cpu_if *cpu_if);
 void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if);
 void __vgic_v3_deactivate_traps(struct vgic_v3_cpu_if *cpu_if);
-void __vgic_v3_save_aprs(struct vgic_v3_cpu_if *cpu_if);
-void __vgic_v3_restore_aprs(struct vgic_v3_cpu_if *cpu_if);
+void __vgic_v3_save_vmcr_aprs(struct vgic_v3_cpu_if *cpu_if);
+void __vgic_v3_restore_vmcr_aprs(struct vgic_v3_cpu_if *cpu_if);
 int __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu);
 
 #ifdef __KVM_NVHE_HYPERVISOR__

@@ -15,7 +15,7 @@ kms_color@pipe-A-ctm-max,Fail
 kms_color@pipe-A-ctm-negative,Fail
 kms_color@pipe-A-ctm-red-to-blue,Fail
 kms_color@pipe-A-legacy-gamma,Fail
-kms_cursor_legacy@basic-flip-after-cursor-legacy,Fail
+kms_cursor_legacy@basic-flip-after-cursor-atomic,Fail
 kms_cursor_legacy@basic-flip-after-cursor-varying-size,Fail
 kms_cursor_legacy@basic-flip-before-cursor-atomic,Fail
 kms_cursor_legacy@basic-flip-before-cursor-legacy,Fail
@@ -29,9 +29,6 @@ kms_cursor_legacy@flip-vs-cursor-atomic,Fail
 kms_cursor_legacy@flip-vs-cursor-crc-atomic,Fail
 kms_cursor_legacy@flip-vs-cursor-crc-legacy,Fail
 kms_cursor_legacy@flip-vs-cursor-legacy,Fail
-kms_cursor_legacy@short-flip-after-cursor-atomic-transitions,Fail
-kms_cursor_legacy@short-flip-after-cursor-atomic-transitions-varying-size,Fail
-kms_cursor_legacy@short-flip-after-cursor-toggle,Fail
 kms_flip@flip-vs-modeset-vs-hang,Fail
 kms_flip@flip-vs-panning-vs-hang,Fail
 kms_pipe_crc_basic@compare-crc-sanitycheck-nv12,Fail

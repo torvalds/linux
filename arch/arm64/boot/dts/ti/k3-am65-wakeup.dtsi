@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * Device Tree Source for AM6 SoC Family Wakeup Domain peripherals
  *
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2016-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_wakeup {
@@ -59,7 +59,6 @@
 		reg = <0x42300000 0x100>;
 		interrupts = <GIC_SPI 697 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 150 TI_SCI_PD_EXCLUSIVE>;
 		status = "disabled";
 	};

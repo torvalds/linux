@@ -595,6 +595,9 @@ static long vhost_vdpa_suspend(struct vhost_vdpa *v)
 	const struct vdpa_config_ops *ops = vdpa->config;
 	int ret;
 
+	if (!(ops->get_status(vdpa) & VIRTIO_CONFIG_S_DRIVER_OK))
+		return 0;
+
 	if (!ops->suspend)
 		return -EOPNOTSUPP;
 
@@ -614,6 +617,9 @@ static long vhost_vdpa_resume(struct vhost_vdpa *v)
 	struct vdpa_device *vdpa = v->vdpa;
 	const struct vdpa_config_ops *ops = vdpa->config;
 	int ret;
+
+	if (!(ops->get_status(vdpa) & VIRTIO_CONFIG_S_DRIVER_OK))
+		return 0;
 
 	if (!ops->resume)
 		return -EOPNOTSUPP;
@@ -681,6 +687,14 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 		if (!ops->set_group_asid)
 			return -EOPNOTSUPP;
 		return ops->set_group_asid(vdpa, idx, s.num);
+	case VHOST_VDPA_GET_VRING_SIZE:
+		if (!ops->get_vq_size)
+			return -EOPNOTSUPP;
+		s.index = idx;
+		s.num = ops->get_vq_size(vdpa, idx);
+		if (copy_to_user(argp, &s, sizeof(s)))
+			return -EFAULT;
+		return 0;
 	case VHOST_GET_VRING_BASE:
 		r = ops->get_vq_state(v->vdpa, idx, &vq_state);
 		if (r)
@@ -1534,7 +1548,7 @@ static void vhost_vdpa_release_dev(struct device *device)
 	struct vhost_vdpa *v =
 	       container_of(device, struct vhost_vdpa, dev);
 
-	ida_simple_remove(&vhost_vdpa_ida, v->minor);
+	ida_free(&vhost_vdpa_ida, v->minor);
 	kfree(v->vqs);
 	kfree(v);
 }
@@ -1557,8 +1571,8 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 	if (!v)
 		return -ENOMEM;
 
-	minor = ida_simple_get(&vhost_vdpa_ida, 0,
-			       VHOST_VDPA_DEV_MAX, GFP_KERNEL);
+	minor = ida_alloc_max(&vhost_vdpa_ida, VHOST_VDPA_DEV_MAX - 1,
+			      GFP_KERNEL);
 	if (minor < 0) {
 		kfree(v);
 		return minor;

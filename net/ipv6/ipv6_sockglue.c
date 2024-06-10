@@ -948,6 +948,8 @@ done:
 		if (optlen < sizeof(int))
 			goto e_inval;
 		retv = ip6_ra_control(sk, val);
+		if (retv == 0)
+			inet6_assign_bit(RTALERT, sk, valbool);
 		break;
 	case IPV6_FLOWLABEL_MGR:
 		retv = ipv6_flowlabel_opt(sk, optval, optlen);
@@ -1346,7 +1348,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		}
 
 		if (val < 0)
-			val = sock_net(sk)->ipv6.devconf_all->hop_limit;
+			val = READ_ONCE(sock_net(sk)->ipv6.devconf_all->hop_limit);
 		break;
 	}
 
@@ -1443,6 +1445,10 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_RECVFRAGSIZE:
 		val = np->rxopt.bits.recvfragsize;
+		break;
+
+	case IPV6_ROUTER_ALERT:
+		val = inet6_test_bit(RTALERT, sk);
 		break;
 
 	case IPV6_ROUTER_ALERT_ISOLATE:

@@ -4634,6 +4634,14 @@ unsigned long ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
 			iput(inode);
 			spin_lock(&mdsc->cap_delay_lock);
 		}
+
+		/*
+		 * Make sure too many dirty caps or general
+		 * slowness doesn't block mdsc delayed work,
+		 * preventing send_renew_caps() from running.
+		 */
+		if (jiffies - loop_start >= 5 * HZ)
+			break;
 	}
 	spin_unlock(&mdsc->cap_delay_lock);
 	doutc(cl, "done\n");
@@ -4775,13 +4783,13 @@ int ceph_drop_caps_for_unlink(struct inode *inode)
 
 			doutc(mdsc->fsc->client, "%p %llx.%llx\n", inode,
 			      ceph_vinop(inode));
-			spin_lock(&mdsc->cap_unlink_delay_lock);
+			spin_lock(&mdsc->cap_delay_lock);
 			ci->i_ceph_flags |= CEPH_I_FLUSH;
 			if (!list_empty(&ci->i_cap_delay_list))
 				list_del_init(&ci->i_cap_delay_list);
 			list_add_tail(&ci->i_cap_delay_list,
 				      &mdsc->cap_unlink_delay_list);
-			spin_unlock(&mdsc->cap_unlink_delay_lock);
+			spin_unlock(&mdsc->cap_delay_lock);
 
 			/*
 			 * Fire the work immediately, because the MDS maybe

@@ -2465,7 +2465,7 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 	}
 }
 
-static struct device_type hso_type = {
+static const struct device_type hso_type = {
 	.name	= "wwan",
 };
 

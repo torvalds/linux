@@ -217,7 +217,7 @@ static void acp_card_shutdown(struct snd_pcm_substream *substream)
 static int acp_card_rt5682_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
@@ -828,8 +828,8 @@ static const struct snd_soc_ops acp_card_maxim_ops = {
 };
 
 SND_SOC_DAILINK_DEF(max98388,
-		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-ADS8388:00", "max98388-aif1"),
-				       COMP_CODEC("i2c-ADS8388:01", "max98388-aif1")));
+		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-ADS8388:00", MAX98388_CODEC_DAI),
+				       COMP_CODEC("i2c-ADS8388:01", MAX98388_CODEC_DAI)));
 
 static const struct snd_kcontrol_new max98388_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Left Spk"),
@@ -1280,7 +1280,7 @@ static const struct snd_soc_ops acp_8821_ops = {
 
 SND_SOC_DAILINK_DEF(nau8821,
 		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-NVTN2020:00",
-						  "nau8821-hifi")));
+						  NAU8821_CODEC_DAI)));
 
 /* Declare DMIC codec components */
 SND_SOC_DAILINK_DEF(dmic_codec,

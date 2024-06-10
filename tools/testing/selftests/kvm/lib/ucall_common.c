@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include "kvm_util.h"
 #include "linux/types.h"
 #include "linux/bitmap.h"
 #include "linux/atomic.h"
+
+#include "kvm_util.h"
+#include "ucall_common.h"
+
 
 #define GUEST_UCALL_FAILED -1
 
@@ -29,7 +32,8 @@ void ucall_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa)
 	vm_vaddr_t vaddr;
 	int i;
 
-	vaddr = __vm_vaddr_alloc(vm, sizeof(*hdr), KVM_UTIL_MIN_VADDR, MEM_REGION_DATA);
+	vaddr = vm_vaddr_alloc_shared(vm, sizeof(*hdr), KVM_UTIL_MIN_VADDR,
+				      MEM_REGION_DATA);
 	hdr = (struct ucall_header *)addr_gva2hva(vm, vaddr);
 	memset(hdr, 0, sizeof(*hdr));
 

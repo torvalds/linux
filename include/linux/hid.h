@@ -474,9 +474,9 @@ struct hid_usage {
 	__s8	  wheel_factor;		/* 120/resolution_multiplier */
 	__u16     code;			/* input driver code */
 	__u8      type;			/* input driver type */
-	__s8	  hat_min;		/* hat switch fun */
-	__s8	  hat_max;		/* ditto */
-	__s8	  hat_dir;		/* ditto */
+	__s16	  hat_min;		/* hat switch fun */
+	__s16	  hat_max;		/* ditto */
+	__s16	  hat_dir;		/* ditto */
 	__s16	  wheel_accumulated;	/* hi-res wheel */
 };
 
@@ -683,9 +683,9 @@ struct hid_device {							/* device report descriptor */
 
 	unsigned int id;						/* system unique id */
 
-#ifdef CONFIG_BPF
+#ifdef CONFIG_HID_BPF
 	struct hid_bpf bpf;						/* hid-bpf data */
-#endif /* CONFIG_BPF */
+#endif /* CONFIG_HID_BPF */
 };
 
 void hiddev_free(struct kref *ref);

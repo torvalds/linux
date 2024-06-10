@@ -77,6 +77,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.cpus_ptr	= &init_task.cpus_mask,
 	.user_cpus_ptr	= NULL,
 	.cpus_mask	= CPU_MASK_ALL,
+	.max_allowed_capacity	= SCHED_CAPACITY_SCALE,
 	.nr_cpus_allowed= NR_CPUS,
 	.mm		= NULL,
 	.active_mm	= &init_mm,
@@ -147,6 +148,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.rcu_tasks_holdout = false,
 	.rcu_tasks_holdout_list = LIST_HEAD_INIT(init_task.rcu_tasks_holdout_list),
 	.rcu_tasks_idle_cpu = -1,
+	.rcu_tasks_exit_list = LIST_HEAD_INIT(init_task.rcu_tasks_exit_list),
 #endif
 #ifdef CONFIG_TASKS_TRACE_RCU
 	.trc_reader_nesting = 0,
@@ -197,7 +199,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.trace_recursion = 0,
 #endif
 #ifdef CONFIG_LIVEPATCH
-	.patch_state	= KLP_UNDEFINED,
+	.patch_state	= KLP_TRANSITION_IDLE,
 #endif
 #ifdef CONFIG_SECURITY
 	.security	= NULL,

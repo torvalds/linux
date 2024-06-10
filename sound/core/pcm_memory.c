@@ -38,17 +38,15 @@ static void __update_allocated_size(struct snd_card *card, ssize_t bytes)
 
 static void update_allocated_size(struct snd_card *card, ssize_t bytes)
 {
-	mutex_lock(&card->memory_mutex);
+	guard(mutex)(&card->memory_mutex);
 	__update_allocated_size(card, bytes);
-	mutex_unlock(&card->memory_mutex);
 }
 
 static void decrease_allocated_size(struct snd_card *card, size_t bytes)
 {
-	mutex_lock(&card->memory_mutex);
+	guard(mutex)(&card->memory_mutex);
 	WARN_ON(card->total_pcm_alloc_bytes < bytes);
 	__update_allocated_size(card, -(ssize_t)bytes);
-	mutex_unlock(&card->memory_mutex);
 }
 
 static int do_alloc_pages(struct snd_card *card, int type, struct device *dev,
@@ -58,14 +56,12 @@ static int do_alloc_pages(struct snd_card *card, int type, struct device *dev,
 	int err;
 
 	/* check and reserve the requested size */
-	mutex_lock(&card->memory_mutex);
-	if (max_alloc_per_card &&
-	    card->total_pcm_alloc_bytes + size > max_alloc_per_card) {
-		mutex_unlock(&card->memory_mutex);
-		return -ENOMEM;
+	scoped_guard(mutex, &card->memory_mutex) {
+		if (max_alloc_per_card &&
+		    card->total_pcm_alloc_bytes + size > max_alloc_per_card)
+			return -ENOMEM;
+		__update_allocated_size(card, size);
 	}
-	__update_allocated_size(card, size);
-	mutex_unlock(&card->memory_mutex);
 
 	if (str == SNDRV_PCM_STREAM_PLAYBACK)
 		dir = DMA_TO_DEVICE;
@@ -191,20 +187,20 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 	size_t size;
 	struct snd_dma_buffer new_dmab;
 
-	mutex_lock(&substream->pcm->open_mutex);
+	guard(mutex)(&substream->pcm->open_mutex);
 	if (substream->runtime) {
 		buffer->error = -EBUSY;
-		goto unlock;
+		return;
 	}
 	if (!snd_info_get_line(buffer, line, sizeof(line))) {
 		snd_info_get_str(str, line, sizeof(str));
 		size = simple_strtoul(str, NULL, 10) * 1024;
 		if ((size != 0 && size < 8192) || size > substream->dma_max) {
 			buffer->error = -EINVAL;
-			goto unlock;
+			return;
 		}
 		if (substream->dma_buffer.bytes == size)
-			goto unlock;
+			return;
 		memset(&new_dmab, 0, sizeof(new_dmab));
 		new_dmab.dev = substream->dma_buffer.dev;
 		if (size > 0) {
@@ -218,7 +214,7 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 					 substream->pcm->card->number, substream->pcm->device,
 					 substream->stream ? 'c' : 'p', substream->number,
 					 substream->pcm->name, size);
-				goto unlock;
+				return;
 			}
 			substream->buffer_bytes_max = size;
 		} else {
@@ -230,8 +226,6 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 	} else {
 		buffer->error = -EINVAL;
 	}
- unlock:
-	mutex_unlock(&substream->pcm->open_mutex);
 }
 
 static inline void preallocate_info_init(struct snd_pcm_substream *substream)

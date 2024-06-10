@@ -337,6 +337,7 @@ static const struct of_device_id sunxi_de2_clk_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sunxi_de2_clk_ids);
 
 static struct platform_driver sunxi_de2_clk_driver = {
 	.probe	= sunxi_de2_clk_probe,

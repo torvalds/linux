@@ -539,7 +539,7 @@ static void test_bind_and_connect(struct __test_metadata *const _metadata,
 		}
 
 		EXPECT_EQ(0, close(connect_fd));
-		_exit(_metadata->passed ? EXIT_SUCCESS : EXIT_FAILURE);
+		_exit(_metadata->exit_code);
 		return;
 	}
 
@@ -834,7 +834,7 @@ TEST_F(protocol, connect_unspec)
 		}
 
 		EXPECT_EQ(0, close(connect_fd));
-		_exit(_metadata->passed ? EXIT_SUCCESS : EXIT_FAILURE);
+		_exit(_metadata->exit_code);
 		return;
 	}
 

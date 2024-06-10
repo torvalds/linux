@@ -283,7 +283,7 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id)
+int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, u32 *sw_owner_id)
 {
 	u32 in[MLX5_ST_SZ_DW(init_hca_in)] = {};
 	int i;
@@ -366,18 +366,18 @@ int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev)
 		return -EIO;
 	}
 
-	mlx5_set_nic_state(dev, MLX5_NIC_IFC_DISABLED);
+	mlx5_set_nic_state(dev, MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED);
 
 	/* Loop until device state turns to disable */
 	end = jiffies + msecs_to_jiffies(delay_ms);
 	do {
-		if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
+		if (mlx5_get_nic_state(dev) == MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED)
 			break;
 
 		cond_resched();
 	} while (!time_after(jiffies, end));
 
-	if (mlx5_get_nic_state(dev) != MLX5_NIC_IFC_DISABLED) {
+	if (mlx5_get_nic_state(dev) != MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED) {
 		dev_err(&dev->pdev->dev, "NIC IFC still %d after %lums.\n",
 			mlx5_get_nic_state(dev), delay_ms);
 		return -EIO;

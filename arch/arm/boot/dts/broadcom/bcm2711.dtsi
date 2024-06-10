@@ -432,8 +432,8 @@
 		};
 	};
 
-	arm-pmu {
-		compatible = "arm,cortex-a72-pmu", "arm,armv8-pmuv3";
+	pmu {
+		compatible = "arm,cortex-a72-pmu";
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
@@ -1112,6 +1112,14 @@
 
 &rmem {
 	#address-cells = <2>;
+};
+
+&csi0 {
+	interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&csi1 {
+	interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &cma {

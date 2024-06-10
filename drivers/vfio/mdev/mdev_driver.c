@@ -40,7 +40,7 @@ static int mdev_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-struct bus_type mdev_bus_type = {
+const struct bus_type mdev_bus_type = {
 	.name		= "mdev",
 	.probe		= mdev_probe,
 	.remove		= mdev_remove,

@@ -1999,6 +1999,14 @@ pnfs_update_layout(struct inode *ino,
 	}
 
 lookup_again:
+	if (!nfs4_valid_open_stateid(ctx->state)) {
+		trace_pnfs_update_layout(ino, pos, count,
+					 iomode, lo, lseg,
+					 PNFS_UPDATE_LAYOUT_INVALID_OPEN);
+		lseg = ERR_PTR(-EIO);
+		goto out;
+	}
+
 	lseg = ERR_PTR(nfs4_client_recover_expired_lease(clp));
 	if (IS_ERR(lseg))
 		goto out;
@@ -2697,38 +2705,28 @@ pnfs_layout_return_unused_byclid(struct nfs_client *clp,
 			&range);
 }
 
+/* Check if we have we have a valid layout but if there isn't an intersection
+ * between the request and the pgio->pg_lseg, put this pgio->pg_lseg away.
+ */
 void
-pnfs_generic_pg_check_layout(struct nfs_pageio_descriptor *pgio)
+pnfs_generic_pg_check_layout(struct nfs_pageio_descriptor *pgio,
+			     struct nfs_page *req)
 {
 	if (pgio->pg_lseg == NULL ||
-	    test_bit(NFS_LSEG_VALID, &pgio->pg_lseg->pls_flags))
+	    (test_bit(NFS_LSEG_VALID, &pgio->pg_lseg->pls_flags) &&
+	    pnfs_lseg_request_intersecting(pgio->pg_lseg, req)))
 		return;
 	pnfs_put_lseg(pgio->pg_lseg);
 	pgio->pg_lseg = NULL;
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_check_layout);
 
-/*
- * Check for any intersection between the request and the pgio->pg_lseg,
- * and if none, put this pgio->pg_lseg away.
- */
-void
-pnfs_generic_pg_check_range(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
-{
-	if (pgio->pg_lseg && !pnfs_lseg_request_intersecting(pgio->pg_lseg, req)) {
-		pnfs_put_lseg(pgio->pg_lseg);
-		pgio->pg_lseg = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(pnfs_generic_pg_check_range);
-
 void
 pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 {
 	u64 rd_size;
 
-	pnfs_generic_pg_check_layout(pgio);
-	pnfs_generic_pg_check_range(pgio, req);
+	pnfs_generic_pg_check_layout(pgio, req);
 	if (pgio->pg_lseg == NULL) {
 		if (pgio->pg_dreq == NULL)
 			rd_size = i_size_read(pgio->pg_inode) - req_offset(req);
@@ -2758,8 +2756,7 @@ void
 pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 			   struct nfs_page *req, u64 wb_size)
 {
-	pnfs_generic_pg_check_layout(pgio);
-	pnfs_generic_pg_check_range(pgio, req);
+	pnfs_generic_pg_check_layout(pgio, req);
 	if (pgio->pg_lseg == NULL) {
 		pgio->pg_lseg =
 			pnfs_update_layout(pgio->pg_inode, nfs_req_openctx(req),

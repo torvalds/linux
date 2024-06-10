@@ -77,6 +77,7 @@
 #include "ice_gnss.h"
 #include "ice_irq.h"
 #include "ice_dpll.h"
+#include "ice_adapter.h"
 
 #define ICE_BAR0		0
 #define ICE_REQ_DESC_MULTIPLE	32
@@ -330,7 +331,6 @@ struct ice_vsi {
 	struct net_device *netdev;
 	struct ice_sw *vsw;		 /* switch this VSI is on */
 	struct ice_pf *back;		 /* back pointer to PF */
-	struct ice_port_info *port_info; /* back pointer to port_info */
 	struct ice_rx_ring **rx_rings;	 /* Rx ring array */
 	struct ice_tx_ring **tx_rings;	 /* Tx ring array */
 	struct ice_q_vector **q_vectors; /* q_vector array */
@@ -348,11 +348,8 @@ struct ice_vsi {
 	/* tell if only dynamic irq allocation is allowed */
 	bool irq_dyn_alloc;
 
-	enum ice_vsi_type type;
 	u16 vsi_num;			/* HW (absolute) index of this VSI */
 	u16 idx;			/* software index in pf->vsi[] */
-
-	struct ice_vf *vf;		/* VF associated with this VSI */
 
 	u16 num_gfltr;
 	u16 num_bfltr;
@@ -445,12 +442,18 @@ struct ice_vsi {
 	u8 old_numtc;
 	u16 old_ena_tc;
 
-	struct ice_channel *ch;
-
 	/* setup back reference, to which aggregator node this VSI
 	 * corresponds to
 	 */
 	struct ice_agg_node *agg_node;
+
+	struct_group_tagged(ice_vsi_cfg_params, params,
+		struct ice_port_info *port_info; /* back pointer to port_info */
+		struct ice_channel *ch; /* VSI's channel structure, may be NULL */
+		struct ice_vf *vf; /* VF associated with this VSI, may be NULL */
+		u32 flags; /* VSI flags used for rebuild and configuration */
+		enum ice_vsi_type type; /* the type of the VSI */
+	);
 } ____cacheline_internodealigned_in_smp;
 
 /* struct that defines an interrupt vector */
@@ -458,7 +461,7 @@ struct ice_q_vector {
 	struct ice_vsi *vsi;
 
 	u16 v_idx;			/* index in the vsi->q_vector array. */
-	u16 reg_idx;
+	u16 reg_idx;			/* PF relative register index */
 	u8 num_ring_rx;			/* total number of Rx rings in vector */
 	u8 num_ring_tx;			/* total number of Tx rings in vector */
 	u8 wb_on_itr:1;			/* if true, WB on ITR is enabled */
@@ -480,6 +483,7 @@ struct ice_q_vector {
 	char name[ICE_INT_NAME_STR_LEN];
 
 	u16 total_events;	/* net_dim(): number of interrupts processed */
+	u16 vf_reg_idx;		/* VF relative register index */
 	struct msi_map irq;
 } ____cacheline_internodealigned_in_smp;
 
@@ -493,7 +497,6 @@ enum ice_pf_flags {
 	ICE_FLAG_DCB_ENA,
 	ICE_FLAG_FD_ENA,
 	ICE_FLAG_PTP_SUPPORTED,		/* PTP is supported by NVM */
-	ICE_FLAG_PTP,			/* PTP is enabled by software */
 	ICE_FLAG_ADV_FEATURES,
 	ICE_FLAG_TC_MQPRIO,		/* support for Multi queue TC */
 	ICE_FLAG_CLS_FLOWER,
@@ -523,17 +526,10 @@ enum ice_misc_thread_tasks {
 };
 
 struct ice_eswitch {
-	struct ice_vsi *control_vsi;
 	struct ice_vsi *uplink_vsi;
 	struct ice_esw_br_offloads *br_offloads;
 	struct xarray reprs;
 	bool is_running;
-	/* struct to allow cp queues management optimization */
-	struct {
-		int to_reach;
-		int value;
-		bool is_reaching;
-	} qs;
 };
 
 struct ice_agg_node {
@@ -545,6 +541,7 @@ struct ice_agg_node {
 
 struct ice_pf {
 	struct pci_dev *pdev;
+	struct ice_adapter *adapter;
 
 	struct devlink_region *nvm_region;
 	struct devlink_region *sram_region;
@@ -606,6 +603,7 @@ struct ice_pf {
 	wait_queue_head_t reset_wait_queue;
 
 	u32 hw_csum_rx_error;
+	u32 hw_rx_eipe_error;
 	u32 oicr_err_reg;
 	struct msi_map oicr_irq;	/* Other interrupt cause MSIX vector */
 	struct msi_map ll_ts_irq;	/* LL_TS interrupt MSIX vector */
@@ -896,6 +894,7 @@ static inline bool ice_is_adq_active(struct ice_pf *pf)
 }
 
 void ice_debugfs_fwlog_init(struct ice_pf *pf);
+void ice_debugfs_pf_deinit(struct ice_pf *pf);
 void ice_debugfs_init(void);
 void ice_debugfs_exit(void);
 void ice_pf_fwlog_update_module(struct ice_pf *pf, int log_level, int module);
@@ -983,6 +982,8 @@ void ice_service_task_schedule(struct ice_pf *pf);
 int ice_load(struct ice_pf *pf);
 void ice_unload(struct ice_pf *pf);
 void ice_adv_lnk_speed_maps_init(void);
+int ice_init_dev(struct ice_pf *pf);
+void ice_deinit_dev(struct ice_pf *pf);
 
 /**
  * ice_set_rdma_cap - enable RDMA support

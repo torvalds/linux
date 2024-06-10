@@ -312,8 +312,12 @@ static const struct pci_epc_features keembay_pcie_epc_features = {
 	.linkup_notifier	= false,
 	.msi_capable		= true,
 	.msix_capable		= true,
-	.reserved_bar		= BIT(BAR_1) | BIT(BAR_3) | BIT(BAR_5),
-	.bar_fixed_64bit	= BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
+	.bar[BAR_0]		= { .only_64bit = true, },
+	.bar[BAR_1]		= { .type = BAR_RESERVED, },
+	.bar[BAR_2]		= { .only_64bit = true, },
+	.bar[BAR_3]		= { .type = BAR_RESERVED, },
+	.bar[BAR_4]		= { .only_64bit = true, },
+	.bar[BAR_5]		= { .type = BAR_RESERVED, },
 	.align			= SZ_16K,
 };
 
@@ -392,6 +396,7 @@ static int keembay_pcie_probe(struct platform_device *pdev)
 	struct keembay_pcie *pcie;
 	struct dw_pcie *pci;
 	enum dw_pcie_device_mode mode;
+	int ret;
 
 	data = device_get_match_data(dev);
 	if (!data)
@@ -426,11 +431,26 @@ static int keembay_pcie_probe(struct platform_device *pdev)
 			return -ENODEV;
 
 		pci->ep.ops = &keembay_pcie_ep_ops;
-		return dw_pcie_ep_init(&pci->ep);
+		ret = dw_pcie_ep_init(&pci->ep);
+		if (ret)
+			return ret;
+
+		ret = dw_pcie_ep_init_registers(&pci->ep);
+		if (ret) {
+			dev_err(dev, "Failed to initialize DWC endpoint registers\n");
+			dw_pcie_ep_deinit(&pci->ep);
+			return ret;
+		}
+
+		dw_pcie_ep_init_notify(&pci->ep);
+
+		break;
 	default:
 		dev_err(dev, "Invalid device type %d\n", pcie->mode);
 		return -ENODEV;
 	}
+
+	return 0;
 }
 
 static const struct keembay_pcie_of_data keembay_pcie_rc_of_data = {

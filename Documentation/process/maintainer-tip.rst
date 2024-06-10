@@ -304,13 +304,15 @@ following tag ordering scheme:
 
  - Reported-by: ``Reporter <reporter@mail>``
 
+ - Closes: ``URL or Message-ID of the bug report this is fixing``
+
  - Originally-by: ``Original author <original-author@mail>``
 
  - Suggested-by: ``Suggester <suggester@mail>``
 
  - Co-developed-by: ``Co-author <co-author@mail>``
 
-   Signed-off: ``Co-author <co-author@mail>``
+   Signed-off-by: ``Co-author <co-author@mail>``
 
    Note, that Co-developed-by and Signed-off-by of the co-author(s) must
    come in pairs.
@@ -407,19 +409,19 @@ See :ref:`resend_reminders`.
 Merge window
 ^^^^^^^^^^^^
 
-Please do not expect large patch series to be handled during the merge
-window or even during the week before.  Such patches should be submitted in
-mergeable state *at* *least* a week before the merge window opens.
-Exceptions are made for bug fixes and *sometimes* for small standalone
-drivers for new hardware or minimally invasive patches for hardware
-enablement.
+Please do not expect patches to be reviewed or merged by tip
+maintainers around or during the merge window.  The trees are closed
+to all but urgent fixes during this time.  They reopen once the merge
+window closes and a new -rc1 kernel has been released.
+
+Large series should be submitted in mergeable state *at* *least* a week
+before the merge window opens.  Exceptions are made for bug fixes and
+*sometimes* for small standalone drivers for new hardware or minimally
+invasive patches for hardware enablement.
 
 During the merge window, the maintainers instead focus on following the
 upstream changes, fixing merge window fallout, collecting bug fixes, and
 allowing themselves a breath. Please respect that.
-
-The release candidate -rc1 is the starting point for new patches to be
-applied which are targeted for the next merge window.
 
 So called _urgent_ branches will be merged into mainline during the
 stabilization phase of each release.
@@ -478,7 +480,7 @@ Multi-line comments::
 	 * Larger multi-line comments should be split into paragraphs.
 	 */
 
-No tail comments:
+No tail comments (see below):
 
   Please refrain from using tail comments. Tail comments disturb the
   reading flow in almost all contexts, but especially in code::
@@ -498,6 +500,34 @@ No tail comments:
 
 	/* This magic initialization needs a comment. Maybe not? */
 	seed = MAGIC_CONSTANT;
+
+  Use C++ style, tail comments when documenting structs in headers to
+  achieve a more compact layout and better readability::
+
+        // eax
+        u32     x2apic_shift    :  5, // Number of bits to shift APIC ID right
+                                      // for the topology ID at the next level
+                                : 27; // Reserved
+        // ebx
+        u32     num_processors  : 16, // Number of processors at current level
+                                : 16; // Reserved
+
+  versus::
+
+	/* eax */
+	        /*
+	         * Number of bits to shift APIC ID right for the topology ID
+	         * at the next level
+	         */
+         u32     x2apic_shift    :  5,
+		 /* Reserved */
+				 : 27;
+
+	/* ebx */
+		/* Number of processors at current level */
+	u32     num_processors  : 16,
+		/* Reserved */
+				: 16;
 
 Comment the important things:
 

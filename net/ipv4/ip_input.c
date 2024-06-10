@@ -616,7 +616,7 @@ static void ip_list_rcv_finish(struct net *net, struct sock *sk,
 		dst = skb_dst(skb);
 		if (curr_dst != dst) {
 			hint = ip_extract_route_hint(net, skb,
-					       ((struct rtable *)dst)->rt_type);
+						     dst_rtable(dst)->rt_type);
 
 			/* dispatch old sublist */
 			if (!list_empty(&sublist))

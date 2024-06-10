@@ -727,7 +727,8 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 				 &state->max_num_lanes))
 		return -EINVAL;
 
-	node = of_graph_get_next_endpoint(node, NULL);
+	/* from port@3 or port@4 */
+	node = of_graph_get_endpoint_by_regs(node, -1, -1);
 	if (!node) {
 		dev_err(&pdev->dev, "No port node at %pOF\n",
 				pdev->dev.of_node);

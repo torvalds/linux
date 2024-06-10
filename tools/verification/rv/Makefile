@@ -1,146 +1,87 @@
-NAME	:=	rv
-# Follow the kernel version
-VERSION :=	$(shell cat VERSION 2> /dev/null || make -sC ../../.. kernelversion | grep -v make)
+# SPDX-License-Identifier: GPL-2.0-only
 
-# From libtracefs:
-# Makefiles suck: This macro sets a default value of $(2) for the
-# variable named by $(1), unless the variable has been set by
-# environment or command line. This is necessary for CC and AR
-# because make sets default values, so the simpler ?= approach
-# won't work as expected.
-define allow-override
-  $(if $(or $(findstring environment,$(origin $(1))),\
-            $(findstring command line,$(origin $(1)))),,\
-    $(eval $(1) = $(2)))
-endef
-
-# Allow setting CC and AR, or setting CROSS_COMPILE as a prefix.
-$(call allow-override,CC,$(CROSS_COMPILE)gcc)
-$(call allow-override,AR,$(CROSS_COMPILE)ar)
-$(call allow-override,STRIP,$(CROSS_COMPILE)strip)
-$(call allow-override,PKG_CONFIG,pkg-config)
-$(call allow-override,LD_SO_CONF_PATH,/etc/ld.so.conf.d/)
-$(call allow-override,LDCONFIG,ldconfig)
-
-INSTALL	=	install
-MKDIR	=	mkdir
-FOPTS	:=	-flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong \
-		-fasynchronous-unwind-tables -fstack-clash-protection
-WOPTS	:= 	-Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -Wno-maybe-uninitialized
-
-ifeq ($(CC),clang)
-  FOPTS := $(filter-out -ffat-lto-objects, $(FOPTS))
-  WOPTS := $(filter-out -Wno-maybe-uninitialized, $(WOPTS))
+ifeq ($(srctree),)
+  srctree	:= $(patsubst %/,%,$(dir $(CURDIR)))
+  srctree	:= $(patsubst %/,%,$(dir $(srctree)))
+  srctree	:= $(patsubst %/,%,$(dir $(srctree)))
 endif
 
-TRACEFS_HEADERS	:= $$($(PKG_CONFIG) --cflags libtracefs)
+include $(srctree)/tools/scripts/Makefile.include
 
-CFLAGS	:=	-O -g -DVERSION=\"$(VERSION)\" $(FOPTS) $(MOPTS) $(WOPTS) $(TRACEFS_HEADERS) $(EXTRA_CFLAGS) -I include
-LDFLAGS	:=	-flto=auto -ggdb $(EXTRA_LDFLAGS)
-LIBS	:=	$$($(PKG_CONFIG) --libs libtracefs)
+# O is an alias for OUTPUT
+OUTPUT          := $(O)
 
-SRC	:=	$(wildcard src/*.c)
-HDR	:=	$(wildcard src/*.h)
-OBJ	:=	$(SRC:.c=.o)
-DIRS	:=	src
-FILES	:=	Makefile README.txt
-CEXT	:=	bz2
-TARBALL	:=	$(NAME)-$(VERSION).tar.$(CEXT)
-TAROPTS	:=	-cvjf $(TARBALL)
-BINDIR	:=	/usr/bin
-DATADIR	:=	/usr/share
-DOCDIR	:=	$(DATADIR)/doc
-MANDIR	:=	$(DATADIR)/man
-LICDIR	:=	$(DATADIR)/licenses
-SRCTREE	:=	$(or $(BUILD_SRC),$(CURDIR))
-
-# If running from the tarball, man pages are stored in the Documentation
-# dir. If running from the kernel source, man pages are stored in
-# Documentation/tools/rv/.
-ifneq ($(wildcard Documentation/.*),)
-DOCSRC	=	Documentation/
+ifeq ($(OUTPUT),)
+  OUTPUT       := $(CURDIR)/
 else
-DOCSRC	=	$(SRCTREE)/../../../Documentation/tools/rv/
+  # subdir is used by the ../Makefile in $(call descend,)
+  ifneq ($(subdir),)
+    OUTPUT        := $(OUTPUT)/$(subdir)
+  endif
 endif
 
-LIBTRACEEVENT_MIN_VERSION = 1.5
-LIBTRACEFS_MIN_VERSION = 1.3
-
-.PHONY:	all warnings show_warnings
-all:	warnings rv
-
-TEST_LIBTRACEEVENT = $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEEVENT_MIN_VERSION) libtraceevent > /dev/null 2>&1 || echo n")
-ifeq ("$(TEST_LIBTRACEEVENT)", "n")
-WARNINGS = show_warnings
-MISSING_LIBS += echo "**   libtraceevent version $(LIBTRACEEVENT_MIN_VERSION) or higher";
-MISSING_PACKAGES += "libtraceevent-devel"
-MISSING_SOURCE += echo "**  https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/ ";
+ifneq ($(patsubst %/,,$(lastword $(OUTPUT))),)
+  OUTPUT := $(OUTPUT)/
 endif
 
-TEST_LIBTRACEFS = $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEFS_MIN_VERSION) libtracefs > /dev/null 2>&1 || echo n")
-ifeq ("$(TEST_LIBTRACEFS)", "n")
-WARNINGS = show_warnings
-MISSING_LIBS += echo "**   libtracefs version $(LIBTRACEFS_MIN_VERSION) or higher";
-MISSING_PACKAGES += "libtracefs-devel"
-MISSING_SOURCE += echo "**  https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git/ ";
+RV		:= $(OUTPUT)rv
+RV_IN		:= $(RV)-in.o
+
+VERSION		:= $(shell sh -c "make -sC ../../.. kernelversion | grep -v make")
+DOCSRC		:= ../../../Documentation/tools/rv/
+
+FEATURE_TESTS	:= libtraceevent
+FEATURE_TESTS	+= libtracefs
+FEATURE_DISPLAY	:= libtraceevent
+FEATURE_DISPLAY	+= libtracefs
+
+ifeq ($(V),1)
+  Q		=
+else
+  Q		= @
 endif
 
-define show_dependencies
-	@echo "********************************************";				\
-	echo "** NOTICE: Failed build dependencies";					\
-	echo "**";									\
-	echo "** Required Libraries:";							\
-	$(MISSING_LIBS)									\
-	echo "**";									\
-	echo "** Consider installing the latest libtracefs from your";			\
-	echo "** distribution, e.g., 'dnf install $(MISSING_PACKAGES)' on Fedora,";	\
-	echo "** or from source:";							\
-	echo "**";									\
-	$(MISSING_SOURCE)								\
-	echo "**";									\
-	echo "********************************************"
-endef
+all: $(RV)
 
-show_warnings:
-	$(call show_dependencies);
+include $(srctree)/tools/build/Makefile.include
+include Makefile.rv
 
-ifneq ("$(WARNINGS)", "")
-ERROR_OUT = $(error Please add the necessary dependencies)
+# check for dependencies only on required targets
+NON_CONFIG_TARGETS := clean install doc doc_clean doc_install
 
-warnings: $(WARNINGS)
-	$(ERROR_OUT)
+config		:= 1
+ifdef MAKECMDGOALS
+  ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
+  config	:= 0
+endif
 endif
 
-rv: $(OBJ)
-	$(CC) -o rv $(LDFLAGS) $(OBJ) $(LIBS)
+ifeq ($(config),1)
+  include $(srctree)/tools/build/Makefile.feature
+  include Makefile.config
+endif
 
-.PHONY: install
-install: doc_install
-	$(MKDIR) -p $(DESTDIR)$(BINDIR)
-	$(INSTALL) rv -m 755 $(DESTDIR)$(BINDIR)
-	$(STRIP) $(DESTDIR)$(BINDIR)/rv
+CFLAGS		+= $(INCLUDES) $(LIB_INCLUDES)
 
-.PHONY: clean tarball
-clean: doc_clean
-	@test ! -f rv || rm rv
-	@test ! -f $(TARBALL) || rm -f $(TARBALL)
-	@rm -rf *~ $(OBJ) *.tar.$(CEXT)
+export CFLAGS OUTPUT srctree
 
-tarball: clean
-	rm -rf $(NAME)-$(VERSION) && mkdir $(NAME)-$(VERSION)
-	echo $(VERSION) > $(NAME)-$(VERSION)/VERSION
-	cp -r $(DIRS) $(FILES) $(NAME)-$(VERSION)
-	mkdir $(NAME)-$(VERSION)/Documentation/
-	cp -rp $(SRCTREE)/../../../Documentation/tools/rv/* $(NAME)-$(VERSION)/Documentation/
-	tar $(TAROPTS) --exclude='*~' $(NAME)-$(VERSION)
-	rm -rf $(NAME)-$(VERSION)
+$(RV): $(RV_IN)
+	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $(RV) $(RV_IN) $(EXTLIBS)
 
-.PHONY: doc doc_clean doc_install
-doc:
-	$(MAKE) -C $(DOCSRC)
+static: $(RV_IN)
+	$(eval LDFLAGS += -static)
+	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $(RV)-static $(RV_IN) $(EXTLIBS)
 
-doc_clean:
-	$(MAKE) -C $(DOCSRC) clean
+rv.%: fixdep FORCE
+	make -f $(srctree)/tools/build/Makefile.build dir=. $@
 
-doc_install:
-	$(MAKE) -C $(DOCSRC) install
+$(RV_IN): fixdep FORCE
+	make $(build)=rv
+
+clean: doc_clean fixdep-clean
+	$(call QUIET_CLEAN, rv)
+	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
+	$(Q)rm -f rv rv-static fixdep FEATURE-DUMP rv-*
+	$(Q)rm -rf feature
+
+.PHONY: FORCE clean

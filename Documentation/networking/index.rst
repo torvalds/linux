@@ -74,6 +74,7 @@ Contents:
    mpls-sysctl
    mptcp-sysctl
    multiqueue
+   multi-pf-netdev
    napi
    net_cachelines/index
    netconsole
@@ -92,6 +93,7 @@ Contents:
    plip
    ppp_generic
    proc_net_tcp
+   pse-pd/index
    radiotap-headers
    rds
    regulatory

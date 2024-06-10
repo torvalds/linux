@@ -33,7 +33,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		scp_mem_reserved: scp_mem_region@50000000 {
+		scp_mem_reserved: scp-mem@50000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x50000000 0 0x2900000>;
 			no-map;

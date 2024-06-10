@@ -61,7 +61,7 @@ static inline void guts_set_dmuxcr(struct ccsr_guts __iomem *guts,
 /* There's only one global utilities register */
 static phys_addr_t guts_phys;
 
-/**
+/*
  * machine_data: machine-specific ASoC device data
  *
  * This structure contains data for a single sound platform device on an
@@ -80,11 +80,14 @@ struct machine_data {
 };
 
 /**
- * p1022_rdk_machine_probe: initialize the board
+ * p1022_rdk_machine_probe - initialize the board
+ * @card: ASoC card instance
  *
  * This function is used to initialize the board-specific hardware.
  *
  * Here we program the DMACR and PMUXCR registers.
+ *
+ * Returns: %0 on success or negative errno value on error
  */
 static int p1022_rdk_machine_probe(struct snd_soc_card *card)
 {
@@ -119,11 +122,14 @@ static int p1022_rdk_machine_probe(struct snd_soc_card *card)
 }
 
 /**
- * p1022_rdk_startup: program the board with various hardware parameters
+ * p1022_rdk_startup - program the board with various hardware parameters
+ * @substream: ASoC substream object
  *
  * This function takes board-specific information, like clock frequencies
  * and serial data formats, and passes that information to the codec and
  * transport drivers.
+ *
+ * Returns: %0 on success or negative errno value on error
  */
 static int p1022_rdk_startup(struct snd_pcm_substream *substream)
 {
@@ -153,10 +159,13 @@ static int p1022_rdk_startup(struct snd_pcm_substream *substream)
 }
 
 /**
- * p1022_rdk_machine_remove: Remove the sound device
+ * p1022_rdk_machine_remove - Remove the sound device
+ * @card: ASoC card instance
  *
  * This function is called to remove the sound device for one SSI.  We
  * de-program the DMACR and PMUXCR register.
+ *
+ * Returns: %0 on success or negative errno value on error
  */
 static int p1022_rdk_machine_remove(struct snd_soc_card *card)
 {
@@ -181,7 +190,7 @@ static int p1022_rdk_machine_remove(struct snd_soc_card *card)
 	return 0;
 }
 
-/**
+/*
  * p1022_rdk_ops: ASoC machine driver operations
  */
 static const struct snd_soc_ops p1022_rdk_ops = {
@@ -189,11 +198,14 @@ static const struct snd_soc_ops p1022_rdk_ops = {
 };
 
 /**
- * p1022_rdk_probe: platform probe function for the machine driver
+ * p1022_rdk_probe - platform probe function for the machine driver
+ * @pdev: platform device pointer
  *
  * Although this is a machine driver, the SSI node is the "master" node with
  * respect to audio hardware connections.  Therefore, we create a new ASoC
  * device for each new SSI node that has a codec attached.
+ *
+ * Returns: %0 on success or negative errno value on error
  */
 static int p1022_rdk_probe(struct platform_device *pdev)
 {
@@ -341,7 +353,8 @@ error_put:
 }
 
 /**
- * p1022_rdk_remove: remove the platform device
+ * p1022_rdk_remove - remove the platform device
+ * @pdev: platform device pointer
  *
  * This function is called when the platform device is removed.
  */
@@ -368,9 +381,11 @@ static struct platform_driver p1022_rdk_driver = {
 };
 
 /**
- * p1022_rdk_init: machine driver initialization.
+ * p1022_rdk_init - machine driver initialization.
  *
  * This function is called when this module is loaded.
+ *
+ * Returns: %0 on success or negative errno value on error
  */
 static int __init p1022_rdk_init(void)
 {
@@ -391,7 +406,7 @@ static int __init p1022_rdk_init(void)
 }
 
 /**
- * p1022_rdk_exit: machine driver exit
+ * p1022_rdk_exit - machine driver exit
  *
  * This function is called when this driver is unloaded.
  */

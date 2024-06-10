@@ -70,12 +70,11 @@ enum lm3601x_type {
 };
 
 /**
- * struct lm3601x_led -
+ * struct lm3601x_led - private lm3601x LED data
  * @fled_cdev: flash LED class device pointer
  * @client: Pointer to the I2C client
  * @regmap: Devices register map
  * @lock: Lock for reading/writing the device
- * @led_name: LED label for the Torch or IR LED
  * @flash_timeout: the timeout for the flash
  * @last_flag: last known flags register value
  * @torch_current_max: maximum current for the torch

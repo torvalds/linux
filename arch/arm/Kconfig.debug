@@ -17,7 +17,7 @@ config ARM_PTDUMP_DEBUGFS
 	  kernel.
 	  If in doubt, say "N"
 
-config DEBUG_WX
+config ARM_DEBUG_WX
 	bool "Warn on W+X mappings at boot"
 	depends on MMU
 	select ARM_PTDUMP_CORE
@@ -89,9 +89,6 @@ config BACKTRACE_VERBOSE
 
 	  In most cases, say N here, unless you are intending to debug the
 	  kernel and have access to the kernel binary image.
-
-config FRAME_POINTER
-	bool
 
 config DEBUG_USER
 	bool "Verbose user fault messages"

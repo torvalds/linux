@@ -49,7 +49,7 @@ static const uint8_t zigzag[64] = {
 
 /*
  * noinline_for_stack to work around
- * https://bugs.llvm.org/show_bug.cgi?id=38809
+ * https://llvm.org/pr38809
  */
 static int noinline_for_stack
 rlc(const s16 *in, __be16 *output, int blocktype)

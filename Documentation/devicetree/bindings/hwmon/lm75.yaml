@@ -57,6 +57,7 @@ required:
   - reg
 
 allOf:
+  - $ref: hwmon-common.yaml#
   - if:
       not:
         properties:
@@ -71,7 +72,7 @@ allOf:
       properties:
         interrupts: false
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

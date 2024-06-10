@@ -60,7 +60,7 @@ static int mkaddr(struct pci_bus *bus, unsigned int devfn, int where,
 {
 	if (bus->parent == NULL &&
 	    devfn >= PCI_DEVFN(TX4927_PCIC_MAX_DEVNU, 0))
-		return -1;
+		return PCIBIOS_DEVICE_NOT_FOUND;
 	__raw_writel(((bus->number & 0xff) << 0x10)
 		     | ((devfn & 0xff) << 0x08) | (where & 0xfc)
 		     | (bus->parent ? 1 : 0),
@@ -69,7 +69,7 @@ static int mkaddr(struct pci_bus *bus, unsigned int devfn, int where,
 	__raw_writel((__raw_readl(&pcicptr->pcistatus) & 0x0000ffff)
 		     | (PCI_STATUS_REC_MASTER_ABORT << 16),
 		     &pcicptr->pcistatus);
-	return 0;
+	return PCIBIOS_SUCCESSFUL;
 }
 
 static int check_abort(struct tx4927_pcic_reg __iomem *pcicptr)
@@ -140,10 +140,12 @@ static int tx4927_pci_config_read(struct pci_bus *bus, unsigned int devfn,
 				  int where, int size, u32 *val)
 {
 	struct tx4927_pcic_reg __iomem *pcicptr = pci_bus_to_pcicptr(bus);
+	int ret;
 
-	if (mkaddr(bus, devfn, where, pcicptr)) {
-		*val = 0xffffffff;
-		return -1;
+	ret = mkaddr(bus, devfn, where, pcicptr);
+	if (ret != PCIBIOS_SUCCESSFUL) {
+		PCI_SET_ERROR_RESPONSE(val);
+		return ret;
 	}
 	switch (size) {
 	case 1:
@@ -162,9 +164,11 @@ static int tx4927_pci_config_write(struct pci_bus *bus, unsigned int devfn,
 				   int where, int size, u32 val)
 {
 	struct tx4927_pcic_reg __iomem *pcicptr = pci_bus_to_pcicptr(bus);
+	int ret;
 
-	if (mkaddr(bus, devfn, where, pcicptr))
-		return -1;
+	ret = mkaddr(bus, devfn, where, pcicptr);
+	if (ret != PCIBIOS_SUCCESSFUL)
+		return ret;
 	switch (size) {
 	case 1:
 		icd_writeb(val, where & 3, pcicptr);

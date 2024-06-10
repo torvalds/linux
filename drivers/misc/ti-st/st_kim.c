@@ -563,7 +563,7 @@ long st_kim_stop(void *kim_data)
 
 static int version_show(struct seq_file *s, void *unused)
 {
-	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
+	struct kim_data_s *kim_gdata = s->private;
 	seq_printf(s, "%04X %d.%d.%d\n", kim_gdata->version.full,
 			kim_gdata->version.chip, kim_gdata->version.maj_ver,
 			kim_gdata->version.min_ver);
@@ -572,7 +572,7 @@ static int version_show(struct seq_file *s, void *unused)
 
 static int list_show(struct seq_file *s, void *unused)
 {
-	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
+	struct kim_data_s *kim_gdata = s->private;
 	kim_st_list_protocols(kim_gdata->core_data, s);
 	return 0;
 }
@@ -774,7 +774,7 @@ err_core_init:
 	return err;
 }
 
-static int kim_remove(struct platform_device *pdev)
+static void kim_remove(struct platform_device *pdev)
 {
 	/* free the GPIOs requested */
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
@@ -798,7 +798,6 @@ static int kim_remove(struct platform_device *pdev)
 
 	kfree(kim_gdata);
 	kim_gdata = NULL;
-	return 0;
 }
 
 static int kim_suspend(struct platform_device *pdev, pm_message_t state)
@@ -825,7 +824,7 @@ static int kim_resume(struct platform_device *pdev)
 /* entry point for ST KIM module, called in from ST Core */
 static struct platform_driver kim_platform_driver = {
 	.probe = kim_probe,
-	.remove = kim_remove,
+	.remove_new = kim_remove,
 	.suspend = kim_suspend,
 	.resume = kim_resume,
 	.driver = {

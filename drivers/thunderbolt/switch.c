@@ -676,6 +676,13 @@ int tb_port_disable(struct tb_port *port)
 	return __tb_port_enable(port, false);
 }
 
+static int tb_port_reset(struct tb_port *port)
+{
+	if (tb_switch_is_usb4(port->sw))
+		return port->cap_usb4 ? usb4_port_reset(port) : 0;
+	return tb_lc_reset_port(port);
+}
+
 /*
  * tb_init_port() - initialize a port
  *
@@ -771,7 +778,7 @@ static int tb_port_alloc_hopid(struct tb_port *port, bool in, int min_hopid,
 	if (max_hopid < 0 || max_hopid > port_max_hopid)
 		max_hopid = port_max_hopid;
 
-	return ida_simple_get(ida, min_hopid, max_hopid + 1, GFP_KERNEL);
+	return ida_alloc_range(ida, min_hopid, max_hopid, GFP_KERNEL);
 }
 
 /**
@@ -809,7 +816,7 @@ int tb_port_alloc_out_hopid(struct tb_port *port, int min_hopid, int max_hopid)
  */
 void tb_port_release_in_hopid(struct tb_port *port, int hopid)
 {
-	ida_simple_remove(&port->in_hopids, hopid);
+	ida_free(&port->in_hopids, hopid);
 }
 
 /**
@@ -819,7 +826,7 @@ void tb_port_release_in_hopid(struct tb_port *port, int hopid)
  */
 void tb_port_release_out_hopid(struct tb_port *port, int hopid)
 {
-	ida_simple_remove(&port->out_hopids, hopid);
+	ida_free(&port->out_hopids, hopid);
 }
 
 static inline bool tb_switch_is_reachable(const struct tb_switch *parent,
@@ -1120,7 +1127,7 @@ int tb_port_lane_bonding_enable(struct tb_port *port)
 		ret = tb_port_set_link_width(port->dual_link_port,
 					     TB_LINK_WIDTH_DUAL);
 		if (ret)
-			goto err_lane0;
+			goto err_lane1;
 	}
 
 	/*
@@ -1534,29 +1541,124 @@ static void tb_dump_switch(const struct tb *tb, const struct tb_switch *sw)
 	       regs->__unknown1, regs->__unknown4);
 }
 
+static int tb_switch_reset_host(struct tb_switch *sw)
+{
+	if (sw->generation > 1) {
+		struct tb_port *port;
+
+		tb_switch_for_each_port(sw, port) {
+			int i, ret;
+
+			/*
+			 * For lane adapters we issue downstream port
+			 * reset and clear up path config spaces.
+			 *
+			 * For protocol adapters we disable the path and
+			 * clear path config space one by one (from 8 to
+			 * Max Input HopID of the adapter).
+			 */
+			if (tb_port_is_null(port) && !tb_is_upstream_port(port)) {
+				ret = tb_port_reset(port);
+				if (ret)
+					return ret;
+			} else if (tb_port_is_usb3_down(port) ||
+				   tb_port_is_usb3_up(port)) {
+				tb_usb3_port_enable(port, false);
+			} else if (tb_port_is_dpin(port) ||
+				   tb_port_is_dpout(port)) {
+				tb_dp_port_enable(port, false);
+			} else if (tb_port_is_pcie_down(port) ||
+				   tb_port_is_pcie_up(port)) {
+				tb_pci_port_enable(port, false);
+			} else {
+				continue;
+			}
+
+			/* Cleanup path config space of protocol adapter */
+			for (i = TB_PATH_MIN_HOPID;
+			     i <= port->config.max_in_hop_id; i++) {
+				ret = tb_path_deactivate_hop(port, i);
+				if (ret)
+					return ret;
+			}
+		}
+	} else {
+		struct tb_cfg_result res;
+
+		/* Thunderbolt 1 uses the "reset" config space packet */
+		res.err = tb_sw_write(sw, ((u32 *) &sw->config) + 2,
+				      TB_CFG_SWITCH, 2, 2);
+		if (res.err)
+			return res.err;
+		res = tb_cfg_reset(sw->tb->ctl, tb_route(sw));
+		if (res.err > 0)
+			return -EIO;
+		else if (res.err < 0)
+			return res.err;
+	}
+
+	return 0;
+}
+
+static int tb_switch_reset_device(struct tb_switch *sw)
+{
+	return tb_port_reset(tb_switch_downstream_port(sw));
+}
+
+static bool tb_switch_enumerated(struct tb_switch *sw)
+{
+	u32 val;
+	int ret;
+
+	/*
+	 * Read directly from the hardware because we use this also
+	 * during system sleep where sw->config.enabled is already set
+	 * by us.
+	 */
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_3, 1);
+	if (ret)
+		return false;
+
+	return !!(val & ROUTER_CS_3_V);
+}
+
 /**
- * tb_switch_reset() - reconfigure route, enable and send TB_CFG_PKG_RESET
- * @sw: Switch to reset
+ * tb_switch_reset() - Perform reset to the router
+ * @sw: Router to reset
  *
- * Return: Returns 0 on success or an error code on failure.
+ * Issues reset to the router @sw. Can be used for any router. For host
+ * routers, resets all the downstream ports and cleans up path config
+ * spaces accordingly. For device routers issues downstream port reset
+ * through the parent router, so as side effect there will be unplug
+ * soon after this is finished.
+ *
+ * If the router is not enumerated does nothing.
+ *
+ * Returns %0 on success or negative errno in case of failure.
  */
 int tb_switch_reset(struct tb_switch *sw)
 {
-	struct tb_cfg_result res;
+	int ret;
 
-	if (sw->generation > 1)
+	/*
+	 * We cannot access the port config spaces unless the router is
+	 * already enumerated. If the router is not enumerated it is
+	 * equal to being reset so we can skip that here.
+	 */
+	if (!tb_switch_enumerated(sw))
 		return 0;
 
-	tb_sw_dbg(sw, "resetting switch\n");
+	tb_sw_dbg(sw, "resetting\n");
 
-	res.err = tb_sw_write(sw, ((u32 *) &sw->config) + 2,
-			      TB_CFG_SWITCH, 2, 2);
-	if (res.err)
-		return res.err;
-	res = tb_cfg_reset(sw->tb->ctl, tb_route(sw));
-	if (res.err > 0)
-		return -EIO;
-	return res.err;
+	if (tb_route(sw))
+		ret = tb_switch_reset_device(sw);
+	else
+		ret = tb_switch_reset_host(sw);
+
+	if (ret)
+		tb_sw_warn(sw, "failed to reset\n");
+
+	return ret;
 }
 
 /**
@@ -2228,7 +2330,7 @@ static const struct dev_pm_ops tb_switch_pm_ops = {
 			   NULL)
 };
 
-struct device_type tb_switch_type = {
+const struct device_type tb_switch_type = {
 	.name = "thunderbolt_device",
 	.release = tb_switch_release,
 	.uevent = tb_switch_uevent,
@@ -3078,9 +3180,22 @@ void tb_switch_unconfigure_link(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
 
-	if (sw->is_unplugged)
-		return;
 	if (!tb_route(sw) || tb_switch_is_icm(sw))
+		return;
+
+	/*
+	 * Unconfigure downstream port so that wake-on-connect can be
+	 * configured after router unplug. No need to unconfigure upstream port
+	 * since its router is unplugged.
+	 */
+	up = tb_upstream_port(sw);
+	down = up->remote;
+	if (tb_switch_is_usb4(down->sw))
+		usb4_port_unconfigure(down);
+	else
+		tb_lc_unconfigure_port(down);
+
+	if (sw->is_unplugged)
 		return;
 
 	up = tb_upstream_port(sw);
@@ -3088,12 +3203,6 @@ void tb_switch_unconfigure_link(struct tb_switch *sw)
 		usb4_port_unconfigure(up);
 	else
 		tb_lc_unconfigure_port(up);
-
-	down = up->remote;
-	if (tb_switch_is_usb4(down->sw))
-		usb4_port_unconfigure(down);
-	else
-		tb_lc_unconfigure_port(down);
 }
 
 static void tb_switch_credits_init(struct tb_switch *sw)
@@ -3339,7 +3448,26 @@ static int tb_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 	return tb_lc_set_wake(sw, flags);
 }
 
-int tb_switch_resume(struct tb_switch *sw)
+static void tb_switch_check_wakes(struct tb_switch *sw)
+{
+	if (device_may_wakeup(&sw->dev)) {
+		if (tb_switch_is_usb4(sw))
+			usb4_switch_check_wakes(sw);
+	}
+}
+
+/**
+ * tb_switch_resume() - Resume a switch after sleep
+ * @sw: Switch to resume
+ * @runtime: Is this resume from runtime suspend or system sleep
+ *
+ * Resumes and re-enumerates router (and all its children), if still plugged
+ * after suspend. Don't enumerate device router whose UID was changed during
+ * suspend. If this is resume from system sleep, notifies PM core about the
+ * wakes occurred during suspend. Disables all wakes, except USB4 wake of
+ * upstream port for USB4 routers that shall be always enabled.
+ */
+int tb_switch_resume(struct tb_switch *sw, bool runtime)
 {
 	struct tb_port *port;
 	int err;
@@ -3388,6 +3516,9 @@ int tb_switch_resume(struct tb_switch *sw)
 	if (err)
 		return err;
 
+	if (!runtime)
+		tb_switch_check_wakes(sw);
+
 	/* Disable wakes */
 	tb_switch_set_wake(sw, 0);
 
@@ -3417,7 +3548,8 @@ int tb_switch_resume(struct tb_switch *sw)
 			 */
 			if (tb_port_unlock(port))
 				tb_port_warn(port, "failed to unlock port\n");
-			if (port->remote && tb_switch_resume(port->remote->sw)) {
+			if (port->remote &&
+			    tb_switch_resume(port->remote->sw, runtime)) {
 				tb_port_warn(port,
 					     "lost during suspend, disconnecting\n");
 				tb_sw_set_unplugged(port->remote->sw);

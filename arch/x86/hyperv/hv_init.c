@@ -667,14 +667,14 @@ void hyperv_cleanup(void)
 	hv_hypercall_pg = NULL;
 
 	/* Reset the hypercall page */
-	hypercall_msr.as_uint64 = hv_get_register(HV_X64_MSR_HYPERCALL);
+	hypercall_msr.as_uint64 = hv_get_msr(HV_X64_MSR_HYPERCALL);
 	hypercall_msr.enable = 0;
-	hv_set_register(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
+	hv_set_msr(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
 	/* Reset the TSC page */
-	tsc_msr.as_uint64 = hv_get_register(HV_X64_MSR_REFERENCE_TSC);
+	tsc_msr.as_uint64 = hv_get_msr(HV_X64_MSR_REFERENCE_TSC);
 	tsc_msr.enable = 0;
-	hv_set_register(HV_X64_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
+	hv_set_msr(HV_X64_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
 }
 
 void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die)

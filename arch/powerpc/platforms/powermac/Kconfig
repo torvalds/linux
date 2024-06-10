@@ -2,7 +2,7 @@
 config PPC_PMAC
 	bool "Apple PowerMac based machines"
 	depends on PPC_BOOK3S && CPU_BIG_ENDIAN
-	select ADB_CUDA if POWER_RESET && PPC32
+	select ADB_CUDA if POWER_RESET && ADB
 	select MPIC
 	select FORCE_PCI
 	select PPC_INDIRECT_PCI if PPC32

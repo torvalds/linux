@@ -94,6 +94,10 @@ Dwarf_Die *die_find_top_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 			       Dwarf_Die *die_mem);
 
+/* Search a non-inlined function by name and returns its return type */
+Dwarf_Die *die_find_func_rettype(Dwarf_Die *sp_die, const char *name,
+				 Dwarf_Die *die_mem);
+
 /* Walk on the instances of given DIE */
 int die_walk_instances(Dwarf_Die *in_die,
 		       int (*callback)(Dwarf_Die *, void *), void *data);
@@ -135,6 +139,21 @@ void die_skip_prologue(Dwarf_Die *sp_die, Dwarf_Die *cu_die,
 /* Get the list of including scopes */
 int die_get_scopes(Dwarf_Die *cu_die, Dwarf_Addr pc, Dwarf_Die **scopes);
 
+/* Variable type information */
+struct die_var_type {
+	struct die_var_type *next;
+	u64 die_off;
+	u64 addr;
+	int reg;
+	int offset;
+};
+
+/* Return type info of a member at offset */
+Dwarf_Die *die_get_member_type(Dwarf_Die *type_die, int offset, Dwarf_Die *die_mem);
+
+/* Return type info where the pointer and offset point to */
+Dwarf_Die *die_deref_ptr_type(Dwarf_Die *ptr_die, int offset, Dwarf_Die *die_mem);
+
 #ifdef HAVE_DWARF_GETLOCATIONS_SUPPORT
 
 /* Get byte offset range of given variable DIE */
@@ -142,12 +161,18 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf);
 
 /* Find a variable saved in the 'reg' at given address */
 Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
+				    int *poffset, bool is_fbreg,
 				    Dwarf_Die *die_mem);
 
 /* Find a (global) variable located in the 'addr' */
-Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr pc,
-				     Dwarf_Addr addr, Dwarf_Die *die_mem,
-				     int *offset);
+Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr addr,
+				     Dwarf_Die *die_mem, int *offset);
+
+/* Save all variables and parameters in this scope */
+void die_collect_vars(Dwarf_Die *sc_die, struct die_var_type **var_types);
+
+/* Save all global variables in this CU */
+void die_collect_global_vars(Dwarf_Die *cu_die, struct die_var_type **var_types);
 
 #else /*  HAVE_DWARF_GETLOCATIONS_SUPPORT */
 
@@ -161,13 +186,14 @@ static inline int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
 static inline Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die __maybe_unused,
 						  Dwarf_Addr pc __maybe_unused,
 						  int reg __maybe_unused,
+						  int *poffset __maybe_unused,
+						  bool is_fbreg __maybe_unused,
 						  Dwarf_Die *die_mem __maybe_unused)
 {
 	return NULL;
 }
 
 static inline Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die __maybe_unused,
-						   Dwarf_Addr pc __maybe_unused,
 						   Dwarf_Addr addr __maybe_unused,
 						   Dwarf_Die *die_mem __maybe_unused,
 						   int *offset __maybe_unused)
@@ -175,6 +201,31 @@ static inline Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die __maybe_unu
 	return NULL;
 }
 
+static inline void die_collect_vars(Dwarf_Die *sc_die __maybe_unused,
+				    struct die_var_type **var_types __maybe_unused)
+{
+}
+
+static inline void die_collect_global_vars(Dwarf_Die *cu_die __maybe_unused,
+					   struct die_var_type **var_types __maybe_unused)
+{
+}
+
 #endif /* HAVE_DWARF_GETLOCATIONS_SUPPORT */
+
+#ifdef HAVE_DWARF_CFI_SUPPORT
+
+/* Get the frame base information from CFA */
+int die_get_cfa(Dwarf *dwarf, u64 pc, int *preg, int *poffset);
+
+#else /* HAVE_DWARF_CFI_SUPPORT */
+
+static inline int die_get_cfa(Dwarf *dwarf __maybe_unused, u64 pc __maybe_unused,
+			      int *preg __maybe_unused, int *poffset __maybe_unused)
+{
+	return -1;
+}
+
+#endif /* HAVE_DWARF_CFI_SUPPORT */
 
 #endif /* _DWARF_AUX_H */

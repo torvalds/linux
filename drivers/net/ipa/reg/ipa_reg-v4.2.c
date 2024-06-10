@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Copyright (C) 2022 Linaro Ltd. */
+/* Copyright (C) 2022-2024 Linaro Ltd. */
 
+#include <linux/array_size.h>
+#include <linux/bits.h>
 #include <linux/types.h>
 
-#include "../ipa.h"
 #include "../ipa_reg.h"
+#include "../ipa_version.h"
 
 static const u32 reg_comp_cfg_fmask[] = {
 						/* Bit 0 reserved */

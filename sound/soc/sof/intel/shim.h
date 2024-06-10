@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017 Intel Corporation
  *
  * Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
  */
@@ -190,13 +190,14 @@ struct sof_intel_dsp_desc {
 	void (*enable_sdw_irq)(struct snd_sof_dev *sdev, bool enable);
 	bool (*check_sdw_irq)(struct snd_sof_dev *sdev);
 	bool (*check_sdw_wakeen_irq)(struct snd_sof_dev *sdev);
+	void (*sdw_process_wakeen)(struct snd_sof_dev *sdev);
 	bool (*check_ipc_irq)(struct snd_sof_dev *sdev);
 	int (*power_down_dsp)(struct snd_sof_dev *sdev);
 	int (*disable_interrupts)(struct snd_sof_dev *sdev);
 	int (*cl_init)(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
 };
 
-extern struct snd_sof_dsp_ops sof_tng_ops;
+extern const struct snd_sof_dsp_ops sof_tng_ops;
 
 extern const struct sof_intel_dsp_desc tng_chip_info;
 

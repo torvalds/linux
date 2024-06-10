@@ -8,6 +8,17 @@
 
 #include "xe_gt_types.h"
 
+/*
+ * Loop over each DSS with the bit is 1 in geometry or compute mask
+ * @dss: iterated DSS bit from the DSS mask
+ * @gt: GT structure
+ */
+#define for_each_dss(dss, gt) \
+	for_each_or_bit((dss), \
+			(gt)->fuse_topo.g_dss_mask, \
+			(gt)->fuse_topo.c_dss_mask, \
+			XE_MAX_DSS_FUSE_BITS)
+
 struct drm_printer;
 
 void xe_gt_topology_init(struct xe_gt *gt);

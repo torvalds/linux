@@ -31,6 +31,7 @@
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
 #include "intel_panel.h"
+#include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 #include "intel_wm.h"
@@ -82,28 +83,6 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
 
 	seq_printf(m, "self-refresh: %s\n", str_enabled_disabled(sr_enabled));
-
-	return 0;
-}
-
-static int i915_opregion(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *i915 = node_to_i915(m->private);
-	struct intel_opregion *opregion = &i915->display.opregion;
-
-	if (opregion->header)
-		seq_write(m, opregion->header, OPREGION_SIZE);
-
-	return 0;
-}
-
-static int i915_vbt(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *i915 = node_to_i915(m->private);
-	struct intel_opregion *opregion = &i915->display.opregion;
-
-	if (opregion->vbt)
-		seq_write(m, opregion->vbt, opregion->vbt_size);
 
 	return 0;
 }
@@ -210,17 +189,24 @@ static void intel_panel_info(struct seq_file *m,
 }
 
 static void intel_hdcp_info(struct seq_file *m,
-			    struct intel_connector *intel_connector)
+			    struct intel_connector *intel_connector,
+			    bool remote_req)
 {
-	bool hdcp_cap, hdcp2_cap;
+	bool hdcp_cap = false, hdcp2_cap = false;
 
 	if (!intel_connector->hdcp.shim) {
 		seq_puts(m, "No Connector Support");
 		goto out;
 	}
 
-	hdcp_cap = intel_hdcp_capable(intel_connector);
-	hdcp2_cap = intel_hdcp2_capable(intel_connector);
+	if (remote_req) {
+		intel_hdcp_get_remote_capability(intel_connector,
+						 &hdcp_cap,
+						 &hdcp2_cap);
+	} else {
+		hdcp_cap = intel_hdcp_get_capability(intel_connector);
+		hdcp2_cap = intel_hdcp2_get_capability(intel_connector);
+	}
 
 	if (hdcp_cap)
 		seq_puts(m, "HDCP1.4 ");
@@ -267,9 +253,6 @@ static void intel_connector_info(struct seq_file *m,
 				 struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
-	const struct drm_connector_state *conn_state = connector->state;
-	struct intel_encoder *encoder =
-		to_intel_encoder(conn_state->best_encoder);
 	const struct drm_display_mode *mode;
 
 	seq_printf(m, "[CONNECTOR:%d:%s]: status: %s\n",
@@ -286,28 +269,27 @@ static void intel_connector_info(struct seq_file *m,
 		   drm_get_subpixel_order_name(connector->display_info.subpixel_order));
 	seq_printf(m, "\tCEA rev: %d\n", connector->display_info.cea_rev);
 
-	if (!encoder)
-		return;
-
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_DisplayPort:
 	case DRM_MODE_CONNECTOR_eDP:
-		if (encoder->type == INTEL_OUTPUT_DP_MST)
+		if (intel_connector->mst_port)
 			intel_dp_mst_info(m, intel_connector);
 		else
 			intel_dp_info(m, intel_connector);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
-		if (encoder->type == INTEL_OUTPUT_HDMI ||
-		    encoder->type == INTEL_OUTPUT_DDI)
-			intel_hdmi_info(m, intel_connector);
+		intel_hdmi_info(m, intel_connector);
 		break;
 	default:
 		break;
 	}
 
 	seq_puts(m, "\tHDCP version: ");
-	intel_hdcp_info(m, intel_connector);
+	if (intel_connector->mst_port) {
+		intel_hdcp_info(m, intel_connector, true);
+		seq_puts(m, "\tMST Hub HDCP version: ");
+	}
+	intel_hdcp_info(m, intel_connector, false);
 
 	seq_printf(m, "\tmax bpc: %u\n", connector->display_info.bpc);
 
@@ -656,51 +638,24 @@ static int i915_display_capabilities(struct seq_file *m, void *unused)
 static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
 	struct intel_shared_dpll *pll;
 	int i;
 
 	drm_modeset_lock_all(&dev_priv->drm);
 
-	seq_printf(m, "PLL refclks: non-SSC: %d kHz, SSC: %d kHz\n",
+	drm_printf(&p, "PLL refclks: non-SSC: %d kHz, SSC: %d kHz\n",
 		   dev_priv->display.dpll.ref_clks.nssc,
 		   dev_priv->display.dpll.ref_clks.ssc);
 
 	for_each_shared_dpll(dev_priv, pll, i) {
-		seq_printf(m, "DPLL%i: %s, id: %i\n", pll->index,
+		drm_printf(&p, "DPLL%i: %s, id: %i\n", pll->index,
 			   pll->info->name, pll->info->id);
-		seq_printf(m, " pipe_mask: 0x%x, active: 0x%x, on: %s\n",
+		drm_printf(&p, " pipe_mask: 0x%x, active: 0x%x, on: %s\n",
 			   pll->state.pipe_mask, pll->active_mask,
 			   str_yes_no(pll->on));
-		seq_printf(m, " tracked hardware state:\n");
-		seq_printf(m, " dpll:    0x%08x\n", pll->state.hw_state.dpll);
-		seq_printf(m, " dpll_md: 0x%08x\n",
-			   pll->state.hw_state.dpll_md);
-		seq_printf(m, " fp0:     0x%08x\n", pll->state.hw_state.fp0);
-		seq_printf(m, " fp1:     0x%08x\n", pll->state.hw_state.fp1);
-		seq_printf(m, " wrpll:   0x%08x\n", pll->state.hw_state.wrpll);
-		seq_printf(m, " cfgcr0:  0x%08x\n", pll->state.hw_state.cfgcr0);
-		seq_printf(m, " cfgcr1:  0x%08x\n", pll->state.hw_state.cfgcr1);
-		seq_printf(m, " div0:    0x%08x\n", pll->state.hw_state.div0);
-		seq_printf(m, " mg_refclkin_ctl:        0x%08x\n",
-			   pll->state.hw_state.mg_refclkin_ctl);
-		seq_printf(m, " mg_clktop2_coreclkctl1: 0x%08x\n",
-			   pll->state.hw_state.mg_clktop2_coreclkctl1);
-		seq_printf(m, " mg_clktop2_hsclkctl:    0x%08x\n",
-			   pll->state.hw_state.mg_clktop2_hsclkctl);
-		seq_printf(m, " mg_pll_div0:  0x%08x\n",
-			   pll->state.hw_state.mg_pll_div0);
-		seq_printf(m, " mg_pll_div1:  0x%08x\n",
-			   pll->state.hw_state.mg_pll_div1);
-		seq_printf(m, " mg_pll_lf:    0x%08x\n",
-			   pll->state.hw_state.mg_pll_lf);
-		seq_printf(m, " mg_pll_frac_lock: 0x%08x\n",
-			   pll->state.hw_state.mg_pll_frac_lock);
-		seq_printf(m, " mg_pll_ssc:   0x%08x\n",
-			   pll->state.hw_state.mg_pll_ssc);
-		seq_printf(m, " mg_pll_bias:  0x%08x\n",
-			   pll->state.hw_state.mg_pll_bias);
-		seq_printf(m, " mg_pll_tdc_coldst_bias: 0x%08x\n",
-			   pll->state.hw_state.mg_pll_tdc_coldst_bias);
+		drm_printf(&p, " tracked hardware state:\n");
+		intel_dpll_dump_hw_state(dev_priv, &p, &pll->state.hw_state);
 	}
 	drm_modeset_unlock_all(&dev_priv->drm);
 
@@ -1066,8 +1021,6 @@ static const struct file_operations i915_fifo_underrun_reset_ops = {
 static const struct drm_info_list intel_display_debugfs_list[] = {
 	{"i915_frontbuffer_tracking", i915_frontbuffer_tracking, 0},
 	{"i915_sr_status", i915_sr_status, 0},
-	{"i915_opregion", i915_opregion, 0},
-	{"i915_vbt", i915_vbt, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
 	{"i915_display_info", i915_display_info, 0},
@@ -1105,35 +1058,16 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 				 ARRAY_SIZE(intel_display_debugfs_list),
 				 minor->debugfs_root, minor);
 
+	intel_bios_debugfs_register(i915);
 	intel_cdclk_debugfs_register(i915);
 	intel_dmc_debugfs_register(i915);
 	intel_fbc_debugfs_register(i915);
 	intel_hpd_debugfs_register(i915);
+	intel_opregion_debugfs_register(i915);
 	intel_psr_debugfs_register(i915);
 	intel_wm_debugfs_register(i915);
 	intel_display_debugfs_params(i915);
 }
-
-static int i915_panel_show(struct seq_file *m, void *data)
-{
-	struct intel_connector *connector = m->private;
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
-
-	if (connector->base.status != connector_status_connected)
-		return -ENODEV;
-
-	seq_printf(m, "Panel power up delay: %d\n",
-		   intel_dp->pps.panel_power_up_delay);
-	seq_printf(m, "Panel power down delay: %d\n",
-		   intel_dp->pps.panel_power_down_delay);
-	seq_printf(m, "Backlight on delay: %d\n",
-		   intel_dp->pps.backlight_on_delay);
-	seq_printf(m, "Backlight off delay: %d\n",
-		   intel_dp->pps.backlight_off_delay);
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(i915_panel);
 
 static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 {
@@ -1153,7 +1087,7 @@ static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "%s:%d HDCP version: ", connector->base.name,
 		   connector->base.base.id);
-	intel_hdcp_info(m, connector);
+	intel_hdcp_info(m, connector, false);
 
 out:
 	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
@@ -1579,11 +1513,8 @@ void intel_connector_debugfs_add(struct intel_connector *connector)
 		return;
 
 	intel_drrs_connector_debugfs_add(connector);
+	intel_pps_connector_debugfs_add(connector);
 	intel_psr_connector_debugfs_add(connector);
-
-	if (connector_type == DRM_MODE_CONNECTOR_eDP)
-		debugfs_create_file("i915_panel_timings", 0444, root,
-				    connector, &i915_panel_fops);
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||
@@ -1606,6 +1537,13 @@ void intel_connector_debugfs_add(struct intel_connector *connector)
 
 		debugfs_create_file("i915_dsc_fractional_bpp", 0644, root,
 				    connector, &i915_dsc_fractional_bpp_fops);
+	}
+
+	if (DISPLAY_VER(i915) >= 11 &&
+	    (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	     connector_type == DRM_MODE_CONNECTOR_eDP)) {
+		debugfs_create_bool("i915_bigjoiner_force_enable", 0644, root,
+				    &connector->force_bigjoiner_enable);
 	}
 
 	if (connector_type == DRM_MODE_CONNECTOR_DSI ||

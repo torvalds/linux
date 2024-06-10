@@ -33,19 +33,19 @@
 #include <linux/pgtable.h>
 #include <linux/mmu_notifier.h>
 
+#include <asm/access-regs.h>
 #include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
 #include <asm/stp.h>
 #include <asm/gmap.h>
 #include <asm/nmi.h>
-#include <asm/switch_to.h>
 #include <asm/isc.h>
 #include <asm/sclp.h>
 #include <asm/cpacf.h>
 #include <asm/timex.h>
+#include <asm/fpu.h>
 #include <asm/ap.h>
 #include <asm/uv.h>
-#include <asm/fpu/api.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "pci.h"
@@ -587,7 +587,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_S390_HPAGE_1M:
 		r = 0;
-		if (hpage && !kvm_is_ucontrol(kvm))
+		if (hpage && !(kvm && kvm_is_ucontrol(kvm)))
 			r = 1;
 		break;
 	case KVM_CAP_S390_MEM_OP:
@@ -2631,9 +2631,7 @@ static int kvm_s390_handle_pv(struct kvm *kvm, struct kvm_pv_cmd *cmd)
 		if (r)
 			break;
 
-		mmap_write_lock(current->mm);
-		r = gmap_mark_unmergeable();
-		mmap_write_unlock(current->mm);
+		r = s390_disable_cow_sharing();
 		if (r)
 			break;
 
@@ -2878,7 +2876,7 @@ static int kvm_s390_vm_mem_op_abs(struct kvm *kvm, struct kvm_s390_mem_op *mop)
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
 
-	if (kvm_is_error_gpa(kvm, mop->gaddr)) {
+	if (!kvm_is_gpa_in_memslot(kvm, mop->gaddr)) {
 		r = PGM_ADDRESSING;
 		goto out_unlock;
 	}
@@ -2940,7 +2938,7 @@ static int kvm_s390_vm_mem_op_cmpxchg(struct kvm *kvm, struct kvm_s390_mem_op *m
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
 
-	if (kvm_is_error_gpa(kvm, mop->gaddr)) {
+	if (!kvm_is_gpa_in_memslot(kvm, mop->gaddr)) {
 		r = PGM_ADDRESSING;
 		goto out_unlock;
 	}
@@ -3153,7 +3151,7 @@ static int kvm_s390_apxa_installed(void)
  */
 static void kvm_s390_set_crycb_format(struct kvm *kvm)
 {
-	kvm->arch.crypto.crycbd = (__u32)(unsigned long) kvm->arch.crypto.crycb;
+	kvm->arch.crypto.crycbd = virt_to_phys(kvm->arch.crypto.crycb);
 
 	/* Clear the CRYCB format bits - i.e., set format 0 by default */
 	kvm->arch.crypto.crycbd &= ~(CRYCB_FORMAT_MASK);
@@ -3951,6 +3949,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 				    KVM_SYNC_ARCH0 |
 				    KVM_SYNC_PFAULT |
 				    KVM_SYNC_DIAG318;
+	vcpu->arch.acrs_loaded = false;
 	kvm_s390_set_prefix(vcpu, 0);
 	if (test_kvm_facility(vcpu->kvm, 64))
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_RICCB;
@@ -4829,8 +4828,6 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			       vcpu->run->s.regs.gprs,
 			       sizeof(sie_page->pv_grregs));
 		}
-		if (test_cpu_flag(CIF_FPU))
-			load_fpu_regs();
 		exit_reason = sie64a(vcpu->arch.sie_block,
 				     vcpu->run->s.regs.gprs);
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
@@ -4951,16 +4948,8 @@ static void sync_regs(struct kvm_vcpu *vcpu)
 	}
 	save_access_regs(vcpu->arch.host_acrs);
 	restore_access_regs(vcpu->run->s.regs.acrs);
-	/* save host (userspace) fprs/vrs */
-	save_fpu_regs();
-	vcpu->arch.host_fpregs.fpc = current->thread.fpu.fpc;
-	vcpu->arch.host_fpregs.regs = current->thread.fpu.regs;
-	if (cpu_has_vx())
-		current->thread.fpu.regs = vcpu->run->s.regs.vrs;
-	else
-		current->thread.fpu.regs = vcpu->run->s.regs.fprs;
-	current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
-
+	vcpu->arch.acrs_loaded = true;
+	kvm_s390_fpu_load(vcpu->run);
 	/* Sync fmt2 only data */
 	if (likely(!kvm_s390_pv_cpu_is_protected(vcpu))) {
 		sync_regs_fmt2(vcpu);
@@ -5021,12 +5010,8 @@ static void store_regs(struct kvm_vcpu *vcpu)
 	kvm_run->s.regs.pfc = vcpu->arch.pfault_compare;
 	save_access_regs(vcpu->run->s.regs.acrs);
 	restore_access_regs(vcpu->arch.host_acrs);
-	/* Save guest register state */
-	save_fpu_regs();
-	vcpu->run->s.regs.fpc = current->thread.fpu.fpc;
-	/* Restore will be done lazily at return */
-	current->thread.fpu.fpc = vcpu->arch.host_fpregs.fpc;
-	current->thread.fpu.regs = vcpu->arch.host_fpregs.regs;
+	vcpu->arch.acrs_loaded = false;
+	kvm_s390_fpu_store(vcpu->run);
 	if (likely(!kvm_s390_pv_cpu_is_protected(vcpu)))
 		store_regs_fmt2(vcpu);
 }
@@ -5034,6 +5019,7 @@ static void store_regs(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *kvm_run = vcpu->run;
+	DECLARE_KERNEL_FPU_ONSTACK32(fpu);
 	int rc;
 
 	/*
@@ -5075,6 +5061,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
+	kernel_fpu_begin(&fpu, KERNEL_FPC | KERNEL_VXR);
 	sync_regs(vcpu);
 	enable_cpu_timer_accounting(vcpu);
 
@@ -5098,6 +5085,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 	disable_cpu_timer_accounting(vcpu);
 	store_regs(vcpu);
+	kernel_fpu_end(&fpu, KERNEL_FPC | KERNEL_VXR);
 
 	kvm_sigset_deactivate(vcpu);
 
@@ -5172,8 +5160,7 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	 * switch in the run ioctl. Let's update our copies before we save
 	 * it into the save area
 	 */
-	save_fpu_regs();
-	vcpu->run->s.regs.fpc = current->thread.fpu.fpc;
+	kvm_s390_fpu_store(vcpu->run);
 	save_access_regs(vcpu->run->s.regs.acrs);
 
 	return kvm_s390_store_status_unloaded(vcpu, addr);

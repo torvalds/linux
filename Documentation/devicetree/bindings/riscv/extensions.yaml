@@ -477,5 +477,12 @@ properties:
             latency, as ratified in commit 56ed795 ("Update
             riscv-crypto-spec-vector.adoc") of riscv-crypto.
 
+        - const: xandespmu
+          description:
+            The Andes Technology performance monitor extension for counter overflow
+            and privilege mode filtering. For more details, see Counter Related
+            Registers in the AX45MP datasheet.
+            https://www.andestech.com/wp-content/uploads/AX45MP-1C-Rev.-5.0.0-Datasheet.pdf
+
 additionalProperties: true
 ...

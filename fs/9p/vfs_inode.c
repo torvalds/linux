@@ -83,7 +83,7 @@ static int p9mode2perm(struct v9fs_session_info *v9ses,
 	int res;
 	int mode = stat->mode;
 
-	res = mode & S_IALLUGO;
+	res = mode & 0777; /* S_IRWXUGO */
 	if (v9fs_proto_dotu(v9ses)) {
 		if ((mode & P9_DMSETUID) == P9_DMSETUID)
 			res |= S_ISUID;
@@ -178,6 +178,9 @@ int v9fs_uflags2omode(int uflags, int extended)
 		break;
 	}
 
+	if (uflags & O_TRUNC)
+		ret |= P9_OTRUNC;
+
 	if (extended) {
 		if (uflags & O_EXCL)
 			ret |= P9_OEXCL;
@@ -253,9 +256,12 @@ void v9fs_set_netfs_context(struct inode *inode)
 }
 
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
-		    struct inode *inode, umode_t mode, dev_t rdev)
+		    struct inode *inode, struct p9_qid *qid, umode_t mode, dev_t rdev)
 {
 	int err = 0;
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+
+	memcpy(&v9inode->qid, qid, sizeof(struct p9_qid));
 
 	inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
 	inode->i_blocks = 0;
@@ -332,36 +338,6 @@ error:
 }
 
 /**
- * v9fs_get_inode - helper function to setup an inode
- * @sb: superblock
- * @mode: mode to setup inode with
- * @rdev: The device numbers to set
- */
-
-struct inode *v9fs_get_inode(struct super_block *sb, umode_t mode, dev_t rdev)
-{
-	int err;
-	struct inode *inode;
-	struct v9fs_session_info *v9ses = sb->s_fs_info;
-
-	p9_debug(P9_DEBUG_VFS, "super block: %p mode: %ho\n", sb, mode);
-
-	inode = new_inode(sb);
-	if (!inode) {
-		pr_warn("%s (%d): Problem allocating inode\n",
-			__func__, task_pid_nr(current));
-		return ERR_PTR(-ENOMEM);
-	}
-	err = v9fs_init_inode(v9ses, inode, mode, rdev);
-	if (err) {
-		iput(inode);
-		return ERR_PTR(err);
-	}
-	v9fs_set_netfs_context(inode);
-	return inode;
-}
-
-/**
  * v9fs_evict_inode - Remove an inode from the inode cache
  * @inode: inode to release
  *
@@ -371,120 +347,76 @@ void v9fs_evict_inode(struct inode *inode)
 	struct v9fs_inode __maybe_unused *v9inode = V9FS_I(inode);
 	__le32 __maybe_unused version;
 
-	truncate_inode_pages_final(&inode->i_data);
+	if (!is_bad_inode(inode)) {
+		truncate_inode_pages_final(&inode->i_data);
 
-	version = cpu_to_le32(v9inode->qid.version);
-	netfs_clear_inode_writeback(inode, &version);
+		version = cpu_to_le32(v9inode->qid.version);
+		netfs_clear_inode_writeback(inode, &version);
 
-	clear_inode(inode);
-	filemap_fdatawrite(&inode->i_data);
+		clear_inode(inode);
+		filemap_fdatawrite(&inode->i_data);
 
 #ifdef CONFIG_9P_FSCACHE
-	fscache_relinquish_cookie(v9fs_inode_cookie(v9inode), false);
+		if (v9fs_inode_cookie(v9inode))
+			fscache_relinquish_cookie(v9fs_inode_cookie(v9inode), false);
 #endif
+	} else
+		clear_inode(inode);
 }
 
-static int v9fs_test_inode(struct inode *inode, void *data)
-{
-	int umode;
-	dev_t rdev;
-	struct v9fs_inode *v9inode = V9FS_I(inode);
-	struct p9_wstat *st = (struct p9_wstat *)data;
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-
-	umode = p9mode2unixmode(v9ses, st, &rdev);
-	/* don't match inode of different type */
-	if (inode_wrong_type(inode, umode))
-		return 0;
-
-	/* compare qid details */
-	if (memcmp(&v9inode->qid.version,
-		   &st->qid.version, sizeof(v9inode->qid.version)))
-		return 0;
-
-	if (v9inode->qid.type != st->qid.type)
-		return 0;
-
-	if (v9inode->qid.path != st->qid.path)
-		return 0;
-	return 1;
-}
-
-static int v9fs_test_new_inode(struct inode *inode, void *data)
-{
-	return 0;
-}
-
-static int v9fs_set_inode(struct inode *inode,  void *data)
-{
-	struct v9fs_inode *v9inode = V9FS_I(inode);
-	struct p9_wstat *st = (struct p9_wstat *)data;
-
-	memcpy(&v9inode->qid, &st->qid, sizeof(st->qid));
-	return 0;
-}
-
-static struct inode *v9fs_qid_iget(struct super_block *sb,
-				   struct p9_qid *qid,
-				   struct p9_wstat *st,
-				   int new)
+struct inode *
+v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid, bool new)
 {
 	dev_t rdev;
 	int retval;
 	umode_t umode;
-	unsigned long i_ino;
 	struct inode *inode;
+	struct p9_wstat *st;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
-	int (*test)(struct inode *inode, void *data);
 
-	if (new)
-		test = v9fs_test_new_inode;
-	else
-		test = v9fs_test_inode;
-
-	i_ino = v9fs_qid2ino(qid);
-	inode = iget5_locked(sb, i_ino, test, v9fs_set_inode, st);
-	if (!inode)
+	inode = iget_locked(sb, QID2INO(&fid->qid));
+	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(inode->i_state & I_NEW)) {
+		if (!new) {
+			goto done;
+		} else {
+			p9_debug(P9_DEBUG_VFS, "WARNING: Inode collision %ld\n",
+						inode->i_ino);
+			iput(inode);
+			remove_inode_hash(inode);
+			inode = iget_locked(sb, QID2INO(&fid->qid));
+			WARN_ON(!(inode->i_state & I_NEW));
+		}
+	}
+
 	/*
 	 * initialize the inode with the stat info
 	 * FIXME!! we may need support for stale inodes
 	 * later.
 	 */
-	inode->i_ino = i_ino;
+	st = p9_client_stat(fid);
+	if (IS_ERR(st)) {
+		retval = PTR_ERR(st);
+		goto error;
+	}
+
 	umode = p9mode2unixmode(v9ses, st, &rdev);
-	retval = v9fs_init_inode(v9ses, inode, umode, rdev);
+	retval = v9fs_init_inode(v9ses, inode, &fid->qid, umode, rdev);
+	v9fs_stat2inode(st, inode, sb, 0);
+	p9stat_free(st);
+	kfree(st);
 	if (retval)
 		goto error;
 
-	v9fs_stat2inode(st, inode, sb, 0);
 	v9fs_set_netfs_context(inode);
 	v9fs_cache_inode_get_cookie(inode);
 	unlock_new_inode(inode);
+done:
 	return inode;
 error:
 	iget_failed(inode);
 	return ERR_PTR(retval);
-
-}
-
-struct inode *
-v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
-		    struct super_block *sb, int new)
-{
-	struct p9_wstat *st;
-	struct inode *inode = NULL;
-
-	st = p9_client_stat(fid);
-	if (IS_ERR(st))
-		return ERR_CAST(st);
-
-	inode = v9fs_qid_iget(sb, &st->qid, st, new);
-	p9stat_free(st);
-	kfree(st);
-	return inode;
 }
 
 /**
@@ -516,8 +448,15 @@ static int v9fs_at_to_dotl_flags(int flags)
  */
 static void v9fs_dec_count(struct inode *inode)
 {
-	if (!S_ISDIR(inode->i_mode) || inode->i_nlink > 2)
-		drop_nlink(inode);
+	if (!S_ISDIR(inode->i_mode) || inode->i_nlink > 2) {
+		if (inode->i_nlink) {
+			drop_nlink(inode);
+		} else {
+			p9_debug(P9_DEBUG_VFS,
+						"WARNING: unexpected i_nlink zero %d inode %ld\n",
+						inode->i_nlink, inode->i_ino);
+		}
+	}
 }
 
 /**
@@ -567,6 +506,9 @@ static int v9fs_remove(struct inode *dir, struct dentry *dentry, int flags)
 			v9fs_dec_count(dir);
 		} else
 			v9fs_dec_count(inode);
+
+		if (inode->i_nlink <= 0)	/* no more refs unhash it */
+			remove_inode_hash(inode);
 
 		v9fs_invalidate_inode_attr(inode);
 		v9fs_invalidate_inode_attr(dir);
@@ -633,7 +575,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		/*
 		 * instantiate inode and assign the unopened fid to the dentry
 		 */
-		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb, true);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			p9_debug(P9_DEBUG_VFS,
@@ -761,10 +703,8 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = NULL;
 	else if (IS_ERR(fid))
 		inode = ERR_CAST(fid);
-	else if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 	else
-		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb, false);
 	/*
 	 * If we had a rename on the server and a parallel lookup
 	 * for the new name, then make sure we instantiate with
@@ -1145,8 +1085,6 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 	struct v9fs_inode *v9inode = V9FS_I(inode);
 
-	set_nlink(inode, 1);
-
 	inode_set_atime(inode, stat->atime, 0);
 	inode_set_mtime(inode, stat->mtime, 0);
 	inode_set_ctime(inode, stat->mtime, 0);
@@ -1184,26 +1122,6 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	/* not real number of blocks, but 512 byte ones ... */
 	inode->i_blocks = (stat->length + 512 - 1) >> 9;
 	v9inode->cache_validity &= ~V9FS_INO_INVALID_ATTR;
-}
-
-/**
- * v9fs_qid2ino - convert qid into inode number
- * @qid: qid to hash
- *
- * BUG: potential for inode number collisions?
- */
-
-ino_t v9fs_qid2ino(struct p9_qid *qid)
-{
-	u64 path = qid->path + 2;
-	ino_t i = 0;
-
-	if (sizeof(ino_t) == sizeof(path))
-		memcpy(&i, &path, sizeof(ino_t));
-	else
-		i = (ino_t) (path ^ (path >> 32));
-
-	return i;
 }
 
 /**

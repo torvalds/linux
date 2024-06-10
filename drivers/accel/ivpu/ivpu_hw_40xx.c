@@ -80,11 +80,11 @@ static char *ivpu_platform_to_str(u32 platform)
 {
 	switch (platform) {
 	case IVPU_PLATFORM_SILICON:
-		return "IVPU_PLATFORM_SILICON";
+		return "SILICON";
 	case IVPU_PLATFORM_SIMICS:
-		return "IVPU_PLATFORM_SIMICS";
+		return "SIMICS";
 	case IVPU_PLATFORM_FPGA:
-		return "IVPU_PLATFORM_FPGA";
+		return "FPGA";
 	default:
 		return "Invalid platform";
 	}
@@ -768,7 +768,7 @@ static int ivpu_hw_40xx_reset(struct ivpu_device *vdev)
 	int ret = 0;
 
 	if (ivpu_hw_40xx_ip_reset(vdev)) {
-		ivpu_err(vdev, "Failed to reset VPU IP\n");
+		ivpu_err(vdev, "Failed to reset NPU IP\n");
 		ret = -EIO;
 	}
 
@@ -926,7 +926,7 @@ static int ivpu_hw_40xx_power_down(struct ivpu_device *vdev)
 	ivpu_hw_40xx_save_d0i3_entry_timestamp(vdev);
 
 	if (!ivpu_hw_40xx_is_idle(vdev) && ivpu_hw_40xx_ip_reset(vdev))
-		ivpu_warn(vdev, "Failed to reset the VPU\n");
+		ivpu_warn(vdev, "Failed to reset the NPU\n");
 
 	if (ivpu_pll_disable(vdev)) {
 		ivpu_err(vdev, "Failed to disable PLL\n");
@@ -978,6 +978,11 @@ static u32 ivpu_hw_40xx_reg_pll_freq_get(struct ivpu_device *vdev)
 	pll_curr_ratio &= VPU_40XX_BUTTRESS_PLL_FREQ_RATIO_MASK;
 
 	return PLL_RATIO_TO_FREQ(pll_curr_ratio);
+}
+
+static u32 ivpu_hw_40xx_ratio_to_freq(struct ivpu_device *vdev, u32 ratio)
+{
+	return PLL_RATIO_TO_FREQ(ratio);
 }
 
 static u32 ivpu_hw_40xx_reg_telemetry_offset_get(struct ivpu_device *vdev)
@@ -1230,6 +1235,7 @@ const struct ivpu_hw_ops ivpu_hw_40xx_ops = {
 	.profiling_freq_get = ivpu_hw_40xx_profiling_freq_get,
 	.profiling_freq_drive = ivpu_hw_40xx_profiling_freq_drive,
 	.reg_pll_freq_get = ivpu_hw_40xx_reg_pll_freq_get,
+	.ratio_to_freq = ivpu_hw_40xx_ratio_to_freq,
 	.reg_telemetry_offset_get = ivpu_hw_40xx_reg_telemetry_offset_get,
 	.reg_telemetry_size_get = ivpu_hw_40xx_reg_telemetry_size_get,
 	.reg_telemetry_enable_get = ivpu_hw_40xx_reg_telemetry_enable_get,

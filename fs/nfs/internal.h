@@ -112,6 +112,7 @@ struct nfs_fs_context {
 	unsigned short		protofamily;
 	unsigned short		mountfamily;
 	bool			has_sec_mnt_opts;
+	int			lock_status;
 
 	struct {
 		union {
@@ -151,6 +152,12 @@ struct nfs_fs_context {
 		struct nfs_fattr	*fattr;
 		unsigned int		inherited_bsize;
 	} clone_data;
+};
+
+enum nfs_lock_status {
+	NFS_LOCK_NOT_SET	= 0,
+	NFS_LOCK_LOCK		= 1,
+	NFS_LOCK_NOLOCK		= 2,
 };
 
 #define nfs_errorf(fc, fmt, ...) ((fc)->log.log ?		\
@@ -449,8 +456,6 @@ int nfs_try_get_tree(struct fs_context *);
 int nfs_get_tree_common(struct fs_context *);
 void nfs_kill_super(struct super_block *);
 
-extern struct rpc_stat nfs_rpcstat;
-
 extern int __init register_nfs_fs(void);
 extern void __exit unregister_nfs_fs(void);
 extern bool nfs_sb_active(struct super_block *sb);
@@ -712,9 +717,9 @@ unsigned long nfs_block_bits(unsigned long bsize, unsigned char *nrbitsp)
 	if ((bsize & (bsize - 1)) || nrbitsp) {
 		unsigned char	nrbits;
 
-		for (nrbits = 31; nrbits && !(bsize & (1 << nrbits)); nrbits--)
+		for (nrbits = 31; nrbits && !(bsize & (1UL << nrbits)); nrbits--)
 			;
-		bsize = 1 << nrbits;
+		bsize = 1UL << nrbits;
 		if (nrbitsp)
 			*nrbitsp = nrbits;
 	}

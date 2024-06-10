@@ -11,7 +11,8 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_range_manager.h>
 
-#include "generated/xe_wa_oob.h"
+#include <generated/xe_wa_oob.h>
+
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
@@ -19,6 +20,7 @@
 #include "xe_gt.h"
 #include "xe_mmio.h"
 #include "xe_res_cursor.h"
+#include "xe_sriov.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_wa.h"
@@ -202,10 +204,17 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 {
 	struct xe_ttm_stolen_mgr *mgr = drmm_kzalloc(&xe->drm, sizeof(*mgr), GFP_KERNEL);
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	u64 stolen_size, io_size, pgsize;
+	u64 stolen_size, io_size;
 	int err;
 
-	if (IS_DGFX(xe))
+	if (!mgr) {
+		drm_dbg_kms(&xe->drm, "Stolen mgr init failed\n");
+		return;
+	}
+
+	if (IS_SRIOV_VF(xe))
+		stolen_size = 0;
+	else if (IS_DGFX(xe))
 		stolen_size = detect_bar2_dgfx(xe, mgr);
 	else if (GRAPHICS_VERx100(xe) >= 1270)
 		stolen_size = detect_bar2_integrated(xe, mgr);
@@ -217,10 +226,6 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 		return;
 	}
 
-	pgsize = xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K ? SZ_64K : SZ_4K;
-	if (pgsize < PAGE_SIZE)
-		pgsize = PAGE_SIZE;
-
 	/*
 	 * We don't try to attempt partial visible support for stolen vram,
 	 * since stolen is always at the end of vram, and the BAR size is pretty
@@ -231,7 +236,7 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 		io_size = stolen_size;
 
 	err = __xe_ttm_vram_mgr_init(xe, &mgr->base, XE_PL_STOLEN, stolen_size,
-				     io_size, pgsize);
+				     io_size, PAGE_SIZE);
 	if (err) {
 		drm_dbg_kms(&xe->drm, "Stolen mgr init failed: %i\n", err);
 		return;
@@ -294,7 +299,7 @@ static int __xe_ttm_stolen_io_mem_reserve_stolen(struct xe_device *xe,
 	XE_WARN_ON(IS_DGFX(xe));
 
 	/* XXX: Require BO to be mapped to GGTT? */
-	if (drm_WARN_ON(&xe->drm, !(bo->flags & XE_BO_CREATE_GGTT_BIT)))
+	if (drm_WARN_ON(&xe->drm, !(bo->flags & XE_BO_FLAG_GGTT)))
 		return -EIO;
 
 	/* GGTT is always contiguously mapped */

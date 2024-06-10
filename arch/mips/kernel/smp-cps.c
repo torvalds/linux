@@ -7,6 +7,7 @@
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/memblock.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/hotplug.h>
 #include <linux/slab.h>
@@ -20,12 +21,24 @@
 #include <asm/mipsregs.h>
 #include <asm/pm-cps.h>
 #include <asm/r4kcache.h>
+#include <asm/regdef.h>
 #include <asm/smp.h>
 #include <asm/smp-cps.h>
 #include <asm/time.h>
 #include <asm/uasm.h>
 
+#define BEV_VEC_SIZE	0x500
+#define BEV_VEC_ALIGN	0x1000
+
+enum label_id {
+	label_not_nmi = 1,
+};
+
+UASM_L_LA(_not_nmi)
+
 static DECLARE_BITMAP(core_power, NR_CPUS);
+static uint32_t core_entry_reg;
+static phys_addr_t cps_vec_pa;
 
 struct core_boot_config *mips_cps_core_bootcfg;
 
@@ -34,10 +47,100 @@ static unsigned __init core_vpe_count(unsigned int cluster, unsigned core)
 	return min(smp_max_threads, mips_cps_numvps(cluster, core));
 }
 
+static void __init *mips_cps_build_core_entry(void *addr)
+{
+	extern void (*nmi_handler)(void);
+	u32 *p = addr;
+	u32 val;
+	struct uasm_label labels[2];
+	struct uasm_reloc relocs[2];
+	struct uasm_label *l = labels;
+	struct uasm_reloc *r = relocs;
+
+	memset(labels, 0, sizeof(labels));
+	memset(relocs, 0, sizeof(relocs));
+
+	uasm_i_mfc0(&p, GPR_K0, C0_STATUS);
+	UASM_i_LA(&p, GPR_T9, ST0_NMI);
+	uasm_i_and(&p, GPR_K0, GPR_K0, GPR_T9);
+
+	uasm_il_bnez(&p, &r, GPR_K0, label_not_nmi);
+	uasm_i_nop(&p);
+	UASM_i_LA(&p, GPR_K0, (long)&nmi_handler);
+
+	uasm_l_not_nmi(&l, p);
+
+	val = CAUSEF_IV;
+	uasm_i_lui(&p, GPR_K0, val >> 16);
+	uasm_i_ori(&p, GPR_K0, GPR_K0, val & 0xffff);
+	uasm_i_mtc0(&p, GPR_K0, C0_CAUSE);
+	val = ST0_CU1 | ST0_CU0 | ST0_BEV | ST0_KX_IF_64;
+	uasm_i_lui(&p, GPR_K0, val >> 16);
+	uasm_i_ori(&p, GPR_K0, GPR_K0, val & 0xffff);
+	uasm_i_mtc0(&p, GPR_K0, C0_STATUS);
+	uasm_i_ehb(&p);
+	uasm_i_ori(&p, GPR_A0, 0, read_c0_config() & CONF_CM_CMASK);
+	UASM_i_LA(&p, GPR_A1, (long)mips_gcr_base);
+#if defined(KBUILD_64BIT_SYM32) || defined(CONFIG_32BIT)
+	UASM_i_LA(&p, GPR_T9, CKSEG1ADDR(__pa_symbol(mips_cps_core_boot)));
+#else
+	UASM_i_LA(&p, GPR_T9, TO_UNCAC(__pa_symbol(mips_cps_core_boot)));
+#endif
+	uasm_i_jr(&p, GPR_T9);
+	uasm_i_nop(&p);
+
+	uasm_resolve_relocs(relocs, labels);
+
+	return p;
+}
+
+static int __init allocate_cps_vecs(void)
+{
+	/* Try to allocate in KSEG1 first */
+	cps_vec_pa = memblock_phys_alloc_range(BEV_VEC_SIZE, BEV_VEC_ALIGN,
+						0x0, CSEGX_SIZE - 1);
+
+	if (cps_vec_pa)
+		core_entry_reg = CKSEG1ADDR(cps_vec_pa) &
+					CM_GCR_Cx_RESET_BASE_BEVEXCBASE;
+
+	if (!cps_vec_pa && mips_cm_is64) {
+		cps_vec_pa = memblock_phys_alloc_range(BEV_VEC_SIZE, BEV_VEC_ALIGN,
+							0x0, SZ_4G - 1);
+		if (cps_vec_pa)
+			core_entry_reg = (cps_vec_pa & CM_GCR_Cx_RESET_BASE_BEVEXCBASE) |
+					CM_GCR_Cx_RESET_BASE_MODE;
+	}
+
+	if (!cps_vec_pa)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void __init setup_cps_vecs(void)
+{
+	void *cps_vec;
+
+	cps_vec = (void *)CKSEG1ADDR_OR_64BIT(cps_vec_pa);
+	mips_cps_build_core_entry(cps_vec);
+
+	memcpy(cps_vec + 0x200, &excep_tlbfill, 0x80);
+	memcpy(cps_vec + 0x280, &excep_xtlbfill, 0x80);
+	memcpy(cps_vec + 0x300, &excep_cache, 0x80);
+	memcpy(cps_vec + 0x380, &excep_genex, 0x80);
+	memcpy(cps_vec + 0x400, &excep_intex, 0x80);
+	memcpy(cps_vec + 0x480, &excep_ejtag, 0x80);
+
+	/* Make sure no prefetched data in cache */
+	blast_inv_dcache_range(CKSEG0ADDR_OR_64BIT(cps_vec_pa), CKSEG0ADDR_OR_64BIT(cps_vec_pa) + BEV_VEC_SIZE);
+	bc_inv(CKSEG0ADDR_OR_64BIT(cps_vec_pa), BEV_VEC_SIZE);
+	__sync();
+}
+
 static void __init cps_smp_setup(void)
 {
 	unsigned int nclusters, ncores, nvpes, core_vpes;
-	unsigned long core_entry;
 	int cl, c, v;
 
 	/* Detect & record VPE topology */
@@ -94,10 +197,11 @@ static void __init cps_smp_setup(void)
 	/* Make core 0 coherent with everything */
 	write_gcr_cl_coherence(0xff);
 
-	if (mips_cm_revision() >= CM_REV_CM3) {
-		core_entry = CKSEG1ADDR((unsigned long)mips_cps_core_entry);
-		write_gcr_bev_base(core_entry);
-	}
+	if (allocate_cps_vecs())
+		pr_err("Failed to allocate CPS vectors\n");
+
+	if (core_entry_reg && mips_cm_revision() >= CM_REV_CM3)
+		write_gcr_bev_base(core_entry_reg);
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
@@ -110,9 +214,13 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned ncores, core_vpes, c, cca;
 	bool cca_unsuitable, cores_limited;
-	u32 *entry_code;
 
 	mips_mt_set_cpuoptions();
+
+	if (!core_entry_reg) {
+		pr_err("core_entry address unsuitable, disabling smp-cps\n");
+		goto err_out;
+	}
 
 	/* Detect whether the CCA is unsuited to multi-core SMP */
 	cca = read_c0_config() & CONF_CM_CMASK;
@@ -145,20 +253,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 			(cca_unsuitable && cpu_has_dc_aliases) ? " & " : "",
 			cpu_has_dc_aliases ? "dcache aliasing" : "");
 
-	/*
-	 * Patch the start of mips_cps_core_entry to provide:
-	 *
-	 * s0 = kseg0 CCA
-	 */
-	entry_code = (u32 *)&mips_cps_core_entry;
-	uasm_i_addiu(&entry_code, 16, 0, cca);
-	UASM_i_LA(&entry_code, 17, (long)mips_gcr_base);
-	BUG_ON((void *)entry_code > (void *)&mips_cps_core_entry_patch_end);
-	blast_dcache_range((unsigned long)&mips_cps_core_entry,
-			   (unsigned long)entry_code);
-	bc_wback_inv((unsigned long)&mips_cps_core_entry,
-		     (void *)entry_code - (void *)&mips_cps_core_entry);
-	__sync();
+	setup_cps_vecs();
 
 	/* Allocate core boot configuration structs */
 	ncores = mips_cps_numcores(0);
@@ -213,7 +308,7 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 	mips_cm_lock_other(0, core, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 
 	/* Set its reset vector */
-	write_gcr_co_reset_base(CKSEG1ADDR((unsigned long)mips_cps_core_entry));
+	write_gcr_co_reset_base(core_entry_reg);
 
 	/* Ensure its coherency is disabled */
 	write_gcr_co_coherence(0);
@@ -290,7 +385,6 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
 	struct vpe_boot_config *vpe_cfg = &core_cfg->vpe_config[vpe_id];
-	unsigned long core_entry;
 	unsigned int remote;
 	int err;
 
@@ -314,8 +408,7 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 
 	if (cpu_has_vp) {
 		mips_cm_lock_other(0, core, vpe_id, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
-		core_entry = CKSEG1ADDR((unsigned long)mips_cps_core_entry);
-		write_gcr_co_reset_base(core_entry);
+		write_gcr_co_reset_base(core_entry_reg);
 		mips_cm_unlock_other();
 	}
 

@@ -181,7 +181,7 @@ static int parse_test_spec(struct test_loader *tester,
 	memset(spec, 0, sizeof(*spec));
 
 	spec->prog_name = bpf_program__name(prog);
-	spec->prog_flags = BPF_F_TEST_REG_INVARIANTS; /* by default be strict */
+	spec->prog_flags = testing_prog_flags();
 
 	btf = bpf_object__btf(obj);
 	if (!btf) {
@@ -501,7 +501,7 @@ static bool is_unpriv_capable_map(struct bpf_map *map)
 	}
 }
 
-static int do_prog_test_run(int fd_prog, int *retval)
+static int do_prog_test_run(int fd_prog, int *retval, bool empty_opts)
 {
 	__u8 tmp_out[TEST_DATA_LEN << 2] = {};
 	__u8 tmp_in[TEST_DATA_LEN] = {};
@@ -514,6 +514,10 @@ static int do_prog_test_run(int fd_prog, int *retval)
 		.repeat = 1,
 	);
 
+	if (empty_opts) {
+		memset(&topts, 0, sizeof(struct bpf_test_run_opts));
+		topts.sz = sizeof(struct bpf_test_run_opts);
+	}
 	err = bpf_prog_test_run_opts(fd_prog, &topts);
 	saved_errno = errno;
 
@@ -649,7 +653,8 @@ void run_subtest(struct test_loader *tester,
 			}
 		}
 
-		do_prog_test_run(bpf_program__fd(tprog), &retval);
+		do_prog_test_run(bpf_program__fd(tprog), &retval,
+				 bpf_program__type(tprog) == BPF_PROG_TYPE_SYSCALL ? true : false);
 		if (retval != subspec->retval && subspec->retval != POINTER_VALUE) {
 			PRINT_FAIL("Unexpected retval: %d != %d\n", retval, subspec->retval);
 			goto tobj_cleanup;
@@ -688,7 +693,7 @@ static void process_subtest(struct test_loader *tester,
 		++nr_progs;
 
 	specs = calloc(nr_progs, sizeof(struct test_spec));
-	if (!ASSERT_OK_PTR(specs, "Can't alloc specs array"))
+	if (!ASSERT_OK_PTR(specs, "specs_alloc"))
 		return;
 
 	i = 0;

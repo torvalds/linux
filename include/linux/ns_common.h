@@ -7,7 +7,7 @@
 struct proc_ns_operations;
 
 struct ns_common {
-	atomic_long_t stashed;
+	struct dentry *stashed;
 	const struct proc_ns_operations *ops;
 	unsigned int inum;
 	refcount_t count;

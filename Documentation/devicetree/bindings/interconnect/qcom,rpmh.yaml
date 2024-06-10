@@ -8,7 +8,7 @@ title: Qualcomm RPMh Network-On-Chip Interconnect
 
 maintainers:
   - Georgi Djakov <georgi.djakov@linaro.org>
-  - Odelu Kukatla <okukatla@codeaurora.org>
+  - Odelu Kukatla <quic_okukatla@quicinc.com>
 
 description: |
    RPMh interconnect providers support system bandwidth requirements through

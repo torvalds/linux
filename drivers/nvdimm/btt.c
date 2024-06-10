@@ -6,6 +6,7 @@
 #include <linux/highmem.h>
 #include <linux/debugfs.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/pagemap.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -1496,26 +1497,31 @@ static int btt_blk_init(struct btt *btt)
 {
 	struct nd_btt *nd_btt = btt->nd_btt;
 	struct nd_namespace_common *ndns = nd_btt->ndns;
-	int rc = -ENOMEM;
+	struct queue_limits lim = {
+		.logical_block_size	= btt->sector_size,
+		.max_hw_sectors		= UINT_MAX,
+		.max_integrity_segments	= 1,
+	};
+	int rc;
 
-	btt->btt_disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!btt->btt_disk)
-		return -ENOMEM;
+	btt->btt_disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
+	if (IS_ERR(btt->btt_disk))
+		return PTR_ERR(btt->btt_disk);
 
 	nvdimm_namespace_disk_name(ndns, btt->btt_disk->disk_name);
 	btt->btt_disk->first_minor = 0;
 	btt->btt_disk->fops = &btt_fops;
 	btt->btt_disk->private_data = btt;
 
-	blk_queue_logical_block_size(btt->btt_disk->queue, btt->sector_size);
-	blk_queue_max_hw_sectors(btt->btt_disk->queue, UINT_MAX);
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, btt->btt_disk->queue);
 	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, btt->btt_disk->queue);
 
-	if (btt_meta_size(btt)) {
-		rc = nd_integrity_init(btt->btt_disk, btt_meta_size(btt));
-		if (rc)
-			goto out_cleanup_disk;
+	if (btt_meta_size(btt) && IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
+		struct blk_integrity bi = {
+			.tuple_size	= btt_meta_size(btt),
+			.tag_size	= btt_meta_size(btt),
+		};
+		blk_integrity_register(btt->btt_disk, &bi);
 	}
 
 	set_capacity(btt->btt_disk, btt->nlba * btt->sector_size >> 9);

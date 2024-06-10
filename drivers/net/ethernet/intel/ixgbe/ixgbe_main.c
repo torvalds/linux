@@ -153,7 +153,7 @@ MODULE_PARM_DESC(max_vfs,
 #endif /* CONFIG_PCI_IOV */
 
 static bool allow_unsupported_sfp;
-module_param(allow_unsupported_sfp, bool, 0);
+module_param(allow_unsupported_sfp, bool, 0444);
 MODULE_PARM_DESC(allow_unsupported_sfp,
 		 "Allow unsupported and untested SFP+ modules on 82599-based adapters");
 
@@ -205,7 +205,7 @@ static int ixgbe_read_pci_cfg_word_parent(struct ixgbe_adapter *adapter,
 	return 0;
 }
 
-static s32 ixgbe_get_parent_bus_info(struct ixgbe_adapter *adapter)
+static int ixgbe_get_parent_bus_info(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u16 link_status = 0;
@@ -1106,6 +1106,44 @@ static int ixgbe_tx_maxrate(struct net_device *netdev,
 }
 
 /**
+ * ixgbe_update_tx_ring_stats - Update Tx ring specific counters
+ * @tx_ring: ring to update
+ * @q_vector: queue vector ring belongs to
+ * @pkts: number of processed packets
+ * @bytes: number of processed bytes
+ */
+void ixgbe_update_tx_ring_stats(struct ixgbe_ring *tx_ring,
+				struct ixgbe_q_vector *q_vector, u64 pkts,
+				u64 bytes)
+{
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->stats.bytes += bytes;
+	tx_ring->stats.packets += pkts;
+	u64_stats_update_end(&tx_ring->syncp);
+	q_vector->tx.total_bytes += bytes;
+	q_vector->tx.total_packets += pkts;
+}
+
+/**
+ * ixgbe_update_rx_ring_stats - Update Rx ring specific counters
+ * @rx_ring: ring to update
+ * @q_vector: queue vector ring belongs to
+ * @pkts: number of processed packets
+ * @bytes: number of processed bytes
+ */
+void ixgbe_update_rx_ring_stats(struct ixgbe_ring *rx_ring,
+				struct ixgbe_q_vector *q_vector, u64 pkts,
+				u64 bytes)
+{
+	u64_stats_update_begin(&rx_ring->syncp);
+	rx_ring->stats.bytes += bytes;
+	rx_ring->stats.packets += pkts;
+	u64_stats_update_end(&rx_ring->syncp);
+	q_vector->rx.total_bytes += bytes;
+	q_vector->rx.total_packets += pkts;
+}
+
+/**
  * ixgbe_clean_tx_irq - Reclaim resources after transmit completes
  * @q_vector: structure containing interrupt and ring information
  * @tx_ring: tx ring to clean
@@ -1207,12 +1245,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
-	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->stats.bytes += total_bytes;
-	tx_ring->stats.packets += total_packets;
-	u64_stats_update_end(&tx_ring->syncp);
-	q_vector->tx.total_bytes += total_bytes;
-	q_vector->tx.total_packets += total_packets;
+	ixgbe_update_tx_ring_stats(tx_ring, q_vector, total_packets,
+				   total_bytes);
 	adapter->tx_ipsec += total_ipsec;
 
 	if (check_for_tx_hang(tx_ring) && ixgbe_check_tx_hang(tx_ring)) {
@@ -2429,12 +2463,8 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		ixgbe_xdp_ring_update_tail_locked(ring);
 	}
 
-	u64_stats_update_begin(&rx_ring->syncp);
-	rx_ring->stats.packets += total_rx_packets;
-	rx_ring->stats.bytes += total_rx_bytes;
-	u64_stats_update_end(&rx_ring->syncp);
-	q_vector->rx.total_packets += total_rx_packets;
-	q_vector->rx.total_bytes += total_rx_bytes;
+	ixgbe_update_rx_ring_stats(rx_ring, q_vector, total_rx_packets,
+				   total_rx_bytes);
 
 	return total_rx_packets;
 }
@@ -6817,7 +6847,7 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 		   netdev->mtu, new_mtu);
 
 	/* must set new MTU before calling down or up */
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (netif_running(netdev))
 		ixgbe_reinit_locked(adapter);
@@ -6944,7 +6974,7 @@ int ixgbe_close(struct net_device *netdev)
 	return 0;
 }
 
-static int __maybe_unused ixgbe_resume(struct device *dev_d)
+static int ixgbe_resume(struct device *dev_d)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
@@ -7052,7 +7082,7 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	return 0;
 }
 
-static int __maybe_unused ixgbe_suspend(struct device *dev_d)
+static int ixgbe_suspend(struct device *dev_d)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_d);
 	int retval;
@@ -7809,7 +7839,7 @@ static void ixgbe_watchdog_subtask(struct ixgbe_adapter *adapter)
 static void ixgbe_sfp_detection_subtask(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	s32 err;
+	int err;
 
 	/* not searching for SFP so there is nothing to do here */
 	if (!(adapter->flags2 & IXGBE_FLAG2_SEARCH_FOR_SFP) &&
@@ -10031,15 +10061,10 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 	if (!br_spec)
 		return -EINVAL;
 
-	nla_for_each_nested(attr, br_spec, rem) {
-		int status;
-		__u16 mode;
+	nla_for_each_nested_type(attr, IFLA_BRIDGE_MODE, br_spec, rem) {
+		__u16 mode = nla_get_u16(attr);
+		int status = ixgbe_configure_bridge_mode(adapter, mode);
 
-		if (nla_type(attr) != IFLA_BRIDGE_MODE)
-			continue;
-
-		mode = nla_get_u16(attr);
-		status = ixgbe_configure_bridge_mode(adapter, mode);
 		if (status)
 			return status;
 
@@ -10205,7 +10230,7 @@ ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
 	unsigned int network_hdr_len, mac_hdr_len;
 
 	/* Make certain the headers can be described by a context descriptor */
-	mac_hdr_len = skb_network_header(skb) - skb->data;
+	mac_hdr_len = skb_network_offset(skb);
 	if (unlikely(mac_hdr_len > IXGBE_MAX_MAC_HDR_LEN))
 		return features & ~(NETIF_F_HW_CSUM |
 				    NETIF_F_SCTP_CRC |
@@ -11558,14 +11583,14 @@ static const struct pci_error_handlers ixgbe_err_handler = {
 	.resume = ixgbe_io_resume,
 };
 
-static SIMPLE_DEV_PM_OPS(ixgbe_pm_ops, ixgbe_suspend, ixgbe_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ixgbe_pm_ops, ixgbe_suspend, ixgbe_resume);
 
 static struct pci_driver ixgbe_driver = {
 	.name      = ixgbe_driver_name,
 	.id_table  = ixgbe_pci_tbl,
 	.probe     = ixgbe_probe,
 	.remove    = ixgbe_remove,
-	.driver.pm = &ixgbe_pm_ops,
+	.driver.pm = pm_sleep_ptr(&ixgbe_pm_ops),
 	.shutdown  = ixgbe_shutdown,
 	.sriov_configure = ixgbe_pci_sriov_configure,
 	.err_handler = &ixgbe_err_handler

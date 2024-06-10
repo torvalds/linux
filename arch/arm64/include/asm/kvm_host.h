@@ -211,6 +211,7 @@ typedef unsigned int pkvm_handle_t;
 struct kvm_protected_vm {
 	pkvm_handle_t handle;
 	struct kvm_hyp_memcache teardown_mc;
+	bool enabled;
 };
 
 struct kvm_mpidr_data {
@@ -220,26 +221,39 @@ struct kvm_mpidr_data {
 
 static inline u16 kvm_mpidr_index(struct kvm_mpidr_data *data, u64 mpidr)
 {
-	unsigned long mask = data->mpidr_mask;
-	u64 aff = mpidr & MPIDR_HWID_BITMASK;
-	int nbits, bit, bit_idx = 0;
-	u16 index = 0;
+	unsigned long index = 0, mask = data->mpidr_mask;
+	unsigned long aff = mpidr & MPIDR_HWID_BITMASK;
 
-	/*
-	 * If this looks like RISC-V's BEXT or x86's PEXT
-	 * instructions, it isn't by accident.
-	 */
-	nbits = fls(mask);
-	for_each_set_bit(bit, &mask, nbits) {
-		index |= (aff & BIT(bit)) >> (bit - bit_idx);
-		bit_idx++;
-	}
+	bitmap_gather(&index, &aff, &mask, fls(mask));
 
 	return index;
 }
 
+struct kvm_sysreg_masks;
+
+enum fgt_group_id {
+	__NO_FGT_GROUP__,
+	HFGxTR_GROUP,
+	HDFGRTR_GROUP,
+	HDFGWTR_GROUP = HDFGRTR_GROUP,
+	HFGITR_GROUP,
+	HAFGRTR_GROUP,
+
+	/* Must be last */
+	__NR_FGT_GROUP_IDS__
+};
+
 struct kvm_arch {
 	struct kvm_s2_mmu mmu;
+
+	/*
+	 * Fine-Grained UNDEF, mimicking the FGT layout defined by the
+	 * architecture. We track them globally, as we present the
+	 * same feature-set to all vcpus.
+	 *
+	 * Index 0 is currently spare.
+	 */
+	u64 fgu[__NR_FGT_GROUP_IDS__];
 
 	/* Interrupt controller */
 	struct vgic_dist	vgic;
@@ -274,6 +288,8 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE		6
 	/* Initial ID reg values loaded */
 #define KVM_ARCH_FLAG_ID_REGS_INITIALIZED		7
+	/* Fine-Grained UNDEF initialised */
+#define KVM_ARCH_FLAG_FGU_INITIALIZED			8
 	unsigned long flags;
 
 	/* VM-wide vCPU feature set */
@@ -294,6 +310,9 @@ struct kvm_arch {
 	/* PMCR_EL0.N value for the guest */
 	u8 pmcr_n;
 
+	/* Iterator for idreg debugfs */
+	u8	idreg_debugfs_iter;
+
 	/* Hypercall features firmware registers' descriptor */
 	struct kvm_smccc_features smccc_feat;
 	struct maple_tree smccc_filter;
@@ -311,6 +330,9 @@ struct kvm_arch {
 #define IDREG(kvm, id)		((kvm)->arch.id_regs[IDREG_IDX(id)])
 #define KVM_ARM_ID_REG_NUM	(IDREG_IDX(sys_reg(3, 0, 0, 7, 7)) + 1)
 	u64 id_regs[KVM_ARM_ID_REG_NUM];
+
+	/* Masks for VNCR-baked sysregs */
+	struct kvm_sysreg_masks	*sysreg_masks;
 
 	/*
 	 * For an untrusted host VM, 'pkvm.handle' is used to lookup
@@ -474,6 +496,13 @@ enum vcpu_sysreg {
 	NR_SYS_REGS	/* Nothing after this line! */
 };
 
+struct kvm_sysreg_masks {
+	struct {
+		u64	res0;
+		u64	res1;
+	} mask[NR_SYS_REGS - __VNCR_START__];
+};
+
 struct kvm_cpu_context {
 	struct user_pt_regs regs;	/* sp = sp_el0 */
 
@@ -492,8 +521,42 @@ struct kvm_cpu_context {
 	u64 *vncr_array;
 };
 
+/*
+ * This structure is instantiated on a per-CPU basis, and contains
+ * data that is:
+ *
+ * - tied to a single physical CPU, and
+ * - either have a lifetime that does not extend past vcpu_put()
+ * - or is an invariant for the lifetime of the system
+ *
+ * Use host_data_ptr(field) as a way to access a pointer to such a
+ * field.
+ */
 struct kvm_host_data {
 	struct kvm_cpu_context host_ctxt;
+	struct user_fpsimd_state *fpsimd_state;	/* hyp VA */
+
+	/* Ownership of the FP regs */
+	enum {
+		FP_STATE_FREE,
+		FP_STATE_HOST_OWNED,
+		FP_STATE_GUEST_OWNED,
+	} fp_owner;
+
+	/*
+	 * host_debug_state contains the host registers which are
+	 * saved and restored during world switches.
+	 */
+	 struct {
+		/* {Break,watch}point registers */
+		struct kvm_guest_debug_arch regs;
+		/* Statistical profiling extension */
+		u64 pmscr_el1;
+		/* Self-hosted trace */
+		u64 trfcr_el1;
+		/* Values of trap registers for the host before guest entry. */
+		u64 mdcr_el2;
+	} host_debug_state;
 };
 
 struct kvm_host_psci_config {
@@ -543,27 +606,19 @@ struct kvm_vcpu_arch {
 	enum fp_type fp_type;
 	unsigned int sve_max_vl;
 	u64 svcr;
+	u64 fpmr;
 
 	/* Stage 2 paging state used by the hardware on next switch */
 	struct kvm_s2_mmu *hw_mmu;
 
 	/* Values of trap registers for the guest. */
 	u64 hcr_el2;
+	u64 hcrx_el2;
 	u64 mdcr_el2;
 	u64 cptr_el2;
 
-	/* Values of trap registers for the host before guest entry. */
-	u64 mdcr_el2_host;
-
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
-
-	/* Ownership of the FP regs */
-	enum {
-		FP_STATE_FREE,
-		FP_STATE_HOST_OWNED,
-		FP_STATE_GUEST_OWNED,
-	} fp_state;
 
 	/* Configuration flags, set once and for all before the vcpu can run */
 	u8 cflags;
@@ -587,11 +642,10 @@ struct kvm_vcpu_arch {
 	 * We maintain more than a single set of debug registers to support
 	 * debugging the guest from the host and to maintain separate host and
 	 * guest state during world switches. vcpu_debug_state are the debug
-	 * registers of the vcpu as the guest sees them.  host_debug_state are
-	 * the host registers which are saved and restored during
-	 * world switches. external_debug_state contains the debug
-	 * values we want to debug the guest. This is set via the
-	 * KVM_SET_GUEST_DEBUG ioctl.
+	 * registers of the vcpu as the guest sees them.
+	 *
+	 * external_debug_state contains the debug values we want to debug the
+	 * guest. This is set via the KVM_SET_GUEST_DEBUG ioctl.
 	 *
 	 * debug_ptr points to the set of debug registers that should be loaded
 	 * onto the hardware when running the guest.
@@ -599,18 +653,6 @@ struct kvm_vcpu_arch {
 	struct kvm_guest_debug_arch *debug_ptr;
 	struct kvm_guest_debug_arch vcpu_debug_state;
 	struct kvm_guest_debug_arch external_debug_state;
-
-	struct user_fpsimd_state *host_fpsimd_state;	/* hyp VA */
-	struct task_struct *parent_task;
-
-	struct {
-		/* {Break,watch}point registers */
-		struct kvm_guest_debug_arch regs;
-		/* Statistical profiling extension */
-		u64 pmscr_el1;
-		/* Self-hosted trace */
-		u64 trfcr_el1;
-	} host_debug_state;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
@@ -777,8 +819,6 @@ struct kvm_vcpu_arch {
 #define DEBUG_STATE_SAVE_SPE	__vcpu_single_flag(iflags, BIT(5))
 /* Save TRBE context if active  */
 #define DEBUG_STATE_SAVE_TRBE	__vcpu_single_flag(iflags, BIT(6))
-/* vcpu running in HYP context */
-#define VCPU_HYP_CONTEXT	__vcpu_single_flag(iflags, BIT(7))
 
 /* SVE enabled for host EL0 */
 #define HOST_SVE_ENABLED	__vcpu_single_flag(sflags, BIT(0))
@@ -856,7 +896,7 @@ struct kvm_vcpu_arch {
  * Don't bother with VNCR-based accesses in the nVHE code, it has no
  * business dealing with NV.
  */
-static inline u64 *__ctxt_sys_reg(const struct kvm_cpu_context *ctxt, int r)
+static inline u64 *___ctxt_sys_reg(const struct kvm_cpu_context *ctxt, int r)
 {
 #if !defined (__KVM_NVHE_HYPERVISOR__)
 	if (unlikely(cpus_have_final_cap(ARM64_HAS_NESTED_VIRT) &&
@@ -866,9 +906,24 @@ static inline u64 *__ctxt_sys_reg(const struct kvm_cpu_context *ctxt, int r)
 	return (u64 *)&ctxt->sys_regs[r];
 }
 
+#define __ctxt_sys_reg(c,r)						\
+	({								\
+		BUILD_BUG_ON(__builtin_constant_p(r) &&			\
+			     (r) >= NR_SYS_REGS);			\
+		___ctxt_sys_reg(c, r);					\
+	})
+
 #define ctxt_sys_reg(c,r)	(*__ctxt_sys_reg(c,r))
 
-#define __vcpu_sys_reg(v,r)	(ctxt_sys_reg(&(v)->arch.ctxt, (r)))
+u64 kvm_vcpu_sanitise_vncr_reg(const struct kvm_vcpu *, enum vcpu_sysreg);
+#define __vcpu_sys_reg(v,r)						\
+	(*({								\
+		const struct kvm_cpu_context *ctxt = &(v)->arch.ctxt;	\
+		u64 *__r = __ctxt_sys_reg(ctxt, (r));			\
+		if (vcpu_has_nv((v)) && (r) >= __VNCR_START__)		\
+			*__r = kvm_vcpu_sanitise_vncr_reg((v), (r));	\
+		__r;							\
+	}))
 
 u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg);
 void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg);
@@ -1055,13 +1110,19 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu);
 int kvm_handle_sys_reg(struct kvm_vcpu *vcpu);
 int kvm_handle_cp10_id(struct kvm_vcpu *vcpu);
 
+void kvm_sys_regs_create_debugfs(struct kvm *kvm);
 void kvm_reset_sys_regs(struct kvm_vcpu *vcpu);
 
 int __init kvm_sys_reg_table_init(void);
+struct sys_reg_desc;
+int __init populate_sysreg_config(const struct sys_reg_desc *sr,
+				  unsigned int idx);
 int __init populate_nv_trap_config(void);
 
 bool lock_all_vcpus(struct kvm *kvm);
 void unlock_all_vcpus(struct kvm *kvm);
+
+void kvm_init_sysreg(struct kvm_vcpu *);
 
 /* MMIO helpers */
 void kvm_mmio_write_buf(void *buf, unsigned int len, unsigned long data);
@@ -1114,6 +1175,44 @@ struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr);
 
 DECLARE_KVM_HYP_PER_CPU(struct kvm_host_data, kvm_host_data);
 
+/*
+ * How we access per-CPU host data depends on the where we access it from,
+ * and the mode we're in:
+ *
+ * - VHE and nVHE hypervisor bits use their locally defined instance
+ *
+ * - the rest of the kernel use either the VHE or nVHE one, depending on
+ *   the mode we're running in.
+ *
+ *   Unless we're in protected mode, fully deprivileged, and the nVHE
+ *   per-CPU stuff is exclusively accessible to the protected EL2 code.
+ *   In this case, the EL1 code uses the *VHE* data as its private state
+ *   (which makes sense in a way as there shouldn't be any shared state
+ *   between the host and the hypervisor).
+ *
+ * Yes, this is all totally trivial. Shoot me now.
+ */
+#if defined(__KVM_NVHE_HYPERVISOR__) || defined(__KVM_VHE_HYPERVISOR__)
+#define host_data_ptr(f)	(&this_cpu_ptr(&kvm_host_data)->f)
+#else
+#define host_data_ptr(f)						\
+	(static_branch_unlikely(&kvm_protected_mode_initialized) ?	\
+	 &this_cpu_ptr(&kvm_host_data)->f :				\
+	 &this_cpu_ptr_hyp_sym(kvm_host_data)->f)
+#endif
+
+/* Check whether the FP regs are owned by the guest */
+static inline bool guest_owns_fp_regs(void)
+{
+	return *host_data_ptr(fp_owner) == FP_STATE_GUEST_OWNED;
+}
+
+/* Check whether the FP regs are owned by the host */
+static inline bool host_owns_fp_regs(void)
+{
+	return *host_data_ptr(fp_owner) == FP_STATE_HOST_OWNED;
+}
+
 static inline void kvm_init_host_cpu_context(struct kvm_cpu_context *cpu_ctxt)
 {
 	/* The host's MPIDR is immutable, so let's set it up at boot time */
@@ -1157,7 +1256,6 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_ctxflush_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu);
-void kvm_vcpu_unshare_task_fp(struct kvm_vcpu *vcpu);
 
 static inline bool kvm_pmu_counter_deferred(struct perf_event_attr *attr)
 {
@@ -1193,10 +1291,9 @@ struct kvm *kvm_arch_alloc_vm(void);
 
 #define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLBS_RANGE
 
-static inline bool kvm_vm_is_protected(struct kvm *kvm)
-{
-	return false;
-}
+#define kvm_vm_is_protected(kvm)	(is_protected_kvm_enabled() && (kvm)->arch.pkvm.enabled)
+
+#define vcpu_is_protected(vcpu)		kvm_vm_is_protected((vcpu)->kvm)
 
 int kvm_arm_vcpu_finalize(struct kvm_vcpu *vcpu, int feature);
 bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu);
@@ -1221,6 +1318,8 @@ static inline bool __vcpu_has_feature(const struct kvm_arch *ka, int feature)
 
 #define vcpu_has_feature(v, f)	__vcpu_has_feature(&(v)->kvm->arch, (f))
 
+#define kvm_vcpu_initialized(v) vcpu_get_flag(vcpu, VCPU_INITIALIZED)
+
 int kvm_trng_call(struct kvm_vcpu *vcpu);
 #ifdef CONFIG_KVM
 extern phys_addr_t hyp_mem_base;
@@ -1232,5 +1331,64 @@ static inline void kvm_hyp_reserve(void) { }
 
 void kvm_arm_vcpu_power_off(struct kvm_vcpu *vcpu);
 bool kvm_arm_vcpu_stopped(struct kvm_vcpu *vcpu);
+
+#define __expand_field_sign_unsigned(id, fld, val)			\
+	((u64)SYS_FIELD_VALUE(id, fld, val))
+
+#define __expand_field_sign_signed(id, fld, val)			\
+	({								\
+		u64 __val = SYS_FIELD_VALUE(id, fld, val);		\
+		sign_extend64(__val, id##_##fld##_WIDTH - 1);		\
+	})
+
+#define expand_field_sign(id, fld, val)					\
+	(id##_##fld##_SIGNED ?						\
+	 __expand_field_sign_signed(id, fld, val) :			\
+	 __expand_field_sign_unsigned(id, fld, val))
+
+#define get_idreg_field_unsigned(kvm, id, fld)				\
+	({								\
+		u64 __val = IDREG((kvm), SYS_##id);			\
+		FIELD_GET(id##_##fld##_MASK, __val);			\
+	})
+
+#define get_idreg_field_signed(kvm, id, fld)				\
+	({								\
+		u64 __val = get_idreg_field_unsigned(kvm, id, fld);	\
+		sign_extend64(__val, id##_##fld##_WIDTH - 1);		\
+	})
+
+#define get_idreg_field_enum(kvm, id, fld)				\
+	get_idreg_field_unsigned(kvm, id, fld)
+
+#define get_idreg_field(kvm, id, fld)					\
+	(id##_##fld##_SIGNED ?						\
+	 get_idreg_field_signed(kvm, id, fld) :				\
+	 get_idreg_field_unsigned(kvm, id, fld))
+
+#define kvm_has_feat(kvm, id, fld, limit)				\
+	(get_idreg_field((kvm), id, fld) >= expand_field_sign(id, fld, limit))
+
+#define kvm_has_feat_enum(kvm, id, fld, val)				\
+	(get_idreg_field_unsigned((kvm), id, fld) == __expand_field_sign_unsigned(id, fld, val))
+
+#define kvm_has_feat_range(kvm, id, fld, min, max)			\
+	(get_idreg_field((kvm), id, fld) >= expand_field_sign(id, fld, min) && \
+	 get_idreg_field((kvm), id, fld) <= expand_field_sign(id, fld, max))
+
+/* Check for a given level of PAuth support */
+#define kvm_has_pauth(k, l)						\
+	({								\
+		bool pa, pi, pa3;					\
+									\
+		pa  = kvm_has_feat((k), ID_AA64ISAR1_EL1, APA, l);	\
+		pa &= kvm_has_feat((k), ID_AA64ISAR1_EL1, GPA, IMP);	\
+		pi  = kvm_has_feat((k), ID_AA64ISAR1_EL1, API, l);	\
+		pi &= kvm_has_feat((k), ID_AA64ISAR1_EL1, GPI, IMP);	\
+		pa3  = kvm_has_feat((k), ID_AA64ISAR2_EL1, APA3, l);	\
+		pa3 &= kvm_has_feat((k), ID_AA64ISAR2_EL1, GPA3, IMP);	\
+									\
+		(pa + pi + pa3) == 1;					\
+	})
 
 #endif /* __ARM64_KVM_HOST_H__ */

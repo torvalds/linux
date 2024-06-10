@@ -6769,14 +6769,14 @@ static int gcc_x1e80100_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Keep the critical clock always-On */
-	regmap_update_bits(regmap, 0x26004, BIT(0), BIT(0)); /* gcc_camera_ahb_clk */
-	regmap_update_bits(regmap, 0x26028, BIT(0), BIT(0)); /* gcc_camera_xo_clk */
-	regmap_update_bits(regmap, 0x27004, BIT(0), BIT(0)); /* gcc_disp_ahb_clk */
-	regmap_update_bits(regmap, 0x27018, BIT(0), BIT(0)); /* gcc_disp_xo_clk */
-	regmap_update_bits(regmap, 0x32004, BIT(0), BIT(0)); /* gcc_video_ahb_clk */
-	regmap_update_bits(regmap, 0x32030, BIT(0), BIT(0)); /* gcc_video_xo_clk */
-	regmap_update_bits(regmap, 0x71004, BIT(0), BIT(0)); /* gcc_gpu_cfg_ahb_clk */
+	/* Keep some clocks always-on */
+	qcom_branch_set_clk_en(regmap, 0x26004); /* GCC_CAMERA_AHB_CLK */
+	qcom_branch_set_clk_en(regmap, 0x26028); /* GCC_CAMERA_XO_CLK */
+	qcom_branch_set_clk_en(regmap, 0x27004); /* GCC_DISP_AHB_CLK */
+	qcom_branch_set_clk_en(regmap, 0x27018); /* GCC_DISP_XO_CLK */
+	qcom_branch_set_clk_en(regmap, 0x32004); /* GCC_VIDEO_AHB_CLK */
+	qcom_branch_set_clk_en(regmap, 0x32030); /* GCC_VIDEO_XO_CLK */
+	qcom_branch_set_clk_en(regmap, 0x71004); /* GCC_GPU_CFG_AHB_CLK */
 
 	/* Clear GDSC_SLEEP_ENA_VOTE to stop votes being auto-removed in sleep. */
 	regmap_write(regmap, 0x52224, 0x0);

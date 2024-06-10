@@ -6,6 +6,12 @@ config LEDS_GPIO_REGISTER
 	  As this function is used by arch code it must not be compiled as a
 	  module.
 
+# This library does not depend on NEW_LEDS and must be independent so it can be
+# selected from other subsystems (specifically backlight).
+config LEDS_EXPRESSWIRE
+	bool
+	depends on GPIOLIB
+
 menuconfig NEW_LEDS
 	bool "LED Support"
 	help
@@ -185,6 +191,10 @@ config LEDS_EL15203000
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-el15203000.
+
+config LEDS_EXPRESSWIRE
+	bool
+	depends on GPIOLIB
 
 config LEDS_TURRIS_OMNIA
 	tristate "LED support for CZ.NIC's Turris Omnia"
@@ -395,7 +405,7 @@ config LEDS_LP3952
 config LEDS_LP50XX
 	tristate "LED Support for TI LP5036/30/24/18/12/09 LED driver chip"
 	depends on LEDS_CLASS && REGMAP_I2C
-	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
+	depends on LEDS_CLASS_MULTICOLOR
 	help
 	  If you say yes here you get support for the Texas Instruments
 	  LP5036, LP5030, LP5024, LP5018, LP5012 and LP5009 LED driver.
@@ -406,7 +416,7 @@ config LEDS_LP50XX
 config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
 	depends on LEDS_CLASS
-	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
+	depends on LEDS_CLASS_MULTICOLOR
 	depends on OF
 	depends on I2C
 	select FW_LOADER

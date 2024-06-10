@@ -29,16 +29,6 @@ TODO
 
 1. Items which MUST be fixed before the driver can be moved out of staging:
 
-* The atomisp ov2680 and ov5693 sensor drivers bind to the same hw-ids as
-  the standard ov2680 and ov5693 drivers under drivers/media/i2c, which
-  conflicts. Drop the atomisp private ov2680 and ov5693 drivers:
-  * Port various ov2680 improvements from atomisp_ov2680.c to regular ov2680.c
-    and switch to regular ov2680 driver
-  * Make atomisp work with the regular ov5693 driver and drop atomisp_ov5693
-
-* Fix atomisp causing the whole machine to hang in its probe() error-exit
-  path taken in the firmware missing case
-
 * Remove/disable private IOCTLs
 
 * Remove/disable custom v4l2-ctrls

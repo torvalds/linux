@@ -175,6 +175,8 @@ config SND_FIREWIRE_MOTU
 	  * 8pre
 	  * 828mk3 (FireWire only)
 	  * 828mk3 (Hybrid)
+	  * 896mk3 (FireWire only)
+	  * 896mk3 (Hybrid)
 	  * Ultralite mk3 (FireWire only)
 	  * Ultralite mk3 (Hybrid)
 	  * Traveler mk3

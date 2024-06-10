@@ -74,7 +74,7 @@ struct mlx5e_rss {
 	struct mlx5e_tir *tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_tir *inner_tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_rqt rqt;
-	struct mlx5_core_dev *mdev;
+	struct mlx5_core_dev *mdev; /* primary */
 	u32 drop_rqn;
 	bool inner_ft_support;
 	bool enabled;
@@ -473,21 +473,22 @@ int mlx5e_rss_obtain_tirn(struct mlx5e_rss *rss,
 	return 0;
 }
 
-static int mlx5e_rss_apply(struct mlx5e_rss *rss, u32 *rqns, unsigned int num_rqns)
+static int mlx5e_rss_apply(struct mlx5e_rss *rss, u32 *rqns, u32 *vhca_ids, unsigned int num_rqns)
 {
 	int err;
 
-	err = mlx5e_rqt_redirect_indir(&rss->rqt, rqns, num_rqns, rss->hash.hfunc, &rss->indir);
+	err = mlx5e_rqt_redirect_indir(&rss->rqt, rqns, vhca_ids, num_rqns, rss->hash.hfunc,
+				       &rss->indir);
 	if (err)
 		mlx5e_rss_warn(rss->mdev, "Failed to redirect RQT %#x to channels: err = %d\n",
 			       mlx5e_rqt_get_rqtn(&rss->rqt), err);
 	return err;
 }
 
-void mlx5e_rss_enable(struct mlx5e_rss *rss, u32 *rqns, unsigned int num_rqns)
+void mlx5e_rss_enable(struct mlx5e_rss *rss, u32 *rqns, u32 *vhca_ids, unsigned int num_rqns)
 {
 	rss->enabled = true;
-	mlx5e_rss_apply(rss, rqns, num_rqns);
+	mlx5e_rss_apply(rss, rqns, vhca_ids, num_rqns);
 }
 
 void mlx5e_rss_disable(struct mlx5e_rss *rss)
@@ -495,7 +496,7 @@ void mlx5e_rss_disable(struct mlx5e_rss *rss)
 	int err;
 
 	rss->enabled = false;
-	err = mlx5e_rqt_redirect_direct(&rss->rqt, rss->drop_rqn);
+	err = mlx5e_rqt_redirect_direct(&rss->rqt, rss->drop_rqn, NULL);
 	if (err)
 		mlx5e_rss_warn(rss->mdev, "Failed to redirect RQT %#x to drop RQ %#x: err = %d\n",
 			       mlx5e_rqt_get_rqtn(&rss->rqt), rss->drop_rqn, err);
@@ -568,7 +569,7 @@ int mlx5e_rss_get_rxfh(struct mlx5e_rss *rss, u32 *indir, u8 *key, u8 *hfunc)
 
 int mlx5e_rss_set_rxfh(struct mlx5e_rss *rss, const u32 *indir,
 		       const u8 *key, const u8 *hfunc,
-		       u32 *rqns, unsigned int num_rqns)
+		       u32 *rqns, u32 *vhca_ids, unsigned int num_rqns)
 {
 	bool changed_indir = false;
 	bool changed_hash = false;
@@ -608,7 +609,7 @@ int mlx5e_rss_set_rxfh(struct mlx5e_rss *rss, const u32 *indir,
 	}
 
 	if (changed_indir && rss->enabled) {
-		err = mlx5e_rss_apply(rss, rqns, num_rqns);
+		err = mlx5e_rss_apply(rss, rqns, vhca_ids, num_rqns);
 		if (err) {
 			mlx5e_rss_copy(rss, old_rss);
 			goto out;

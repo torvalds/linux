@@ -277,7 +277,7 @@ int dhry(int n)
 	dhry_assert_string_eq(Str_1_Loc, "DHRYSTONE PROGRAM, 1'ST STRING");
 	dhry_assert_string_eq(Str_2_Loc, "DHRYSTONE PROGRAM, 2'ND STRING");
 
-	User_Time = ktime_to_ms(ktime_sub(End_Time, Begin_Time));
+	User_Time = ktime_ms_delta(End_Time, Begin_Time);
 
 	kfree(Ptr_Glob);
 	kfree(Next_Ptr_Glob);

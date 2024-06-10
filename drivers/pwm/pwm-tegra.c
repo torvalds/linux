@@ -65,9 +65,6 @@ struct tegra_pwm_soc {
 };
 
 struct tegra_pwm_chip {
-	struct pwm_chip chip;
-	struct device *dev;
-
 	struct clk *clk;
 	struct reset_control*rst;
 
@@ -81,7 +78,7 @@ struct tegra_pwm_chip {
 
 static inline struct tegra_pwm_chip *to_tegra_pwm_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct tegra_pwm_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static inline u32 pwm_readl(struct tegra_pwm_chip *pc, unsigned int offset)
@@ -158,7 +155,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			 */
 			required_clk_rate *= 2;
 
-		err = dev_pm_opp_set_rate(pc->dev, required_clk_rate);
+		err = dev_pm_opp_set_rate(pwmchip_parent(chip), required_clk_rate);
 		if (err < 0)
 			return -EINVAL;
 
@@ -194,7 +191,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * before writing the register. Otherwise, keep it enabled.
 	 */
 	if (!pwm_is_enabled(pwm)) {
-		err = pm_runtime_resume_and_get(pc->dev);
+		err = pm_runtime_resume_and_get(pwmchip_parent(chip));
 		if (err)
 			return err;
 	} else
@@ -206,7 +203,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * If the PWM is not enabled, turn the clock off again to save power.
 	 */
 	if (!pwm_is_enabled(pwm))
-		pm_runtime_put(pc->dev);
+		pm_runtime_put(pwmchip_parent(chip));
 
 	return 0;
 }
@@ -217,7 +214,7 @@ static int tegra_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	int rc = 0;
 	u32 val;
 
-	rc = pm_runtime_resume_and_get(pc->dev);
+	rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
 	if (rc)
 		return rc;
 
@@ -237,7 +234,7 @@ static void tegra_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	val &= ~PWM_ENABLE;
 	pwm_writel(pc, pwm->hwpwm, val);
 
-	pm_runtime_put_sync(pc->dev);
+	pm_runtime_put_sync(pwmchip_parent(chip));
 }
 
 static int tegra_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -272,21 +269,25 @@ static const struct pwm_ops tegra_pwm_ops = {
 
 static int tegra_pwm_probe(struct platform_device *pdev)
 {
+	struct pwm_chip *chip;
 	struct tegra_pwm_chip *pc;
+	const struct tegra_pwm_soc *soc;
 	int ret;
 
-	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc)
-		return -ENOMEM;
+	soc = of_device_get_match_data(&pdev->dev);
 
-	pc->soc = of_device_get_match_data(&pdev->dev);
-	pc->dev = &pdev->dev;
+	chip = devm_pwmchip_alloc(&pdev->dev, soc->num_channels, sizeof(*pc));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	pc = to_tegra_pwm_chip(chip);
+
+	pc->soc = soc;
 
 	pc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->regs))
 		return PTR_ERR(pc->regs);
 
-	platform_set_drvdata(pdev, pc);
+	platform_set_drvdata(pdev, chip);
 
 	pc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pc->clk))
@@ -302,7 +303,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Set maximum frequency of the IP */
-	ret = dev_pm_opp_set_rate(pc->dev, pc->soc->max_frequency);
+	ret = dev_pm_opp_set_rate(&pdev->dev, pc->soc->max_frequency);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to set max frequency: %d\n", ret);
 		goto put_pm;
@@ -328,11 +329,9 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 
 	reset_control_deassert(pc->rst);
 
-	pc->chip.dev = &pdev->dev;
-	pc->chip.ops = &tegra_pwm_ops;
-	pc->chip.npwm = pc->soc->num_channels;
+	chip->ops = &tegra_pwm_ops;
 
-	ret = pwmchip_add(&pc->chip);
+	ret = pwmchip_add(chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
 		reset_control_assert(pc->rst);
@@ -350,9 +349,10 @@ put_pm:
 
 static void tegra_pwm_remove(struct platform_device *pdev)
 {
-	struct tegra_pwm_chip *pc = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = platform_get_drvdata(pdev);
+	struct tegra_pwm_chip *pc = to_tegra_pwm_chip(chip);
 
-	pwmchip_remove(&pc->chip);
+	pwmchip_remove(chip);
 
 	reset_control_assert(pc->rst);
 
@@ -361,7 +361,8 @@ static void tegra_pwm_remove(struct platform_device *pdev)
 
 static int __maybe_unused tegra_pwm_runtime_suspend(struct device *dev)
 {
-	struct tegra_pwm_chip *pc = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct tegra_pwm_chip *pc = to_tegra_pwm_chip(chip);
 	int err;
 
 	clk_disable_unprepare(pc->clk);
@@ -377,7 +378,8 @@ static int __maybe_unused tegra_pwm_runtime_suspend(struct device *dev)
 
 static int __maybe_unused tegra_pwm_runtime_resume(struct device *dev)
 {
-	struct tegra_pwm_chip *pc = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct tegra_pwm_chip *pc = to_tegra_pwm_chip(chip);
 	int err;
 
 	err = pinctrl_pm_select_default_state(dev);

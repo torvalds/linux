@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -10,13 +10,74 @@
 #include <linux/slab.h>
 #include <sound/hdaudio_ext.h>
 #include "avs.h"
+#include "cldma.h"
 #include "messages.h"
 
-static int __maybe_unused
-skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
-		u32 fifo_full_period, unsigned long resource_mask, u32 *priorities)
+void avs_skl_ipc_interrupt(struct avs_dev *adev)
 {
-	struct skl_log_state_info *info;
+	const struct avs_spec *spec = adev->spec;
+	u32 hipc_ack, hipc_rsp;
+
+	snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset,
+			      AVS_ADSP_HIPCCTL_DONE | AVS_ADSP_HIPCCTL_BUSY, 0);
+
+	hipc_ack = snd_hdac_adsp_readl(adev, spec->hipc->ack_offset);
+	hipc_rsp = snd_hdac_adsp_readl(adev, spec->hipc->rsp_offset);
+
+	/* DSP acked host's request. */
+	if (hipc_ack & spec->hipc->ack_done_mask) {
+		complete(&adev->ipc->done_completion);
+
+		/* Tell DSP it has our attention. */
+		snd_hdac_adsp_updatel(adev, spec->hipc->ack_offset, spec->hipc->ack_done_mask,
+				      spec->hipc->ack_done_mask);
+	}
+
+	/* DSP sent new response to process */
+	if (hipc_rsp & spec->hipc->rsp_busy_mask) {
+		union avs_reply_msg msg;
+
+		msg.primary = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCT);
+		msg.ext.val = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCTE);
+
+		avs_dsp_process_response(adev, msg.val);
+
+		/* Tell DSP we accepted its message. */
+		snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCT, SKL_ADSP_HIPCT_BUSY,
+				      SKL_ADSP_HIPCT_BUSY);
+	}
+
+	snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset,
+			      AVS_ADSP_HIPCCTL_DONE | AVS_ADSP_HIPCCTL_BUSY,
+			      AVS_ADSP_HIPCCTL_DONE | AVS_ADSP_HIPCCTL_BUSY);
+}
+
+static irqreturn_t avs_skl_dsp_interrupt(struct avs_dev *adev)
+{
+	u32 adspis = snd_hdac_adsp_readl(adev, AVS_ADSP_REG_ADSPIS);
+	irqreturn_t ret = IRQ_NONE;
+
+	if (adspis == UINT_MAX)
+		return ret;
+
+	if (adspis & AVS_ADSP_ADSPIS_CLDMA) {
+		hda_cldma_interrupt(&code_loader);
+		ret = IRQ_HANDLED;
+	}
+
+	if (adspis & AVS_ADSP_ADSPIS_IPC) {
+		avs_skl_ipc_interrupt(adev);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
+
+static int __maybe_unused
+avs_skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
+		    u32 fifo_full_period, unsigned long resource_mask, u32 *priorities)
+{
+	struct avs_skl_log_state_info *info;
 	u32 size, num_cores = adev->hw_cfg.dsp_cores;
 	int ret, i;
 
@@ -45,7 +106,7 @@ skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_peri
 	return 0;
 }
 
-int skl_log_buffer_offset(struct avs_dev *adev, u32 core)
+int avs_skl_log_buffer_offset(struct avs_dev *adev, u32 core)
 {
 	return core * avs_log_buffer_size(adev);
 }
@@ -53,8 +114,7 @@ int skl_log_buffer_offset(struct avs_dev *adev, u32 core)
 /* fw DbgLogWp registers */
 #define FW_REGS_DBG_LOG_WP(core) (0x30 + 0x4 * core)
 
-static int
-skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
+static int avs_skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 {
 	void __iomem *buf;
 	u16 size, write, offset;
@@ -74,7 +134,7 @@ skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 	return 0;
 }
 
-static int skl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
+static int avs_skl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 {
 	u8 *dump;
 
@@ -88,33 +148,31 @@ static int skl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 	return 0;
 }
 
-static bool
-skl_d0ix_toggle(struct avs_dev *adev, struct avs_ipc_msg *tx, bool wake)
+static bool avs_skl_d0ix_toggle(struct avs_dev *adev, struct avs_ipc_msg *tx, bool wake)
 {
 	/* unsupported on cAVS 1.5 hw */
 	return false;
 }
 
-static int skl_set_d0ix(struct avs_dev *adev, bool enable)
+static int avs_skl_set_d0ix(struct avs_dev *adev, bool enable)
 {
 	/* unsupported on cAVS 1.5 hw */
 	return 0;
 }
 
-const struct avs_dsp_ops skl_dsp_ops = {
+const struct avs_dsp_ops avs_skl_dsp_ops = {
 	.power = avs_dsp_core_power,
 	.reset = avs_dsp_core_reset,
 	.stall = avs_dsp_core_stall,
-	.irq_handler = avs_dsp_irq_handler,
-	.irq_thread = avs_dsp_irq_thread,
+	.dsp_interrupt = avs_skl_dsp_interrupt,
 	.int_control = avs_dsp_interrupt_control,
 	.load_basefw = avs_cldma_load_basefw,
 	.load_lib = avs_cldma_load_library,
 	.transfer_mods = avs_cldma_transfer_modules,
-	.log_buffer_offset = skl_log_buffer_offset,
-	.log_buffer_status = skl_log_buffer_status,
-	.coredump = skl_coredump,
-	.d0ix_toggle = skl_d0ix_toggle,
-	.set_d0ix = skl_set_d0ix,
+	.log_buffer_offset = avs_skl_log_buffer_offset,
+	.log_buffer_status = avs_skl_log_buffer_status,
+	.coredump = avs_skl_coredump,
+	.d0ix_toggle = avs_skl_d0ix_toggle,
+	.set_d0ix = avs_skl_set_d0ix,
 	AVS_SET_ENABLE_LOGS_OP(skl)
 };

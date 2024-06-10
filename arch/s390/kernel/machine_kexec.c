@@ -13,8 +13,10 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <asm/guarded_storage.h>
 #include <asm/pfault.h>
 #include <asm/cio.h>
+#include <asm/fpu.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/ipl.h>
@@ -26,7 +28,6 @@
 #include <asm/os_info.h>
 #include <asm/set_memory.h>
 #include <asm/stacktrace.h>
-#include <asm/switch_to.h>
 #include <asm/nmi.h>
 #include <asm/sclp.h>
 
@@ -207,21 +208,6 @@ int machine_kexec_prepare(struct kimage *image)
 
 void machine_kexec_cleanup(struct kimage *image)
 {
-}
-
-void arch_crash_save_vmcoreinfo(void)
-{
-	struct lowcore *abs_lc;
-
-	VMCOREINFO_SYMBOL(lowcore_ptr);
-	VMCOREINFO_SYMBOL(high_memory);
-	VMCOREINFO_LENGTH(lowcore_ptr, NR_CPUS);
-	vmcoreinfo_append_str("SAMODE31=%lx\n", (unsigned long)__samode31);
-	vmcoreinfo_append_str("EAMODE31=%lx\n", (unsigned long)__eamode31);
-	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
-	abs_lc = get_abs_lowcore();
-	abs_lc->vmcore_info = paddr_vmcoreinfo_note();
-	put_abs_lowcore(abs_lc);
 }
 
 void machine_shutdown(void)

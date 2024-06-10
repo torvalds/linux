@@ -38,7 +38,6 @@ struct backing_dev_info *bdi_alloc(int node_id);
 
 void wb_start_background_writeback(struct bdi_writeback *wb);
 void wb_workfn(struct work_struct *work);
-void wb_wakeup_delayed(struct bdi_writeback *wb);
 
 void wb_wait_for_completion(struct wb_completion *done);
 

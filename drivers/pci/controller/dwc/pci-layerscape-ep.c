@@ -250,7 +250,10 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = pcie->drvdata->dw_pcie_ops;
 
-	ls_epc->bar_fixed_64bit = (1 << BAR_2) | (1 << BAR_4);
+	ls_epc->bar[BAR_2].only_64bit = true;
+	ls_epc->bar[BAR_3].type = BAR_RESERVED;
+	ls_epc->bar[BAR_4].only_64bit = true;
+	ls_epc->bar[BAR_5].type = BAR_RESERVED;
 	ls_epc->linkup_notifier = true;
 
 	pcie->pci = pci;
@@ -275,6 +278,15 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 	ret = dw_pcie_ep_init(&pci->ep);
 	if (ret)
 		return ret;
+
+	ret = dw_pcie_ep_init_registers(&pci->ep);
+	if (ret) {
+		dev_err(dev, "Failed to initialize DWC endpoint registers\n");
+		dw_pcie_ep_deinit(&pci->ep);
+		return ret;
+	}
+
+	dw_pcie_ep_init_notify(&pci->ep);
 
 	return ls_pcie_ep_interrupt_init(pcie, pdev);
 }

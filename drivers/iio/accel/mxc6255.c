@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/sysfs.h>
 
@@ -181,7 +181,7 @@ MODULE_DEVICE_TABLE(i2c, mxc6255_id);
 static struct i2c_driver mxc6255_driver = {
 	.driver = {
 		.name = MXC6255_DRV_NAME,
-		.acpi_match_table = ACPI_PTR(mxc6255_acpi_match),
+		.acpi_match_table = mxc6255_acpi_match,
 	},
 	.probe		= mxc6255_probe,
 	.id_table	= mxc6255_id,

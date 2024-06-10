@@ -7,7 +7,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/of_gpio.h>
 #include <linux/iopoll.h>
 #include <linux/reset.h>
 #include <linux/of_net.h>
@@ -516,7 +515,8 @@ static int mt798x_wmac_adie_patch_7976(struct mt7915_dev *dev, u8 adie)
 	if (ret)
 		return ret;
 
-	if (version == 0x8a00 || version == 0x8a10 || version == 0x8b00) {
+	if (version == 0x8a00 || version == 0x8a10 ||
+	    version == 0x8b00 || version == 0x8c10) {
 		rg_xo_01 = 0x1d59080f;
 		rg_xo_03 = 0x34c00fe0;
 	} else {

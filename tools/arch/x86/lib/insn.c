@@ -71,7 +71,7 @@ void insn_init(struct insn *insn, const void *kaddr, int buf_len, int x86_64)
 	insn->kaddr = kaddr;
 	insn->end_kaddr = kaddr + buf_len;
 	insn->next_byte = kaddr;
-	insn->x86_64 = x86_64 ? 1 : 0;
+	insn->x86_64 = x86_64;
 	insn->opnd_bytes = 4;
 	if (x86_64)
 		insn->addr_bytes = 8;
@@ -185,6 +185,17 @@ found:
 			if (X86_REX_W(b))
 				/* REX.W overrides opnd_size */
 				insn->opnd_bytes = 8;
+		} else if (inat_is_rex2_prefix(attr)) {
+			insn_set_byte(&insn->rex_prefix, 0, b);
+			b = peek_nbyte_next(insn_byte_t, insn, 1);
+			insn_set_byte(&insn->rex_prefix, 1, b);
+			insn->rex_prefix.nbytes = 2;
+			insn->next_byte += 2;
+			if (X86_REX_W(b))
+				/* REX.W overrides opnd_size */
+				insn->opnd_bytes = 8;
+			insn->rex_prefix.got = 1;
+			goto vex_end;
 		}
 	}
 	insn->rex_prefix.got = 1;
@@ -268,11 +279,9 @@ int insn_get_opcode(struct insn *insn)
 	if (opcode->got)
 		return 0;
 
-	if (!insn->prefixes.got) {
-		ret = insn_get_prefixes(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_prefixes(insn);
+	if (ret)
+		return ret;
 
 	/* Get first opcode */
 	op = get_next(insn_byte_t, insn);
@@ -285,6 +294,10 @@ int insn_get_opcode(struct insn *insn)
 		m = insn_vex_m_bits(insn);
 		p = insn_vex_p_bits(insn);
 		insn->attr = inat_get_avx_attribute(op, m, p);
+		/* SCALABLE EVEX uses p bits to encode operand size */
+		if (inat_evex_scalable(insn->attr) && !insn_vex_w_bit(insn) &&
+		    p == INAT_PFX_OPNDSZ)
+			insn->opnd_bytes = 2;
 		if ((inat_must_evex(insn->attr) && !insn_is_evex(insn)) ||
 		    (!inat_accept_vex(insn->attr) &&
 		     !inat_is_group(insn->attr))) {
@@ -293,6 +306,20 @@ int insn_get_opcode(struct insn *insn)
 			return -EINVAL;
 		}
 		/* VEX has only 1 byte for opcode */
+		goto end;
+	}
+
+	/* Check if there is REX2 prefix or not */
+	if (insn_is_rex2(insn)) {
+		if (insn_rex2_m_bit(insn)) {
+			/* map 1 is escape 0x0f */
+			insn_attr_t esc_attr = inat_get_opcode_attribute(0x0f);
+
+			pfx_id = insn_last_prefix_id(insn);
+			insn->attr = inat_get_escape_attribute(op, pfx_id, esc_attr);
+		} else {
+			insn->attr = inat_get_opcode_attribute(op);
+		}
 		goto end;
 	}
 
@@ -339,11 +366,9 @@ int insn_get_modrm(struct insn *insn)
 	if (modrm->got)
 		return 0;
 
-	if (!insn->opcode.got) {
-		ret = insn_get_opcode(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_opcode(insn);
+	if (ret)
+		return ret;
 
 	if (inat_has_modrm(insn->attr)) {
 		mod = get_next(insn_byte_t, insn);
@@ -386,11 +411,9 @@ int insn_rip_relative(struct insn *insn)
 	if (!insn->x86_64)
 		return 0;
 
-	if (!modrm->got) {
-		ret = insn_get_modrm(insn);
-		if (ret)
-			return 0;
-	}
+	ret = insn_get_modrm(insn);
+	if (ret)
+		return 0;
 	/*
 	 * For rip-relative instructions, the mod field (top 2 bits)
 	 * is zero and the r/m field (bottom 3 bits) is 0x5.
@@ -417,11 +440,9 @@ int insn_get_sib(struct insn *insn)
 	if (insn->sib.got)
 		return 0;
 
-	if (!insn->modrm.got) {
-		ret = insn_get_modrm(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_modrm(insn);
+	if (ret)
+		return ret;
 
 	if (insn->modrm.nbytes) {
 		modrm = insn->modrm.bytes[0];
@@ -460,11 +481,9 @@ int insn_get_displacement(struct insn *insn)
 	if (insn->displacement.got)
 		return 0;
 
-	if (!insn->sib.got) {
-		ret = insn_get_sib(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_sib(insn);
+	if (ret)
+		return ret;
 
 	if (insn->modrm.nbytes) {
 		/*
@@ -628,11 +647,9 @@ int insn_get_immediate(struct insn *insn)
 	if (insn->immediate.got)
 		return 0;
 
-	if (!insn->displacement.got) {
-		ret = insn_get_displacement(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_displacement(insn);
+	if (ret)
+		return ret;
 
 	if (inat_has_moffset(insn->attr)) {
 		if (!__get_moffset(insn))
@@ -703,11 +720,9 @@ int insn_get_length(struct insn *insn)
 	if (insn->length)
 		return 0;
 
-	if (!insn->immediate.got) {
-		ret = insn_get_immediate(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_immediate(insn);
+	if (ret)
+		return ret;
 
 	insn->length = (unsigned char)((unsigned long)insn->next_byte
 				     - (unsigned long)insn->kaddr);

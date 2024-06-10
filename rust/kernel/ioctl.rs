@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-//! ioctl() number definitions
+//! `ioctl()` number definitions.
 //!
 //! C header: [`include/asm-generic/ioctl.h`](srctree/include/asm-generic/ioctl.h)
 
@@ -28,13 +28,13 @@ pub const fn _IO(ty: u32, nr: u32) -> u32 {
     _IOC(uapi::_IOC_NONE, ty, nr, 0)
 }
 
-/// Build an ioctl number for an read-only ioctl.
+/// Build an ioctl number for a read-only ioctl.
 #[inline(always)]
 pub const fn _IOR<T>(ty: u32, nr: u32) -> u32 {
     _IOC(uapi::_IOC_READ, ty, nr, core::mem::size_of::<T>())
 }
 
-/// Build an ioctl number for an write-only ioctl.
+/// Build an ioctl number for a write-only ioctl.
 #[inline(always)]
 pub const fn _IOW<T>(ty: u32, nr: u32) -> u32 {
     _IOC(uapi::_IOC_WRITE, ty, nr, core::mem::size_of::<T>())

@@ -81,3 +81,29 @@ Description:	(RO) Read returns, for each Acceleration Engine (AE), the number
 			<N>: Number of Compress and Verify (CnV) errors and type
 			     of the last CnV error detected by Acceleration
 			     Engine N.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/inject_error
+Date:		March 2024
+KernelVersion:	6.8
+Contact:	qat-linux@intel.com
+Description:	(WO) Write to inject an error that simulates an heartbeat
+		failure. This is to be used for testing purposes.
+
+		After writing this file, the driver stops arbitration on a
+		random engine and disables the fetching of heartbeat counters.
+		If a workload is running on the device, a job submitted to the
+		accelerator might not get a response and a read of the
+		`heartbeat/status` attribute might report -1, i.e. device
+		unresponsive.
+		The error is unrecoverable thus the device must be restarted to
+		restore its functionality.
+
+		This attribute is available only when the kernel is built with
+		CONFIG_CRYPTO_DEV_QAT_ERROR_INJECTION=y.
+
+		A write of 1 enables error injection.
+
+		The following example shows how to enable error injection::
+
+			# cd /sys/kernel/debug/qat_<device>_<BDF>
+			# echo 1 > heartbeat/inject_error

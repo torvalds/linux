@@ -367,19 +367,23 @@ xfs_sb_has_ro_compat_feature(
 	return (sbp->sb_features_ro_compat & feature) != 0;
 }
 
-#define XFS_SB_FEAT_INCOMPAT_FTYPE	(1 << 0)	/* filetype in dirent */
-#define XFS_SB_FEAT_INCOMPAT_SPINODES	(1 << 1)	/* sparse inode chunks */
-#define XFS_SB_FEAT_INCOMPAT_META_UUID	(1 << 2)	/* metadata UUID */
-#define XFS_SB_FEAT_INCOMPAT_BIGTIME	(1 << 3)	/* large timestamps */
-#define XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR (1 << 4)	/* needs xfs_repair */
-#define XFS_SB_FEAT_INCOMPAT_NREXT64	(1 << 5)	/* large extent counters */
+#define XFS_SB_FEAT_INCOMPAT_FTYPE	(1 << 0)  /* filetype in dirent */
+#define XFS_SB_FEAT_INCOMPAT_SPINODES	(1 << 1)  /* sparse inode chunks */
+#define XFS_SB_FEAT_INCOMPAT_META_UUID	(1 << 2)  /* metadata UUID */
+#define XFS_SB_FEAT_INCOMPAT_BIGTIME	(1 << 3)  /* large timestamps */
+#define XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR (1 << 4) /* needs xfs_repair */
+#define XFS_SB_FEAT_INCOMPAT_NREXT64	(1 << 5)  /* large extent counters */
+#define XFS_SB_FEAT_INCOMPAT_EXCHRANGE	(1 << 6)  /* exchangerange supported */
+#define XFS_SB_FEAT_INCOMPAT_PARENT	(1 << 7)  /* parent pointers */
 #define XFS_SB_FEAT_INCOMPAT_ALL \
-		(XFS_SB_FEAT_INCOMPAT_FTYPE|	\
-		 XFS_SB_FEAT_INCOMPAT_SPINODES|	\
-		 XFS_SB_FEAT_INCOMPAT_META_UUID| \
-		 XFS_SB_FEAT_INCOMPAT_BIGTIME| \
-		 XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR| \
-		 XFS_SB_FEAT_INCOMPAT_NREXT64)
+		(XFS_SB_FEAT_INCOMPAT_FTYPE | \
+		 XFS_SB_FEAT_INCOMPAT_SPINODES | \
+		 XFS_SB_FEAT_INCOMPAT_META_UUID | \
+		 XFS_SB_FEAT_INCOMPAT_BIGTIME | \
+		 XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR | \
+		 XFS_SB_FEAT_INCOMPAT_NREXT64 | \
+		 XFS_SB_FEAT_INCOMPAT_EXCHRANGE | \
+		 XFS_SB_FEAT_INCOMPAT_PARENT)
 
 #define XFS_SB_FEAT_INCOMPAT_UNKNOWN	~XFS_SB_FEAT_INCOMPAT_ALL
 static inline bool
@@ -477,15 +481,9 @@ xfs_is_quota_inode(struct xfs_sb *sbp, xfs_ino_t ino)
 #define	XFS_AGI_GOOD_VERSION(v)	((v) == XFS_AGI_VERSION)
 
 /*
- * Btree number 0 is bno, 1 is cnt, 2 is rmap. This value gives the size of the
- * arrays below.
- */
-#define	XFS_BTNUM_AGF	((int)XFS_BTNUM_RMAPi + 1)
-
-/*
- * The second word of agf_levels in the first a.g. overlaps the EFS
- * superblock's magic number.  Since the magic numbers valid for EFS
- * are > 64k, our value cannot be confused for an EFS superblock's.
+ * agf_cnt_level in the first AGF overlaps the EFS superblock's magic number.
+ * Since the magic numbers valid for EFS are > 64k, our value cannot be confused
+ * for an EFS superblock.
  */
 
 typedef struct xfs_agf {
@@ -499,8 +497,13 @@ typedef struct xfs_agf {
 	/*
 	 * Freespace and rmap information
 	 */
-	__be32		agf_roots[XFS_BTNUM_AGF];	/* root blocks */
-	__be32		agf_levels[XFS_BTNUM_AGF];	/* btree levels */
+	__be32		agf_bno_root;	/* bnobt root block */
+	__be32		agf_cnt_root;	/* cntbt root block */
+	__be32		agf_rmap_root;	/* rmapbt root block */
+
+	__be32		agf_bno_level;	/* bnobt btree levels */
+	__be32		agf_cnt_level;	/* cntbt btree levels */
+	__be32		agf_rmap_level;	/* rmapbt btree levels */
 
 	__be32		agf_flfirst;	/* first freelist block's index */
 	__be32		agf_fllast;	/* last freelist block's index */
@@ -897,6 +900,12 @@ static inline uint xfs_dinode_size(int version)
  * Since the pathconf interface is signed, we use 2^31 - 1 instead.
  */
 #define	XFS_MAXLINK		((1U << 31) - 1U)
+
+/*
+ * Any file that hits the maximum ondisk link count should be pinned to avoid
+ * a use-after-free situation.
+ */
+#define	XFS_NLINK_PINNED	(~0U)
 
 /*
  * Values for di_format

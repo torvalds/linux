@@ -349,7 +349,6 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	bool b_defaultadapter = true;
 	/* bool b_trigger_ac = false; */
 	u8 *pdesc8 = (u8 *)pdesc_tx;
 	__le32 *pdesc = (__le32 *)pdesc8;
@@ -503,10 +502,7 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_hwseq_en_8723(pdesc, 1);
 		/* set_tx_desc_hwseq_en(pdesc, 1); */
 		/* set_tx_desc_pkt_id(pdesc, 8); */
-
-		if (!b_defaultadapter)
-			set_tx_desc_hwseq_sel_8723(pdesc, 1);
-	/* set_tx_desc_qos(pdesc, 1); */
+		/* set_tx_desc_qos(pdesc, 1); */
 	}
 
 	set_tx_desc_more_frag(pdesc, (lastseg ? 0 : 1));

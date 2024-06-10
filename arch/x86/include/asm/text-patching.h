@@ -15,6 +15,8 @@
 
 extern void text_poke_early(void *addr, const void *opcode, size_t len);
 
+extern void apply_relocation(u8 *buf, const u8 * const instr, size_t instrlen, u8 *repl, size_t repl_len);
+
 /*
  * Clear and restore the kernel write-protection flag on the local CPU.
  * Allows the kernel to edit read-only pages.

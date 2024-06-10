@@ -213,6 +213,7 @@ static int raw_diag_destroy(struct sk_buff *in_skb,
 #endif
 
 static const struct inet_diag_handler raw_diag_handler = {
+	.owner			= THIS_MODULE,
 	.dump			= raw_diag_dump,
 	.dump_one		= raw_diag_dump_one,
 	.idiag_get_info		= raw_diag_get_info,

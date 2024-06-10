@@ -493,7 +493,7 @@ __execlists_schedule_in(struct i915_request *rq)
 		/* Use a fixed tag for OA and friends */
 		GEM_BUG_ON(ce->tag <= BITS_PER_LONG);
 		ce->lrc.ccid = ce->tag;
-	} else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+	} else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55)) {
 		/* We don't need a strict matching tag, just different values */
 		unsigned int tag = ffs(READ_ONCE(engine->context_tag));
 
@@ -613,7 +613,7 @@ static void __execlists_schedule_out(struct i915_request * const rq,
 		intel_engine_add_retire(engine, ce->timeline);
 
 	ccid = ce->lrc.ccid;
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55)) {
 		ccid >>= XEHP_SW_CTX_ID_SHIFT - 32;
 		ccid &= XEHP_MAX_CONTEXT_HW_ID;
 	} else {
@@ -1907,7 +1907,7 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
 			     head, upper_32_bits(csb), lower_32_bits(csb));
 
-		if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+		if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 			promote = xehp_csb_parse(csb);
 		else if (GRAPHICS_VER(engine->i915) >= 12)
 			promote = gen12_csb_parse(csb);
@@ -2898,7 +2898,7 @@ static void enable_error_interrupt(struct intel_engine_cs *engine)
 		drm_err(&engine->i915->drm,
 			"engine '%s' resumed still in error: %08x\n",
 			engine->name, status);
-		__intel_gt_reset(engine->gt, engine->mask);
+		intel_gt_reset_engine(engine);
 	}
 
 	/*
@@ -3272,6 +3272,9 @@ static void execlists_park(struct intel_engine_cs *engine)
 {
 	cancel_timer(&engine->execlists.timer);
 	cancel_timer(&engine->execlists.preempt);
+
+	/* Reset upon idling, or we may delay the busy wakeup. */
+	WRITE_ONCE(engine->sched_engine->queue_priority_hint, INT_MIN);
 }
 
 static void add_to_engine(struct i915_request *rq)
@@ -3479,7 +3482,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		}
 	}
 
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55)) {
 		if (intel_engine_has_preemption(engine))
 			engine->emit_bb_start = xehp_emit_bb_start;
 		else
@@ -3582,7 +3585,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 
 	engine->context_tag = GENMASK(BITS_PER_LONG - 2, 0);
 	if (GRAPHICS_VER(engine->i915) >= 11 &&
-	    GRAPHICS_VER_FULL(engine->i915) < IP_VER(12, 50)) {
+	    GRAPHICS_VER_FULL(engine->i915) < IP_VER(12, 55)) {
 		execlists->ccid |= engine->instance << (GEN11_ENGINE_INSTANCE_SHIFT - 32);
 		execlists->ccid |= engine->class << (GEN11_ENGINE_CLASS_SHIFT - 32);
 	}

@@ -1117,19 +1117,6 @@ static int bcm2835_spi_prepare_message(struct spi_controller *ctlr,
 	struct spi_device *spi = msg->spi;
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
 	struct bcm2835_spidev *target = spi_get_ctldata(spi);
-	int ret;
-
-	if (ctlr->can_dma) {
-		/*
-		 * DMA transfers are limited to 16 bit (0 to 65535 bytes) by
-		 * the SPI HW due to DLEN. Split up transfers (32-bit FIFO
-		 * aligned) if the limit is exceeded.
-		 */
-		ret = spi_split_transfers_maxsize(ctlr, msg, 65532,
-						  GFP_KERNEL | GFP_DMA);
-		if (ret)
-			return ret;
-	}
 
 	/*
 	 * Set up clock polarity before spi_transfer_one_message() asserts
@@ -1217,6 +1204,19 @@ static int bcm2835_spi_setup_dma(struct spi_controller *ctlr,
 	}
 
 	return 0;
+}
+
+static size_t bcm2835_spi_max_transfer_size(struct spi_device *spi)
+{
+	/*
+	 * DMA transfers are limited to 16 bit (0 to 65535 bytes) by
+	 * the SPI HW due to DLEN. Split up transfers (32-bit FIFO
+	 * aligned) if the limit is exceeded.
+	 */
+	if (spi->controller->can_dma)
+		return 65532;
+
+	return SIZE_MAX;
 }
 
 static int bcm2835_spi_setup(struct spi_device *spi)
@@ -1348,6 +1348,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	ctlr->mode_bits = BCM2835_SPI_MODE_BITS;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
 	ctlr->num_chipselect = 3;
+	ctlr->max_transfer_size = bcm2835_spi_max_transfer_size;
 	ctlr->setup = bcm2835_spi_setup;
 	ctlr->cleanup = bcm2835_spi_cleanup;
 	ctlr->transfer_one = bcm2835_spi_transfer_one;

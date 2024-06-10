@@ -67,6 +67,7 @@
 #include <linux/time_namespace.h>
 #include <linux/user_events.h>
 #include <linux/rseq.h>
+#include <linux/ksm.h>
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
@@ -268,6 +269,14 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	}
 
 	/*
+	 * Need to be called with mmap write lock
+	 * held, to avoid race with ksmd.
+	 */
+	err = ksm_execve(mm);
+	if (err)
+		goto err_ksm;
+
+	/*
 	 * Place the stack at the largest stack address the architecture
 	 * supports. Later, we'll move this to an appropriate place. We don't
 	 * use STACK_TOP because that can depend on attributes which aren't
@@ -288,6 +297,8 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	bprm->p = vma->vm_end - sizeof(void *);
 	return 0;
 err:
+	ksm_exit(mm);
+err_ksm:
 	mmap_write_unlock(mm);
 err_free:
 	bprm->vma = NULL;
@@ -895,6 +906,7 @@ int transfer_args_to_stack(struct linux_binprm *bprm,
 			goto out;
 	}
 
+	bprm->exec += *sp_location - MAX_ARG_PAGES * PAGE_SIZE;
 	*sp_location = sp;
 
 out:
@@ -1158,7 +1170,6 @@ static int de_thread(struct task_struct *tsk)
 
 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
 		leader->exit_state = EXIT_DEAD;
-
 		/*
 		 * We are going to release_task()->ptrace_unlink() silently,
 		 * the tracer can sleep in do_wait(). EXIT_DEAD guarantees
@@ -1266,6 +1277,14 @@ int begin_new_exec(struct linux_binprm * bprm)
 	retval = bprm_creds_from_file(bprm);
 	if (retval)
 		return retval;
+
+	/*
+	 * This tracepoint marks the point before flushing the old exec where
+	 * the current task is still unchanged, but errors are fatal (point of
+	 * no return). The later "sched_process_exec" tracepoint is called after
+	 * the current task has successfully switched to the new exec.
+	 */
+	trace_sched_prepare_exec(current, bprm);
 
 	/*
 	 * Ensure all future errors are fatal.
@@ -1720,7 +1739,6 @@ static int prepare_binprm(struct linux_binprm *bprm)
  */
 int remove_arg_zero(struct linux_binprm *bprm)
 {
-	int ret = 0;
 	unsigned long offset;
 	char *kaddr;
 	struct page *page;
@@ -1731,10 +1749,8 @@ int remove_arg_zero(struct linux_binprm *bprm)
 	do {
 		offset = bprm->p & ~PAGE_MASK;
 		page = get_arg_page(bprm, bprm->p, 0);
-		if (!page) {
-			ret = -EFAULT;
-			goto out;
-		}
+		if (!page)
+			return -EFAULT;
 		kaddr = kmap_local_page(page);
 
 		for (; offset < PAGE_SIZE && kaddr[offset];
@@ -1747,10 +1763,8 @@ int remove_arg_zero(struct linux_binprm *bprm)
 
 	bprm->p++;
 	bprm->argc--;
-	ret = 0;
 
-out:
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(remove_arg_zero);
 

@@ -843,14 +843,13 @@ static unsigned long tc358746_find_pll_settings(struct tc358746 *tc358746,
 		if (fin < 4 * HZ_PER_MHZ || fin > 40 * HZ_PER_MHZ)
 			continue;
 
-		tmp = fout * p * postdiv;
-		do_div(tmp, fin);
-		mul = tmp;
+		tmp = fout * postdiv;
+		mul = div64_ul(tmp, fin);
 		if (mul > 511)
 			continue;
 
 		tmp = mul * fin;
-		do_div(tmp, p * postdiv);
+		do_div(tmp, postdiv);
 
 		delta = abs(fout - tmp);
 		if (delta < min_delta) {

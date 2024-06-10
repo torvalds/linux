@@ -22,6 +22,7 @@
 #include <linux/sizes.h>
 #include <linux/stop_machine.h>
 #include <linux/swiotlb.h>
+#include <linux/execmem.h>
 
 #include <asm/cp15.h>
 #include <asm/mach-types.h>
@@ -418,7 +419,7 @@ static void set_section_perms(struct section_perm *perms, int n, bool set,
 
 }
 
-/**
+/*
  * update_sections_early intended to be called only through stop_machine
  * framework and executed by only one CPU while all other CPUs will spin and
  * wait, so no locking is required in this function.
@@ -458,7 +459,7 @@ static int __mark_rodata_ro(void *unused)
 void mark_rodata_ro(void)
 {
 	stop_machine(__mark_rodata_ro, NULL, NULL);
-	debug_checkwx();
+	arm_debug_checkwx();
 }
 
 #else
@@ -486,3 +487,47 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 }
 #endif
+
+#ifdef CONFIG_EXECMEM
+
+#ifdef CONFIG_XIP_KERNEL
+/*
+ * The XIP kernel text is mapped in the module area for modules and
+ * some other stuff to work without any indirect relocations.
+ * MODULES_VADDR is redefined here and not in asm/memory.h to avoid
+ * recompiling the whole kernel when CONFIG_XIP_KERNEL is turned on/off.
+ */
+#undef MODULES_VADDR
+#define MODULES_VADDR	(((unsigned long)_exiprom + ~PMD_MASK) & PMD_MASK)
+#endif
+
+#ifdef CONFIG_MMU
+static struct execmem_info execmem_info __ro_after_init;
+
+struct execmem_info __init *execmem_arch_setup(void)
+{
+	unsigned long fallback_start = 0, fallback_end = 0;
+
+	if (IS_ENABLED(CONFIG_ARM_MODULE_PLTS)) {
+		fallback_start = VMALLOC_START;
+		fallback_end = VMALLOC_END;
+	}
+
+	execmem_info = (struct execmem_info){
+		.ranges = {
+			[EXECMEM_DEFAULT] = {
+				.start	= MODULES_VADDR,
+				.end	= MODULES_END,
+				.pgprot	= PAGE_KERNEL_EXEC,
+				.alignment = 1,
+				.fallback_start	= fallback_start,
+				.fallback_end	= fallback_end,
+			},
+		},
+	};
+
+	return &execmem_info;
+}
+#endif /* CONFIG_MMU */
+
+#endif /* CONFIG_EXECMEM */

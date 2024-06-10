@@ -14,7 +14,6 @@
 #include <linux/raid/xor.h>
 #include <linux/mm.h>
 #include "messages.h"
-#include "misc.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "volumes.h"
@@ -332,12 +331,11 @@ static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
 static void merge_rbio(struct btrfs_raid_bio *dest,
 		       struct btrfs_raid_bio *victim)
 {
-	bio_list_merge(&dest->bio_list, &victim->bio_list);
+	bio_list_merge_init(&dest->bio_list, &victim->bio_list);
 	dest->bio_list_bytes += victim->bio_list_bytes;
 	/* Also inherit the bitmaps from @victim. */
 	bitmap_or(&dest->dbitmap, &victim->dbitmap, &dest->dbitmap,
 		  dest->stripe_nsectors);
-	bio_list_init(&victim->bio_list);
 }
 
 /*
@@ -918,6 +916,13 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	 */
 	ASSERT(stripe_nsectors <= BITS_PER_LONG);
 
+	/*
+	 * Real stripes must be between 2 (2 disks RAID5, aka RAID1) and 256
+	 * (limited by u8).
+	 */
+	ASSERT(real_stripes >= 2);
+	ASSERT(real_stripes <= U8_MAX);
+
 	rbio = kzalloc(sizeof(*rbio), GFP_NOFS);
 	if (!rbio)
 		return ERR_PTR(-ENOMEM);
@@ -955,6 +960,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 
 	ASSERT(btrfs_nr_parity_stripes(bioc->map_type));
 	rbio->nr_data = real_stripes - btrfs_nr_parity_stripes(bioc->map_type);
+	ASSERT(rbio->nr_data > 0);
 
 	return rbio;
 }
@@ -1181,6 +1187,26 @@ static inline void bio_list_put(struct bio_list *bio_list)
 		bio_put(bio);
 }
 
+static void assert_rbio(struct btrfs_raid_bio *rbio)
+{
+	if (!IS_ENABLED(CONFIG_BTRFS_DEBUG) ||
+	    !IS_ENABLED(CONFIG_BTRFS_ASSERT))
+		return;
+
+	/*
+	 * At least two stripes (2 disks RAID5), and since real_stripes is U8,
+	 * we won't go beyond 256 disks anyway.
+	 */
+	ASSERT(rbio->real_stripes >= 2);
+	ASSERT(rbio->nr_data > 0);
+
+	/*
+	 * This is another check to make sure nr data stripes is smaller
+	 * than total stripes.
+	 */
+	ASSERT(rbio->nr_data < rbio->real_stripes);
+}
+
 /* Generate PQ for one vertical stripe. */
 static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
 {
@@ -1212,6 +1238,7 @@ static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
 		pointers[stripe++] = kmap_local_page(sector->page) +
 				     sector->pgoff;
 
+		assert_rbio(rbio);
 		raid6_call.gen_syndrome(rbio->real_stripes, sectorsize,
 					pointers);
 	} else {
@@ -2473,6 +2500,7 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 		}
 
 		if (has_qstripe) {
+			assert_rbio(rbio);
 			/* RAID6, call the library function to fill in our P/Q */
 			raid6_call.gen_syndrome(rbio->real_stripes, sectorsize,
 						pointers);

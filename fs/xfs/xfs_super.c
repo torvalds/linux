@@ -43,7 +43,10 @@
 #include "xfs_iunlink_item.h"
 #include "xfs_dahash_test.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_exchmaps_item.h"
+#include "xfs_parent.h"
 #include "scrub/stats.h"
+#include "scrub/rcbag_btree.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
@@ -361,16 +364,16 @@ STATIC int
 xfs_blkdev_get(
 	xfs_mount_t		*mp,
 	const char		*name,
-	struct bdev_handle	**handlep)
+	struct file		**bdev_filep)
 {
 	int			error = 0;
 
-	*handlep = bdev_open_by_path(name,
+	*bdev_filep = bdev_file_open_by_path(name,
 		BLK_OPEN_READ | BLK_OPEN_WRITE | BLK_OPEN_RESTRICT_WRITES,
 		mp->m_super, &fs_holder_ops);
-	if (IS_ERR(*handlep)) {
-		error = PTR_ERR(*handlep);
-		*handlep = NULL;
+	if (IS_ERR(*bdev_filep)) {
+		error = PTR_ERR(*bdev_filep);
+		*bdev_filep = NULL;
 		xfs_warn(mp, "Invalid device [%s], error=%d", name, error);
 	}
 
@@ -435,26 +438,26 @@ xfs_open_devices(
 {
 	struct super_block	*sb = mp->m_super;
 	struct block_device	*ddev = sb->s_bdev;
-	struct bdev_handle	*logdev_handle = NULL, *rtdev_handle = NULL;
+	struct file		*logdev_file = NULL, *rtdev_file = NULL;
 	int			error;
 
 	/*
 	 * Open real time and log devices - order is important.
 	 */
 	if (mp->m_logname) {
-		error = xfs_blkdev_get(mp, mp->m_logname, &logdev_handle);
+		error = xfs_blkdev_get(mp, mp->m_logname, &logdev_file);
 		if (error)
 			return error;
 	}
 
 	if (mp->m_rtname) {
-		error = xfs_blkdev_get(mp, mp->m_rtname, &rtdev_handle);
+		error = xfs_blkdev_get(mp, mp->m_rtname, &rtdev_file);
 		if (error)
 			goto out_close_logdev;
 
-		if (rtdev_handle->bdev == ddev ||
-		    (logdev_handle &&
-		     rtdev_handle->bdev == logdev_handle->bdev)) {
+		if (file_bdev(rtdev_file) == ddev ||
+		    (logdev_file &&
+		     file_bdev(rtdev_file) == file_bdev(logdev_file))) {
 			xfs_warn(mp,
 	"Cannot mount filesystem with identical rtdev and ddev/logdev.");
 			error = -EINVAL;
@@ -466,25 +469,25 @@ xfs_open_devices(
 	 * Setup xfs_mount buffer target pointers
 	 */
 	error = -ENOMEM;
-	mp->m_ddev_targp = xfs_alloc_buftarg(mp, sb->s_bdev_handle);
+	mp->m_ddev_targp = xfs_alloc_buftarg(mp, sb->s_bdev_file);
 	if (!mp->m_ddev_targp)
 		goto out_close_rtdev;
 
-	if (rtdev_handle) {
-		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev_handle);
+	if (rtdev_file) {
+		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev_file);
 		if (!mp->m_rtdev_targp)
 			goto out_free_ddev_targ;
 	}
 
-	if (logdev_handle && logdev_handle->bdev != ddev) {
-		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev_handle);
+	if (logdev_file && file_bdev(logdev_file) != ddev) {
+		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev_file);
 		if (!mp->m_logdev_targp)
 			goto out_free_rtdev_targ;
 	} else {
 		mp->m_logdev_targp = mp->m_ddev_targp;
 		/* Handle won't be used, drop it */
-		if (logdev_handle)
-			bdev_release(logdev_handle);
+		if (logdev_file)
+			bdev_fput(logdev_file);
 	}
 
 	return 0;
@@ -495,11 +498,11 @@ xfs_open_devices(
  out_free_ddev_targ:
 	xfs_free_buftarg(mp->m_ddev_targp);
  out_close_rtdev:
-	 if (rtdev_handle)
-		bdev_release(rtdev_handle);
+	 if (rtdev_file)
+		bdev_fput(rtdev_file);
  out_close_logdev:
-	if (logdev_handle)
-		bdev_release(logdev_handle);
+	if (logdev_file)
+		bdev_fput(logdev_file);
 	return error;
 }
 
@@ -715,9 +718,7 @@ xfs_fs_inode_init_once(
 	/* xfs inode */
 	atomic_set(&ip->i_pincount, 0);
 	spin_lock_init(&ip->i_flags_lock);
-
-	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
-		     "xfsino", ip->i_ino);
+	init_rwsem(&ip->i_lock);
 }
 
 /*
@@ -760,7 +761,7 @@ xfs_mount_free(
 	debugfs_remove(mp->m_debugfs);
 	kfree(mp->m_rtname);
 	kfree(mp->m_logname);
-	kmem_free(mp);
+	kfree(mp);
 }
 
 STATIC int
@@ -1052,12 +1053,18 @@ xfs_init_percpu_counters(
 	if (error)
 		goto free_fdblocks;
 
-	error = percpu_counter_init(&mp->m_frextents, 0, GFP_KERNEL);
+	error = percpu_counter_init(&mp->m_delalloc_rtextents, 0, GFP_KERNEL);
 	if (error)
 		goto free_delalloc;
 
+	error = percpu_counter_init(&mp->m_frextents, 0, GFP_KERNEL);
+	if (error)
+		goto free_delalloc_rt;
+
 	return 0;
 
+free_delalloc_rt:
+	percpu_counter_destroy(&mp->m_delalloc_rtextents);
 free_delalloc:
 	percpu_counter_destroy(&mp->m_delalloc_blks);
 free_fdblocks:
@@ -1086,6 +1093,9 @@ xfs_destroy_percpu_counters(
 	percpu_counter_destroy(&mp->m_icount);
 	percpu_counter_destroy(&mp->m_ifree);
 	percpu_counter_destroy(&mp->m_fdblocks);
+	ASSERT(xfs_is_shutdown(mp) ||
+	       percpu_counter_sum(&mp->m_delalloc_rtextents) == 0);
+	percpu_counter_destroy(&mp->m_delalloc_rtextents);
 	ASSERT(xfs_is_shutdown(mp) ||
 	       percpu_counter_sum(&mp->m_delalloc_blks) == 0);
 	percpu_counter_destroy(&mp->m_delalloc_blks);
@@ -1580,17 +1590,21 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_sb;
 
-	/* V4 support is undergoing deprecation. */
-	if (!xfs_has_crc(mp)) {
-#ifdef CONFIG_XFS_SUPPORT_V4
+	/*
+	 * V4 support is undergoing deprecation.
+	 *
+	 * Note: this has to use an open coded m_features check as xfs_has_crc
+	 * always returns false for !CONFIG_XFS_SUPPORT_V4.
+	 */
+	if (!(mp->m_features & XFS_FEAT_CRC)) {
+		if (!IS_ENABLED(CONFIG_XFS_SUPPORT_V4)) {
+			xfs_warn(mp,
+	"Deprecated V4 format (crc=0) not supported by kernel.");
+			error = -EINVAL;
+			goto out_free_sb;
+		}
 		xfs_warn_once(mp,
 	"Deprecated V4 format (crc=0) will not be supported after September 2030.");
-#else
-		xfs_warn(mp,
-	"Deprecated V4 format (crc=0) not supported by kernel.");
-		error = -EINVAL;
-		goto out_free_sb;
-#endif
 	}
 
 	/* ASCII case insensitivity is undergoing deprecation. */
@@ -1727,6 +1741,14 @@ xfs_fs_fill_super(
 		error = -EINVAL;
 		goto out_filestream_unmount;
 	}
+
+	if (xfs_has_exchange_range(mp))
+		xfs_warn(mp,
+	"EXPERIMENTAL exchange-range feature enabled. Use at your own risk!");
+
+	if (xfs_has_parent(mp))
+		xfs_warn(mp,
+	"EXPERIMENTAL parent pointer feature enabled. Use at your own risk!");
 
 	error = xfs_mountfs(mp);
 	if (error)
@@ -1874,11 +1896,7 @@ xfs_remount_ro(
 	xfs_inodegc_stop(mp);
 
 	/* Free the per-AG metadata reservation pool. */
-	error = xfs_fs_unreserve_ag_blocks(mp);
-	if (error) {
-		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		return error;
-	}
+	xfs_fs_unreserve_ag_blocks(mp);
 
 	/*
 	 * Before we sync the metadata, we need to free up the reserve block
@@ -1986,7 +2004,7 @@ static int xfs_init_fs_context(
 {
 	struct xfs_mount	*mp;
 
-	mp = kmem_alloc(sizeof(struct xfs_mount), KM_ZERO);
+	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL | __GFP_NOFAIL);
 	if (!mp)
 		return -ENOMEM;
 
@@ -2011,6 +2029,8 @@ static int xfs_init_fs_context(
 	mp->m_logbufs = -1;
 	mp->m_logbsize = -1;
 	mp->m_allocsize_log = 16; /* 64k */
+
+	xfs_hooks_init(&mp->m_dir_update_hooks);
 
 	fc->s_fs_info = mp;
 	fc->ops = &xfs_context_ops;
@@ -2043,8 +2063,7 @@ xfs_init_caches(void)
 
 	xfs_buf_cache = kmem_cache_create("xfs_buf", sizeof(struct xfs_buf), 0,
 					 SLAB_HWCACHE_ALIGN |
-					 SLAB_RECLAIM_ACCOUNT |
-					 SLAB_MEM_SPREAD,
+					 SLAB_RECLAIM_ACCOUNT,
 					 NULL);
 	if (!xfs_buf_cache)
 		goto out;
@@ -2059,9 +2078,13 @@ xfs_init_caches(void)
 	if (error)
 		goto out_destroy_log_ticket_cache;
 
-	error = xfs_defer_init_item_caches();
+	error = rcbagbt_init_cur_cache();
 	if (error)
 		goto out_destroy_btree_cur_cache;
+
+	error = xfs_defer_init_item_caches();
+	if (error)
+		goto out_destroy_rcbagbt_cur_cache;
 
 	xfs_da_state_cache = kmem_cache_create("xfs_da_state",
 					      sizeof(struct xfs_da_state),
@@ -2109,14 +2132,14 @@ xfs_init_caches(void)
 					   sizeof(struct xfs_inode), 0,
 					   (SLAB_HWCACHE_ALIGN |
 					    SLAB_RECLAIM_ACCOUNT |
-					    SLAB_MEM_SPREAD | SLAB_ACCOUNT),
+					    SLAB_ACCOUNT),
 					   xfs_fs_inode_init_once);
 	if (!xfs_inode_cache)
 		goto out_destroy_efi_cache;
 
 	xfs_ili_cache = kmem_cache_create("xfs_ili",
 					 sizeof(struct xfs_inode_log_item), 0,
-					 SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					 SLAB_RECLAIM_ACCOUNT,
 					 NULL);
 	if (!xfs_ili_cache)
 		goto out_destroy_inode_cache;
@@ -2181,8 +2204,32 @@ xfs_init_caches(void)
 	if (!xfs_iunlink_cache)
 		goto out_destroy_attri_cache;
 
+	xfs_xmd_cache = kmem_cache_create("xfs_xmd_item",
+					 sizeof(struct xfs_xmd_log_item),
+					 0, 0, NULL);
+	if (!xfs_xmd_cache)
+		goto out_destroy_iul_cache;
+
+	xfs_xmi_cache = kmem_cache_create("xfs_xmi_item",
+					 sizeof(struct xfs_xmi_log_item),
+					 0, 0, NULL);
+	if (!xfs_xmi_cache)
+		goto out_destroy_xmd_cache;
+
+	xfs_parent_args_cache = kmem_cache_create("xfs_parent_args",
+					     sizeof(struct xfs_parent_args),
+					     0, 0, NULL);
+	if (!xfs_parent_args_cache)
+		goto out_destroy_xmi_cache;
+
 	return 0;
 
+ out_destroy_xmi_cache:
+	kmem_cache_destroy(xfs_xmi_cache);
+ out_destroy_xmd_cache:
+	kmem_cache_destroy(xfs_xmd_cache);
+ out_destroy_iul_cache:
+	kmem_cache_destroy(xfs_iunlink_cache);
  out_destroy_attri_cache:
 	kmem_cache_destroy(xfs_attri_cache);
  out_destroy_attrd_cache:
@@ -2219,6 +2266,8 @@ xfs_init_caches(void)
 	kmem_cache_destroy(xfs_da_state_cache);
  out_destroy_defer_item_cache:
 	xfs_defer_destroy_item_caches();
+ out_destroy_rcbagbt_cur_cache:
+	rcbagbt_destroy_cur_cache();
  out_destroy_btree_cur_cache:
 	xfs_btree_destroy_cur_caches();
  out_destroy_log_ticket_cache:
@@ -2237,6 +2286,9 @@ xfs_destroy_caches(void)
 	 * destroy caches.
 	 */
 	rcu_barrier();
+	kmem_cache_destroy(xfs_parent_args_cache);
+	kmem_cache_destroy(xfs_xmd_cache);
+	kmem_cache_destroy(xfs_xmi_cache);
 	kmem_cache_destroy(xfs_iunlink_cache);
 	kmem_cache_destroy(xfs_attri_cache);
 	kmem_cache_destroy(xfs_attrd_cache);
@@ -2256,6 +2308,7 @@ xfs_destroy_caches(void)
 	kmem_cache_destroy(xfs_ifork_cache);
 	kmem_cache_destroy(xfs_da_state_cache);
 	xfs_defer_destroy_item_caches();
+	rcbagbt_destroy_cur_cache();
 	xfs_btree_destroy_cur_caches();
 	kmem_cache_destroy(xfs_log_ticket_cache);
 	kmem_cache_destroy(xfs_buf_cache);

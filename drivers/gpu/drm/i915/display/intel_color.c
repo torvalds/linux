@@ -616,19 +616,19 @@ static void vlv_load_wgc_csc(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write_fw(dev_priv, PIPE_WGC_C01_C00(pipe),
+	intel_de_write_fw(dev_priv, PIPE_WGC_C01_C00(dev_priv, pipe),
 			  csc->coeff[1] << 16 | csc->coeff[0]);
-	intel_de_write_fw(dev_priv, PIPE_WGC_C02(pipe),
+	intel_de_write_fw(dev_priv, PIPE_WGC_C02(dev_priv, pipe),
 			  csc->coeff[2]);
 
-	intel_de_write_fw(dev_priv, PIPE_WGC_C11_C10(pipe),
+	intel_de_write_fw(dev_priv, PIPE_WGC_C11_C10(dev_priv, pipe),
 			  csc->coeff[4] << 16 | csc->coeff[3]);
-	intel_de_write_fw(dev_priv, PIPE_WGC_C12(pipe),
+	intel_de_write_fw(dev_priv, PIPE_WGC_C12(dev_priv, pipe),
 			  csc->coeff[5]);
 
-	intel_de_write_fw(dev_priv, PIPE_WGC_C21_C20(pipe),
+	intel_de_write_fw(dev_priv, PIPE_WGC_C21_C20(dev_priv, pipe),
 			  csc->coeff[7] << 16 | csc->coeff[6]);
-	intel_de_write_fw(dev_priv, PIPE_WGC_C22(pipe),
+	intel_de_write_fw(dev_priv, PIPE_WGC_C22(dev_priv, pipe),
 			  csc->coeff[8]);
 }
 
@@ -639,25 +639,25 @@ static void vlv_read_wgc_csc(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 	u32 tmp;
 
-	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C01_C00(pipe));
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C01_C00(dev_priv, pipe));
 	csc->coeff[0] = tmp & 0xffff;
 	csc->coeff[1] = tmp >> 16;
 
-	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C02(pipe));
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C02(dev_priv, pipe));
 	csc->coeff[2] = tmp & 0xffff;
 
-	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C11_C10(pipe));
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C11_C10(dev_priv, pipe));
 	csc->coeff[3] = tmp & 0xffff;
 	csc->coeff[4] = tmp >> 16;
 
-	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C12(pipe));
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C12(dev_priv, pipe));
 	csc->coeff[5] = tmp & 0xffff;
 
-	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C21_C20(pipe));
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C21_C20(dev_priv, pipe));
 	csc->coeff[6] = tmp & 0xffff;
 	csc->coeff[7] = tmp >> 16;
 
-	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C22(pipe));
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C22(dev_priv, pipe));
 	csc->coeff[8] = tmp & 0xffff;
 }
 
@@ -1227,7 +1227,7 @@ static void i9xx_load_lut_8(struct intel_crtc *crtc,
 	lut = blob->data;
 
 	for (i = 0; i < 256; i++)
-		intel_de_write_fw(dev_priv, PALETTE(pipe, i),
+		intel_de_write_fw(dev_priv, PALETTE(dev_priv, pipe, i),
 				  i9xx_lut_8(&lut[i]));
 }
 
@@ -1240,9 +1240,11 @@ static void i9xx_load_lut_10(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 0),
+		intel_de_write_fw(dev_priv,
+				  PALETTE(dev_priv, pipe, 2 * i + 0),
 				  i9xx_lut_10_ldw(&lut[i]));
-		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 1),
+		intel_de_write_fw(dev_priv,
+				  PALETTE(dev_priv, pipe, 2 * i + 1),
 				  i9xx_lut_10_udw(&lut[i]));
 	}
 }
@@ -1274,9 +1276,11 @@ static void i965_load_lut_10p6(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 0),
+		intel_de_write_fw(dev_priv,
+				  PALETTE(dev_priv, pipe, 2 * i + 0),
 				  i965_lut_10p6_ldw(&lut[i]));
-		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 1),
+		intel_de_write_fw(dev_priv,
+				  PALETTE(dev_priv, pipe, 2 * i + 1),
 				  i965_lut_10p6_udw(&lut[i]));
 	}
 
@@ -2111,7 +2115,8 @@ static u32 intel_degamma_lut_size(const struct intel_crtc_state *crtc_state)
 	return DISPLAY_INFO(i915)->color.degamma_lut_size;
 }
 
-static int check_lut_size(const struct drm_property_blob *lut, int expected)
+static int check_lut_size(struct drm_i915_private *i915,
+			  const struct drm_property_blob *lut, int expected)
 {
 	int len;
 
@@ -2120,8 +2125,8 @@ static int check_lut_size(const struct drm_property_blob *lut, int expected)
 
 	len = drm_color_lut_size(lut);
 	if (len != expected) {
-		DRM_DEBUG_KMS("Invalid LUT size; got %d, expected %d\n",
-			      len, expected);
+		drm_dbg_kms(&i915->drm, "Invalid LUT size; got %d, expected %d\n",
+			    len, expected);
 		return -EINVAL;
 	}
 
@@ -2146,8 +2151,8 @@ static int _check_luts(const struct intel_crtc_state *crtc_state,
 	degamma_length = intel_degamma_lut_size(crtc_state);
 	gamma_length = intel_gamma_lut_size(crtc_state);
 
-	if (check_lut_size(degamma_lut, degamma_length) ||
-	    check_lut_size(gamma_lut, gamma_length))
+	if (check_lut_size(i915, degamma_lut, degamma_length) ||
+	    check_lut_size(i915, gamma_lut, gamma_length))
 		return -EINVAL;
 
 	if (drm_color_lut_check(degamma_lut, degamma_tests) ||
@@ -3149,7 +3154,8 @@ static struct drm_property_blob *i9xx_read_lut_8(struct intel_crtc *crtc)
 	lut = blob->data;
 
 	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
-		u32 val = intel_de_read_fw(dev_priv, PALETTE(pipe, i));
+		u32 val = intel_de_read_fw(dev_priv,
+					   PALETTE(dev_priv, pipe, i));
 
 		i9xx_lut_8_pack(&lut[i], val);
 	}
@@ -3175,8 +3181,10 @@ static struct drm_property_blob *i9xx_read_lut_10(struct intel_crtc *crtc)
 	lut = blob->data;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		ldw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 0));
-		udw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 1));
+		ldw = intel_de_read_fw(dev_priv,
+				       PALETTE(dev_priv, pipe, 2 * i + 0));
+		udw = intel_de_read_fw(dev_priv,
+				       PALETTE(dev_priv, pipe, 2 * i + 1));
 
 		i9xx_lut_10_pack(&lut[i], ldw, udw);
 	}
@@ -3223,8 +3231,10 @@ static struct drm_property_blob *i965_read_lut_10p6(struct intel_crtc *crtc)
 	lut = blob->data;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		u32 ldw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 0));
-		u32 udw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 1));
+		u32 ldw = intel_de_read_fw(dev_priv,
+					   PALETTE(dev_priv, pipe, 2 * i + 0));
+		u32 udw = intel_de_read_fw(dev_priv,
+					   PALETTE(dev_priv, pipe, 2 * i + 1));
 
 		i965_lut_10p6_pack(&lut[i], ldw, udw);
 	}

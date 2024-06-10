@@ -2,7 +2,6 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 #include <error.h>
-#include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/uio.h>
 

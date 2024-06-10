@@ -82,7 +82,7 @@ struct eeh_pe {
 	int false_positives;		/* Times of reported #ff's	*/
 	atomic_t pass_dev_cnt;		/* Count of passed through devs	*/
 	struct eeh_pe *parent;		/* Parent PE			*/
-	void *data;			/* PE auxillary data		*/
+	void *data;			/* PE auxiliary data		*/
 	struct list_head child_list;	/* List of PEs below this PE	*/
 	struct list_head child;		/* Memb. child_list/eeh_phb_pe	*/
 	struct list_head edevs;		/* List of eeh_dev in this PE	*/

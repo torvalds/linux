@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_tx_h__
@@ -76,6 +76,8 @@ enum iwl_tx_flags {
  *	to a secured STA
  * @IWL_TX_FLAGS_HIGH_PRI: high priority frame (like EAPOL) - can affect rate
  *	selection, retry limits and BT kill
+ * @IWL_TX_FLAGS_RTS: firmware used an RTS
+ * @IWL_TX_FLAGS_CTS: firmware used CTS-to-self
  */
 enum iwl_tx_cmd_flags {
 	IWL_TX_FLAGS_CMD_RATE		= BIT(0),
@@ -791,7 +793,8 @@ enum iwl_mac_beacon_flags {
  * @reserved: reserved
  * @link_id: the firmware id of the link that will use this beacon
  * @tim_idx: the offset of the tim IE in the beacon
- * @tim_size: the length of the tim IE
+ * @tim_size: the length of the tim IE (version < 14)
+ * @btwt_offset: offset to the broadcast TWT IE if present (version >= 14)
  * @ecsa_offset: offset to the ECSA IE if present
  * @csa_offset: offset to the CSA IE if present
  * @frame: the template of the beacon frame
@@ -803,14 +806,18 @@ struct iwl_mac_beacon_cmd {
 	__le32 reserved;
 	__le32 link_id;
 	__le32 tim_idx;
-	__le32 tim_size;
+	union {
+		__le32 tim_size;
+		__le32 btwt_offset;
+	};
 	__le32 ecsa_offset;
 	__le32 csa_offset;
 	struct ieee80211_hdr frame[];
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_10,
 	     * BEACON_TEMPLATE_CMD_API_S_VER_11,
 	     * BEACON_TEMPLATE_CMD_API_S_VER_12,
-	     * BEACON_TEMPLATE_CMD_API_S_VER_13
+	     * BEACON_TEMPLATE_CMD_API_S_VER_13,
+	     * BEACON_TEMPLATE_CMD_API_S_VER_14
 	     */
 
 struct iwl_beacon_notif {
@@ -884,6 +891,7 @@ struct iwl_tx_path_flush_cmd {
 
 /**
  * struct iwl_flush_queue_info - virtual flush queue info
+ * @tid: the tid to flush
  * @queue_num: virtual queue id
  * @read_before_flush: read pointer before flush
  * @read_after_flush: read pointer after flush
@@ -897,6 +905,7 @@ struct iwl_flush_queue_info {
 
 /**
  * struct iwl_tx_path_flush_cmd_rsp -- queue/FIFO flush command response
+ * @sta_id: the station for which the queue was flushed
  * @num_flushed_queues: number of queues in queues array
  * @queues: all flushed queues
  */

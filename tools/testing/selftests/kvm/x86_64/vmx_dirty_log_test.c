@@ -4,9 +4,6 @@
  *
  * Copyright (C) 2018, Red Hat, Inc.
  */
-
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/bitmap.h>
@@ -28,16 +25,16 @@
 #define NESTED_TEST_MEM1		0xc0001000
 #define NESTED_TEST_MEM2		0xc0002000
 
-static void l2_guest_code(void)
+static void l2_guest_code(u64 *a, u64 *b)
 {
-	*(volatile uint64_t *)NESTED_TEST_MEM1;
-	*(volatile uint64_t *)NESTED_TEST_MEM1 = 1;
+	READ_ONCE(*a);
+	WRITE_ONCE(*a, 1);
 	GUEST_SYNC(true);
 	GUEST_SYNC(false);
 
-	*(volatile uint64_t *)NESTED_TEST_MEM2 = 1;
+	WRITE_ONCE(*b, 1);
 	GUEST_SYNC(true);
-	*(volatile uint64_t *)NESTED_TEST_MEM2 = 1;
+	WRITE_ONCE(*b, 1);
 	GUEST_SYNC(true);
 	GUEST_SYNC(false);
 
@@ -45,17 +42,33 @@ static void l2_guest_code(void)
 	vmcall();
 }
 
+static void l2_guest_code_ept_enabled(void)
+{
+	l2_guest_code((u64 *)NESTED_TEST_MEM1, (u64 *)NESTED_TEST_MEM2);
+}
+
+static void l2_guest_code_ept_disabled(void)
+{
+	/* Access the same L1 GPAs as l2_guest_code_ept_enabled() */
+	l2_guest_code((u64 *)GUEST_TEST_MEM, (u64 *)GUEST_TEST_MEM);
+}
+
 void l1_guest_code(struct vmx_pages *vmx)
 {
 #define L2_GUEST_STACK_SIZE 64
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
+	void *l2_rip;
 
 	GUEST_ASSERT(vmx->vmcs_gpa);
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx));
 	GUEST_ASSERT(load_vmcs(vmx));
 
-	prepare_vmcs(vmx, l2_guest_code,
-		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	if (vmx->eptp_gpa)
+		l2_rip = l2_guest_code_ept_enabled;
+	else
+		l2_rip = l2_guest_code_ept_disabled;
+
+	prepare_vmcs(vmx, l2_rip, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
 	GUEST_SYNC(false);
 	GUEST_ASSERT(!vmlaunch());
@@ -64,7 +77,7 @@ void l1_guest_code(struct vmx_pages *vmx)
 	GUEST_DONE();
 }
 
-int main(int argc, char *argv[])
+static void test_vmx_dirty_log(bool enable_ept)
 {
 	vm_vaddr_t vmx_pages_gva = 0;
 	struct vmx_pages *vmx;
@@ -76,8 +89,7 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 	bool done = false;
 
-	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
-	TEST_REQUIRE(kvm_cpu_has_ept());
+	pr_info("Nested EPT: %s\n", enable_ept ? "enabled" : "disabled");
 
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
@@ -103,11 +115,16 @@ int main(int argc, char *argv[])
 	 *
 	 * Note that prepare_eptp should be called only L1's GPA map is done,
 	 * meaning after the last call to virt_map.
+	 *
+	 * When EPT is disabled, the L2 guest code will still access the same L1
+	 * GPAs as the EPT enabled case.
 	 */
-	prepare_eptp(vmx, vm, 0);
-	nested_map_memslot(vmx, vm, 0);
-	nested_map(vmx, vm, NESTED_TEST_MEM1, GUEST_TEST_MEM, 4096);
-	nested_map(vmx, vm, NESTED_TEST_MEM2, GUEST_TEST_MEM, 4096);
+	if (enable_ept) {
+		prepare_eptp(vmx, vm, 0);
+		nested_map_memslot(vmx, vm, 0);
+		nested_map(vmx, vm, NESTED_TEST_MEM1, GUEST_TEST_MEM, 4096);
+		nested_map(vmx, vm, NESTED_TEST_MEM2, GUEST_TEST_MEM, 4096);
+	}
 
 	bmap = bitmap_zalloc(TEST_MEM_PAGES);
 	host_test_mem = addr_gpa2hva(vm, GUEST_TEST_MEM);
@@ -147,4 +164,16 @@ int main(int argc, char *argv[])
 			TEST_FAIL("Unknown ucall %lu", uc.cmd);
 		}
 	}
+}
+
+int main(int argc, char *argv[])
+{
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
+
+	test_vmx_dirty_log(/*enable_ept=*/false);
+
+	if (kvm_cpu_has_ept())
+		test_vmx_dirty_log(/*enable_ept=*/true);
+
+	return 0;
 }

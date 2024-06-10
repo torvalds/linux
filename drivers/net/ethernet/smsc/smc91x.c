@@ -98,6 +98,7 @@ static int watchdog = 1000;
 module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
+MODULE_DESCRIPTION("SMC 91C9x/91C1xxx Ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:smc91x");
 

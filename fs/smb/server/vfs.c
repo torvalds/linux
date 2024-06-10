@@ -337,18 +337,18 @@ static int check_lock_range(struct file *filp, loff_t start, loff_t end,
 		return 0;
 
 	spin_lock(&ctx->flc_lock);
-	list_for_each_entry(flock, &ctx->flc_posix, fl_list) {
+	for_each_file_lock(flock, &ctx->flc_posix) {
 		/* check conflict locks */
 		if (flock->fl_end >= start && end >= flock->fl_start) {
-			if (flock->fl_type == F_RDLCK) {
+			if (lock_is_read(flock)) {
 				if (type == WRITE) {
 					pr_err("not allow write by shared lock\n");
 					error = 1;
 					goto out;
 				}
-			} else if (flock->fl_type == F_WRLCK) {
+			} else if (lock_is_write(flock)) {
 				/* check owner in lock */
-				if (flock->fl_file != filp) {
+				if (flock->c.flc_file != filp) {
 					error = 1;
 					pr_err("not allow rw access by exclusive lock from other opens\n");
 					goto out;
@@ -754,10 +754,15 @@ retry:
 		goto out4;
 	}
 
+	/*
+	 * explicitly handle file overwrite case, for compatibility with
+	 * filesystems that may not support rename flags (e.g: fuse)
+	 */
 	if ((flags & RENAME_NOREPLACE) && d_is_positive(new_dentry)) {
 		err = -EEXIST;
 		goto out4;
 	}
+	flags &= ~(RENAME_NOREPLACE);
 
 	if (old_child == trap) {
 		err = -EINVAL;
@@ -1682,11 +1687,19 @@ int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
 				struct dentry *dentry,
 				struct ksmbd_kstat *ksmbd_kstat)
 {
+	struct ksmbd_share_config *share_conf = work->tcon->share_conf;
 	u64 time;
 	int rc;
+	struct path path = {
+		.mnt = share_conf->vfs_path.mnt,
+		.dentry = dentry,
+	};
 
-	generic_fillattr(idmap, STATX_BASIC_STATS, d_inode(dentry),
-			 ksmbd_kstat->kstat);
+	rc = vfs_getattr(&path, ksmbd_kstat->kstat,
+			 STATX_BASIC_STATS | STATX_BTIME,
+			 AT_STATX_SYNC_AS_STAT);
+	if (rc)
+		return rc;
 
 	time = ksmbd_UnixTimeToNT(ksmbd_kstat->kstat->ctime);
 	ksmbd_kstat->create_time = time;
@@ -1837,13 +1850,13 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 
 void ksmbd_vfs_posix_lock_wait(struct file_lock *flock)
 {
-	wait_event(flock->fl_wait, !flock->fl_blocker);
+	wait_event(flock->c.flc_wait, !flock->c.flc_blocker);
 }
 
 int ksmbd_vfs_posix_lock_wait_timeout(struct file_lock *flock, long timeout)
 {
-	return wait_event_interruptible_timeout(flock->fl_wait,
-						!flock->fl_blocker,
+	return wait_event_interruptible_timeout(flock->c.flc_wait,
+						!flock->c.flc_blocker,
 						timeout);
 }
 

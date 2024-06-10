@@ -256,7 +256,8 @@ extern struct inode *nilfs_new_inode(struct inode *, umode_t);
 extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern void nilfs_set_inode_flags(struct inode *);
 extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
-extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
+void nilfs_write_inode_common(struct inode *inode,
+			      struct nilfs_inode *raw_inode);
 struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
 			    unsigned long ino);
 struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
@@ -334,8 +335,8 @@ void __nilfs_error(struct super_block *sb, const char *function,
 
 extern struct nilfs_super_block *
 nilfs_read_super_block(struct super_block *, u64, int, struct buffer_head **);
-extern int nilfs_store_magic_and_option(struct super_block *,
-					struct nilfs_super_block *, char *);
+extern int nilfs_store_magic(struct super_block *sb,
+			     struct nilfs_super_block *sbp);
 extern int nilfs_check_feature_compatibility(struct super_block *,
 					     struct nilfs_super_block *);
 extern void nilfs_set_log_cursor(struct nilfs_super_block *,

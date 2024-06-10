@@ -71,13 +71,22 @@ static inline unsigned long mmap_base(unsigned long rnd,
 	return PAGE_ALIGN(STACK_TOP - gap - rnd);
 }
 
+static int get_align_mask(struct file *filp, unsigned long flags)
+{
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
+	if (filp || (flags & MAP_SHARED))
+		return MMAP_ALIGN_MASK << PAGE_SHIFT;
+	return 0;
+}
+
 unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 				     unsigned long len, unsigned long pgoff,
 				     unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	struct vm_unmapped_area_info info;
+	struct vm_unmapped_area_info info = {};
 
 	if (len > TASK_SIZE - mmap_min_addr)
 		return -ENOMEM;
@@ -93,14 +102,10 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 			goto check_asce_limit;
 	}
 
-	info.flags = 0;
 	info.length = len;
 	info.low_limit = mm->mmap_base;
 	info.high_limit = TASK_SIZE;
-	if (filp || (flags & MAP_SHARED))
-		info.align_mask = MMAP_ALIGN_MASK << PAGE_SHIFT;
-	else
-		info.align_mask = 0;
+	info.align_mask = get_align_mask(filp, flags);
 	info.align_offset = pgoff << PAGE_SHIFT;
 	addr = vm_unmapped_area(&info);
 	if (offset_in_page(addr))
@@ -116,7 +121,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp, unsigned long ad
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
-	struct vm_unmapped_area_info info;
+	struct vm_unmapped_area_info info = {};
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE - mmap_min_addr)
@@ -138,10 +143,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp, unsigned long ad
 	info.length = len;
 	info.low_limit = PAGE_SIZE;
 	info.high_limit = mm->mmap_base;
-	if (filp || (flags & MAP_SHARED))
-		info.align_mask = MMAP_ALIGN_MASK << PAGE_SHIFT;
-	else
-		info.align_mask = 0;
+	info.align_mask = get_align_mask(filp, flags);
 	info.align_offset = pgoff << PAGE_SHIFT;
 	addr = vm_unmapped_area(&info);
 
@@ -182,10 +184,10 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 	 */
 	if (mmap_is_legacy(rlim_stack)) {
 		mm->mmap_base = mmap_base_legacy(random_factor);
-		mm->get_unmapped_area = arch_get_unmapped_area;
+		clear_bit(MMF_TOPDOWN, &mm->flags);
 	} else {
 		mm->mmap_base = mmap_base(random_factor, rlim_stack);
-		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+		set_bit(MMF_TOPDOWN, &mm->flags);
 	}
 }
 

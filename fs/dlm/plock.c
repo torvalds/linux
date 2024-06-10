@@ -138,14 +138,14 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	}
 
 	op->info.optype		= DLM_PLOCK_OP_LOCK;
-	op->info.pid		= fl->fl_pid;
-	op->info.ex		= (fl->fl_type == F_WRLCK);
-	op->info.wait		= !!(fl->fl_flags & FL_SLEEP);
+	op->info.pid		= fl->c.flc_pid;
+	op->info.ex		= lock_is_write(fl);
+	op->info.wait		= !!(fl->c.flc_flags & FL_SLEEP);
 	op->info.fsid		= ls->ls_global_id;
 	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
-	op->info.owner = (__u64)(long)fl->fl_owner;
+	op->info.owner = (__u64)(long) fl->c.flc_owner;
 	/* async handling */
 	if (fl->fl_lmops && fl->fl_lmops->lm_grant) {
 		op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
@@ -258,7 +258,7 @@ static int dlm_plock_callback(struct plock_op *op)
 	}
 
 	/* got fs lock; bookkeep locally as well: */
-	flc->fl_flags &= ~FL_SLEEP;
+	flc->c.flc_flags &= ~FL_SLEEP;
 	if (posix_lock_file(file, flc, NULL)) {
 		/*
 		 * This can only happen in the case of kmalloc() failure.
@@ -291,7 +291,7 @@ int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	struct dlm_ls *ls;
 	struct plock_op *op;
 	int rv;
-	unsigned char fl_flags = fl->fl_flags;
+	unsigned char saved_flags = fl->c.flc_flags;
 
 	ls = dlm_find_lockspace_local(lockspace);
 	if (!ls)
@@ -304,7 +304,7 @@ int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	}
 
 	/* cause the vfs unlock to return ENOENT if lock is not found */
-	fl->fl_flags |= FL_EXISTS;
+	fl->c.flc_flags |= FL_EXISTS;
 
 	rv = locks_lock_file_wait(file, fl);
 	if (rv == -ENOENT) {
@@ -317,14 +317,14 @@ int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	}
 
 	op->info.optype		= DLM_PLOCK_OP_UNLOCK;
-	op->info.pid		= fl->fl_pid;
+	op->info.pid		= fl->c.flc_pid;
 	op->info.fsid		= ls->ls_global_id;
 	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
-	op->info.owner = (__u64)(long)fl->fl_owner;
+	op->info.owner = (__u64)(long) fl->c.flc_owner;
 
-	if (fl->fl_flags & FL_CLOSE) {
+	if (fl->c.flc_flags & FL_CLOSE) {
 		op->info.flags |= DLM_PLOCK_FL_CLOSE;
 		send_op(op);
 		rv = 0;
@@ -345,7 +345,7 @@ out_free:
 	dlm_release_plock_op(op);
 out:
 	dlm_put_lockspace(ls);
-	fl->fl_flags = fl_flags;
+	fl->c.flc_flags = saved_flags;
 	return rv;
 }
 EXPORT_SYMBOL_GPL(dlm_posix_unlock);
@@ -375,14 +375,14 @@ int dlm_posix_cancel(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 		return -EINVAL;
 
 	memset(&info, 0, sizeof(info));
-	info.pid = fl->fl_pid;
-	info.ex = (fl->fl_type == F_WRLCK);
+	info.pid = fl->c.flc_pid;
+	info.ex = lock_is_write(fl);
 	info.fsid = ls->ls_global_id;
 	dlm_put_lockspace(ls);
 	info.number = number;
 	info.start = fl->fl_start;
 	info.end = fl->fl_end;
-	info.owner = (__u64)(long)fl->fl_owner;
+	info.owner = (__u64)(long) fl->c.flc_owner;
 
 	rv = do_lock_cancel(&info);
 	switch (rv) {
@@ -437,13 +437,13 @@ int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	}
 
 	op->info.optype		= DLM_PLOCK_OP_GET;
-	op->info.pid		= fl->fl_pid;
-	op->info.ex		= (fl->fl_type == F_WRLCK);
+	op->info.pid		= fl->c.flc_pid;
+	op->info.ex		= lock_is_write(fl);
 	op->info.fsid		= ls->ls_global_id;
 	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
-	op->info.owner = (__u64)(long)fl->fl_owner;
+	op->info.owner = (__u64)(long) fl->c.flc_owner;
 
 	send_op(op);
 	wait_event(recv_wq, (op->done != 0));
@@ -455,16 +455,16 @@ int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 
 	rv = op->info.rv;
 
-	fl->fl_type = F_UNLCK;
+	fl->c.flc_type = F_UNLCK;
 	if (rv == -ENOENT)
 		rv = 0;
 	else if (rv > 0) {
 		locks_init_lock(fl);
-		fl->fl_type = (op->info.ex) ? F_WRLCK : F_RDLCK;
-		fl->fl_flags = FL_POSIX;
-		fl->fl_pid = op->info.pid;
+		fl->c.flc_type = (op->info.ex) ? F_WRLCK : F_RDLCK;
+		fl->c.flc_flags = FL_POSIX;
+		fl->c.flc_pid = op->info.pid;
 		if (op->info.nodeid != dlm_our_nodeid())
-			fl->fl_pid = -fl->fl_pid;
+			fl->c.flc_pid = -fl->c.flc_pid;
 		fl->fl_start = op->info.start;
 		fl->fl_end = op->info.end;
 		rv = 0;

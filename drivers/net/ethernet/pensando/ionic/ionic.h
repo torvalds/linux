@@ -76,6 +76,8 @@ int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx);
 int ionic_adminq_post_wait_nomsg(struct ionic_lif *lif, struct ionic_admin_ctx *ctx);
 void ionic_adminq_netdev_err_print(struct ionic_lif *lif, u8 opcode,
 				   u8 status, int err);
+bool ionic_notifyq_service(struct ionic_cq *cq);
+bool ionic_adminq_service(struct ionic_cq *cq);
 
 int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_wait);
 int ionic_dev_cmd_wait_nomsg(struct ionic *ionic, unsigned long max_wait);

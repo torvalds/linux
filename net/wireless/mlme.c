@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2015		Intel Deutschland GmbH
- * Copyright (C) 2019-2020, 2022-2023 Intel Corporation
+ * Copyright (C) 2019-2020, 2022-2024 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -241,12 +241,12 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 	char *buf = kmalloc(128, gfp);
 
 	if (buf) {
-		sprintf(buf, "MLME-MICHAELMICFAILURE.indication("
-			"keyid=%d %scast addr=%pM)", key_id,
-			key_type == NL80211_KEYTYPE_GROUP ? "broad" : "uni",
-			addr);
 		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = strlen(buf);
+		wrqu.data.length =
+			sprintf(buf, "MLME-MICHAELMICFAILURE."
+				"indication(keyid=%d %scast addr=%pM)",
+				key_id, key_type == NL80211_KEYTYPE_GROUP
+				? "broad" : "uni", addr);
 		wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);
 		kfree(buf);
 	}
@@ -325,27 +325,135 @@ void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 		p1[i] &= p2[i];
 }
 
+static int
+cfg80211_mlme_check_mlo_compat(const struct ieee80211_multi_link_elem *mle_a,
+			       const struct ieee80211_multi_link_elem *mle_b,
+			       struct netlink_ext_ack *extack)
+{
+	const struct ieee80211_mle_basic_common_info *common_a, *common_b;
+
+	common_a = (const void *)mle_a->variable;
+	common_b = (const void *)mle_b->variable;
+
+	if (memcmp(common_a->mld_mac_addr, common_b->mld_mac_addr, ETH_ALEN)) {
+		NL_SET_ERR_MSG(extack, "AP MLD address mismatch");
+		return -EINVAL;
+	}
+
+	if (ieee80211_mle_get_eml_med_sync_delay((const u8 *)mle_a) !=
+	    ieee80211_mle_get_eml_med_sync_delay((const u8 *)mle_b)) {
+		NL_SET_ERR_MSG(extack, "link EML medium sync delay mismatch");
+		return -EINVAL;
+	}
+
+	if (ieee80211_mle_get_eml_cap((const u8 *)mle_a) !=
+	    ieee80211_mle_get_eml_cap((const u8 *)mle_b)) {
+		NL_SET_ERR_MSG(extack, "link EML capabilities mismatch");
+		return -EINVAL;
+	}
+
+	if (ieee80211_mle_get_mld_capa_op((const u8 *)mle_a) !=
+	    ieee80211_mle_get_mld_capa_op((const u8 *)mle_b)) {
+		NL_SET_ERR_MSG(extack, "link MLD capabilities/ops mismatch");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cfg80211_mlme_check_mlo(struct net_device *dev,
+				   struct cfg80211_assoc_request *req,
+				   struct netlink_ext_ack *extack)
+{
+	const struct ieee80211_multi_link_elem *mles[ARRAY_SIZE(req->links)] = {};
+	int i;
+
+	if (req->link_id < 0)
+		return 0;
+
+	if (!req->links[req->link_id].bss) {
+		NL_SET_ERR_MSG(extack, "no BSS for assoc link");
+		return -EINVAL;
+	}
+
+	rcu_read_lock();
+	for (i = 0; i < ARRAY_SIZE(req->links); i++) {
+		const struct cfg80211_bss_ies *ies;
+		const struct element *ml;
+
+		if (!req->links[i].bss)
+			continue;
+
+		if (ether_addr_equal(req->links[i].bss->bssid, dev->dev_addr)) {
+			NL_SET_ERR_MSG(extack, "BSSID must not be our address");
+			req->links[i].error = -EINVAL;
+			goto error;
+		}
+
+		ies = rcu_dereference(req->links[i].bss->ies);
+		ml = cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_MULTI_LINK,
+					    ies->data, ies->len);
+		if (!ml) {
+			NL_SET_ERR_MSG(extack, "MLO BSS w/o ML element");
+			req->links[i].error = -EINVAL;
+			goto error;
+		}
+
+		if (!ieee80211_mle_type_ok(ml->data + 1,
+					   IEEE80211_ML_CONTROL_TYPE_BASIC,
+					   ml->datalen - 1)) {
+			NL_SET_ERR_MSG(extack, "BSS with invalid ML element");
+			req->links[i].error = -EINVAL;
+			goto error;
+		}
+
+		mles[i] = (const void *)(ml->data + 1);
+
+		if (ieee80211_mle_get_link_id((const u8 *)mles[i]) != i) {
+			NL_SET_ERR_MSG(extack, "link ID mismatch");
+			req->links[i].error = -EINVAL;
+			goto error;
+		}
+	}
+
+	if (WARN_ON(!mles[req->link_id]))
+		goto error;
+
+	for (i = 0; i < ARRAY_SIZE(req->links); i++) {
+		if (i == req->link_id || !req->links[i].bss)
+			continue;
+
+		if (WARN_ON(!mles[i]))
+			goto error;
+
+		if (cfg80211_mlme_check_mlo_compat(mles[req->link_id], mles[i],
+						   extack)) {
+			req->links[i].error = -EINVAL;
+			goto error;
+		}
+	}
+
+	rcu_read_unlock();
+	return 0;
+error:
+	rcu_read_unlock();
+	return -EINVAL;
+}
+
 /* Note: caller must cfg80211_put_bss() regardless of result */
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
-			struct cfg80211_assoc_request *req)
+			struct cfg80211_assoc_request *req,
+			struct netlink_ext_ack *extack)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err, i, j;
+	int err;
 
 	lockdep_assert_wiphy(wdev->wiphy);
 
-	for (i = 1; i < ARRAY_SIZE(req->links); i++) {
-		if (!req->links[i].bss)
-			continue;
-		for (j = 0; j < i; j++) {
-			if (req->links[i].bss == req->links[j].bss)
-				return -EINVAL;
-		}
-
-		if (ether_addr_equal(req->links[i].bss->bssid, dev->dev_addr))
-			return -EINVAL;
-	}
+	err = cfg80211_mlme_check_mlo(dev, req, extack);
+	if (err)
+		return err;
 
 	if (wdev->connected &&
 	    (!req->prev_bssid ||

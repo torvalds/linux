@@ -99,3 +99,7 @@
 		};
 	};
 };
+
+&sdhci {
+	status = "okay";
+};

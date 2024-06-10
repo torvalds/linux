@@ -11,7 +11,6 @@
 #include <linux/compiler.h>
 #include <linux/console.h>
 #include <linux/interrupt.h>
-#include <linux/circ_buf.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
@@ -467,9 +466,10 @@ struct uart_port {
 	unsigned int		fifosize;		/* tx fifo size */
 	unsigned char		x_char;			/* xon/xoff char */
 	unsigned char		regshift;		/* reg offset shift */
-	unsigned char		iotype;			/* io access style */
-	unsigned char		quirks;			/* internal quirks */
 
+	unsigned char		iotype;			/* io access style */
+
+#define UPIO_UNKNOWN		((unsigned char)~0U)	/* UCHAR_MAX */
 #define UPIO_PORT		(SERIAL_IO_PORT)	/* 8b I/O port access */
 #define UPIO_HUB6		(SERIAL_IO_HUB6)	/* Hub6 ISA card */
 #define UPIO_MEM		(SERIAL_IO_MEM)		/* driver-specific */
@@ -479,7 +479,9 @@ struct uart_port {
 #define UPIO_MEM32BE		(SERIAL_IO_MEM32BE)	/* 32b big endian */
 #define UPIO_MEM16		(SERIAL_IO_MEM16)	/* 16b little endian */
 
-	/* quirks must be updated while holding port mutex */
+	unsigned char		quirks;			/* internal quirks */
+
+	/* internal quirks must be updated while holding port mutex */
 #define UPQ_NO_TXEN_TEST	BIT(0)
 
 	unsigned int		read_status_mask;	/* driver specific */
@@ -696,7 +698,6 @@ struct uart_state {
 	struct tty_port		port;
 
 	enum uart_pm_state	pm_state;
-	struct circ_buf		xmit;
 
 	atomic_t		refcount;
 	wait_queue_head_t	remove_wait;
@@ -720,10 +721,33 @@ struct uart_state {
  */
 static inline void uart_xmit_advance(struct uart_port *up, unsigned int chars)
 {
-	struct circ_buf *xmit = &up->state->xmit;
+	struct tty_port *tport = &up->state->port;
 
-	xmit->tail = (xmit->tail + chars) & (UART_XMIT_SIZE - 1);
+	kfifo_skip_count(&tport->xmit_fifo, chars);
 	up->icount.tx += chars;
+}
+
+static inline unsigned int uart_fifo_out(struct uart_port *up,
+		unsigned char *buf, unsigned int chars)
+{
+	struct tty_port *tport = &up->state->port;
+
+	chars = kfifo_out(&tport->xmit_fifo, buf, chars);
+	up->icount.tx += chars;
+
+	return chars;
+}
+
+static inline unsigned int uart_fifo_get(struct uart_port *up,
+		unsigned char *ch)
+{
+	struct tty_port *tport = &up->state->port;
+	unsigned int chars;
+
+	chars = kfifo_get(&tport->xmit_fifo, ch);
+	up->icount.tx += chars;
+
+	return chars;
 }
 
 struct module;
@@ -761,7 +785,7 @@ enum UART_TX_FLAGS {
 		       for_test, for_post)				      \
 ({									      \
 	struct uart_port *__port = (uport);				      \
-	struct circ_buf *xmit = &__port->state->xmit;			      \
+	struct tty_port *__tport = &__port->state->port;		      \
 	unsigned int pending;						      \
 									      \
 	for (; (for_test) && (tx_ready); (for_post), __port->icount.tx++) {   \
@@ -772,21 +796,23 @@ enum UART_TX_FLAGS {
 			continue;					      \
 		}							      \
 									      \
-		if (uart_circ_empty(xmit) || uart_tx_stopped(__port))	      \
+		if (uart_tx_stopped(__port))				      \
 			break;						      \
 									      \
-		(ch) = xmit->buf[xmit->tail];				      \
+		if (!kfifo_get(&__tport->xmit_fifo, &(ch)))		      \
+			break;						      \
+									      \
 		(put_char);						      \
-		xmit->tail = (xmit->tail + 1) % UART_XMIT_SIZE;		      \
 	}								      \
 									      \
 	(tx_done);							      \
 									      \
-	pending = uart_circ_chars_pending(xmit);			      \
+	pending = kfifo_len(&__tport->xmit_fifo);			      \
 	if (pending < WAKEUP_CHARS) {					      \
 		uart_write_wakeup(__port);				      \
 									      \
-		if (!((flags) & UART_TX_NOSTOP) && pending == 0)	      \
+		if (!((flags) & UART_TX_NOSTOP) && pending == 0 &&	      \
+		    __port->ops->tx_empty(__port))			      \
 			__port->ops->stop_tx(__port);			      \
 	}								      \
 									      \
@@ -959,6 +985,8 @@ int uart_register_driver(struct uart_driver *uart);
 void uart_unregister_driver(struct uart_driver *uart);
 int uart_add_one_port(struct uart_driver *reg, struct uart_port *port);
 void uart_remove_one_port(struct uart_driver *reg, struct uart_port *port);
+int uart_read_port_properties(struct uart_port *port);
+int uart_read_and_validate_port_properties(struct uart_port *port);
 bool uart_match_port(const struct uart_port *port1,
 		const struct uart_port *port2);
 
@@ -967,15 +995,6 @@ bool uart_match_port(const struct uart_port *port1,
  */
 int uart_suspend_port(struct uart_driver *reg, struct uart_port *port);
 int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
-
-#define uart_circ_empty(circ)		((circ)->head == (circ)->tail)
-#define uart_circ_clear(circ)		((circ)->head = (circ)->tail = 0)
-
-#define uart_circ_chars_pending(circ)	\
-	(CIRC_CNT((circ)->head, (circ)->tail, UART_XMIT_SIZE))
-
-#define uart_circ_chars_free(circ)	\
-	(CIRC_SPACE((circ)->head, (circ)->tail, UART_XMIT_SIZE))
 
 static inline int uart_tx_stopped(struct uart_port *port)
 {

@@ -29,6 +29,7 @@
 #include "dm_helpers.h"
 #include "dcn315_smu.h"
 #include "mp/mp_13_0_5_offset.h"
+#include "logger_types.h"
 
 #define MAX_INSTANCE                                        6
 #define MAX_SEGMENT                                         6
@@ -69,7 +70,6 @@ static const struct IP_BASE NBIO_BASE = { { { { 0x00000000, 0x00000014, 0x00000D
 #define REG_NBIO(reg_name) \
 	(NBIO_BASE.instance[0].segment[regBIF_BX_PF2_ ## reg_name ## _BASE_IDX] + regBIF_BX_PF2_ ## reg_name)
 
-#include "logger_types.h"
 #undef DC_LOGGER
 #define DC_LOGGER \
 	CTX->logger
@@ -214,10 +214,6 @@ int dcn315_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int request
 			clk_mgr,
 			VBIOSSMC_MSG_SetHardMinDcfclkByFreq,
 			khz_to_mhz_ceil(requested_dcfclk_khz));
-
-#ifdef DBG
-	smu_print("actual_dcfclk_set_mhz %d is set to : %d\n", actual_dcfclk_set_mhz, actual_dcfclk_set_mhz * 1000);
-#endif
 
 	return actual_dcfclk_set_mhz * 1000;
 }

@@ -227,6 +227,9 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 	struct pkcs7_parse_context *ctx = context;
 
 	switch (ctx->last_oid) {
+	case OID_sha1:
+		ctx->sinfo->sig->hash_algo = "sha1";
+		break;
 	case OID_sha256:
 		ctx->sinfo->sig->hash_algo = "sha256";
 		break;
@@ -278,6 +281,7 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 		ctx->sinfo->sig->pkey_algo = "rsa";
 		ctx->sinfo->sig->encoding = "pkcs1";
 		break;
+	case OID_id_ecdsa_with_sha1:
 	case OID_id_ecdsa_with_sha224:
 	case OID_id_ecdsa_with_sha256:
 	case OID_id_ecdsa_with_sha384:

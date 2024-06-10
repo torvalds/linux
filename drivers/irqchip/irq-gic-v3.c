@@ -19,6 +19,7 @@
 #include <linux/percpu.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
+#include <linux/iopoll.h>
 
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-common.h>
@@ -180,11 +181,6 @@ static enum gic_intid_range get_intid_range(struct irq_data *d)
 	return __get_intid_range(d->hwirq);
 }
 
-static inline unsigned int gic_irq(struct irq_data *d)
-{
-	return d->hwirq;
-}
-
 static inline bool gic_irq_in_rdist(struct irq_data *d)
 {
 	switch (get_intid_range(d)) {
@@ -251,17 +247,13 @@ static inline void __iomem *gic_dist_base(struct irq_data *d)
 
 static void gic_do_wait_for_rwp(void __iomem *base, u32 bit)
 {
-	u32 count = 1000000;	/* 1s! */
+	u32 val;
+	int ret;
 
-	while (readl_relaxed(base + GICD_CTLR) & bit) {
-		count--;
-		if (!count) {
-			pr_err_ratelimited("RWP timeout, gone fishing\n");
-			return;
-		}
-		cpu_relax();
-		udelay(1);
-	}
+	ret = readl_relaxed_poll_timeout_atomic(base + GICD_CTLR, val, !(val & bit),
+						1, USEC_PER_SEC);
+	if (ret == -ETIMEDOUT)
+		pr_err_ratelimited("RWP timeout, gone fishing\n");
 }
 
 /* Wait for completion of a distributor change */
@@ -279,8 +271,8 @@ static void gic_redist_wait_for_rwp(void)
 static void gic_enable_redist(bool enable)
 {
 	void __iomem *rbase;
-	u32 count = 1000000;	/* 1s! */
 	u32 val;
+	int ret;
 
 	if (gic_data.flags & FLAGS_WORKAROUND_GICR_WAKER_MSM8996)
 		return;
@@ -301,16 +293,13 @@ static void gic_enable_redist(bool enable)
 			return;	/* No PM support in this redistributor */
 	}
 
-	while (--count) {
-		val = readl_relaxed(rbase + GICR_WAKER);
-		if (enable ^ (bool)(val & GICR_WAKER_ChildrenAsleep))
-			break;
-		cpu_relax();
-		udelay(1);
-	}
-	if (!count)
+	ret = readl_relaxed_poll_timeout_atomic(rbase + GICR_WAKER, val,
+						enable ^ (bool)(val & GICR_WAKER_ChildrenAsleep),
+						1, USEC_PER_SEC);
+	if (ret == -ETIMEDOUT) {
 		pr_err_ratelimited("redistributor failed to %s...\n",
 				   enable ? "wakeup" : "sleep");
+	}
 }
 
 /*
@@ -548,7 +537,7 @@ static int gic_irq_nmi_setup(struct irq_data *d)
 	 * A secondary irq_chip should be in charge of LPI request,
 	 * it should not be possible to get there
 	 */
-	if (WARN_ON(gic_irq(d) >= 8192))
+	if (WARN_ON(irqd_to_hwirq(d) >= 8192))
 		return -EINVAL;
 
 	/* desc lock should already be held */
@@ -588,7 +577,7 @@ static void gic_irq_nmi_teardown(struct irq_data *d)
 	 * A secondary irq_chip should be in charge of LPI request,
 	 * it should not be possible to get there
 	 */
-	if (WARN_ON(gic_irq(d) >= 8192))
+	if (WARN_ON(irqd_to_hwirq(d) >= 8192))
 		return;
 
 	/* desc lock should already be held */
@@ -626,7 +615,7 @@ static bool gic_arm64_erratum_2941627_needed(struct irq_data *d)
 
 static void gic_eoi_irq(struct irq_data *d)
 {
-	write_gicreg(gic_irq(d), ICC_EOIR1_EL1);
+	write_gicreg(irqd_to_hwirq(d), ICC_EOIR1_EL1);
 	isb();
 
 	if (gic_arm64_erratum_2941627_needed(d)) {
@@ -646,19 +635,19 @@ static void gic_eoimode1_eoi_irq(struct irq_data *d)
 	 * No need to deactivate an LPI, or an interrupt that
 	 * is is getting forwarded to a vcpu.
 	 */
-	if (gic_irq(d) >= 8192 || irqd_is_forwarded_to_vcpu(d))
+	if (irqd_to_hwirq(d) >= 8192 || irqd_is_forwarded_to_vcpu(d))
 		return;
 
 	if (!gic_arm64_erratum_2941627_needed(d))
-		gic_write_dir(gic_irq(d));
+		gic_write_dir(irqd_to_hwirq(d));
 	else
 		gic_poke_irq(d, GICD_ICACTIVER);
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
 {
+	irq_hw_number_t irq = irqd_to_hwirq(d);
 	enum gic_intid_range range;
-	unsigned int irq = gic_irq(d);
 	void __iomem *base;
 	u32 offset, index;
 	int ret;
@@ -684,7 +673,7 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	ret = gic_configure_irq(index, type, base + offset, NULL);
 	if (ret && (range == PPI_RANGE || range == EPPI_RANGE)) {
 		/* Misconfigured PPIs are usually not fatal */
-		pr_warn("GIC: PPI INTID%d is secure or misconfigured\n", irq);
+		pr_warn("GIC: PPI INTID%ld is secure or misconfigured\n", irq);
 		ret = 0;
 	}
 
@@ -1702,8 +1691,12 @@ static int gic_irq_domain_select(struct irq_domain *d,
 	irq_hw_number_t hwirq;
 
 	/* Not for us */
-        if (fwspec->fwnode != d->fwnode)
+	if (fwspec->fwnode != d->fwnode)
 		return 0;
+
+	/* Handle pure domain searches */
+	if (!fwspec->param_count)
+		return d->bus_token == bus_token;
 
 	/* If this is not DT, then we have a single domain */
 	if (!is_of_node(fwspec->fwnode))

@@ -413,7 +413,7 @@ static void rsnd_ssiu_debug_info(struct seq_file *m,
 				 struct rsnd_dai_stream *io,
 				struct rsnd_mod *mod)
 {
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SSIU,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SSIU,
 				  rsnd_mod_id(mod) * 0x80, 0x80);
 }
 #define DEBUG_INFO .debug_info = rsnd_ssiu_debug_info

@@ -1280,10 +1280,8 @@ static void ahci_port_init(struct device *dev, struct ata_port *ap,
 			   int port_no, void __iomem *mmio,
 			   void __iomem *port_mmio)
 {
-	struct ahci_host_priv *hpriv = ap->host->private_data;
 	const char *emsg = NULL;
 	int rc;
-	u32 tmp;
 
 	/* make sure port is not active */
 	rc = ahci_deinit_port(ap, &emsg);
@@ -1291,11 +1289,6 @@ static void ahci_port_init(struct device *dev, struct ata_port *ap,
 		dev_warn(dev, "%s (%d)\n", emsg, rc);
 
 	ahci_port_clear_pending_irq(ap);
-
-	/* mark esata ports */
-	tmp = readl(port_mmio + PORT_CMD);
-	if ((tmp & PORT_CMD_ESP) && (hpriv->cap & HOST_CAP_SXS))
-		ap->pflags |= ATA_PFLAG_EXTERNAL;
 }
 
 void ahci_init_controller(struct ata_host *host)
@@ -2627,8 +2620,8 @@ void ahci_print_info(struct ata_host *host, const char *scc_s)
 		speed_s = "?";
 
 	dev_info(host->dev,
-		"AHCI %02x%02x.%02x%02x "
-		"%u slots %u ports %s Gbps 0x%x impl %s mode\n"
+		"AHCI vers %02x%02x.%02x%02x, "
+		"%u command slots, %s Gbps, %s mode\n"
 		,
 
 		(vers >> 24) & 0xff,
@@ -2637,10 +2630,16 @@ void ahci_print_info(struct ata_host *host, const char *scc_s)
 		vers & 0xff,
 
 		((cap >> 8) & 0x1f) + 1,
-		(cap & 0x1f) + 1,
 		speed_s,
-		impl,
 		scc_s);
+
+	dev_info(host->dev,
+		"%u/%u ports implemented (port mask 0x%x)\n"
+		,
+
+		hweight32(impl),
+		(cap & 0x1f) + 1,
+		impl);
 
 	dev_info(host->dev,
 		"flags: "

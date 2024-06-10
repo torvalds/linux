@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bio.h>
-#include <linux/dma-direction.h>
 #include <linux/crc7.h>
 #include <linux/crc-itu-t.h>
 #include <linux/scatterlist.h>
@@ -510,10 +509,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
  * so we explicitly initialize it to all ones on RX paths.
  */
 static void
-mmc_spi_setup_data_message(
-	struct mmc_spi_host	*host,
-	bool			multiple,
-	enum dma_data_direction	direction)
+mmc_spi_setup_data_message(struct mmc_spi_host *host, bool multiple, bool write)
 {
 	struct spi_transfer	*t;
 	struct scratch		*scratch = host->data;
@@ -523,7 +519,7 @@ mmc_spi_setup_data_message(
 	/* for reads, readblock() skips 0xff bytes before finding
 	 * the token; for writes, this transfer issues that token.
 	 */
-	if (direction == DMA_TO_DEVICE) {
+	if (write) {
 		t = &host->token;
 		memset(t, 0, sizeof(*t));
 		t->len = 1;
@@ -547,7 +543,7 @@ mmc_spi_setup_data_message(
 	t = &host->crc;
 	memset(t, 0, sizeof(*t));
 	t->len = 2;
-	if (direction == DMA_TO_DEVICE) {
+	if (write) {
 		/* the actual CRC may get written later */
 		t->tx_buf = &scratch->crc_val;
 	} else {
@@ -570,10 +566,10 @@ mmc_spi_setup_data_message(
 	 * the next token (next data block, or STOP_TRAN).  We can try to
 	 * minimize I/O ops by using a single read to collect end-of-busy.
 	 */
-	if (multiple || direction == DMA_TO_DEVICE) {
+	if (multiple || write) {
 		t = &host->early_status;
 		memset(t, 0, sizeof(*t));
-		t->len = (direction == DMA_TO_DEVICE) ? sizeof(scratch->status) : 1;
+		t->len = write ? sizeof(scratch->status) : 1;
 		t->tx_buf = host->ones;
 		t->rx_buf = scratch->status;
 		t->cs_change = 1;
@@ -777,15 +773,15 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 {
 	struct spi_device	*spi = host->spi;
 	struct spi_transfer	*t;
-	enum dma_data_direction	direction = mmc_get_dma_dir(data);
 	struct scatterlist	*sg;
 	unsigned		n_sg;
 	bool			multiple = (data->blocks > 1);
-	const char		*write_or_read = (direction == DMA_TO_DEVICE) ? "write" : "read";
+	bool			write = (data->flags & MMC_DATA_WRITE);
+	const char		*write_or_read = write ? "write" : "read";
 	u32			clock_rate;
 	unsigned long		timeout;
 
-	mmc_spi_setup_data_message(host, multiple, direction);
+	mmc_spi_setup_data_message(host, multiple, write);
 	t = &host->t;
 
 	if (t->speed_hz)
@@ -807,7 +803,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 
 		/* allow pio too; we don't allow highmem */
 		kmap_addr = kmap(sg_page(sg));
-		if (direction == DMA_TO_DEVICE)
+		if (write)
 			t->tx_buf = kmap_addr + sg->offset;
 		else
 			t->rx_buf = kmap_addr + sg->offset;
@@ -818,7 +814,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 
 			dev_dbg(&spi->dev, "    %s block, %d bytes\n", write_or_read, t->len);
 
-			if (direction == DMA_TO_DEVICE)
+			if (write)
 				status = mmc_spi_writeblock(host, t, timeout);
 			else
 				status = mmc_spi_readblock(host, t, timeout);
@@ -833,7 +829,9 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		}
 
 		/* discard mappings */
-		if (direction == DMA_FROM_DEVICE)
+		if (write)
+			/* nothing to do */;
+		else
 			flush_dcache_page(sg_page(sg));
 		kunmap(sg_page(sg));
 
@@ -850,7 +848,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	 * that can affect the STOP_TRAN logic.   Complete (and current)
 	 * MMC specs should sort that out before Linux starts using CMD23.
 	 */
-	if (direction == DMA_TO_DEVICE && multiple) {
+	if (write && multiple) {
 		struct scratch	*scratch = host->data;
 		int		tmp;
 		const unsigned	statlen = sizeof(scratch->status);
@@ -935,7 +933,7 @@ static void mmc_spi_request(struct mmc_host *mmc, struct mmc_request *mrq)
 #endif
 
 	/* request exclusive bus access */
-	spi_bus_lock(host->spi->master);
+	spi_bus_lock(host->spi->controller);
 
 crc_recover:
 	/* issue command; then optionally data and stop */
@@ -967,7 +965,7 @@ crc_recover:
 	}
 
 	/* release the bus */
-	spi_bus_unlock(host->spi->master);
+	spi_bus_unlock(host->spi->controller);
 
 	mmc_request_done(host->mmc, mrq);
 }
@@ -1157,7 +1155,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	/* We rely on full duplex transfers, mostly to reduce
 	 * per-transfer overheads (by making fewer transfers).
 	 */
-	if (spi->master->flags & SPI_CONTROLLER_HALF_DUPLEX)
+	if (spi->controller->flags & SPI_CONTROLLER_HALF_DUPLEX)
 		return -EINVAL;
 
 	/* MMC and SD specs only seem to care that sampling is on the

@@ -25,7 +25,7 @@
 
 extern void __flush_disable_L1(void);
 
-void amigaone_show_cpuinfo(struct seq_file *m)
+static void amigaone_show_cpuinfo(struct seq_file *m)
 {
 	seq_printf(m, "vendor\t\t: Eyetech Ltd.\n");
 }
@@ -65,7 +65,7 @@ static int __init amigaone_add_bridge(struct device_node *dev)
 	return 0;
 }
 
-void __init amigaone_setup_arch(void)
+static void __init amigaone_setup_arch(void)
 {
 	if (ppc_md.progress)
 		ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0);
@@ -83,7 +83,7 @@ static void __init amigaone_discover_phbs(void)
 	BUG_ON(phb != 0);
 }
 
-void __init amigaone_init_IRQ(void)
+static void __init amigaone_init_IRQ(void)
 {
 	struct device_node *pic, *np = NULL;
 	const unsigned long *prop = NULL;
@@ -123,7 +123,7 @@ static int __init request_isa_regions(void)
 }
 machine_device_initcall(amigaone, request_isa_regions);
 
-void __noreturn amigaone_restart(char *cmd)
+static void __noreturn amigaone_restart(char *cmd)
 {
 	local_irq_disable();
 

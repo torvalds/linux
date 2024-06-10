@@ -231,7 +231,7 @@ out:
 	return ret;
 }
 
-static int imx_irqsteer_remove(struct platform_device *pdev)
+static void imx_irqsteer_remove(struct platform_device *pdev)
 {
 	struct irqsteer_data *irqsteer_data = platform_get_drvdata(pdev);
 	int i;
@@ -243,8 +243,6 @@ static int imx_irqsteer_remove(struct platform_device *pdev)
 	irq_domain_remove(irqsteer_data->domain);
 
 	clk_disable_unprepare(irqsteer_data->ipg_clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -307,11 +305,11 @@ static const struct of_device_id imx_irqsteer_dt_ids[] = {
 
 static struct platform_driver imx_irqsteer_driver = {
 	.driver = {
-		.name = "imx-irqsteer",
-		.of_match_table = imx_irqsteer_dt_ids,
-		.pm = &imx_irqsteer_pm_ops,
+		.name		= "imx-irqsteer",
+		.of_match_table	= imx_irqsteer_dt_ids,
+		.pm		= &imx_irqsteer_pm_ops,
 	},
-	.probe = imx_irqsteer_probe,
-	.remove = imx_irqsteer_remove,
+	.probe		= imx_irqsteer_probe,
+	.remove_new	= imx_irqsteer_remove,
 };
 builtin_platform_driver(imx_irqsteer_driver);

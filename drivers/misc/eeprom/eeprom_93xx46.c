@@ -14,7 +14,6 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/nvmem-provider.h>
@@ -579,5 +578,3 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for 93xx46 EEPROMs");
 MODULE_AUTHOR("Anatolij Gustschin <agust@denx.de>");
 MODULE_ALIAS("spi:93xx46");
-MODULE_ALIAS("spi:eeprom-93xx46");
-MODULE_ALIAS("spi:93lc46b");

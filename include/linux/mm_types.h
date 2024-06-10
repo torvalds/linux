@@ -169,7 +169,7 @@ struct page {
 	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
 	atomic_t _refcount;
 
-#ifdef CONFIG_MEMCG
+#ifdef CONFIG_SLAB_OBJ_EXT
 	unsigned long memcg_data;
 #endif
 
@@ -210,8 +210,8 @@ struct page {
  *
  * An 'encoded_page' pointer is a pointer to a regular 'struct page', but
  * with the low bits of the pointer indicating extra context-dependent
- * information. Not super-common, but happens in mmu_gather and mlock
- * handling, and this acts as a type system check on that use.
+ * information. Only used in mmu_gather handling, and this acts as a type
+ * system check on that use.
  *
  * We only really have two guaranteed bits in general, although you could
  * play with 'struct page' alignment (see CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
@@ -220,21 +220,46 @@ struct page {
  * Use the supplied helper functions to endcode/decode the pointer and bits.
  */
 struct encoded_page;
-#define ENCODE_PAGE_BITS 3ul
+
+#define ENCODED_PAGE_BITS			3ul
+
+/* Perform rmap removal after we have flushed the TLB. */
+#define ENCODED_PAGE_BIT_DELAY_RMAP		1ul
+
+/*
+ * The next item in an encoded_page array is the "nr_pages" argument, specifying
+ * the number of consecutive pages starting from this page, that all belong to
+ * the same folio. For example, "nr_pages" corresponds to the number of folio
+ * references that must be dropped. If this bit is not set, "nr_pages" is
+ * implicitly 1.
+ */
+#define ENCODED_PAGE_BIT_NR_PAGES_NEXT		2ul
+
 static __always_inline struct encoded_page *encode_page(struct page *page, unsigned long flags)
 {
-	BUILD_BUG_ON(flags > ENCODE_PAGE_BITS);
+	BUILD_BUG_ON(flags > ENCODED_PAGE_BITS);
 	return (struct encoded_page *)(flags | (unsigned long)page);
 }
 
 static inline unsigned long encoded_page_flags(struct encoded_page *page)
 {
-	return ENCODE_PAGE_BITS & (unsigned long)page;
+	return ENCODED_PAGE_BITS & (unsigned long)page;
 }
 
 static inline struct page *encoded_page_ptr(struct encoded_page *page)
 {
-	return (struct page *)(~ENCODE_PAGE_BITS & (unsigned long)page);
+	return (struct page *)(~ENCODED_PAGE_BITS & (unsigned long)page);
+}
+
+static __always_inline struct encoded_page *encode_nr_pages(unsigned long nr)
+{
+	VM_WARN_ON_ONCE((nr << 2) >> 2 != nr);
+	return (struct encoded_page *)(nr << 2);
+}
+
+static __always_inline unsigned long encoded_nr_pages(struct encoded_page *page)
+{
+	return ((unsigned long)page) >> 2;
 }
 
 /*
@@ -264,7 +289,8 @@ typedef struct {
  * @virtual: Virtual address in the kernel direct map.
  * @_last_cpupid: IDs of last CPU and last process that accessed the folio.
  * @_entire_mapcount: Do not use directly, call folio_entire_mapcount().
- * @_nr_pages_mapped: Do not use directly, call folio_mapcount().
+ * @_large_mapcount: Do not use directly, call folio_mapcount().
+ * @_nr_pages_mapped: Do not use outside of rmap and debug code.
  * @_pincount: Do not use directly, call folio_maybe_dma_pinned().
  * @_folio_nr_pages: Do not use directly, call folio_nr_pages().
  * @_hugetlb_subpool: Do not use directly, use accessor in hugetlb.h.
@@ -306,7 +332,7 @@ struct folio {
 			};
 			atomic_t _mapcount;
 			atomic_t _refcount;
-#ifdef CONFIG_MEMCG
+#ifdef CONFIG_SLAB_OBJ_EXT
 			unsigned long memcg_data;
 #endif
 #if defined(WANT_PAGE_VIRTUAL)
@@ -323,8 +349,8 @@ struct folio {
 		struct {
 			unsigned long _flags_1;
 			unsigned long _head_1;
-			unsigned long _folio_avail;
 	/* public: */
+			atomic_t _large_mapcount;
 			atomic_t _entire_mapcount;
 			atomic_t _nr_pages_mapped;
 			atomic_t _pincount;
@@ -394,12 +420,13 @@ FOLIO_MATCH(compound_head, _head_2a);
 
 /**
  * struct ptdesc -    Memory descriptor for page tables.
- * @__page_flags:     Same as page flags. Unused for page tables.
+ * @__page_flags:     Same as page flags. Powerpc only.
  * @pt_rcu_head:      For freeing page table pages.
  * @pt_list:          List of used page tables. Used for s390 and x86.
  * @_pt_pad_1:        Padding that aliases with page's compound head.
  * @pmd_huge_pte:     Protected by ptdesc->ptl, used for THPs.
  * @__page_mapping:   Aliases with page->mapping. Unused for page tables.
+ * @pt_index:         Used for s390 gmap.
  * @pt_mm:            Used for x86 pgds.
  * @pt_frag_refcount: For fragmented page table tracking. Powerpc only.
  * @_pt_pad_2:        Padding to ensure proper alignment.
@@ -425,6 +452,7 @@ struct ptdesc {
 	unsigned long __page_mapping;
 
 	union {
+		pgoff_t pt_index;
 		struct mm_struct *pt_mm;
 		atomic_t pt_frag_refcount;
 	};
@@ -450,6 +478,7 @@ TABLE_MATCH(flags, __page_flags);
 TABLE_MATCH(compound_head, pt_list);
 TABLE_MATCH(compound_head, _pt_pad_1);
 TABLE_MATCH(mapping, __page_mapping);
+TABLE_MATCH(index, pt_index);
 TABLE_MATCH(rcu_head, pt_rcu_head);
 TABLE_MATCH(page_type, __page_type);
 TABLE_MATCH(_refcount, __page_refcount);
@@ -643,6 +672,9 @@ struct vm_area_struct {
 	};
 
 #ifdef CONFIG_PER_VMA_LOCK
+	/* Flag to indicate areas detached from the mm->mm_mt tree */
+	bool detached;
+
 	/*
 	 * Can only be written (using WRITE_ONCE()) while holding both:
 	 *  - mmap_lock (in write mode)
@@ -659,9 +691,6 @@ struct vm_area_struct {
 	 */
 	int vm_lock_seq;
 	struct vma_lock *vm_lock;
-
-	/* Flag to indicate areas detached from the mm->mm_mt tree */
-	bool detached;
 #endif
 
 	/*
@@ -749,11 +778,7 @@ struct mm_struct {
 		} ____cacheline_aligned_in_smp;
 
 		struct maple_tree mm_mt;
-#ifdef CONFIG_MMU
-		unsigned long (*get_unmapped_area) (struct file *filp,
-				unsigned long addr, unsigned long len,
-				unsigned long pgoff, unsigned long flags);
-#endif
+
 		unsigned long mmap_base;	/* base of mmap area */
 		unsigned long mmap_legacy_base;	/* base of mmap area in bottom-up allocations */
 #ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
@@ -1142,14 +1167,15 @@ static inline void mm_init_cid(struct mm_struct *mm)
 	cpumask_clear(mm_cidmask(mm));
 }
 
-static inline int mm_alloc_cid(struct mm_struct *mm)
+static inline int mm_alloc_cid_noprof(struct mm_struct *mm)
 {
-	mm->pcpu_cid = alloc_percpu(struct mm_cid);
+	mm->pcpu_cid = alloc_percpu_noprof(struct mm_cid);
 	if (!mm->pcpu_cid)
 		return -ENOMEM;
 	mm_init_cid(mm);
 	return 0;
 }
+#define mm_alloc_cid(...)	alloc_hooks(mm_alloc_cid_noprof(__VA_ARGS__))
 
 static inline void mm_destroy_cid(struct mm_struct *mm)
 {
@@ -1341,6 +1367,15 @@ enum fault_flag {
 };
 
 typedef unsigned int __bitwise zap_flags_t;
+
+/* Flags for clear_young_dirty_ptes(). */
+typedef int __bitwise cydp_t;
+
+/* Clear the access bit */
+#define CYDP_CLEAR_YOUNG		((__force cydp_t)BIT(0))
+
+/* Clear the dirty bit */
+#define CYDP_CLEAR_DIRTY		((__force cydp_t)BIT(1))
 
 /*
  * FOLL_PIN and FOLL_LONGTERM may be used in various combinations with each

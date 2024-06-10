@@ -49,7 +49,7 @@ static const unsigned long recovery_delay[] = { 3, 30, 300 };
 
 static atomic_t ccw_device_init_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(ccw_device_init_wq);
-static struct bus_type ccw_bus_type;
+static const struct bus_type ccw_bus_type;
 
 /******************* bus type handling ***********************/
 
@@ -363,10 +363,8 @@ int ccw_device_set_online(struct ccw_device *cdev)
 
 	spin_lock_irq(cdev->ccwlock);
 	ret = ccw_device_online(cdev);
-	spin_unlock_irq(cdev->ccwlock);
-	if (ret == 0)
-		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
-	else {
+	if (ret) {
+		spin_unlock_irq(cdev->ccwlock);
 		CIO_MSG_EVENT(0, "ccw_device_online returned %d, "
 			      "device 0.%x.%04x\n",
 			      ret, cdev->private->dev_id.ssid,
@@ -375,7 +373,12 @@ int ccw_device_set_online(struct ccw_device *cdev)
 		put_device(&cdev->dev);
 		return ret;
 	}
-	spin_lock_irq(cdev->ccwlock);
+	/* Wait until a final state is reached */
+	while (!dev_fsm_final_state(cdev)) {
+		spin_unlock_irq(cdev->ccwlock);
+		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
+		spin_lock_irq(cdev->ccwlock);
+	}
 	/* Check if online processing was successful */
 	if ((cdev->private->state != DEV_STATE_ONLINE) &&
 	    (cdev->private->state != DEV_STATE_W4SENSE)) {
@@ -1776,7 +1779,7 @@ static void ccw_device_shutdown(struct device *dev)
 	__disable_cmf(cdev);
 }
 
-static struct bus_type ccw_bus_type = {
+static const struct bus_type ccw_bus_type = {
 	.name   = "ccw",
 	.match  = ccw_bus_match,
 	.uevent = ccw_uevent,

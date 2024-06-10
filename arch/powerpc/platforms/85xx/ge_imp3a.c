@@ -38,7 +38,7 @@
 
 void __iomem *imp3a_regs;
 
-void __init ge_imp3a_pic_init(void)
+static void __init ge_imp3a_pic_init(void)
 {
 	struct mpic *mpic;
 	struct device_node *np;

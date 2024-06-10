@@ -80,6 +80,8 @@ static int __patch_insn_set(void *addr, u8 c, size_t len)
 	 */
 	lockdep_assert_held(&text_mutex);
 
+	preempt_disable();
+
 	if (across_pages)
 		patch_map(addr + PAGE_SIZE, FIX_TEXT_POKE1);
 
@@ -91,6 +93,8 @@ static int __patch_insn_set(void *addr, u8 c, size_t len)
 
 	if (across_pages)
 		patch_unmap(FIX_TEXT_POKE1);
+
+	preempt_enable();
 
 	return 0;
 }
@@ -122,6 +126,8 @@ static int __patch_insn_write(void *addr, const void *insn, size_t len)
 	if (!riscv_patch_in_stop_machine)
 		lockdep_assert_held(&text_mutex);
 
+	preempt_disable();
+
 	if (across_pages)
 		patch_map(addr + PAGE_SIZE, FIX_TEXT_POKE1);
 
@@ -133,6 +139,8 @@ static int __patch_insn_write(void *addr, const void *insn, size_t len)
 
 	if (across_pages)
 		patch_unmap(FIX_TEXT_POKE1);
+
+	preempt_enable();
 
 	return ret;
 }
@@ -188,7 +196,7 @@ int patch_text_set_nosync(void *addr, u8 c, size_t len)
 }
 NOKPROBE_SYMBOL(patch_text_set_nosync);
 
-static int patch_insn_write(void *addr, const void *insn, size_t len)
+int patch_insn_write(void *addr, const void *insn, size_t len)
 {
 	size_t patched = 0;
 	size_t size;
@@ -232,15 +240,22 @@ static int patch_text_cb(void *data)
 	if (atomic_inc_return(&patch->cpu_count) == num_online_cpus()) {
 		for (i = 0; ret == 0 && i < patch->ninsns; i++) {
 			len = GET_INSN_LENGTH(patch->insns[i]);
-			ret = patch_text_nosync(patch->addr + i * len,
-						&patch->insns[i], len);
+			ret = patch_insn_write(patch->addr + i * len, &patch->insns[i], len);
 		}
-		atomic_inc(&patch->cpu_count);
+		/*
+		 * Make sure the patching store is effective *before* we
+		 * increment the counter which releases all waiting CPUs
+		 * by using the release variant of atomic increment. The
+		 * release pairs with the call to local_flush_icache_all()
+		 * on the waiting CPU.
+		 */
+		atomic_inc_return_release(&patch->cpu_count);
 	} else {
 		while (atomic_read(&patch->cpu_count) <= num_online_cpus())
 			cpu_relax();
-		smp_mb();
 	}
+
+	local_flush_icache_all();
 
 	return ret;
 }

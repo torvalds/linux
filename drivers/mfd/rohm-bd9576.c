@@ -62,7 +62,7 @@ static struct regmap_config bd957x_regmap = {
 	.val_bits = 8,
 	.volatile_table = &volatile_regs,
 	.max_register = BD957X_MAX_REGISTER,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static struct regmap_irq bd9576_irqs[] = {

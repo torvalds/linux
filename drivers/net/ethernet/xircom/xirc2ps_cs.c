@@ -1240,9 +1240,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     netif_stop_queue(dev);
     SelectPage(0);
     PutWord(XIRCREG0_TRS, (u_short)pktlen+2);
-    freespace = GetWord(XIRCREG0_TSO);
-    okay = freespace & 0x8000;
-    freespace &= 0x7fff;
+    freespace = GetWord(XIRCREG0_TSO) & 0x7fff;
     /* TRS doesn't work - (indeed it is eliminated with sil-rev 1) */
     okay = pktlen +2 < freespace;
     pr_debug("%s: avail. tx space=%u%s\n",
@@ -1368,10 +1366,10 @@ do_config(struct net_device *dev, struct ifmap *map)
 	    return -EINVAL;
 	if (!map->port) {
 	    local->probe_port = 1;
-	    dev->if_port = 1;
+	    WRITE_ONCE(dev->if_port, 1);
 	} else {
 	    local->probe_port = 0;
-	    dev->if_port = map->port;
+	    WRITE_ONCE(dev->if_port, map->port);
 	}
 	netdev_info(dev, "switching to %s port\n", if_names[dev->if_port]);
 	do_reset(dev,1);  /* not the fine way :-) */

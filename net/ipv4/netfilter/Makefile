@@ -25,7 +25,7 @@ obj-$(CONFIG_NFT_FIB_IPV4) += nft_fib_ipv4.o
 obj-$(CONFIG_NFT_DUP_IPV4) += nft_dup_ipv4.o
 
 # generic IP tables
-obj-$(CONFIG_IP_NF_IPTABLES) += ip_tables.o
+obj-$(CONFIG_IP_NF_IPTABLES_LEGACY) += ip_tables.o
 
 # the three instances of ip_tables
 obj-$(CONFIG_IP_NF_FILTER) += iptable_filter.o

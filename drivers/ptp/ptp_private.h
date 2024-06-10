@@ -120,7 +120,7 @@ static inline bool ptp_clock_freerun(struct ptp_clock *ptp)
 	return ptp_vclock_in_use(ptp);
 }
 
-extern struct class *ptp_class;
+extern const struct class ptp_class;
 
 /*
  * see ptp_chardev.c

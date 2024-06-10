@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/moduleloader.h>
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/cache.h>
 #include <linux/if_vlan.h>
+#include <linux/execmem.h>
 
 #include <asm/cacheflush.h>
 #include <asm/ptrace.h>
@@ -300,7 +300,7 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
  *
  * The most common case is to emit a branch at the end of such
  * a code sequence.  So this would be two instructions, the
- * branch and it's delay slot.
+ * branch and its delay slot.
  *
  * Therefore by default the branch emitters calculate the branch
  * offset field as:
@@ -309,13 +309,13 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
  *
  * This "addrs[i] - 8" is the address of the branch itself or
  * what "." would be in assembler notation.  The "8" part is
- * how we take into consideration the branch and it's delay
+ * how we take into consideration the branch and its delay
  * slot mentioned above.
  *
  * Sometimes we need to emit a branch earlier in the code
  * sequence.  And in these situations we adjust "destination"
  * to accommodate this difference.  For example, if we needed
- * to emit a branch (and it's delay slot) right before the
+ * to emit a branch (and its delay slot) right before the
  * final instruction emitted for a BPF opcode, we'd use
  * "destination + 4" instead of just plain "destination" above.
  *
@@ -713,7 +713,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 				if (unlikely(proglen + ilen > oldproglen)) {
 					pr_err("bpb_jit_compile fatal error\n");
 					kfree(addrs);
-					module_memfree(image);
+					execmem_free(image);
 					return;
 				}
 				memcpy(image + proglen, temp, ilen);
@@ -736,7 +736,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 			break;
 		}
 		if (proglen == oldproglen) {
-			image = module_alloc(proglen);
+			image = execmem_alloc(EXECMEM_BPF, proglen);
 			if (!image)
 				goto out;
 		}
@@ -758,7 +758,7 @@ out:
 void bpf_jit_free(struct bpf_prog *fp)
 {
 	if (fp->jited)
-		module_memfree(fp->bpf_func);
+		execmem_free(fp->bpf_func);
 
 	bpf_prog_unlock_free(fp);
 }

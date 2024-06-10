@@ -194,6 +194,18 @@ static inline void closure_sync(struct closure *cl)
 		__closure_sync(cl);
 }
 
+int __closure_sync_timeout(struct closure *cl, unsigned long timeout);
+
+static inline int closure_sync_timeout(struct closure *cl, unsigned long timeout)
+{
+#ifdef CONFIG_DEBUG_CLOSURES
+	BUG_ON(closure_nr_remaining(cl) != 1 && !cl->closure_get_happened);
+#endif
+	return cl->closure_get_happened
+		? __closure_sync_timeout(cl, timeout)
+		: 0;
+}
+
 #ifdef CONFIG_DEBUG_CLOSURES
 
 void closure_debug_create(struct closure *cl);

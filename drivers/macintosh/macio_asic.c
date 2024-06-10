@@ -136,7 +136,7 @@ static int macio_device_modalias(const struct device *dev, struct kobj_uevent_en
 
 extern const struct attribute_group *macio_dev_groups[];
 
-struct bus_type macio_bus_type = {
+const struct bus_type macio_bus_type = {
        .name	= "macio",
        .match	= macio_bus_match,
        .uevent	= macio_device_modalias,

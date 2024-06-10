@@ -8,6 +8,13 @@
 #include "xdp_metadata.h"
 #include "bpf_kfuncs.h"
 
+/* The compiler may be able to detect the access to uninitialized
+   memory in the routines performing out of bound memory accesses and
+   emit warnings about it.  This is the case of GCC. */
+#if !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 int arr[1];
 int unkn_idx;
 const volatile bool call_dead_subprog = false;
@@ -113,6 +120,35 @@ int arg_tag_nullable_ptr_fail(void *ctx)
 	int x = 42;
 
 	return subprog_nullable_ptr_bad(&x);
+}
+
+typedef struct {
+	int x;
+} user_struct_t;
+
+__noinline __weak int subprog_user_anon_mem(user_struct_t *t)
+{
+	return t ? t->x : 0;
+}
+
+SEC("?tracepoint")
+__failure __log_level(2)
+__msg("invalid bpf_context access")
+__msg("Caller passes invalid args into func#1 ('subprog_user_anon_mem')")
+int anon_user_mem_invalid(void *ctx)
+{
+	/* can't pass PTR_TO_CTX as user memory */
+	return subprog_user_anon_mem(ctx);
+}
+
+SEC("?tracepoint")
+__success __log_level(2)
+__msg("Func#1 ('subprog_user_anon_mem') is safe for any args that match its prototype")
+int anon_user_mem_valid(void *ctx)
+{
+	user_struct_t t = { .x = 42 };
+
+	return subprog_user_anon_mem(&t);
 }
 
 __noinline __weak int subprog_nonnull_ptr_good(int *p1 __arg_nonnull, int *p2 __arg_nonnull)

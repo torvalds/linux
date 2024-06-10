@@ -49,7 +49,7 @@ SYM_CODE_START(startup_xen)
 	ANNOTATE_NOENDBR
 	cld
 
-	leaq	(__end_init_task - PTREGS_SIZE)(%rip), %rsp
+	leaq	__top_init_kernel_stack(%rip), %rsp
 
 	/* Set up %gs.
 	 *

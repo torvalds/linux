@@ -1156,15 +1156,6 @@ void musb_free_request(struct usb_ep *ep, struct usb_request *req)
 	kfree(request);
 }
 
-static LIST_HEAD(buffers);
-
-struct free_record {
-	struct list_head	list;
-	struct device		*dev;
-	unsigned		bytes;
-	dma_addr_t		dma;
-};
-
 /*
  * Context: controller locked, IRQs blocked.
  */
@@ -1744,7 +1735,6 @@ static inline void musb_g_init_endpoints(struct musb *musb)
 {
 	u8			epnum;
 	struct musb_hw_ep	*hw_ep;
-	unsigned		count = 0;
 
 	/* initialize endpoint list just once */
 	INIT_LIST_HEAD(&(musb->g.ep_list));
@@ -1754,17 +1744,14 @@ static inline void musb_g_init_endpoints(struct musb *musb)
 			epnum++, hw_ep++) {
 		if (hw_ep->is_shared_fifo /* || !epnum */) {
 			init_peripheral_ep(musb, &hw_ep->ep_in, epnum, 0);
-			count++;
 		} else {
 			if (hw_ep->max_packet_sz_tx) {
 				init_peripheral_ep(musb, &hw_ep->ep_in,
 							epnum, 1);
-				count++;
 			}
 			if (hw_ep->max_packet_sz_rx) {
 				init_peripheral_ep(musb, &hw_ep->ep_out,
 							epnum, 0);
-				count++;
 			}
 		}
 	}

@@ -17,8 +17,8 @@
 
 #include <linux/init.h>
 #include <linux/export.h>
-#include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/wordpart.h>
 #include <linux/fs.h>
 #include <linux/filelock.h>
 #include <linux/namei.h>
@@ -27,7 +27,6 @@
 #include <linux/fsnotify.h>
 #include <linux/personality.h>
 #include <linux/security.h>
-#include <linux/ima.h>
 #include <linux/syscalls.h>
 #include <linux/mount.h>
 #include <linux/audit.h>
@@ -2423,6 +2422,14 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 		if (!f.file)
 			return ERR_PTR(-EBADF);
 
+		if (flags & LOOKUP_LINKAT_EMPTY) {
+			if (f.file->f_cred != current_cred() &&
+			    !ns_capable(f.file->f_cred->user_ns, CAP_DAC_READ_SEARCH)) {
+				fdput(f);
+				return ERR_PTR(-ENOENT);
+			}
+		}
+
 		dentry = f.file->f_path.dentry;
 
 		if (*s && unlikely(!d_can_lookup(dentry))) {
@@ -2680,10 +2687,8 @@ static int lookup_one_common(struct mnt_idmap *idmap,
 	if (!len)
 		return -EACCES;
 
-	if (unlikely(name[0] == '.')) {
-		if (len < 2 || (len == 2 && name[1] == '.'))
-			return -EACCES;
-	}
+	if (is_dot_dotdot(name, len))
+		return -EACCES;
 
 	while (len--) {
 		unsigned int c = *(const unsigned char *)name++;
@@ -3644,7 +3649,7 @@ static int do_open(struct nameidata *nd,
 	if (!error && !(file->f_mode & FMODE_OPENED))
 		error = vfs_open(&nd->path, file);
 	if (!error)
-		error = ima_file_check(file, op->acc_mode);
+		error = security_file_post_open(file, op->acc_mode);
 	if (!error && do_truncate)
 		error = handle_truncate(idmap, file);
 	if (unlikely(error > 0)) {
@@ -3671,9 +3676,9 @@ static int do_open(struct nameidata *nd,
  * On non-idmapped mounts or if permission checking is to be performed on the
  * raw inode simply pass @nop_mnt_idmap.
  */
-static int vfs_tmpfile(struct mnt_idmap *idmap,
-		       const struct path *parentpath,
-		       struct file *file, umode_t mode)
+int vfs_tmpfile(struct mnt_idmap *idmap,
+		const struct path *parentpath,
+		struct file *file, umode_t mode)
 {
 	struct dentry *child;
 	struct inode *dir = d_inode(parentpath->dentry);
@@ -3707,7 +3712,7 @@ static int vfs_tmpfile(struct mnt_idmap *idmap,
 		inode->i_state |= I_LINKABLE;
 		spin_unlock(&inode->i_lock);
 	}
-	ima_post_create_tmpfile(idmap, inode);
+	security_inode_post_create_tmpfile(idmap, inode);
 	return 0;
 }
 
@@ -4054,7 +4059,7 @@ retry:
 			error = vfs_create(idmap, path.dentry->d_inode,
 					   dentry, mode, true);
 			if (!error)
-				ima_post_path_mknod(idmap, dentry);
+				security_path_post_mknod(idmap, dentry);
 			break;
 		case S_IFCHR: case S_IFBLK:
 			error = vfs_mknod(idmap, path.dentry->d_inode,
@@ -4644,14 +4649,13 @@ int do_linkat(int olddfd, struct filename *old, int newdfd,
 		goto out_putnames;
 	}
 	/*
-	 * To use null names we require CAP_DAC_READ_SEARCH
+	 * To use null names we require CAP_DAC_READ_SEARCH or
+	 * that the open-time creds of the dfd matches current.
 	 * This ensures that not everyone will be able to create
-	 * handlink using the passed filedescriptor.
+	 * a hardlink using the passed file descriptor.
 	 */
-	if (flags & AT_EMPTY_PATH && !capable(CAP_DAC_READ_SEARCH)) {
-		error = -ENOENT;
-		goto out_putnames;
-	}
+	if (flags & AT_EMPTY_PATH)
+		how |= LOOKUP_LINKAT_EMPTY;
 
 	if (flags & AT_SYMLINK_FOLLOW)
 		how |= LOOKUP_FOLLOW;

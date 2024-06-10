@@ -32,15 +32,6 @@
 #define CARMINE_MEM_SIZE	0x8000000
 #define DRV_NAME		"mb862xxfb"
 
-#if defined(CONFIG_SOCRATES)
-static struct mb862xx_gc_mode socrates_gc_mode = {
-	/* Mode for Prime View PM070WL4 TFT LCD Panel */
-	{ "800x480", 45, 800, 480, 40000, 86, 42, 33, 10, 128, 2, 0, 0, 0 },
-	/* 16 bits/pixel, 16MB, 133MHz, SDRAM memory mode value */
-	16, 0x1000000, GC_CCF_COT_133, 0x4157ba63
-};
-#endif
-
 /* Helpers */
 static inline int h_total(struct fb_var_screeninfo *var)
 {
@@ -665,6 +656,15 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 	outreg(host, GC_IMASK, GC_INT_EN);
 	return 0;
 }
+
+#if defined(CONFIG_SOCRATES)
+static struct mb862xx_gc_mode socrates_gc_mode = {
+	/* Mode for Prime View PM070WL4 TFT LCD Panel */
+	{ "800x480", 45, 800, 480, 40000, 86, 42, 33, 10, 128, 2, 0, 0, 0 },
+	/* 16 bits/pixel, 16MB, 133MHz, SDRAM memory mode value */
+	16, 0x1000000, GC_CCF_COT_133, 0x4157ba63
+};
+#endif
 
 static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 {

@@ -7,36 +7,41 @@
 
 #include <drm/drm_managed.h>
 
+#include <generated/xe_wa_oob.h>
+
 #include "abi/guc_actions_abi.h"
 #include "abi/guc_errors_abi.h"
-#include "generated/xe_wa_oob.h"
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_gtt_defs.h"
 #include "regs/xe_guc_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_guc_ads.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_hwconfig.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
+#include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_sriov.h"
 #include "xe_uc.h"
 #include "xe_uc_fw.h"
 #include "xe_wa.h"
 #include "xe_wopcm.h"
 
-/* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
-#define GUC_GGTT_TOP    0xFEE00000
 static u32 guc_bo_ggtt_addr(struct xe_guc *guc,
 			    struct xe_bo *bo)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	u32 addr = xe_bo_ggtt_addr(bo);
 
+	/* GuC addresses above GUC_GGTT_TOP don't map through the GTT */
 	xe_assert(xe, addr >= xe_wopcm_size(guc_to_xe(guc)));
 	xe_assert(xe, addr < GUC_GGTT_TOP);
 	xe_assert(xe, bo->size <= GUC_GGTT_TOP - addr);
@@ -138,13 +143,10 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (XE_WA(gt, 22012773006))
 		flags |= GUC_WA_POLLCS;
 
-	if (XE_WA(gt, 16011759253))
-		flags |= GUC_WA_GAM_CREDITS;
-
 	if (XE_WA(gt, 14014475959))
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
 
-	if (XE_WA(gt, 22011391025) || XE_WA(gt, 14012197797))
+	if (XE_WA(gt, 22011391025))
 		flags |= GUC_WA_DUAL_QUEUE;
 
 	/*
@@ -155,18 +157,18 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (GRAPHICS_VERx100(xe) < 1270)
 		flags |= GUC_WA_PRE_PARSER;
 
-	if (XE_WA(gt, 16011777198))
-		flags |= GUC_WA_RCS_RESET_BEFORE_RC6;
-
 	if (XE_WA(gt, 22012727170) || XE_WA(gt, 22012727685))
 		flags |= GUC_WA_CONTEXT_ISOLATION;
 
-	if ((XE_WA(gt, 16015675438) || XE_WA(gt, 18020744125)) &&
+	if (XE_WA(gt, 18020744125) &&
 	    !xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_RENDER))
 		flags |= GUC_WA_RCS_REGS_IN_CCS_REGS_LIST;
 
 	if (XE_WA(gt, 1509372804))
 		flags |= GUC_WA_RENDER_RST_RC6_EXIT;
+
+	if (XE_WA(gt, 14018913170))
+		flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
 
 	return flags;
 }
@@ -178,14 +180,22 @@ static u32 guc_ctl_devid(struct xe_guc *guc)
 	return (((u32)xe->info.devid) << 16) | xe->info.revid;
 }
 
-static void guc_init_params(struct xe_guc *guc)
+static void guc_print_params(struct xe_guc *guc)
 {
-	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_gt *gt = guc_to_gt(guc);
 	u32 *params = guc->params;
 	int i;
 
 	BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
 	BUILD_BUG_ON(GUC_CTL_MAX_DWORDS + 2 != SOFT_SCRATCH_COUNT);
+
+	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
+		xe_gt_dbg(gt, "GuC param[%2d] = 0x%08x\n", i, params[i]);
+}
+
+static void guc_init_params(struct xe_guc *guc)
+{
+	u32 *params = guc->params;
 
 	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_FEATURE] = 0;
@@ -194,18 +204,12 @@ static void guc_init_params(struct xe_guc *guc)
 	params[GUC_CTL_WA] = 0;
 	params[GUC_CTL_DEVID] = guc_ctl_devid(guc);
 
-	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		drm_dbg(&xe->drm, "GuC param[%2d] = 0x%08x\n", i, params[i]);
+	guc_print_params(guc);
 }
 
 static void guc_init_params_post_hwconfig(struct xe_guc *guc)
 {
-	struct xe_device *xe = guc_to_xe(guc);
 	u32 *params = guc->params;
-	int i;
-
-	BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
-	BUILD_BUG_ON(GUC_CTL_MAX_DWORDS + 2 != SOFT_SCRATCH_COUNT);
 
 	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
@@ -214,8 +218,7 @@ static void guc_init_params_post_hwconfig(struct xe_guc *guc)
 	params[GUC_CTL_WA] = guc_ctl_wa_flags(guc);
 	params[GUC_CTL_DEVID] = guc_ctl_devid(guc);
 
-	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		drm_dbg(&xe->drm, "GuC param[%2d] = 0x%08x\n", i, params[i]);
+	guc_print_params(guc);
 }
 
 /*
@@ -239,11 +242,55 @@ static void guc_write_params(struct xe_guc *guc)
 static void guc_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc *guc = arg;
+	struct xe_gt *gt = guc_to_gt(guc);
 
-	xe_force_wake_get(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
-	xe_guc_pc_fini(&guc->pc);
+	xe_gt_WARN_ON(gt, xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 	xe_uc_fini_hw(&guc_to_gt(guc)->uc);
-	xe_force_wake_put(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
+	xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+}
+
+/**
+ * xe_guc_comm_init_early - early initialization of GuC communication
+ * @guc: the &xe_guc to initialize
+ *
+ * Must be called prior to first MMIO communication with GuC firmware.
+ */
+void xe_guc_comm_init_early(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+
+	if (xe_gt_is_media_type(gt))
+		guc->notify_reg = MED_GUC_HOST_INTERRUPT;
+	else
+		guc->notify_reg = GUC_HOST_INTERRUPT;
+}
+
+static int xe_guc_realloc_post_hwconfig(struct xe_guc *guc)
+{
+	struct xe_tile *tile = gt_to_tile(guc_to_gt(guc));
+	struct xe_device *xe = guc_to_xe(guc);
+	int ret;
+
+	if (!IS_DGFX(guc_to_xe(guc)))
+		return 0;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->fw.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->log.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->ads.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->ct.bo);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 int xe_guc_init(struct xe_guc *guc)
@@ -272,27 +319,24 @@ int xe_guc_init(struct xe_guc *guc)
 	if (ret)
 		goto out;
 
-	ret = xe_guc_pc_init(&guc->pc);
+	ret = xe_guc_relay_init(&guc->relay);
 	if (ret)
 		goto out;
 
-	ret = drmm_add_action_or_reset(&gt_to_xe(gt)->drm, guc_fini, guc);
+	ret = drmm_add_action_or_reset(&xe->drm, guc_fini, guc);
 	if (ret)
 		goto out;
 
 	guc_init_params(guc);
 
-	if (xe_gt_is_media_type(gt))
-		guc->notify_reg = MED_GUC_HOST_INTERRUPT;
-	else
-		guc->notify_reg = GUC_HOST_INTERRUPT;
+	xe_guc_comm_init_early(guc);
 
 	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_LOADABLE);
 
 	return 0;
 
 out:
-	drm_err(&xe->drm, "GuC init failed with %d", ret);
+	xe_gt_err(gt, "GuC init failed with %pe\n", ERR_PTR(ret));
 	return ret;
 }
 
@@ -304,7 +348,17 @@ out:
  */
 int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 {
+	int ret;
+
+	ret = xe_guc_realloc_post_hwconfig(guc);
+	if (ret)
+		return ret;
+
 	guc_init_params_post_hwconfig(guc);
+
+	ret = xe_guc_pc_init(&guc->pc);
+	if (ret)
+		return ret;
 
 	return xe_guc_ads_init_post_hwconfig(&guc->ads);
 }
@@ -319,7 +373,6 @@ int xe_guc_post_load_init(struct xe_guc *guc)
 
 int xe_guc_reset(struct xe_guc *guc)
 {
-	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 guc_status, gdrst;
 	int ret;
@@ -330,16 +383,14 @@ int xe_guc_reset(struct xe_guc *guc)
 
 	ret = xe_mmio_wait32(gt, GDRST, GRDOM_GUC, 0, 5000, &gdrst, false);
 	if (ret) {
-		drm_err(&xe->drm, "GuC reset timed out, GDRST=0x%8x\n",
-			gdrst);
+		xe_gt_err(gt, "GuC reset timed out, GDRST=%#x\n", gdrst);
 		goto err_out;
 	}
 
 	guc_status = xe_mmio_read32(gt, GUC_STATUS);
 	if (!(guc_status & GS_MIA_IN_RESET)) {
-		drm_err(&xe->drm,
-			"GuC status: 0x%x, MIA core expected to be in reset\n",
-			guc_status);
+		xe_gt_err(gt, "GuC status: %#x, MIA core expected to be in reset\n",
+			  guc_status);
 		ret = -EIO;
 		goto err_out;
 	}
@@ -402,7 +453,7 @@ static int guc_xfer_rsa(struct xe_guc *guc)
 
 static int guc_wait_ucode(struct xe_guc *guc)
 {
-	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_gt *gt = guc_to_gt(guc);
 	u32 status;
 	int ret;
 
@@ -423,38 +474,32 @@ static int guc_wait_ucode(struct xe_guc *guc)
 	 * 200ms. Even at slowest clock, this should be sufficient. And
 	 * in the working case, a larger timeout makes no difference.
 	 */
-	ret = xe_mmio_wait32(guc_to_gt(guc), GUC_STATUS, GS_UKERNEL_MASK,
+	ret = xe_mmio_wait32(gt, GUC_STATUS, GS_UKERNEL_MASK,
 			     FIELD_PREP(GS_UKERNEL_MASK, XE_GUC_LOAD_STATUS_READY),
 			     200000, &status, false);
 
 	if (ret) {
-		struct drm_device *drm = &xe->drm;
-		struct drm_printer p = drm_info_printer(drm->dev);
-
-		drm_info(drm, "GuC load failed: status = 0x%08X\n", status);
-		drm_info(drm, "GuC load failed: status: Reset = %d, BootROM = 0x%02X, UKernel = 0x%02X, MIA = 0x%02X, Auth = 0x%02X\n",
-			 REG_FIELD_GET(GS_MIA_IN_RESET, status),
-			 REG_FIELD_GET(GS_BOOTROM_MASK, status),
-			 REG_FIELD_GET(GS_UKERNEL_MASK, status),
-			 REG_FIELD_GET(GS_MIA_MASK, status),
-			 REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
+		xe_gt_info(gt, "GuC load failed: status = 0x%08X\n", status);
+		xe_gt_info(gt, "GuC status: Reset = %u, BootROM = %#X, UKernel = %#X, MIA = %#X, Auth = %#X\n",
+			   REG_FIELD_GET(GS_MIA_IN_RESET, status),
+			   REG_FIELD_GET(GS_BOOTROM_MASK, status),
+			   REG_FIELD_GET(GS_UKERNEL_MASK, status),
+			   REG_FIELD_GET(GS_MIA_MASK, status),
+			   REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
 
 		if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
-			drm_info(drm, "GuC firmware signature verification failed\n");
+			xe_gt_info(gt, "GuC firmware signature verification failed\n");
 			ret = -ENOEXEC;
 		}
 
 		if (REG_FIELD_GET(GS_UKERNEL_MASK, status) ==
 		    XE_GUC_LOAD_STATUS_EXCEPTION) {
-			drm_info(drm, "GuC firmware exception. EIP: %#x\n",
-				 xe_mmio_read32(guc_to_gt(guc),
-						SOFT_SCRATCH(13)));
+			xe_gt_info(gt, "GuC firmware exception. EIP: %#x\n",
+				   xe_mmio_read32(gt, SOFT_SCRATCH(13)));
 			ret = -ENXIO;
 		}
-
-		xe_guc_log_print(&guc->log, &p);
 	} else {
-		drm_dbg(&xe->drm, "GuC successfully loaded");
+		xe_gt_dbg(gt, "GuC successfully loaded\n");
 	}
 
 	return ret;
@@ -516,6 +561,9 @@ int xe_guc_min_load_for_hwconfig(struct xe_guc *guc)
 
 	xe_guc_ads_populate_minimal(&guc->ads);
 
+	/* Raise GT freq to speed up HuC/GuC load */
+	xe_guc_pc_init_early(&guc->pc);
+
 	ret = __xe_guc_upload(guc);
 	if (ret)
 		return ret;
@@ -543,6 +591,9 @@ static void guc_handle_mmio_msg(struct xe_guc *guc)
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 msg;
 
+	if (IS_SRIOV_VF(guc_to_xe(guc)))
+		return;
+
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
 	msg = xe_mmio_read32(gt, SOFT_SCRATCH(15));
@@ -551,12 +602,10 @@ static void guc_handle_mmio_msg(struct xe_guc *guc)
 	xe_mmio_write32(gt, SOFT_SCRATCH(15), 0);
 
 	if (msg & XE_GUC_RECV_MSG_CRASH_DUMP_POSTED)
-		drm_err(&guc_to_xe(guc)->drm,
-			"Received early GuC crash dump notification!\n");
+		xe_gt_err(gt, "Received early GuC crash dump notification!\n");
 
 	if (msg & XE_GUC_RECV_MSG_EXCEPTION)
-		drm_err(&guc_to_xe(guc)->drm,
-			"Received early GuC exception notification!\n");
+		xe_gt_err(gt, "Received early GuC exception notification!\n");
 }
 
 static void guc_enable_irq(struct xe_guc *guc)
@@ -579,9 +628,19 @@ static void guc_enable_irq(struct xe_guc *guc)
 
 int xe_guc_enable_communication(struct xe_guc *guc)
 {
+	struct xe_device *xe = guc_to_xe(guc);
 	int err;
 
 	guc_enable_irq(guc);
+
+	if (IS_SRIOV_VF(xe) && xe_device_has_memirq(xe)) {
+		struct xe_gt *gt = guc_to_gt(guc);
+		struct xe_tile *tile = gt_to_tile(gt);
+
+		err = xe_memirq_init_guc(&tile->sriov.vf.memirq, guc);
+		if (err)
+			return err;
+	}
 
 	xe_mmio_rmw32(guc_to_gt(guc), PMINTRMSK,
 		      ARAT_EXPIRED_INTRMSK, 0);
@@ -597,15 +656,15 @@ int xe_guc_enable_communication(struct xe_guc *guc)
 
 int xe_guc_suspend(struct xe_guc *guc)
 {
-	int ret;
+	struct xe_gt *gt = guc_to_gt(guc);
 	u32 action[] = {
 		XE_GUC_ACTION_CLIENT_SOFT_RESET,
 	};
+	int ret;
 
 	ret = xe_guc_mmio_send(guc, action, ARRAY_SIZE(action));
 	if (ret) {
-		drm_err(&guc_to_xe(guc)->drm,
-			"GuC suspend: CLIENT_SOFT_RESET fail: %d!\n", ret);
+		xe_gt_err(gt, "GuC suspend failed: %pe\n", ERR_PTR(ret));
 		return ret;
 	}
 
@@ -650,7 +709,7 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 
 	BUILD_BUG_ON(VF_SW_FLAG_COUNT != MED_VF_SW_FLAG_COUNT);
 
-	xe_assert(xe, !guc->ct.enabled);
+	xe_assert(xe, !xe_guc_ct_enabled(&guc->ct));
 	xe_assert(xe, len);
 	xe_assert(xe, len <= VF_SW_FLAG_COUNT);
 	xe_assert(xe, len <= MED_VF_SW_FLAG_COUNT);
@@ -680,8 +739,8 @@ retry:
 			     50000, &reply, false);
 	if (ret) {
 timeout:
-		drm_err(&xe->drm, "mmio request %#x: no reply %#x\n",
-			request[0], reply);
+		xe_gt_err(gt, "GuC mmio request %#x: no reply %#x\n",
+			  request[0], reply);
 		return ret;
 	}
 
@@ -707,16 +766,20 @@ timeout:
 		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
 			     GUC_HXG_ORIGIN_GUC))
 			goto proto;
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) !=
+			    GUC_HXG_TYPE_NO_RESPONSE_BUSY)
+				goto proto;
 			goto timeout;
+		}
 	}
 
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
 	    GUC_HXG_TYPE_NO_RESPONSE_RETRY) {
 		u32 reason = FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, header);
 
-		drm_dbg(&xe->drm, "mmio request %#x: retrying, reason %#x\n",
-			request[0], reason);
+		xe_gt_dbg(gt, "GuC mmio request %#x: retrying, reason %#x\n",
+			  request[0], reason);
 		goto retry;
 	}
 
@@ -725,16 +788,16 @@ timeout:
 		u32 hint = FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, header);
 		u32 error = FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, header);
 
-		drm_err(&xe->drm, "mmio request %#x: failure %#x/%#x\n",
-			request[0], error, hint);
+		xe_gt_err(gt, "GuC mmio request %#x: failure %#x hint %#x\n",
+			  request[0], error, hint);
 		return -ENXIO;
 	}
 
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) !=
 	    GUC_HXG_TYPE_RESPONSE_SUCCESS) {
 proto:
-		drm_err(&xe->drm, "mmio request %#x: unexpected reply %#x\n",
-			request[0], header);
+		xe_gt_err(gt, "GuC mmio request %#x: unexpected reply %#x\n",
+			  request[0], header);
 		return -EPROTO;
 	}
 
@@ -832,7 +895,7 @@ int xe_guc_stop(struct xe_guc *guc)
 {
 	int ret;
 
-	xe_guc_ct_disable(&guc->ct);
+	xe_guc_ct_stop(&guc->ct);
 
 	ret = xe_guc_submit_stop(guc);
 	if (ret)

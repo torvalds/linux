@@ -38,10 +38,6 @@
 
 #include "8250.h"
 
-/* Nuvoton NPCM timeout register */
-#define UART_NPCM_TOR          7
-#define UART_NPCM_TOIE         BIT(7)  /* Timeout Interrupt Enable */
-
 /*
  * Debugging.
  */
@@ -615,13 +611,6 @@ int serial8250_em485_config(struct uart_port *port, struct ktermios *termios,
 			    struct serial_rs485 *rs485)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
-
-	/* pick sane settings if the user hasn't */
-	if (!!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
-	    !!(rs485->flags & SER_RS485_RTS_AFTER_SEND)) {
-		rs485->flags |= SER_RS485_RTS_ON_SEND;
-		rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
-	}
 
 	/*
 	 * Both serial8250_em485_init() and serial8250_em485_destroy()
@@ -1329,9 +1318,6 @@ static void autoconfig_irq(struct uart_8250_port *up)
 		inb_p(ICP);
 	}
 
-	if (uart_console(port))
-		console_lock();
-
 	/* forget possible initially masked and pending IRQ */
 	probe_irq_off(probe_irq_on());
 	save_mcr = serial8250_in_MCR(up);
@@ -1370,9 +1356,6 @@ static void autoconfig_irq(struct uart_8250_port *up)
 
 	if (port->flags & UPF_FOURPORT)
 		outb_p(save_ICP, ICP);
-
-	if (uart_console(port))
-		console_unlock();
 
 	port->irq = (irq > 0) ? irq : 0;
 }
@@ -1640,7 +1623,7 @@ static void serial8250_start_tx(struct uart_port *port)
 	/* Port locked to synchronize UART_IER access against the console. */
 	lockdep_assert_held_once(&port->lock);
 
-	if (!port->x_char && uart_circ_empty(&port->state->xmit))
+	if (!port->x_char && kfifo_is_empty(&port->state->port.xmit_fifo))
 		return;
 
 	serial8250_rpm_get_tx(up);
@@ -1788,7 +1771,7 @@ EXPORT_SYMBOL_GPL(serial8250_rx_chars);
 void serial8250_tx_chars(struct uart_8250_port *up)
 {
 	struct uart_port *port = &up->port;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	int count;
 
 	if (port->x_char) {
@@ -1799,14 +1782,19 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 		serial8250_stop_tx(port);
 		return;
 	}
-	if (uart_circ_empty(xmit)) {
+	if (kfifo_is_empty(&tport->xmit_fifo)) {
 		__stop_tx(up);
 		return;
 	}
 
 	count = up->tx_loadsz;
 	do {
-		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
+		unsigned char c;
+
+		if (!uart_fifo_get(port, &c))
+			break;
+
+		serial_out(up, UART_TX, c);
 		if (up->bugs & UART_BUG_TXRACE) {
 			/*
 			 * The Aspeed BMC virtual UARTs have a bug where data
@@ -1819,9 +1807,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 			 */
 			serial_in(up, UART_SCR);
 		}
-		uart_xmit_advance(port, 1);
-		if (uart_circ_empty(xmit))
-			break;
+
 		if ((up->capabilities & UART_CAP_HFIFO) &&
 		    !uart_lsr_tx_empty(serial_in(up, UART_LSR)))
 			break;
@@ -1831,7 +1817,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 			break;
 	} while (--count > 0);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	/*
@@ -1839,7 +1825,8 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	 * HW can go idle. So we get here once again with empty FIFO and disable
 	 * the interrupt and RPM in __stop_tx()
 	 */
-	if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
+	if (kfifo_is_empty(&tport->xmit_fifo) &&
+	    !(up->capabilities & UART_CAP_RPM))
 		__stop_tx(up);
 }
 EXPORT_SYMBOL_GPL(serial8250_tx_chars);
@@ -2235,15 +2222,6 @@ int serial8250_do_startup(struct uart_port *port)
 				UART_DA830_PWREMU_MGMT_FREE);
 	}
 
-	if (port->type == PORT_NPCM) {
-		/*
-		 * Nuvoton calls the scratch register 'UART_TOR' (timeout
-		 * register). Enable it, and set TIOC (timeout interrupt
-		 * comparator) to be 0x20 for correct operation.
-		 */
-		serial_port_out(port, UART_NPCM_TOR, UART_NPCM_TOIE | 0x20);
-	}
-
 #ifdef CONFIG_SERIAL_8250_RSA
 	/*
 	 * If this is an RSA port, see if we can kick it up to the
@@ -2545,15 +2523,6 @@ static void serial8250_shutdown(struct uart_port *port)
 		serial8250_do_shutdown(port);
 }
 
-/* Nuvoton NPCM UARTs have a custom divisor calculation */
-static unsigned int npcm_get_divisor(struct uart_8250_port *up,
-		unsigned int baud)
-{
-	struct uart_port *port = &up->port;
-
-	return DIV_ROUND_CLOSEST(port->uartclk, 16 * baud + 2) - 2;
-}
-
 static unsigned int serial8250_do_get_divisor(struct uart_port *port,
 					      unsigned int baud,
 					      unsigned int *frac)
@@ -2598,8 +2567,6 @@ static unsigned int serial8250_do_get_divisor(struct uart_port *port,
 		quot = 0x8001;
 	else if (magic_multiplier && baud >= port->uartclk / 12)
 		quot = 0x8002;
-	else if (up->port.type == PORT_NPCM)
-		quot = npcm_get_divisor(up, baud);
 	else
 		quot = uart_get_divisor(port, baud);
 
@@ -2714,12 +2681,8 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
  */
 void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 {
-	struct uart_8250_port *up = up_to_u8250p(port);
 	struct tty_port *tport = &port->state->port;
-	unsigned int baud, quot, frac = 0;
-	struct ktermios *termios;
 	struct tty_struct *tty;
-	unsigned long flags;
 
 	tty = tty_port_tty_get(tport);
 	if (!tty) {
@@ -2740,21 +2703,7 @@ void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 	if (!tty_port_initialized(tport))
 		goto out_unlock;
 
-	termios = &tty->termios;
-
-	baud = serial8250_get_baud_rate(port, termios, NULL);
-	quot = serial8250_get_divisor(port, baud, &frac);
-
-	serial8250_rpm_get(up);
-	uart_port_lock_irqsave(port, &flags);
-
-	uart_update_timeout(port, termios->c_cflag, baud);
-
-	serial8250_set_divisor(port, baud, quot, frac);
-	serial_port_out(port, UART_LCR, up->lcr);
-
-	uart_port_unlock_irqrestore(port, flags);
-	serial8250_rpm_put(up);
+	serial8250_do_set_termios(port, &tty->termios, NULL);
 
 out_unlock:
 	mutex_unlock(&tport->mutex);

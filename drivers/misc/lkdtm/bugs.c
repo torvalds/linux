@@ -294,10 +294,11 @@ static void lkdtm_SPINLOCKUP(void)
 	__release(&lock_me_up);
 }
 
-static void lkdtm_HUNG_TASK(void)
+static void __noreturn lkdtm_HUNG_TASK(void)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
+	BUG();
 }
 
 static volatile unsigned int huge = INT_MAX - 2;
@@ -416,7 +417,7 @@ static void lkdtm_FAM_BOUNDS(void)
 	pr_err("FAIL: survived access of invalid flexible array member index!\n");
 
 	if (!__has_attribute(__counted_by__))
-		pr_warn("This is expected since this %s was built a compiler supporting __counted_by\n",
+		pr_warn("This is expected since this %s was built with a compiler that does not support __counted_by\n",
 			lkdtm_kernel_info);
 	else if (IS_ENABLED(CONFIG_UBSAN_BOUNDS))
 		pr_expected_config(CONFIG_UBSAN_TRAP);

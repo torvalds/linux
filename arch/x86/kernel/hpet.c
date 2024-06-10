@@ -568,7 +568,7 @@ static struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	fwspec.param_count = 1;
 	fwspec.param[0] = hpet_id;
 
-	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_ANY);
+	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_GENERIC_MSI);
 	if (!parent) {
 		irq_domain_free_fwnode(fn);
 		kfree(domain_info);

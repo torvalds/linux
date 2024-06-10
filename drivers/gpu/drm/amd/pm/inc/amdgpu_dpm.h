@@ -50,7 +50,11 @@ enum amdgpu_runpm_mode {
 	AMDGPU_RUNPM_PX,
 	AMDGPU_RUNPM_BOCO,
 	AMDGPU_RUNPM_BACO,
+	AMDGPU_RUNPM_BAMACO,
 };
+
+#define BACO_SUPPORT (1<<0)
+#define MACO_SUPPORT (1<<1)
 
 struct amdgpu_ps {
 	u32 caps; /* vbios flags */
@@ -407,7 +411,7 @@ int amdgpu_dpm_baco_reset(struct amdgpu_device *adev);
 int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev);
 int amdgpu_dpm_enable_gfx_features(struct amdgpu_device *adev);
 
-bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev);
+int amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev);
 
 bool amdgpu_dpm_is_mode1_reset_supported(struct amdgpu_device *adev);
 int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev);
@@ -450,6 +454,7 @@ int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_versio
 int amdgpu_dpm_handle_passthrough_sbr(struct amdgpu_device *adev, bool enable);
 int amdgpu_dpm_send_hbm_bad_pages_num(struct amdgpu_device *adev, uint32_t size);
 int amdgpu_dpm_send_hbm_bad_channel_flag(struct amdgpu_device *adev, uint32_t size);
+int amdgpu_dpm_send_rma_reason(struct amdgpu_device *adev);
 int amdgpu_dpm_get_dpm_freq_range(struct amdgpu_device *adev,
 				       enum pp_clock_type type,
 				       uint32_t *min,

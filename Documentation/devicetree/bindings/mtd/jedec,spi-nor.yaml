@@ -52,6 +52,9 @@ properties:
     minItems: 1
     maxItems: 2
 
+  interrupts:
+    maxItems: 1
+
   m25p,fast-read:
     type: boolean
     description:

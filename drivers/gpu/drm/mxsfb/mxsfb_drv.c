@@ -249,7 +249,11 @@ static int mxsfb_load(struct drm_device *drm,
 	pm_runtime_enable(drm->dev);
 
 	/* Modeset init */
-	drm_mode_config_init(drm);
+	ret = drmm_mode_config_init(drm);
+	if (ret) {
+		dev_err(drm->dev, "Failed to initialize mode config\n");
+		goto err_vblank;
+	}
 
 	ret = mxsfb_kms_init(mxsfb);
 	if (ret < 0) {
@@ -312,7 +316,6 @@ err_vblank:
 static void mxsfb_unload(struct drm_device *drm)
 {
 	drm_kms_helper_poll_fini(drm);
-	drm_mode_config_cleanup(drm);
 
 	pm_runtime_get_sync(drm->dev);
 	mxsfb_irq_uninstall(drm);

@@ -488,18 +488,16 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 
 	geni_status = readl(uport->membase + SE_GENI_STATUS);
 
-	/* Cancel the current write to log the fault */
 	if (!locked) {
-		geni_se_cancel_m_cmd(&port->se);
-		if (!qcom_geni_serial_poll_bit(uport, SE_GENI_M_IRQ_STATUS,
-						M_CMD_CANCEL_EN, true)) {
-			geni_se_abort_m_cmd(&port->se);
-			qcom_geni_serial_poll_bit(uport, SE_GENI_M_IRQ_STATUS,
-							M_CMD_ABORT_EN, true);
-			writel(M_CMD_ABORT_EN, uport->membase +
-							SE_GENI_M_IRQ_CLEAR);
-		}
-		writel(M_CMD_CANCEL_EN, uport->membase + SE_GENI_M_IRQ_CLEAR);
+		/*
+		 * We can only get here if an oops is in progress then we were
+		 * unable to get the lock. This means we can't safely access
+		 * our state variables like tx_remaining. About the best we
+		 * can do is wait for the FIFO to be empty before we start our
+		 * transfer, so we'll do that.
+		 */
+		qcom_geni_serial_poll_bit(uport, SE_GENI_M_IRQ_STATUS,
+					  M_TX_FIFO_NOT_EMPTY_EN, false);
 	} else if ((geni_status & M_GENI_CMD_ACTIVE) && !port->tx_remaining) {
 		/*
 		 * It seems we can't interrupt existing transfers if all data
@@ -507,7 +505,7 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 		 */
 		qcom_geni_serial_poll_tx_done(uport);
 
-		if (!uart_circ_empty(&uport->state->xmit)) {
+		if (!kfifo_is_empty(&uport->state->port.xmit_fifo)) {
 			irq_en = readl(uport->membase + SE_GENI_M_IRQ_EN);
 			writel(irq_en | M_TX_FIFO_WATERMARK_EN,
 					uport->membase + SE_GENI_M_IRQ_EN);
@@ -516,11 +514,12 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 
 	__qcom_geni_serial_console_write(uport, s, count);
 
-	if (port->tx_remaining)
-		qcom_geni_serial_setup_tx(uport, port->tx_remaining);
 
-	if (locked)
+	if (locked) {
+		if (port->tx_remaining)
+			qcom_geni_serial_setup_tx(uport, port->tx_remaining);
 		uart_port_unlock_irqrestore(uport, flags);
+	}
 }
 
 static void handle_rx_console(struct uart_port *uport, u32 bytes, bool drop)
@@ -621,22 +620,24 @@ static void qcom_geni_serial_stop_tx_dma(struct uart_port *uport)
 static void qcom_geni_serial_start_tx_dma(struct uart_port *uport)
 {
 	struct qcom_geni_serial_port *port = to_dev_port(uport);
-	struct circ_buf *xmit = &uport->state->xmit;
+	struct tty_port *tport = &uport->state->port;
 	unsigned int xmit_size;
+	u8 *tail;
 	int ret;
 
 	if (port->tx_dma_addr)
 		return;
 
-	if (uart_circ_empty(xmit))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		return;
 
-	xmit_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	xmit_size = kfifo_out_linear_ptr(&tport->xmit_fifo, &tail,
+			UART_XMIT_SIZE);
 
 	qcom_geni_serial_setup_tx(uport, xmit_size);
 
-	ret = geni_se_tx_dma_prep(&port->se, &xmit->buf[xmit->tail],
-				  xmit_size, &port->tx_dma_addr);
+	ret = geni_se_tx_dma_prep(&port->se, tail, xmit_size,
+				  &port->tx_dma_addr);
 	if (ret) {
 		dev_err(uport->dev, "unable to start TX SE DMA: %d\n", ret);
 		qcom_geni_serial_stop_tx_dma(uport);
@@ -854,18 +855,14 @@ static void qcom_geni_serial_send_chunk_fifo(struct uart_port *uport,
 					     unsigned int chunk)
 {
 	struct qcom_geni_serial_port *port = to_dev_port(uport);
-	struct circ_buf *xmit = &uport->state->xmit;
-	unsigned int tx_bytes, c, remaining = chunk;
+	unsigned int tx_bytes, remaining = chunk;
 	u8 buf[BYTES_PER_FIFO_WORD];
 
 	while (remaining) {
 		memset(buf, 0, sizeof(buf));
 		tx_bytes = min(remaining, BYTES_PER_FIFO_WORD);
 
-		for (c = 0; c < tx_bytes ; c++) {
-			buf[c] = xmit->buf[xmit->tail];
-			uart_xmit_advance(uport, 1);
-		}
+		tx_bytes = uart_fifo_out(uport, buf, tx_bytes);
 
 		iowrite32_rep(uport->membase + SE_GENI_TX_FIFOn, buf, 1);
 
@@ -878,7 +875,7 @@ static void qcom_geni_serial_handle_tx_fifo(struct uart_port *uport,
 					    bool done, bool active)
 {
 	struct qcom_geni_serial_port *port = to_dev_port(uport);
-	struct circ_buf *xmit = &uport->state->xmit;
+	struct tty_port *tport = &uport->state->port;
 	size_t avail;
 	size_t pending;
 	u32 status;
@@ -891,7 +888,7 @@ static void qcom_geni_serial_handle_tx_fifo(struct uart_port *uport,
 	if (active)
 		pending = port->tx_remaining;
 	else
-		pending = uart_circ_chars_pending(xmit);
+		pending = kfifo_len(&tport->xmit_fifo);
 
 	/* All data has been transmitted and acknowledged as received */
 	if (!pending && !status && done) {
@@ -934,24 +931,24 @@ out_write_wakeup:
 					uport->membase + SE_GENI_M_IRQ_EN);
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(uport);
 }
 
 static void qcom_geni_serial_handle_tx_dma(struct uart_port *uport)
 {
 	struct qcom_geni_serial_port *port = to_dev_port(uport);
-	struct circ_buf *xmit = &uport->state->xmit;
+	struct tty_port *tport = &uport->state->port;
 
 	uart_xmit_advance(uport, port->tx_remaining);
 	geni_se_tx_dma_unprep(&port->se, port->tx_dma_addr, port->tx_remaining);
 	port->tx_dma_addr = 0;
 	port->tx_remaining = 0;
 
-	if (!uart_circ_empty(xmit))
+	if (!kfifo_is_empty(&tport->xmit_fifo))
 		qcom_geni_serial_start_tx_dma(uport);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(uport);
 }
 

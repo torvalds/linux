@@ -6,32 +6,8 @@
 #ifndef __XFS_SCRUB_COMMON_H__
 #define __XFS_SCRUB_COMMON_H__
 
-/*
- * We /could/ terminate a scrub/repair operation early.  If we're not
- * in a good place to continue (fatal signal, etc.) then bail out.
- * Note that we're careful not to make any judgements about *error.
- */
-static inline bool
-xchk_should_terminate(
-	struct xfs_scrub	*sc,
-	int			*error)
-{
-	/*
-	 * If preemption is disabled, we need to yield to the scheduler every
-	 * few seconds so that we don't run afoul of the soft lockup watchdog
-	 * or RCU stall detector.
-	 */
-	cond_resched();
-
-	if (fatal_signal_pending(current)) {
-		if (*error == 0)
-			*error = -EINTR;
-		return true;
-	}
-	return false;
-}
-
 int xchk_trans_alloc(struct xfs_scrub *sc, uint resblks);
+int xchk_trans_alloc_empty(struct xfs_scrub *sc);
 void xchk_trans_cancel(struct xfs_scrub *sc);
 
 bool xchk_process_error(struct xfs_scrub *sc, xfs_agnumber_t agno,
@@ -54,6 +30,10 @@ void xchk_block_set_corrupt(struct xfs_scrub *sc,
 void xchk_ino_set_corrupt(struct xfs_scrub *sc, xfs_ino_t ino);
 void xchk_fblock_set_corrupt(struct xfs_scrub *sc, int whichfork,
 		xfs_fileoff_t offset);
+#ifdef CONFIG_XFS_QUOTA
+void xchk_qcheck_set_corrupt(struct xfs_scrub *sc, unsigned int dqtype,
+		xfs_dqid_t id);
+#endif
 
 void xchk_block_xref_set_corrupt(struct xfs_scrub *sc,
 		struct xfs_buf *bp);
@@ -87,6 +67,7 @@ int xchk_setup_directory(struct xfs_scrub *sc);
 int xchk_setup_xattr(struct xfs_scrub *sc);
 int xchk_setup_symlink(struct xfs_scrub *sc);
 int xchk_setup_parent(struct xfs_scrub *sc);
+int xchk_setup_dirtree(struct xfs_scrub *sc);
 #ifdef CONFIG_XFS_RT
 int xchk_setup_rtbitmap(struct xfs_scrub *sc);
 int xchk_setup_rtsummary(struct xfs_scrub *sc);
@@ -105,6 +86,7 @@ xchk_setup_rtsummary(struct xfs_scrub *sc)
 #ifdef CONFIG_XFS_QUOTA
 int xchk_ino_dqattach(struct xfs_scrub *sc);
 int xchk_setup_quota(struct xfs_scrub *sc);
+int xchk_setup_quotacheck(struct xfs_scrub *sc);
 #else
 static inline int
 xchk_ino_dqattach(struct xfs_scrub *sc)
@@ -116,12 +98,19 @@ xchk_setup_quota(struct xfs_scrub *sc)
 {
 	return -ENOENT;
 }
+static inline int
+xchk_setup_quotacheck(struct xfs_scrub *sc)
+{
+	return -ENOENT;
+}
 #endif
 int xchk_setup_fscounters(struct xfs_scrub *sc);
+int xchk_setup_nlinks(struct xfs_scrub *sc);
 
 void xchk_ag_free(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
 		struct xchk_ag *sa);
+int xchk_perag_drain_and_lock(struct xfs_scrub *sc);
 
 /*
  * Grab all AG resources, treating the inability to grab the perag structure as
@@ -199,6 +188,7 @@ static inline bool xchk_skip_xref(struct xfs_scrub_metadata *sm)
 }
 
 bool xchk_dir_looks_zapped(struct xfs_inode *dp);
+bool xchk_pptr_looks_zapped(struct xfs_inode *ip);
 
 #ifdef CONFIG_XFS_ONLINE_REPAIR
 /* Decide if a repair is required. */

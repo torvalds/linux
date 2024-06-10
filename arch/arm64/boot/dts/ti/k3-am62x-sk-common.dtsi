@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * Common dtsi for AM62x SK and derivatives
  *
- * Copyright (C) 2021-2023 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2021-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <dt-bindings/leds/common.h>
@@ -411,7 +411,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc0_pins_default>;
-	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };
 
@@ -421,7 +420,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
-	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };
 
@@ -460,6 +458,7 @@
 };
 
 &usbss0 {
+	bootph-all;
 	status = "okay";
 	ti,vbus-divider;
 };
@@ -470,6 +469,7 @@
 };
 
 &usb0 {
+	bootph-all;
 	#address-cells = <1>;
 	#size-cells = <0>;
 	usb-role-switch;

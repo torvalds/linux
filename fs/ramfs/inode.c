@@ -102,11 +102,20 @@ ramfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	int error = -ENOSPC;
 
 	if (inode) {
+		error = security_inode_init_security(inode, dir,
+						     &dentry->d_name, NULL,
+						     NULL);
+		if (error) {
+			iput(inode);
+			goto out;
+		}
+
 		d_instantiate(dentry, inode);
 		dget(dentry);	/* Extra count - pin the dentry in core */
 		error = 0;
 		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	}
+out:
 	return error;
 }
 
@@ -134,6 +143,15 @@ static int ramfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	inode = ramfs_get_inode(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
 	if (inode) {
 		int l = strlen(symname)+1;
+
+		error = security_inode_init_security(inode, dir,
+						     &dentry->d_name, NULL,
+						     NULL);
+		if (error) {
+			iput(inode);
+			goto out;
+		}
+
 		error = page_symlink(inode, symname, l);
 		if (!error) {
 			d_instantiate(dentry, inode);
@@ -143,6 +161,7 @@ static int ramfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		} else
 			iput(inode);
 	}
+out:
 	return error;
 }
 
@@ -150,12 +169,23 @@ static int ramfs_tmpfile(struct mnt_idmap *idmap,
 			 struct inode *dir, struct file *file, umode_t mode)
 {
 	struct inode *inode;
+	int error;
 
 	inode = ramfs_get_inode(dir->i_sb, dir, mode, 0);
 	if (!inode)
 		return -ENOSPC;
+
+	error = security_inode_init_security(inode, dir,
+					     &file_dentry(file)->d_name, NULL,
+					     NULL);
+	if (error) {
+		iput(inode);
+		goto out;
+	}
+
 	d_tmpfile(file, inode);
-	return finish_open_simple(file, 0);
+out:
+	return finish_open_simple(file, error);
 }
 
 static const struct inode_operations ramfs_dir_inode_operations = {

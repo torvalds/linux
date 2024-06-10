@@ -3,11 +3,21 @@
 #ifndef BTRFS_EXTENT_TREE_H
 #define BTRFS_EXTENT_TREE_H
 
+#include <linux/types.h>
 #include "misc.h"
 #include "block-group.h"
+#include "locking.h"
 
+struct extent_buffer;
 struct btrfs_free_cluster;
+struct btrfs_fs_info;
+struct btrfs_root;
+struct btrfs_path;
+struct btrfs_ref;
+struct btrfs_disk_key;
 struct btrfs_delayed_ref_head;
+struct btrfs_delayed_ref_root;
+struct btrfs_extent_inline_ref;
 
 enum btrfs_extent_allocation_policy {
 	BTRFS_EXTENT_ALLOC_CLUSTERED,

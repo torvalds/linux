@@ -24,6 +24,8 @@ struct inode;
 struct path;
 extern struct file *alloc_file_pseudo(struct inode *, struct vfsmount *,
 	const char *, int flags, const struct file_operations *);
+extern struct file *alloc_file_pseudo_noaccount(struct inode *, struct vfsmount *,
+	const char *, int flags, const struct file_operations *);
 extern struct file *alloc_file_clone(struct file *, int flags,
 	const struct file_operations *);
 
@@ -82,6 +84,7 @@ static inline void fdput_pos(struct fd f)
 }
 
 DEFINE_CLASS(fd, struct fd, fdput(_T), fdget(fd), int fd)
+DEFINE_CLASS(fd_raw, struct fd, fdput(_T), fdget_raw(fd), int fd)
 
 extern int f_dupfd(unsigned int from, struct file *file, unsigned flags);
 extern int replace_fd(unsigned fd, struct file *file, unsigned flags);

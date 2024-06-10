@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #if !defined(_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
@@ -36,8 +36,8 @@ TRACE_EVENT(ath12k_htt_pktlog,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(ar->ab->dev));
-		__assign_str(driver, dev_driver_string(ar->ab->dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->buf_len = buf_len;
 		__entry->pktlog_checksum = pktlog_checksum;
 		memcpy(__get_dynamic_array(pktlog), buf, buf_len);
@@ -73,8 +73,8 @@ TRACE_EVENT(ath12k_htt_ppdu_stats,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(ar->ab->dev));
-		__assign_str(driver, dev_driver_string(ar->ab->dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->len = len;
 		__entry->info = ar->pdev->timestamp.info;
 		__entry->sync_tstmp_lo_us = ar->pdev->timestamp.sync_timestamp_hi_us;
@@ -117,8 +117,8 @@ TRACE_EVENT(ath12k_htt_rxdesc,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(ar->ab->dev));
-		__assign_str(driver, dev_driver_string(ar->ab->dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->len = len;
 		__entry->type = type;
 		__entry->info = ar->pdev->timestamp.info;
@@ -138,6 +138,33 @@ TRACE_EVENT(ath12k_htt_rxdesc,
 		__get_str(device),
 		__entry->len
 	 )
+);
+
+TRACE_EVENT(ath12k_wmi_diag,
+	    TP_PROTO(struct ath12k_base *ab, const void *data, size_t len),
+
+	TP_ARGS(ab, data, len),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ab->dev))
+		__string(driver, dev_driver_string(ab->dev))
+		__field(u16, len)
+		__dynamic_array(u8, data, len)
+	),
+
+	TP_fast_assign(
+		__assign_str(device);
+		__assign_str(driver);
+		__entry->len = len;
+		memcpy(__get_dynamic_array(data), data, len);
+	),
+
+	TP_printk(
+		"%s %s tlv diag len %d",
+		__get_str(driver),
+		__get_str(device),
+		__entry->len
+	)
 );
 
 #endif /* _TRACE_H_ || TRACE_HEADER_MULTI_READ*/

@@ -90,6 +90,7 @@
 #define VCNL4040_PS_CONF1_PS_SHUTDOWN	BIT(0)
 #define VCNL4040_PS_CONF2_PS_IT	GENMASK(3, 1) /* Proximity integration time */
 #define VCNL4040_CONF1_PS_PERS	GENMASK(5, 4) /* Proximity interrupt persistence setting */
+#define VCNL4040_PS_CONF2_PS_HD		BIT(11)	/* Proximity high definition */
 #define VCNL4040_PS_CONF2_PS_INT	GENMASK(9, 8) /* Proximity interrupt mode */
 #define VCNL4040_PS_CONF3_MPS		GENMASK(6, 5) /* Proximity multi pulse number */
 #define VCNL4040_PS_MS_LED_I		GENMASK(10, 8) /* Proximity current */
@@ -113,6 +114,13 @@
 	(BIT(VCNL4010_INT_THR_LOW) | BIT(VCNL4010_INT_THR_HIGH))
 #define VCNL4010_INT_DRDY \
 	(BIT(VCNL4010_INT_PROXIMITY) | BIT(VCNL4010_INT_ALS))
+
+#define VCNL4040_CONF3_PS_MPS_16BITS	3	/* 8 multi pulses */
+#define VCNL4040_CONF3_PS_LED_I_16BITS	3	/* 120 mA */
+
+#define VCNL4040_CONF3_PS_SAMPLE_16BITS \
+	(FIELD_PREP(VCNL4040_PS_CONF3_MPS, VCNL4040_CONF3_PS_MPS_16BITS) | \
+	 FIELD_PREP(VCNL4040_PS_MS_LED_I, VCNL4040_CONF3_PS_LED_I_16BITS))
 
 static const int vcnl4010_prox_sampling_frequency[][2] = {
 	{1, 950000},
@@ -195,6 +203,7 @@ struct vcnl4000_data {
 	enum vcnl4000_device_ids id;
 	int rev;
 	int al_scale;
+	int ps_scale;
 	u8 ps_int;		/* proximity interrupt mode */
 	u8 als_int;		/* ambient light interrupt mode*/
 	const struct vcnl4000_chip_spec *chip_spec;
@@ -345,6 +354,7 @@ static int vcnl4200_set_power_state(struct vcnl4000_data *data, bool on)
 static int vcnl4200_init(struct vcnl4000_data *data)
 {
 	int ret, id;
+	u16 regval;
 
 	ret = i2c_smbus_read_word_data(data->client, VCNL4200_DEV_ID);
 	if (ret < 0)
@@ -386,8 +396,31 @@ static int vcnl4200_init(struct vcnl4000_data *data)
 		break;
 	}
 	data->al_scale = data->chip_spec->ulux_step;
+	data->ps_scale = 16;
 	mutex_init(&data->vcnl4200_al.lock);
 	mutex_init(&data->vcnl4200_ps.lock);
+
+	/* Use 16 bits proximity sensor readings */
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_PS_CONF1);
+	if (ret < 0)
+		return ret;
+
+	regval = ret | VCNL4040_PS_CONF2_PS_HD;
+	ret = i2c_smbus_write_word_data(data->client, VCNL4200_PS_CONF1,
+					regval);
+	if (ret < 0)
+		return ret;
+
+	/* Align proximity sensor sample rate to 16 bits data width */
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_PS_CONF3);
+	if (ret < 0)
+		return ret;
+
+	regval = ret | VCNL4040_CONF3_PS_SAMPLE_16BITS;
+	ret = i2c_smbus_write_word_data(data->client, VCNL4200_PS_CONF3,
+					regval);
+	if (ret < 0)
+		return ret;
 
 	ret = data->chip_spec->set_power_state(data, true);
 	if (ret < 0)
@@ -901,8 +934,9 @@ static int vcnl4000_read_raw(struct iio_dev *indio_dev,
 			break;
 		case IIO_PROXIMITY:
 			ret = data->chip_spec->measure_proximity(data, val);
+			*val2 = data->ps_scale;
 			if (!ret)
-				ret = IIO_VAL_INT;
+				ret = IIO_VAL_FRACTIONAL;
 			break;
 		default:
 			ret = -EINVAL;

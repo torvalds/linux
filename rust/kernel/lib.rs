@@ -12,13 +12,9 @@
 //! do so first instead of bypassing this crate.
 
 #![no_std]
-#![feature(allocator_api)]
 #![feature(coerce_unsized)]
-#![feature(const_maybe_uninit_zeroed)]
 #![feature(dispatch_from_dyn)]
 #![feature(new_uninit)]
-#![feature(offset_of)]
-#![feature(ptr_metadata)]
 #![feature(receiver_trait)]
 #![feature(unsize)]
 
@@ -30,9 +26,7 @@ compile_error!("Missing kernel configuration for conditional compilation");
 // Allow proc-macros to refer to `::kernel` inside the `kernel` crate (this crate).
 extern crate self as kernel;
 
-#[cfg(not(test))]
-#[cfg(not(testlib))]
-mod allocator;
+pub mod alloc;
 mod build_assert;
 pub mod error;
 pub mod init;
@@ -49,6 +43,7 @@ pub mod std_vendor;
 pub mod str;
 pub mod sync;
 pub mod task;
+pub mod time;
 pub mod types;
 pub mod workqueue;
 
@@ -66,7 +61,7 @@ const __LOG_PREFIX: &[u8] = b"rust_kernel\0";
 /// The top level entrypoint to implementing a kernel module.
 ///
 /// For any teardown or cleanup operations, your type may implement [`Drop`].
-pub trait Module: Sized + Sync {
+pub trait Module: Sized + Sync + Send {
     /// Called at module initialization time.
     ///
     /// Use this method to perform whatever setup or registration your module
@@ -78,7 +73,7 @@ pub trait Module: Sized + Sync {
 
 /// Equivalent to `THIS_MODULE` in the C API.
 ///
-/// C header: `include/linux/export.h`
+/// C header: [`include/linux/export.h`](srctree/include/linux/export.h)
 pub struct ThisModule(*mut bindings::module);
 
 // SAFETY: `THIS_MODULE` may be used from all threads within a module.
@@ -93,6 +88,13 @@ impl ThisModule {
     pub const unsafe fn from_ptr(ptr: *mut bindings::module) -> ThisModule {
         ThisModule(ptr)
     }
+
+    /// Access the raw pointer for this module.
+    ///
+    /// It is up to the user to use it correctly.
+    pub const fn as_ptr(&self) -> *mut bindings::module {
+        self.0
+    }
 }
 
 #[cfg(not(any(testlib, test)))]
@@ -101,4 +103,36 @@ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
     pr_emerg!("{}\n", info);
     // SAFETY: FFI call.
     unsafe { bindings::BUG() };
+}
+
+/// Produces a pointer to an object from a pointer to one of its fields.
+///
+/// # Safety
+///
+/// The pointer passed to this macro, and the pointer returned by this macro, must both be in
+/// bounds of the same allocation.
+///
+/// # Examples
+///
+/// ```
+/// # use kernel::container_of;
+/// struct Test {
+///     a: u64,
+///     b: u32,
+/// }
+///
+/// let test = Test { a: 10, b: 20 };
+/// let b_ptr = &test.b;
+/// // SAFETY: The pointer points at the `b` field of a `Test`, so the resulting pointer will be
+/// // in-bounds of the same allocation as `b_ptr`.
+/// let test_alias = unsafe { container_of!(b_ptr, Test, b) };
+/// assert!(core::ptr::eq(&test, test_alias));
+/// ```
+#[macro_export]
+macro_rules! container_of {
+    ($ptr:expr, $type:ty, $($f:tt)*) => {{
+        let ptr = $ptr as *const _ as *const u8;
+        let offset: usize = ::core::mem::offset_of!($type, $($f)*);
+        ptr.sub(offset) as *const $type
+    }}
 }

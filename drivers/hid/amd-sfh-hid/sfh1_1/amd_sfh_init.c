@@ -172,7 +172,7 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 		if (rc)
 			goto cleanup;
 
-		writel(0, privdata->mmio + AMD_P2C_MSG(0));
+		writel(0, privdata->mmio + amd_get_p2c_val(privdata, 0));
 		mp2_ops->start(privdata, info);
 		status = amd_sfh_wait_for_response
 				(privdata, cl_data->sensor_idx[i], ENABLE_SENSOR);
@@ -202,7 +202,7 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 	}
 
 	if (!cl_data->is_any_sensor_enabled) {
-		dev_warn(dev, "Failed to discover, sensors not enabled is %d\n",
+		dev_warn(dev, "No sensor registered, sensors not enabled is %d\n",
 			 cl_data->is_any_sensor_enabled);
 		rc = -EOPNOTSUPP;
 		goto cleanup;
@@ -226,6 +226,11 @@ static void amd_sfh_resume(struct amd_mp2_dev *mp2)
 	struct amdtp_cl_data *cl_data = mp2->cl_data;
 	struct amd_mp2_sensor_info info;
 	int i, status;
+
+	if (!cl_data->is_any_sensor_enabled) {
+		amd_sfh_clear_intr(mp2);
+		return;
+	}
 
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
 		if (cl_data->sensor_sts[i] == SENSOR_DISABLED) {
@@ -251,6 +256,11 @@ static void amd_sfh_suspend(struct amd_mp2_dev *mp2)
 {
 	struct amdtp_cl_data *cl_data = mp2->cl_data;
 	int i, status;
+
+	if (!cl_data->is_any_sensor_enabled) {
+		amd_sfh_clear_intr(mp2);
+		return;
+	}
 
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
 		if (cl_data->sensor_idx[i] != HPD_IDX &&
@@ -298,7 +308,7 @@ static void amd_sfh_set_ops(struct amd_mp2_dev *mp2)
 
 int amd_sfh1_1_init(struct amd_mp2_dev *mp2)
 {
-	u32 phy_base = readl(mp2->mmio + AMD_C2P_MSG(22));
+	u32 phy_base = readl(mp2->mmio + amd_get_c2p_val(mp2, 22));
 	struct device *dev = &mp2->pdev->dev;
 	struct sfh_base_info binfo;
 	int rc;
@@ -320,7 +330,7 @@ int amd_sfh1_1_init(struct amd_mp2_dev *mp2)
 
 	memcpy_fromio(&binfo, mp2->vsbase, sizeof(struct sfh_base_info));
 	if (binfo.sbase.fw_info.fw_ver == 0 || binfo.sbase.s_list.sl.sensors == 0) {
-		dev_dbg(dev, "failed to get sensors\n");
+		dev_dbg(dev, "No sensor registered\n");
 		return -EOPNOTSUPP;
 	}
 	dev_dbg(dev, "firmware version 0x%x\n", binfo.sbase.fw_info.fw_ver);
@@ -337,7 +347,8 @@ int amd_sfh1_1_init(struct amd_mp2_dev *mp2)
 	rc = amd_sfh1_1_hid_client_init(mp2);
 	if (rc) {
 		sfh_deinit_emp2();
-		dev_err(dev, "amd_sfh1_1_hid_client_init failed\n");
+		if ((rc != -ENODEV) && (rc != -EOPNOTSUPP))
+			dev_err(dev, "amd_sfh1_1_hid_client_init failed\n");
 		return rc;
 	}
 

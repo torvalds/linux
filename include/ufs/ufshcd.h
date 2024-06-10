@@ -328,6 +328,7 @@ struct ufs_pwr_mode_info {
  * @op_runtime_config: called to config Operation and runtime regs Pointers
  * @get_outstanding_cqs: called to get outstanding completion queues
  * @config_esi: called to config Event Specific Interrupt
+ * @config_scsi_dev: called to configure SCSI device parameters
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -373,7 +374,6 @@ struct ufs_hba_variant_ops {
 	int	(*get_outstanding_cqs)(struct ufs_hba *hba,
 				       unsigned long *ocqs);
 	int	(*config_esi)(struct ufs_hba *hba);
-	void	(*config_scsi_dev)(struct scsi_device *sdev);
 };
 
 /* clock gating state  */
@@ -914,6 +914,8 @@ enum ufshcd_mcq_opr {
  * @dev_cmd_queue: Queue for issuing device management commands
  * @mcq_opr: MCQ operation and runtime registers
  * @ufs_rtc_update_work: A work for UFS RTC periodic update
+ * @pm_qos_req: PM QoS request handle
+ * @pm_qos_enabled: flag to check if pm qos is enabled
  */
 struct ufs_hba {
 	void __iomem *mmio_base;
@@ -1080,6 +1082,8 @@ struct ufs_hba {
 	struct ufshcd_mcq_opr_info_t mcq_opr[OPR_MAX];
 
 	struct delayed_work ufs_rtc_update_work;
+	struct pm_qos_request pm_qos_req;
+	bool pm_qos_enabled;
 };
 
 /**
@@ -1263,6 +1267,7 @@ unsigned long ufshcd_mcq_poll_cqe_lock(struct ufs_hba *hba,
 					 struct ufs_hw_queue *hwq);
 void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba);
 void ufshcd_mcq_enable_esi(struct ufs_hba *hba);
+void ufshcd_mcq_enable(struct ufs_hba *hba);
 void ufshcd_mcq_config_esi(struct ufs_hba *hba, struct msi_msg *msg);
 
 int ufshcd_opp_config_clks(struct device *dev, struct opp_table *opp_table,
@@ -1384,8 +1389,6 @@ void ufshcd_release(struct ufs_hba *hba);
 
 void ufshcd_clkgate_delay_set(struct device *dev, unsigned long value);
 
-u32 ufshcd_get_local_unipro_ver(struct ufs_hba *hba);
-
 int ufshcd_get_vreg(struct device *dev, struct ufs_vreg *vreg);
 
 int ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd);
@@ -1400,6 +1403,8 @@ int ufshcd_suspend_prepare(struct device *dev);
 int __ufshcd_suspend_prepare(struct device *dev, bool rpm_ok_for_spm);
 void ufshcd_resume_complete(struct device *dev);
 bool ufshcd_is_hba_active(struct ufs_hba *hba);
+void ufshcd_pm_qos_init(struct ufs_hba *hba);
+void ufshcd_pm_qos_exit(struct ufs_hba *hba);
 
 /* Wrapper functions for safely calling variant operations */
 static inline int ufshcd_vops_init(struct ufs_hba *hba)

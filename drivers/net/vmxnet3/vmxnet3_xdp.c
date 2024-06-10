@@ -382,12 +382,12 @@ vmxnet3_process_xdp(struct vmxnet3_adapter *adapter,
 	page = rbi->page;
 	dma_sync_single_for_cpu(&adapter->pdev->dev,
 				page_pool_get_dma_addr(page) +
-				rq->page_pool->p.offset, rcd->len,
+				rq->page_pool->p.offset, rbi->len,
 				page_pool_get_dma_dir(rq->page_pool));
 
-	xdp_init_buff(&xdp, rbi->len, &rq->xdp_rxq);
+	xdp_init_buff(&xdp, PAGE_SIZE, &rq->xdp_rxq);
 	xdp_prepare_buff(&xdp, page_address(page), rq->page_pool->p.offset,
-			 rcd->len, false);
+			 rbi->len, false);
 	xdp_buff_clear_frags_flag(&xdp);
 
 	xdp_prog = rcu_dereference(rq->adapter->xdp_bpf_prog);

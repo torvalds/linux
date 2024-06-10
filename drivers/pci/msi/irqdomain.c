@@ -355,65 +355,6 @@ bool pci_msi_domain_supports(struct pci_dev *pdev, unsigned int feature_mask,
 	return (supported & feature_mask) == feature_mask;
 }
 
-/**
- * pci_create_ims_domain - Create a secondary IMS domain for a PCI device
- * @pdev:	The PCI device to operate on
- * @template:	The MSI info template which describes the domain
- * @hwsize:	The size of the hardware entry table or 0 if the domain
- *		is purely software managed
- * @data:	Optional pointer to domain specific data to be stored
- *		in msi_domain_info::data
- *
- * Return: True on success, false otherwise
- *
- * An IMS domain is expected to have the following constraints:
- *	- The index space is managed by the core code
- *
- *	- There is no requirement for consecutive index ranges
- *
- *	- The interrupt chip must provide the following callbacks:
- *		- irq_mask()
- *		- irq_unmask()
- *		- irq_write_msi_msg()
- *
- *	- The interrupt chip must provide the following optional callbacks
- *	  when the irq_mask(), irq_unmask() and irq_write_msi_msg() callbacks
- *	  cannot operate directly on hardware, e.g. in the case that the
- *	  interrupt message store is in queue memory:
- *		- irq_bus_lock()
- *		- irq_bus_unlock()
- *
- *	  These callbacks are invoked from preemptible task context and are
- *	  allowed to sleep. In this case the mandatory callbacks above just
- *	  store the information. The irq_bus_unlock() callback is supposed
- *	  to make the change effective before returning.
- *
- *	- Interrupt affinity setting is handled by the underlying parent
- *	  interrupt domain and communicated to the IMS domain via
- *	  irq_write_msi_msg().
- *
- * The domain is automatically destroyed when the PCI device is removed.
- */
-bool pci_create_ims_domain(struct pci_dev *pdev, const struct msi_domain_template *template,
-			   unsigned int hwsize, void *data)
-{
-	struct irq_domain *domain = dev_get_msi_domain(&pdev->dev);
-
-	if (!domain || !irq_domain_is_msi_parent(domain))
-		return false;
-
-	if (template->info.bus_token != DOMAIN_BUS_PCI_DEVICE_IMS ||
-	    !(template->info.flags & MSI_FLAG_ALLOC_SIMPLE_MSI_DESCS) ||
-	    !(template->info.flags & MSI_FLAG_FREE_MSI_DESCS) ||
-	    !template->chip.irq_mask || !template->chip.irq_unmask ||
-	    !template->chip.irq_write_msi_msg || template->chip.irq_set_affinity)
-		return false;
-
-	return msi_create_device_irq_domain(&pdev->dev, MSI_SECONDARY_DOMAIN, template,
-					    hwsize, data, NULL);
-}
-EXPORT_SYMBOL_GPL(pci_create_ims_domain);
-
 /*
  * Users of the generic MSI infrastructure expect a device to have a single ID,
  * so with DMA aliases we have to pick the least-worst compromise. Devices with

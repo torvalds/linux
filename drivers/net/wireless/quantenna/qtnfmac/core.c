@@ -196,27 +196,12 @@ static int qtnf_netdev_port_parent_id(struct net_device *ndev,
 	return 0;
 }
 
-static int qtnf_netdev_alloc_pcpu_stats(struct net_device *dev)
-{
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-
-	return dev->tstats ? 0 : -ENOMEM;
-}
-
-static void qtnf_netdev_free_pcpu_stats(struct net_device *dev)
-{
-	free_percpu(dev->tstats);
-}
-
 /* Network device ops handlers */
 const struct net_device_ops qtnf_netdev_ops = {
-	.ndo_init = qtnf_netdev_alloc_pcpu_stats,
-	.ndo_uninit = qtnf_netdev_free_pcpu_stats,
 	.ndo_open = qtnf_netdev_open,
 	.ndo_stop = qtnf_netdev_close,
 	.ndo_start_xmit = qtnf_netdev_hard_start_xmit,
 	.ndo_tx_timeout = qtnf_netdev_tx_timeout,
-	.ndo_get_stats64 = dev_get_tstats64,
 	.ndo_set_mac_address = qtnf_netdev_set_mac_address,
 	.ndo_get_port_parent_id = qtnf_netdev_port_parent_id,
 };
@@ -483,6 +468,7 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev->watchdog_timeo = QTNF_DEF_WDOG_TIMEOUT;
 	dev->tx_queue_len = 100;
 	dev->ethtool_ops = &qtnf_ethtool_ops;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	if (qtnf_hwcap_is_set(&mac->bus->hw_info, QLINK_HW_CAPAB_HW_BRIDGE))
 		dev->needed_tailroom = sizeof(struct qtnf_frame_meta_info);

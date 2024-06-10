@@ -1170,40 +1170,32 @@ static int alvium_set_bayer_pattern(struct alvium_dev *alvium,
 	return 0;
 }
 
-static int alvium_get_frame_interval(struct alvium_dev *alvium)
+static int alvium_get_frame_interval(struct alvium_dev *alvium,
+				     u64 *min_fr, u64 *max_fr)
 {
-	u64 dft_fr, min_fr, max_fr;
 	int ret = 0;
 
-	alvium_read(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_RW,
-		    &dft_fr, &ret);
 	alvium_read(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_MIN_R,
-		    &min_fr, &ret);
+		    min_fr, &ret);
 	alvium_read(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_MAX_R,
-		    &max_fr, &ret);
-	if (ret)
-		return ret;
+		    max_fr, &ret);
 
-	alvium->dft_fr = dft_fr;
-	alvium->min_fr = min_fr;
-	alvium->max_fr = max_fr;
-
-	return 0;
+	return ret;
 }
 
-static int alvium_set_frame_rate(struct alvium_dev *alvium)
+static int alvium_set_frame_rate(struct alvium_dev *alvium, u64 fr)
 {
 	struct device *dev = &alvium->i2c_client->dev;
 	int ret;
 
 	ret = alvium_write_hshake(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_RW,
-				  alvium->fr);
+				  fr);
 	if (ret) {
 		dev_err(dev, "Fail to set frame rate lanes reg\n");
 		return ret;
 	}
 
-	dev_dbg(dev, "set frame rate: %llu us\n", alvium->fr);
+	dev_dbg(dev, "set frame rate: %llu us\n", fr);
 
 	return 0;
 }
@@ -1472,7 +1464,7 @@ static int alvium_get_hw_features_params(struct alvium_dev *alvium)
 
 	ret = alvium_get_img_height_params(alvium);
 	if (ret) {
-		dev_err(dev, "Fail to read img heigth regs\n");
+		dev_err(dev, "Fail to read img height regs\n");
 		return ret;
 	}
 
@@ -1647,43 +1639,27 @@ static int alvium_hw_init(struct alvium_dev *alvium)
 }
 
 /* --------------- Subdev Operations --------------- */
-
-static int alvium_g_frame_interval(struct v4l2_subdev *sd,
+static int alvium_s_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct alvium_dev *alvium = sd_to_alvium(sd);
-
-	/*
-	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
-	 * subdev active state API.
-	 */
-	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
-
-	fi->interval = alvium->frame_interval;
-
-	return 0;
-}
-
-static int alvium_set_frame_interval(struct alvium_dev *alvium,
-				     struct v4l2_subdev_frame_interval *fi)
-{
 	struct device *dev = &alvium->i2c_client->dev;
 	u64 req_fr, min_fr, max_fr;
+	struct v4l2_fract *interval;
 	int ret;
+
+	if (alvium->streaming)
+		return -EBUSY;
 
 	if (fi->interval.denominator == 0)
 		return -EINVAL;
 
-	ret = alvium_get_frame_interval(alvium);
+	ret = alvium_get_frame_interval(alvium, &min_fr, &max_fr);
 	if (ret) {
 		dev_err(dev, "Fail to get frame interval\n");
 		return ret;
 	}
-
-	min_fr = alvium->min_fr;
-	max_fr = alvium->max_fr;
 
 	dev_dbg(dev, "fi->interval.numerator = %d\n",
 		fi->interval.numerator);
@@ -1692,39 +1668,17 @@ static int alvium_set_frame_interval(struct alvium_dev *alvium,
 
 	req_fr = (u64)((fi->interval.denominator * USEC_PER_SEC) /
 		       fi->interval.numerator);
+	req_fr = clamp(req_fr, min_fr, max_fr);
 
-	if (req_fr >= max_fr && req_fr <= min_fr)
-		req_fr = alvium->dft_fr;
+	interval = v4l2_subdev_state_get_interval(sd_state, 0);
 
-	alvium->fr = req_fr;
-	alvium->frame_interval.numerator = fi->interval.numerator;
-	alvium->frame_interval.denominator = fi->interval.denominator;
+	interval->numerator = fi->interval.numerator;
+	interval->denominator = fi->interval.denominator;
 
-	return 0;
-}
-
-static int alvium_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_frame_interval *fi)
-{
-	struct alvium_dev *alvium = sd_to_alvium(sd);
-	int ret;
-
-	/*
-	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
-	 * subdev active state API.
-	 */
 	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
+		return 0;
 
-	if (alvium->streaming)
-		return -EBUSY;
-
-	ret = alvium_set_frame_interval(alvium, fi);
-	if (!ret)
-		ret = alvium_set_frame_rate(alvium);
-
-	return ret;
+	return alvium_set_frame_rate(alvium, req_fr);
 }
 
 static int alvium_enum_mbus_code(struct v4l2_subdev *sd,
@@ -1872,6 +1826,7 @@ static int alvium_init_state(struct v4l2_subdev *sd,
 {
 	struct alvium_dev *alvium = sd_to_alvium(sd);
 	struct alvium_mode *mode = &alvium->mode;
+	struct v4l2_fract *interval;
 	struct v4l2_subdev_format sd_fmt = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 		.format = alvium_csi2_default_fmt,
@@ -1888,6 +1843,11 @@ static int alvium_init_state(struct v4l2_subdev *sd,
 
 	*v4l2_subdev_state_get_crop(state, 0) = sd_crop.rect;
 	*v4l2_subdev_state_get_format(state, 0) = sd_fmt.format;
+
+	/* Setup initial frame interval*/
+	interval = v4l2_subdev_state_get_interval(state, 0);
+	interval->numerator = 1;
+	interval->denominator = ALVIUM_DEFAULT_FR_HZ;
 
 	return 0;
 }
@@ -2258,7 +2218,7 @@ static const struct v4l2_subdev_pad_ops alvium_pad_ops = {
 	.set_fmt = alvium_set_fmt,
 	.get_selection = alvium_get_selection,
 	.set_selection = alvium_set_selection,
-	.get_frame_interval = alvium_g_frame_interval,
+	.get_frame_interval = v4l2_subdev_get_frame_interval,
 	.set_frame_interval = alvium_s_frame_interval,
 };
 
@@ -2278,11 +2238,6 @@ static int alvium_subdev_init(struct alvium_dev *alvium)
 	struct device *dev = &alvium->i2c_client->dev;
 	struct v4l2_subdev *sd = &alvium->sd;
 	int ret;
-
-	/* Setup initial frame interval*/
-	alvium->frame_interval.numerator = 1;
-	alvium->frame_interval.denominator = ALVIUM_DEFAULT_FR_HZ;
-	alvium->fr = ALVIUM_DEFAULT_FR_HZ;
 
 	/* Setup the initial mode */
 	alvium->mode.fmt = alvium_csi2_default_fmt;

@@ -359,6 +359,7 @@ static int vcn_v3_0_hw_init(void *handle)
 		}
 	}
 
+	return 0;
 done:
 	if (!r)
 		DRM_INFO("VCN decode and encode initialized successfully(under %s).\n",
@@ -449,7 +450,7 @@ static int vcn_v3_0_resume(void *handle)
  */
 static void vcn_v3_0_mc_resume(struct amdgpu_device *adev, int inst)
 {
-	uint32_t size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.fw->size + 4);
+	uint32_t size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.fw[inst]->size + 4);
 	uint32_t offset;
 
 	/* cache window 0: fw */
@@ -499,7 +500,7 @@ static void vcn_v3_0_mc_resume(struct amdgpu_device *adev, int inst)
 
 static void vcn_v3_0_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
 {
-	uint32_t size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.fw->size + 4);
+	uint32_t size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.fw[inst_idx]->size + 4);
 	uint32_t offset;
 
 	/* cache window 0: fw */
@@ -1332,7 +1333,7 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 			mmUVD_STATUS),
 			~UVD_STATUS__UVD_BUSY, UVD_STATUS__UVD_BUSY);
 
-		cache_size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.fw->size + 4);
+		cache_size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.fw[i]->size + 4);
 
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 			MMSCH_V3_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, i,
@@ -2230,6 +2231,8 @@ static const struct amd_ip_funcs vcn_v3_0_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = vcn_v3_0_set_clockgating_state,
 	.set_powergating_state = vcn_v3_0_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version vcn_v3_0_ip_block = {

@@ -1106,7 +1106,7 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 {
 	struct drm_i915_private *i915 = to_i915(fb->dev);
 	unsigned int height;
-	u32 alignment;
+	u32 alignment, unused;
 
 	if (DISPLAY_VER(i915) >= 12 &&
 	    !intel_fb_needs_pot_stride_remap(to_intel_framebuffer(fb)) &&
@@ -1128,8 +1128,8 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	height = ALIGN(height, intel_tile_height(fb, color_plane));
 
 	/* Catch potential overflows early */
-	if (add_overflows_t(u32, mul_u32_u32(height, fb->pitches[color_plane]),
-			    fb->offsets[color_plane])) {
+	if (check_add_overflow(mul_u32_u32(height, fb->pitches[color_plane]),
+			       fb->offsets[color_plane], &unused)) {
 		drm_dbg_kms(&i915->drm,
 			    "Bad offset 0x%08x or pitch %d for color plane %d\n",
 			    fb->offsets[color_plane], fb->pitches[color_plane],
@@ -1849,9 +1849,10 @@ static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 				       fb->modifier, rotation);
 
 	if (stride > max_stride) {
-		DRM_DEBUG_KMS("[FB:%d] stride (%d) exceeds [PLANE:%d:%s] max stride (%d)\n",
-			      fb->base.id, stride,
-			      plane->base.base.id, plane->base.name, max_stride);
+		drm_dbg_kms(plane->base.dev,
+			    "[FB:%d] stride (%d) exceeds [PLANE:%d:%s] max stride (%d)\n",
+			    fb->base.id, stride,
+			    plane->base.base.id, plane->base.name, max_stride);
 		return -EINVAL;
 	}
 

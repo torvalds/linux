@@ -280,6 +280,12 @@ enum phy_fia {
 			    base.head)					\
 		for_each_if((pipe_mask) & BIT(intel_crtc->pipe))
 
+#define for_each_intel_crtc_in_pipe_mask_reverse(dev, intel_crtc, pipe_mask)	\
+	list_for_each_entry_reverse((intel_crtc),				\
+				    &(dev)->mode_config.crtc_list,		\
+				    base.head)					\
+		for_each_if((pipe_mask) & BIT((intel_crtc)->pipe))
+
 #define for_each_intel_encoder(dev, intel_encoder)		\
 	list_for_each_entry(intel_encoder,			\
 			    &(dev)->mode_config.encoder_list,	\
@@ -342,6 +348,14 @@ enum phy_fia {
 		     ((crtc) = to_intel_crtc((__state)->base.crtcs[__i].ptr), \
 		      (new_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].new_state), 1); \
 	     (__i)++) \
+		for_each_if(crtc)
+
+#define for_each_new_intel_crtc_in_state_reverse(__state, crtc, new_crtc_state, __i) \
+	for ((__i) = (__state)->base.dev->mode_config.num_crtc - 1; \
+	     (__i) >= 0  && \
+	     ((crtc) = to_intel_crtc((__state)->base.crtcs[__i].ptr), \
+	      (new_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].new_state), 1); \
+	     (__i)--) \
 		for_each_if(crtc)
 
 #define for_each_oldnew_intel_plane_in_state(__state, plane, old_plane_state, new_plane_state, __i) \
@@ -408,6 +422,7 @@ intel_cpu_transcoder_mode_valid(struct drm_i915_private *i915,
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 bool is_trans_port_sync_master(const struct intel_crtc_state *state);
+u8 intel_crtc_joined_pipe_mask(const struct intel_crtc_state *crtc_state);
 bool intel_crtc_is_bigjoiner_slave(const struct intel_crtc_state *crtc_state);
 bool intel_crtc_is_bigjoiner_master(const struct intel_crtc_state *crtc_state);
 u8 intel_crtc_bigjoiner_slave_pipes(const struct intel_crtc_state *crtc_state);
@@ -448,6 +463,13 @@ bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy);
 bool intel_phy_is_snps(struct drm_i915_private *dev_priv, enum phy phy);
 enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
 			      enum port port);
+
+enum phy intel_encoder_to_phy(struct intel_encoder *encoder);
+bool intel_encoder_is_combo(struct intel_encoder *encoder);
+bool intel_encoder_is_snps(struct intel_encoder *encoder);
+bool intel_encoder_is_tc(struct intel_encoder *encoder);
+enum tc_port intel_encoder_to_tc(struct intel_encoder *encoder);
+
 int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
 

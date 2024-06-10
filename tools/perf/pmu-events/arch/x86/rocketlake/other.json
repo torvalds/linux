@@ -19,7 +19,7 @@
         "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the AVX512 turbo schedule.",
         "EventCode": "0x28",
         "EventName": "CORE_POWER.LVL2_TURBO_LICENSE",
-        "PublicDescription": "Core cycles where the core was running with power-delivery for license level 2 (introduced in Skylake Server microarchtecture).  This includes high current AVX 512-bit instructions.",
+        "PublicDescription": "Core cycles where the core was running with power-delivery for license level 2 (introduced in Skylake Server microarchitecture).  This includes high current AVX 512-bit instructions.",
         "SampleAfterValue": "200003",
         "UMask": "0x20"
     },

@@ -10,6 +10,10 @@ config NF_DEFRAG_IPV4
 	tristate
 	default n
 
+# old sockopt interface and eval loop
+config IP_NF_IPTABLES_LEGACY
+	tristate
+
 config NF_SOCKET_IPV4
 	tristate "IPv4 socket lookup support"
 	help
@@ -152,7 +156,7 @@ config IP_NF_MATCH_ECN
 config IP_NF_MATCH_RPFILTER
 	tristate '"rpfilter" reverse path filter match support'
 	depends on NETFILTER_ADVANCED
-	depends on IP_NF_MANGLE || IP_NF_RAW
+	depends on IP_NF_MANGLE || IP_NF_RAW || NFT_COMPAT
 	help
 	  This option allows you to match packets whose replies would
 	  go out via the interface the packet came in.
@@ -173,6 +177,7 @@ config IP_NF_MATCH_TTL
 config IP_NF_FILTER
 	tristate "Packet filtering"
 	default m if NETFILTER_ADVANCED=n
+	select IP_NF_IPTABLES_LEGACY
 	help
 	  Packet filtering defines a table `filter', which has a series of
 	  rules for simple packet filtering at local input, forwarding and
@@ -182,7 +187,7 @@ config IP_NF_FILTER
 
 config IP_NF_TARGET_REJECT
 	tristate "REJECT target support"
-	depends on IP_NF_FILTER
+	depends on IP_NF_FILTER || NFT_COMPAT
 	select NF_REJECT_IPV4
 	default m if NETFILTER_ADVANCED=n
 	help
@@ -212,6 +217,7 @@ config IP_NF_NAT
 	default m if NETFILTER_ADVANCED=n
 	select NF_NAT
 	select NETFILTER_XT_NAT
+	select IP_NF_IPTABLES_LEGACY
 	help
 	  This enables the `nat' table in iptables. This allows masquerading,
 	  port forwarding and other forms of full Network Address Port
@@ -252,6 +258,7 @@ endif # IP_NF_NAT
 config IP_NF_MANGLE
 	tristate "Packet mangling"
 	default m if NETFILTER_ADVANCED=n
+	select IP_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `mangle' table to iptables: see the man page for
 	  iptables(8).  This table is used for various packet alterations
@@ -261,7 +268,7 @@ config IP_NF_MANGLE
 
 config IP_NF_TARGET_ECN
 	tristate "ECN target support"
-	depends on IP_NF_MANGLE
+	depends on IP_NF_MANGLE || NFT_COMPAT
 	depends on NETFILTER_ADVANCED
 	help
 	  This option adds a `ECN' target, which can be used in the iptables mangle
@@ -286,6 +293,7 @@ config IP_NF_TARGET_TTL
 # raw + specific targets
 config IP_NF_RAW
 	tristate  'raw table support (required for NOTRACK/TRACE)'
+	select IP_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `raw' table to iptables. This table is the very
 	  first in the netfilter framework and hooks in at the PREROUTING
@@ -299,6 +307,7 @@ config IP_NF_SECURITY
 	tristate "Security table"
 	depends on SECURITY
 	depends on NETFILTER_ADVANCED
+	select IP_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `security' table to iptables, for use
 	  with Mandatory Access Control (MAC) policy.
@@ -309,36 +318,36 @@ endif # IP_NF_IPTABLES
 
 # ARP tables
 config IP_NF_ARPTABLES
-	tristate "ARP tables support"
-	select NETFILTER_XTABLES
-	select NETFILTER_FAMILY_ARP
-	depends on NETFILTER_ADVANCED
-	help
-	  arptables is a general, extensible packet identification framework.
-	  The ARP packet filtering and mangling (manipulation)subsystems
-	  use this: say Y or M here if you want to use either of those.
+	tristate
 
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-if IP_NF_ARPTABLES
+config NFT_COMPAT_ARP
+	tristate
+	depends on NF_TABLES_ARP && NFT_COMPAT
+	default m if NFT_COMPAT=m
+	default y if NFT_COMPAT=y
 
 config IP_NF_ARPFILTER
-	tristate "ARP packet filtering"
+	tristate "arptables-legacy packet filtering support"
+	select IP_NF_ARPTABLES
+	select NETFILTER_FAMILY_ARP
+	depends on NETFILTER_XTABLES
 	help
 	  ARP packet filtering defines a table `filter', which has a series of
 	  rules for simple ARP packet filtering at local input and
-	  local output.  On a bridge, you can also specify filtering rules
-	  for forwarded ARP packets. See the man page for arptables(8).
+	  local output.  This is only needed for arptables-legacy(8).
+	  Neither arptables-nft nor nftables need this to work.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_ARP_MANGLE
 	tristate "ARP payload mangling"
+	depends on IP_NF_ARPTABLES || NFT_COMPAT_ARP
 	help
 	  Allows altering the ARP packet payload: source and destination
 	  hardware and network addresses.
 
-endif # IP_NF_ARPTABLES
+	  This option is needed by both arptables-legacy and arptables-nft.
+	  It is not used by nftables.
 
 endmenu
 

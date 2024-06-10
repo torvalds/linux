@@ -67,13 +67,15 @@ early_initcall(fault_init);
 static enum fault_type get_fault_type(struct pt_regs *regs)
 {
 	union teid teid = { .val = regs->int_parm_long };
+	struct gmap *gmap;
 
 	if (likely(teid.as == PSW_BITS_AS_PRIMARY)) {
 		if (user_mode(regs))
 			return USER_FAULT;
 		if (!IS_ENABLED(CONFIG_PGSTE))
 			return KERNEL_FAULT;
-		if (test_pt_regs_flag(regs, PIF_GUEST_FAULT))
+		gmap = (struct gmap *)S390_lowcore.gmap;
+		if (gmap && gmap->asce == regs->cr1)
 			return GMAP_FAULT;
 		return KERNEL_FAULT;
 	}
@@ -323,7 +325,8 @@ static void do_exception(struct pt_regs *regs, int access)
 		goto lock_mmap;
 	if (!(vma->vm_flags & access)) {
 		vma_end_read(vma);
-		goto lock_mmap;
+		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
+		return handle_fault_error_nolock(regs, SEGV_ACCERR);
 	}
 	fault = handle_mm_fault(vma, address, flags | FAULT_FLAG_VMA_LOCK, regs);
 	if (!(fault & (VM_FAULT_RETRY | VM_FAULT_COMPLETED)))

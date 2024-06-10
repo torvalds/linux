@@ -7,7 +7,6 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/acpi.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
@@ -70,7 +69,7 @@ MODULE_DEVICE_TABLE(spi, bmc150_accel_id);
 static struct spi_driver bmc150_accel_driver = {
 	.driver = {
 		.name	= "bmc150_accel_spi",
-		.acpi_match_table = ACPI_PTR(bmc150_accel_acpi_match),
+		.acpi_match_table = bmc150_accel_acpi_match,
 		.pm	= &bmc150_accel_pm_ops,
 	},
 	.probe		= bmc150_accel_probe,

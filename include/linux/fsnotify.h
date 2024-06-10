@@ -17,6 +17,25 @@
 #include <linux/slab.h>
 #include <linux/bug.h>
 
+/* Are there any inode/mount/sb objects watched with priority prio or above? */
+static inline bool fsnotify_sb_has_priority_watchers(struct super_block *sb,
+						     int prio)
+{
+	struct fsnotify_sb_info *sbinfo = fsnotify_sb_info(sb);
+
+	/* Were any marks ever added to any object on this sb? */
+	if (!sbinfo)
+		return false;
+
+	return atomic_long_read(&sbinfo->watched_objects[prio]);
+}
+
+/* Are there any inode/mount/sb objects that are being watched at all? */
+static inline bool fsnotify_sb_has_watchers(struct super_block *sb)
+{
+	return fsnotify_sb_has_priority_watchers(sb, 0);
+}
+
 /*
  * Notify this @dir inode about a change in a child directory entry.
  * The directory entry may have turned positive or negative or its inode may
@@ -30,7 +49,7 @@ static inline int fsnotify_name(__u32 mask, const void *data, int data_type,
 				struct inode *dir, const struct qstr *name,
 				u32 cookie)
 {
-	if (atomic_long_read(&dir->i_sb->s_fsnotify_connectors) == 0)
+	if (!fsnotify_sb_has_watchers(dir->i_sb))
 		return 0;
 
 	return fsnotify(mask, data, data_type, dir, name, NULL, cookie);
@@ -44,7 +63,7 @@ static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,
 
 static inline void fsnotify_inode(struct inode *inode, __u32 mask)
 {
-	if (atomic_long_read(&inode->i_sb->s_fsnotify_connectors) == 0)
+	if (!fsnotify_sb_has_watchers(inode->i_sb))
 		return;
 
 	if (S_ISDIR(inode->i_mode))
@@ -59,7 +78,7 @@ static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
 {
 	struct inode *inode = d_inode(dentry);
 
-	if (atomic_long_read(&inode->i_sb->s_fsnotify_connectors) == 0)
+	if (!fsnotify_sb_has_watchers(inode->i_sb))
 		return 0;
 
 	if (S_ISDIR(inode->i_mode)) {
@@ -97,6 +116,12 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 		return 0;
 
 	path = &file->f_path;
+	/* Permission events require group prio >= FSNOTIFY_PRIO_CONTENT */
+	if (mask & ALL_FSNOTIFY_PERM_EVENTS &&
+	    !fsnotify_sb_has_priority_watchers(path->dentry->d_sb,
+					       FSNOTIFY_PRIO_CONTENT))
+		return 0;
+
 	return fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
 }
 

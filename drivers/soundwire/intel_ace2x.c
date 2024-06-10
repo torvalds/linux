@@ -10,8 +10,10 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
-#include <sound/pcm_params.h>
+#include <sound/hdaudio.h>
 #include <sound/hda-mlink.h>
+#include <sound/hda_register.h>
+#include <sound/pcm_params.h>
 #include "cadence_master.h"
 #include "bus.h"
 #include "intel.h"
@@ -23,49 +25,86 @@
 static void intel_shim_vs_init(struct sdw_intel *sdw)
 {
 	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	struct sdw_bus *bus = &sdw->cdns.bus;
+	struct sdw_intel_prop *intel_prop;
+	u16 doaise;
+	u16 doais;
+	u16 dodse;
+	u16 dods;
 	u16 act;
 
+	intel_prop = bus->vendor_specific_prop;
+	doaise = intel_prop->doaise;
+	doais = intel_prop->doais;
+	dodse = intel_prop->dodse;
+	dods = intel_prop->dods;
+
 	act = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL);
-	u16p_replace_bits(&act, 0x1, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
+	u16p_replace_bits(&act, doaise, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAISE);
+	u16p_replace_bits(&act, doais, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
+	u16p_replace_bits(&act, dodse, SDW_SHIM2_INTEL_VS_ACTMCTL_DODSE);
+	u16p_replace_bits(&act, dods, SDW_SHIM2_INTEL_VS_ACTMCTL_DODS);
 	act |= SDW_SHIM2_INTEL_VS_ACTMCTL_DACTQE;
-	act |=  SDW_SHIM2_INTEL_VS_ACTMCTL_DODS;
 	intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL, act);
 	usleep_range(10, 15);
 }
 
+static void intel_shim_vs_set_clock_source(struct sdw_intel *sdw, u32 source)
+{
+	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u32 val;
+
+	val = intel_readl(shim_vs, SDW_SHIM2_INTEL_VS_LVSCTL);
+
+	u32p_replace_bits(&val, source, SDW_SHIM2_INTEL_VS_LVSCTL_MLCS);
+
+	intel_writel(shim_vs, SDW_SHIM2_INTEL_VS_LVSCTL, val);
+
+	dev_dbg(sdw->cdns.dev, "clock source %d LVSCTL %#x\n", source, val);
+}
+
 static int intel_shim_check_wake(struct sdw_intel *sdw)
 {
-	void __iomem *shim_vs;
-	u16 wake_sts;
+	/*
+	 * We follow the HDaudio example and resume unconditionally
+	 * without checking the WAKESTS bit for that specific link
+	 */
 
-	shim_vs = sdw->link_res->shim_vs;
-	wake_sts = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS);
-
-	return wake_sts & SDW_SHIM2_INTEL_VS_WAKEEN_PWS;
+	return 1;
 }
 
 static void intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
 {
-	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u16 lsdiid = 0;
 	u16 wake_en;
 	u16 wake_sts;
+	int ret;
 
-	wake_en = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN);
+	mutex_lock(sdw->link_res->shim_lock);
+
+	ret = hdac_bus_eml_sdw_get_lsdiid_unlocked(sdw->link_res->hbus, sdw->instance, &lsdiid);
+	if (ret < 0)
+		goto unlock;
+
+	wake_en = snd_hdac_chip_readw(sdw->link_res->hbus, WAKEEN);
 
 	if (wake_enable) {
 		/* Enable the wakeup */
-		wake_en |= SDW_SHIM2_INTEL_VS_WAKEEN_PWE;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN, wake_en);
+		wake_en |= lsdiid;
+
+		snd_hdac_chip_writew(sdw->link_res->hbus, WAKEEN, wake_en);
 	} else {
 		/* Disable the wake up interrupt */
-		wake_en &= ~SDW_SHIM2_INTEL_VS_WAKEEN_PWE;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN, wake_en);
+		wake_en &= ~lsdiid;
+		snd_hdac_chip_writew(sdw->link_res->hbus, WAKEEN, wake_en);
 
 		/* Clear wake status (W1C) */
-		wake_sts = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS);
-		wake_sts |= SDW_SHIM2_INTEL_VS_WAKEEN_PWS;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS, wake_sts);
+		wake_sts = snd_hdac_chip_readw(sdw->link_res->hbus, STATESTS);
+		wake_sts |= lsdiid;
+		snd_hdac_chip_writew(sdw->link_res->hbus, STATESTS, wake_sts);
 	}
+unlock:
+	mutex_unlock(sdw->link_res->shim_lock);
 }
 
 static int intel_link_power_up(struct sdw_intel *sdw)
@@ -74,27 +113,24 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	struct sdw_master_prop *prop = &bus->prop;
 	u32 *shim_mask = sdw->link_res->shim_mask;
 	unsigned int link_id = sdw->instance;
+	u32 clock_source;
 	u32 syncprd;
 	int ret;
 
-	mutex_lock(sdw->link_res->shim_lock);
-
-	if (!*shim_mask) {
-		/* we first need to program the SyncPRD/CPU registers */
-		dev_dbg(sdw->cdns.dev, "first link up, programming SYNCPRD\n");
-
-		if (prop->mclk_freq % 6000000)
+	if (prop->mclk_freq % 6000000) {
+		if (prop->mclk_freq % 2400000) {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24_576;
+			clock_source = SDW_SHIM2_MLCS_CARDINAL_CLK;
+		} else {
 			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
-		else
-			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24;
-
-		ret =  hdac_bus_eml_sdw_set_syncprd_unlocked(sdw->link_res->hbus, syncprd);
-		if (ret < 0) {
-			dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_set_syncprd failed: %d\n",
-				__func__, ret);
-			goto out;
+			clock_source = SDW_SHIM2_MLCS_XTAL_CLK;
 		}
+	} else {
+		syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_96;
+		clock_source = SDW_SHIM2_MLCS_AUDIO_PLL_CLK;
 	}
+
+	mutex_lock(sdw->link_res->shim_lock);
 
 	ret = hdac_bus_eml_sdw_power_up_unlocked(sdw->link_res->hbus, link_id);
 	if (ret < 0) {
@@ -103,7 +139,19 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 		goto out;
 	}
 
+	intel_shim_vs_set_clock_source(sdw, clock_source);
+
 	if (!*shim_mask) {
+		/* we first need to program the SyncPRD/CPU registers */
+		dev_dbg(sdw->cdns.dev, "first link up, programming SYNCPRD\n");
+
+		ret =  hdac_bus_eml_sdw_set_syncprd_unlocked(sdw->link_res->hbus, syncprd);
+		if (ret < 0) {
+			dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_set_syncprd failed: %d\n",
+				__func__, ret);
+			goto out;
+		}
+
 		/* SYNCPU will change once link is active */
 		ret =  hdac_bus_eml_sdw_wait_syncpu_unlocked(sdw->link_res->hbus);
 		if (ret < 0) {
@@ -267,6 +315,11 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 		ret = -EINVAL;
 		goto error;
 	}
+
+	/* use same definitions for alh_id as previous generations */
+	pdi->intel_alh_id = (sdw->instance * 16) + pdi->num + 3;
+	if (pdi->num >= 2)
+		pdi->intel_alh_id += 2;
 
 	/* the SHIM will be configured in the callback functions */
 

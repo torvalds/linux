@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022 - 2023 Intel Corporation
+ * Copyright (C) 2022 - 2024 Intel Corporation
  */
 #include "mvm.h"
 
@@ -167,7 +167,7 @@ static int iwl_mvm_mld_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 	iwl_mvm_mld_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
 	cmd.filter_flags = cpu_to_le32(MAC_CFG_FILTER_PROMISC |
-				       MAC_FILTER_IN_CONTROL_AND_MGMT |
+				       MAC_CFG_FILTER_ACCEPT_CONTROL_AND_MGMT |
 				       MAC_CFG_FILTER_ACCEPT_BEACON |
 				       MAC_CFG_FILTER_ACCEPT_PROBE_REQ |
 				       MAC_CFG_FILTER_ACCEPT_GRP);
@@ -205,8 +205,11 @@ static int iwl_mvm_mld_mac_ctxt_cmd_p2p_device(struct iwl_mvm *mvm,
 	cmd.p2p_dev.is_disc_extended =
 		iwl_mac_ctxt_p2p_dev_has_extended_disc(mvm, vif);
 
-	/* Override the filter flags to accept only probe requests */
-	cmd.filter_flags = cpu_to_le32(MAC_CFG_FILTER_ACCEPT_PROBE_REQ);
+	/* Override the filter flags to accept all management frames. This is
+	 * needed to support both P2P device discovery using probe requests and
+	 * P2P service discovery using action frames
+	 */
+	cmd.filter_flags = cpu_to_le32(MAC_CFG_FILTER_ACCEPT_CONTROL_AND_MGMT);
 
 	return iwl_mvm_mld_mac_ctxt_send_cmd(mvm, &cmd);
 }

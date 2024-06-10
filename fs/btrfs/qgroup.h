@@ -6,12 +6,22 @@
 #ifndef BTRFS_QGROUP_H
 #define BTRFS_QGROUP_H
 
+#include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
 #include <linux/kobject.h>
-#include "ulist.h"
-#include "delayed-ref.h"
-#include "misc.h"
+#include <linux/list.h>
+#include <uapi/linux/btrfs_tree.h>
+
+struct extent_buffer;
+struct extent_changeset;
+struct btrfs_delayed_extent_op;
+struct btrfs_fs_info;
+struct btrfs_root;
+struct btrfs_ioctl_quota_ctl_args;
+struct btrfs_trans_handle;
+struct btrfs_delayed_ref_root;
+struct btrfs_inode;
 
 /*
  * Btrfs qgroup overview
@@ -321,7 +331,6 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid,
 		       struct btrfs_qgroup_limit *limit);
 int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
 void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
-struct btrfs_delayed_extent_op;
 
 int btrfs_qgroup_trace_extent_nolock(
 		struct btrfs_fs_info *fs_info,
@@ -341,6 +350,9 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 				struct ulist *new_roots);
 int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans);
 int btrfs_run_qgroups(struct btrfs_trans_handle *trans);
+int btrfs_qgroup_check_inherit(struct btrfs_fs_info *fs_info,
+			       struct btrfs_qgroup_inherit *inherit,
+			       size_t size);
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 			 u64 objectid, u64 inode_rootid,
 			 struct btrfs_qgroup_inherit *inherit);

@@ -51,6 +51,7 @@ config ARC
 	select PCI_SYSCALL if PCI
 	select HAVE_ARCH_JUMP_LABEL if ISA_ARCV2 && !CPU_ENDIAN_BE32
 	select TRACE_IRQFLAGS_SUPPORT
+	select HAVE_EBPF_JIT if ISA_ARCV2
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -284,14 +285,17 @@ choice
 
 config ARC_PAGE_SIZE_8K
 	bool "8KB"
+	select HAVE_PAGE_SIZE_8KB
 	help
 	  Choose between 8k vs 16k
 
 config ARC_PAGE_SIZE_16K
+	select HAVE_PAGE_SIZE_16KB
 	bool "16KB"
 
 config ARC_PAGE_SIZE_4K
 	bool "4KB"
+	select HAVE_PAGE_SIZE_4KB
 	depends on ARC_MMU_V3 || ARC_MMU_V4
 
 endchoice

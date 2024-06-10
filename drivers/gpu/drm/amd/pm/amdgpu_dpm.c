@@ -199,14 +199,14 @@ int amdgpu_dpm_notify_rlc_state(struct amdgpu_device *adev, bool en)
 	return ret;
 }
 
-bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev)
+int amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	void *pp_handle = adev->powerplay.pp_handle;
-	bool ret;
+	int ret;
 
 	if (!pp_funcs || !pp_funcs->get_asic_baco_capability)
-		return false;
+		return 0;
 	/* Don't use baco for reset in S3.
 	 * This is a workaround for some platforms
 	 * where entering BACO during suspend
@@ -217,7 +217,7 @@ bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev)
 	 * devices.  Needs more investigation.
 	 */
 	if (adev->in_s3)
-		return false;
+		return 0;
 
 	mutex_lock(&adev->pm.mutex);
 
@@ -688,6 +688,21 @@ int amdgpu_dpm_send_hbm_bad_channel_flag(struct amdgpu_device *adev, uint32_t si
 
 	mutex_lock(&adev->pm.mutex);
 	ret = smu_send_hbm_bad_channel_flag(smu, size);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
+int amdgpu_dpm_send_rma_reason(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret;
+
+	if (!is_support_sw_smu(adev))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_send_rma_reason(smu);
 	mutex_unlock(&adev->pm.mutex);
 
 	return ret;

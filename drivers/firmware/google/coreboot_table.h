@@ -13,6 +13,7 @@
 #define __COREBOOT_TABLE_H
 
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 
 /* Coreboot table header structure */
 struct coreboot_table_header {
@@ -93,11 +94,15 @@ struct coreboot_driver {
 	int (*probe)(struct coreboot_device *);
 	void (*remove)(struct coreboot_device *);
 	struct device_driver drv;
-	u32 tag;
+	const struct coreboot_device_id *id_table;
 };
 
+/* use a macro to avoid include chaining to get THIS_MODULE */
+#define coreboot_driver_register(driver) \
+	__coreboot_driver_register(driver, THIS_MODULE)
 /* Register a driver that uses the data from a coreboot table. */
-int coreboot_driver_register(struct coreboot_driver *driver);
+int __coreboot_driver_register(struct coreboot_driver *driver,
+			       struct module *owner);
 
 /* Unregister a driver that uses the data from a coreboot table. */
 void coreboot_driver_unregister(struct coreboot_driver *driver);

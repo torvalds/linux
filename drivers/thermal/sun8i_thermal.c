@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -50,7 +51,8 @@
 #define SUN8I_THS_CTRL2_T_ACQ1(x)		((GENMASK(15, 0) & (x)) << 16)
 #define SUN8I_THS_DATA_IRQ_STS(x)		BIT(x + 8)
 
-#define SUN50I_THS_CTRL0_T_ACQ(x)		((GENMASK(15, 0) & (x)) << 16)
+#define SUN50I_THS_CTRL0_T_ACQ(x)		(GENMASK(15, 0) & ((x) - 1))
+#define SUN50I_THS_CTRL0_T_SAMPLE_PER(x)	((GENMASK(15, 0) & ((x) - 1)) << 16)
 #define SUN50I_THS_FILTER_EN			BIT(2)
 #define SUN50I_THS_FILTER_TYPE(x)		(GENMASK(1, 0) & (x))
 #define SUN50I_H6_THS_PC_TEMP_PERIOD(x)		((GENMASK(19, 0) & (x)) << 12)
@@ -65,6 +67,7 @@ struct tsensor {
 struct ths_thermal_chip {
 	bool            has_mod_clk;
 	bool            has_bus_clk_reset;
+	bool		needs_sram;
 	int		sensor_num;
 	int		offset;
 	int		scale;
@@ -82,11 +85,15 @@ struct ths_device {
 	const struct ths_thermal_chip		*chip;
 	struct device				*dev;
 	struct regmap				*regmap;
+	struct regmap_field			*sram_regmap_field;
 	struct reset_control			*reset;
 	struct clk				*bus_clk;
 	struct clk                              *mod_clk;
 	struct tsensor				sensor[MAX_SENSOR_NUM];
 };
+
+/* The H616 needs to have a bit 16 in the SRAM control register cleared. */
+static const struct reg_field sun8i_ths_sram_reg_field = REG_FIELD(0x0, 16, 16);
 
 /* Temp Unit: millidegree Celsius */
 static int sun8i_ths_calc_temp(struct ths_device *tmdev,
@@ -188,6 +195,9 @@ static irqreturn_t sun8i_irq_thread(int irq, void *data)
 	int i;
 
 	for_each_set_bit(i, &irq_bitmap, tmdev->chip->sensor_num) {
+		/* We allow some zones to not register. */
+		if (IS_ERR(tmdev->sensor[i].tzd))
+			continue;
 		thermal_zone_device_update(tmdev->sensor[i].tzd,
 					   THERMAL_EVENT_UNSPECIFIED);
 	}
@@ -221,16 +231,21 @@ static int sun50i_h6_ths_calibrate(struct ths_device *tmdev,
 	struct device *dev = tmdev->dev;
 	int i, ft_temp;
 
-	if (!caldata[0] || callen < 2 + 2 * tmdev->chip->sensor_num)
+	if (!caldata[0])
 		return -EINVAL;
 
 	/*
 	 * efuse layout:
 	 *
-	 *	0   11  16	 32
-	 *	+-------+-------+-------+
-	 *	|temp|  |sensor0|sensor1|
-	 *	+-------+-------+-------+
+	 * 0      11  16     27   32     43   48    57
+	 * +----------+-----------+-----------+-----------+
+	 * |  temp |  |sensor0|   |sensor1|   |sensor2|   |
+	 * +----------+-----------+-----------+-----------+
+	 *                      ^           ^           ^
+	 *                      |           |           |
+	 *                      |           |           sensor3[11:8]
+	 *                      |           sensor3[7:4]
+	 *                      sensor3[3:0]
 	 *
 	 * The calibration data on the H6 is the ambient temperature and
 	 * sensor values that are filled during the factory test stage.
@@ -243,9 +258,16 @@ static int sun50i_h6_ths_calibrate(struct ths_device *tmdev,
 	ft_temp = (caldata[0] & FT_TEMP_MASK) * 100;
 
 	for (i = 0; i < tmdev->chip->sensor_num; i++) {
-		int sensor_reg = caldata[i + 1] & TEMP_CALIB_MASK;
-		int cdata, offset;
-		int sensor_temp = tmdev->chip->calc_temp(tmdev, i, sensor_reg);
+		int sensor_reg, sensor_temp, cdata, offset;
+
+		if (i == 3)
+			sensor_reg = (caldata[1] >> 12)
+				     | ((caldata[2] >> 12) << 4)
+				     | ((caldata[3] >> 12) << 8);
+		else
+			sensor_reg = caldata[i + 1] & TEMP_CALIB_MASK;
+
+		sensor_temp = tmdev->chip->calc_temp(tmdev, i, sensor_reg);
 
 		/*
 		 * Calibration data is CALIBRATE_DEFAULT - (calculated
@@ -324,6 +346,34 @@ static void sun8i_ths_reset_control_assert(void *data)
 	reset_control_assert(data);
 }
 
+static struct regmap *sun8i_ths_get_sram_regmap(struct device_node *node)
+{
+	struct device_node *sram_node;
+	struct platform_device *sram_pdev;
+	struct regmap *regmap = NULL;
+
+	sram_node = of_parse_phandle(node, "allwinner,sram", 0);
+	if (!sram_node)
+		return ERR_PTR(-ENODEV);
+
+	sram_pdev = of_find_device_by_node(sram_node);
+	if (!sram_pdev) {
+		/* platform device might not be probed yet */
+		regmap = ERR_PTR(-EPROBE_DEFER);
+		goto out_put_node;
+	}
+
+	/* If no regmap is found then the other device driver is at fault */
+	regmap = dev_get_regmap(&sram_pdev->dev, NULL);
+	if (!regmap)
+		regmap = ERR_PTR(-EINVAL);
+
+	platform_device_put(sram_pdev);
+out_put_node:
+	of_node_put(sram_node);
+	return regmap;
+}
+
 static int sun8i_ths_resource_init(struct ths_device *tmdev)
 {
 	struct device *dev = tmdev->dev;
@@ -368,6 +418,19 @@ static int sun8i_ths_resource_init(struct ths_device *tmdev)
 	if (ret)
 		return ret;
 
+	if (tmdev->chip->needs_sram) {
+		struct regmap *regmap;
+
+		regmap = sun8i_ths_get_sram_regmap(dev->of_node);
+		if (IS_ERR(regmap))
+			return PTR_ERR(regmap);
+		tmdev->sram_regmap_field = devm_regmap_field_alloc(dev,
+						      regmap,
+						      sun8i_ths_sram_reg_field);
+		if (IS_ERR(tmdev->sram_regmap_field))
+			return PTR_ERR(tmdev->sram_regmap_field);
+	}
+
 	ret = sun8i_ths_calibrate(tmdev);
 	if (ret)
 		return ret;
@@ -410,25 +473,31 @@ static int sun8i_h3_thermal_init(struct ths_device *tmdev)
 	return 0;
 }
 
-/*
- * Without this undocumented value, the returned temperatures would
- * be higher than real ones by about 20C.
- */
-#define SUN50I_H6_CTRL0_UNK 0x0000002f
-
 static int sun50i_h6_thermal_init(struct ths_device *tmdev)
 {
 	int val;
 
+	/* The H616 needs to have a bit in the SRAM control register cleared. */
+	if (tmdev->sram_regmap_field)
+		regmap_field_write(tmdev->sram_regmap_field, 0);
+
 	/*
-	 * T_acq = 20us
-	 * clkin = 24MHz
-	 *
-	 * x = T_acq * clkin - 1
-	 *   = 479
+	 * The manual recommends an overall sample frequency of 50 KHz (20us,
+	 * 480 cycles at 24 MHz), which provides plenty of time for both the
+	 * acquisition time (>24 cycles) and the actual conversion time
+	 * (>14 cycles).
+	 * The lower half of the CTRL register holds the "acquire time", in
+	 * clock cycles, which the manual recommends to be 2us:
+	 * 24MHz * 2us = 48 cycles.
+	 * The high half of THS_CTRL encodes the sample frequency, in clock
+	 * cycles: 24MHz * 20us = 480 cycles.
+	 * This is explained in the H616 manual, but apparently wrongly
+	 * described in the H6 manual, although the BSP code does the same
+	 * for both SoCs.
 	 */
 	regmap_write(tmdev->regmap, SUN50I_THS_CTRL0,
-		     SUN50I_H6_CTRL0_UNK | SUN50I_THS_CTRL0_T_ACQ(479));
+		     SUN50I_THS_CTRL0_T_ACQ(48) |
+		     SUN50I_THS_CTRL0_T_SAMPLE_PER(480));
 	/* average over 4 samples */
 	regmap_write(tmdev->regmap, SUN50I_H6_THS_MFC,
 		     SUN50I_THS_FILTER_EN |
@@ -465,8 +534,17 @@ static int sun8i_ths_register(struct ths_device *tmdev)
 						      i,
 						      &tmdev->sensor[i],
 						      &ths_ops);
-		if (IS_ERR(tmdev->sensor[i].tzd))
-			return PTR_ERR(tmdev->sensor[i].tzd);
+
+		/*
+		 * If an individual zone fails to register for reasons
+		 * other than probe deferral (eg, a bad DT) then carry
+		 * on, other zones might register successfully.
+		 */
+		if (IS_ERR(tmdev->sensor[i].tzd)) {
+			if (PTR_ERR(tmdev->sensor[i].tzd) == -EPROBE_DEFER)
+				return PTR_ERR(tmdev->sensor[i].tzd);
+			continue;
+		}
 
 		devm_thermal_add_hwmon_sysfs(tmdev->dev, tmdev->sensor[i].tzd);
 	}
@@ -618,6 +696,20 @@ static const struct ths_thermal_chip sun20i_d1_ths = {
 	.calc_temp = sun8i_ths_calc_temp,
 };
 
+static const struct ths_thermal_chip sun50i_h616_ths = {
+	.sensor_num = 4,
+	.has_bus_clk_reset = true,
+	.needs_sram = true,
+	.ft_deviation = 8000,
+	.offset = 263655,
+	.scale = 810,
+	.temp_data_base = SUN50I_H6_THS_TEMP_DATA,
+	.calibrate = sun50i_h6_ths_calibrate,
+	.init = sun50i_h6_thermal_init,
+	.irq_ack = sun50i_h6_irq_ack,
+	.calc_temp = sun8i_ths_calc_temp,
+};
+
 static const struct of_device_id of_ths_match[] = {
 	{ .compatible = "allwinner,sun8i-a83t-ths", .data = &sun8i_a83t_ths },
 	{ .compatible = "allwinner,sun8i-h3-ths", .data = &sun8i_h3_ths },
@@ -627,6 +719,7 @@ static const struct of_device_id of_ths_match[] = {
 	{ .compatible = "allwinner,sun50i-h5-ths", .data = &sun50i_h5_ths },
 	{ .compatible = "allwinner,sun50i-h6-ths", .data = &sun50i_h6_ths },
 	{ .compatible = "allwinner,sun20i-d1-ths", .data = &sun20i_d1_ths },
+	{ .compatible = "allwinner,sun50i-h616-ths", .data = &sun50i_h616_ths },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, of_ths_match);

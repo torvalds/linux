@@ -233,7 +233,9 @@ static int copy_hashes_authenticate_chunks_gen2(struct device *dev)
 		chunk_table[0] = starting_chunk_nr + i;
 		chunk_table[1] = linear_addr;
 		do {
+			local_irq_disable();
 			wrmsrl(MSR_AUTHENTICATE_AND_COPY_CHUNK, (u64)chunk_table);
+			local_irq_enable();
 			rdmsrl(MSR_CHUNKS_AUTHENTICATION_STATUS, chunk_status.data);
 			err_code = chunk_status.error_code;
 		} while (err_code == AUTH_INTERRUPTED_ERROR && --retry_count);
@@ -383,7 +385,7 @@ int ifs_load_firmware(struct device *dev)
 	unsigned int expected_size;
 	const struct firmware *fw;
 	char scan_path[64];
-	int ret = -EINVAL;
+	int ret;
 
 	snprintf(scan_path, sizeof(scan_path), "intel/ifs_%d/%02x-%02x-%02x-%02x.scan",
 		 test->test_num, boot_cpu_data.x86, boot_cpu_data.x86_model,

@@ -91,6 +91,8 @@ interfacciarsi con il resto del kernel.
    :maxdepth: 1
 
    core-api/index
+   Sincronizzazione nel kernel <locking/index>
+   subsystem-apis
 
 Strumenti e processi per lo sviluppo
 ====================================
@@ -130,4 +132,4 @@ Documentazione varia
 
 Ci sono documenti che sono difficili da inserire nell'attuale organizzazione
 della documentazione; altri hanno bisogno di essere migliorati e/o convertiti
-nel formato *ReStructured Text*; altri sono semplicamente troppo vecchi.
+nel formato *reStructuredText*; altri sono semplicamente troppo vecchi.

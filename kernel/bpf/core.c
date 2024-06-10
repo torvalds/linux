@@ -22,10 +22,10 @@
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 #include <linux/random.h>
-#include <linux/moduleloader.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/objtool.h>
+#include <linux/overflow.h>
 #include <linux/rbtree_latch.h>
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
@@ -37,6 +37,7 @@
 #include <linux/nospec.h>
 #include <linux/bpf_mem_alloc.h>
 #include <linux/memcontrol.h>
+#include <linux/execmem.h>
 
 #include <asm/barrier.h>
 #include <asm/unaligned.h>
@@ -88,13 +89,18 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 	return NULL;
 }
 
+/* tell bpf programs that include vmlinux.h kernel's PAGE_SIZE */
+enum page_size_enum {
+	__PAGE_SIZE = PAGE_SIZE
+};
+
 struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flags)
 {
 	gfp_t gfp_flags = bpf_memcg_flags(GFP_KERNEL | __GFP_ZERO | gfp_extra_flags);
 	struct bpf_prog_aux *aux;
 	struct bpf_prog *fp;
 
-	size = round_up(size, PAGE_SIZE);
+	size = round_up(size, __PAGE_SIZE);
 	fp = __vmalloc(size, gfp_flags);
 	if (fp == NULL)
 		return NULL;
@@ -682,7 +688,7 @@ static bool bpf_prog_kallsyms_candidate(const struct bpf_prog *fp)
 void bpf_prog_kallsyms_add(struct bpf_prog *fp)
 {
 	if (!bpf_prog_kallsyms_candidate(fp) ||
-	    !bpf_capable())
+	    !bpf_token_capable(fp->aux->token, CAP_BPF))
 		return;
 
 	bpf_prog_ksym_set_addr(fp);
@@ -742,7 +748,7 @@ const char *__bpf_address_lookup(unsigned long addr, unsigned long *size,
 		unsigned long symbol_start = ksym->start;
 		unsigned long symbol_end = ksym->end;
 
-		strncpy(sym, ksym->name, KSYM_NAME_LEN);
+		strscpy(sym, ksym->name, KSYM_NAME_LEN);
 
 		ret = sym;
 		if (size)
@@ -808,7 +814,7 @@ int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		if (it++ != symnum)
 			continue;
 
-		strncpy(sym, ksym->name, KSYM_NAME_LEN);
+		strscpy(sym, ksym->name, KSYM_NAME_LEN);
 
 		*value = ksym->start;
 		*type  = BPF_SYM_ELF_TYPE;
@@ -844,7 +850,7 @@ int bpf_jit_add_poke_descriptor(struct bpf_prog *prog,
 		return -EINVAL;
 	}
 
-	tab = krealloc(tab, size * sizeof(*poke), GFP_KERNEL);
+	tab = krealloc_array(tab, size, sizeof(*poke), GFP_KERNEL);
 	if (!tab)
 		return -ENOMEM;
 
@@ -888,7 +894,12 @@ static LIST_HEAD(pack_list);
  * CONFIG_MMU=n. Use PAGE_SIZE in these cases.
  */
 #ifdef PMD_SIZE
-#define BPF_PROG_PACK_SIZE (PMD_SIZE * num_possible_nodes())
+/* PMD_SIZE is really big for some archs. It doesn't make sense to
+ * reserve too much memory in one allocation. Hardcode BPF_PROG_PACK_SIZE to
+ * 2MiB * num_possible_nodes(). On most architectures PMD_SIZE will be
+ * greater than or equal to 2MB.
+ */
+#define BPF_PROG_PACK_SIZE (SZ_2M * num_possible_nodes())
 #else
 #define BPF_PROG_PACK_SIZE PAGE_SIZE
 #endif
@@ -898,23 +909,30 @@ static LIST_HEAD(pack_list);
 static struct bpf_prog_pack *alloc_new_pack(bpf_jit_fill_hole_t bpf_fill_ill_insns)
 {
 	struct bpf_prog_pack *pack;
+	int err;
 
 	pack = kzalloc(struct_size(pack, bitmap, BITS_TO_LONGS(BPF_PROG_CHUNK_COUNT)),
 		       GFP_KERNEL);
 	if (!pack)
 		return NULL;
 	pack->ptr = bpf_jit_alloc_exec(BPF_PROG_PACK_SIZE);
-	if (!pack->ptr) {
-		kfree(pack);
-		return NULL;
-	}
+	if (!pack->ptr)
+		goto out;
 	bpf_fill_ill_insns(pack->ptr, BPF_PROG_PACK_SIZE);
 	bitmap_zero(pack->bitmap, BPF_PROG_PACK_SIZE / BPF_PROG_CHUNK_SIZE);
-	list_add_tail(&pack->list, &pack_list);
 
 	set_vm_flush_reset_perms(pack->ptr);
-	set_memory_rox((unsigned long)pack->ptr, BPF_PROG_PACK_SIZE / PAGE_SIZE);
+	err = set_memory_rox((unsigned long)pack->ptr,
+			     BPF_PROG_PACK_SIZE / PAGE_SIZE);
+	if (err)
+		goto out;
+	list_add_tail(&pack->list, &pack_list);
 	return pack;
+
+out:
+	bpf_jit_free_exec(pack->ptr);
+	kfree(pack);
+	return NULL;
 }
 
 void *bpf_prog_pack_alloc(u32 size, bpf_jit_fill_hole_t bpf_fill_ill_insns)
@@ -929,9 +947,16 @@ void *bpf_prog_pack_alloc(u32 size, bpf_jit_fill_hole_t bpf_fill_ill_insns)
 		size = round_up(size, PAGE_SIZE);
 		ptr = bpf_jit_alloc_exec(size);
 		if (ptr) {
+			int err;
+
 			bpf_fill_ill_insns(ptr, size);
 			set_vm_flush_reset_perms(ptr);
-			set_memory_rox((unsigned long)ptr, size / PAGE_SIZE);
+			err = set_memory_rox((unsigned long)ptr,
+					     size / PAGE_SIZE);
+			if (err) {
+				bpf_jit_free_exec(ptr);
+				ptr = NULL;
+			}
 		}
 		goto out;
 	}
@@ -1040,12 +1065,12 @@ void bpf_jit_uncharge_modmem(u32 size)
 
 void *__weak bpf_jit_alloc_exec(unsigned long size)
 {
-	return module_alloc(size);
+	return execmem_alloc(EXECMEM_BPF, size);
 }
 
 void __weak bpf_jit_free_exec(void *addr)
 {
-	module_memfree(addr);
+	execmem_free(addr);
 }
 
 struct bpf_binary_header *
@@ -1675,6 +1700,7 @@ bool bpf_opcode_in_insntable(u8 code)
 		[BPF_LD | BPF_IND | BPF_B] = true,
 		[BPF_LD | BPF_IND | BPF_H] = true,
 		[BPF_LD | BPF_IND | BPF_W] = true,
+		[BPF_JMP | BPF_JCOND] = true,
 	};
 #undef BPF_INSN_3_TBL
 #undef BPF_INSN_2_TBL
@@ -2193,6 +2219,7 @@ static unsigned int PROG_NAME(stack_size)(const void *ctx, const struct bpf_insn
 	u64 stack[stack_size / sizeof(u64)]; \
 	u64 regs[MAX_BPF_EXT_REG] = {}; \
 \
+	kmsan_unpoison_memory(stack, sizeof(stack)); \
 	FP = (u64) (unsigned long) &stack[ARRAY_SIZE(stack)]; \
 	ARG1 = (u64) (unsigned long) ctx; \
 	return ___bpf_prog_run(regs, insn); \
@@ -2206,6 +2233,7 @@ static u64 PROG_NAME_ARGS(stack_size)(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5, \
 	u64 stack[stack_size / sizeof(u64)]; \
 	u64 regs[MAX_BPF_EXT_REG]; \
 \
+	kmsan_unpoison_memory(stack, sizeof(stack)); \
 	FP = (u64) (unsigned long) &stack[ARRAY_SIZE(stack)]; \
 	BPF_R1 = r1; \
 	BPF_R2 = r2; \
@@ -2392,7 +2420,9 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 	}
 
 finalize:
-	bpf_prog_lock_ro(fp);
+	*err = bpf_prog_lock_ro(fp);
+	if (*err)
+		return fp;
 
 	/* The tail call compatibility check can only be done at
 	 * this late stage as we need to determine, if we deal
@@ -2426,13 +2456,14 @@ EXPORT_SYMBOL(bpf_empty_prog_array);
 
 struct bpf_prog_array *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags)
 {
-	if (prog_cnt)
-		return kzalloc(sizeof(struct bpf_prog_array) +
-			       sizeof(struct bpf_prog_array_item) *
-			       (prog_cnt + 1),
-			       flags);
+	struct bpf_prog_array *p;
 
-	return &bpf_empty_prog_array.hdr;
+	if (prog_cnt)
+		p = kzalloc(struct_size(p, items, prog_cnt + 1), flags);
+	else
+		p = &bpf_empty_prog_array.hdr;
+
+	return p;
 }
 
 void bpf_prog_array_free(struct bpf_prog_array *progs)
@@ -2695,7 +2726,7 @@ void __bpf_free_used_maps(struct bpf_prog_aux *aux,
 	bool sleepable;
 	u32 i;
 
-	sleepable = aux->sleepable;
+	sleepable = aux->prog->sleepable;
 	for (i = 0; i < len; i++) {
 		map = used_maps[i];
 		if (map->ops->map_poke_untrack)
@@ -2779,12 +2810,13 @@ void bpf_prog_free(struct bpf_prog *fp)
 
 	if (aux->dst_prog)
 		bpf_prog_put(aux->dst_prog);
+	bpf_token_put(aux->token);
 	INIT_WORK(&aux->work, bpf_prog_free_deferred);
 	schedule_work(&aux->work);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
 
-/* RNG for unpriviledged user space with separated state from prandom_u32(). */
+/* RNG for unprivileged user space with separated state from prandom_u32(). */
 static DEFINE_PER_CPU(struct rnd_state, bpf_user_rnd_state);
 
 void bpf_user_rnd_init_once(void)
@@ -2909,8 +2941,24 @@ bool __weak bpf_jit_needs_zext(void)
 	return false;
 }
 
+/* Return true if the JIT inlines the call to the helper corresponding to
+ * the imm.
+ *
+ * The verifier will not patch the insn->imm for the call to the helper if
+ * this returns true.
+ */
+bool __weak bpf_jit_inlines_helper_call(s32 imm)
+{
+	return false;
+}
+
 /* Return TRUE if the JIT backend supports mixing bpf2bpf and tailcalls. */
 bool __weak bpf_jit_supports_subprog_tailcalls(void)
+{
+	return false;
+}
+
+bool __weak bpf_jit_supports_percpu_insn(void)
 {
 	return false;
 }
@@ -2921,6 +2969,35 @@ bool __weak bpf_jit_supports_kfunc_call(void)
 }
 
 bool __weak bpf_jit_supports_far_kfunc_call(void)
+{
+	return false;
+}
+
+bool __weak bpf_jit_supports_arena(void)
+{
+	return false;
+}
+
+bool __weak bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
+{
+	return false;
+}
+
+u64 __weak bpf_arch_uaddress_limit(void)
+{
+#if defined(CONFIG_64BIT) && defined(CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE)
+	return TASK_SIZE;
+#else
+	return 0;
+#endif
+}
+
+/* Return TRUE if the JIT backend satisfies the following two conditions:
+ * 1) JIT backend supports atomic_xchg() on pointer-sized words.
+ * 2) Under the specific arch, the implementation of xchg() is the same
+ *    as atomic_xchg() on pointer-sized words.
+ */
+bool __weak bpf_jit_supports_ptr_xchg(void)
 {
 	return false;
 }
@@ -2957,6 +3034,17 @@ bool __weak bpf_jit_supports_exceptions(void)
 
 void __weak arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp), void *cookie)
 {
+}
+
+/* for configs without MMU or 32-bit */
+__weak const struct bpf_map_ops arena_map_ops;
+__weak u64 bpf_arena_get_user_vm_start(struct bpf_arena *arena)
+{
+	return 0;
+}
+__weak u64 bpf_arena_get_kern_vm_start(struct bpf_arena *arena)
+{
+	return 0;
 }
 
 #ifdef CONFIG_BPF_SYSCALL

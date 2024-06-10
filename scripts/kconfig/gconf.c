@@ -18,8 +18,6 @@
 #include <unistd.h>
 #include <time.h>
 
-//#define DEBUG
-
 enum {
 	SINGLE_VIEW, SPLIT_VIEW, FULL_VIEW
 };
@@ -70,39 +68,6 @@ static void update_tree(struct menu *src, GtkTreeIter * dst);
 static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row);
 static gchar **fill_row(struct menu *menu);
 static void conf_changed(void);
-
-/* Helping/Debugging Functions */
-#ifdef DEBUG
-static const char *dbg_sym_flags(int val)
-{
-	static char buf[256];
-
-	bzero(buf, 256);
-
-	if (val & SYMBOL_CONST)
-		strcat(buf, "const/");
-	if (val & SYMBOL_CHECK)
-		strcat(buf, "check/");
-	if (val & SYMBOL_CHOICE)
-		strcat(buf, "choice/");
-	if (val & SYMBOL_CHOICEVAL)
-		strcat(buf, "choiceval/");
-	if (val & SYMBOL_VALID)
-		strcat(buf, "valid/");
-	if (val & SYMBOL_OPTIONAL)
-		strcat(buf, "optional/");
-	if (val & SYMBOL_WRITE)
-		strcat(buf, "write/");
-	if (val & SYMBOL_CHANGED)
-		strcat(buf, "changed/");
-	if (val & SYMBOL_NO_WRITE)
-		strcat(buf, "no_write/");
-
-	buf[strlen(buf) - 1] = '\0';
-
-	return buf;
-}
-#endif
 
 static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 				GtkStyle *style, gchar *btn_name, gchar **xpm)
@@ -493,7 +458,7 @@ load_filename(GtkFileSelection * file_selector, gpointer user_data)
 	if (conf_read(fn))
 		text_insert_msg("Error", "Unable to load configuration !");
 	else
-		display_tree(&rootmenu);
+		display_tree_part();
 }
 
 void on_load1_activate(GtkMenuItem * menuitem, gpointer user_data)
@@ -1082,14 +1047,12 @@ static gchar **fill_row(struct menu *menu)
 	row[COL_NAME] = g_strdup(sym->name);
 
 	sym_calc_value(sym);
-	sym->flags &= ~SYMBOL_CHANGED;
+	menu->flags &= ~MENU_CHANGED;
 
 	if (sym_is_choice(sym)) {	// parse childs for getting final value
 		struct menu *child;
 		struct symbol *def_sym = sym_get_choice_value(sym);
 		struct menu *def_menu = NULL;
-
-		row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
 
 		for (child = menu->list; child; child = child->next) {
 			if (menu_is_visible(child)
@@ -1100,6 +1063,11 @@ static gchar **fill_row(struct menu *menu)
 		if (def_menu)
 			row[COL_VALUE] =
 			    g_strdup(menu_get_prompt(def_menu));
+
+		if (sym_get_type(sym) == S_BOOLEAN) {
+			row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
+			return row;
+		}
 	}
 	if (sym->flags & SYMBOL_CHOICEVAL)
 		row[COL_BTNRAD] = GINT_TO_POINTER(TRUE);
@@ -1107,11 +1075,6 @@ static gchar **fill_row(struct menu *menu)
 	stype = sym_get_type(sym);
 	switch (stype) {
 	case S_BOOLEAN:
-		if (GPOINTER_TO_INT(row[COL_PIXVIS]) == FALSE)
-			row[COL_BTNVIS] = GINT_TO_POINTER(TRUE);
-		if (sym_is_choice(sym))
-			break;
-		/* fall through */
 	case S_TRISTATE:
 		val = sym_get_tristate_value(sym);
 		switch (val) {
@@ -1268,12 +1231,6 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 		else
 			menu2 = NULL;	// force adding of a first child
 
-#ifdef DEBUG
-		printf("%*c%s | %s\n", indent, ' ',
-		       menu1 ? menu_get_prompt(menu1) : "nil",
-		       menu2 ? menu_get_prompt(menu2) : "nil");
-#endif
-
 		if ((opt_mode == OPT_NORMAL && !menu_is_visible(child1)) ||
 		    (opt_mode == OPT_PROMPT && !menu_has_prompt(child1)) ||
 		    (opt_mode == OPT_ALL    && !menu_get_prompt(child1))) {
@@ -1314,7 +1271,7 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 				else
 					goto reparse;	// next child
 			}
-		} else if (sym && (sym->flags & SYMBOL_CHANGED)) {
+		} else if (sym && (child1->flags & MENU_CHANGED)) {
 			set_node(child2, menu1, fill_row(menu1));
 		}
 
@@ -1330,7 +1287,6 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 /* Display the whole tree (single/split/full view) */
 static void display_tree(struct menu *menu)
 {
-	struct symbol *sym;
 	struct property *prop;
 	struct menu *child;
 	enum prop_type ptype;
@@ -1342,11 +1298,9 @@ static void display_tree(struct menu *menu)
 
 	for (child = menu->list; child; child = child->next) {
 		prop = child->prompt;
-		sym = child->sym;
 		ptype = prop ? prop->type : P_UNKNOWN;
 
-		if (sym)
-			sym->flags &= ~SYMBOL_CHANGED;
+		menu->flags &= ~MENU_CHANGED;
 
 		if ((view_mode == SPLIT_VIEW)
 		    && !(child->flags & MENU_ROOT) && (tree == tree1))
@@ -1360,19 +1314,7 @@ static void display_tree(struct menu *menu)
 		    (opt_mode == OPT_PROMPT && menu_has_prompt(child)) ||
 		    (opt_mode == OPT_ALL    && menu_get_prompt(child)))
 			place_node(child, fill_row(child));
-#ifdef DEBUG
-		printf("%*c%s: ", indent, ' ', menu_get_prompt(child));
-		printf("%s", child->flags & MENU_ROOT ? "rootmenu | " : "");
-		printf("%s", prop_get_type_name(ptype));
-		printf(" | ");
-		if (sym) {
-			printf("%s", sym_type_name(sym->type));
-			printf(" | ");
-			printf("%s", dbg_sym_flags(sym->flags));
-			printf("\n");
-		} else
-			printf("\n");
-#endif
+
 		if ((view_mode != FULL_VIEW) && (ptype == P_MENU)
 		    && (tree == tree2))
 			continue;
@@ -1405,6 +1347,8 @@ static void display_tree_part(void)
 		display_tree(current);
 	else if (view_mode == SPLIT_VIEW)
 		display_tree(browsed);
+	else if (view_mode == FULL_VIEW)
+		display_tree(&rootmenu);
 	gtk_tree_view_expand_all(GTK_TREE_VIEW(tree2_w));
 }
 

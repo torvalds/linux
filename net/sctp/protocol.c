@@ -552,7 +552,7 @@ static void sctp_v4_get_saddr(struct sctp_sock *sk,
 			      struct flowi *fl)
 {
 	union sctp_addr *saddr = &t->saddr;
-	struct rtable *rt = (struct rtable *)t->dst;
+	struct rtable *rt = dst_rtable(t->dst);
 
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
@@ -1085,7 +1085,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb, struct sctp_transport *t)
 	skb_reset_inner_mac_header(skb);
 	skb_reset_inner_transport_header(skb);
 	skb_set_inner_ipproto(skb, IPPROTO_SCTP);
-	udp_tunnel_xmit_skb((struct rtable *)dst, sk, skb, fl4->saddr,
+	udp_tunnel_xmit_skb(dst_rtable(dst), sk, skb, fl4->saddr,
 			    fl4->daddr, dscp, ip4_dst_hoplimit(dst), df,
 			    sctp_sk(sk)->udp_port, t->encap_port, false, false);
 	return 0;
@@ -1495,17 +1495,11 @@ static __init int sctp_init(void)
 
 	/* Allocate bind_bucket and chunk caches. */
 	status = -ENOBUFS;
-	sctp_bucket_cachep = kmem_cache_create("sctp_bind_bucket",
-					       sizeof(struct sctp_bind_bucket),
-					       0, SLAB_HWCACHE_ALIGN,
-					       NULL);
+	sctp_bucket_cachep = KMEM_CACHE(sctp_bind_bucket, SLAB_HWCACHE_ALIGN);
 	if (!sctp_bucket_cachep)
 		goto out;
 
-	sctp_chunk_cachep = kmem_cache_create("sctp_chunk",
-					       sizeof(struct sctp_chunk),
-					       0, SLAB_HWCACHE_ALIGN,
-					       NULL);
+	sctp_chunk_cachep = KMEM_CACHE(sctp_chunk, SLAB_HWCACHE_ALIGN);
 	if (!sctp_chunk_cachep)
 		goto err_chunk_cachep;
 

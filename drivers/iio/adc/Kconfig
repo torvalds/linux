@@ -70,6 +70,23 @@ config AD7124
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad7124.
 
+config AD7173
+	tristate "Analog Devices AD7173 driver"
+	depends on SPI_MASTER
+	select AD_SIGMA_DELTA
+	select GPIO_REGMAP if GPIOLIB
+	select REGMAP_SPI if GPIOLIB
+	help
+	  Say yes here to build support for Analog Devices AD7173 and similar ADC
+	  Currently supported models:
+	   - AD7172-2
+	   - AD7173-8
+	   - AD7175-2
+	   - AD7176-2
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7173.
+
 config AD7192
 	tristate "Analog Devices AD7190 AD7192 AD7193 AD7195 ADC driver"
 	depends on SPI
@@ -264,6 +281,16 @@ config AD7923
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7923.
 
+config AD7944
+	tristate "Analog Devices AD7944 and similar ADCs driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7944, AD7985, AD7986 ADCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7944
+
 config AD7949
 	tristate "Analog Devices AD7949 and similar ADCs driver"
 	depends on SPI
@@ -291,7 +318,7 @@ config AD799X
 config AD9467
 	tristate "Analog Devices AD9467 High Speed ADC driver"
 	depends on SPI
-	depends on ADI_AXI_ADC
+	select IIO_BACKEND
 	help
 	  Say yes here to build support for Analog Devices:
 	  * AD9467 16-Bit, 200 MSPS/250 MSPS Analog-to-Digital Converter
@@ -309,7 +336,7 @@ config ADI_AXI_ADC
 	select IIO_BUFFER_HW_CONSUMER
 	select IIO_BUFFER_DMAENGINE
 	select REGMAP_MMIO
-	depends on OF
+	select IIO_BACKEND
 	help
 	  Say yes here to build support for Analog Devices Generic
 	  AXI ADC IP core. The IP core is used for interfacing with
@@ -930,6 +957,17 @@ config NPCM_ADC
 	  This driver can also be built as a module. If so, the module
 	  will be called npcm_adc.
 
+config PAC1934
+	tristate "Microchip Technology PAC1934 driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Microchip Technology's PAC1931,
+	  PAC1932, PAC1933, PAC1934 Single/Multi-Channel Power Monitor with
+	  Accumulator.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pac1934.
+
 config PALMAS_GPADC
 	tristate "TI Palmas General Purpose ADC"
 	depends on MFD_PALMAS
@@ -1311,6 +1349,17 @@ config TI_ADS1100
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-ads1100.
+
+config TI_ADS1298
+	tristate "Texas Instruments ADS1298"
+	depends on SPI
+	select IIO_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADS1298
+	  medical ADC chips
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads1298.
 
 config TI_ADS7950
 	tristate "Texas Instruments ADS7950 ADC driver"

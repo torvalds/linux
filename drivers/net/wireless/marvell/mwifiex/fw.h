@@ -770,7 +770,7 @@ struct mwifiex_chan_scan_param_set {
 
 struct mwifiex_ie_types_chan_list_param_set {
 	struct mwifiex_ie_types_header header;
-	struct mwifiex_chan_scan_param_set chan_scan_param[1];
+	struct mwifiex_chan_scan_param_set chan_scan_param[];
 } __packed;
 
 struct mwifiex_ie_types_rxba_sync {

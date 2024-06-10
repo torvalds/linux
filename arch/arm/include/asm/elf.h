@@ -4,7 +4,6 @@
 
 #include <asm/auxvec.h>
 #include <asm/hwcap.h>
-#include <asm/vdso_datapage.h>
 
 /*
  * ELF register definitions..

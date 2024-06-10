@@ -55,6 +55,9 @@
 #define MODULES_LOWEST_VADDR	(KERNEL_LINK_ADDR - SZ_2G)
 #define MODULES_VADDR		(PFN_ALIGN((unsigned long)&_end) - SZ_2G)
 #define MODULES_END		(PFN_ALIGN((unsigned long)&_start))
+#else
+#define MODULES_VADDR		VMALLOC_START
+#define MODULES_END		VMALLOC_END
 #endif
 
 /*
@@ -127,16 +130,10 @@
 #define VA_USER_SV48 (UL(1) << (VA_BITS_SV48 - 1))
 #define VA_USER_SV57 (UL(1) << (VA_BITS_SV57 - 1))
 
-#ifdef CONFIG_COMPAT
 #define MMAP_VA_BITS_64 ((VA_BITS >= VA_BITS_SV48) ? VA_BITS_SV48 : VA_BITS)
 #define MMAP_MIN_VA_BITS_64 (VA_BITS_SV39)
 #define MMAP_VA_BITS (is_compat_task() ? VA_BITS_SV32 : MMAP_VA_BITS_64)
 #define MMAP_MIN_VA_BITS (is_compat_task() ? VA_BITS_SV32 : MMAP_MIN_VA_BITS_64)
-#else
-#define MMAP_VA_BITS ((VA_BITS >= VA_BITS_SV48) ? VA_BITS_SV48 : VA_BITS)
-#define MMAP_MIN_VA_BITS (VA_BITS_SV39)
-#endif /* CONFIG_COMPAT */
-
 #else
 #include <asm/pgtable-32.h>
 #endif /* CONFIG_64BIT */
@@ -241,7 +238,7 @@ static inline int pmd_bad(pmd_t pmd)
 }
 
 #define pmd_leaf	pmd_leaf
-static inline int pmd_leaf(pmd_t pmd)
+static inline bool pmd_leaf(pmd_t pmd)
 {
 	return pmd_present(pmd) && (pmd_val(pmd) & _PAGE_LEAF);
 }
@@ -439,9 +436,11 @@ static inline pte_t pte_mkhuge(pte_t pte)
 	return pte;
 }
 
+#ifdef CONFIG_RISCV_ISA_SVNAPOT
 #define pte_leaf_size(pte)	(pte_napot(pte) ?				\
 					napot_cont_size(napot_cont_order(pte)) :\
 					PAGE_SIZE)
+#endif
 
 #ifdef CONFIG_NUMA_BALANCING
 /*
@@ -517,15 +516,17 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 	WRITE_ONCE(*ptep, pteval);
 }
 
-void flush_icache_pte(pte_t pte);
+void flush_icache_pte(struct mm_struct *mm, pte_t pte);
 
-static inline void __set_pte_at(pte_t *ptep, pte_t pteval)
+static inline void __set_pte_at(struct mm_struct *mm, pte_t *ptep, pte_t pteval)
 {
 	if (pte_present(pteval) && pte_exec(pteval))
-		flush_icache_pte(pteval);
+		flush_icache_pte(mm, pteval);
 
 	set_pte(ptep, pteval);
 }
+
+#define PFN_PTE_SHIFT		_PAGE_PFN_SHIFT
 
 static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 		pte_t *ptep, pte_t pteval, unsigned int nr)
@@ -533,7 +534,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 	page_table_check_ptes_set(mm, ptep, pteval, nr);
 
 	for (;;) {
-		__set_pte_at(ptep, pteval);
+		__set_pte_at(mm, ptep, pteval);
 		if (--nr == 0)
 			break;
 		ptep++;
@@ -545,7 +546,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 static inline void pte_clear(struct mm_struct *mm,
 	unsigned long addr, pte_t *ptep)
 {
-	__set_pte_at(ptep, __pte(0));
+	__set_pte_at(mm, ptep, __pte(0));
 }
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS	/* defined in mm/pgtable.c */
@@ -593,6 +594,12 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 	 * pressure for swapout to react to. ]
 	 */
 	return ptep_test_and_clear_young(vma, address, ptep);
+}
+
+#define pgprot_nx pgprot_nx
+static inline pgprot_t pgprot_nx(pgprot_t _prot)
+{
+	return __pgprot(pgprot_val(_prot) & ~_PAGE_EXEC);
 }
 
 #define pgprot_noncached pgprot_noncached
@@ -644,6 +651,7 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 
 #define __pud_to_phys(pud)  (__page_val_to_pfn(pud_val(pud)) << PAGE_SHIFT)
 
+#define pud_pfn pud_pfn
 static inline unsigned long pud_pfn(pud_t pud)
 {
 	return ((__pud_to_phys(pud) & PUD_MASK) >> PAGE_SHIFT);
@@ -658,6 +666,12 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 static inline int pmd_write(pmd_t pmd)
 {
 	return pte_write(pmd_pte(pmd));
+}
+
+#define pud_write pud_write
+static inline int pud_write(pud_t pud)
+{
+	return pte_write(pud_pte(pud));
 }
 
 #define pmd_dirty pmd_dirty
@@ -711,14 +725,14 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 				pmd_t *pmdp, pmd_t pmd)
 {
 	page_table_check_pmd_set(mm, pmdp, pmd);
-	return __set_pte_at((pte_t *)pmdp, pmd_pte(pmd));
+	return __set_pte_at(mm, (pte_t *)pmdp, pmd_pte(pmd));
 }
 
 static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
 				pud_t *pudp, pud_t pud)
 {
 	page_table_check_pud_set(mm, pudp, pud);
-	return __set_pte_at((pte_t *)pudp, pud_pte(pud));
+	return __set_pte_at(mm, (pte_t *)pudp, pud_pte(pud));
 }
 
 #ifdef CONFIG_PAGE_TABLE_CHECK
@@ -866,11 +880,11 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
  */
 #ifdef CONFIG_64BIT
 #define TASK_SIZE_64	(PGDIR_SIZE * PTRS_PER_PGD / 2)
-#define TASK_SIZE_MIN	(PGDIR_SIZE_L3 * PTRS_PER_PGD / 2)
+#define TASK_SIZE_MAX	LONG_MAX
 
 #ifdef CONFIG_COMPAT
-#define TASK_SIZE_32	(_AC(0x80000000, UL))
-#define TASK_SIZE	(test_thread_flag(TIF_32BIT) ? \
+#define TASK_SIZE_32	(_AC(0x80000000, UL) - PAGE_SIZE)
+#define TASK_SIZE	(is_compat_task() ? \
 			 TASK_SIZE_32 : TASK_SIZE_64)
 #else
 #define TASK_SIZE	TASK_SIZE_64
@@ -878,7 +892,6 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 
 #else
 #define TASK_SIZE	FIXADDR_START
-#define TASK_SIZE_MIN	TASK_SIZE
 #endif
 
 #else /* CONFIG_MMU */
@@ -886,7 +899,7 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 #define PAGE_SHARED		__pgprot(0)
 #define PAGE_KERNEL		__pgprot(0)
 #define swapper_pg_dir		NULL
-#define TASK_SIZE		0xffffffffUL
+#define TASK_SIZE		_AC(-1, UL)
 #define VMALLOC_START		_AC(0, UL)
 #define VMALLOC_END		TASK_SIZE
 

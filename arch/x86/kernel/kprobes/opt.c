@@ -324,7 +324,7 @@ static int can_optimize(unsigned long paddr)
 		 * However, the kernel built with retpolines or IBT has jump
 		 * tables disabled so the check can be skipped altogether.
 		 */
-		if (!IS_ENABLED(CONFIG_RETPOLINE) &&
+		if (!IS_ENABLED(CONFIG_MITIGATION_RETPOLINE) &&
 		    !IS_ENABLED(CONFIG_X86_KERNEL_IBT) &&
 		    insn_is_indirect_jump(&insn))
 			return 0;

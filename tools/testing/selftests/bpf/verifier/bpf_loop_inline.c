@@ -57,6 +57,7 @@
 	.expected_insns = { PSEUDO_CALL_INSN() },
 	.unexpected_insns = { HELPER_CALL_INSN() },
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.flags = F_NEEDS_JIT_ENABLED,
 	.result = ACCEPT,
 	.runs = 0,
 	.func_info = { { 0, MAIN_TYPE }, { 12, CALLBACK_TYPE } },
@@ -90,6 +91,7 @@
 	.expected_insns = { HELPER_CALL_INSN() },
 	.unexpected_insns = { PSEUDO_CALL_INSN() },
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.flags = F_NEEDS_JIT_ENABLED,
 	.result = ACCEPT,
 	.runs = 0,
 	.func_info = { { 0, MAIN_TYPE }, { 16, CALLBACK_TYPE } },
@@ -127,6 +129,7 @@
 	.expected_insns = { HELPER_CALL_INSN() },
 	.unexpected_insns = { PSEUDO_CALL_INSN() },
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.flags = F_NEEDS_JIT_ENABLED,
 	.result = ACCEPT,
 	.runs = 0,
 	.func_info = {
@@ -165,6 +168,7 @@
 	.expected_insns = { PSEUDO_CALL_INSN() },
 	.unexpected_insns = { HELPER_CALL_INSN() },
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.flags = F_NEEDS_JIT_ENABLED,
 	.result = ACCEPT,
 	.runs = 0,
 	.func_info = {
@@ -235,6 +239,7 @@
 	},
 	.unexpected_insns = { HELPER_CALL_INSN() },
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.flags = F_NEEDS_JIT_ENABLED,
 	.result = ACCEPT,
 	.func_info = {
 		{ 0, MAIN_TYPE },
@@ -252,6 +257,7 @@
 	.unexpected_insns = { HELPER_CALL_INSN() },
 	.result = ACCEPT,
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.flags = F_NEEDS_JIT_ENABLED,
 	.func_info = { { 0, MAIN_TYPE }, { 16, CALLBACK_TYPE } },
 	.func_info_cnt = 2,
 	BTF_TYPES

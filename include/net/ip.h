@@ -423,7 +423,7 @@ int ip_decrease_ttl(struct iphdr *iph)
 
 static inline int ip_mtu_locked(const struct dst_entry *dst)
 {
-	const struct rtable *rt = (const struct rtable *)dst;
+	const struct rtable *rt = dst_rtable(dst);
 
 	return rt->rt_mtu_locked || dst_metric_locked(dst, RTAX_MTU);
 }
@@ -461,7 +461,7 @@ static inline bool ip_sk_ignore_df(const struct sock *sk)
 static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
 						    bool forwarding)
 {
-	const struct rtable *rt = container_of(dst, struct rtable, dst);
+	const struct rtable *rt = dst_rtable(dst);
 	struct net *net = dev_net(dst->dev);
 	unsigned int mtu;
 

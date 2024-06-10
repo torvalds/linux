@@ -927,10 +927,13 @@ static const struct snd_pcm_hardware loopback_pcm_hardware =
 			 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE |
 			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_3BE |
 			 SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE |
-			 SNDRV_PCM_FMTBIT_FLOAT_LE | SNDRV_PCM_FMTBIT_FLOAT_BE),
-	.rates =	SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_192000,
+			 SNDRV_PCM_FMTBIT_FLOAT_LE | SNDRV_PCM_FMTBIT_FLOAT_BE |
+			 SNDRV_PCM_FMTBIT_DSD_U8 |
+			 SNDRV_PCM_FMTBIT_DSD_U16_LE | SNDRV_PCM_FMTBIT_DSD_U16_BE |
+			 SNDRV_PCM_FMTBIT_DSD_U32_LE | SNDRV_PCM_FMTBIT_DSD_U32_BE),
+	.rates =	SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_768000,
 	.rate_min =		8000,
-	.rate_max =		192000,
+	.rate_max =		768000,
 	.channels_min =		1,
 	.channels_max =		32,
 	.buffer_bytes_max =	2 * 1024 * 1024,
@@ -1830,7 +1833,6 @@ static int loopback_probe(struct platform_device *devptr)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int loopback_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
@@ -1847,11 +1849,7 @@ static int loopback_resume(struct device *pdev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(loopback_pm, loopback_suspend, loopback_resume);
-#define LOOPBACK_PM_OPS	&loopback_pm
-#else
-#define LOOPBACK_PM_OPS	NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(loopback_pm, loopback_suspend, loopback_resume);
 
 #define SND_LOOPBACK_DRIVER	"snd_aloop"
 
@@ -1859,7 +1857,7 @@ static struct platform_driver loopback_driver = {
 	.probe		= loopback_probe,
 	.driver		= {
 		.name	= SND_LOOPBACK_DRIVER,
-		.pm	= LOOPBACK_PM_OPS,
+		.pm	= &loopback_pm,
 	},
 };
 

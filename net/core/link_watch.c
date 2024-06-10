@@ -33,7 +33,7 @@ static DECLARE_DELAYED_WORK(linkwatch_work, linkwatch_event);
 static LIST_HEAD(lweventlist);
 static DEFINE_SPINLOCK(lweventlist_lock);
 
-static unsigned char default_operstate(const struct net_device *dev)
+static unsigned int default_operstate(const struct net_device *dev)
 {
 	if (netif_testing(dev))
 		return IF_OPER_TESTING;
@@ -62,15 +62,12 @@ static unsigned char default_operstate(const struct net_device *dev)
 	return IF_OPER_UP;
 }
 
-
 static void rfc2863_policy(struct net_device *dev)
 {
-	unsigned char operstate = default_operstate(dev);
+	unsigned int operstate = default_operstate(dev);
 
-	if (operstate == dev->operstate)
+	if (operstate == READ_ONCE(dev->operstate))
 		return;
-
-	write_lock(&dev_base_lock);
 
 	switch(dev->link_mode) {
 	case IF_LINK_MODE_TESTING:
@@ -87,9 +84,7 @@ static void rfc2863_policy(struct net_device *dev)
 		break;
 	}
 
-	dev->operstate = operstate;
-
-	write_unlock(&dev_base_lock);
+	WRITE_ONCE(dev->operstate, operstate);
 }
 
 

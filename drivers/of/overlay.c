@@ -262,9 +262,7 @@ static struct property *dup_and_fixup_symbol_prop(
 	return new_prop;
 
 err_free_new_prop:
-	kfree(new_prop->name);
-	kfree(new_prop->value);
-	kfree(new_prop);
+	__of_prop_free(new_prop);
 err_free_target_path:
 	kfree(target_path);
 
@@ -361,11 +359,8 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
 		pr_err("WARNING: memory leak will occur if overlay removed, property: %pOF/%s\n",
 		       target->np, new_prop->name);
 
-	if (ret) {
-		kfree(new_prop->name);
-		kfree(new_prop->value);
-		kfree(new_prop);
-	}
+	if (ret)
+		__of_prop_free(new_prop);
 	return ret;
 }
 

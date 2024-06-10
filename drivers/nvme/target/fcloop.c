@@ -1556,7 +1556,9 @@ static const struct attribute_group *fcloop_dev_attr_groups[] = {
 	NULL,
 };
 
-static struct class *fcloop_class;
+static const struct class fcloop_class = {
+	.name = "fcloop",
+};
 static struct device *fcloop_device;
 
 
@@ -1564,15 +1566,14 @@ static int __init fcloop_init(void)
 {
 	int ret;
 
-	fcloop_class = class_create("fcloop");
-	if (IS_ERR(fcloop_class)) {
+	ret = class_register(&fcloop_class);
+	if (ret) {
 		pr_err("couldn't register class fcloop\n");
-		ret = PTR_ERR(fcloop_class);
 		return ret;
 	}
 
 	fcloop_device = device_create_with_groups(
-				fcloop_class, NULL, MKDEV(0, 0), NULL,
+				&fcloop_class, NULL, MKDEV(0, 0), NULL,
 				fcloop_dev_attr_groups, "ctl");
 	if (IS_ERR(fcloop_device)) {
 		pr_err("couldn't create ctl device!\n");
@@ -1585,7 +1586,7 @@ static int __init fcloop_init(void)
 	return 0;
 
 out_destroy_class:
-	class_destroy(fcloop_class);
+	class_unregister(&fcloop_class);
 	return ret;
 }
 
@@ -1643,8 +1644,8 @@ static void __exit fcloop_exit(void)
 
 	put_device(fcloop_device);
 
-	device_destroy(fcloop_class, MKDEV(0, 0));
-	class_destroy(fcloop_class);
+	device_destroy(&fcloop_class, MKDEV(0, 0));
+	class_unregister(&fcloop_class);
 }
 
 module_init(fcloop_init);

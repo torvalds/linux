@@ -29,7 +29,6 @@ static void noop_send_IPI_self(int vector) { }
 static void noop_apic_icr_write(u32 low, u32 id) { }
 static int noop_wakeup_secondary_cpu(u32 apicid, unsigned long start_eip) { return -1; }
 static u64 noop_apic_icr_read(void) { return 0; }
-static u32 noop_phys_pkg_id(u32 cpuid_apic, int index_msb) { return 0; }
 static u32 noop_get_apic_id(u32 apicid) { return 0; }
 static void noop_apic_eoi(void) { }
 
@@ -51,11 +50,7 @@ struct apic apic_noop __ro_after_init = {
 
 	.disable_esr			= 0,
 
-	.check_apicid_used		= default_check_apicid_used,
-	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
-
-	.phys_pkg_id			= noop_phys_pkg_id,
 
 	.max_apic_id			= 0xFE,
 	.get_apic_id			= noop_get_apic_id,

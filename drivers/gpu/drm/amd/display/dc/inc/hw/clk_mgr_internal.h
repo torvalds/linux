@@ -349,13 +349,14 @@ struct clk_mgr_internal {
 	enum dm_pp_clocks_state cur_min_clks_state;
 	bool periodic_retraining_disabled;
 
-	unsigned int cur_phyclk_req_table[MAX_PIPES * 2];
+	unsigned int cur_phyclk_req_table[MAX_LINKS];
 
 	bool smu_present;
 	void *wm_range_table;
 	long long wm_range_table_addr;
 
 	bool dpm_present;
+	bool pme_trigger_pending;
 };
 
 struct clk_mgr_internal_funcs {
@@ -391,6 +392,11 @@ static inline bool should_update_pstate_support(bool safe_to_lower, bool calc_su
 static inline int khz_to_mhz_ceil(int khz)
 {
 	return (khz + 999) / 1000;
+}
+
+static inline int khz_to_mhz_floor(int khz)
+{
+	return khz / 1000;
 }
 
 int clk_mgr_helper_get_active_display_cnt(

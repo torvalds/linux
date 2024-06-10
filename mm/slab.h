@@ -84,11 +84,11 @@ struct slab {
 		};
 		struct rcu_head rcu_head;
 	};
-	unsigned int __unused;
 
+	unsigned int __page_type;
 	atomic_t __page_refcount;
-#ifdef CONFIG_MEMCG
-	unsigned long memcg_data;
+#ifdef CONFIG_SLAB_OBJ_EXT
+	unsigned long obj_exts;
 #endif
 };
 
@@ -97,8 +97,8 @@ struct slab {
 SLAB_MATCH(flags, __page_flags);
 SLAB_MATCH(compound_head, slab_cache);	/* Ensure bit 0 is clear */
 SLAB_MATCH(_refcount, __page_refcount);
-#ifdef CONFIG_MEMCG
-SLAB_MATCH(memcg_data, memcg_data);
+#ifdef CONFIG_SLAB_OBJ_EXT
+SLAB_MATCH(memcg_data, obj_exts);
 #endif
 #undef SLAB_MATCH
 static_assert(sizeof(struct slab) <= sizeof(struct page));
@@ -363,7 +363,6 @@ static inline int objs_per_slab(const struct kmem_cache *cache,
 enum slab_state {
 	DOWN,			/* No slab functionality yet */
 	PARTIAL,		/* SLUB: kmem_cache_node available */
-	PARTIAL_NODE,		/* SLAB: kmalloc size for node struct available */
 	UP,			/* Slab caches usable but not all extras yet */
 	FULL			/* Everything is working */
 };
@@ -387,7 +386,7 @@ extern const struct kmalloc_info_struct {
 
 /* Kmalloc array related functions */
 void setup_kmalloc_cache_index_table(void);
-void create_kmalloc_caches(slab_flags_t);
+void create_kmalloc_caches(void);
 
 extern u8 kmalloc_size_index[24];
 
@@ -422,8 +421,6 @@ gfp_t kmalloc_fix_flags(gfp_t flags);
 int __kmem_cache_create(struct kmem_cache *, slab_flags_t flags);
 
 void __init kmem_cache_init(void);
-void __init new_kmalloc_cache(int idx, enum kmalloc_cache_type type,
-			      slab_flags_t flags);
 extern void create_boot_cache(struct kmem_cache *, const char *name,
 			unsigned int size, slab_flags_t flags,
 			unsigned int useroffset, unsigned int usersize);
@@ -435,8 +432,7 @@ struct kmem_cache *
 __kmem_cache_alias(const char *name, unsigned int size, unsigned int align,
 		   slab_flags_t flags, void (*ctor)(void *));
 
-slab_flags_t kmem_cache_flags(unsigned int object_size,
-	slab_flags_t flags, const char *name);
+slab_flags_t kmem_cache_flags(slab_flags_t flags, const char *name);
 
 static inline bool is_kmalloc_cache(struct kmem_cache *s)
 {
@@ -469,7 +465,6 @@ static inline bool is_kmalloc_cache(struct kmem_cache *s)
 			      SLAB_STORE_USER | \
 			      SLAB_TRACE | \
 			      SLAB_CONSISTENCY_CHECKS | \
-			      SLAB_MEM_SPREAD | \
 			      SLAB_NOLEAKTRACE | \
 			      SLAB_RECLAIM_ACCOUNT | \
 			      SLAB_TEMPORARY | \
@@ -501,9 +496,6 @@ struct slabinfo {
 };
 
 void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo);
-void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
-ssize_t slabinfo_write(struct file *file, const char __user *buffer,
-		       size_t count, loff_t *ppos);
 
 #ifdef CONFIG_SLUB_DEBUG
 #ifdef CONFIG_SLUB_DEBUG_ON
@@ -528,7 +520,7 @@ static inline bool __slub_debug_enabled(void)
 #endif
 
 /*
- * Returns true if any of the specified slub_debug flags is enabled for the
+ * Returns true if any of the specified slab_debug flags is enabled for the
  * cache. Use only for flags parsed by setup_slub_debug() as it also enables
  * the static key.
  */
@@ -541,42 +533,52 @@ static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t fla
 	return false;
 }
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_SLAB_OBJ_EXT
+
 /*
- * slab_objcgs - get the object cgroups vector associated with a slab
+ * slab_obj_exts - get the pointer to the slab object extension vector
+ * associated with a slab.
  * @slab: a pointer to the slab struct
  *
- * Returns a pointer to the object cgroups vector associated with the slab,
+ * Returns a pointer to the object extension vector associated with the slab,
  * or NULL if no such vector has been associated yet.
  */
-static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
+static inline struct slabobj_ext *slab_obj_exts(struct slab *slab)
 {
-	unsigned long memcg_data = READ_ONCE(slab->memcg_data);
+	unsigned long obj_exts = READ_ONCE(slab->obj_exts);
 
-	VM_BUG_ON_PAGE(memcg_data && !(memcg_data & MEMCG_DATA_OBJCGS),
+#ifdef CONFIG_MEMCG
+	VM_BUG_ON_PAGE(obj_exts && !(obj_exts & MEMCG_DATA_OBJEXTS),
 							slab_page(slab));
-	VM_BUG_ON_PAGE(memcg_data & MEMCG_DATA_KMEM, slab_page(slab));
-
-	return (struct obj_cgroup **)(memcg_data & ~MEMCG_DATA_FLAGS_MASK);
+	VM_BUG_ON_PAGE(obj_exts & MEMCG_DATA_KMEM, slab_page(slab));
+#endif
+	return (struct slabobj_ext *)(obj_exts & ~OBJEXTS_FLAGS_MASK);
 }
 
-int memcg_alloc_slab_cgroups(struct slab *slab, struct kmem_cache *s,
-				 gfp_t gfp, bool new_slab);
-void mod_objcg_state(struct obj_cgroup *objcg, struct pglist_data *pgdat,
-		     enum node_stat_item idx, int nr);
-#else /* CONFIG_MEMCG_KMEM */
-static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
+int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
+                        gfp_t gfp, bool new_slab);
+
+#else /* CONFIG_SLAB_OBJ_EXT */
+
+static inline struct slabobj_ext *slab_obj_exts(struct slab *slab)
 {
 	return NULL;
 }
 
-static inline int memcg_alloc_slab_cgroups(struct slab *slab,
-					       struct kmem_cache *s, gfp_t gfp,
-					       bool new_slab)
+#endif /* CONFIG_SLAB_OBJ_EXT */
+
+static inline enum node_stat_item cache_vmstat_idx(struct kmem_cache *s)
 {
-	return 0;
+	return (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+		NR_SLAB_RECLAIMABLE_B : NR_SLAB_UNRECLAIMABLE_B;
 }
-#endif /* CONFIG_MEMCG_KMEM */
+
+#ifdef CONFIG_MEMCG_KMEM
+bool __memcg_slab_post_alloc_hook(struct kmem_cache *s, struct list_lru *lru,
+				  gfp_t flags, size_t size, void **p);
+void __memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
+			    void **p, int objects, struct slabobj_ext *obj_exts);
+#endif
 
 size_t __ksize(const void *objp);
 

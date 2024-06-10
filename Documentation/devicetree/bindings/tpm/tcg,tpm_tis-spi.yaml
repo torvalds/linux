@@ -20,6 +20,7 @@ properties:
   compatible:
     items:
       - enum:
+          - atmel,attpm20p
           - infineon,slb9670
           - st,st33htpm-spi
           - st,st33zp24-spi

@@ -1535,30 +1535,11 @@ void dsa_port_set_tag_protocol(struct dsa_port *cpu_dp,
 	cpu_dp->tag_ops = tag_ops;
 }
 
-static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
-{
-	struct device_node *phy_dn;
-	struct phy_device *phydev;
-
-	phy_dn = of_parse_phandle(dp->dn, "phy-handle", 0);
-	if (!phy_dn)
-		return NULL;
-
-	phydev = of_phy_find_device(phy_dn);
-	if (!phydev) {
-		of_node_put(phy_dn);
-		return ERR_PTR(-EPROBE_DEFER);
-	}
-
-	of_node_put(phy_dn);
-	return phydev;
-}
-
 static struct phylink_pcs *
 dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
 				phy_interface_t interface)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
 	struct dsa_switch *ds = dp->ds;
 
@@ -1572,7 +1553,7 @@ static int dsa_port_phylink_mac_prepare(struct phylink_config *config,
 					unsigned int mode,
 					phy_interface_t interface)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct dsa_switch *ds = dp->ds;
 	int err = 0;
 
@@ -1587,7 +1568,7 @@ static void dsa_port_phylink_mac_config(struct phylink_config *config,
 					unsigned int mode,
 					const struct phylink_link_state *state)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct dsa_switch *ds = dp->ds;
 
 	if (!ds->ops->phylink_mac_config)
@@ -1600,7 +1581,7 @@ static int dsa_port_phylink_mac_finish(struct phylink_config *config,
 				       unsigned int mode,
 				       phy_interface_t interface)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct dsa_switch *ds = dp->ds;
 	int err = 0;
 
@@ -1615,18 +1596,11 @@ static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 					   unsigned int mode,
 					   phy_interface_t interface)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct phy_device *phydev = NULL;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct dsa_switch *ds = dp->ds;
 
-	if (dsa_port_is_user(dp))
-		phydev = dp->user->phydev;
-
-	if (!ds->ops->phylink_mac_link_down) {
-		if (ds->ops->adjust_link && phydev)
-			ds->ops->adjust_link(ds, dp->index, phydev);
+	if (!ds->ops->phylink_mac_link_down)
 		return;
-	}
 
 	ds->ops->phylink_mac_link_down(ds, dp->index, mode, interface);
 }
@@ -1638,14 +1612,11 @@ static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 					 int speed, int duplex,
 					 bool tx_pause, bool rx_pause)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct dsa_switch *ds = dp->ds;
 
-	if (!ds->ops->phylink_mac_link_up) {
-		if (ds->ops->adjust_link && phydev)
-			ds->ops->adjust_link(ds, dp->index, phydev);
+	if (!ds->ops->phylink_mac_link_up)
 		return;
-	}
 
 	ds->ops->phylink_mac_link_up(ds, dp->index, mode, interface, phydev,
 				     speed, duplex, tx_pause, rx_pause);
@@ -1662,6 +1633,7 @@ static const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
 
 int dsa_port_phylink_create(struct dsa_port *dp)
 {
+	const struct phylink_mac_ops *mac_ops;
 	struct dsa_switch *ds = dp->ds;
 	phy_interface_t mode;
 	struct phylink *pl;
@@ -1685,8 +1657,12 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 		}
 	}
 
-	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
-			    mode, &dsa_port_phylink_mac_ops);
+	mac_ops = &dsa_port_phylink_mac_ops;
+	if (ds->phylink_mac_ops)
+		mac_ops = ds->phylink_mac_ops;
+
+	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn), mode,
+			    mac_ops);
 	if (IS_ERR(pl)) {
 		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(pl));
 		return PTR_ERR(pl);
@@ -1701,78 +1677,6 @@ void dsa_port_phylink_destroy(struct dsa_port *dp)
 {
 	phylink_destroy(dp->pl);
 	dp->pl = NULL;
-}
-
-static int dsa_shared_port_setup_phy_of(struct dsa_port *dp, bool enable)
-{
-	struct dsa_switch *ds = dp->ds;
-	struct phy_device *phydev;
-	int port = dp->index;
-	int err = 0;
-
-	phydev = dsa_port_get_phy_device(dp);
-	if (!phydev)
-		return 0;
-
-	if (IS_ERR(phydev))
-		return PTR_ERR(phydev);
-
-	if (enable) {
-		err = genphy_resume(phydev);
-		if (err < 0)
-			goto err_put_dev;
-
-		err = genphy_read_status(phydev);
-		if (err < 0)
-			goto err_put_dev;
-	} else {
-		err = genphy_suspend(phydev);
-		if (err < 0)
-			goto err_put_dev;
-	}
-
-	if (ds->ops->adjust_link)
-		ds->ops->adjust_link(ds, port, phydev);
-
-	dev_dbg(ds->dev, "enabled port's phy: %s", phydev_name(phydev));
-
-err_put_dev:
-	put_device(&phydev->mdio.dev);
-	return err;
-}
-
-static int dsa_shared_port_fixed_link_register_of(struct dsa_port *dp)
-{
-	struct device_node *dn = dp->dn;
-	struct dsa_switch *ds = dp->ds;
-	struct phy_device *phydev;
-	int port = dp->index;
-	phy_interface_t mode;
-	int err;
-
-	err = of_phy_register_fixed_link(dn);
-	if (err) {
-		dev_err(ds->dev,
-			"failed to register the fixed PHY of port %d\n",
-			port);
-		return err;
-	}
-
-	phydev = of_phy_find_device(dn);
-
-	err = of_get_phy_mode(dn, &mode);
-	if (err)
-		mode = PHY_INTERFACE_MODE_NA;
-	phydev->interface = mode;
-
-	genphy_read_status(phydev);
-
-	if (ds->ops->adjust_link)
-		ds->ops->adjust_link(ds, port, phydev);
-
-	put_device(&phydev->mdio.dev);
-
-	return 0;
 }
 
 static int dsa_shared_port_phylink_register(struct dsa_port *dp)
@@ -1952,12 +1856,23 @@ static void dsa_shared_port_validate_of(struct dsa_port *dp,
 		dn, dsa_port_is_cpu(dp) ? "CPU" : "DSA", dp->index);
 }
 
+static void dsa_shared_port_link_down(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->phylink_mac_ops && ds->phylink_mac_ops->mac_link_down)
+		ds->phylink_mac_ops->mac_link_down(&dp->pl_config, MLO_AN_FIXED,
+						   PHY_INTERFACE_MODE_NA);
+	else if (ds->ops->phylink_mac_link_down)
+		ds->ops->phylink_mac_link_down(ds, dp->index, MLO_AN_FIXED,
+					       PHY_INTERFACE_MODE_NA);
+}
+
 int dsa_shared_port_link_register_of(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	bool missing_link_description;
 	bool missing_phy_mode;
-	int port = dp->index;
 
 	dsa_shared_port_validate_of(dp, &missing_phy_mode,
 				    &missing_link_description);
@@ -1967,46 +1882,28 @@ int dsa_shared_port_link_register_of(struct dsa_port *dp)
 					dsa_switches_apply_workarounds))
 		return -EINVAL;
 
-	if (!ds->ops->adjust_link) {
-		if (missing_link_description) {
-			dev_warn(ds->dev,
-				 "Skipping phylink registration for %s port %d\n",
-				 dsa_port_is_cpu(dp) ? "CPU" : "DSA", dp->index);
-		} else {
-			if (ds->ops->phylink_mac_link_down)
-				ds->ops->phylink_mac_link_down(ds, port,
-					MLO_AN_FIXED, PHY_INTERFACE_MODE_NA);
+	if (missing_link_description) {
+		dev_warn(ds->dev,
+			 "Skipping phylink registration for %s port %d\n",
+			 dsa_port_is_cpu(dp) ? "CPU" : "DSA", dp->index);
+	} else {
+		dsa_shared_port_link_down(dp);
 
-			return dsa_shared_port_phylink_register(dp);
-		}
-		return 0;
+		return dsa_shared_port_phylink_register(dp);
 	}
 
-	dev_warn(ds->dev,
-		 "Using legacy PHYLIB callbacks. Please migrate to PHYLINK!\n");
-
-	if (of_phy_is_fixed_link(dp->dn))
-		return dsa_shared_port_fixed_link_register_of(dp);
-	else
-		return dsa_shared_port_setup_phy_of(dp, true);
+	return 0;
 }
 
 void dsa_shared_port_link_unregister_of(struct dsa_port *dp)
 {
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->adjust_link && dp->pl) {
+	if (dp->pl) {
 		rtnl_lock();
 		phylink_disconnect_phy(dp->pl);
 		rtnl_unlock();
 		dsa_port_phylink_destroy(dp);
 		return;
 	}
-
-	if (of_phy_is_fixed_link(dp->dn))
-		of_phy_deregister_fixed_link(dp->dn);
-	else
-		dsa_shared_port_setup_phy_of(dp, false);
 }
 
 int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr,

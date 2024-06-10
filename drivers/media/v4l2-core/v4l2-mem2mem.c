@@ -1087,11 +1087,17 @@ static int v4l2_m2m_register_entity(struct media_device *mdev,
 	entity->function = function;
 
 	ret = media_entity_pads_init(entity, num_pads, pads);
-	if (ret)
+	if (ret) {
+		kfree(entity->name);
+		entity->name = NULL;
 		return ret;
+	}
 	ret = media_device_register_entity(mdev, entity);
-	if (ret)
+	if (ret) {
+		kfree(entity->name);
+		entity->name = NULL;
 		return ret;
+	}
 
 	return 0;
 }
@@ -1379,6 +1385,21 @@ int v4l2_m2m_ioctl_create_bufs(struct file *file, void *priv,
 	return v4l2_m2m_create_bufs(file, fh->m2m_ctx, create);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_create_bufs);
+
+int v4l2_m2m_ioctl_remove_bufs(struct file *file, void *priv,
+			       struct v4l2_remove_buffers *remove)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct vb2_queue *q = v4l2_m2m_get_vq(fh->m2m_ctx, remove->type);
+
+	if (!q)
+		return -EINVAL;
+	if (q->type != remove->type)
+		return -EINVAL;
+
+	return vb2_core_remove_bufs(q, remove->index, remove->count);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_remove_bufs);
 
 int v4l2_m2m_ioctl_querybuf(struct file *file, void *priv,
 				struct v4l2_buffer *buf)

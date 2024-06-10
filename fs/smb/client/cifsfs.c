@@ -151,15 +151,12 @@ MODULE_PARM_DESC(disable_legacy_dialects, "To improve security it may be "
 				  "vers=1.0 (CIFS/SMB1) and vers=2.0 are weaker"
 				  " and less secure. Default: n/N/0");
 
-extern mempool_t *cifs_sm_req_poolp;
-extern mempool_t *cifs_req_poolp;
-extern mempool_t *cifs_mid_poolp;
-
 struct workqueue_struct	*cifsiod_wq;
 struct workqueue_struct	*decrypt_wq;
 struct workqueue_struct	*fileinfo_put_wq;
 struct workqueue_struct	*cifsoplockd_wq;
 struct workqueue_struct	*deferredclose_wq;
+struct workqueue_struct	*serverclose_wq;
 __u32 cifs_lock_secret;
 
 /*
@@ -374,9 +371,13 @@ static struct kmem_cache *cifs_inode_cachep;
 static struct kmem_cache *cifs_req_cachep;
 static struct kmem_cache *cifs_mid_cachep;
 static struct kmem_cache *cifs_sm_req_cachep;
+static struct kmem_cache *cifs_io_request_cachep;
+static struct kmem_cache *cifs_io_subrequest_cachep;
 mempool_t *cifs_sm_req_poolp;
 mempool_t *cifs_req_poolp;
 mempool_t *cifs_mid_poolp;
+mempool_t cifs_io_request_pool;
+mempool_t cifs_io_subrequest_pool;
 
 static struct inode *
 cifs_alloc_inode(struct super_block *sb)
@@ -392,6 +393,7 @@ cifs_alloc_inode(struct super_block *sb)
 	 * server, can not assume caching of file data or metadata.
 	 */
 	cifs_set_oplock_level(cifs_inode, 0);
+	cifs_inode->lease_granted = false;
 	cifs_inode->flags = 0;
 	spin_lock_init(&cifs_inode->writers_lock);
 	cifs_inode->writers = 0;
@@ -673,6 +675,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",backupgid=%u",
 			   from_kgid_munged(&init_user_ns,
 					    cifs_sb->ctx->backupgid));
+	seq_show_option(s, "reparse",
+			cifs_reparse_type_str(cifs_sb->ctx->reparse_type));
 
 	seq_printf(s, ",rsize=%u", cifs_sb->ctx->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->ctx->wsize);
@@ -740,6 +744,8 @@ static void cifs_umount_begin(struct super_block *sb)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	spin_lock(&tcon->tc_lock);
+	trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+			    netfs_trace_tcon_ref_see_umount);
 	if ((tcon->tc_count > 1) || (tcon->status == TID_EXITING)) {
 		/* we have other mounts to same share or we have
 		   already tried to umount this and woken up
@@ -984,61 +990,6 @@ out:
 	return root;
 }
 
-
-static ssize_t
-cifs_loose_read_iter(struct kiocb *iocb, struct iov_iter *iter)
-{
-	ssize_t rc;
-	struct inode *inode = file_inode(iocb->ki_filp);
-
-	if (iocb->ki_flags & IOCB_DIRECT)
-		return cifs_user_readv(iocb, iter);
-
-	rc = cifs_revalidate_mapping(inode);
-	if (rc)
-		return rc;
-
-	return generic_file_read_iter(iocb, iter);
-}
-
-static ssize_t cifs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
-{
-	struct inode *inode = file_inode(iocb->ki_filp);
-	struct cifsInodeInfo *cinode = CIFS_I(inode);
-	ssize_t written;
-	int rc;
-
-	if (iocb->ki_filp->f_flags & O_DIRECT) {
-		written = cifs_user_writev(iocb, from);
-		if (written > 0 && CIFS_CACHE_READ(cinode)) {
-			cifs_zap_mapping(inode);
-			cifs_dbg(FYI,
-				 "Set no oplock for inode=%p after a write operation\n",
-				 inode);
-			cinode->oplock = 0;
-		}
-		return written;
-	}
-
-	written = cifs_get_writer(cinode);
-	if (written)
-		return written;
-
-	written = generic_file_write_iter(iocb, from);
-
-	if (CIFS_CACHE_WRITE(CIFS_I(inode)))
-		goto out;
-
-	rc = filemap_fdatawrite(inode->i_mapping);
-	if (rc)
-		cifs_dbg(FYI, "cifs_file_write_iter: %d rc on %p inode\n",
-			 rc, inode);
-
-out:
-	cifs_put_writer(cinode);
-	return written;
-}
-
 static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct cifsFileInfo *cfile = file->private_data;
@@ -1085,7 +1036,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 }
 
 static int
-cifs_setlease(struct file *file, int arg, struct file_lock **lease, void **priv)
+cifs_setlease(struct file *file, int arg, struct file_lease **lease, void **priv)
 {
 	/*
 	 * Note that this is called by vfs setlease with i_lock held to
@@ -1093,9 +1044,6 @@ cifs_setlease(struct file *file, int arg, struct file_lock **lease, void **priv)
 	 */
 	struct inode *inode = file_inode(file);
 	struct cifsFileInfo *cfile = file->private_data;
-
-	if (!(S_ISREG(inode->i_mode)))
-		return -EINVAL;
 
 	/* Check if file is oplocked if this is request for new lease */
 	if (arg == F_UNLCK ||
@@ -1278,7 +1226,7 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	struct cifsFileInfo *smb_file_src = src_file->private_data;
 	struct cifsFileInfo *smb_file_target = dst_file->private_data;
 	struct cifs_tcon *target_tcon, *src_tcon;
-	unsigned long long destend, fstart, fend, new_size;
+	unsigned long long destend, fstart, fend, old_size, new_size;
 	unsigned int xid;
 	int rc;
 
@@ -1343,6 +1291,9 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	rc = cifs_flush_folio(target_inode, destend, &fstart, &fend, false);
 	if (rc)
 		goto unlock;
+	if (fend > target_cifsi->netfs.zero_point)
+		target_cifsi->netfs.zero_point = fend + 1;
+	old_size = target_cifsi->netfs.remote_i_size;
 
 	/* Discard all the folios that overlap the destination region. */
 	cifs_dbg(FYI, "about to discard pages %llx-%llx\n", fstart, fend);
@@ -1355,12 +1306,13 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	if (target_tcon->ses->server->ops->duplicate_extents) {
 		rc = target_tcon->ses->server->ops->duplicate_extents(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
-		if (rc == 0 && new_size > i_size_read(target_inode)) {
+		if (rc == 0 && new_size > old_size) {
 			truncate_setsize(target_inode, new_size);
-			netfs_resize_file(&target_cifsi->netfs, new_size, true);
 			fscache_resize_cookie(cifs_inode_cookie(target_inode),
 					      new_size);
 		}
+		if (rc == 0 && new_size > target_cifsi->netfs.zero_point)
+			target_cifsi->netfs.zero_point = new_size;
 	}
 
 	/* force revalidate of size and timestamps of target file now
@@ -1452,6 +1404,8 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	rc = cifs_flush_folio(target_inode, destend, &fstart, &fend, false);
 	if (rc)
 		goto unlock;
+	if (fend > target_cifsi->netfs.zero_point)
+		target_cifsi->netfs.zero_point = fend + 1;
 
 	/* Discard all the folios that overlap the destination region. */
 	truncate_inode_pages_range(&target_inode->i_data, fstart, fend);
@@ -1568,8 +1522,8 @@ const struct file_operations cifs_file_strict_ops = {
 };
 
 const struct file_operations cifs_file_direct_ops = {
-	.read_iter = cifs_direct_readv,
-	.write_iter = cifs_direct_writev,
+	.read_iter = netfs_unbuffered_read_iter,
+	.write_iter = netfs_file_write_iter,
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
@@ -1624,8 +1578,8 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 };
 
 const struct file_operations cifs_file_direct_nobrl_ops = {
-	.read_iter = cifs_direct_readv,
-	.write_iter = cifs_direct_writev,
+	.read_iter = netfs_unbuffered_read_iter,
+	.write_iter = netfs_file_write_iter,
 	.open = cifs_open,
 	.release = cifs_close,
 	.fsync = cifs_fsync,
@@ -1667,7 +1621,7 @@ cifs_init_inodecache(void)
 	cifs_inode_cachep = kmem_cache_create("cifs_inode_cache",
 					      sizeof(struct cifsInodeInfo),
 					      0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+						SLAB_ACCOUNT),
 					      cifs_init_once);
 	if (cifs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -1800,6 +1754,48 @@ static void destroy_mids(void)
 	kmem_cache_destroy(cifs_mid_cachep);
 }
 
+static int cifs_init_netfs(void)
+{
+	cifs_io_request_cachep =
+		kmem_cache_create("cifs_io_request",
+				  sizeof(struct cifs_io_request), 0,
+				  SLAB_HWCACHE_ALIGN, NULL);
+	if (!cifs_io_request_cachep)
+		goto nomem_req;
+
+	if (mempool_init_slab_pool(&cifs_io_request_pool, 100, cifs_io_request_cachep) < 0)
+		goto nomem_reqpool;
+
+	cifs_io_subrequest_cachep =
+		kmem_cache_create("cifs_io_subrequest",
+				  sizeof(struct cifs_io_subrequest), 0,
+				  SLAB_HWCACHE_ALIGN, NULL);
+	if (!cifs_io_subrequest_cachep)
+		goto nomem_subreq;
+
+	if (mempool_init_slab_pool(&cifs_io_subrequest_pool, 100, cifs_io_subrequest_cachep) < 0)
+		goto nomem_subreqpool;
+
+	return 0;
+
+nomem_subreqpool:
+	kmem_cache_destroy(cifs_io_subrequest_cachep);
+nomem_subreq:
+	mempool_destroy(&cifs_io_request_pool);
+nomem_reqpool:
+	kmem_cache_destroy(cifs_io_request_cachep);
+nomem_req:
+	return -ENOMEM;
+}
+
+static void cifs_destroy_netfs(void)
+{
+	mempool_exit(&cifs_io_subrequest_pool);
+	kmem_cache_destroy(cifs_io_subrequest_cachep);
+	mempool_exit(&cifs_io_request_pool);
+	kmem_cache_destroy(cifs_io_request_cachep);
+}
+
 static int __init
 init_cifs(void)
 {
@@ -1893,13 +1889,24 @@ init_cifs(void)
 		goto out_destroy_cifsoplockd_wq;
 	}
 
+	serverclose_wq = alloc_workqueue("serverclose",
+					   WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!serverclose_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_serverclose_wq;
+	}
+
 	rc = cifs_init_inodecache();
 	if (rc)
 		goto out_destroy_deferredclose_wq;
 
-	rc = init_mids();
+	rc = cifs_init_netfs();
 	if (rc)
 		goto out_destroy_inodecache;
+
+	rc = init_mids();
+	if (rc)
+		goto out_destroy_netfs;
 
 	rc = cifs_init_request_bufs();
 	if (rc)
@@ -1955,6 +1962,8 @@ out_destroy_request_bufs:
 	cifs_destroy_request_bufs();
 out_destroy_mids:
 	destroy_mids();
+out_destroy_netfs:
+	cifs_destroy_netfs();
 out_destroy_inodecache:
 	cifs_destroy_inodecache();
 out_destroy_deferredclose_wq:
@@ -1967,6 +1976,8 @@ out_destroy_decrypt_wq:
 	destroy_workqueue(decrypt_wq);
 out_destroy_cifsiod_wq:
 	destroy_workqueue(cifsiod_wq);
+out_destroy_serverclose_wq:
+	destroy_workqueue(serverclose_wq);
 out_clean_proc:
 	cifs_proc_clean();
 	return rc;
@@ -1991,11 +2002,13 @@ exit_cifs(void)
 #endif
 	cifs_destroy_request_bufs();
 	destroy_mids();
+	cifs_destroy_netfs();
 	cifs_destroy_inodecache();
 	destroy_workqueue(deferredclose_wq);
 	destroy_workqueue(cifsoplockd_wq);
 	destroy_workqueue(decrypt_wq);
 	destroy_workqueue(fileinfo_put_wq);
+	destroy_workqueue(serverclose_wq);
 	destroy_workqueue(cifsiod_wq);
 	cifs_proc_clean();
 }

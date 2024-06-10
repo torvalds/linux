@@ -288,7 +288,6 @@ struct i915_perf_stream {
 		struct i915_vma *vma;
 		u8 *vaddr;
 		u32 last_ctx_id;
-		int size_exponent;
 
 		/**
 		 * @oa_buffer.ptr_lock: Locks reads and writes to all

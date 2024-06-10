@@ -108,7 +108,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_rt_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_dl_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_irq_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_se_tp);
-EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_thermal_tp);
+EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_hw_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_cpu_capacity_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_overutilized_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_util_est_cfs_tp);
@@ -1792,7 +1792,6 @@ static void cpu_util_update_eff(struct cgroup_subsys_state *css);
 #endif
 
 #ifdef CONFIG_SYSCTL
-#ifdef CONFIG_UCLAMP_TASK
 #ifdef CONFIG_UCLAMP_TASK_GROUP
 static void uclamp_update_root_tg(void)
 {
@@ -1897,7 +1896,6 @@ undo:
 	sysctl_sched_uclamp_util_min_rt_default = old_min_rt;
 	return result;
 }
-#endif
 #endif
 
 static int uclamp_validate(struct task_struct *p,
@@ -2065,7 +2063,7 @@ static void __init init_uclamp(void)
 	}
 }
 
-#else /* CONFIG_UCLAMP_TASK */
+#else /* !CONFIG_UCLAMP_TASK */
 static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p) { }
 static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p) { }
 static inline int uclamp_validate(struct task_struct *p,
@@ -3955,6 +3953,17 @@ void wake_up_if_idle(int cpu)
 	}
 }
 
+bool cpus_equal_capacity(int this_cpu, int that_cpu)
+{
+	if (!sched_asym_cpucap_active())
+		return true;
+
+	if (this_cpu == that_cpu)
+		return true;
+
+	return arch_scale_cpu_capacity(this_cpu) == arch_scale_cpu_capacity(that_cpu);
+}
+
 bool cpus_share_cache(int this_cpu, int that_cpu)
 {
 	if (this_cpu == that_cpu)
@@ -4732,7 +4741,6 @@ static struct ctl_table sched_core_sysctls[] = {
 		.extra2		= SYSCTL_FOUR,
 	},
 #endif /* CONFIG_NUMA_BALANCING */
-	{}
 };
 static int __init sched_core_sysctl_init(void)
 {
@@ -5653,13 +5661,13 @@ static inline u64 cpu_resched_latency(struct rq *rq) { return 0; }
  * This function gets called by the timer code, with HZ frequency.
  * We call it with interrupts disabled.
  */
-void scheduler_tick(void)
+void sched_tick(void)
 {
 	int cpu = smp_processor_id();
 	struct rq *rq = cpu_rq(cpu);
 	struct task_struct *curr = rq->curr;
 	struct rq_flags rf;
-	unsigned long thermal_pressure;
+	unsigned long hw_pressure;
 	u64 resched_latency;
 
 	if (housekeeping_cpu(cpu, HK_TYPE_TICK))
@@ -5670,8 +5678,8 @@ void scheduler_tick(void)
 	rq_lock(rq, &rf);
 
 	update_rq_clock(rq);
-	thermal_pressure = arch_scale_thermal_pressure(cpu_of(rq));
-	update_thermal_load_avg(rq_clock_thermal(rq), rq, thermal_pressure);
+	hw_pressure = arch_scale_hw_pressure(cpu_of(rq));
+	update_hw_load_avg(rq_clock_task(rq), rq, hw_pressure);
 	curr->sched_class->task_tick(rq, curr, 0);
 	if (sched_feat(LATENCY_WARN))
 		resched_latency = cpu_resched_latency(rq);
@@ -5691,7 +5699,7 @@ void scheduler_tick(void)
 
 #ifdef CONFIG_SMP
 	rq->idle_balance = idle_cpu(cpu);
-	trigger_load_balance(rq);
+	sched_balance_trigger(rq);
 #endif
 }
 
@@ -6576,7 +6584,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  *      paths. For example, see arch/x86/entry_64.S.
  *
  *      To drive preemption between tasks, the scheduler sets the flag in timer
- *      interrupt handler scheduler_tick().
+ *      interrupt handler sched_tick().
  *
  *   3. Wakeups don't really cause entry into schedule(). They add a
  *      task to the run-queue and that's it.
@@ -6638,7 +6646,9 @@ static void __sched notrace __schedule(unsigned int sched_mode)
 	 *     if (signal_pending_state())	    if (p->state & @state)
 	 *
 	 * Also, the membarrier system call requires a full memory barrier
-	 * after coming from user-space, before storing to rq->curr.
+	 * after coming from user-space, before storing to rq->curr; this
+	 * barrier matches a full barrier in the proximity of the membarrier
+	 * system call exit.
 	 */
 	rq_lock(rq, &rf);
 	smp_mb__after_spinlock();
@@ -6709,12 +6719,20 @@ static void __sched notrace __schedule(unsigned int sched_mode)
 		 *
 		 * Here are the schemes providing that barrier on the
 		 * various architectures:
-		 * - mm ? switch_mm() : mmdrop() for x86, s390, sparc, PowerPC.
-		 *   switch_mm() rely on membarrier_arch_switch_mm() on PowerPC.
+		 * - mm ? switch_mm() : mmdrop() for x86, s390, sparc, PowerPC,
+		 *   RISC-V.  switch_mm() relies on membarrier_arch_switch_mm()
+		 *   on PowerPC and on RISC-V.
 		 * - finish_lock_switch() for weakly-ordered
 		 *   architectures where spin_unlock is a full barrier,
 		 * - switch_to() for arm64 (weakly-ordered, spin_unlock
 		 *   is a RELEASE barrier),
+		 *
+		 * The barrier matches a full barrier in the proximity of
+		 * the membarrier system call entry.
+		 *
+		 * On RISC-V, this barrier pairing is also needed for the
+		 * SYNC_CORE command when switching between processes, cf.
+		 * the inline comments in membarrier_arch_switch_mm().
 		 */
 		++*switch_count;
 
@@ -6787,10 +6805,12 @@ static inline void sched_submit_work(struct task_struct *tsk)
 
 static void sched_update_worker(struct task_struct *tsk)
 {
-	if (tsk->flags & (PF_WQ_WORKER | PF_IO_WORKER)) {
+	if (tsk->flags & (PF_WQ_WORKER | PF_IO_WORKER | PF_BLOCK_TS)) {
+		if (tsk->flags & PF_BLOCK_TS)
+			blk_plug_invalidate_ts(tsk);
 		if (tsk->flags & PF_WQ_WORKER)
 			wq_worker_running(tsk);
-		else
+		else if (tsk->flags & PF_IO_WORKER)
 			io_wq_worker_running(tsk);
 	}
 }
@@ -11381,7 +11401,7 @@ static ssize_t cpu_max_write(struct kernfs_open_file *of,
 {
 	struct task_group *tg = css_tg(of_css(of));
 	u64 period = tg_get_cfs_period(tg);
-	u64 burst = tg_get_cfs_burst(tg);
+	u64 burst = tg->cfs_bandwidth.burst;
 	u64 quota;
 	int ret;
 

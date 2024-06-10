@@ -3287,7 +3287,7 @@ static int ov64a40_set_ctrl(struct v4l2_ctrl *ctrl)
 					 exp_max, 1, exp_val);
 	}
 
-	pm_status = pm_runtime_get_if_active(ov64a40->dev, true);
+	pm_status = pm_runtime_get_if_active(ov64a40->dev);
 	if (!pm_status)
 		return 0;
 

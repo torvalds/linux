@@ -20,6 +20,33 @@
 #include <linux/time64.h>
 
 /*
+ * Flags to control the behaviour when attaching a device to its PM domains.
+ *
+ * PD_FLAG_NO_DEV_LINK:		As the default behaviour creates a device-link
+ *				for every PM domain that gets attached, this
+ *				flag can be used to skip that.
+ *
+ * PD_FLAG_DEV_LINK_ON:		Add the DL_FLAG_RPM_ACTIVE to power-on the
+ *				supplier and its PM domain when creating the
+ *				device-links.
+ *
+ */
+#define PD_FLAG_NO_DEV_LINK		BIT(0)
+#define PD_FLAG_DEV_LINK_ON		BIT(1)
+
+struct dev_pm_domain_attach_data {
+	const char * const *pd_names;
+	const u32 num_pd_names;
+	const u32 pd_flags;
+};
+
+struct dev_pm_domain_list {
+	struct device **pd_devs;
+	struct device_link **pd_links;
+	u32 num_pds;
+};
+
+/*
  * Flags to control the behaviour of a genpd.
  *
  * These flags may be set in the struct generic_pm_domain's flags field by a
@@ -233,6 +260,7 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 int pm_genpd_init(struct generic_pm_domain *genpd,
 		  struct dev_power_governor *gov, bool is_off);
 int pm_genpd_remove(struct generic_pm_domain *genpd);
+struct device *dev_to_genpd_dev(struct device *dev);
 int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state);
 int dev_pm_genpd_add_notifier(struct device *dev, struct notifier_block *nb);
 int dev_pm_genpd_remove_notifier(struct device *dev);
@@ -280,6 +308,11 @@ static inline int pm_genpd_remove(struct generic_pm_domain *genpd)
 	return -EOPNOTSUPP;
 }
 
+static inline struct device *dev_to_genpd_dev(struct device *dev)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
 static inline int dev_pm_genpd_set_performance_state(struct device *dev,
 						     unsigned int state)
 {
@@ -322,7 +355,7 @@ static inline void dev_pm_genpd_resume(struct device *dev) {}
 /* OF PM domain providers */
 struct of_device_id;
 
-typedef struct generic_pm_domain *(*genpd_xlate_t)(struct of_phandle_args *args,
+typedef struct generic_pm_domain *(*genpd_xlate_t)(const struct of_phandle_args *args,
 						   void *data);
 
 struct genpd_onecell_data {
@@ -337,11 +370,11 @@ int of_genpd_add_provider_simple(struct device_node *np,
 int of_genpd_add_provider_onecell(struct device_node *np,
 				  struct genpd_onecell_data *data);
 void of_genpd_del_provider(struct device_node *np);
-int of_genpd_add_device(struct of_phandle_args *args, struct device *dev);
-int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
-			   struct of_phandle_args *subdomain_spec);
-int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
-			      struct of_phandle_args *subdomain_spec);
+int of_genpd_add_device(const struct of_phandle_args *args, struct device *dev);
+int of_genpd_add_subdomain(const struct of_phandle_args *parent_spec,
+			   const struct of_phandle_args *subdomain_spec);
+int of_genpd_remove_subdomain(const struct of_phandle_args *parent_spec,
+			      const struct of_phandle_args *subdomain_spec);
 struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
 int of_genpd_parse_idle_states(struct device_node *dn,
 			       struct genpd_power_state **states, int *n);
@@ -366,20 +399,20 @@ static inline int of_genpd_add_provider_onecell(struct device_node *np,
 
 static inline void of_genpd_del_provider(struct device_node *np) {}
 
-static inline int of_genpd_add_device(struct of_phandle_args *args,
+static inline int of_genpd_add_device(const struct of_phandle_args *args,
 				      struct device *dev)
 {
 	return -ENODEV;
 }
 
-static inline int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
-					 struct of_phandle_args *subdomain_spec)
+static inline int of_genpd_add_subdomain(const struct of_phandle_args *parent_spec,
+					 const struct of_phandle_args *subdomain_spec)
 {
 	return -ENODEV;
 }
 
-static inline int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
-					struct of_phandle_args *subdomain_spec)
+static inline int of_genpd_remove_subdomain(const struct of_phandle_args *parent_spec,
+					    const struct of_phandle_args *subdomain_spec)
 {
 	return -ENODEV;
 }
@@ -420,7 +453,11 @@ struct device *dev_pm_domain_attach_by_id(struct device *dev,
 					  unsigned int index);
 struct device *dev_pm_domain_attach_by_name(struct device *dev,
 					    const char *name);
+int dev_pm_domain_attach_list(struct device *dev,
+			      const struct dev_pm_domain_attach_data *data,
+			      struct dev_pm_domain_list **list);
 void dev_pm_domain_detach(struct device *dev, bool power_off);
+void dev_pm_domain_detach_list(struct dev_pm_domain_list *list);
 int dev_pm_domain_start(struct device *dev);
 void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd);
 int dev_pm_domain_set_performance_state(struct device *dev, unsigned int state);
@@ -439,7 +476,14 @@ static inline struct device *dev_pm_domain_attach_by_name(struct device *dev,
 {
 	return NULL;
 }
+static inline int dev_pm_domain_attach_list(struct device *dev,
+				const struct dev_pm_domain_attach_data *data,
+				struct dev_pm_domain_list **list)
+{
+	return 0;
+}
 static inline void dev_pm_domain_detach(struct device *dev, bool power_off) {}
+static inline void dev_pm_domain_detach_list(struct dev_pm_domain_list *list) {}
 static inline int dev_pm_domain_start(struct device *dev)
 {
 	return 0;

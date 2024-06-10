@@ -730,10 +730,10 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 
 	ps3vram_proc_init(dev);
 
-	gendisk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!gendisk) {
+	gendisk = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	if (IS_ERR(gendisk)) {
 		dev_err(&dev->core, "blk_alloc_disk failed\n");
-		error = -ENOMEM;
+		error = PTR_ERR(gendisk);
 		goto out_cache_cleanup;
 	}
 

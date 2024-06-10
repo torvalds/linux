@@ -61,7 +61,7 @@ struct lcd_device {
 	   points to something in the body of that driver, it is also invalid. */
 	struct mutex ops_lock;
 	/* If this is NULL, the backing module is unloaded */
-	struct lcd_ops *ops;
+	const struct lcd_ops *ops;
 	/* Serialise access to set_power method */
 	struct mutex update_lock;
 	/* The framebuffer notifier block */
@@ -102,10 +102,10 @@ static inline void lcd_set_power(struct lcd_device *ld, int power)
 }
 
 extern struct lcd_device *lcd_device_register(const char *name,
-	struct device *parent, void *devdata, struct lcd_ops *ops);
+	struct device *parent, void *devdata, const struct lcd_ops *ops);
 extern struct lcd_device *devm_lcd_device_register(struct device *dev,
 	const char *name, struct device *parent,
-	void *devdata, struct lcd_ops *ops);
+	void *devdata, const struct lcd_ops *ops);
 extern void lcd_device_unregister(struct lcd_device *ld);
 extern void devm_lcd_device_unregister(struct device *dev,
 	struct lcd_device *ld);

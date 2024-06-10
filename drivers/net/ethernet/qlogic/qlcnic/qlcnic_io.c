@@ -446,8 +446,7 @@ static int qlcnic_tx_encap_pkt(struct qlcnic_adapter *adapter,
 	encap_descr |= skb_network_offset(skb) << 10;
 	first_desc->encap_descr = cpu_to_le16(encap_descr);
 
-	first_desc->tcp_hdr_offset = skb_inner_transport_header(skb) -
-				     skb->data;
+	first_desc->tcp_hdr_offset = skb_inner_transport_offset(skb);
 	first_desc->ip_hdr_offset = skb_inner_network_offset(skb);
 
 	qlcnic_set_tx_flags_opcode(first_desc, flags, opcode);

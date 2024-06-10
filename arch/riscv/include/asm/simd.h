@@ -34,9 +34,9 @@ static __must_check inline bool may_use_simd(void)
 		return false;
 
 	/*
-	 * Nesting is acheived in preempt_v by spreading the control for
+	 * Nesting is achieved in preempt_v by spreading the control for
 	 * preemptible and non-preemptible kernel-mode Vector into two fields.
-	 * Always try to match with prempt_v if kernel V-context exists. Then,
+	 * Always try to match with preempt_v if kernel V-context exists. Then,
 	 * fallback to check non preempt_v if nesting happens, or if the config
 	 * is not set.
 	 */

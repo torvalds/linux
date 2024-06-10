@@ -203,6 +203,29 @@ struct svc_rdma_recv_ctxt {
 	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 
+/*
+ * State for sending a Write chunk.
+ *  - Tracks progress of writing one chunk over all its segments
+ *  - Stores arguments for the SGL constructor functions
+ */
+struct svc_rdma_write_info {
+	struct svcxprt_rdma	*wi_rdma;
+
+	const struct svc_rdma_chunk	*wi_chunk;
+
+	/* write state of this chunk */
+	unsigned int		wi_seg_off;
+	unsigned int		wi_seg_no;
+
+	/* SGL constructor arguments */
+	const struct xdr_buf	*wi_xdr;
+	unsigned char		*wi_base;
+	unsigned int		wi_next_off;
+
+	struct svc_rdma_chunk_ctxt	wi_cc;
+	struct work_struct	wi_work;
+};
+
 struct svc_rdma_send_ctxt {
 	struct llist_node	sc_node;
 	struct rpc_rdma_cid	sc_cid;
@@ -210,9 +233,12 @@ struct svc_rdma_send_ctxt {
 
 	struct svcxprt_rdma	*sc_rdma;
 	struct ib_send_wr	sc_send_wr;
+	struct ib_send_wr	*sc_wr_chain;
+	int			sc_sqecount;
 	struct ib_cqe		sc_cqe;
 	struct xdr_buf		sc_hdrbuf;
 	struct xdr_stream	sc_stream;
+	struct svc_rdma_write_info sc_reply_info;
 	void			*sc_xprt_buf;
 	int			sc_page_count;
 	int			sc_cur_sge_no;
@@ -236,18 +262,24 @@ extern void svc_rdma_release_ctxt(struct svc_xprt *xprt, void *ctxt);
 extern int svc_rdma_recvfrom(struct svc_rqst *);
 
 /* svc_rdma_rw.c */
+extern void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
+			     struct svc_rdma_chunk_ctxt *cc);
 extern void svc_rdma_destroy_rw_ctxts(struct svcxprt_rdma *rdma);
 extern void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
 			     struct svc_rdma_chunk_ctxt *cc);
 extern void svc_rdma_cc_release(struct svcxprt_rdma *rdma,
 				struct svc_rdma_chunk_ctxt *cc,
 				enum dma_data_direction dir);
-extern int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
-				     const struct svc_rdma_chunk *chunk,
-				     const struct xdr_buf *xdr);
-extern int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
-				     const struct svc_rdma_recv_ctxt *rctxt,
-				     const struct xdr_buf *xdr);
+extern void svc_rdma_reply_chunk_release(struct svcxprt_rdma *rdma,
+					 struct svc_rdma_send_ctxt *ctxt);
+extern int svc_rdma_send_write_list(struct svcxprt_rdma *rdma,
+				    const struct svc_rdma_recv_ctxt *rctxt,
+				    const struct xdr_buf *xdr);
+extern int svc_rdma_prepare_reply_chunk(struct svcxprt_rdma *rdma,
+					const struct svc_rdma_pcl *write_pcl,
+					const struct svc_rdma_pcl *reply_pcl,
+					struct svc_rdma_send_ctxt *sctxt,
+					const struct xdr_buf *xdr);
 extern int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 				      struct svc_rqst *rqstp,
 				      struct svc_rdma_recv_ctxt *head);
@@ -258,8 +290,8 @@ extern struct svc_rdma_send_ctxt *
 		svc_rdma_send_ctxt_get(struct svcxprt_rdma *rdma);
 extern void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 				   struct svc_rdma_send_ctxt *ctxt);
-extern int svc_rdma_send(struct svcxprt_rdma *rdma,
-			 struct svc_rdma_send_ctxt *ctxt);
+extern int svc_rdma_post_send(struct svcxprt_rdma *rdma,
+			      struct svc_rdma_send_ctxt *ctxt);
 extern int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_send_ctxt *sctxt,
 				  const struct svc_rdma_pcl *write_pcl,

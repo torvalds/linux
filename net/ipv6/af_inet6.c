@@ -64,6 +64,7 @@
 #include <net/xfrm.h>
 #include <net/ioam6.h>
 #include <net/rawv6.h>
+#include <net/rps.h>
 
 #include <linux/uaccess.h>
 #include <linux/mroute6.h>
@@ -736,7 +737,7 @@ const struct proto_ops inet6_dgram_ops = {
 	.recvmsg	   = inet6_recvmsg,		/* retpoline's sake */
 	.read_skb	   = udp_read_skb,
 	.mmap		   = sock_no_mmap,
-	.set_peek_off	   = sk_set_peek_off,
+	.set_peek_off	   = udp_set_peek_off,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	   = inet6_compat_ioctl,
 #endif

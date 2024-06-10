@@ -39,7 +39,7 @@ PHDRS {
 
 SECTIONS
 {
-	. = 0x100000;
+	. = __START_KERNEL;
 	.text : {
 		_stext = .;		/* Start of text section */
 		_text = .;		/* Text and read-only data */
@@ -59,6 +59,14 @@ SECTIONS
 	} :text = 0x0700
 
 	RO_DATA(PAGE_SIZE)
+	.data.rel.ro : {
+		*(.data.rel.ro .data.rel.ro.*)
+	}
+	.got : {
+		__got_start = .;
+		*(.got)
+		__got_end = .;
+	}
 
 	. = ALIGN(PAGE_SIZE);
 	_sdata = .;		/* Start of data section */
@@ -73,6 +81,9 @@ SECTIONS
 	__end_ro_after_init = .;
 
 	RW_DATA(0x100, PAGE_SIZE, THREAD_SIZE)
+	.data.rel : {
+		*(.data.rel*)
+	}
 	BOOT_DATA_PRESERVED
 
 	. = ALIGN(8);
@@ -172,7 +183,7 @@ SECTIONS
 	.amode31.data : {
 		*(.amode31.data)
 	}
-	. = ALIGN(PAGE_SIZE);
+	. = _samode31 + AMODE31_SIZE;
 	_eamode31 = .;
 
 	/* early.c uses stsi, which requires page aligned data. */
@@ -180,17 +191,6 @@ SECTIONS
 	INIT_DATA_SECTION(0x100)
 
 	PERCPU_SECTION(0x100)
-
-	.dynsym ALIGN(8) : {
-		__dynsym_start = .;
-		*(.dynsym)
-		__dynsym_end = .;
-	}
-	.rela.dyn ALIGN(8) : {
-		__rela_dyn_start = .;
-		*(.rela*)
-		__rela_dyn_end = .;
-	}
 
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;		/* freed after init ends here */
@@ -205,7 +205,6 @@ SECTIONS
 	 * it should match struct vmlinux_info
 	 */
 	.vmlinux.info 0 (INFO) : {
-		QUAD(_stext)					/* default_lma */
 		QUAD(startup_continue)				/* entry */
 		QUAD(__bss_start - _stext)			/* image_size */
 		QUAD(__bss_stop - __bss_start)			/* bss_size */
@@ -214,9 +213,8 @@ SECTIONS
 		QUAD(__boot_data_preserved_start)		/* bootdata_preserved_off */
 		QUAD(__boot_data_preserved_end -
 		     __boot_data_preserved_start)		/* bootdata_preserved_size */
-		QUAD(__dynsym_start)				/* dynsym_start */
-		QUAD(__rela_dyn_start)				/* rela_dyn_start */
-		QUAD(__rela_dyn_end)				/* rela_dyn_end */
+		QUAD(__got_start)				/* got_start */
+		QUAD(__got_end)					/* got_end */
 		QUAD(_eamode31 - _samode31)			/* amode31_size */
 		QUAD(init_mm)
 		QUAD(swapper_pg_dir)
@@ -234,6 +232,28 @@ SECTIONS
 	STABS_DEBUG
 	DWARF_DEBUG
 	ELF_DETAILS
+
+	/*
+	 * Make sure that the .got.plt is either completely empty or it
+	 * contains only the three reserved double words.
+	 */
+	.got.plt : {
+		*(.got.plt)
+	}
+	ASSERT(SIZEOF(.got.plt) == 0 || SIZEOF(.got.plt) == 0x18, "Unexpected GOT/PLT entries detected!")
+
+	/*
+	 * Sections that should stay zero sized, which is safer to
+	 * explicitly check instead of blindly discarding.
+	 */
+	.plt : {
+		*(.plt) *(.plt.*) *(.iplt) *(.igot .igot.plt)
+	}
+	ASSERT(SIZEOF(.plt) == 0, "Unexpected run-time procedure linkages detected!")
+	.rela.dyn : {
+		*(.rela.*) *(.rela_*)
+	}
+	ASSERT(SIZEOF(.rela.dyn) == 0, "Unexpected run-time relocations (.rela) detected!")
 
 	/* Sections to be discarded */
 	DISCARDS

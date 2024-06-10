@@ -534,13 +534,15 @@ static inline int ipv6_hopopt_jumbo_remove(struct sk_buff *skb)
 	return 0;
 }
 
-static inline bool ipv6_accept_ra(struct inet6_dev *idev)
+static inline bool ipv6_accept_ra(const struct inet6_dev *idev)
 {
+	s32 accept_ra = READ_ONCE(idev->cnf.accept_ra);
+
 	/* If forwarding is enabled, RA are not accepted unless the special
 	 * hybrid mode (accept_ra=2) is enabled.
 	 */
-	return idev->cnf.forwarding ? idev->cnf.accept_ra == 2 :
-	    idev->cnf.accept_ra;
+	return READ_ONCE(idev->cnf.forwarding) ? accept_ra == 2 :
+		accept_ra;
 }
 
 #define IPV6_FRAG_HIGH_THRESH	(4 * 1024*1024)	/* 4194304 */

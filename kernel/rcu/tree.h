@@ -21,14 +21,10 @@
 
 #include "rcu_segcblist.h"
 
-/* Communicate arguments to a workqueue handler. */
+/* Communicate arguments to a kthread worker handler. */
 struct rcu_exp_work {
 	unsigned long rew_s;
-#ifdef CONFIG_RCU_EXP_KTHREAD
 	struct kthread_work rew_work;
-#else
-	struct work_struct rew_work;
-#endif /* CONFIG_RCU_EXP_KTHREAD */
 };
 
 /* RCU's kthread states for tracing. */
@@ -72,6 +68,9 @@ struct rcu_node {
 				/* Online CPUs for next expedited GP. */
 				/*  Any CPU that has ever been online will */
 				/*  have its bit set. */
+	struct kthread_worker *exp_kworker;
+				/* Workers performing per node expedited GP */
+				/* initialization. */
 	unsigned long cbovldmask;
 				/* CPUs experiencing callback overload. */
 	unsigned long ffmask;	/* Fully functional CPUs. */
@@ -113,7 +112,7 @@ struct rcu_node {
 				/*  side effect, not as a lock. */
 	unsigned long boost_time;
 				/* When to start boosting (jiffies). */
-	struct mutex boost_kthread_mutex;
+	struct mutex kthread_mutex;
 				/* Exclusion for thread spawning and affinity */
 				/*  manipulation. */
 	struct task_struct *boost_kthread_task;
@@ -274,9 +273,9 @@ struct rcu_data {
 	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
 	unsigned long rcu_iw_gp_seq;	/* ->gp_seq associated with ->rcu_iw. */
 	unsigned long rcu_ofl_gp_seq;	/* ->gp_seq at last offline. */
-	short rcu_ofl_gp_flags;		/* ->gp_flags at last offline. */
+	short rcu_ofl_gp_state;		/* ->gp_state at last offline. */
 	unsigned long rcu_onl_gp_seq;	/* ->gp_seq at last online. */
-	short rcu_onl_gp_flags;		/* ->gp_flags at last online. */
+	short rcu_onl_gp_state;		/* ->gp_state at last online. */
 	unsigned long last_fqs_resched;	/* Time of last rcu_resched(). */
 	unsigned long last_sched_clock;	/* Jiffies of last rcu_sched_clock_irq(). */
 	struct rcu_snap_record snap_record; /* Snapshot of core stats at half of */
@@ -315,6 +314,19 @@ do {									\
 	}								\
 	__set_current_state(TASK_RUNNING);				\
 } while (0)
+
+/*
+ * A max threshold for synchronize_rcu() users which are
+ * awaken directly by the rcu_gp_kthread(). Left part is
+ * deferred to the main worker.
+ */
+#define SR_MAX_USERS_WAKE_FROM_GP 5
+#define SR_NORMAL_GP_WAIT_HEAD_MAX 5
+
+struct sr_wait_node {
+	atomic_t inuse;
+	struct llist_node node;
+};
 
 /*
  * RCU global state, including node hierarchy.  This hierarchy is
@@ -401,6 +413,13 @@ struct rcu_state {
 						/* Synchronize offline with */
 						/*  GP pre-initialization. */
 	int nocb_is_setup;			/* nocb is setup from boot */
+
+	/* synchronize_rcu() part. */
+	struct llist_head srs_next;	/* request a GP users. */
+	struct llist_node *srs_wait_tail; /* wait for GP users. */
+	struct llist_node *srs_done_tail; /* ready for GP users. */
+	struct sr_wait_node srs_wait_nodes[SR_NORMAL_GP_WAIT_HEAD_MAX];
+	struct work_struct srs_cleanup_work;
 };
 
 /* Values for rcu_state structure's gp_flags field. */
@@ -467,11 +486,10 @@ static void rcu_init_one_nocb(struct rcu_node *rnp);
 static bool wake_nocb_gp(struct rcu_data *rdp, bool force);
 static bool rcu_nocb_flush_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
 				  unsigned long j, bool lazy);
-static bool rcu_nocb_try_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
-				bool *was_alldone, unsigned long flags,
-				bool lazy);
-static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_empty,
-				 unsigned long flags);
+static void call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *head,
+			  rcu_callback_t func, unsigned long flags, bool lazy);
+static void __maybe_unused __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_empty,
+						unsigned long flags);
 static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp, int level);
 static bool do_nocb_deferred_wakeup(struct rcu_data *rdp);
 static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);

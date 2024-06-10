@@ -40,8 +40,8 @@ static int rt715_index_write(struct regmap *regmap, unsigned int reg,
 
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0) {
-		pr_err("Failed to set private value: %08x <= %04x %d\n",
-		       addr, value, ret);
+		pr_err("%s: Failed to set private value: %08x <= %04x %d\n",
+		       __func__, addr, value, ret);
 	}
 
 	return ret;
@@ -55,8 +55,8 @@ static int rt715_index_write_nid(struct regmap *regmap,
 
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
-		pr_err("Failed to set private value: %06x <= %04x ret=%d\n",
-			addr, value, ret);
+		pr_err("%s: Failed to set private value: %06x <= %04x ret=%d\n",
+		       __func__, addr, value, ret);
 
 	return ret;
 }
@@ -70,8 +70,8 @@ static int rt715_index_read_nid(struct regmap *regmap,
 	*value = 0;
 	ret = regmap_read(regmap, addr, value);
 	if (ret < 0)
-		pr_err("Failed to get private value: %06x => %04x ret=%d\n",
-			addr, *value, ret);
+		pr_err("%s: Failed to get private value: %06x => %04x ret=%d\n",
+		       __func__, addr, *value, ret);
 
 	return ret;
 }
@@ -862,14 +862,14 @@ static int rt715_pcm_hw_params(struct snd_pcm_substream *substream,
 		rt715_index_write(rt715->regmap, RT715_SDW_INPUT_SEL, 0xa000);
 		break;
 	default:
-		dev_err(component->dev, "Invalid DAI id %d\n", dai->id);
+		dev_err(component->dev, "%s: Invalid DAI id %d\n", __func__, dai->id);
 		return -EINVAL;
 	}
 
 	retval = sdw_stream_add_slave(rt715->slave, &stream_config,
 					&port_config, 1, sdw_stream);
 	if (retval) {
-		dev_err(dai->dev, "Unable to configure port\n");
+		dev_err(dai->dev, "%s: Unable to configure port\n", __func__);
 		return retval;
 	}
 
@@ -883,8 +883,8 @@ static int rt715_pcm_hw_params(struct snd_pcm_substream *substream,
 		val |= 0x0 << 8;
 		break;
 	default:
-		dev_err(component->dev, "Unsupported sample rate %d\n",
-			params_rate(params));
+		dev_err(component->dev, "%s: Unsupported sample rate %d\n",
+			__func__, params_rate(params));
 		return -EINVAL;
 	}
 
@@ -892,8 +892,8 @@ static int rt715_pcm_hw_params(struct snd_pcm_substream *substream,
 		/* bit 3:0 Number of Channel */
 		val |= (params_channels(params) - 1);
 	} else {
-		dev_err(component->dev, "Unsupported channels %d\n",
-			params_channels(params));
+		dev_err(component->dev, "%s: Unsupported channels %d\n",
+			__func__, params_channels(params));
 		return -EINVAL;
 	}
 

@@ -31,12 +31,12 @@ void hv_set_vpreg(u32 reg, u64 value);
 u64 hv_get_vpreg(u32 reg);
 void hv_get_vpreg_128(u32 reg, struct hv_get_vp_registers_output *result);
 
-static inline void hv_set_register(unsigned int reg, u64 value)
+static inline void hv_set_msr(unsigned int reg, u64 value)
 {
 	hv_set_vpreg(reg, value);
 }
 
-static inline u64 hv_get_register(unsigned int reg)
+static inline u64 hv_get_msr(unsigned int reg)
 {
 	return hv_get_vpreg(reg);
 }

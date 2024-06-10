@@ -13,10 +13,6 @@ void	update_total_comp_bytes_out(int n);
 void	update_total_decomp_calls(void);
 void	update_total_sw_decomp_calls(void);
 void	update_total_decomp_bytes_in(int n);
-void	update_max_comp_delay_ns(u64 start_time_ns);
-void	update_max_decomp_delay_ns(u64 start_time_ns);
-void	update_max_acomp_delay_ns(u64 start_time_ns);
-void	update_max_adecomp_delay_ns(u64 start_time_ns);
 void	update_completion_einval_errs(void);
 void	update_completion_timeout_errs(void);
 void	update_completion_comp_buf_overflow_errs(void);
@@ -35,10 +31,6 @@ static inline void	update_total_comp_bytes_out(int n) {}
 static inline void	update_total_decomp_calls(void) {}
 static inline void	update_total_sw_decomp_calls(void) {}
 static inline void	update_total_decomp_bytes_in(int n) {}
-static inline void	update_max_comp_delay_ns(u64 start_time_ns) {}
-static inline void	update_max_decomp_delay_ns(u64 start_time_ns) {}
-static inline void	update_max_acomp_delay_ns(u64 start_time_ns) {}
-static inline void	update_max_adecomp_delay_ns(u64 start_time_ns) {}
 static inline void	update_completion_einval_errs(void) {}
 static inline void	update_completion_timeout_errs(void) {}
 static inline void	update_completion_comp_buf_overflow_errs(void) {}

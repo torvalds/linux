@@ -286,7 +286,7 @@ err_no_space:
 	return -ENOMEM;
 }
 
-void kq_submit_packet(struct kernel_queue *kq)
+int kq_submit_packet(struct kernel_queue *kq)
 {
 #ifdef DEBUG
 	int i;
@@ -298,6 +298,10 @@ void kq_submit_packet(struct kernel_queue *kq)
 	}
 	pr_debug("\n");
 #endif
+	/* Fatal err detected, packet submission won't go through */
+	if (amdgpu_amdkfd_is_fed(kq->dev->adev))
+		return -EIO;
+
 	if (kq->dev->kfd->device_info.doorbell_size == 8) {
 		*kq->wptr64_kernel = kq->pending_wptr64;
 		write_kernel_doorbell64(kq->queue->properties.doorbell_ptr,
@@ -307,6 +311,8 @@ void kq_submit_packet(struct kernel_queue *kq)
 		write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
 					kq->pending_wptr);
 	}
+
+	return 0;
 }
 
 void kq_rollback_packet(struct kernel_queue *kq)

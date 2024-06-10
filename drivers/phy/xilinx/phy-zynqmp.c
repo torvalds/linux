@@ -768,7 +768,7 @@ static const unsigned int icm_matrix[NUM_LANES][CONTROLLERS_PER_LANE] = {
 
 /* Translate OF phandle and args to PHY instance. */
 static struct phy *xpsgtr_xlate(struct device *dev,
-				struct of_phandle_args *args)
+				const struct of_phandle_args *args)
 {
 	struct xpsgtr_dev *gtr_dev = dev_get_drvdata(dev);
 	struct xpsgtr_phy *gtr_phy;
@@ -995,15 +995,13 @@ static int xpsgtr_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int xpsgtr_remove(struct platform_device *pdev)
+static void xpsgtr_remove(struct platform_device *pdev)
 {
 	struct xpsgtr_dev *gtr_dev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(gtr_dev->dev);
 	pm_runtime_put_noidle(gtr_dev->dev);
 	pm_runtime_set_suspended(gtr_dev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id xpsgtr_of_match[] = {
@@ -1015,7 +1013,7 @@ MODULE_DEVICE_TABLE(of, xpsgtr_of_match);
 
 static struct platform_driver xpsgtr_driver = {
 	.probe = xpsgtr_probe,
-	.remove	= xpsgtr_remove,
+	.remove_new = xpsgtr_remove,
 	.driver = {
 		.name = "xilinx-psgtr",
 		.of_match_table	= xpsgtr_of_match,

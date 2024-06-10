@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Simple Landlock sandbox manager able to launch a process restricted by a
- * user-defined filesystem access control policy.
+ * Simple Landlock sandbox manager able to execute a process restricted by
+ * user-defined file system and network access control policies.
  *
  * Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2020 ANSSI
@@ -81,7 +81,8 @@ static int parse_path(char *env_path, const char ***const path_list)
 	LANDLOCK_ACCESS_FS_EXECUTE | \
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
 	LANDLOCK_ACCESS_FS_READ_FILE | \
-	LANDLOCK_ACCESS_FS_TRUNCATE)
+	LANDLOCK_ACCESS_FS_TRUNCATE | \
+	LANDLOCK_ACCESS_FS_IOCTL_DEV)
 
 /* clang-format on */
 
@@ -120,9 +121,11 @@ static int populate_ruleset_fs(const char *const env_var, const int ruleset_fd,
 		if (path_beneath.parent_fd < 0) {
 			fprintf(stderr, "Failed to open \"%s\": %s\n",
 				path_list[i], strerror(errno));
-			goto out_free_name;
+			continue;
 		}
 		if (fstat(path_beneath.parent_fd, &statbuf)) {
+			fprintf(stderr, "Failed to stat \"%s\": %s\n",
+				path_list[i], strerror(errno));
 			close(path_beneath.parent_fd);
 			goto out_free_name;
 		}
@@ -151,7 +154,7 @@ static int populate_ruleset_net(const char *const env_var, const int ruleset_fd,
 				const __u64 allowed_access)
 {
 	int ret = 1;
-	char *env_port_name, *strport;
+	char *env_port_name, *env_port_name_next, *strport;
 	struct landlock_net_port_attr net_port = {
 		.allowed_access = allowed_access,
 		.port = 0,
@@ -163,7 +166,8 @@ static int populate_ruleset_net(const char *const env_var, const int ruleset_fd,
 	env_port_name = strdup(env_port_name);
 	unsetenv(env_var);
 
-	while ((strport = strsep(&env_port_name, ENV_DELIMITER))) {
+	env_port_name_next = env_port_name;
+	while ((strport = strsep(&env_port_name_next, ENV_DELIMITER))) {
 		net_port.port = atoi(strport);
 		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
 				      &net_port, 0)) {
@@ -199,11 +203,12 @@ out_free_name:
 	LANDLOCK_ACCESS_FS_MAKE_BLOCK | \
 	LANDLOCK_ACCESS_FS_MAKE_SYM | \
 	LANDLOCK_ACCESS_FS_REFER | \
-	LANDLOCK_ACCESS_FS_TRUNCATE)
+	LANDLOCK_ACCESS_FS_TRUNCATE | \
+	LANDLOCK_ACCESS_FS_IOCTL_DEV)
 
 /* clang-format on */
 
-#define LANDLOCK_ABI_LAST 4
+#define LANDLOCK_ABI_LAST 5
 
 int main(const int argc, char *const argv[], char *const *const envp)
 {
@@ -227,7 +232,7 @@ int main(const int argc, char *const argv[], char *const *const envp)
 			ENV_FS_RO_NAME, ENV_FS_RW_NAME, ENV_TCP_BIND_NAME,
 			ENV_TCP_CONNECT_NAME, argv[0]);
 		fprintf(stderr,
-			"Launch a command in a restricted environment.\n\n");
+			"Execute a command in a restricted environment.\n\n");
 		fprintf(stderr,
 			"Environment variables containing paths and ports "
 			"each separated by a colon:\n");
@@ -248,7 +253,7 @@ int main(const int argc, char *const argv[], char *const *const envp)
 			ENV_TCP_CONNECT_NAME);
 		fprintf(stderr,
 			"\nexample:\n"
-			"%s=\"/bin:/lib:/usr:/proc:/etc:/dev/urandom\" "
+			"%s=\"${PATH}:/lib:/usr:/proc:/etc:/dev/urandom\" "
 			"%s=\"/dev/null:/dev/full:/dev/zero:/dev/pts:/tmp\" "
 			"%s=\"9418\" "
 			"%s=\"80:443\" "
@@ -317,6 +322,11 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		ruleset_attr.handled_access_net &=
 			~(LANDLOCK_ACCESS_NET_BIND_TCP |
 			  LANDLOCK_ACCESS_NET_CONNECT_TCP);
+		__attribute__((fallthrough));
+	case 4:
+		/* Removes LANDLOCK_ACCESS_FS_IOCTL_DEV for ABI < 5 */
+		ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_IOCTL_DEV;
+
 		fprintf(stderr,
 			"Hint: You should update the running kernel "
 			"to leverage Landlock features "
@@ -383,6 +393,7 @@ int main(const int argc, char *const argv[], char *const *const envp)
 
 	cmd_path = argv[1];
 	cmd_argv = argv + 1;
+	fprintf(stderr, "Executing the sandboxed command...\n");
 	execvpe(cmd_path, cmd_argv, envp);
 	fprintf(stderr, "Failed to execute \"%s\": %s\n", cmd_path,
 		strerror(errno));

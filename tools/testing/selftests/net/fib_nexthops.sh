@@ -2066,6 +2066,12 @@ basic()
 	run_cmd "$IP nexthop get id 1"
 	log_test $? 2 "Nexthop get on non-existent id"
 
+	run_cmd "$IP nexthop del id 1"
+	log_test $? 2 "Nexthop del with non-existent id"
+
+	run_cmd "$IP nexthop del id 1 group 1/2/3/4/5/6/7/8"
+	log_test $? 2 "Nexthop del with non-existent id and extra attributes"
+
 	# attempt to create nh without a device or gw - fails
 	run_cmd "$IP nexthop add id 1"
 	log_test $? 2 "Nexthop with no device or gateway"

@@ -37,9 +37,21 @@ Example usage of perf::
   hisi_pcie0_core0/rx_mwr_cnt/ [kernel PMU event]
   ------------------------------------------
 
-  $# perf stat -e hisi_pcie0_core0/rx_mwr_latency/
-  $# perf stat -e hisi_pcie0_core0/rx_mwr_cnt/
-  $# perf stat -g -e hisi_pcie0_core0/rx_mwr_latency/ -e hisi_pcie0_core0/rx_mwr_cnt/
+  $# perf stat -e hisi_pcie0_core0/rx_mwr_latency,port=0xffff/
+  $# perf stat -e hisi_pcie0_core0/rx_mwr_cnt,port=0xffff/
+
+The related events usually used to calculate the bandwidth, latency or others.
+They need to start and end counting at the same time, therefore related events
+are best used in the same event group to get the expected value. There are two
+ways to know if they are related events:
+
+a) By event name, such as the latency events "xxx_latency, xxx_cnt" or
+   bandwidth events "xxx_flux, xxx_time".
+b) By event type, such as "event=0xXXXX, event=0x1XXXX".
+
+Example usage of perf group::
+
+  $# perf stat -e "{hisi_pcie0_core0/rx_mwr_latency,port=0xffff/,hisi_pcie0_core0/rx_mwr_cnt,port=0xffff/}"
 
 The current driver does not support sampling. So "perf record" is unsupported.
 Also attach to a task is unsupported for PCIe PMU.
@@ -51,8 +63,12 @@ Filter options
 
    PMU could only monitor the performance of traffic downstream target Root
    Ports or downstream target Endpoint. PCIe PMU driver support "port" and
-   "bdf" interfaces for users, and these two interfaces aren't supported at the
-   same time.
+   "bdf" interfaces for users.
+   Please notice that, one of these two interfaces must be set, and these two
+   interfaces aren't supported at the same time. If they are both set, only
+   "port" filter is valid.
+   If "port" filter not being set or is set explicitly to zero (default), the
+   "bdf" filter will be in effect, because "bdf=0" meaning 0000:000:00.0.
 
    - port
 
@@ -95,7 +111,7 @@ Filter options
 
    Example usage of perf::
 
-     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,trig_len=0x4,trig_mode=1/ sleep 5
+     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,port=0xffff,trig_len=0x4,trig_mode=1/ sleep 5
 
 3. Threshold filter
 
@@ -109,7 +125,7 @@ Filter options
 
    Example usage of perf::
 
-     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,thr_len=0x4,thr_mode=1/ sleep 5
+     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,port=0xffff,thr_len=0x4,thr_mode=1/ sleep 5
 
 4. TLP Length filter
 
@@ -127,4 +143,4 @@ Filter options
 
    Example usage of perf::
 
-     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,len_mode=0x1/ sleep 5
+     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,port=0xffff,len_mode=0x1/ sleep 5

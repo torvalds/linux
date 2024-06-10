@@ -9,10 +9,12 @@
 #include <linux/compiler.h>
 
 extern int verbose;
+extern int debug_kmaps;
 extern int debug_peo_args;
 extern bool quiet, dump_trace;
 extern int debug_ordered_events;
 extern int debug_data_convert;
+extern int debug_type_profile;
 
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt

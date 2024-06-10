@@ -6,9 +6,7 @@
 #include "block-rsv.h"
 #include "btrfs_inode.h"
 #include "space-info.h"
-#include "transaction.h"
 #include "qgroup.h"
-#include "block-group.h"
 #include "fs.h"
 
 /*

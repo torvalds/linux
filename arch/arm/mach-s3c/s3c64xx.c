@@ -149,7 +149,7 @@ static struct map_desc s3c_iodesc[] __initdata = {
 	},
 };
 
-static struct bus_type s3c64xx_subsys = {
+static const struct bus_type s3c64xx_subsys = {
 	.name		= "s3c64xx-core",
 	.dev_name	= "s3c64xx-core",
 };

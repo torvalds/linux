@@ -34,7 +34,7 @@ void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 EXPORT_SYMBOL_GPL(v4l2_spi_subdev_init);
 
 struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
-					struct spi_master *master,
+					struct spi_controller *ctlr,
 					struct spi_board_info *info)
 {
 	struct v4l2_subdev *sd = NULL;
@@ -45,7 +45,7 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 	if (info->modalias[0])
 		request_module(info->modalias);
 
-	spi = spi_new_device(master, info);
+	spi = spi_new_device(ctlr, info);
 
 	if (!spi || !spi->dev.driver)
 		goto error;
@@ -59,7 +59,7 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 	 * Register with the v4l2_device which increases the module's
 	 * use count as well.
 	 */
-	if (v4l2_device_register_subdev(v4l2_dev, sd))
+	if (__v4l2_device_register_subdev(v4l2_dev, sd, sd->owner))
 		sd = NULL;
 
 	/* Decrease the module use count to match the first try_module_get. */

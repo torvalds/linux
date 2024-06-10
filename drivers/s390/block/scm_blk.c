@@ -131,7 +131,7 @@ static void scm_request_done(struct scm_request *scmrq)
 
 	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++) {
 		msb = &scmrq->aob->msb[i];
-		aidaw = (u64)phys_to_virt(msb->data_addr);
+		aidaw = (u64)dma64_to_virt(msb->data_addr);
 
 		if ((msb->flags & MSB_FLAG_IDA) && aidaw &&
 		    IS_ALIGNED(aidaw, PAGE_SIZE))
@@ -196,12 +196,12 @@ static int scm_request_prepare(struct scm_request *scmrq)
 	msb->scm_addr = scmdev->address + ((u64) blk_rq_pos(req) << 9);
 	msb->oc = (rq_data_dir(req) == READ) ? MSB_OC_READ : MSB_OC_WRITE;
 	msb->flags |= MSB_FLAG_IDA;
-	msb->data_addr = (u64)virt_to_phys(aidaw);
+	msb->data_addr = virt_to_dma64(aidaw);
 
 	rq_for_each_segment(bv, req, iter) {
 		WARN_ON(bv.bv_offset);
 		msb->blk_count += bv.bv_len >> 12;
-		aidaw->data_addr = virt_to_phys(page_address(bv.bv_page));
+		aidaw->data_addr = virt_to_dma64(page_address(bv.bv_page));
 		aidaw++;
 	}
 
@@ -435,9 +435,16 @@ static const struct blk_mq_ops scm_mq_ops = {
 
 int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 {
-	unsigned int devindex, nr_max_blk;
+	struct queue_limits lim = {
+		.logical_block_size	= 1 << 12,
+	};
+	unsigned int devindex;
 	struct request_queue *rq;
 	int len, ret;
+
+	lim.max_segments = min(scmdev->nr_max_block,
+		(unsigned int) (PAGE_SIZE / sizeof(struct aidaw)));
+	lim.max_hw_sectors = lim.max_segments << 3; /* 8 * 512 = blk_size */
 
 	devindex = atomic_inc_return(&nr_devices) - 1;
 	/* scma..scmz + scmaa..scmzz */
@@ -462,18 +469,12 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	if (ret)
 		goto out;
 
-	bdev->gendisk = blk_mq_alloc_disk(&bdev->tag_set, scmdev);
+	bdev->gendisk = blk_mq_alloc_disk(&bdev->tag_set, &lim, scmdev);
 	if (IS_ERR(bdev->gendisk)) {
 		ret = PTR_ERR(bdev->gendisk);
 		goto out_tag;
 	}
 	rq = bdev->rq = bdev->gendisk->queue;
-	nr_max_blk = min(scmdev->nr_max_block,
-			 (unsigned int) (PAGE_SIZE / sizeof(struct aidaw)));
-
-	blk_queue_logical_block_size(rq, 1 << 12);
-	blk_queue_max_hw_sectors(rq, nr_max_blk << 3); /* 8 * 512 = blk_size */
-	blk_queue_max_segments(rq, nr_max_blk);
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, rq);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, rq);
 

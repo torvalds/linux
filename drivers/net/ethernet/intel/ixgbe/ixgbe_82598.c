@@ -15,10 +15,10 @@
 #define IXGBE_82598_VFT_TBL_SIZE 128
 #define IXGBE_82598_RX_PB_SIZE	 512
 
-static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
+static int ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
 					 ixgbe_link_speed speed,
 					 bool autoneg_wait_to_complete);
-static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
+static int ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
 				       u8 *eeprom_data);
 
 /**
@@ -66,7 +66,7 @@ out:
 	IXGBE_WRITE_REG(hw, IXGBE_GCR, gcr);
 }
 
-static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
+static int ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 
@@ -93,12 +93,12 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
  *  not known.  Perform the SFP init if necessary.
  *
  **/
-static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
+static int ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 	struct ixgbe_phy_info *phy = &hw->phy;
-	s32 ret_val;
 	u16 list_offset, data_offset;
+	int ret_val;
 
 	/* Identify the PHY */
 	phy->ops.identify(hw);
@@ -148,9 +148,9 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
  *  Then set pcie completion timeout
  *
  **/
-static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
+static int ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 {
-	s32 ret_val;
+	int ret_val;
 
 	ret_val = ixgbe_start_hw_generic(hw);
 	if (ret_val)
@@ -170,7 +170,7 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
  *
  *  Determines the link capabilities by reading the AUTOC register.
  **/
-static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
+static int ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 					     ixgbe_link_speed *speed,
 					     bool *autoneg)
 {
@@ -271,7 +271,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
  *
  *  Enable flow control according to the current settings.
  **/
-static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
+static int ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 {
 	u32 fctrl_reg;
 	u32 rmcs_reg;
@@ -411,13 +411,13 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
  *  Configures link settings based on values in the ixgbe_hw struct.
  *  Restarts the link.  Performs autonegotiation if needed.
  **/
-static s32 ixgbe_start_mac_link_82598(struct ixgbe_hw *hw,
+static int ixgbe_start_mac_link_82598(struct ixgbe_hw *hw,
 				      bool autoneg_wait_to_complete)
 {
+	int status = 0;
 	u32 autoc_reg;
 	u32 links_reg;
 	u32 i;
-	s32 status = 0;
 
 	/* Restart link */
 	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
@@ -457,7 +457,7 @@ static s32 ixgbe_start_mac_link_82598(struct ixgbe_hw *hw,
  *  Function indicates success when phy link is available. If phy is not ready
  *  within 5 seconds of MAC indicating link, the function returns error.
  **/
-static s32 ixgbe_validate_link_ready(struct ixgbe_hw *hw)
+static int ixgbe_validate_link_ready(struct ixgbe_hw *hw)
 {
 	u32 timeout;
 	u16 an_reg;
@@ -493,7 +493,7 @@ static s32 ixgbe_validate_link_ready(struct ixgbe_hw *hw)
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
-static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
+static int ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 				      ixgbe_link_speed *speed, bool *link_up,
 				      bool link_up_wait_to_complete)
 {
@@ -579,7 +579,7 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
-static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
+static int ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
 				      ixgbe_link_speed speed,
 				      bool autoneg_wait_to_complete)
 {
@@ -624,11 +624,11 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
  *
  *  Sets the link speed in the AUTOC register in the MAC and restarts link.
  **/
-static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
-					       ixgbe_link_speed speed,
-					       bool autoneg_wait_to_complete)
+static int ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
+					 ixgbe_link_speed speed,
+					 bool autoneg_wait_to_complete)
 {
-	s32 status;
+	int status;
 
 	/* Setup the PHY according to input speed */
 	status = hw->phy.ops.setup_link_speed(hw, speed,
@@ -647,15 +647,15 @@ static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
  *  clears all interrupts, performing a PHY reset, and performing a link (MAC)
  *  reset.
  **/
-static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
+static int ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 {
-	s32 status;
-	s32 phy_status = 0;
-	u32 ctrl;
-	u32 gheccr;
-	u32 i;
-	u32 autoc;
+	int phy_status = 0;
 	u8  analog_val;
+	u32 gheccr;
+	int status;
+	u32 autoc;
+	u32 ctrl;
+	u32 i;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
@@ -781,7 +781,7 @@ mac_reset_top:
  *  @rar: receive address register index to associate with a VMDq index
  *  @vmdq: VMDq set index
  **/
-static s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
+static int ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 {
 	u32 rar_high;
 	u32 rar_entries = hw->mac.num_rar_entries;
@@ -805,7 +805,7 @@ static s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
  *  @rar: receive address register index to associate with a VMDq index
  *  @vmdq: VMDq clear index (not used in 82598, but elsewhere)
  **/
-static s32 ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
+static int ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 {
 	u32 rar_high;
 	u32 rar_entries = hw->mac.num_rar_entries;
@@ -836,7 +836,7 @@ static s32 ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
  *
  *  Turn on/off specified VLAN in the VLAN filter table.
  **/
-static s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
+static int ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 				bool vlan_on, bool vlvf_bypass)
 {
 	u32 regindex;
@@ -881,7 +881,7 @@ static s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
  *
  *  Clears the VLAN filter table, and the VMDq index associated with the filter
  **/
-static s32 ixgbe_clear_vfta_82598(struct ixgbe_hw *hw)
+static int ixgbe_clear_vfta_82598(struct ixgbe_hw *hw)
 {
 	u32 offset;
 	u32 vlanbyte;
@@ -905,7 +905,7 @@ static s32 ixgbe_clear_vfta_82598(struct ixgbe_hw *hw)
  *
  *  Performs read operation to Atlas analog register specified.
  **/
-static s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val)
+static int ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val)
 {
 	u32  atlas_ctl;
 
@@ -927,7 +927,7 @@ static s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val)
  *
  *  Performs write operation to Atlas analog register specified.
  **/
-static s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val)
+static int ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val)
 {
 	u32  atlas_ctl;
 
@@ -948,13 +948,13 @@ static s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val)
  *
  *  Performs 8 byte read operation to SFP module's data over I2C interface.
  **/
-static s32 ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
+static int ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
 				    u8 byte_offset, u8 *eeprom_data)
 {
-	s32 status = 0;
 	u16 sfp_addr = 0;
 	u16 sfp_data = 0;
 	u16 sfp_stat = 0;
+	int status = 0;
 	u16 gssr;
 	u32 i;
 
@@ -1019,7 +1019,7 @@ out:
  *
  *  Performs 8 byte read operation to SFP module's EEPROM over I2C interface.
  **/
-static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
+static int ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
 				       u8 *eeprom_data)
 {
 	return ixgbe_read_i2c_phy_82598(hw, IXGBE_I2C_EEPROM_DEV_ADDR,
@@ -1034,8 +1034,8 @@ static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
  *
  *  Performs 8 byte read operation to SFP module's SFF-8472 data over I2C
  **/
-static s32 ixgbe_read_i2c_sff8472_82598(struct ixgbe_hw *hw, u8 byte_offset,
-				       u8 *sff8472_data)
+static int ixgbe_read_i2c_sff8472_82598(struct ixgbe_hw *hw, u8 byte_offset,
+					u8 *sff8472_data)
 {
 	return ixgbe_read_i2c_phy_82598(hw, IXGBE_I2C_EEPROM_DEV_ADDR2,
 					byte_offset, sff8472_data);

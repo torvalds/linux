@@ -167,7 +167,11 @@ static int lcdif_load(struct drm_device *drm)
 		return ret;
 
 	/* Modeset init */
-	drm_mode_config_init(drm);
+	ret = drmm_mode_config_init(drm);
+	if (ret) {
+		dev_err(drm->dev, "Failed to initialize mode config\n");
+		return ret;
+	}
 
 	ret = lcdif_kms_init(lcdif);
 	if (ret < 0) {
@@ -227,7 +231,6 @@ static void lcdif_unload(struct drm_device *drm)
 	drm_crtc_vblank_off(&lcdif->crtc);
 
 	drm_kms_helper_poll_fini(drm);
-	drm_mode_config_cleanup(drm);
 
 	pm_runtime_put_sync(drm->dev);
 	pm_runtime_disable(drm->dev);
@@ -340,6 +343,9 @@ static int __maybe_unused lcdif_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
+	if (pm_runtime_suspended(dev))
+		return 0;
+
 	return lcdif_rpm_suspend(dev);
 }
 
@@ -347,7 +353,8 @@ static int __maybe_unused lcdif_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 
-	lcdif_rpm_resume(dev);
+	if (!pm_runtime_suspended(dev))
+		lcdif_rpm_resume(dev);
 
 	return drm_mode_config_helper_resume(drm);
 }

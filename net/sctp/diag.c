@@ -507,6 +507,7 @@ done:
 }
 
 static const struct inet_diag_handler sctp_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = sctp_diag_dump,
 	.dump_one	 = sctp_diag_dump_one,
 	.idiag_get_info  = sctp_diag_get_info,

@@ -324,6 +324,7 @@ static void decode_ISR(unsigned int val)
 	decode_bits(KERN_DEBUG "ISR", isr_bits, ARRAY_SIZE(isr_bits), val);
 }
 
+#ifdef CONFIG_I2C_PXA_SLAVE
 static const struct bits icr_bits[] = {
 	PXA_BIT(ICR_START,  "START",	NULL),
 	PXA_BIT(ICR_STOP,   "STOP",	NULL),
@@ -342,7 +343,6 @@ static const struct bits icr_bits[] = {
 	PXA_BIT(ICR_UR,     "UR",		"ur"),
 };
 
-#ifdef CONFIG_I2C_PXA_SLAVE
 static void decode_ICR(unsigned int val)
 {
 	decode_bits(KERN_DEBUG "ICR", icr_bits, ARRAY_SIZE(icr_bits), val);
@@ -826,7 +826,7 @@ static inline void i2c_pxa_stop_message(struct pxa_i2c *i2c)
 static int i2c_pxa_send_mastercode(struct pxa_i2c *i2c)
 {
 	u32 icr;
-	long timeout;
+	long time_left;
 
 	spin_lock_irq(&i2c->lock);
 	i2c->highmode_enter = true;
@@ -837,12 +837,12 @@ static int i2c_pxa_send_mastercode(struct pxa_i2c *i2c)
 	writel(icr, _ICR(i2c));
 
 	spin_unlock_irq(&i2c->lock);
-	timeout = wait_event_timeout(i2c->wait,
-			i2c->highmode_enter == false, HZ * 1);
+	time_left = wait_event_timeout(i2c->wait,
+				       i2c->highmode_enter == false, HZ * 1);
 
 	i2c->highmode_enter = false;
 
-	return (timeout == 0) ? I2C_RETRY : 0;
+	return (time_left == 0) ? I2C_RETRY : 0;
 }
 
 /*
@@ -1050,7 +1050,7 @@ static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id)
  */
 static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 {
-	long timeout;
+	long time_left;
 	int ret;
 
 	/*
@@ -1095,7 +1095,7 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 	/*
 	 * The rest of the processing occurs in the interrupt handler.
 	 */
-	timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, HZ * 5);
+	time_left = wait_event_timeout(i2c->wait, i2c->msg_num == 0, HZ * 5);
 	i2c_pxa_stop_message(i2c);
 
 	/*
@@ -1103,7 +1103,7 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 	 */
 	ret = i2c->msg_idx;
 
-	if (!timeout && i2c->msg_num) {
+	if (!time_left && i2c->msg_num) {
 		i2c_pxa_scream_blue_murder(i2c, "timeout with active message");
 		i2c_recover_bus(&i2c->adap);
 		ret = I2C_RETRY;

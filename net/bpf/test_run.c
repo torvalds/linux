@@ -12,6 +12,7 @@
 #include <linux/rcupdate_trace.h>
 #include <linux/sched/signal.h>
 #include <net/bpf_sk_storage.h>
+#include <net/hotdata.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <net/net_namespace.h>
@@ -254,7 +255,8 @@ static int xdp_recv_frames(struct xdp_frame **frames, int nframes,
 	int i, n;
 	LIST_HEAD(list);
 
-	n = kmem_cache_alloc_bulk(skbuff_cache, gfp, nframes, (void **)skbs);
+	n = kmem_cache_alloc_bulk(net_hotdata.skbuff_cache, gfp, nframes,
+				  (void **)skbs);
 	if (unlikely(n == 0)) {
 		for (i = 0; i < nframes; i++)
 			xdp_return_frame(frames[i]);
@@ -573,6 +575,13 @@ __bpf_kfunc int bpf_modify_return_test2(int a, int *b, short c, int d,
 	return a + *b + c + d + (long)e + f + g;
 }
 
+__bpf_kfunc int bpf_modify_return_test_tp(int nonce)
+{
+	trace_bpf_trigger_tp(nonce);
+
+	return nonce;
+}
+
 int noinline bpf_fentry_shadow_test(int a)
 {
 	return a + 1;
@@ -617,21 +626,22 @@ CFI_NOSEAL(bpf_kfunc_call_memb_release_dtor);
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(bpf_test_modify_return_ids)
+BTF_KFUNCS_START(bpf_test_modify_return_ids)
 BTF_ID_FLAGS(func, bpf_modify_return_test)
 BTF_ID_FLAGS(func, bpf_modify_return_test2)
+BTF_ID_FLAGS(func, bpf_modify_return_test_tp)
 BTF_ID_FLAGS(func, bpf_fentry_test1, KF_SLEEPABLE)
-BTF_SET8_END(bpf_test_modify_return_ids)
+BTF_KFUNCS_END(bpf_test_modify_return_ids)
 
 static const struct btf_kfunc_id_set bpf_test_modify_return_set = {
 	.owner = THIS_MODULE,
 	.set   = &bpf_test_modify_return_ids,
 };
 
-BTF_SET8_START(test_sk_check_kfunc_ids)
+BTF_KFUNCS_START(test_sk_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_memb_release, KF_RELEASE)
-BTF_SET8_END(test_sk_check_kfunc_ids)
+BTF_KFUNCS_END(test_sk_check_kfunc_ids)
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
 			   u32 size, u32 headroom, u32 tailroom)

@@ -43,7 +43,7 @@ static struct {
 	struct sock *sock;
 } lte_event;
 
-static struct device_type wwan_type = {
+static const struct device_type wwan_type = {
 	.name   = "wwan",
 };
 

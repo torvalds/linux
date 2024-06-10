@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-snd-soc-sst-atom-hifi2-platform-objs :=	sst-mfld-platform-pcm.o \
+snd-soc-sst-atom-hifi2-platform-y :=	sst-mfld-platform-pcm.o \
 					sst-mfld-platform-compress.o \
 					sst-atom-controls.o
 

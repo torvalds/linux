@@ -288,6 +288,6 @@ void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
 	mwifiex_dbg(priv->adapter, MSG,
 		    "indicating channel switch completion to kernel\n");
 	wiphy_lock(priv->wdev.wiphy);
-	cfg80211_ch_switch_notify(priv->netdev, &priv->dfs_chandef, 0, 0);
+	cfg80211_ch_switch_notify(priv->netdev, &priv->dfs_chandef, 0);
 	wiphy_unlock(priv->wdev.wiphy);
 }

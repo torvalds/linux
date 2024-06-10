@@ -24,11 +24,15 @@
 #define __DRM_EDID_H__
 
 #include <linux/types.h>
-#include <linux/hdmi.h>
-#include <drm/drm_mode.h>
 
+enum hdmi_quantization_range;
+struct drm_connector;
 struct drm_device;
+struct drm_display_mode;
 struct drm_edid;
+struct drm_printer;
+struct hdmi_avi_infoframe;
+struct hdmi_vendor_infoframe;
 struct i2c_adapter;
 
 #define EDID_LENGTH 128
@@ -46,7 +50,7 @@ struct est_timings {
 	u8 t1;
 	u8 t2;
 	u8 mfg_rsvd;
-} __attribute__((packed));
+} __packed;
 
 /* 00=16:10, 01=4:3, 10=5:4, 11=16:9 */
 #define EDID_TIMING_ASPECT_SHIFT 6
@@ -59,7 +63,7 @@ struct est_timings {
 struct std_timing {
 	u8 hsize; /* need to multiply by 8 then add 248 */
 	u8 vfreq_aspect;
-} __attribute__((packed));
+} __packed;
 
 #define DRM_EDID_PT_HSYNC_POSITIVE (1 << 1)
 #define DRM_EDID_PT_VSYNC_POSITIVE (1 << 2)
@@ -85,12 +89,12 @@ struct detailed_pixel_timing {
 	u8 hborder;
 	u8 vborder;
 	u8 misc;
-} __attribute__((packed));
+} __packed;
 
 /* If it's not pixel timing, it'll be one of the below */
 struct detailed_data_string {
 	u8 str[13];
-} __attribute__((packed));
+} __packed;
 
 #define DRM_EDID_RANGE_OFFSET_MIN_VFREQ (1 << 0) /* 1.4 */
 #define DRM_EDID_RANGE_OFFSET_MAX_VFREQ (1 << 1) /* 1.4 */
@@ -120,7 +124,7 @@ struct detailed_data_monitor_range {
 			__le16 m;
 			u8 k;
 			u8 j; /* need to divide by 2 */
-		} __attribute__((packed)) gtf2;
+		} __packed gtf2;
 		struct {
 			u8 version;
 			u8 data1; /* high 6 bits: extra clock resolution */
@@ -129,27 +133,27 @@ struct detailed_data_monitor_range {
 			u8 flags; /* preferred aspect and blanking support */
 			u8 supported_scalings;
 			u8 preferred_refresh;
-		} __attribute__((packed)) cvt;
-	} __attribute__((packed)) formula;
-} __attribute__((packed));
+		} __packed cvt;
+	} __packed formula;
+} __packed;
 
 struct detailed_data_wpindex {
 	u8 white_yx_lo; /* Lower 2 bits each */
 	u8 white_x_hi;
 	u8 white_y_hi;
 	u8 gamma; /* need to divide by 100 then add 1 */
-} __attribute__((packed));
+} __packed;
 
 struct detailed_data_color_point {
 	u8 windex1;
 	u8 wpindex1[3];
 	u8 windex2;
 	u8 wpindex2[3];
-} __attribute__((packed));
+} __packed;
 
 struct cvt_timing {
 	u8 code[3];
-} __attribute__((packed));
+} __packed;
 
 struct detailed_non_pixel {
 	u8 pad1;
@@ -163,8 +167,8 @@ struct detailed_non_pixel {
 		struct detailed_data_wpindex color;
 		struct std_timing timings[6];
 		struct cvt_timing cvt[4];
-	} __attribute__((packed)) data;
-} __attribute__((packed));
+	} __packed data;
+} __packed;
 
 #define EDID_DETAIL_EST_TIMINGS 0xf7
 #define EDID_DETAIL_CVT_3BYTE 0xf8
@@ -181,8 +185,8 @@ struct detailed_timing {
 	union {
 		struct detailed_pixel_timing pixel_data;
 		struct detailed_non_pixel other_data;
-	} __attribute__((packed)) data;
-} __attribute__((packed));
+	} __packed data;
+} __packed;
 
 #define DRM_EDID_INPUT_SERRATION_VSYNC (1 << 0)
 #define DRM_EDID_INPUT_SYNC_ON_GREEN   (1 << 1)
@@ -269,14 +273,27 @@ struct detailed_timing {
 #define DRM_EDID_DSC_MAX_SLICES			0xf
 #define DRM_EDID_DSC_TOTAL_CHUNK_KBYTES		0x3f
 
+struct drm_edid_product_id {
+	__be16 manufacturer_name;
+	__le16 product_code;
+	__le32 serial_number;
+	u8 week_of_manufacture;
+	u8 year_of_manufacture;
+} __packed;
+
 struct edid {
 	u8 header[8];
 	/* Vendor & product info */
-	u8 mfg_id[2];
-	u8 prod_code[2];
-	u32 serial; /* FIXME: byte order */
-	u8 mfg_week;
-	u8 mfg_year;
+	union {
+		struct drm_edid_product_id product_id;
+		struct {
+			u8 mfg_id[2];
+			u8 prod_code[2];
+			u32 serial; /* FIXME: byte order */
+			u8 mfg_week;
+			u8 mfg_year;
+		} __packed;
+	} __packed;
 	/* EDID version */
 	u8 version;
 	u8 revision;
@@ -307,7 +324,14 @@ struct edid {
 	u8 extensions;
 	/* Checksum */
 	u8 checksum;
-} __attribute__((packed));
+} __packed;
+
+/* EDID matching */
+struct drm_edid_ident {
+	/* ID encoded by drm_edid_encode_panel_id() */
+	u32 panel_id;
+	const char *name;
+};
 
 #define EDID_PRODUCT_ID(e) ((e)->prod_code[0] | ((e)->prod_code[1] << 8))
 
@@ -319,17 +343,10 @@ struct cea_sad {
 	u8 byte2; /* meaning depends on format */
 };
 
-struct drm_encoder;
-struct drm_connector;
-struct drm_connector_state;
-struct drm_display_mode;
-
 int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads);
 int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb);
 int drm_av_sync_delay(struct drm_connector *connector,
 		      const struct drm_display_mode *mode);
-
-bool drm_edid_are_equal(const struct edid *edid1, const struct edid *edid2);
 
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
@@ -412,7 +429,6 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	void *data);
 struct edid *drm_get_edid(struct drm_connector *connector,
 			  struct i2c_adapter *adapter);
-u32 drm_edid_get_panel_id(struct i2c_adapter *adapter);
 struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
 				     struct i2c_adapter *adapter);
 struct edid *drm_edid_duplicate(const struct edid *edid);
@@ -426,8 +442,6 @@ enum hdmi_quantization_range
 drm_default_rgb_quant_range(const struct drm_display_mode *mode);
 int drm_add_modes_noedid(struct drm_connector *connector,
 			 int hdisplay, int vdisplay);
-void drm_set_preferred_mode(struct drm_connector *connector,
-			    int hpref, int vpref);
 
 int drm_edid_header_is_valid(const void *edid);
 bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
@@ -454,14 +468,19 @@ const struct drm_edid *drm_edid_read_ddc(struct drm_connector *connector,
 const struct drm_edid *drm_edid_read_custom(struct drm_connector *connector,
 					    int (*read_block)(void *context, u8 *buf, unsigned int block, size_t len),
 					    void *context);
+const struct drm_edid *drm_edid_read_base_block(struct i2c_adapter *adapter);
 const struct drm_edid *drm_edid_read_switcheroo(struct drm_connector *connector,
 						struct i2c_adapter *adapter);
 int drm_edid_connector_update(struct drm_connector *connector,
 			      const struct drm_edid *edid);
 int drm_edid_connector_add_modes(struct drm_connector *connector);
 bool drm_edid_is_digital(const struct drm_edid *drm_edid);
-
-const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
-				  int ext_id, int *ext_index);
+void drm_edid_get_product_id(const struct drm_edid *drm_edid,
+			     struct drm_edid_product_id *id);
+void drm_edid_print_product_id(struct drm_printer *p,
+			       const struct drm_edid_product_id *id, bool raw);
+u32 drm_edid_get_panel_id(const struct drm_edid *drm_edid);
+bool drm_edid_match(const struct drm_edid *drm_edid,
+		    const struct drm_edid_ident *ident);
 
 #endif /* __DRM_EDID_H__ */

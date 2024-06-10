@@ -38,6 +38,7 @@
 
 #include "gfx_v9_4_3.h"
 #include "amdgpu_xcp.h"
+#include "amdgpu_aca.h"
 
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_rlc.bin");
@@ -47,6 +48,10 @@ MODULE_FIRMWARE("amdgpu/gc_9_4_3_rlc.bin");
 
 #define GOLDEN_GB_ADDR_CONFIG 0x2a114042
 #define CP_HQD_PERSISTENT_STATE_DEFAULT 0xbe05301
+
+#define mmSMNAID_XCD0_MCA_SMU 0x36430400	/* SMN AID XCD0 */
+#define mmSMNAID_XCD1_MCA_SMU 0x38430400	/* SMN AID XCD1 */
+#define mmSMNXCD_XCD0_MCA_SMU 0x40430400	/* SMN XCD XCD0 */
 
 struct amdgpu_gfx_ras gfx_v9_4_3_ras;
 
@@ -426,16 +431,16 @@ out:
 
 static int gfx_v9_4_3_init_microcode(struct amdgpu_device *adev)
 {
-	const char *chip_name;
+	char ucode_prefix[15];
 	int r;
 
-	chip_name = "gc_9_4_3";
+	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix, sizeof(ucode_prefix));
 
-	r = gfx_v9_4_3_init_rlc_microcode(adev, chip_name);
+	r = gfx_v9_4_3_init_rlc_microcode(adev, ucode_prefix);
 	if (r)
 		return r;
 
-	r = gfx_v9_4_3_init_cp_compute_microcode(adev, chip_name);
+	r = gfx_v9_4_3_init_cp_compute_microcode(adev, ucode_prefix);
 	if (r)
 		return r;
 
@@ -675,6 +680,72 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.ih_node_to_logical_xcc = &gfx_v9_4_3_ih_to_xcc_inst,
 };
 
+static int gfx_v9_4_3_aca_bank_parser(struct aca_handle *handle,
+				      struct aca_bank *bank, enum aca_smu_type type,
+				      void *data)
+{
+	struct aca_bank_info info;
+	u64 misc0;
+	u32 instlo;
+	int ret;
+
+	ret = aca_bank_info_decode(bank, &info);
+	if (ret)
+		return ret;
+
+	/* NOTE: overwrite info.die_id with xcd id for gfx */
+	instlo = ACA_REG__IPID__INSTANCEIDLO(bank->regs[ACA_REG_IDX_IPID]);
+	instlo &= GENMASK(31, 1);
+	info.die_id = instlo == mmSMNAID_XCD0_MCA_SMU ? 0 : 1;
+
+	misc0 = bank->regs[ACA_REG_IDX_MISC0];
+
+	switch (type) {
+	case ACA_SMU_TYPE_UE:
+		ret = aca_error_cache_log_bank_error(handle, &info,
+						     ACA_ERROR_TYPE_UE, 1ULL);
+		break;
+	case ACA_SMU_TYPE_CE:
+		ret = aca_error_cache_log_bank_error(handle, &info,
+						     ACA_ERROR_TYPE_CE, ACA_REG__MISC0__ERRCNT(misc0));
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static bool gfx_v9_4_3_aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank,
+					 enum aca_smu_type type, void *data)
+{
+	u32 instlo;
+
+	instlo = ACA_REG__IPID__INSTANCEIDLO(bank->regs[ACA_REG_IDX_IPID]);
+	instlo &= GENMASK(31, 1);
+	switch (instlo) {
+	case mmSMNAID_XCD0_MCA_SMU:
+	case mmSMNAID_XCD1_MCA_SMU:
+	case mmSMNXCD_XCD0_MCA_SMU:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+static const struct aca_bank_ops gfx_v9_4_3_aca_bank_ops = {
+	.aca_bank_parser = gfx_v9_4_3_aca_bank_parser,
+	.aca_bank_is_valid = gfx_v9_4_3_aca_bank_is_valid,
+};
+
+static const struct aca_info gfx_v9_4_3_aca_info = {
+	.hwip = ACA_HWIP_TYPE_SMU,
+	.mask = ACA_ERROR_UE_MASK | ACA_ERROR_CE_MASK,
+	.bank_ops = &gfx_v9_4_3_aca_bank_ops,
+};
+
 static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config;
@@ -778,7 +849,6 @@ static int gfx_v9_4_3_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 static int gfx_v9_4_3_sw_init(void *handle)
 {
 	int i, j, k, r, ring_id, xcc_id, num_xcc;
-	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.mec.num_mec = 2;
@@ -847,8 +917,7 @@ static int gfx_v9_4_3_sw_init(void *handle)
 			return r;
 		}
 
-		kiq = &adev->gfx.kiq[xcc_id];
-		r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq, xcc_id);
+		r = amdgpu_gfx_kiq_init_ring(adev, xcc_id);
 		if (r)
 			return r;
 
@@ -1109,7 +1178,7 @@ static int gfx_v9_4_3_rlc_init(struct amdgpu_device *adev)
 {
 	/* init spm vmid with 0xf */
 	if (adev->gfx.rlc.funcs->update_spm_vmid)
-		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0xf);
+		adev->gfx.rlc.funcs->update_spm_vmid(adev, NULL, 0xf);
 
 	return 0;
 }
@@ -1320,7 +1389,7 @@ static int gfx_v9_4_3_rlc_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gfx_v9_4_3_update_spm_vmid(struct amdgpu_device *adev,
+static void gfx_v9_4_3_update_spm_vmid(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 				       unsigned vmid)
 {
 	u32 reg, data;
@@ -2335,10 +2404,10 @@ gfx_v9_4_3_xcc_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 		if (def != data)
 			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGTT_MGCG_OVERRIDE, data);
 
-		/* enable cgcg FSM(0x0000363F) */
+		/* CGCG Hysteresis: 400us */
 		def = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGCG_CGLS_CTRL);
 
-		data = (0x36
+		data = (0x2710
 			<< RLC_CGCG_CGLS_CTRL__CGCG_GFX_IDLE_THRESHOLD__SHIFT) |
 		       RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK;
 		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS)
@@ -2347,10 +2416,10 @@ gfx_v9_4_3_xcc_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 		if (def != data)
 			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGCG_CGLS_CTRL, data);
 
-		/* set IDLE_POLL_COUNT(0x00900100) */
+		/* set IDLE_POLL_COUNT(0x33450100)*/
 		def = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_RB_WPTR_POLL_CNTL);
 		data = (0x0100 << CP_RB_WPTR_POLL_CNTL__POLL_FREQUENCY__SHIFT) |
-			(0x0090 << CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT__SHIFT);
+			(0x3345 << CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT__SHIFT);
 		if (def != data)
 			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_RB_WPTR_POLL_CNTL, data);
 	} else {
@@ -3888,6 +3957,9 @@ static void gfx_v9_4_3_inst_enable_watchdog_timer(struct amdgpu_device *adev,
 	uint32_t i;
 	uint32_t data;
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	data = RREG32_SOC15(GC, GET_INST(GC, 0), regSQ_TIMEOUT_CONFIG);
 	data = REG_SET_FIELD(data, SQ_TIMEOUT_CONFIG, TIMEOUT_FATAL_DISABLE,
 			     amdgpu_watchdog_timer.timeout_fatal_disable ? 1 : 0);
@@ -3944,6 +4016,8 @@ static const struct amd_ip_funcs gfx_v9_4_3_ip_funcs = {
 	.set_clockgating_state = gfx_v9_4_3_set_clockgating_state,
 	.set_powergating_state = gfx_v9_4_3_set_powergating_state,
 	.get_clockgating_state = gfx_v9_4_3_get_clockgating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs gfx_v9_4_3_ring_funcs_compute = {
@@ -4242,9 +4316,32 @@ struct amdgpu_ras_block_hw_ops  gfx_v9_4_3_ras_ops = {
 	.reset_ras_error_count = &gfx_v9_4_3_reset_ras_error_count,
 };
 
+static int gfx_v9_4_3_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
+{
+	int r;
+
+	r = amdgpu_ras_block_late_init(adev, ras_block);
+	if (r)
+		return r;
+
+	r = amdgpu_ras_bind_aca(adev, AMDGPU_RAS_BLOCK__GFX,
+				&gfx_v9_4_3_aca_info,
+				NULL);
+	if (r)
+		goto late_fini;
+
+	return 0;
+
+late_fini:
+	amdgpu_ras_block_late_fini(adev, ras_block);
+
+	return r;
+}
+
 struct amdgpu_gfx_ras gfx_v9_4_3_ras = {
 	.ras_block = {
 		.hw_ops = &gfx_v9_4_3_ras_ops,
+		.ras_late_init = &gfx_v9_4_3_ras_late_init,
 	},
 	.enable_watchdog_timer = &gfx_v9_4_3_enable_watchdog_timer,
 };

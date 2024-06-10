@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 6
-PATCHLEVEL = 8
+PATCHLEVEL = 10
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = Hurr durr I'ma ninja sloth
+EXTRAVERSION = -rc1
+NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -39,8 +39,8 @@ __all:
 # prepare rule.
 
 this-makefile := $(lastword $(MAKEFILE_LIST))
-export abs_srctree := $(realpath $(dir $(this-makefile)))
-export abs_objtree := $(CURDIR)
+abs_srctree := $(realpath $(dir $(this-makefile)))
+abs_objtree := $(CURDIR)
 
 ifneq ($(sub_make_done),1)
 
@@ -263,7 +263,14 @@ srctree := $(abs_srctree)
 endif
 
 objtree		:= .
+
+VPATH		:=
+
+ifeq ($(KBUILD_EXTMOD),)
+ifdef building_out_of_srctree
 VPATH		:= $(srctree)
+endif
+endif
 
 export building_out_of_srctree srctree objtree VPATH
 
@@ -295,51 +302,51 @@ single-build	:=
 
 ifneq ($(filter $(no-dot-config-targets), $(MAKECMDGOALS)),)
     ifeq ($(filter-out $(no-dot-config-targets), $(MAKECMDGOALS)),)
-		need-config :=
+        need-config :=
     endif
 endif
 
 ifneq ($(filter $(no-sync-config-targets), $(MAKECMDGOALS)),)
     ifeq ($(filter-out $(no-sync-config-targets), $(MAKECMDGOALS)),)
-		may-sync-config :=
+        may-sync-config :=
     endif
 endif
 
 need-compiler := $(may-sync-config)
 
 ifneq ($(KBUILD_EXTMOD),)
-	may-sync-config :=
+    may-sync-config :=
 endif
 
 ifeq ($(KBUILD_EXTMOD),)
-        ifneq ($(filter %config,$(MAKECMDGOALS)),)
-		config-build := 1
-                ifneq ($(words $(MAKECMDGOALS)),1)
-			mixed-build := 1
-                endif
+    ifneq ($(filter %config,$(MAKECMDGOALS)),)
+        config-build := 1
+        ifneq ($(words $(MAKECMDGOALS)),1)
+            mixed-build := 1
         endif
+    endif
 endif
 
 # We cannot build single targets and the others at the same time
 ifneq ($(filter $(single-targets), $(MAKECMDGOALS)),)
-	single-build := 1
+    single-build := 1
     ifneq ($(filter-out $(single-targets), $(MAKECMDGOALS)),)
-		mixed-build := 1
+        mixed-build := 1
     endif
 endif
 
 # For "make -j clean all", "make -j mrproper defconfig all", etc.
 ifneq ($(filter $(clean-targets),$(MAKECMDGOALS)),)
-        ifneq ($(filter-out $(clean-targets),$(MAKECMDGOALS)),)
-		mixed-build := 1
-        endif
+    ifneq ($(filter-out $(clean-targets),$(MAKECMDGOALS)),)
+        mixed-build := 1
+    endif
 endif
 
 # install and modules_install need also be processed one by one
 ifneq ($(filter install,$(MAKECMDGOALS)),)
-        ifneq ($(filter modules_install,$(MAKECMDGOALS)),)
-		mixed-build := 1
-        endif
+    ifneq ($(filter modules_install,$(MAKECMDGOALS)),)
+        mixed-build := 1
+    endif
 endif
 
 ifdef mixed-build
@@ -561,7 +568,6 @@ KBUILD_CFLAGS += -fno-strict-aliasing
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_RUSTFLAGS := $(rust_common_flags) \
-		    --target=$(objtree)/scripts/target.json \
 		    -Cpanic=abort -Cembed-bitcode=n -Clto=n \
 		    -Cforce-unwind-tables=n -Ccodegen-units=1 \
 		    -Csymbol-mangling-version=v0 \
@@ -943,7 +949,6 @@ endif
 ifdef CONFIG_LTO_CLANG
 ifdef CONFIG_LTO_CLANG_THIN
 CC_FLAGS_LTO	:= -flto=thin -fsplit-lto-unit
-KBUILD_LDFLAGS	+= --thinlto-cache-dir=$(extmod_prefix).thinlto-cache
 else
 CC_FLAGS_LTO	:= -flto
 endif
@@ -951,14 +956,6 @@ CC_FLAGS_LTO	+= -fvisibility=hidden
 
 # Limit inlining across translation units to reduce binary size
 KBUILD_LDFLAGS += -mllvm -import-instr-limit=5
-
-# Check for frame size exceeding threshold during prolog/epilog insertion
-# when using lld < 13.0.0.
-ifneq ($(CONFIG_FRAME_WARN),0)
-ifeq ($(call test-lt, $(CONFIG_LLD_VERSION), 130000),y)
-KBUILD_LDFLAGS	+= -plugin-opt=-warn-stack-size=$(CONFIG_FRAME_WARN)
-endif
-endif
 endif
 
 ifdef CONFIG_LTO
@@ -973,8 +970,20 @@ KBUILD_CFLAGS	+= $(CC_FLAGS_CFI)
 export CC_FLAGS_CFI
 endif
 
+# Architectures can define flags to add/remove for floating-point support
+CC_FLAGS_FPU	+= -D_LINUX_FPU_COMPILATION_UNIT
+export CC_FLAGS_FPU
+export CC_FLAGS_NO_FPU
+
 ifneq ($(CONFIG_FUNCTION_ALIGNMENT),0)
+# Set the minimal function alignment. Use the newer GCC option
+# -fmin-function-alignment if it is available, or fall back to -falign-funtions.
+# See also CONFIG_CC_HAS_SANE_FUNCTION_ALIGNMENT.
+ifdef CONFIG_CC_HAS_MIN_FUNCTION_ALIGNMENT
+KBUILD_CFLAGS += -fmin-function-alignment=$(CONFIG_FUNCTION_ALIGNMENT)
+else
 KBUILD_CFLAGS += -falign-functions=$(CONFIG_FUNCTION_ALIGNMENT)
+endif
 endif
 
 # arch Makefile may override CC so keep this after arch Makefile is included
@@ -1201,7 +1210,7 @@ prepare0: archprepare
 # All the preparing..
 prepare: prepare0
 ifdef CONFIG_RUST
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/rust_is_available.sh
+	+$(Q)$(CONFIG_SHELL) $(srctree)/scripts/rust_is_available.sh
 	$(Q)$(MAKE) $(build)=rust
 endif
 
@@ -1250,8 +1259,8 @@ define filechk_version.h
 	echo \#define LINUX_VERSION_SUBLEVEL $(SUBLEVEL)
 endef
 
-$(version_h): PATCHLEVEL := $(or $(PATCHLEVEL), 0)
-$(version_h): SUBLEVEL := $(or $(SUBLEVEL), 0)
+$(version_h): private PATCHLEVEL := $(or $(PATCHLEVEL), 0)
+$(version_h): private SUBLEVEL := $(or $(SUBLEVEL), 0)
 $(version_h): FORCE
 	$(call filechk,version.h)
 
@@ -1393,7 +1402,7 @@ ifneq ($(dtstree),)
 
 PHONY += dtbs dtbs_prepare dtbs_install dtbs_check
 dtbs: dtbs_prepare
-	$(Q)$(MAKE) $(build)=$(dtstree)
+	$(Q)$(MAKE) $(build)=$(dtstree) need-dtbslist=1
 
 # include/config/kernel.release is actually needed when installing DTBs because
 # INSTALL_DTBS_PATH contains $(KERNELRELEASE). However, we do not want to make
@@ -1405,13 +1414,13 @@ export CHECK_DTBS=y
 endif
 
 ifneq ($(CHECK_DTBS),)
-dtbs_prepare: dt_binding_check
+dtbs_prepare: dt_binding_schemas
 endif
 
 dtbs_check: dtbs
 
 dtbs_install:
-	$(Q)$(MAKE) $(dtbinst)=$(dtstree) dst=$(INSTALL_DTBS_PATH)
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.dtbinst obj=$(dtstree)
 
 ifdef CONFIG_OF_EARLY_FLATTREE
 all: dtbs
@@ -1424,15 +1433,18 @@ scripts_dtc: scripts_basic
 	$(Q)$(MAKE) $(build)=scripts/dtc
 
 ifneq ($(filter dt_binding_check, $(MAKECMDGOALS)),)
-export CHECK_DT_BINDING=y
+export CHECK_DTBS=y
 endif
 
-PHONY += dt_binding_check
-dt_binding_check: scripts_dtc
+PHONY += dt_binding_check dt_binding_schemas
+dt_binding_check: dt_binding_schemas scripts_dtc
+	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings $@
+
+dt_binding_schemas:
 	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings
 
 PHONY += dt_compatible_check
-dt_compatible_check: dt_binding_check
+dt_compatible_check: dt_binding_schemas
 	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings $@
 
 # ---------------------------------------------------------------------------
@@ -1479,7 +1491,7 @@ endif # CONFIG_MODULES
 # Directories & files removed with 'make clean'
 CLEAN_FILES += vmlinux.symvers modules-only.symvers \
 	       modules.builtin modules.builtin.modinfo modules.nsdeps \
-	       compile_commands.json .thinlto-cache rust/test \
+	       compile_commands.json rust/test \
 	       rust-project.json .vmlinux.objs .vmlinux.export.c
 
 # Directories & files removed with 'make mrproper'
@@ -1496,7 +1508,7 @@ MRPROPER_FILES += include/config include/generated          \
 
 # clean - Delete most, but leave enough to build external modules
 #
-clean: rm-files := $(CLEAN_FILES)
+clean: private rm-files := $(CLEAN_FILES)
 
 PHONY += archclean vmlinuxclean
 
@@ -1508,7 +1520,7 @@ clean: archclean vmlinuxclean resolve_btfids_clean
 
 # mrproper - Delete all generated files, including .config
 #
-mrproper: rm-files := $(wildcard $(MRPROPER_FILES))
+mrproper: private rm-files := $(MRPROPER_FILES)
 mrproper-dirs      := $(addprefix _mrproper_,scripts)
 
 PHONY += $(mrproper-dirs) mrproper
@@ -1628,10 +1640,11 @@ help:
 	@echo  ''
 	@$(if $(dtstree), \
 		echo 'Devicetree:'; \
-		echo '* dtbs             - Build device tree blobs for enabled boards'; \
-		echo '  dtbs_install     - Install dtbs to $(INSTALL_DTBS_PATH)'; \
-		echo '  dt_binding_check - Validate device tree binding documents'; \
-		echo '  dtbs_check       - Validate device tree source files';\
+		echo '* dtbs               - Build device tree blobs for enabled boards'; \
+		echo '  dtbs_install       - Install dtbs to $(INSTALL_DTBS_PATH)'; \
+		echo '  dt_binding_check   - Validate device tree binding documents and examples'; \
+		echo '  dt_binding_schema  - Build processed device tree binding schemas'; \
+		echo '  dtbs_check         - Validate device tree source files';\
 		echo '')
 
 	@echo 'Userspace tools targets:'
@@ -1711,7 +1724,7 @@ $(DOC_TARGETS):
 # "Is Rust available?" target
 PHONY += rustavailable
 rustavailable:
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/rust_is_available.sh && echo "Rust is available!"
+	+$(Q)$(CONFIG_SHELL) $(srctree)/scripts/rust_is_available.sh && echo "Rust is available!"
 
 # Documentation target
 #
@@ -1784,8 +1797,8 @@ compile_commands.json: $(extmod_prefix)compile_commands.json
 PHONY += compile_commands.json
 
 clean-dirs := $(KBUILD_EXTMOD)
-clean: rm-files := $(KBUILD_EXTMOD)/Module.symvers $(KBUILD_EXTMOD)/modules.nsdeps \
-	$(KBUILD_EXTMOD)/compile_commands.json $(KBUILD_EXTMOD)/.thinlto-cache
+clean: private rm-files := $(KBUILD_EXTMOD)/Module.symvers $(KBUILD_EXTMOD)/modules.nsdeps \
+	$(KBUILD_EXTMOD)/compile_commands.json
 
 PHONY += prepare
 # now expand this into a simple variable to reduce the cost of shell evaluations
@@ -1932,7 +1945,7 @@ clean: $(clean-dirs)
 		-o -name '*.ko.*' \
 		-o -name '*.dtb' -o -name '*.dtbo' \
 		-o -name '*.dtb.S' -o -name '*.dtbo.S' \
-		-o -name '*.dt.yaml' \
+		-o -name '*.dt.yaml' -o -name 'dtbs-list' \
 		-o -name '*.dwo' -o -name '*.lst' \
 		-o -name '*.su' -o -name '*.mod' \
 		-o -name '.*.d' -o -name '.*.tmp' -o -name '*.mod.c' \

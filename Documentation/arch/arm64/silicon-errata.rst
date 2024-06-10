@@ -35,8 +35,9 @@ can be triggered by Linux).
 For software workarounds that may adversely impact systems unaffected by
 the erratum in question, a Kconfig entry is added under "Kernel
 Features" -> "ARM errata workarounds via the alternatives framework".
-These are enabled by default and patched in at runtime when an affected
-CPU is detected. For less-intrusive workarounds, a Kconfig option is not
+With the exception of workarounds for errata deemed "rare" by Arm, these
+are enabled by default and patched in at runtime when an affected CPU is
+detected. For less-intrusive workarounds, a Kconfig option is not
 available and the code is structured (preferably with a comment) in such
 a way that the erratum will not be hit.
 
@@ -139,6 +140,8 @@ stable kernels.
 +----------------+-----------------+-----------------+-----------------------------+
 | ARM            | Cortex-X2       | #2224489        | ARM64_ERRATUM_2224489       |
 +----------------+-----------------+-----------------+-----------------------------+
+| ARM            | Cortex-X4       | #3194386        | ARM64_ERRATUM_3194386       |
++----------------+-----------------+-----------------+-----------------------------+
 | ARM            | Neoverse-N1     | #1188873,1418040| ARM64_ERRATUM_1418040       |
 +----------------+-----------------+-----------------+-----------------------------+
 | ARM            | Neoverse-N1     | #1349291        | N/A                         |
@@ -154,6 +157,8 @@ stable kernels.
 | ARM            | Neoverse-N2     | #2253138        | ARM64_ERRATUM_2253138       |
 +----------------+-----------------+-----------------+-----------------------------+
 | ARM            | Neoverse-V1     | #1619801        | N/A                         |
++----------------+-----------------+-----------------+-----------------------------+
+| ARM            | Neoverse-V3     | #3312417        | ARM64_ERRATUM_3312417       |
 +----------------+-----------------+-----------------+-----------------------------+
 | ARM            | MMU-500         | #841119,826419  | N/A                         |
 +----------------+-----------------+-----------------+-----------------------------+

@@ -3283,7 +3283,7 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c)
 		if (!ret)
 			rt5682s->irq = i2c->irq;
 		else
-			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
+			dev_err(&i2c->dev, "Failed to request IRQ: %d\n", ret);
 	}
 
 	return devm_snd_soc_register_component(&i2c->dev, &rt5682s_soc_component_dev,
@@ -3319,7 +3319,7 @@ static const struct acpi_device_id rt5682s_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5682s_acpi_match);
 
 static const struct i2c_device_id rt5682s_i2c_id[] = {
-	{"rt5682s", 0},
+	{"rt5682s"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt5682s_i2c_id);

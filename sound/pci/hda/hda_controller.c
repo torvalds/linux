@@ -3,7 +3,7 @@
  *
  *  Implementation of primary alsa driver code base for Intel HD Audio.
  *
- *  Copyright(c) 2004 Intel Corporation. All rights reserved.
+ *  Copyright(c) 2004 Intel Corporation
  *
  *  Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
  *                     PeiSen Hou <pshou@realtek.com.tw>
@@ -24,6 +24,7 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/pcm_params.h>
 #include "hda_controller.h"
 #include "hda_local.h"
 
@@ -108,6 +109,7 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
+	struct hdac_stream *hdas = azx_stream(azx_dev);
 	int ret = 0;
 
 	trace_azx_pcm_hw_params(chip, azx_dev);
@@ -117,9 +119,15 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 		goto unlock;
 	}
 
-	azx_dev->core.bufsize = 0;
-	azx_dev->core.period_bytes = 0;
-	azx_dev->core.format_val = 0;
+	/* Set up BDLEs here, return -ENOMEM if too many BDLEs are required */
+	hdas->bufsize = params_buffer_bytes(hw_params);
+	hdas->period_bytes = params_period_bytes(hw_params);
+	hdas->format_val = 0;
+	hdas->no_period_wakeup =
+		(hw_params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
+		(hw_params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
+	if (snd_hdac_stream_setup_periods(hdas) < 0)
+		ret = -ENOMEM;
 
 unlock:
 	dsp_unlock(azx_dev);
@@ -906,7 +914,7 @@ static int azx_send_cmd(struct hdac_bus *bus, unsigned int val)
 
 	if (chip->disabled)
 		return 0;
-	if (chip->single_cmd)
+	if (chip->single_cmd || bus->use_pio_for_commands)
 		return azx_single_send_cmd(bus, val);
 	else
 		return snd_hdac_bus_send_cmd(bus, val);
@@ -920,7 +928,7 @@ static int azx_get_response(struct hdac_bus *bus, unsigned int addr,
 
 	if (chip->disabled)
 		return 0;
-	if (chip->single_cmd)
+	if (chip->single_cmd || bus->use_pio_for_commands)
 		return azx_single_get_response(bus, addr, res);
 	else
 		return azx_rirb_get_response(bus, addr, res);
@@ -1067,11 +1075,9 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	bool active, handled = false;
 	int repeat = 0; /* count for avoiding endless loop */
 
-#ifdef CONFIG_PM
 	if (azx_has_pm_runtime(chip))
 		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
-#endif
 
 	spin_lock(&bus->reg_lock);
 
@@ -1179,6 +1185,9 @@ int azx_bus_init(struct azx *chip, const char *model)
 
 	if (chip->driver_caps & AZX_DCAPS_4K_BDLE_BOUNDARY)
 		bus->core.align_bdle_4k = true;
+
+	if (chip->driver_caps & AZX_DCAPS_PIO_COMMANDS)
+		bus->core.use_pio_for_commands = true;
 
 	/* enable sync_write flag for stable communication as default */
 	bus->core.sync_write = 1;

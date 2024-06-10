@@ -4,14 +4,10 @@
 //!
 //! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
 
-use crate::str::CStr;
+use crate::{alloc::AllocError, str::CStr};
 
-use alloc::{
-    alloc::{AllocError, LayoutError},
-    collections::TryReserveError,
-};
+use alloc::alloc::LayoutError;
 
-use core::convert::From;
 use core::fmt;
 use core::num::TryFromIntError;
 use core::str::Utf8Error;
@@ -192,12 +188,6 @@ impl From<Utf8Error> for Error {
     }
 }
 
-impl From<TryReserveError> for Error {
-    fn from(_: TryReserveError) -> Error {
-        code::ENOMEM
-    }
-}
-
 impl From<LayoutError> for Error {
     fn from(_: LayoutError) -> Error {
         code::ENOMEM
@@ -264,13 +254,9 @@ pub fn to_result(err: core::ffi::c_int) -> Result {
 ///     pdev: &mut PlatformDevice,
 ///     index: u32,
 /// ) -> Result<*mut core::ffi::c_void> {
-///     // SAFETY: FFI call.
-///     unsafe {
-///         from_err_ptr(bindings::devm_platform_ioremap_resource(
-///             pdev.to_ptr(),
-///             index,
-///         ))
-///     }
+///     // SAFETY: `pdev` points to a valid platform device. There are no safety requirements
+///     // on `index`.
+///     from_err_ptr(unsafe { bindings::devm_platform_ioremap_resource(pdev.to_ptr(), index) })
 /// }
 /// ```
 // TODO: Remove `dead_code` marker once an in-kernel client is available.

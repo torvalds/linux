@@ -4,12 +4,27 @@
 #define BTRFS_ZONED_H
 
 #include <linux/types.h>
+#include <linux/atomic.h>
 #include <linux/blkdev.h>
+#include <linux/blkzoned.h>
+#include <linux/errno.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include "messages.h"
 #include "volumes.h"
 #include "disk-io.h"
 #include "block-group.h"
 #include "btrfs_inode.h"
+#include "fs.h"
+
+struct block_device;
+struct extent_buffer;
+struct btrfs_bio;
+struct btrfs_ordered_extent;
+struct btrfs_fs_info;
+struct btrfs_space_info;
+struct btrfs_eb_write_context;
+struct btrfs_fs_devices;
 
 #define BTRFS_DEFAULT_RECLAIM_THRESH           			(75)
 

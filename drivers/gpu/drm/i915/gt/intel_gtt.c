@@ -24,7 +24,8 @@
 bool i915_ggtt_require_binder(struct drm_i915_private *i915)
 {
 	/* Wa_13010847436 & Wa_14019519902 */
-	return MEDIA_VER_FULL(i915) == IP_VER(13, 0);
+	return !i915_direct_stolen_access(i915) &&
+		MEDIA_VER_FULL(i915) == IP_VER(13, 0);
 }
 
 static bool intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *i915)
@@ -679,7 +680,7 @@ void setup_private_pat(struct intel_gt *gt)
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
 		xelpg_setup_private_ppat(gt);
-	else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+	else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 		xehp_setup_private_ppat(gt);
 	else if (GRAPHICS_VER(i915) >= 12)
 		tgl_setup_private_ppat(uncore);

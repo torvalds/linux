@@ -88,7 +88,7 @@ static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
 		seq_puts(s, items[i].display);
 		/* Print unit if available */
 		if (items[i].has_arg) {
-			seq_printf(s, " (%u",
+			seq_printf(s, " (0x%x",
 				   pinconf_to_config_argument(config));
 			if (items[i].format)
 				seq_printf(s, " %s)", items[i].format);

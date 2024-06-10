@@ -666,7 +666,7 @@ bool ice_is_sbq_supported(struct ice_hw *hw)
 	/* The device sideband queue is only supported on devices with the
 	 * generic MAC type.
 	 */
-	return hw->mac_type == ICE_MAC_GENERIC;
+	return ice_is_generic_mac(hw);
 }
 
 /**

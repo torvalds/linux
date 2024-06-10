@@ -26,14 +26,16 @@
 #include "core_types.h"
 #include "clk_mgr_internal.h"
 #include "reg_helper.h"
+#include "dm_helpers.h"
+
+#include "rn_clk_mgr_vbios_smu.h"
+
 #include <linux/delay.h>
 
 #include "renoir_ip_offset.h"
 
 #include "mp/mp_12_0_0_offset.h"
 #include "mp/mp_12_0_0_sh_mask.h"
-
-#include "rn_clk_mgr_vbios_smu.h"
 
 #define REG(reg_name) \
 	(MP0_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
@@ -120,7 +122,10 @@ static int rn_vbios_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 
 	result = rn_smu_wait_for_response(clk_mgr, 10, 200000);
 
-	ASSERT(result == VBIOSSMC_Result_OK || result == VBIOSSMC_Result_UnknownCmd);
+	if (IS_SMU_TIMEOUT(result)) {
+		ASSERT(0);
+		dm_helpers_smu_timeout(CTX, msg_id, param, 10 * 200000);
+	}
 
 	/* Actual dispclk set is returned in the parameter register */
 	return REG_READ(MP1_SMN_C2PMSG_83);
@@ -184,10 +189,6 @@ int rn_vbios_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int reque
 			clk_mgr,
 			VBIOSSMC_MSG_SetHardMinDcfclkByFreq,
 			khz_to_mhz_ceil(requested_dcfclk_khz));
-
-#ifdef DBG
-	smu_print("actual_dcfclk_set_mhz %d is set to : %d\n", actual_dcfclk_set_mhz, actual_dcfclk_set_mhz * 1000);
-#endif
 
 	return actual_dcfclk_set_mhz * 1000;
 }

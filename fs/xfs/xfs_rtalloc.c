@@ -22,6 +22,8 @@
 #include "xfs_sb.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_quota.h"
+#include "xfs_log_priv.h"
+#include "xfs_health.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -693,11 +695,8 @@ xfs_growfs_rt_alloc(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		error = xfs_iext_count_may_overflow(ip, XFS_DATA_FORK,
+		error = xfs_iext_count_extend(tp, ip, XFS_DATA_FORK,
 				XFS_IEXT_ADD_NOSPLIT_CNT);
-		if (error == -EFBIG)
-			error = xfs_iext_count_upgrade(tp, ip,
-					XFS_IEXT_ADD_NOSPLIT_CNT);
 		if (error)
 			goto out_trans_cancel;
 
@@ -707,8 +706,6 @@ xfs_growfs_rt_alloc(
 		nmap = 1;
 		error = xfs_bmapi_write(tp, ip, oblocks, nblocks - oblocks,
 					XFS_BMAPI_METADATA, 0, &map, &nmap);
-		if (!error && nmap < 1)
-			error = -ENOSPC;
 		if (error)
 			goto out_trans_cancel;
 		/*
@@ -903,7 +900,7 @@ xfs_growfs_rt(
 	/*
 	 * Allocate a new (fake) mount/sb.
 	 */
-	nmp = kmem_alloc(sizeof(*nmp), 0);
+	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL | __GFP_NOFAIL);
 	/*
 	 * Loop over the bitmap blocks.
 	 * We will do everything one bitmap block at a time.
@@ -955,10 +952,10 @@ xfs_growfs_rt(
 		nargs.tp = tp;
 
 		/*
-		 * Lock out other callers by grabbing the bitmap inode lock.
+		 * Lock out other callers by grabbing the bitmap and summary
+		 * inode locks and joining them to the transaction.
 		 */
-		xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP);
-		xfs_trans_ijoin(tp, mp->m_rbmip, XFS_ILOCK_EXCL);
+		xfs_rtbitmap_lock(tp, mp);
 		/*
 		 * Update the bitmap inode's size ondisk and incore.  We need
 		 * to update the incore size so that inode inactivation won't
@@ -968,11 +965,6 @@ xfs_growfs_rt(
 			nsbp->sb_rbmblocks * nsbp->sb_blocksize;
 		i_size_write(VFS_I(mp->m_rbmip), mp->m_rbmip->i_disk_size);
 		xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
-		/*
-		 * Get the summary inode into the transaction.
-		 */
-		xfs_ilock(mp->m_rsumip, XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM);
-		xfs_trans_ijoin(tp, mp->m_rsumip, XFS_ILOCK_EXCL);
 		/*
 		 * Update the summary inode's size.  We need to update the
 		 * incore size so that inode inactivation won't punch what it
@@ -1050,7 +1042,7 @@ out_free:
 	/*
 	 * Free the fake mp structure.
 	 */
-	kmem_free(nmp);
+	kfree(nmp);
 
 	/*
 	 * If we had to allocate a new rsum_cache, we either need to free the
@@ -1059,10 +1051,10 @@ out_free:
 	 */
 	if (rsum_cache != mp->m_rsum_cache) {
 		if (error) {
-			kmem_free(mp->m_rsum_cache);
+			kvfree(mp->m_rsum_cache);
 			mp->m_rsum_cache = rsum_cache;
 		} else {
-			kmem_free(rsum_cache);
+			kvfree(rsum_cache);
 		}
 	}
 
@@ -1140,10 +1132,10 @@ xfs_rtalloc_reinit_frextents(
 	uint64_t		val = 0;
 	int			error;
 
-	xfs_ilock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
+	xfs_rtbitmap_lock_shared(mp, XFS_RBMLOCK_BITMAP);
 	error = xfs_rtalloc_query_all(mp, NULL, xfs_rtalloc_count_frextent,
 			&val);
-	xfs_iunlock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
+	xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
 	if (error)
 		return error;
 
@@ -1202,6 +1194,8 @@ xfs_rtmount_inodes(
 
 	sbp = &mp->m_sb;
 	error = xfs_iget(mp, NULL, sbp->sb_rbmino, 0, 0, &mp->m_rbmip);
+	if (xfs_metadata_is_sick(error))
+		xfs_rt_mark_sick(mp, XFS_SICK_RT_BITMAP);
 	if (error)
 		return error;
 	ASSERT(mp->m_rbmip != NULL);
@@ -1211,6 +1205,8 @@ xfs_rtmount_inodes(
 		goto out_rele_bitmap;
 
 	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip);
+	if (xfs_metadata_is_sick(error))
+		xfs_rt_mark_sick(mp, XFS_SICK_RT_SUMMARY);
 	if (error)
 		goto out_rele_bitmap;
 	ASSERT(mp->m_rsumip != NULL);
@@ -1233,7 +1229,7 @@ void
 xfs_rtunmount_inodes(
 	struct xfs_mount	*mp)
 {
-	kmem_free(mp->m_rsum_cache);
+	kvfree(mp->m_rsum_cache);
 	if (mp->m_rbmip)
 		xfs_irele(mp->m_rbmip);
 	if (mp->m_rsumip)
@@ -1260,7 +1256,7 @@ xfs_rtpick_extent(
 	uint64_t		seq;		/* sequence number of file creation */
 	struct timespec64	ts;		/* timespec in inode */
 
-	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(mp->m_rbmip, XFS_ILOCK_EXCL);
 
 	ts = inode_get_atime(VFS_I(mp->m_rbmip));
 	if (!(mp->m_rbmip->i_diflags & XFS_DIFLAG_NEWRTBM)) {
@@ -1340,6 +1336,8 @@ xfs_bmap_rtalloc(
 	int			error;
 
 	align = xfs_get_extsz_hint(ap->ip);
+	if (!align)
+		align = 1;
 retry:
 	error = xfs_bmap_extsize_align(mp, &ap->got, &ap->prev,
 					align, 1, ap->eof, 0,
@@ -1376,10 +1374,7 @@ retry:
 	 * Lock out modifications to both the RT bitmap and summary inodes
 	 */
 	if (!rtlocked) {
-		xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL|XFS_ILOCK_RTBITMAP);
-		xfs_trans_ijoin(ap->tp, mp->m_rbmip, XFS_ILOCK_EXCL);
-		xfs_ilock(mp->m_rsumip, XFS_ILOCK_EXCL|XFS_ILOCK_RTSUM);
-		xfs_trans_ijoin(ap->tp, mp->m_rsumip, XFS_ILOCK_EXCL);
+		xfs_rtbitmap_lock(ap->tp, mp);
 		rtlocked = true;
 	}
 

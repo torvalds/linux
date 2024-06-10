@@ -1737,9 +1737,8 @@ __weak void nfit_intel_shutdown_status(struct nfit_mem *nfit_mem)
 	if ((nfit_mem->dsm_mask & (1 << func)) == 0)
 		return;
 
-	out_obj = acpi_evaluate_dsm(handle, guid, revid, func, &in_obj);
-	if (!out_obj || out_obj->type != ACPI_TYPE_BUFFER
-			|| out_obj->buffer.length < sizeof(smart)) {
+	out_obj = acpi_evaluate_dsm_typed(handle, guid, revid, func, &in_obj, ACPI_TYPE_BUFFER);
+	if (!out_obj || out_obj->buffer.length < sizeof(smart)) {
 		dev_dbg(dev->parent, "%s: failed to retrieve initial health\n",
 				dev_name(dev));
 		ACPI_FREE(out_obj);

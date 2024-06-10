@@ -921,7 +921,7 @@ static int scmi_dbg_raw_mode_open(struct inode *inode, struct file *filp)
 	rd->raw = raw;
 	filp->private_data = rd;
 
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 static int scmi_dbg_raw_mode_release(struct inode *inode, struct file *filp)
@@ -950,6 +950,7 @@ static const struct file_operations scmi_dbg_raw_mode_reset_fops = {
 	.open = scmi_dbg_raw_mode_open,
 	.release = scmi_dbg_raw_mode_release,
 	.write = scmi_dbg_raw_mode_reset_write,
+	.llseek = no_llseek,
 	.owner = THIS_MODULE,
 };
 
@@ -959,6 +960,7 @@ static const struct file_operations scmi_dbg_raw_mode_message_fops = {
 	.read = scmi_dbg_raw_mode_message_read,
 	.write = scmi_dbg_raw_mode_message_write,
 	.poll = scmi_dbg_raw_mode_message_poll,
+	.llseek = no_llseek,
 	.owner = THIS_MODULE,
 };
 
@@ -975,6 +977,7 @@ static const struct file_operations scmi_dbg_raw_mode_message_async_fops = {
 	.read = scmi_dbg_raw_mode_message_read,
 	.write = scmi_dbg_raw_mode_message_async_write,
 	.poll = scmi_dbg_raw_mode_message_poll,
+	.llseek = no_llseek,
 	.owner = THIS_MODULE,
 };
 
@@ -998,6 +1001,7 @@ static const struct file_operations scmi_dbg_raw_mode_notification_fops = {
 	.release = scmi_dbg_raw_mode_release,
 	.read = scmi_test_dbg_raw_mode_notif_read,
 	.poll = scmi_test_dbg_raw_mode_notif_poll,
+	.llseek = no_llseek,
 	.owner = THIS_MODULE,
 };
 
@@ -1021,6 +1025,7 @@ static const struct file_operations scmi_dbg_raw_mode_errors_fops = {
 	.release = scmi_dbg_raw_mode_release,
 	.read = scmi_test_dbg_raw_mode_errors_read,
 	.poll = scmi_test_dbg_raw_mode_errors_poll,
+	.llseek = no_llseek,
 	.owner = THIS_MODULE,
 };
 

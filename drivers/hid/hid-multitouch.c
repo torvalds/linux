@@ -130,7 +130,6 @@ struct mt_application {
 				 * > 1 means hybrid (multitouch) protocol
 				 */
 
-	__s32 dev_time;		/* the scan time provided by the device */
 	unsigned long jiffies;	/* the frame's jiffies */
 	int timestamp;		/* the timestamp to be sent */
 	int prev_scantime;		/* scantime reported previously */
@@ -2081,6 +2080,12 @@ static const struct hid_device_id mt_devices[] = {
 		HID_DEVICE(BUS_USB, HID_GROUP_MULTITOUCH_WIN_8,
 			   USB_VENDOR_ID_LENOVO,
 			   USB_DEVICE_ID_LENOVO_X12_TAB) },
+
+	/* Logitech devices */
+	{ .driver_data = MT_CLS_NSMU,
+		HID_DEVICE(BUS_BLUETOOTH, HID_GROUP_MULTITOUCH_WIN_8,
+			USB_VENDOR_ID_LOGITECH,
+			USB_DEVICE_ID_LOGITECH_CASA_TOUCHPAD) },
 
 	/* MosArt panels */
 	{ .driver_data = MT_CLS_CONFIDENCE_MINUS_ONE,

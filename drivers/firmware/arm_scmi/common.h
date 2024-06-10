@@ -141,7 +141,7 @@ scmi_revision_area_get(const struct scmi_protocol_handle *ph);
 void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 				     u8 *prot_imp);
 
-extern struct bus_type scmi_bus_type;
+extern const struct bus_type scmi_bus_type;
 
 #define SCMI_BUS_NOTIFY_DEVICE_REQUEST		0
 #define SCMI_BUS_NOTIFY_DEVICE_UNREQUEST	1
@@ -300,6 +300,17 @@ extern const struct scmi_desc scmi_optee_desc;
 #endif
 
 void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr, void *priv);
+
+enum scmi_bad_msg {
+	MSG_UNEXPECTED = -1,
+	MSG_INVALID = -2,
+	MSG_UNKNOWN = -3,
+	MSG_NOMEM = -4,
+	MSG_MBOX_SPURIOUS = -5,
+};
+
+void scmi_bad_message_trace(struct scmi_chan_info *cinfo, u32 msg_hdr,
+			    enum scmi_bad_msg err);
 
 /* shmem related declarations */
 struct scmi_shared_mem;

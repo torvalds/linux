@@ -82,15 +82,7 @@ struct led_init_data {
 	bool devname_mandatory;
 };
 
-#if IS_ENABLED(CONFIG_NEW_LEDS)
 enum led_default_state led_init_default_state_get(struct fwnode_handle *fwnode);
-#else
-static inline enum led_default_state
-led_init_default_state_get(struct fwnode_handle *fwnode)
-{
-	return LEDS_DEFSTATE_OFF;
-}
-#endif
 
 struct led_hw_trigger_type {
 	int dummy;
@@ -279,20 +271,9 @@ static inline int led_classdev_register(struct device *parent,
 	return led_classdev_register_ext(parent, led_cdev, NULL);
 }
 
-#if IS_ENABLED(CONFIG_LEDS_CLASS)
 int devm_led_classdev_register_ext(struct device *parent,
 					  struct led_classdev *led_cdev,
 					  struct led_init_data *init_data);
-#else
-static inline int
-devm_led_classdev_register_ext(struct device *parent,
-			       struct led_classdev *led_cdev,
-			       struct led_init_data *init_data)
-{
-	return 0;
-}
-#endif
-
 static inline int devm_led_classdev_register(struct device *parent,
 					     struct led_classdev *led_cdev)
 {
@@ -474,6 +455,9 @@ struct led_trigger {
 	int		(*activate)(struct led_classdev *led_cdev);
 	void		(*deactivate)(struct led_classdev *led_cdev);
 
+	/* Brightness set by led_trigger_event */
+	enum led_brightness brightness;
+
 	/* LED-private triggers have this set */
 	struct led_hw_trigger_type *trigger_type;
 
@@ -527,6 +511,12 @@ static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 	return led_cdev->trigger_data;
 }
 
+static inline enum led_brightness
+led_trigger_get_brightness(const struct led_trigger *trigger)
+{
+	return trigger ? trigger->brightness : LED_OFF;
+}
+
 #define module_led_trigger(__led_trigger) \
 	module_driver(__led_trigger, led_trigger_register, \
 		      led_trigger_unregister)
@@ -561,6 +551,12 @@ static inline void led_set_trigger_data(struct led_classdev *led_cdev) {}
 static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 {
 	return NULL;
+}
+
+static inline enum led_brightness
+led_trigger_get_brightness(const struct led_trigger *trigger)
+{
+	return LED_OFF;
 }
 
 #endif /* CONFIG_LEDS_TRIGGERS */
@@ -658,7 +654,7 @@ struct gpio_led_platform_data {
 	gpio_blink_set_t	gpio_blink_set;
 };
 
-#ifdef CONFIG_NEW_LEDS
+#ifdef CONFIG_LEDS_GPIO_REGISTER
 struct platform_device *gpio_led_register_device(
 		int id, const struct gpio_led_platform_data *pdata);
 #else
@@ -708,19 +704,5 @@ enum led_audio {
 	LED_AUDIO_MICMUTE,	/* mic mute LED */
 	NUM_AUDIO_LEDS
 };
-
-#if IS_ENABLED(CONFIG_LEDS_TRIGGER_AUDIO)
-enum led_brightness ledtrig_audio_get(enum led_audio type);
-void ledtrig_audio_set(enum led_audio type, enum led_brightness state);
-#else
-static inline enum led_brightness ledtrig_audio_get(enum led_audio type)
-{
-	return LED_OFF;
-}
-static inline void ledtrig_audio_set(enum led_audio type,
-				     enum led_brightness state)
-{
-}
-#endif
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

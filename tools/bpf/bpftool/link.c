@@ -249,18 +249,44 @@ static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 	return err;
 }
 
-static int cmp_u64(const void *A, const void *B)
-{
-	const __u64 *a = A, *b = B;
+struct addr_cookie {
+	__u64 addr;
+	__u64 cookie;
+};
 
-	return *a - *b;
+static int cmp_addr_cookie(const void *A, const void *B)
+{
+	const struct addr_cookie *a = A, *b = B;
+
+	if (a->addr == b->addr)
+		return 0;
+	return a->addr < b->addr ? -1 : 1;
+}
+
+static struct addr_cookie *
+get_addr_cookie_array(__u64 *addrs, __u64 *cookies, __u32 count)
+{
+	struct addr_cookie *data;
+	__u32 i;
+
+	data = calloc(count, sizeof(data[0]));
+	if (!data) {
+		p_err("mem alloc failed");
+		return NULL;
+	}
+	for (i = 0; i < count; i++) {
+		data[i].addr = addrs[i];
+		data[i].cookie = cookies[i];
+	}
+	qsort(data, count, sizeof(data[0]), cmp_addr_cookie);
+	return data;
 }
 
 static void
 show_kprobe_multi_json(struct bpf_link_info *info, json_writer_t *wtr)
 {
+	struct addr_cookie *data;
 	__u32 i, j = 0;
-	__u64 *addrs;
 
 	jsonw_bool_field(json_wtr, "retprobe",
 			 info->kprobe_multi.flags & BPF_F_KPROBE_MULTI_RETURN);
@@ -268,14 +294,20 @@ show_kprobe_multi_json(struct bpf_link_info *info, json_writer_t *wtr)
 	jsonw_uint_field(json_wtr, "missed", info->kprobe_multi.missed);
 	jsonw_name(json_wtr, "funcs");
 	jsonw_start_array(json_wtr);
-	addrs = u64_to_ptr(info->kprobe_multi.addrs);
-	qsort(addrs, info->kprobe_multi.count, sizeof(addrs[0]), cmp_u64);
+	data = get_addr_cookie_array(u64_to_ptr(info->kprobe_multi.addrs),
+				     u64_to_ptr(info->kprobe_multi.cookies),
+				     info->kprobe_multi.count);
+	if (!data)
+		return;
 
 	/* Load it once for all. */
 	if (!dd.sym_count)
 		kernel_syms_load(&dd);
+	if (!dd.sym_count)
+		goto error;
+
 	for (i = 0; i < dd.sym_count; i++) {
-		if (dd.sym_mapping[i].address != addrs[j])
+		if (dd.sym_mapping[i].address != data[j].addr)
 			continue;
 		jsonw_start_object(json_wtr);
 		jsonw_uint_field(json_wtr, "addr", dd.sym_mapping[i].address);
@@ -287,11 +319,14 @@ show_kprobe_multi_json(struct bpf_link_info *info, json_writer_t *wtr)
 		} else {
 			jsonw_string_field(json_wtr, "module", dd.sym_mapping[i].module);
 		}
+		jsonw_uint_field(json_wtr, "cookie", data[j].cookie);
 		jsonw_end_object(json_wtr);
 		if (j++ == info->kprobe_multi.count)
 			break;
 	}
 	jsonw_end_array(json_wtr);
+error:
+	free(data);
 }
 
 static __u64 *u64_to_arr(__u64 val)
@@ -334,6 +369,7 @@ show_perf_event_kprobe_json(struct bpf_link_info *info, json_writer_t *wtr)
 			   u64_to_ptr(info->perf_event.kprobe.func_name));
 	jsonw_uint_field(wtr, "offset", info->perf_event.kprobe.offset);
 	jsonw_uint_field(wtr, "missed", info->perf_event.kprobe.missed);
+	jsonw_uint_field(wtr, "cookie", info->perf_event.kprobe.cookie);
 }
 
 static void
@@ -343,6 +379,7 @@ show_perf_event_uprobe_json(struct bpf_link_info *info, json_writer_t *wtr)
 	jsonw_string_field(wtr, "file",
 			   u64_to_ptr(info->perf_event.uprobe.file_name));
 	jsonw_uint_field(wtr, "offset", info->perf_event.uprobe.offset);
+	jsonw_uint_field(wtr, "cookie", info->perf_event.uprobe.cookie);
 }
 
 static void
@@ -350,6 +387,7 @@ show_perf_event_tracepoint_json(struct bpf_link_info *info, json_writer_t *wtr)
 {
 	jsonw_string_field(wtr, "tracepoint",
 			   u64_to_ptr(info->perf_event.tracepoint.tp_name));
+	jsonw_uint_field(wtr, "cookie", info->perf_event.tracepoint.cookie);
 }
 
 static char *perf_config_hw_cache_str(__u64 config)
@@ -426,6 +464,8 @@ show_perf_event_event_json(struct bpf_link_info *info, json_writer_t *wtr)
 	else
 		jsonw_uint_field(wtr, "event_config", config);
 
+	jsonw_uint_field(wtr, "cookie", info->perf_event.event.cookie);
+
 	if (type == PERF_TYPE_HW_CACHE && perf_config)
 		free((void *)perf_config);
 }
@@ -485,6 +525,10 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 	case BPF_LINK_TYPE_NETKIT:
 		show_link_ifindex_json(info->netkit.ifindex, json_wtr);
 		show_link_attach_type_json(info->netkit.attach_type, json_wtr);
+		break;
+	case BPF_LINK_TYPE_SOCKMAP:
+		jsonw_uint_field(json_wtr, "map_id", info->sockmap.map_id);
+		show_link_attach_type_json(info->sockmap.attach_type, json_wtr);
 		break;
 	case BPF_LINK_TYPE_XDP:
 		show_link_ifindex_json(info->xdp.ifindex, json_wtr);
@@ -670,8 +714,8 @@ void netfilter_dump_plain(const struct bpf_link_info *info)
 
 static void show_kprobe_multi_plain(struct bpf_link_info *info)
 {
+	struct addr_cookie *data;
 	__u32 i, j = 0;
-	__u64 *addrs;
 
 	if (!info->kprobe_multi.count)
 		return;
@@ -683,21 +727,24 @@ static void show_kprobe_multi_plain(struct bpf_link_info *info)
 	printf("func_cnt %u  ", info->kprobe_multi.count);
 	if (info->kprobe_multi.missed)
 		printf("missed %llu  ", info->kprobe_multi.missed);
-	addrs = (__u64 *)u64_to_ptr(info->kprobe_multi.addrs);
-	qsort(addrs, info->kprobe_multi.count, sizeof(__u64), cmp_u64);
+	data = get_addr_cookie_array(u64_to_ptr(info->kprobe_multi.addrs),
+				     u64_to_ptr(info->kprobe_multi.cookies),
+				     info->kprobe_multi.count);
+	if (!data)
+		return;
 
 	/* Load it once for all. */
 	if (!dd.sym_count)
 		kernel_syms_load(&dd);
 	if (!dd.sym_count)
-		return;
+		goto error;
 
-	printf("\n\t%-16s %s", "addr", "func [module]");
+	printf("\n\t%-16s %-16s %s", "addr", "cookie", "func [module]");
 	for (i = 0; i < dd.sym_count; i++) {
-		if (dd.sym_mapping[i].address != addrs[j])
+		if (dd.sym_mapping[i].address != data[j].addr)
 			continue;
-		printf("\n\t%016lx %s",
-		       dd.sym_mapping[i].address, dd.sym_mapping[i].name);
+		printf("\n\t%016lx %-16llx %s",
+		       dd.sym_mapping[i].address, data[j].cookie, dd.sym_mapping[i].name);
 		if (dd.sym_mapping[i].module[0] != '\0')
 			printf(" [%s]  ", dd.sym_mapping[i].module);
 		else
@@ -706,6 +753,8 @@ static void show_kprobe_multi_plain(struct bpf_link_info *info)
 		if (j++ == info->kprobe_multi.count)
 			break;
 	}
+error:
+	free(data);
 }
 
 static void show_uprobe_multi_plain(struct bpf_link_info *info)
@@ -754,6 +803,8 @@ static void show_perf_event_kprobe_plain(struct bpf_link_info *info)
 		printf("+%#x", info->perf_event.kprobe.offset);
 	if (info->perf_event.kprobe.missed)
 		printf("  missed %llu", info->perf_event.kprobe.missed);
+	if (info->perf_event.kprobe.cookie)
+		printf("  cookie %llu", info->perf_event.kprobe.cookie);
 	printf("  ");
 }
 
@@ -770,6 +821,8 @@ static void show_perf_event_uprobe_plain(struct bpf_link_info *info)
 	else
 		printf("\n\tuprobe ");
 	printf("%s+%#x  ", buf, info->perf_event.uprobe.offset);
+	if (info->perf_event.uprobe.cookie)
+		printf("cookie %llu  ", info->perf_event.uprobe.cookie);
 }
 
 static void show_perf_event_tracepoint_plain(struct bpf_link_info *info)
@@ -781,6 +834,8 @@ static void show_perf_event_tracepoint_plain(struct bpf_link_info *info)
 		return;
 
 	printf("\n\ttracepoint %s  ", buf);
+	if (info->perf_event.tracepoint.cookie)
+		printf("cookie %llu  ", info->perf_event.tracepoint.cookie);
 }
 
 static void show_perf_event_event_plain(struct bpf_link_info *info)
@@ -801,6 +856,9 @@ static void show_perf_event_event_plain(struct bpf_link_info *info)
 		printf("%s  ", perf_config);
 	else
 		printf("%llu  ", config);
+
+	if (info->perf_event.event.cookie)
+		printf("cookie %llu  ", info->perf_event.event.cookie);
 
 	if (type == PERF_TYPE_HW_CACHE && perf_config)
 		free((void *)perf_config);
@@ -860,6 +918,11 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		printf("\n\t");
 		show_link_ifindex_plain(info->netkit.ifindex);
 		show_link_attach_type_plain(info->netkit.attach_type);
+		break;
+	case BPF_LINK_TYPE_SOCKMAP:
+		printf("\n\t");
+		printf("map_id %u  ", info->sockmap.map_id);
+		show_link_attach_type_plain(info->sockmap.attach_type);
 		break;
 	case BPF_LINK_TYPE_XDP:
 		printf("\n\t");
@@ -952,6 +1015,14 @@ again:
 				return -ENOMEM;
 			}
 			info.kprobe_multi.addrs = ptr_to_u64(addrs);
+			cookies = calloc(count, sizeof(__u64));
+			if (!cookies) {
+				p_err("mem alloc failed");
+				free(addrs);
+				close(fd);
+				return -ENOMEM;
+			}
+			info.kprobe_multi.cookies = ptr_to_u64(cookies);
 			goto again;
 		}
 	}
@@ -977,7 +1048,7 @@ again:
 			cookies = calloc(count, sizeof(__u64));
 			if (!cookies) {
 				p_err("mem alloc failed");
-				free(cookies);
+				free(ref_ctr_offsets);
 				free(offsets);
 				close(fd);
 				return -ENOMEM;

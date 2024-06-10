@@ -966,13 +966,13 @@ char *bdev_name(char *buf, char *end, struct block_device *bdev,
 
 	hd = bdev->bd_disk;
 	buf = string(buf, end, hd->disk_name, spec);
-	if (bdev->bd_partno) {
+	if (bdev_is_partition(bdev)) {
 		if (isdigit(hd->disk_name[strlen(hd->disk_name)-1])) {
 			if (buf < end)
 				*buf = 'p';
 			buf++;
 		}
-		buf = number(buf, end, bdev->bd_partno, spec);
+		buf = number(buf, end, bdev_partno(bdev), spec);
 	}
 	return buf;
 }

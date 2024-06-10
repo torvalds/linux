@@ -13,7 +13,7 @@
 #include "../../../util/pmu.h"
 #include "../../../util/pmus.h"
 
-const struct sample_reg sample_reg_masks[] = {
+static const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(AX, PERF_REG_X86_AX),
 	SMPL_REG(BX, PERF_REG_X86_BX),
 	SMPL_REG(CX, PERF_REG_X86_CX),
@@ -274,6 +274,11 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 		  (int)(rm[5].rm_eo - rm[5].rm_so), old_op + rm[5].rm_so);
 
 	return SDT_ARG_VALID;
+}
+
+const struct sample_reg *arch__sample_reg_masks(void)
+{
+	return sample_reg_masks;
 }
 
 uint64_t arch__intr_reg_mask(void)

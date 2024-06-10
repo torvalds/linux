@@ -50,7 +50,7 @@
  * the macros available to do this only define GCC 8.
  */
 __diag_push();
-__diag_ignore(GCC, 8, "-Woverride-init",
+__diag_ignore_all("-Woverride-init",
 	      "logic to initialize all and then override some is OK");
 static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
 	SH_ETH_OFFSET_DEFAULTS,
@@ -2624,7 +2624,7 @@ static int sh_eth_change_mtu(struct net_device *ndev, int new_mtu)
 	if (netif_running(ndev))
 		return -EBUSY;
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 	netdev_update_features(ndev);
 
 	return 0;

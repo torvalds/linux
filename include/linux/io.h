@@ -6,6 +6,7 @@
 #ifndef _LINUX_IO_H
 #define _LINUX_IO_H
 
+#include <linux/sizes.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/bug.h>
@@ -16,16 +17,29 @@
 struct device;
 struct resource;
 
-__visible void __iowrite32_copy(void __iomem *to, const void *from, size_t count);
+#ifndef __iowrite32_copy
+void __iowrite32_copy(void __iomem *to, const void *from, size_t count);
+#endif
+
 void __ioread32_copy(void *to, const void __iomem *from, size_t count);
+
+#ifndef __iowrite64_copy
 void __iowrite64_copy(void __iomem *to, const void *from, size_t count);
+#endif
 
 #ifdef CONFIG_MMU
 int ioremap_page_range(unsigned long addr, unsigned long end,
 		       phys_addr_t phys_addr, pgprot_t prot);
+int vmap_page_range(unsigned long addr, unsigned long end,
+		    phys_addr_t phys_addr, pgprot_t prot);
 #else
 static inline int ioremap_page_range(unsigned long addr, unsigned long end,
 				     phys_addr_t phys_addr, pgprot_t prot)
+{
+	return 0;
+}
+static inline int vmap_page_range(unsigned long addr, unsigned long end,
+				  phys_addr_t phys_addr, pgprot_t prot)
 {
 	return 0;
 }

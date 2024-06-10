@@ -6,7 +6,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 
 #include <linux/jiffies.h>
@@ -1251,8 +1251,7 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	u16 sc = le16_to_cpu(hdr->seq_ctrl);
-	u16 mpdu_seq_num = (sc & IEEE80211_SCTL_SEQ) >> 4;
+	u16 mpdu_seq_num = ieee80211_get_sn(hdr);
 	u16 head_seq_num, buf_size;
 	int index;
 	bool ret = true;
@@ -1435,12 +1434,30 @@ ieee80211_rx_h_check_dup(struct ieee80211_rx_data *rx)
 		return RX_CONTINUE;
 
 	if (ieee80211_is_ctl(hdr->frame_control) ||
-	    ieee80211_is_any_nullfunc(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1))
+	    ieee80211_is_any_nullfunc(hdr->frame_control))
 		return RX_CONTINUE;
 
 	if (!rx->sta)
 		return RX_CONTINUE;
+
+	if (unlikely(is_multicast_ether_addr(hdr->addr1))) {
+		struct ieee80211_sub_if_data *sdata = rx->sdata;
+		u16 sn = ieee80211_get_sn(hdr);
+
+		if (!ieee80211_is_data_present(hdr->frame_control))
+			return RX_CONTINUE;
+
+		if (!ieee80211_vif_is_mld(&sdata->vif) ||
+		    sdata->vif.type != NL80211_IFTYPE_STATION)
+			return RX_CONTINUE;
+
+		if (sdata->u.mgd.mcast_seq_last != IEEE80211_SN_MODULO &&
+		    ieee80211_sn_less_eq(sn, sdata->u.mgd.mcast_seq_last))
+			return RX_DROP_U_DUP;
+
+		sdata->u.mgd.mcast_seq_last = sn;
+		return RX_CONTINUE;
+	}
 
 	if (unlikely(ieee80211_has_retry(hdr->frame_control) &&
 		     rx->sta->last_seq_ctrl[rx->seqno_idx] == hdr->seq_ctrl)) {
@@ -2746,7 +2763,10 @@ ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
 			       struct sk_buff *skb, int hdrlen)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_mesh_fast_tx *entry = NULL;
+	struct ieee80211_mesh_fast_tx_key key = {
+		.type = MESH_FAST_TX_TYPE_FORWARDED
+	};
+	struct ieee80211_mesh_fast_tx *entry;
 	struct ieee80211s_hdr *mesh_hdr;
 	struct tid_ampdu_tx *tid_tx;
 	struct sta_info *sta;
@@ -2755,9 +2775,13 @@ ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
 
 	mesh_hdr = (struct ieee80211s_hdr *)(skb->data + sizeof(eth));
 	if ((mesh_hdr->flags & MESH_FLAGS_AE) == MESH_FLAGS_AE_A5_A6)
-		entry = mesh_fast_tx_get(sdata, mesh_hdr->eaddr1);
+		ether_addr_copy(key.addr, mesh_hdr->eaddr1);
 	else if (!(mesh_hdr->flags & MESH_FLAGS_AE))
-		entry = mesh_fast_tx_get(sdata, skb->data);
+		ether_addr_copy(key.addr, skb->data);
+	else
+		return false;
+
+	entry = mesh_fast_tx_get(sdata, &key);
 	if (!entry)
 		return false;
 
@@ -3344,7 +3368,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 	if (ieee80211_hw_check(&rx->local->hw, DETECTS_COLOR_COLLISION))
 		return;
 
-	if (rx->sdata->vif.bss_conf.csa_active)
+	if (rx->link->conf->csa_active)
 		return;
 
 	baselen = mgmt->u.beacon.variable - rx->skb->data;
@@ -3356,7 +3380,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 				    rx->skb->len - baselen);
 	if (ie && ie->datalen >= sizeof(struct ieee80211_he_operation) &&
 	    ie->datalen >= ieee80211_he_oper_size(ie->data + 1)) {
-		struct ieee80211_bss_conf *bss_conf = &rx->sdata->vif.bss_conf;
+		struct ieee80211_bss_conf *bss_conf = rx->link->conf;
 		const struct ieee80211_he_operation *he_oper;
 		u8 color;
 
@@ -3370,7 +3394,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 		if (color == bss_conf->he_bss_color.color)
 			ieee80211_obss_color_collision_notify(&rx->sdata->vif,
 							      BIT_ULL(color),
-							      GFP_ATOMIC);
+							      bss_conf->link_id);
 	}
 }
 
@@ -3763,6 +3787,32 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			break;
 		}
 		break;
+	case WLAN_CATEGORY_PROTECTED_EHT:
+		if (len < offsetofend(typeof(*mgmt),
+				      u.action.u.ttlm_req.action_code))
+			break;
+
+		switch (mgmt->u.action.u.ttlm_req.action_code) {
+		case WLAN_PROTECTED_EHT_ACTION_TTLM_REQ:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+
+			if (len < offsetofend(typeof(*mgmt),
+					      u.action.u.ttlm_req))
+				goto invalid;
+			goto queue;
+		case WLAN_PROTECTED_EHT_ACTION_TTLM_RES:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+
+			if (len < offsetofend(typeof(*mgmt),
+					      u.action.u.ttlm_res))
+				goto invalid;
+			goto queue;
+		default:
+			break;
+		}
+		break;
 	}
 
 	return RX_CONTINUE;
@@ -3920,8 +3970,8 @@ ieee80211_rx_h_action_return(struct ieee80211_rx_data *rx)
 		__ieee80211_tx_skb_tid_band(rx->sdata, nskb, 7, -1,
 					    status->band);
 	}
-	dev_kfree_skb(rx->skb);
-	return RX_QUEUED;
+
+	return RX_DROP_U_UNKNOWN_ACTION_REJECTED;
 }
 
 static ieee80211_rx_result debug_noinline
@@ -5192,7 +5242,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			 */
 
 			if (!status->link_valid && pubsta->mlo) {
-				struct ieee80211_hdr *hdr = (void *)skb->data;
 				struct link_sta_info *link_sta;
 
 				link_sta = link_sta_info_get_bss(rx.sdata,

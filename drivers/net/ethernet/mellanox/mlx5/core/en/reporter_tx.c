@@ -108,7 +108,10 @@ static int mlx5e_tx_reporter_err_cqe_recover(void *ctx)
 	mlx5e_reset_txqsq_cc_pc(sq);
 	sq->stats->recover++;
 	clear_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state);
+	rtnl_lock();
 	mlx5e_activate_txqsq(sq);
+	rtnl_unlock();
+
 	if (sq->channel)
 		mlx5e_trigger_napi_icosq(sq->channel);
 	else
@@ -179,12 +182,16 @@ static int mlx5e_tx_reporter_ptpsq_unhealthy_recover(void *ctx)
 	carrier_ok = netif_carrier_ok(netdev);
 	netif_carrier_off(netdev);
 
+	rtnl_lock();
 	mlx5e_deactivate_priv_channels(priv);
+	rtnl_unlock();
 
 	mlx5e_ptp_close(chs->ptp);
 	err = mlx5e_ptp_open(priv, &chs->params, chs->c[0]->lag_port, &chs->ptp);
 
+	rtnl_lock();
 	mlx5e_activate_priv_channels(priv);
+	rtnl_unlock();
 
 	/* return carrier back if needed */
 	if (carrier_ok)
@@ -219,7 +226,6 @@ mlx5e_tx_reporter_build_diagnose_output_sq_common(struct devlink_fmsg *fmsg,
 						  struct mlx5e_txqsq *sq, int tc)
 {
 	bool stopped = netif_xmit_stopped(sq->txq);
-	struct mlx5e_priv *priv = sq->priv;
 	u8 state;
 	int err;
 
@@ -227,7 +233,7 @@ mlx5e_tx_reporter_build_diagnose_output_sq_common(struct devlink_fmsg *fmsg,
 	devlink_fmsg_u32_pair_put(fmsg, "txq ix", sq->txq_ix);
 	devlink_fmsg_u32_pair_put(fmsg, "sqn", sq->sqn);
 
-	err = mlx5_core_query_sq_state(priv->mdev, sq->sqn, &state);
+	err = mlx5_core_query_sq_state(sq->mdev, sq->sqn, &state);
 	if (!err)
 		devlink_fmsg_u8_pair_put(fmsg, "HW state", state);
 

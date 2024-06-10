@@ -262,7 +262,7 @@ static int write_clone_read(void)
 
 int main(int argc, char **argv)
 {
-	int ret, i;
+	int ret;
 
 	putstr("TAP version 13\n");
 	putstr("1..");

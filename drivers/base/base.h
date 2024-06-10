@@ -192,11 +192,14 @@ extern struct kset *devices_kset;
 void devices_kset_move_last(struct device *dev);
 
 #if defined(CONFIG_MODULES) && defined(CONFIG_SYSFS)
-void module_add_driver(struct module *mod, struct device_driver *drv);
+int module_add_driver(struct module *mod, struct device_driver *drv);
 void module_remove_driver(struct device_driver *drv);
 #else
-static inline void module_add_driver(struct module *mod,
-				     struct device_driver *drv) { }
+static inline int module_add_driver(struct module *mod,
+				    struct device_driver *drv)
+{
+	return 0;
+}
 static inline void module_remove_driver(struct device_driver *drv) { }
 #endif
 
@@ -207,7 +210,7 @@ static inline int devtmpfs_init(void) { return 0; }
 #endif
 
 #ifdef CONFIG_BLOCK
-extern struct class block_class;
+extern const struct class block_class;
 static inline bool is_blockdev(struct device *dev)
 {
 	return dev->class == &block_class;

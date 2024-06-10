@@ -56,20 +56,9 @@ struct stat64 {
 	unsigned long long	st_ino;
 } __attribute__((packed));
 
-#define IA32_STACK_TOP IA32_PAGE_OFFSET
-
-#ifdef __KERNEL__
-struct linux_binprm;
-extern int ia32_setup_arg_pages(struct linux_binprm *bprm,
-				unsigned long stack_top, int exec_stack);
-struct mm_struct;
-extern void ia32_pick_mmap_layout(struct mm_struct *mm);
-
-#endif
-
 extern bool __ia32_enabled;
 
-static inline bool ia32_enabled(void)
+static __always_inline bool ia32_enabled(void)
 {
 	return __ia32_enabled;
 }
@@ -81,7 +70,7 @@ static inline void ia32_disable(void)
 
 #else /* !CONFIG_IA32_EMULATION */
 
-static inline bool ia32_enabled(void)
+static __always_inline bool ia32_enabled(void)
 {
 	return IS_ENABLED(CONFIG_X86_32);
 }

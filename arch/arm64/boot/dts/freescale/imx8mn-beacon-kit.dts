@@ -99,8 +99,6 @@
 };
 
 &lcdif {
-	assigned-clocks = <&clk IMX8MN_VIDEO_PLL1>;
-	assigned-clock-rates = <594000000>;
 	status = "okay";
 };
 

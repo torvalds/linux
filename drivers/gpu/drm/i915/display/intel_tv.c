@@ -40,6 +40,7 @@
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
@@ -884,7 +885,8 @@ struct intel_tv_connector_state {
 	bool bypass_vfilter;
 };
 
-#define to_intel_tv_connector_state(x) container_of(x, struct intel_tv_connector_state, base)
+#define to_intel_tv_connector_state(conn_state) \
+	container_of_const((conn_state), struct intel_tv_connector_state, base)
 
 static struct drm_connector_state *
 intel_tv_connector_duplicate_state(struct drm_connector *connector)
@@ -960,15 +962,12 @@ intel_tv_mode_valid(struct drm_connector *connector,
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(connector->state);
-	int max_dotclk = i915->max_dotclk_freq;
+	int max_dotclk = i915->display.cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 
 	status = intel_cpu_transcoder_mode_valid(i915, mode);
 	if (status != MODE_OK)
 		return status;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
 
 	if (mode->clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
@@ -1327,7 +1326,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	 * the active portion. Hence following this formula seems
 	 * more trouble that it's worth.
 	 *
-	 * if (GRAPHICS_VER(dev_priv) == 4) {
+	 * if (DISPLAY_VER(dev_priv) == 4) {
 	 *	num = cdclk * (tv_mode->oversample >> !tv_mode->progressive);
 	 *	den = tv_mode->clock;
 	 * } else {
@@ -1723,6 +1722,9 @@ intel_tv_detect(struct drm_connector *connector,
 	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
 
+	if (!intel_display_driver_check_access(i915))
+		return connector->status;
+
 	if (force) {
 		struct drm_atomic_state *state;
 
@@ -1990,6 +1992,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	 * More recent chipsets favour HDMI rather than integrated S-Video.
 	 */
 	intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	intel_connector->base.polled = intel_connector->polled;
 
 	drm_connector_init(&dev_priv->drm, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);

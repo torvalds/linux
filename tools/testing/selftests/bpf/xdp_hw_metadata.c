@@ -480,7 +480,7 @@ peek:
 					for (int j = 0; j < 500; j++) {
 						if (complete_tx(xsk, clock_id))
 							break;
-						usleep(10*1000);
+						usleep(10);
 					}
 				}
 			}
@@ -494,20 +494,6 @@ peek:
 
 	return 0;
 }
-
-struct ethtool_channels {
-	__u32	cmd;
-	__u32	max_rx;
-	__u32	max_tx;
-	__u32	max_other;
-	__u32	max_combined;
-	__u32	rx_count;
-	__u32	tx_count;
-	__u32	other_count;
-	__u32	combined_count;
-};
-
-#define ETHTOOL_GCHANNELS	0x0000003c /* Get no of channels */
 
 static int rxq_num(const char *ifname)
 {
@@ -595,6 +581,8 @@ static void cleanup(void)
 
 	if (bpf_obj)
 		xdp_hw_metadata__destroy(bpf_obj);
+
+	free((void *)saved_hwtstamp_ifname);
 }
 
 static void handle_signal(int sig)

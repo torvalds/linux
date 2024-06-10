@@ -95,11 +95,11 @@ int __init rtlx_module_init(void)
 		atomic_set(&channel_wqs[i].in_open, 0);
 		mutex_init(&channel_wqs[i].mutex);
 
-		dev = device_create(mt_class, NULL, MKDEV(major, i), NULL,
+		dev = device_create(&mt_class, NULL, MKDEV(major, i), NULL,
 				    "%s%d", RTLX_MODULE_NAME, i);
 		if (IS_ERR(dev)) {
 			while (i--)
-				device_destroy(mt_class, MKDEV(major, i));
+				device_destroy(&mt_class, MKDEV(major, i));
 
 			err = PTR_ERR(dev);
 			goto out_chrdev;
@@ -127,7 +127,7 @@ int __init rtlx_module_init(void)
 
 out_class:
 	for (i = 0; i < RTLX_CHANNELS; i++)
-		device_destroy(mt_class, MKDEV(major, i));
+		device_destroy(&mt_class, MKDEV(major, i));
 out_chrdev:
 	unregister_chrdev(major, RTLX_MODULE_NAME);
 
@@ -139,7 +139,7 @@ void __exit rtlx_module_exit(void)
 	int i;
 
 	for (i = 0; i < RTLX_CHANNELS; i++)
-		device_destroy(mt_class, MKDEV(major, i));
+		device_destroy(&mt_class, MKDEV(major, i));
 
 	unregister_chrdev(major, RTLX_MODULE_NAME);
 

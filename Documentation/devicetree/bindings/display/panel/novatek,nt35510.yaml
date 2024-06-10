@@ -15,20 +15,26 @@ allOf:
 properties:
   compatible:
     items:
-      - const: hydis,hva40wv1
+      - enum:
+          - frida,frd400b25025
+          - hydis,hva40wv1
       - const: novatek,nt35510
     description: This indicates the panel manufacturer of the panel
       that is in turn using the NT35510 panel driver. The compatible
       string determines how the NT35510 panel driver shall be configured
       to work with the indicated panel. The novatek,nt35510 compatible shall
       always be provided as a fallback.
-  reg: true
+
+  reg:
+    maxItems: 1
+
   reset-gpios: true
   vdd-supply:
     description: regulator that supplies the vdd voltage
   vddi-supply:
     description: regulator that supplies the vddi voltage
   backlight: true
+  port: true
 
 required:
   - compatible

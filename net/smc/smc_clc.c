@@ -853,8 +853,10 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 	pclc_smcd = &pclc->pclc_smcd;
 	pclc_prfx = &pclc->pclc_prfx;
 	ipv6_prfx = pclc->pclc_prfx_ipv6;
-	v2_ext = &pclc->pclc_v2_ext;
-	smcd_v2_ext = &pclc->pclc_smcd_v2_ext;
+	v2_ext = container_of(&pclc->pclc_v2_ext,
+			      struct smc_clc_v2_extension, fixed);
+	smcd_v2_ext = container_of(&pclc->pclc_smcd_v2_ext,
+				   struct smc_clc_smcd_v2_extension, fixed);
 	gidchids = pclc->pclc_gidchids;
 	trl = &pclc->pclc_trl;
 
@@ -952,8 +954,8 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 				gidchids[entry].chid =
 					htons(smc_ism_get_chid(ini->ism_dev[i]));
 				gidchids[entry].gid = htonll(smcd_gid.gid);
-				if (smc_ism_is_virtual(smcd)) {
-					/* a virtual ISM device takes two
+				if (smc_ism_is_emulated(smcd)) {
+					/* an Emulated-ISM device takes two
 					 * entries. CHID of the second entry
 					 * repeats that of the first entry.
 					 */
@@ -1055,7 +1057,7 @@ smcd_clc_prep_confirm_accept(struct smc_connection *conn,
 		clc->d1.chid = htons(chid);
 		if (eid && eid[0])
 			memcpy(clc->d1.eid, eid, SMC_MAX_EID_LEN);
-		if (__smc_ism_is_virtual(chid))
+		if (__smc_ism_is_emulated(chid))
 			clc->d1.gid_ext = htonll(smcd_gid.gid_ext);
 		len = SMCD_CLC_ACCEPT_CONFIRM_LEN_V2;
 		if (first_contact) {

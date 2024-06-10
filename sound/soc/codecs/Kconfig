@@ -114,6 +114,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES8328_I2C
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
+	imply SND_SOC_FRAMER
 	imply SND_SOC_GTM601
 	imply SND_SOC_HDAC_HDMI
 	imply SND_SOC_HDAC_HDA
@@ -178,7 +179,9 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM5102A
 	imply SND_SOC_PCM512x_I2C
 	imply SND_SOC_PCM512x_SPI
+	imply SND_SOC_PCM6240
 	imply SND_SOC_PEB2466
+	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
 	imply SND_SOC_RT274
@@ -276,6 +279,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WCD9335
 	imply SND_SOC_WCD934X
 	imply SND_SOC_WCD938X_SDW
+	imply SND_SOC_WCD939X_SDW
 	imply SND_SOC_LPASS_MACRO_COMMON
 	imply SND_SOC_LPASS_RX_MACRO
 	imply SND_SOC_LPASS_TX_MACRO
@@ -727,6 +731,22 @@ config SND_SOC_CROS_EC_CODEC
 	  If you say yes here you will get support for the
 	  ChromeOS Embedded Controller's Audio Codec.
 
+config SND_SOC_CS_AMP_LIB
+	tristate
+
+config SND_SOC_CS_AMP_LIB_TEST
+	tristate "KUnit test for Cirrus Logic cs-amp-lib"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	select SND_SOC_CS_AMP_LIB
+	help
+	  This builds KUnit tests for the Cirrus Logic common
+	  amplifier library.
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".
+
 config SND_SOC_CS35L32
 	tristate "Cirrus Logic CS35L32 CODEC"
 	depends on I2C
@@ -795,6 +815,7 @@ config SND_SOC_CS35L56
 	tristate
 
 config SND_SOC_CS35L56_SHARED
+	select SND_SOC_CS_AMP_LIB
 	tristate
 
 config SND_SOC_CS35L56_I2C
@@ -1101,6 +1122,20 @@ config SND_SOC_ES8328_SPI
 	depends on SPI_MASTER
 	select SND_SOC_ES8328
 
+config SND_SOC_FRAMER
+	tristate "Framer codec"
+	depends on GENERIC_FRAMER
+	help
+	  Enable support for the framer codec.
+	  The framer codec uses the generic framer infrastructure to transport
+	  some audio data over an analog E1/T1/J1 line.
+	  This codec allows to use some of the time slots available on the TDM
+	  bus on which the framer is connected to transport the audio data.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-framer.
+
+
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
 
@@ -1139,6 +1174,7 @@ config SND_SOC_IDT821034
 
 config SND_SOC_INNO_RK3036
 	tristate "Inno codec driver for RK3036 SoC"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
@@ -1389,6 +1425,15 @@ config SND_SOC_PCM512x_SPI
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
 
+config SND_SOC_PCM6240
+	tristate "Texas Instruments PCM6240 Family Audio chips based on I2C"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments PCM6240 Family Audio chips.
+	  Note the PCM6240 driver implements a flexible and configurable
+	  setting for register and filter coefficients, to one, two or
+	  even multiple PCM6240 Family Audio chips.
+
 config SND_SOC_PEB2466
 	tristate "Infineon PEB2466 quad PCM codec"
 	depends on SPI
@@ -1400,8 +1445,21 @@ config SND_SOC_PEB2466
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-peb2466.
 
+config SND_SOC_RK3308
+	tristate "Rockchip RK3308 audio CODEC"
+	depends on ARM64 || COMPILE_TEST
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This is a device driver for the audio codec embedded in the
+	  Rockchip RK3308 SoC.
+
+	  It has 8 24-bit ADCs and 2 24-bit DACs. The maximum supported
+	  sampling rate is 192 kHz.
+
 config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select REGMAP_MMIO
 
 config SND_SOC_RK817
@@ -2059,6 +2117,25 @@ config SND_SOC_WCD938X_SDW
 	  The WCD9380/9385 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SM8250.
 
+config SND_SOC_WCD939X
+	depends on SND_SOC_WCD939X_SDW
+	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
+	depends on TYPEC || !TYPEC
+	select SND_SOC_WCD_CLASSH
+
+config SND_SOC_WCD939X_SDW
+	tristate "WCD9390/WCD9395 Codec - SDW"
+	depends on TYPEC || !TYPEC
+	select SND_SOC_WCD939X
+	select SND_SOC_WCD_MBHC
+	select REGMAP_IRQ
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  The WCD9390/9395 is a audio codec IC Integrated in
+	  Qualcomm SoCs like SM8650.
+
 config SND_SOC_WL1273
 	tristate
 
@@ -2300,7 +2377,6 @@ config SND_SOC_WSA881X
 	tristate "WSA881X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8810/WSA8815 Class-D
 	  Smart Speaker Amplifier.
@@ -2309,7 +2385,6 @@ config SND_SOC_WSA883X
 	tristate "WSA883X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8830/WSA8835 Class-D
 	  Smart Speaker Amplifier.
@@ -2318,7 +2393,6 @@ config SND_SOC_WSA884X
 	tristate "WSA884X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8840/WSA8845/WSA8845H Class-D
 	  Smart Speaker Amplifier.

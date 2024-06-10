@@ -12,6 +12,7 @@ perf-y += config.o
 perf-y += copyfile.o
 perf-y += ctype.o
 perf-y += db-export.o
+perf-y += disasm.o
 perf-y += env.o
 perf-y += event.o
 perf-y += evlist.o
@@ -32,6 +33,7 @@ perf-y += perf_regs.o
 perf-y += perf-regs-arch/
 perf-y += path.o
 perf-y += print_binary.o
+perf-y += print_insn.o
 perf-y += rlimit.o
 perf-y += argv_split.o
 perf-y += rbtree.o
@@ -71,6 +73,7 @@ perf-y += ordered-events.o
 perf-y += namespaces.o
 perf-y += comm.o
 perf-y += thread.o
+perf-y += threads.o
 perf-y += thread_map.o
 perf-y += parse-events-flex.o
 perf-y += parse-events-bison.o
@@ -138,6 +141,7 @@ perf-y += term.o
 perf-y += help-unknown-cmd.o
 perf-y += dlfilter.o
 perf-y += mem-events.o
+perf-y += mem-info.o
 perf-y += vsprintf.o
 perf-y += units.o
 perf-y += time-utils.o
@@ -386,3 +390,17 @@ $(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
 $(OUTPUT)util/list_sort.o: ../lib/list_sort.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
+
+ifdef SHELLCHECK
+  SHELL_TESTS := generate-cmdlist.sh
+  TEST_LOGS := $(SHELL_TESTS:%=%.shellcheck_log)
+else
+  SHELL_TESTS :=
+  TEST_LOGS :=
+endif
+
+$(OUTPUT)%.shellcheck_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)shellcheck -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-y += $(TEST_LOGS)

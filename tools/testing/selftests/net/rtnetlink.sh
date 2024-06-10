@@ -801,6 +801,8 @@ kci_test_ipsec_offload()
 		end_test "FAIL: ipsec_offload SA offload missing from list output"
 	fi
 
+	# we didn't create a peer, make sure we can Tx
+	ip neigh add $dstip dev $dev lladdr 00:11:22:33:44:55
 	# use ping to exercise the Tx path
 	ping -I $dev -c 3 -W 1 -i 0 $dstip >/dev/null
 

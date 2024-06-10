@@ -352,7 +352,7 @@
 				status = "disabled";
 			};
 
-			weim: weim@b8002000 {
+			weim: memory-controller@b8002000 {
 				compatible = "fsl,imx31-weim", "fsl,imx27-weim";
 				reg = <0xb8002000 0x1000>;
 				clocks = <&clks 56>;

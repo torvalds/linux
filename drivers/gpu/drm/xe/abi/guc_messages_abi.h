@@ -24,6 +24,7 @@
  *  |   | 30:28 | **TYPE** - message type                                      |
  *  |   |       |   - _`GUC_HXG_TYPE_REQUEST` = 0                              |
  *  |   |       |   - _`GUC_HXG_TYPE_EVENT` = 1                                |
+ *  |   |       |   - _`GUC_HXG_TYPE_FAST_REQUEST` = 2                         |
  *  |   |       |   - _`GUC_HXG_TYPE_NO_RESPONSE_BUSY` = 3                     |
  *  |   |       |   - _`GUC_HXG_TYPE_NO_RESPONSE_RETRY` = 5                    |
  *  |   |       |   - _`GUC_HXG_TYPE_RESPONSE_FAILURE` = 6                     |
@@ -46,6 +47,7 @@
 #define GUC_HXG_MSG_0_TYPE			(0x7u << 28)
 #define   GUC_HXG_TYPE_REQUEST			0u
 #define   GUC_HXG_TYPE_EVENT			1u
+#define   GUC_HXG_TYPE_FAST_REQUEST		2u
 #define   GUC_HXG_TYPE_NO_RESPONSE_BUSY		3u
 #define   GUC_HXG_TYPE_NO_RESPONSE_RETRY	5u
 #define   GUC_HXG_TYPE_RESPONSE_FAILURE		6u

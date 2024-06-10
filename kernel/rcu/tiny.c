@@ -130,9 +130,7 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 		next = list->next;
 		prefetch(next);
 		debug_rcu_head_unqueue(list);
-		local_bh_disable();
 		rcu_reclaim_tiny(list);
-		local_bh_enable();
 		list = next;
 	}
 }
@@ -155,7 +153,9 @@ void synchronize_rcu(void)
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_rcu() in RCU read-side critical section");
+	preempt_disable();
 	WRITE_ONCE(rcu_ctrlblk.gp_seq, rcu_ctrlblk.gp_seq + 2);
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
@@ -261,4 +261,5 @@ void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 	rcu_early_boot_tests();
+	tasks_cblist_init_generic();
 }

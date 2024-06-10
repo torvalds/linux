@@ -113,7 +113,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 
 	WARN_ON(pte_hw_valid(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
-	WARN_ON(!(pmd_large(pmd)));
+	WARN_ON(!(pmd_leaf(pmd)));
 #endif
 	trace_hugepage_set_pmd(addr, pmd_val(pmd));
 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
@@ -130,7 +130,7 @@ void set_pud_at(struct mm_struct *mm, unsigned long addr,
 
 	WARN_ON(pte_hw_valid(pud_pte(*pudp)));
 	assert_spin_locked(pud_lockptr(mm, pudp));
-	WARN_ON(!(pud_large(pud)));
+	WARN_ON(!(pud_leaf(pud)));
 #endif
 	trace_hugepage_set_pud(addr, pud_val(pud));
 	return set_pte_at(mm, addr, pudp_ptep(pudp), pud_pte(pud));
@@ -170,6 +170,7 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 {
 	unsigned long old_pmd;
 
+	VM_WARN_ON_ONCE(!pmd_present(*pmdp));
 	old_pmd = pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, _PAGE_INVALID);
 	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	return __pmd(old_pmd);

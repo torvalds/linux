@@ -32,3 +32,12 @@
 &hsspi {
 	status = "okay";
 };
+
+&nand_controller {
+	status = "okay";
+};
+
+&nandcs {
+	nand-on-flash-bbt;
+	brcm,nand-ecc-use-strap;
+};

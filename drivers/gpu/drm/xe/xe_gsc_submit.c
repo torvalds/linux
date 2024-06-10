@@ -5,6 +5,8 @@
 
 #include "xe_gsc_submit.h"
 
+#include <linux/poison.h>
+
 #include "abi/gsc_command_header_abi.h"
 #include "xe_bb.h"
 #include "xe_exec_queue.h"
@@ -39,6 +41,21 @@ gsc_to_gt(struct xe_gsc *gsc)
 }
 
 /**
+ * xe_gsc_create_host_session_id - Creates a random 64 bit host_session id with
+ * bits 56-63 masked.
+ *
+ * Returns: random host_session_id which can be used to send messages to gsc cs
+ */
+u64 xe_gsc_create_host_session_id(void)
+{
+	u64 host_session_id;
+
+	get_random_bytes(&host_session_id, sizeof(u64));
+	host_session_id &= ~HOST_SESSION_CLIENT_MASK;
+	return host_session_id;
+}
+
+/**
  * xe_gsc_emit_header - write the MTL GSC header in memory
  * @xe: the Xe device
  * @map: the iosys map to write to
@@ -66,6 +83,17 @@ u32 xe_gsc_emit_header(struct xe_device *xe, struct iosys_map *map, u32 offset,
 	mtl_gsc_header_wr(xe, map, offset, message_size, payload_size + GSC_HDR_SIZE);
 
 	return offset + GSC_HDR_SIZE;
+};
+
+/**
+ * xe_gsc_poison_header - poison the MTL GSC header in memory
+ * @xe: the Xe device
+ * @map: the iosys map to write to
+ * @offset: offset from the start of the map at which the header resides
+ */
+void xe_gsc_poison_header(struct xe_device *xe, struct iosys_map *map, u32 offset)
+{
+	xe_map_memset(xe, map, offset, POISON_FREE, GSC_HDR_SIZE);
 };
 
 /**
@@ -112,10 +140,17 @@ int xe_gsc_read_out_header(struct xe_device *xe,
 {
 	u32 marker = mtl_gsc_header_rd(xe, map, offset, validity_marker);
 	u32 size = mtl_gsc_header_rd(xe, map, offset, message_size);
+	u32 status = mtl_gsc_header_rd(xe, map, offset, status);
 	u32 payload_size = size - GSC_HDR_SIZE;
 
 	if (marker != GSC_HECI_VALIDITY_MARKER)
 		return -EPROTO;
+
+	if (status != 0) {
+		drm_err(&xe->drm, "GSC header readout indicates error: %d\n",
+			status);
+		return -EINVAL;
+	}
 
 	if (size < GSC_HDR_SIZE || payload_size < min_payload_size)
 		return -ENODATA;

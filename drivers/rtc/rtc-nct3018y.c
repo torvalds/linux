@@ -102,6 +102,8 @@ static int nct3018y_get_alarm_mode(struct i2c_client *client, unsigned char *ala
 		if (flags < 0)
 			return flags;
 		*alarm_enable = flags & NCT3018Y_BIT_AIE;
+		dev_dbg(&client->dev, "%s:alarm_enable:%x\n", __func__, *alarm_enable);
+
 	}
 
 	if (alarm_flag) {
@@ -110,10 +112,8 @@ static int nct3018y_get_alarm_mode(struct i2c_client *client, unsigned char *ala
 		if (flags < 0)
 			return flags;
 		*alarm_flag = flags & NCT3018Y_BIT_AF;
+		dev_dbg(&client->dev, "%s:alarm_flag:%x\n", __func__, *alarm_flag);
 	}
-
-	dev_dbg(&client->dev, "%s:alarm_enable:%x alarm_flag:%x\n",
-		__func__, *alarm_enable, *alarm_flag);
 
 	return 0;
 }
@@ -517,12 +517,15 @@ static int nct3018y_probe(struct i2c_client *client)
 	if (nct3018y->part_num < 0) {
 		dev_dbg(&client->dev, "Failed to read NCT3018Y_REG_PART.\n");
 		return nct3018y->part_num;
-	} else if (nct3018y->part_num == NCT3018Y_REG_PART_NCT3018Y) {
-		flags = NCT3018Y_BIT_HF;
-		err = i2c_smbus_write_byte_data(client, NCT3018Y_REG_CTRL, flags);
-		if (err < 0) {
-			dev_dbg(&client->dev, "Unable to write NCT3018Y_REG_CTRL.\n");
-			return err;
+	} else {
+		nct3018y->part_num &= 0x03; /* Part number is corresponding to bit 0 and 1 */
+		if (nct3018y->part_num == NCT3018Y_REG_PART_NCT3018Y) {
+			flags = NCT3018Y_BIT_HF;
+			err = i2c_smbus_write_byte_data(client, NCT3018Y_REG_CTRL, flags);
+			if (err < 0) {
+				dev_dbg(&client->dev, "Unable to write NCT3018Y_REG_CTRL.\n");
+				return err;
+			}
 		}
 	}
 

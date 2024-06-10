@@ -45,20 +45,22 @@ static void nvmem_layout_bus_remove(struct device *dev)
 	return drv->remove(layout);
 }
 
-static struct bus_type nvmem_layout_bus_type = {
+static const struct bus_type nvmem_layout_bus_type = {
 	.name		= "nvmem-layout",
 	.match		= nvmem_layout_bus_match,
 	.probe		= nvmem_layout_bus_probe,
 	.remove		= nvmem_layout_bus_remove,
 };
 
-int nvmem_layout_driver_register(struct nvmem_layout_driver *drv)
+int __nvmem_layout_driver_register(struct nvmem_layout_driver *drv,
+				   struct module *owner)
 {
 	drv->driver.bus = &nvmem_layout_bus_type;
+	drv->driver.owner = owner;
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(nvmem_layout_driver_register);
+EXPORT_SYMBOL_GPL(__nvmem_layout_driver_register);
 
 void nvmem_layout_driver_unregister(struct nvmem_layout_driver *drv)
 {
