@@ -92,6 +92,34 @@
 #define GUC_HXG_REQUEST_MSG_n_DATAn		GUC_HXG_MSG_n_PAYLOAD
 
 /**
+ * DOC: HXG Fast Request
+ *
+ * The `HXG Request`_ message should be used to initiate asynchronous activity
+ * for which confirmation or return data is not expected.
+ *
+ * If confirmation is required then `HXG Request`_ shall be used instead.
+ *
+ * The recipient of this message may only use `HXG Failure`_ message if it was
+ * unable to accept this request (like invalid data).
+ *
+ * Format of `HXG Fast Request`_ message is same as `HXG Request`_ except @TYPE.
+ *
+ *  +---+-------+--------------------------------------------------------------+
+ *  |   | Bits  | Description                                                  |
+ *  +===+=======+==============================================================+
+ *  | 0 |    31 | ORIGIN - see `HXG Message`_                                  |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 30:28 | TYPE = `GUC_HXG_TYPE_FAST_REQUEST`_                          |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 27:16 | DATA0 - see `HXG Request`_                                   |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   |  15:0 | ACTION - see `HXG Request`_                                  |
+ *  +---+-------+--------------------------------------------------------------+
+ *  |...|       | DATAn - see `HXG Request`_                                   |
+ *  +---+-------+--------------------------------------------------------------+
+ */
+
+/**
  * DOC: HXG Event
  *
  * The `HXG Event`_ message should be used to initiate asynchronous activity
