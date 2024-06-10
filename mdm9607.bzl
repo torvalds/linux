@@ -6,6 +6,9 @@ target_name = "mdm9607"
 
 def define_mdm9607():
     _mdm9607_le_in_tree_modules = [
+        "drivers/net/phy/at803x.ko",
+        "drivers/net/phy/qca8337.ko",
+        "drivers/net/ethernet/qualcomm/emac/qcom-emac.ko",
         # keep sorted
     ]
 
