@@ -11093,8 +11093,12 @@ static int dm_crtc_get_cursor_mode(struct amdgpu_device *adev,
 	int cursor_scale_w, cursor_scale_h;
 	int i;
 
-	/* Overlay cursor not supported on HW before DCN */
-	if (amdgpu_ip_version(adev, DCE_HWIP, 0) == 0) {
+	/* Overlay cursor not supported on HW before DCN
+	 * DCN401 does not have the cursor-on-scaled-plane or cursor-on-yuv-plane restrictions
+	 * as previous DCN generations, so enable native mode on DCN401 in addition to DCE
+	 */
+	if (amdgpu_ip_version(adev, DCE_HWIP, 0) == 0 ||
+	    amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 0, 1)) {
 		*cursor_mode = DM_CURSOR_NATIVE_MODE;
 		return 0;
 	}
@@ -11237,7 +11241,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_plane *plane;
-	struct drm_plane_state *old_plane_state, *new_plane_state;
+	struct drm_plane_state *old_plane_state, *new_plane_state, *new_cursor_state;
 	enum dc_status status;
 	int ret, i;
 	bool lock_and_validation_needed = false;
@@ -11465,19 +11469,39 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			drm_dbg_atomic(dev, "MPO enablement requested on crtc:[%p]\n", crtc);
 	}
 
-	/* Check cursor planes restrictions */
+	/* Check cursor restrictions */
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		enum amdgpu_dm_cursor_mode required_cursor_mode;
+		int is_rotated, is_scaled;
 
 		/* Overlay cusor not subject to native cursor restrictions */
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		if (dm_new_crtc_state->cursor_mode == DM_CURSOR_OVERLAY_MODE)
 			continue;
 
+		/* Check if rotation or scaling is enabled on DCN401 */
+		if ((drm_plane_mask(crtc->cursor) & new_crtc_state->plane_mask) &&
+		    amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 0, 1)) {
+			new_cursor_state = drm_atomic_get_new_plane_state(state, crtc->cursor);
+
+			is_rotated = new_cursor_state &&
+				((new_cursor_state->rotation & DRM_MODE_ROTATE_MASK) != DRM_MODE_ROTATE_0);
+			is_scaled = new_cursor_state && ((new_cursor_state->src_w >> 16 != new_cursor_state->crtc_w) ||
+				(new_cursor_state->src_h >> 16 != new_cursor_state->crtc_h));
+
+			if (is_rotated || is_scaled) {
+				drm_dbg_driver(
+					crtc->dev,
+					"[CRTC:%d:%s] cannot enable hardware cursor due to rotation/scaling\n",
+					crtc->base.id, crtc->name);
+				ret = -EINVAL;
+				goto fail;
+			}
+		}
+
 		/* If HW can only do native cursor, check restrictions again */
 		ret = dm_crtc_get_cursor_mode(adev, state, dm_new_crtc_state,
 					      &required_cursor_mode);
-
 		if (ret) {
 			drm_dbg_driver(crtc->dev,
 				       "[CRTC:%d:%s] Checking cursor mode failed\n",
