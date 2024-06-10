@@ -904,7 +904,7 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 	const struct k_clock *kc;
 	struct k_itimer *timr;
 	unsigned long flags;
-	int error = 0;
+	int error;
 
 	if (!timespec64_valid(&new_spec64->it_interval) ||
 	    !timespec64_valid(&new_spec64->it_value))
@@ -917,6 +917,9 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 retry:
 	if (!timr)
 		return -EINVAL;
+
+	if (old_spec64)
+		old_spec64->it_interval = ktime_to_timespec64(timr->it_interval);
 
 	kc = timr->kclock;
 	if (WARN_ON_ONCE(!kc || !kc->timer_set))

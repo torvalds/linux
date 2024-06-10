@@ -622,8 +622,8 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 {
 	bool sigev_none = timer->it_sigev_notify == SIGEV_NONE;
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
-	u64 old_expires, new_expires, old_incr, now;
 	struct cpu_timer *ctmr = &timer->it.cpu;
+	u64 old_expires, new_expires, now;
 	struct sighand_struct *sighand;
 	struct task_struct *p;
 	unsigned long flags;
@@ -660,10 +660,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 		return -ESRCH;
 	}
 
-	/*
-	 * Disarm any old timer after extracting its expiry time.
-	 */
-	old_incr = timer->it_interval;
+	/* Retrieve the current expiry time before disarming the timer */
 	old_expires = cpu_timer_getexpires(ctmr);
 
 	if (unlikely(timer->it.cpu.firing)) {
@@ -742,9 +739,6 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 		cpu_timer_fire(timer);
 out:
 	rcu_read_unlock();
-	if (old)
-		old->it_interval = ns_to_timespec64(old_incr);
-
 	return ret;
 }
 
