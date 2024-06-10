@@ -707,21 +707,21 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	struct adxl34x *ac;
 	struct input_dev *input_dev;
 	const struct adxl34x_platform_data *pdata;
-	int err, range, i;
+	int error, range, i;
 	int revid;
 
 	if (!irq) {
 		dev_err(dev, "no IRQ?\n");
-		err = -ENODEV;
-		goto err_out;
+		return ERR_PTR(-ENODEV);
 	}
 
-	ac = kzalloc(sizeof(*ac), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ac || !input_dev) {
-		err = -ENOMEM;
-		goto err_free_mem;
-	}
+	ac = devm_kzalloc(dev, sizeof(*ac), GFP_KERNEL);
+	if (!ac)
+		return ERR_PTR(-ENOMEM);
+
+	input_dev = devm_input_allocate_device(dev);
+	if (!input_dev)
+		return ERR_PTR(-ENOMEM);
 
 	ac->fifo_delay = fifo_delay_default;
 
@@ -754,14 +754,12 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 		break;
 	default:
 		dev_err(dev, "Failed to probe %s\n", input_dev->name);
-		err = -ENODEV;
-		goto err_free_mem;
+		return ERR_PTR(-ENODEV);
 	}
 
 	snprintf(ac->phys, sizeof(ac->phys), "%s/input0", dev_name(dev));
 
 	input_dev->phys = ac->phys;
-	input_dev->dev.parent = dev;
 	input_dev->id.product = ac->model;
 	input_dev->id.bustype = bops->bustype;
 	input_dev->open = adxl34x_input_open;
@@ -816,16 +814,16 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 
 	AC_WRITE(ac, POWER_CTL, 0);
 
-	err = request_threaded_irq(ac->irq, NULL, adxl34x_irq,
-				   IRQF_ONESHOT, dev_name(dev), ac);
-	if (err) {
+	error = devm_request_threaded_irq(dev, ac->irq, NULL, adxl34x_irq,
+					  IRQF_ONESHOT, dev_name(dev), ac);
+	if (error) {
 		dev_err(dev, "irq %d busy?\n", ac->irq);
-		goto err_free_mem;
+		return ERR_PTR(error);
 	}
 
-	err = input_register_device(input_dev);
-	if (err)
-		goto err_free_irq;
+	error = input_register_device(input_dev);
+	if (error)
+		return ERR_PTR(error);
 
 	AC_WRITE(ac, OFSX, pdata->x_axis_offset);
 	ac->hwcal.x = pdata->x_axis_offset;
@@ -884,25 +882,8 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	ac->pdata.power_mode &= (PCTL_AUTO_SLEEP | PCTL_LINK);
 
 	return ac;
-
- err_free_irq:
-	free_irq(ac->irq, ac);
- err_free_mem:
-	input_free_device(input_dev);
-	kfree(ac);
- err_out:
-	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(adxl34x_probe);
-
-void adxl34x_remove(struct adxl34x *ac)
-{
-	free_irq(ac->irq, ac);
-	input_unregister_device(ac->input);
-	dev_dbg(ac->dev, "unregistered accelerometer\n");
-	kfree(ac);
-}
-EXPORT_SYMBOL_GPL(adxl34x_remove);
 
 EXPORT_GPL_SIMPLE_DEV_PM_OPS(adxl34x_pm, adxl34x_suspend, adxl34x_resume);
 
