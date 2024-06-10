@@ -581,19 +581,19 @@ static int gpio_sim_bus_notifier_call(struct notifier_block *nb,
 
 	snprintf(devname, sizeof(devname), "gpio-sim.%u", simdev->id);
 
-	if (strcmp(dev_name(dev), devname) == 0) {
-		if (action == BUS_NOTIFY_BOUND_DRIVER)
-			simdev->driver_bound = true;
-		else if (action == BUS_NOTIFY_DRIVER_NOT_BOUND)
-			simdev->driver_bound = false;
-		else
-			return NOTIFY_DONE;
+	if (!device_match_name(dev, devname))
+		return NOTIFY_DONE;
 
-		complete(&simdev->probe_completion);
-		return NOTIFY_OK;
-	}
+	if (action == BUS_NOTIFY_BOUND_DRIVER)
+		simdev->driver_bound = true;
+	else if (action == BUS_NOTIFY_DRIVER_NOT_BOUND)
+		simdev->driver_bound = false;
+	else
+		return NOTIFY_DONE;
 
-	return NOTIFY_DONE;
+	complete(&simdev->probe_completion);
+
+	return NOTIFY_OK;
 }
 
 static struct gpio_sim_device *to_gpio_sim_device(struct config_item *item)
