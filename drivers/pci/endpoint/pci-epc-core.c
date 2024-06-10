@@ -14,7 +14,9 @@
 #include <linux/pci-epf.h>
 #include <linux/pci-ep-cfs.h>
 
-static struct class *pci_epc_class;
+static const struct class pci_epc_class = {
+	.name = "pci_epc",
+};
 
 static void devm_pci_epc_release(struct device *dev, void *res)
 {
@@ -60,7 +62,7 @@ struct pci_epc *pci_epc_get(const char *epc_name)
 	struct device *dev;
 	struct class_dev_iter iter;
 
-	class_dev_iter_init(&iter, pci_epc_class, NULL, NULL);
+	class_dev_iter_init(&iter, &pci_epc_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		if (strcmp(epc_name, dev_name(dev)))
 			continue;
@@ -893,7 +895,7 @@ __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 	INIT_LIST_HEAD(&epc->pci_epf);
 
 	device_initialize(&epc->dev);
-	epc->dev.class = pci_epc_class;
+	epc->dev.class = &pci_epc_class;
 	epc->dev.parent = dev;
 	epc->dev.release = pci_epc_release;
 	epc->ops = ops;
@@ -953,20 +955,13 @@ EXPORT_SYMBOL_GPL(__devm_pci_epc_create);
 
 static int __init pci_epc_init(void)
 {
-	pci_epc_class = class_create("pci_epc");
-	if (IS_ERR(pci_epc_class)) {
-		pr_err("failed to create pci epc class --> %ld\n",
-		       PTR_ERR(pci_epc_class));
-		return PTR_ERR(pci_epc_class);
-	}
-
-	return 0;
+	return class_register(&pci_epc_class);
 }
 module_init(pci_epc_init);
 
 static void __exit pci_epc_exit(void)
 {
-	class_destroy(pci_epc_class);
+	class_unregister(&pci_epc_class);
 }
 module_exit(pci_epc_exit);
 
