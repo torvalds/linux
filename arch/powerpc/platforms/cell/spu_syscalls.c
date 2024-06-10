@@ -77,19 +77,15 @@ SYSCALL_DEFINE4(spu_create, const char __user *, name, unsigned int, flags,
 
 SYSCALL_DEFINE3(spu_run,int, fd, __u32 __user *, unpc, __u32 __user *, ustatus)
 {
-	long ret;
-	struct fd arg;
 	CLASS(spufs_calls, calls)();
 	if (!calls)
 		return -ENOSYS;
 
-	ret = -EBADF;
-	arg = fdget(fd);
-	if (fd_file(arg)) {
-		ret = calls->spu_run(fd_file(arg), unpc, ustatus);
-		fdput(arg);
-	}
-	return ret;
+	CLASS(fd, arg)(fd);
+	if (fd_empty(arg))
+		return -EBADF;
+
+	return calls->spu_run(fd_file(arg), unpc, ustatus);
 }
 
 #ifdef CONFIG_COREDUMP
