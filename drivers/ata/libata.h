@@ -95,8 +95,13 @@ extern unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 /* libata-sata.c */
 #ifdef CONFIG_SATA_HOST
 int sata_down_spd_limit(struct ata_link *link, u32 spd_limit);
+int ata_eh_get_ncq_success_sense(struct ata_link *link);
 #else
 static inline int sata_down_spd_limit(struct ata_link *link, u32 spd_limit)
+{
+	return -EOPNOTSUPP;
+}
+static inline int ata_eh_get_ncq_success_sense(struct ata_link *link)
 {
 	return -EOPNOTSUPP;
 }
