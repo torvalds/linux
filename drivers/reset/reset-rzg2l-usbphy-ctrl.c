@@ -125,25 +125,14 @@ static int rzg2l_usbphy_ctrl_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	priv->rcdev.ops = &rzg2l_usbphy_ctrl_reset_ops;
-	priv->rcdev.of_reset_n_cells = 1;
-	priv->rcdev.nr_resets = NUM_PORTS;
-	priv->rcdev.of_node = dev->of_node;
-	priv->rcdev.dev = dev;
-
-	error = devm_reset_controller_register(dev, &priv->rcdev);
-	if (error)
-		return error;
-
 	spin_lock_init(&priv->lock);
 	dev_set_drvdata(dev, priv);
 
 	pm_runtime_enable(&pdev->dev);
 	error = pm_runtime_resume_and_get(&pdev->dev);
 	if (error < 0) {
-		pm_runtime_disable(&pdev->dev);
-		reset_control_assert(priv->rstc);
-		return dev_err_probe(&pdev->dev, error, "pm_runtime_resume_and_get failed");
+		dev_err_probe(&pdev->dev, error, "pm_runtime_resume_and_get failed");
+		goto err_pm_disable_reset_deassert;
 	}
 
 	/* put pll and phy into reset state */
@@ -153,7 +142,24 @@ static int rzg2l_usbphy_ctrl_probe(struct platform_device *pdev)
 	writel(val, priv->base + RESET);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	priv->rcdev.ops = &rzg2l_usbphy_ctrl_reset_ops;
+	priv->rcdev.of_reset_n_cells = 1;
+	priv->rcdev.nr_resets = NUM_PORTS;
+	priv->rcdev.of_node = dev->of_node;
+	priv->rcdev.dev = dev;
+
+	error = devm_reset_controller_register(dev, &priv->rcdev);
+	if (error)
+		goto err_pm_runtime_put;
+
 	return 0;
+
+err_pm_runtime_put:
+	pm_runtime_put(&pdev->dev);
+err_pm_disable_reset_deassert:
+	pm_runtime_disable(&pdev->dev);
+	reset_control_assert(priv->rstc);
+	return error;
 }
 
 static int rzg2l_usbphy_ctrl_remove(struct platform_device *pdev)
