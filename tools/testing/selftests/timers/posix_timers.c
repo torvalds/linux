@@ -6,8 +6,9 @@
  *
  * Kernel loop code stolen from Steven Rostedt <srostedt@redhat.com>
  */
-
+#define _GNU_SOURCE
 #include <sys/time.h>
+#include <sys/types.h>
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
@@ -214,10 +215,129 @@ static void check_timer_distribution(void)
 		ksft_test_result_skip("check signal distribution (old kernel)\n");
 }
 
+struct tmrsig {
+	int	signals;
+	int	overruns;
+};
+
+static void siginfo_handler(int sig, siginfo_t *si, void *uc)
+{
+	struct tmrsig *tsig = si ? si->si_ptr : NULL;
+
+	if (tsig) {
+		tsig->signals++;
+		tsig->overruns += si->si_overrun;
+	}
+}
+
+static void *ignore_thread(void *arg)
+{
+	unsigned int *tid = arg;
+	sigset_t set;
+
+	sigemptyset(&set);
+	sigaddset(&set, SIGUSR1);
+	if (sigprocmask(SIG_BLOCK, &set, NULL))
+		fatal_error(NULL, "sigprocmask(SIG_BLOCK)");
+
+	*tid = gettid();
+	sleep(100);
+
+	if (sigprocmask(SIG_UNBLOCK, &set, NULL))
+		fatal_error(NULL, "sigprocmask(SIG_UNBLOCK)");
+	return NULL;
+}
+
+static void check_sig_ign(int thread)
+{
+	struct tmrsig tsig = { };
+	struct itimerspec its;
+	unsigned int tid = 0;
+	struct sigaction sa;
+	struct sigevent sev;
+	pthread_t pthread;
+	timer_t timerid;
+	sigset_t set;
+
+	if (thread) {
+		if (pthread_create(&pthread, NULL, ignore_thread, &tid))
+			fatal_error(NULL, "pthread_create()");
+		sleep(1);
+	}
+
+	sa.sa_flags = SA_SIGINFO;
+	sa.sa_sigaction = siginfo_handler;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(SIGUSR1, &sa, NULL))
+		fatal_error(NULL, "sigaction()");
+
+	/* Block the signal */
+	sigemptyset(&set);
+	sigaddset(&set, SIGUSR1);
+	if (sigprocmask(SIG_BLOCK, &set, NULL))
+		fatal_error(NULL, "sigprocmask(SIG_BLOCK)");
+
+	memset(&sev, 0, sizeof(sev));
+	sev.sigev_notify = SIGEV_SIGNAL;
+	sev.sigev_signo = SIGUSR1;
+	sev.sigev_value.sival_ptr = &tsig;
+	if (thread) {
+		sev.sigev_notify = SIGEV_THREAD_ID;
+		sev._sigev_un._tid = tid;
+	}
+
+	if (timer_create(CLOCK_MONOTONIC, &sev, &timerid))
+		fatal_error(NULL, "timer_create()");
+
+	/* Start the timer to expire in 100ms and 100ms intervals */
+	its.it_value.tv_sec = 0;
+	its.it_value.tv_nsec = 100000000;
+	its.it_interval.tv_sec = 0;
+	its.it_interval.tv_nsec = 100000000;
+	timer_settime(timerid, 0, &its, NULL);
+
+	sleep(1);
+
+	/* Set the signal to be ignored */
+	if (signal(SIGUSR1, SIG_IGN) == SIG_ERR)
+		fatal_error(NULL, "signal(SIG_IGN)");
+
+	sleep(1);
+
+	if (thread) {
+		/* Stop the thread first. No signal should be delivered to it */
+		if (pthread_cancel(pthread))
+			fatal_error(NULL, "pthread_cancel()");
+		if (pthread_join(pthread, NULL))
+			fatal_error(NULL, "pthread_join()");
+	}
+
+	/* Restore the handler */
+	if (sigaction(SIGUSR1, &sa, NULL))
+		fatal_error(NULL, "sigaction()");
+
+	sleep(1);
+
+	/* Unblock it, which should deliver the signal in the !thread case*/
+	if (sigprocmask(SIG_UNBLOCK, &set, NULL))
+		fatal_error(NULL, "sigprocmask(SIG_UNBLOCK)");
+
+	if (timer_delete(timerid))
+		fatal_error(NULL, "timer_delete()");
+
+	if (!thread) {
+		ksft_test_result(tsig.signals == 1 && tsig.overruns == 29,
+				 "check_sig_ign SIGEV_SIGNAL\n");
+	} else {
+		ksft_test_result(tsig.signals == 0 && tsig.overruns == 0,
+				 "check_sig_ign SIGEV_THREAD_ID\n");
+	}
+}
+
 int main(int argc, char **argv)
 {
 	ksft_print_header();
-	ksft_set_plan(6);
+	ksft_set_plan(8);
 
 	ksft_print_msg("Testing posix timers. False negative may happen on CPU execution \n");
 	ksft_print_msg("based timers if other threads run on the CPU...\n");
@@ -238,6 +358,9 @@ int main(int argc, char **argv)
 	 */
 	check_timer_create(CLOCK_PROCESS_CPUTIME_ID, "CLOCK_PROCESS_CPUTIME_ID");
 	check_timer_distribution();
+
+	check_sig_ign(0);
+	check_sig_ign(1);
 
 	ksft_finished();
 }
