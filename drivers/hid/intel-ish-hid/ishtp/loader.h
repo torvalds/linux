@@ -30,19 +30,23 @@ struct work_struct;
 #define LOADER_XFER_MODE_DMA BIT(0)
 
 /**
- * struct loader_msg_header - ISHTP firmware loader message header
+ * union loader_msg_header - ISHTP firmware loader message header
  * @command: Command type
  * @is_response: Indicates if the message is a response
  * @has_next: Indicates if there is a next message
  * @reserved: Reserved for future use
  * @status: Status of the message
+ * @val32: entire header as a 32-bit value
  */
-struct loader_msg_header {
-	__le32 command:7;
-	__le32 is_response:1;
-	__le32 has_next:1;
-	__le32 reserved:15;
-	__le32 status:8;
+union loader_msg_header {
+	struct {
+		__u32 command:7;
+		__u32 is_response:1;
+		__u32 has_next:1;
+		__u32 reserved:15;
+		__u32 status:8;
+	};
+	__u32 val32;
 };
 
 /**
@@ -51,7 +55,7 @@ struct loader_msg_header {
  * @image_size: Size of the image
  */
 struct loader_xfer_query {
-	struct loader_msg_header header;
+	__le32 header;
 	__le32 image_size;
 };
 
@@ -103,7 +107,7 @@ struct loader_capability {
  * @capability: Loader capability
  */
 struct loader_xfer_query_ack {
-	struct loader_msg_header header;
+	__le32 header;
 	__le16 version_major;
 	__le16 version_minor;
 	__le16 version_hotfix;
@@ -122,7 +126,7 @@ struct loader_xfer_query_ack {
  * @is_last: Is last
  */
 struct loader_xfer_fragment {
-	struct loader_msg_header header;
+	__le32 header;
 	__le32 xfer_mode;
 	__le32 offset;
 	__le32 size;
@@ -134,7 +138,7 @@ struct loader_xfer_fragment {
  * @header: Header of the message
  */
 struct loader_xfer_fragment_ack {
-	struct loader_msg_header header;
+	__le32 header;
 };
 
 /**
@@ -170,7 +174,7 @@ struct loader_xfer_dma_fragment {
  * @header: Header of the message
  */
 struct loader_start {
-	struct loader_msg_header header;
+	__le32 header;
 };
 
 /**
@@ -178,10 +182,11 @@ struct loader_start {
  * @header: Header of the message
  */
 struct loader_start_ack {
-	struct loader_msg_header header;
+	__le32 header;
 };
 
 union loader_recv_message {
+	__le32 header;
 	struct loader_xfer_query_ack query_ack;
 	struct loader_xfer_fragment_ack fragment_ack;
 	struct loader_start_ack start_ack;

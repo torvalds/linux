@@ -345,6 +345,7 @@ static DECLARE_WORK(disable_freq_invariance_work,
 		    disable_freq_invariance_workfn);
 
 DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
+EXPORT_PER_CPU_SYMBOL_GPL(arch_freq_scale);
 
 static void scale_freq_tick(u64 acnt, u64 mcnt)
 {

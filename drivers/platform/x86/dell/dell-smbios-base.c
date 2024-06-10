@@ -11,6 +11,7 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/container_of.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/capability.h>
@@ -25,10 +26,15 @@ static u32 da_supported_commands;
 static int da_num_tokens;
 static struct platform_device *platform_device;
 static struct calling_interface_token *da_tokens;
-static struct device_attribute *token_location_attrs;
-static struct device_attribute *token_value_attrs;
+static struct token_sysfs_data *token_entries;
 static struct attribute **token_attrs;
 static DEFINE_MUTEX(smbios_mutex);
+
+struct token_sysfs_data {
+	struct device_attribute location_attr;
+	struct device_attribute value_attr;
+	struct calling_interface_token *token;
+};
 
 struct smbios_device {
 	struct list_head list;
@@ -416,47 +422,26 @@ static void __init find_tokens(const struct dmi_header *dm, void *dummy)
 	}
 }
 
-static int match_attribute(struct device *dev,
-			   struct device_attribute *attr)
-{
-	int i;
-
-	for (i = 0; i < da_num_tokens * 2; i++) {
-		if (!token_attrs[i])
-			continue;
-		if (strcmp(token_attrs[i]->name, attr->attr.name) == 0)
-			return i/2;
-	}
-	dev_dbg(dev, "couldn't match: %s\n", attr->attr.name);
-	return -EINVAL;
-}
-
 static ssize_t location_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	int i;
+	struct token_sysfs_data *data = container_of(attr, struct token_sysfs_data, location_attr);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	i = match_attribute(dev, attr);
-	if (i > 0)
-		return sysfs_emit(buf, "%08x", da_tokens[i].location);
-	return 0;
+	return sysfs_emit(buf, "%08x", data->token->location);
 }
 
 static ssize_t value_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
-	int i;
+	struct token_sysfs_data *data = container_of(attr, struct token_sysfs_data, value_attr);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	i = match_attribute(dev, attr);
-	if (i > 0)
-		return sysfs_emit(buf, "%08x", da_tokens[i].value);
-	return 0;
+	return sysfs_emit(buf, "%08x", data->token->value);
 }
 
 static struct attribute_group smbios_attribute_group = {
@@ -473,22 +458,15 @@ static int build_tokens_sysfs(struct platform_device *dev)
 {
 	char *location_name;
 	char *value_name;
-	size_t size;
 	int ret;
 	int i, j;
 
-	/* (number of tokens  + 1 for null terminated */
-	size = sizeof(struct device_attribute) * (da_num_tokens + 1);
-	token_location_attrs = kzalloc(size, GFP_KERNEL);
-	if (!token_location_attrs)
+	token_entries = kcalloc(da_num_tokens, sizeof(*token_entries), GFP_KERNEL);
+	if (!token_entries)
 		return -ENOMEM;
-	token_value_attrs = kzalloc(size, GFP_KERNEL);
-	if (!token_value_attrs)
-		goto out_allocate_value;
 
 	/* need to store both location and value + terminator*/
-	size = sizeof(struct attribute *) * ((2 * da_num_tokens) + 1);
-	token_attrs = kzalloc(size, GFP_KERNEL);
+	token_attrs = kcalloc((2 * da_num_tokens) + 1, sizeof(*token_attrs), GFP_KERNEL);
 	if (!token_attrs)
 		goto out_allocate_attrs;
 
@@ -496,32 +474,34 @@ static int build_tokens_sysfs(struct platform_device *dev)
 		/* skip empty */
 		if (da_tokens[i].tokenID == 0)
 			continue;
+
+		token_entries[i].token = &da_tokens[i];
+
 		/* add location */
 		location_name = kasprintf(GFP_KERNEL, "%04x_location",
 					  da_tokens[i].tokenID);
 		if (location_name == NULL)
 			goto out_unwind_strings;
-		sysfs_attr_init(&token_location_attrs[i].attr);
-		token_location_attrs[i].attr.name = location_name;
-		token_location_attrs[i].attr.mode = 0444;
-		token_location_attrs[i].show = location_show;
-		token_attrs[j++] = &token_location_attrs[i].attr;
+
+		sysfs_attr_init(&token_entries[i].location_attr.attr);
+		token_entries[i].location_attr.attr.name = location_name;
+		token_entries[i].location_attr.attr.mode = 0444;
+		token_entries[i].location_attr.show = location_show;
+		token_attrs[j++] = &token_entries[i].location_attr.attr;
 
 		/* add value */
 		value_name = kasprintf(GFP_KERNEL, "%04x_value",
 				       da_tokens[i].tokenID);
-		if (value_name == NULL)
-			goto loop_fail_create_value;
-		sysfs_attr_init(&token_value_attrs[i].attr);
-		token_value_attrs[i].attr.name = value_name;
-		token_value_attrs[i].attr.mode = 0444;
-		token_value_attrs[i].show = value_show;
-		token_attrs[j++] = &token_value_attrs[i].attr;
-		continue;
+		if (!value_name) {
+			kfree(location_name);
+			goto out_unwind_strings;
+		}
 
-loop_fail_create_value:
-		kfree(location_name);
-		goto out_unwind_strings;
+		sysfs_attr_init(&token_entries[i].value_attr.attr);
+		token_entries[i].value_attr.attr.name = value_name;
+		token_entries[i].value_attr.attr.mode = 0444;
+		token_entries[i].value_attr.show = value_show;
+		token_attrs[j++] = &token_entries[i].value_attr.attr;
 	}
 	smbios_attribute_group.attrs = token_attrs;
 
@@ -532,14 +512,12 @@ loop_fail_create_value:
 
 out_unwind_strings:
 	while (i--) {
-		kfree(token_location_attrs[i].attr.name);
-		kfree(token_value_attrs[i].attr.name);
+		kfree(token_entries[i].location_attr.attr.name);
+		kfree(token_entries[i].value_attr.attr.name);
 	}
 	kfree(token_attrs);
 out_allocate_attrs:
-	kfree(token_value_attrs);
-out_allocate_value:
-	kfree(token_location_attrs);
+	kfree(token_entries);
 
 	return -ENOMEM;
 }
@@ -551,12 +529,11 @@ static void free_group(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj,
 				&smbios_attribute_group);
 	for (i = 0; i < da_num_tokens; i++) {
-		kfree(token_location_attrs[i].attr.name);
-		kfree(token_value_attrs[i].attr.name);
+		kfree(token_entries[i].location_attr.attr.name);
+		kfree(token_entries[i].value_attr.attr.name);
 	}
 	kfree(token_attrs);
-	kfree(token_value_attrs);
-	kfree(token_location_attrs);
+	kfree(token_entries);
 }
 
 static int __init dell_smbios_init(void)

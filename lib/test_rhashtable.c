@@ -811,4 +811,5 @@ static void __exit test_rht_exit(void)
 module_init(test_rht_init);
 module_exit(test_rht_exit);
 
+MODULE_DESCRIPTION("Resizable, Scalable, Concurrent Hash Table test module");
 MODULE_LICENSE("GPL v2");

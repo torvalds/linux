@@ -750,8 +750,7 @@ err_fs:
 err_fs_ft:
 	if (rx->allow_tunnel_mode)
 		mlx5_eswitch_unblock_encap(mdev);
-	mlx5_del_flow_rules(rx->status.rule);
-	mlx5_modify_header_dealloc(mdev, rx->status.modify_hdr);
+	mlx5_ipsec_rx_status_destroy(ipsec, rx);
 err_add:
 	mlx5_destroy_flow_table(rx->ft.status);
 err_fs_ft_status:

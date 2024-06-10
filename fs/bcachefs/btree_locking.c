@@ -215,6 +215,7 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
 
 	if (unlikely(!best)) {
 		struct printbuf buf = PRINTBUF;
+		buf.atomic++;
 
 		prt_printf(&buf, bch2_fmt(g->g->trans->c, "cycle of nofail locks"));
 
