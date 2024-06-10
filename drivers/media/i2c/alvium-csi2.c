@@ -1722,6 +1722,27 @@ alvium_code_to_pixfmt(struct alvium_dev *alvium, u32 code)
 	return &alvium->alvium_csi2_fmt[0];
 }
 
+static int alvium_enum_frame_size(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
+				  struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct alvium_dev *alvium = sd_to_alvium(sd);
+	const struct alvium_pixfmt *alvium_csi2_fmt;
+
+	if (fse->index)
+		return -EINVAL;
+
+	alvium_csi2_fmt = alvium_code_to_pixfmt(alvium, fse->code);
+	if (fse->code != alvium_csi2_fmt->code)
+		return -EINVAL;
+
+	fse->min_width = alvium->img_min_width;
+	fse->max_width = alvium->img_max_width;
+	fse->min_height = alvium->img_min_height;
+	fse->max_height = alvium->img_max_height;
+	return 0;
+}
+
 static int alvium_set_mode(struct alvium_dev *alvium,
 			   struct v4l2_subdev_state *state)
 {
@@ -2229,6 +2250,7 @@ static const struct v4l2_subdev_video_ops alvium_video_ops = {
 
 static const struct v4l2_subdev_pad_ops alvium_pad_ops = {
 	.enum_mbus_code = alvium_enum_mbus_code,
+	.enum_frame_size = alvium_enum_frame_size,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = alvium_set_fmt,
 	.get_selection = alvium_get_selection,
