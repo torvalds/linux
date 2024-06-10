@@ -785,33 +785,9 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	return ret;
 }
 
-static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp)
+static void __posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp, u64 now)
 {
-	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
-	struct cpu_timer *ctmr = &timer->it.cpu;
-	u64 now, expires = cpu_timer_getexpires(ctmr);
-	struct task_struct *p;
-
-	rcu_read_lock();
-	p = cpu_timer_task_rcu(timer);
-	if (!p)
-		goto out;
-
-	/*
-	 * Easy part: convert the reload time.
-	 */
-	itp->it_interval = ktime_to_timespec64(timer->it_interval);
-
-	if (!expires)
-		goto out;
-
-	/*
-	 * Sample the clock to take the difference with the expiry time.
-	 */
-	if (CPUCLOCK_PERTHREAD(timer->it_clock))
-		now = cpu_clock_sample(clkid, p);
-	else
-		now = cpu_clock_sample_group(clkid, p, false);
+	u64 expires = cpu_timer_getexpires(&timer->it.cpu);
 
 	if (now < expires) {
 		itp->it_value = ns_to_timespec64(expires - now);
@@ -823,7 +799,28 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 		itp->it_value.tv_nsec = 1;
 		itp->it_value.tv_sec = 0;
 	}
-out:
+}
+
+static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp)
+{
+	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
+	struct task_struct *p;
+	u64 now;
+
+	rcu_read_lock();
+	p = cpu_timer_task_rcu(timer);
+	if (p) {
+		itp->it_interval = ktime_to_timespec64(timer->it_interval);
+
+		if (cpu_timer_getexpires(&timer->it.cpu)) {
+			if (CPUCLOCK_PERTHREAD(timer->it_clock))
+				now = cpu_clock_sample(clkid, p);
+			else
+				now = cpu_clock_sample_group(clkid, p, false);
+
+			__posix_cpu_timer_get(timer, itp, now);
+		}
+	}
 	rcu_read_unlock();
 }
 
