@@ -57,7 +57,7 @@ static int effective_prio(struct task_struct *p)
 	 * keep the priority unchanged. Otherwise, update priority
 	 * to the normal priority:
 	 */
-	if (!realtime_prio(p->prio))
+	if (!rt_or_dl_prio(p->prio))
 		return p->normal_prio;
 	return p->prio;
 }

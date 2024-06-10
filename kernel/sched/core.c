@@ -166,7 +166,7 @@ static inline int __task_prio(const struct task_struct *p)
 	if (p->dl_server)
 		return -1; /* deadline */
 
-	if (realtime_prio(p->prio)) /* includes deadline */
+	if (rt_or_dl_prio(p->prio))
 		return p->prio; /* [-1, 99] */
 
 	if (p->sched_class == &idle_sched_class)
@@ -8590,7 +8590,7 @@ void normalize_rt_tasks(void)
 		schedstat_set(p->stats.sleep_start, 0);
 		schedstat_set(p->stats.block_start, 0);
 
-		if (!realtime_task(p)) {
+		if (!rt_or_dl_task(p)) {
 			/*
 			 * Renice negative nice level userspace
 			 * tasks back to 0:
