@@ -9,6 +9,7 @@
 #include <drm/display/drm_dp_helper.h>
 
 struct intel_atomic_state;
+struct intel_connector;
 struct intel_crtc_state;
 struct intel_dp;
 
@@ -44,4 +45,7 @@ static inline u8 intel_dp_training_pattern_symbol(u8 pattern)
 
 void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,
 				 const struct intel_crtc_state *crtc_state);
+
+void intel_dp_link_training_debugfs_add(struct intel_connector *connector);
+
 #endif /* __INTEL_DP_LINK_TRAINING_H__ */
