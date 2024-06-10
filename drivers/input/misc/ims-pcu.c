@@ -927,9 +927,8 @@ static void ims_pcu_process_async_firmware(const struct firmware *fw,
 		goto out;
 	}
 
-	mutex_lock(&pcu->cmd_mutex);
-	ims_pcu_handle_firmware_update(pcu, fw);
-	mutex_unlock(&pcu->cmd_mutex);
+	scoped_guard(mutex, &pcu->cmd_mutex)
+		ims_pcu_handle_firmware_update(pcu, fw);
 
 	release_firmware(fw);
 
@@ -953,7 +952,7 @@ static int ims_pcu_backlight_set_brightness(struct led_classdev *cdev,
 	__le16 br_val = cpu_to_le16(value);
 	int error;
 
-	mutex_lock(&pcu->cmd_mutex);
+	guard(mutex)(&pcu->cmd_mutex);
 
 	error = ims_pcu_execute_command(pcu, SET_BRIGHTNESS,
 					&br_val, sizeof(br_val));
@@ -961,8 +960,6 @@ static int ims_pcu_backlight_set_brightness(struct led_classdev *cdev,
 		dev_warn(pcu->dev,
 			 "Failed to set desired brightness %u, error: %d\n",
 			 value, error);
-
-	mutex_unlock(&pcu->cmd_mutex);
 
 	return error;
 }
@@ -977,7 +974,7 @@ ims_pcu_backlight_get_brightness(struct led_classdev *cdev)
 	int brightness;
 	int error;
 
-	mutex_lock(&pcu->cmd_mutex);
+	guard(mutex)(&pcu->cmd_mutex);
 
 	error = ims_pcu_execute_query(pcu, GET_BRIGHTNESS);
 	if (error) {
@@ -990,8 +987,6 @@ ims_pcu_backlight_get_brightness(struct led_classdev *cdev)
 		brightness =
 			get_unaligned_le16(&pcu->cmd_buf[IMS_PCU_DATA_OFFSET]);
 	}
-
-	mutex_unlock(&pcu->cmd_mutex);
 
 	return brightness;
 }
@@ -1072,24 +1067,23 @@ static ssize_t ims_pcu_attribute_store(struct device *dev,
 	if (data_len > attr->field_length)
 		return -EINVAL;
 
-	error = mutex_lock_interruptible(&pcu->cmd_mutex);
-	if (error)
-		return error;
+	scoped_cond_guard(mutex, return -EINTR, &pcu->cmd_mutex) {
+		memset(field, 0, attr->field_length);
+		memcpy(field, buf, data_len);
 
-	memset(field, 0, attr->field_length);
-	memcpy(field, buf, data_len);
+		error = ims_pcu_set_info(pcu);
 
-	error = ims_pcu_set_info(pcu);
+		/*
+		 * Even if update failed, let's fetch the info again as we just
+		 * clobbered one of the fields.
+		 */
+		ims_pcu_get_info(pcu);
 
-	/*
-	 * Even if update failed, let's fetch the info again as we just
-	 * clobbered one of the fields.
-	 */
-	ims_pcu_get_info(pcu);
+		if (error)
+			return error;
+	}
 
-	mutex_unlock(&pcu->cmd_mutex);
-
-	return error < 0 ? error : count;
+	return count;
 }
 
 #define IMS_PCU_ATTR(_field, _mode)					\
@@ -1152,7 +1146,6 @@ static ssize_t ims_pcu_update_firmware_store(struct device *dev,
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct ims_pcu *pcu = usb_get_intfdata(intf);
-	const struct firmware *fw = NULL;
 	int value;
 	int error;
 
@@ -1163,35 +1156,33 @@ static ssize_t ims_pcu_update_firmware_store(struct device *dev,
 	if (value != 1)
 		return -EINVAL;
 
-	error = mutex_lock_interruptible(&pcu->cmd_mutex);
-	if (error)
-		return error;
-
+	const struct firmware *fw __free(firmware) = NULL;
 	error = request_ihex_firmware(&fw, IMS_PCU_FIRMWARE_NAME, pcu->dev);
 	if (error) {
 		dev_err(pcu->dev, "Failed to request firmware %s, error: %d\n",
 			IMS_PCU_FIRMWARE_NAME, error);
-		goto out;
+		return error;
 	}
 
-	/*
-	 * If we are already in bootloader mode we can proceed with
-	 * flashing the firmware.
-	 *
-	 * If we are in application mode, then we need to switch into
-	 * bootloader mode, which will cause the device to disconnect
-	 * and reconnect as different device.
-	 */
-	if (pcu->bootloader_mode)
-		error = ims_pcu_handle_firmware_update(pcu, fw);
-	else
-		error = ims_pcu_switch_to_bootloader(pcu);
+	scoped_cond_guard(mutex_intr, return -EINTR, &pcu->cmd_mutex) {
+		/*
+		 * If we are already in bootloader mode we can proceed with
+		 * flashing the firmware.
+		 *
+		 * If we are in application mode, then we need to switch into
+		 * bootloader mode, which will cause the device to disconnect
+		 * and reconnect as different device.
+		 */
+		if (pcu->bootloader_mode)
+			error = ims_pcu_handle_firmware_update(pcu, fw);
+		else
+			error = ims_pcu_switch_to_bootloader(pcu);
 
-	release_firmware(fw);
+		if (error)
+			return error;
+	}
 
-out:
-	mutex_unlock(&pcu->cmd_mutex);
-	return error ?: count;
+	return count;
 }
 
 static DEVICE_ATTR(update_firmware, S_IWUSR,
@@ -1301,12 +1292,11 @@ static ssize_t ims_pcu_ofn_reg_data_show(struct device *dev,
 	int error;
 	u8 data;
 
-	mutex_lock(&pcu->cmd_mutex);
-	error = ims_pcu_read_ofn_config(pcu, pcu->ofn_reg_addr, &data);
-	mutex_unlock(&pcu->cmd_mutex);
-
-	if (error)
-		return error;
+	scoped_guard(mutex, &pcu->cmd_mutex) {
+		error = ims_pcu_read_ofn_config(pcu, pcu->ofn_reg_addr, &data);
+		if (error)
+			return error;
+	}
 
 	return sysfs_emit(buf, "%x\n", data);
 }
@@ -1324,11 +1314,13 @@ static ssize_t ims_pcu_ofn_reg_data_store(struct device *dev,
 	if (error)
 		return error;
 
-	mutex_lock(&pcu->cmd_mutex);
-	error = ims_pcu_write_ofn_config(pcu, pcu->ofn_reg_addr, value);
-	mutex_unlock(&pcu->cmd_mutex);
+	guard(mutex)(&pcu->cmd_mutex);
 
-	return error ?: count;
+	error = ims_pcu_write_ofn_config(pcu, pcu->ofn_reg_addr, value);
+	if (error)
+		return error;
+
+	return count;
 }
 
 static DEVICE_ATTR(reg_data, S_IRUGO | S_IWUSR,
@@ -1340,13 +1332,10 @@ static ssize_t ims_pcu_ofn_reg_addr_show(struct device *dev,
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct ims_pcu *pcu = usb_get_intfdata(intf);
-	int error;
 
-	mutex_lock(&pcu->cmd_mutex);
-	error = sysfs_emit(buf, "%x\n", pcu->ofn_reg_addr);
-	mutex_unlock(&pcu->cmd_mutex);
+	guard(mutex)(&pcu->cmd_mutex);
 
-	return error;
+	return sysfs_emit(buf, "%x\n", pcu->ofn_reg_addr);
 }
 
 static ssize_t ims_pcu_ofn_reg_addr_store(struct device *dev,
@@ -1362,9 +1351,9 @@ static ssize_t ims_pcu_ofn_reg_addr_store(struct device *dev,
 	if (error)
 		return error;
 
-	mutex_lock(&pcu->cmd_mutex);
+	guard(mutex)(&pcu->cmd_mutex);
+
 	pcu->ofn_reg_addr = value;
-	mutex_unlock(&pcu->cmd_mutex);
 
 	return count;
 }
@@ -1389,12 +1378,11 @@ static ssize_t ims_pcu_ofn_bit_show(struct device *dev,
 	int error;
 	u8 data;
 
-	mutex_lock(&pcu->cmd_mutex);
-	error = ims_pcu_read_ofn_config(pcu, attr->addr, &data);
-	mutex_unlock(&pcu->cmd_mutex);
-
-	if (error)
-		return error;
+	scoped_guard(mutex, &pcu->cmd_mutex) {
+		error = ims_pcu_read_ofn_config(pcu, attr->addr, &data);
+		if (error)
+			return error;
+	}
 
 	return sysfs_emit(buf, "%d\n", !!(data & (1 << attr->nr)));
 }
@@ -1418,21 +1406,22 @@ static ssize_t ims_pcu_ofn_bit_store(struct device *dev,
 	if (value > 1)
 		return -EINVAL;
 
-	mutex_lock(&pcu->cmd_mutex);
+	scoped_guard(mutex, &pcu->cmd_mutex) {
+		error = ims_pcu_read_ofn_config(pcu, attr->addr, &data);
+		if (error)
+			return error;
 
-	error = ims_pcu_read_ofn_config(pcu, attr->addr, &data);
-	if (!error) {
 		if (value)
 			data |= 1U << attr->nr;
 		else
 			data &= ~(1U << attr->nr);
 
 		error = ims_pcu_write_ofn_config(pcu, attr->addr, data);
+		if (error)
+			return error;
 	}
 
-	mutex_unlock(&pcu->cmd_mutex);
-
-	return error ?: count;
+	return count;
 }
 
 #define IMS_PCU_OFN_BIT_ATTR(_field, _addr, _nr)			\
