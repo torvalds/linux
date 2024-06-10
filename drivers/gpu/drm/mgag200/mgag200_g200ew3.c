@@ -131,6 +131,10 @@ static int mgag200_g200ew3_pipeline_init(struct mga_device *mdev)
 	if (ret)
 		return ret;
 
+	ret = mgag200_bmc_output_init(mdev, &mdev->output.vga.connector);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
