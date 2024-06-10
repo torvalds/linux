@@ -972,4 +972,5 @@ module_exit(v4l2_async_exit);
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");
 MODULE_AUTHOR("Ezequiel Garcia <ezequiel@collabora.com>");
+MODULE_DESCRIPTION("V4L2 asynchronous subdevice registration API");
 MODULE_LICENSE("GPL");
