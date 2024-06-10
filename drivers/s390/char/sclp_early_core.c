@@ -38,11 +38,11 @@ void sclp_early_wait_irq(void)
 	cr0_new.sssm = 1;
 	local_ctl_load(0, &cr0_new.reg);
 
-	psw_ext_save = S390_lowcore.external_new_psw;
+	psw_ext_save = get_lowcore()->external_new_psw;
 	psw_mask = __extract_psw();
-	S390_lowcore.external_new_psw.mask = psw_mask;
+	get_lowcore()->external_new_psw.mask = psw_mask;
 	psw_wait.mask = psw_mask | PSW_MASK_EXT | PSW_MASK_WAIT;
-	S390_lowcore.ext_int_code = 0;
+	get_lowcore()->ext_int_code = 0;
 
 	do {
 		asm volatile(
@@ -53,12 +53,12 @@ void sclp_early_wait_irq(void)
 			"0:\n"
 			: [addr] "=&d" (addr),
 			  [psw_wait_addr] "=Q" (psw_wait.addr),
-			  [psw_ext_addr] "=Q" (S390_lowcore.external_new_psw.addr)
+			  [psw_ext_addr] "=Q" (get_lowcore()->external_new_psw.addr)
 			: [psw_wait] "Q" (psw_wait)
 			: "cc", "memory");
-	} while (S390_lowcore.ext_int_code != EXT_IRQ_SERVICE_SIG);
+	} while (get_lowcore()->ext_int_code != EXT_IRQ_SERVICE_SIG);
 
-	S390_lowcore.external_new_psw = psw_ext_save;
+	get_lowcore()->external_new_psw = psw_ext_save;
 	local_ctl_load(0, &cr0.reg);
 }
 
