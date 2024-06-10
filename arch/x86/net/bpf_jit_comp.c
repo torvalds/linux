@@ -1234,13 +1234,11 @@ bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
 }
 
 static void detect_reg_usage(struct bpf_insn *insn, int insn_cnt,
-			     bool *regs_used, bool *tail_call_seen)
+			     bool *regs_used)
 {
 	int i;
 
 	for (i = 1; i <= insn_cnt; i++, insn++) {
-		if (insn->code == (BPF_JMP | BPF_TAIL_CALL))
-			*tail_call_seen = true;
 		if (insn->dst_reg == BPF_REG_6 || insn->src_reg == BPF_REG_6)
 			regs_used[0] = true;
 		if (insn->dst_reg == BPF_REG_7 || insn->src_reg == BPF_REG_7)
@@ -1324,7 +1322,6 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 	struct bpf_insn *insn = bpf_prog->insnsi;
 	bool callee_regs_used[4] = {};
 	int insn_cnt = bpf_prog->len;
-	bool tail_call_seen = false;
 	bool seen_exit = false;
 	u8 temp[BPF_MAX_INSN_SIZE + BPF_INSN_SAFETY];
 	u64 arena_vm_start, user_vm_start;
@@ -1336,11 +1333,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 	arena_vm_start = bpf_arena_get_kern_vm_start(bpf_prog->aux->arena);
 	user_vm_start = bpf_arena_get_user_vm_start(bpf_prog->aux->arena);
 
-	detect_reg_usage(insn, insn_cnt, callee_regs_used,
-			 &tail_call_seen);
-
-	/* tail call's presence in current prog implies it is reachable */
-	tail_call_reachable |= tail_call_seen;
+	detect_reg_usage(insn, insn_cnt, callee_regs_used);
 
 	emit_prologue(&prog, bpf_prog->aux->stack_depth,
 		      bpf_prog_was_classic(bpf_prog), tail_call_reachable,
