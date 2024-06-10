@@ -2594,8 +2594,20 @@ static const struct msm_pinctrl_soc_data niobe_pinctrl = {
 	.egpio_func = 11,
 };
 
+static const struct msm_pinctrl_soc_data niobe_vm_pinctrl = {
+	.pins = niobe_pins,
+	.npins = ARRAY_SIZE(niobe_pins),
+	.functions = niobe_functions,
+	.nfunctions = ARRAY_SIZE(niobe_functions),
+	.groups = niobe_groups,
+	.ngroups = ARRAY_SIZE(niobe_groups),
+	.ngpios = 201,
+	.egpio_func = 11,
+};
+
 static const struct of_device_id niobe_pinctrl_of_match[] = {
 	{ .compatible = "qcom,niobe-pinctrl", .data = &niobe_pinctrl},
+	{ .compatible = "qcom,niobe-vm-pinctrl", .data = &niobe_vm_pinctrl},
 	{},
 };
 
@@ -2635,3 +2647,4 @@ module_exit(niobe_pinctrl_exit);
 MODULE_DESCRIPTION("QTI niobe pinctrl driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(of, niobe_pinctrl_of_match);
+MODULE_SOFTDEP("pre: qcom_tlmm_vm_irqchip");
