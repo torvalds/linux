@@ -227,6 +227,10 @@ btf_vmlinux_bin_o=
 kallsymso=
 strip_debug=
 
+if is_enabled CONFIG_KALLSYMS; then
+	kallsyms /dev/null .tmp_vmlinux.kallsyms0
+fi
+
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
 	if ! gen_btf .tmp_vmlinux.btf .btf.vmlinux.bin.o ; then
 		echo >&2 "Failed to generate BTF for vmlinux"
@@ -239,9 +243,10 @@ if is_enabled CONFIG_KALLSYMS; then
 
 	# kallsyms support
 	# Generate section listing all symbols and add it into vmlinux
-	# It's a three step process:
+	# It's a four step process:
+	# 0)  Generate a dummy __kallsyms with empty symbol list.
 	# 1)  Link .tmp_vmlinux.kallsyms1 so it has all symbols and sections,
-	#     but __kallsyms is empty.
+	#     with a dummy __kallsyms.
 	#     Running kallsyms on that gives us .tmp_kallsyms1.o with
 	#     the right size
 	# 2)  Link .tmp_vmlinux.kallsyms2 so it now has a __kallsyms section of
