@@ -769,18 +769,12 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 
 	input_set_drvdata(input_dev, ac);
 
-	__set_bit(ac->pdata.ev_type, input_dev->evbit);
-
 	if (ac->pdata.ev_type == EV_REL) {
-		__set_bit(REL_X, input_dev->relbit);
-		__set_bit(REL_Y, input_dev->relbit);
-		__set_bit(REL_Z, input_dev->relbit);
+		input_set_capability(input_dev, EV_REL, REL_X);
+		input_set_capability(input_dev, EV_REL, REL_Y);
+		input_set_capability(input_dev, EV_REL, REL_Z);
 	} else {
 		/* EV_ABS */
-		__set_bit(ABS_X, input_dev->absbit);
-		__set_bit(ABS_Y, input_dev->absbit);
-		__set_bit(ABS_Z, input_dev->absbit);
-
 		if (pdata->data_range & FULL_RES)
 			range = ADXL_FULLRES_MAX_VAL;	/* Signed 13-bit */
 		else
@@ -791,18 +785,18 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 		input_set_abs_params(input_dev, ABS_Z, -range, range, 3, 3);
 	}
 
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(pdata->ev_code_tap[ADXL_X_AXIS], input_dev->keybit);
-	__set_bit(pdata->ev_code_tap[ADXL_Y_AXIS], input_dev->keybit);
-	__set_bit(pdata->ev_code_tap[ADXL_Z_AXIS], input_dev->keybit);
+	input_set_capability(input_dev, EV_KEY, pdata->ev_code_tap[ADXL_X_AXIS]);
+	input_set_capability(input_dev, EV_KEY, pdata->ev_code_tap[ADXL_Y_AXIS]);
+	input_set_capability(input_dev, EV_KEY, pdata->ev_code_tap[ADXL_Z_AXIS]);
 
 	if (pdata->ev_code_ff) {
 		ac->int_mask = FREE_FALL;
-		__set_bit(pdata->ev_code_ff, input_dev->keybit);
+		input_set_capability(input_dev, EV_KEY, pdata->ev_code_ff);
 	}
 
 	if (pdata->ev_code_act_inactivity)
-		__set_bit(pdata->ev_code_act_inactivity, input_dev->keybit);
+		input_set_capability(input_dev, EV_KEY,
+				     pdata->ev_code_act_inactivity);
 
 	ac->int_mask |= ACTIVITY | INACTIVITY;
 
@@ -874,13 +868,13 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 
 		if (pdata->orientation_enable & ADXL_EN_ORIENTATION_3D)
 			for (i = 0; i < ARRAY_SIZE(pdata->ev_codes_orient_3d); i++)
-				__set_bit(pdata->ev_codes_orient_3d[i],
-					  input_dev->keybit);
+				input_set_capability(input_dev, EV_KEY,
+						     pdata->ev_codes_orient_3d[i]);
 
 		if (pdata->orientation_enable & ADXL_EN_ORIENTATION_2D)
 			for (i = 0; i < ARRAY_SIZE(pdata->ev_codes_orient_2d); i++)
-				__set_bit(pdata->ev_codes_orient_2d[i],
-					  input_dev->keybit);
+				input_set_capability(input_dev, EV_KEY,
+						     pdata->ev_codes_orient_2d[i]);
 	} else {
 		ac->pdata.orientation_enable = 0;
 	}
