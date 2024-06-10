@@ -1359,18 +1359,11 @@ static int omap_rproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rproc);
 
-	ret = rproc_add(rproc);
+	ret = devm_rproc_add(&pdev->dev, rproc);
 	if (ret)
 		return ret;
 
 	return 0;
-}
-
-static void omap_rproc_remove(struct platform_device *pdev)
-{
-	struct rproc *rproc = platform_get_drvdata(pdev);
-
-	rproc_del(rproc);
 }
 
 static const struct dev_pm_ops omap_rproc_pm_ops = {
@@ -1381,7 +1374,6 @@ static const struct dev_pm_ops omap_rproc_pm_ops = {
 
 static struct platform_driver omap_rproc_driver = {
 	.probe = omap_rproc_probe,
-	.remove_new = omap_rproc_remove,
 	.driver = {
 		.name = "omap-rproc",
 		.pm = &omap_rproc_pm_ops,
