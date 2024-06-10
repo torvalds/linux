@@ -5047,55 +5047,81 @@ static struct mount *listmnt_next(struct mount *curr)
 	return node_to_mount(rb_next(&curr->mnt_node));
 }
 
-static ssize_t do_listmount(struct mount *first, struct path *orig,
-			    u64 mnt_parent_id, u64 __user *mnt_ids,
-			    size_t nr_mnt_ids, const struct path *root)
+static ssize_t do_listmount(u64 mnt_parent_id, u64 last_mnt_id, u64 *mnt_ids,
+			    size_t nr_mnt_ids)
 {
-	struct mount *r;
+	struct path root;
+	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	struct path orig;
+	struct mount *r, *first;
 	ssize_t ret;
+
+	rwsem_assert_held(&namespace_sem);
+
+	get_fs_root(current->fs, &root);
+	if (mnt_parent_id == LSMT_ROOT) {
+		orig = root;
+	} else {
+		orig.mnt = lookup_mnt_in_ns(mnt_parent_id, ns);
+		if (!orig.mnt) {
+			ret = -ENOENT;
+			goto err;
+		}
+		orig.dentry = orig.mnt->mnt_root;
+	}
 
 	/*
 	 * Don't trigger audit denials. We just want to determine what
 	 * mounts to show users.
 	 */
-	if (!is_path_reachable(real_mount(orig->mnt), orig->dentry, root) &&
-	    !ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
+	if (!is_path_reachable(real_mount(orig.mnt), orig.dentry, &root) &&
+	    !ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN)) {
+		ret = -EPERM;
+		goto err;
+	}
 
-	ret = security_sb_statfs(orig->dentry);
+	ret = security_sb_statfs(orig.dentry);
 	if (ret)
-		return ret;
+		goto err;
+
+	if (!last_mnt_id)
+		first = node_to_mount(rb_first(&ns->mounts));
+	else
+		first = mnt_find_id_at(ns, last_mnt_id + 1);
 
 	for (ret = 0, r = first; r && nr_mnt_ids; r = listmnt_next(r)) {
 		if (r->mnt_id_unique == mnt_parent_id)
 			continue;
-		if (!is_path_reachable(r, r->mnt.mnt_root, orig))
+		if (!is_path_reachable(r, r->mnt.mnt_root, &orig))
 			continue;
-		if (put_user(r->mnt_id_unique, mnt_ids))
-			return -EFAULT;
+		*mnt_ids = r->mnt_id_unique;
 		mnt_ids++;
 		nr_mnt_ids--;
 		ret++;
 	}
+err:
+	path_put(&root);
 	return ret;
 }
 
-SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req, u64 __user *,
-		mnt_ids, size_t, nr_mnt_ids, unsigned int, flags)
+SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
+		u64 __user *, mnt_ids, size_t, nr_mnt_ids, unsigned int, flags)
 {
-	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	u64 *kmnt_ids __free(kvfree) = NULL;
+	const size_t maxcount = 1000000;
 	struct mnt_id_req kreq;
-	struct mount *first;
-	struct path root, orig;
-	u64 mnt_parent_id, last_mnt_id;
-	const size_t maxcount = (size_t)-1 >> 3;
 	ssize_t ret;
 
 	if (flags)
 		return -EINVAL;
 
+	/*
+	 * If the mount namespace really has more than 1 million mounts the
+	 * caller must iterate over the mount namespace (and reconsider their
+	 * system design...).
+	 */
 	if (unlikely(nr_mnt_ids > maxcount))
-		return -EFAULT;
+		return -EOVERFLOW;
 
 	if (!access_ok(mnt_ids, nr_mnt_ids * sizeof(*mnt_ids)))
 		return -EFAULT;
@@ -5103,32 +5129,20 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req, u64 __user *,
 	ret = copy_mnt_id_req(req, &kreq);
 	if (ret)
 		return ret;
-	mnt_parent_id = kreq.mnt_id;
-	last_mnt_id = kreq.param;
 
-	down_read(&namespace_sem);
-	get_fs_root(current->fs, &root);
-	if (mnt_parent_id == LSMT_ROOT) {
-		orig = root;
-	} else {
-		ret = -ENOENT;
-		orig.mnt = lookup_mnt_in_ns(mnt_parent_id, ns);
-		if (!orig.mnt)
-			goto err;
-		orig.dentry = orig.mnt->mnt_root;
-	}
-	if (!last_mnt_id)
-		first = node_to_mount(rb_first(&ns->mounts));
-	else
-		first = mnt_find_id_at(ns, last_mnt_id + 1);
+	kmnt_ids = kvmalloc_array(nr_mnt_ids, sizeof(*kmnt_ids),
+				  GFP_KERNEL_ACCOUNT);
+	if (!kmnt_ids)
+		return -ENOMEM;
 
-	ret = do_listmount(first, &orig, mnt_parent_id, mnt_ids, nr_mnt_ids, &root);
-err:
-	path_put(&root);
-	up_read(&namespace_sem);
+	scoped_guard(rwsem_read, &namespace_sem)
+		ret = do_listmount(kreq.mnt_id, kreq.param, kmnt_ids, nr_mnt_ids);
+
+	if (copy_to_user(mnt_ids, kmnt_ids, ret * sizeof(*mnt_ids)))
+		return -EFAULT;
+
 	return ret;
 }
-
 
 static void __init init_mount_tree(void)
 {
