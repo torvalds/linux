@@ -29,8 +29,7 @@ struct reset_reg_mask {
 
 static const struct reset_reg_mask *reset_masks;
 
-static int brcmstb_restart_handler(struct notifier_block *this,
-				   unsigned long mode, void *cmd)
+static int brcmstb_restart_handler(struct sys_off_data *data)
 {
 	int rc;
 	u32 tmp;
@@ -65,11 +64,6 @@ static int brcmstb_restart_handler(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block brcmstb_restart_nb = {
-	.notifier_call = brcmstb_restart_handler,
-	.priority = 128,
-};
-
 static const struct reset_reg_mask reset_bits_40nm = {
 	.rst_src_en_mask = BIT(0),
 	.sw_mstr_rst_mask = BIT(0),
@@ -100,7 +94,8 @@ static int brcmstb_reboot_probe(struct platform_device *pdev)
 	rst_src_en = args[0];
 	sw_mstr_rst = args[1];
 
-	rc = register_restart_handler(&brcmstb_restart_nb);
+	rc = devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_RESTART,
+					   128, brcmstb_restart_handler, NULL);
 	if (rc)
 		dev_err(&pdev->dev,
 			"cannot register restart handler (err=%d)\n", rc);
