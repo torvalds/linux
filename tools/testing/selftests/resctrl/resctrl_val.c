@@ -306,18 +306,13 @@ static void perf_close_imc_mem_bw(void)
 }
 
 /*
- * get_mem_bw_imc:	Memory band width as reported by iMC counters
- * @cpu_no:		CPU number that the benchmark PID is binded to
- * @bw_report:		Bandwidth report type (reads, writes)
- *
- * Memory B/W utilized by a process on a socket can be calculated using
- * iMC counters. Perf events are used to read these counters.
+ * perf_open_imc_mem_bw - Open perf fds for IMCs
+ * @cpu_no: CPU number that the benchmark PID is bound to
  *
  * Return: = 0 on success. < 0 on failure.
  */
-static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
+static int perf_open_imc_mem_bw(int cpu_no)
 {
-	float reads, writes, of_mul_read, of_mul_write;
 	int imc, ret;
 
 	for (imc = 0; imc < imcs; imc++) {
@@ -325,8 +320,6 @@ static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
 		imc_counters_config[imc][WRITE].fd = -1;
 	}
 
-	/* Start all iMC counters to log values (both read and write) */
-	reads = 0, writes = 0, of_mul_read = 1, of_mul_write = 1;
 	for (imc = 0; imc < imcs; imc++) {
 		ret = open_perf_event(imc, cpu_no, READ);
 		if (ret)
@@ -334,7 +327,26 @@ static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
 		ret = open_perf_event(imc, cpu_no, WRITE);
 		if (ret)
 			goto close_fds;
+	}
 
+	return 0;
+
+close_fds:
+	perf_close_imc_mem_bw();
+	return -1;
+}
+
+/*
+ * do_mem_bw_test - Perform memory bandwidth test
+ *
+ * Runs memory bandwidth test over one second period. Also, handles starting
+ * and stopping of the IMC perf counters around the test.
+ */
+static void do_imc_mem_bw_test(void)
+{
+	int imc;
+
+	for (imc = 0; imc < imcs; imc++) {
 		membw_ioctl_perf_event_ioc_reset_enable(imc, READ);
 		membw_ioctl_perf_event_ioc_reset_enable(imc, WRITE);
 	}
@@ -346,6 +358,24 @@ static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
 		membw_ioctl_perf_event_ioc_disable(imc, READ);
 		membw_ioctl_perf_event_ioc_disable(imc, WRITE);
 	}
+}
+
+/*
+ * get_mem_bw_imc - Memory band width as reported by iMC counters
+ * @bw_report: Bandwidth report type (reads, writes)
+ *
+ * Memory B/W utilized by a process on a socket can be calculated using
+ * iMC counters. Perf events are used to read these counters.
+ *
+ * Return: = 0 on success. < 0 on failure.
+ */
+static int get_mem_bw_imc(char *bw_report, float *bw_imc)
+{
+	float reads, writes, of_mul_read, of_mul_write;
+	int imc;
+
+	/* Start all iMC counters to log values (both read and write) */
+	reads = 0, writes = 0, of_mul_read = 1, of_mul_write = 1;
 
 	/*
 	 * Get results which are stored in struct type imc_counter_config
@@ -360,13 +390,13 @@ static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
 		if (read(r->fd, &r->return_value,
 			 sizeof(struct membw_read_format)) == -1) {
 			ksft_perror("Couldn't get read b/w through iMC");
-			goto close_fds;
+			return -1;
 		}
 
 		if (read(w->fd, &w->return_value,
 			 sizeof(struct membw_read_format)) == -1) {
 			ksft_perror("Couldn't get write bw through iMC");
-			goto close_fds;
+			return -1;
 		}
 
 		__u64 r_time_enabled = r->return_value.time_enabled;
@@ -386,8 +416,6 @@ static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
 		writes += w->return_value.value * of_mul_write * SCALE;
 	}
 
-	perf_close_imc_mem_bw();
-
 	if (strcmp(bw_report, "reads") == 0) {
 		*bw_imc = reads;
 		return 0;
@@ -400,10 +428,6 @@ static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
 
 	*bw_imc = reads + writes;
 	return 0;
-
-close_fds:
-	perf_close_imc_mem_bw();
-	return -1;
 }
 
 void set_mbm_path(const char *ctrlgrp, const char *mongrp, int domain_id)
@@ -462,24 +486,23 @@ static void initialize_mem_bw_resctrl(const char *ctrlgrp, const char *mongrp,
  * 1. If con_mon grp is given, then read from it
  * 2. If con_mon grp is not given, then read from root con_mon grp
  */
-static int get_mem_bw_resctrl(unsigned long *mbm_total)
+static FILE *open_mem_bw_resctrl(const char *mbm_bw_file)
 {
 	FILE *fp;
 
-	fp = fopen(mbm_total_path, "r");
-	if (!fp) {
+	fp = fopen(mbm_bw_file, "r");
+	if (!fp)
 		ksft_perror("Failed to open total bw file");
 
+	return fp;
+}
+
+static int get_mem_bw_resctrl(FILE *fp, unsigned long *mbm_total)
+{
+	if (fscanf(fp, "%lu\n", mbm_total) <= 0) {
+		ksft_perror("Could not get MBM local bytes");
 		return -1;
 	}
-	if (fscanf(fp, "%lu", mbm_total) <= 0) {
-		ksft_perror("Could not get mbm local bytes");
-		fclose(fp);
-
-		return -1;
-	}
-	fclose(fp);
-
 	return 0;
 }
 
@@ -615,37 +638,56 @@ static void initialize_llc_occu_resctrl(const char *ctrlgrp, const char *mongrp,
 		set_cmt_path(ctrlgrp, mongrp, domain_id);
 }
 
+/*
+ * Measure memory bandwidth from resctrl and from another source which is
+ * perf imc value or could be something else if perf imc event is not
+ * available. Compare the two values to validate resctrl value. It takes
+ * 1 sec to measure the data.
+ */
 static int measure_vals(const struct user_params *uparams,
-			struct resctrl_val_param *param,
-			unsigned long *bw_resc_start)
+			struct resctrl_val_param *param)
 {
-	unsigned long bw_resc, bw_resc_end;
+	unsigned long bw_resc, bw_resc_start, bw_resc_end;
+	FILE *mem_bw_fp;
 	float bw_imc;
 	int ret;
 
-	/*
-	 * Measure memory bandwidth from resctrl and from
-	 * another source which is perf imc value or could
-	 * be something else if perf imc event is not available.
-	 * Compare the two values to validate resctrl value.
-	 * It takes 1sec to measure the data.
-	 */
-	ret = get_mem_bw_imc(uparams->cpu, param->bw_report, &bw_imc);
+	mem_bw_fp = open_mem_bw_resctrl(mbm_total_path);
+	if (!mem_bw_fp)
+		return -1;
+
+	ret = perf_open_imc_mem_bw(uparams->cpu);
 	if (ret < 0)
-		return ret;
+		goto close_fp;
 
-	ret = get_mem_bw_resctrl(&bw_resc_end);
+	ret = get_mem_bw_resctrl(mem_bw_fp, &bw_resc_start);
 	if (ret < 0)
-		return ret;
+		goto close_imc;
 
-	bw_resc = (bw_resc_end - *bw_resc_start) / MB;
-	ret = print_results_bw(param->filename, bm_pid, bw_imc, bw_resc);
-	if (ret)
-		return ret;
+	rewind(mem_bw_fp);
 
-	*bw_resc_start = bw_resc_end;
+	do_imc_mem_bw_test();
 
-	return 0;
+	ret = get_mem_bw_resctrl(mem_bw_fp, &bw_resc_end);
+	if (ret < 0)
+		goto close_imc;
+
+	ret = get_mem_bw_imc(param->bw_report, &bw_imc);
+	if (ret < 0)
+		goto close_imc;
+
+	perf_close_imc_mem_bw();
+	fclose(mem_bw_fp);
+
+	bw_resc = (bw_resc_end - bw_resc_start) / MB;
+
+	return print_results_bw(param->filename, bm_pid, bw_imc, bw_resc);
+
+close_imc:
+	perf_close_imc_mem_bw();
+close_fp:
+	fclose(mem_bw_fp);
+	return ret;
 }
 
 /*
@@ -719,7 +761,6 @@ int resctrl_val(const struct resctrl_test *test,
 		struct resctrl_val_param *param)
 {
 	char *resctrl_val = param->resctrl_val;
-	unsigned long bw_resc_start = 0;
 	struct sigaction sigact;
 	int ret = 0, pipefd[2];
 	char pipe_message = 0;
@@ -861,7 +902,7 @@ int resctrl_val(const struct resctrl_test *test,
 
 		if (!strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR)) ||
 		    !strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR))) {
-			ret = measure_vals(uparams, param, &bw_resc_start);
+			ret = measure_vals(uparams, param);
 			if (ret)
 				break;
 		} else if (!strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR))) {
