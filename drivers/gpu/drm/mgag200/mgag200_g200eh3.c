@@ -8,7 +8,6 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
 
-#include "mgag200_ddc.h"
 #include "mgag200_drv.h"
 
 /*
@@ -87,26 +86,11 @@ static const struct drm_crtc_funcs mgag200_g200eh3_crtc_funcs = {
 	MGAG200_CRTC_FUNCS,
 };
 
-static const struct drm_encoder_funcs mgag200_g200eh3_dac_encoder_funcs = {
-	MGAG200_DAC_ENCODER_FUNCS,
-};
-
-static const struct drm_connector_helper_funcs mgag200_g200eh3_vga_connector_helper_funcs = {
-	MGAG200_VGA_CONNECTOR_HELPER_FUNCS,
-};
-
-static const struct drm_connector_funcs mgag200_g200eh3_vga_connector_funcs = {
-	MGAG200_VGA_CONNECTOR_FUNCS,
-};
-
 static int mgag200_g200eh3_pipeline_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
 	struct drm_plane *primary_plane = &mdev->primary_plane;
 	struct drm_crtc *crtc = &mdev->crtc;
-	struct drm_encoder *encoder = &mdev->encoder;
-	struct drm_connector *connector = &mdev->connector;
-	struct i2c_adapter *ddc;
 	int ret;
 
 	ret = drm_universal_plane_init(dev, primary_plane, 0,
@@ -134,35 +118,9 @@ static int mgag200_g200eh3_pipeline_init(struct mga_device *mdev)
 	drm_mode_crtc_set_gamma_size(crtc, MGAG200_LUT_SIZE);
 	drm_crtc_enable_color_mgmt(crtc, 0, false, MGAG200_LUT_SIZE);
 
-	encoder->possible_crtcs = drm_crtc_mask(crtc);
-	ret = drm_encoder_init(dev, encoder, &mgag200_g200eh3_dac_encoder_funcs,
-			       DRM_MODE_ENCODER_DAC, NULL);
-	if (ret) {
-		drm_err(dev, "drm_encoder_init() failed: %d\n", ret);
+	ret = mgag200_vga_output_init(mdev);
+	if (ret)
 		return ret;
-	}
-
-	ddc = mgag200_ddc_create(mdev);
-	if (IS_ERR(ddc)) {
-		ret = PTR_ERR(ddc);
-		drm_err(dev, "failed to add DDC bus: %d\n", ret);
-		return ret;
-	}
-
-	ret = drm_connector_init_with_ddc(dev, connector,
-					  &mgag200_g200eh3_vga_connector_funcs,
-					  DRM_MODE_CONNECTOR_VGA, ddc);
-	if (ret) {
-		drm_err(dev, "drm_connector_init_with_ddc() failed: %d\n", ret);
-		return ret;
-	}
-	drm_connector_helper_add(connector, &mgag200_g200eh3_vga_connector_helper_funcs);
-
-	ret = drm_connector_attach_encoder(connector, encoder);
-	if (ret) {
-		drm_err(dev, "drm_connector_attach_encoder() failed: %d\n", ret);
-		return ret;
-	}
 
 	return 0;
 }

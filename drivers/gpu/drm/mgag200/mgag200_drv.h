@@ -283,8 +283,12 @@ struct mga_device {
 
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
-	struct drm_encoder encoder;
-	struct drm_connector connector;
+	struct {
+		struct {
+			struct drm_encoder encoder;
+			struct drm_connector connector;
+		} vga;
+	} output;
 };
 
 static inline struct mga_device *to_mga_device(struct drm_device *dev)
@@ -417,24 +421,14 @@ void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_st
 	.atomic_duplicate_state = mgag200_crtc_atomic_duplicate_state, \
 	.atomic_destroy_state = mgag200_crtc_atomic_destroy_state
 
-#define MGAG200_DAC_ENCODER_FUNCS \
-	.destroy = drm_encoder_cleanup
-
-#define MGAG200_VGA_CONNECTOR_HELPER_FUNCS \
-	.get_modes = drm_connector_helper_get_modes
-
-#define MGAG200_VGA_CONNECTOR_FUNCS \
-	.reset                  = drm_atomic_helper_connector_reset, \
-	.fill_modes             = drm_helper_probe_single_connector_modes, \
-	.destroy                = drm_connector_cleanup, \
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state, \
-	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state
-
 void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mode *mode);
 void mgag200_set_format_regs(struct mga_device *mdev, const struct drm_format_info *format);
 void mgag200_enable_display(struct mga_device *mdev);
 void mgag200_init_registers(struct mga_device *mdev);
 int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vram_available);
+
+/* mgag200_vga.c */
+int mgag200_vga_output_init(struct mga_device *mdev);
 
 				/* mgag200_bmc.c */
 void mgag200_bmc_disable_vidrst(struct mga_device *mdev);

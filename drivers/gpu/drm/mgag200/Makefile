@@ -11,6 +11,7 @@ mgag200-y := \
 	mgag200_g200ew3.o \
 	mgag200_g200se.o \
 	mgag200_g200wb.o \
-	mgag200_mode.o
+	mgag200_mode.o \
+	mgag200_vga.o
 
 obj-$(CONFIG_DRM_MGAG200) += mgag200.o
