@@ -344,6 +344,7 @@ static void __exit spmi_controller_exit(void)
 }
 module_exit(spmi_controller_exit);
 
+MODULE_DESCRIPTION("Hisilicon 3670 SPMI Controller driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
 MODULE_ALIAS("platform:spmi_controller");
