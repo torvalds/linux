@@ -842,15 +842,16 @@ void __init smp_detect_cpus(void)
  */
 static void smp_start_secondary(void *cpuvoid)
 {
+	struct lowcore *lc = get_lowcore();
 	int cpu = raw_smp_processor_id();
 
-	get_lowcore()->last_update_clock = get_tod_clock();
-	get_lowcore()->restart_stack = (unsigned long)restart_stack;
-	get_lowcore()->restart_fn = (unsigned long)do_restart;
-	get_lowcore()->restart_data = 0;
-	get_lowcore()->restart_source = -1U;
-	get_lowcore()->restart_flags = 0;
-	restore_access_regs(get_lowcore()->access_regs_save_area);
+	lc->last_update_clock = get_tod_clock();
+	lc->restart_stack = (unsigned long)restart_stack;
+	lc->restart_fn = (unsigned long)do_restart;
+	lc->restart_data = 0;
+	lc->restart_source = -1U;
+	lc->restart_flags = 0;
+	restore_access_regs(lc->access_regs_save_area);
 	cpu_init();
 	rcutree_report_cpu_starting(cpu);
 	init_cpu_timer();
@@ -987,10 +988,12 @@ void __init smp_prepare_boot_cpu(void)
 
 void __init smp_setup_processor_id(void)
 {
+	struct lowcore *lc = get_lowcore();
+
 	pcpu_devices[0].address = stap();
-	get_lowcore()->cpu_nr = 0;
-	get_lowcore()->spinlock_lockval = arch_spin_lockval(0);
-	get_lowcore()->spinlock_index = 0;
+	lc->cpu_nr = 0;
+	lc->spinlock_lockval = arch_spin_lockval(0);
+	lc->spinlock_index = 0;
 }
 
 /*
