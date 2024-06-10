@@ -853,4 +853,5 @@ module_pci_driver(timberdale_pci_driver);
 
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");
 MODULE_VERSION(DRV_VERSION);
+MODULE_DESCRIPTION("Timberdale FPGA MFD driver");
 MODULE_LICENSE("GPL v2");
