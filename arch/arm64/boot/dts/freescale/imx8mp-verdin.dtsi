@@ -457,6 +457,13 @@
 			  "SODIMM_44";
 };
 
+/* Verdin HDMI_1 */
+&hdmi_tx {
+	ddc-i2c-bus = <&i2c5>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi>;
+};
+
 /* On-module I2C */
 &i2c1 {
 	clock-frequency = <400000>;
@@ -1116,10 +1123,10 @@
 			<MX8MP_IOMUXC_SAI1_RXFS__GPIO4_IO00		0x1c4>;	/* SODIMM 252 */
 	};
 
-	pinctrl_hdmi_hog: hdmihoggrp {
+	pinctrl_hdmi: hdmigrp {
 		fsl,pins =
-			<MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC	0x40000019>,	/* SODIMM 63 */
-			<MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD	0x40000019>;	/* SODIMM 61 */
+			<MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC	0x140>,	/* SODIMM 63 */
+			<MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD	0x180>;	/* SODIMM 61 */
 	};
 
 	/* On-module I2C */
