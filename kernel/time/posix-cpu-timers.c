@@ -787,15 +787,17 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 
 static void __posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp, u64 now)
 {
+	bool sigev_none = timer->it_sigev_notify == SIGEV_NONE;
 	u64 expires, iv = timer->it_interval;
 
 	/*
 	 * Make sure that interval timers are moved forward for the
 	 * following cases:
+	 *  - SIGEV_NONE timers which are never armed
 	 *  - Timers which expired, but the signal has not yet been
 	 *    delivered
 	 */
-	if (iv && (timer->it_requeue_pending & REQUEUE_PENDING))
+	if (iv && ((timer->it_requeue_pending & REQUEUE_PENDING) || sigev_none))
 		expires = bump_cpu_timer(timer, now);
 	else
 		expires = cpu_timer_getexpires(&timer->it.cpu);
@@ -809,11 +811,13 @@ static void __posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *i
 		itp->it_value = ns_to_timespec64(expires - now);
 	} else {
 		/*
-		 * The timer should have expired already, but the firing
-		 * hasn't taken place yet.  Say it's just about to expire.
+		 * A single shot SIGEV_NONE timer must return 0, when it is
+		 * expired! Timers which have a real signal delivery mode
+		 * must return a remaining time greater than 0 because the
+		 * signal has not yet been delivered.
 		 */
-		itp->it_value.tv_nsec = 1;
-		itp->it_value.tv_sec = 0;
+		if (!sigev_none)
+			itp->it_value.tv_nsec = 1;
 	}
 }
 
