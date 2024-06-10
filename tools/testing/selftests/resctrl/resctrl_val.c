@@ -566,14 +566,14 @@ void signal_handler_unregister(void)
  *
  * Return:		0 on success, < 0 on error.
  */
-static int print_results_bw(char *filename,  int bm_pid, float bw_imc,
+static int print_results_bw(char *filename, pid_t bm_pid, float bw_imc,
 			    unsigned long bw_resc)
 {
 	unsigned long diff = fabs(bw_imc - bw_resc);
 	FILE *fp;
 
 	if (strcmp(filename, "stdio") == 0 || strcmp(filename, "stderr") == 0) {
-		printf("Pid: %d \t Mem_BW_iMC: %f \t ", bm_pid, bw_imc);
+		printf("Pid: %d \t Mem_BW_iMC: %f \t ", (int)bm_pid, bw_imc);
 		printf("Mem_BW_resc: %lu \t Difference: %lu\n", bw_resc, diff);
 	} else {
 		fp = fopen(filename, "a");
@@ -583,7 +583,7 @@ static int print_results_bw(char *filename,  int bm_pid, float bw_imc,
 			return -1;
 		}
 		if (fprintf(fp, "Pid: %d \t Mem_BW_iMC: %f \t Mem_BW_resc: %lu \t Difference: %lu\n",
-			    bm_pid, bw_imc, bw_resc, diff) <= 0) {
+			    (int)bm_pid, bw_imc, bw_resc, diff) <= 0) {
 			ksft_print_msg("Could not log results\n");
 			fclose(fp);
 
@@ -828,7 +828,7 @@ int resctrl_val(const struct resctrl_test *test,
 		PARENT_EXIT();
 	}
 
-	ksft_print_msg("Benchmark PID: %d\n", bm_pid);
+	ksft_print_msg("Benchmark PID: %d\n", (int)bm_pid);
 
 	/*
 	 * The cast removes constness but nothing mutates benchmark_cmd within
