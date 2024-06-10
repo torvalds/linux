@@ -5233,7 +5233,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 
 		intel_dp_check_frl_training(intel_dp);
 		intel_dp_pcon_dsc_configure(intel_dp, crtc_state);
-		intel_dp_start_link_train(intel_dp, crtc_state);
+		intel_dp_start_link_train(NULL, intel_dp, crtc_state);
 		intel_dp_stop_link_train(intel_dp, crtc_state);
 		break;
 	}

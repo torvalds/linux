@@ -8,6 +8,7 @@
 
 #include <drm/display/drm_dp_helper.h>
 
+struct intel_atomic_state;
 struct intel_crtc_state;
 struct intel_dp;
 
@@ -25,7 +26,8 @@ void intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
 				const struct intel_crtc_state *crtc_state,
 				enum drm_dp_phy dp_phy);
-void intel_dp_start_link_train(struct intel_dp *intel_dp,
+void intel_dp_start_link_train(struct intel_atomic_state *state,
+			       struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp,
 			      const struct intel_crtc_state *crtc_state);
