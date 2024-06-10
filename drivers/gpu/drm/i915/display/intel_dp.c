@@ -330,7 +330,7 @@ static int intel_dp_common_len_rate_limit(const struct intel_dp *intel_dp,
 				       intel_dp->num_common_rates, max_rate);
 }
 
-static int intel_dp_common_rate(struct intel_dp *intel_dp, int index)
+int intel_dp_common_rate(struct intel_dp *intel_dp, int index)
 {
 	if (drm_WARN_ON(&dp_to_i915(intel_dp)->drm,
 			index < 0 || index >= intel_dp->num_common_rates))
@@ -605,7 +605,7 @@ static int intersect_rates(const int *source_rates, int source_len,
 }
 
 /* return index of rate in rates array, or -1 if not found */
-static int intel_dp_rate_index(const int *rates, int len, int rate)
+int intel_dp_rate_index(const int *rates, int len, int rate)
 {
 	int i;
 
@@ -653,78 +653,6 @@ static bool intel_dp_link_params_valid(struct intel_dp *intel_dp, int link_rate,
 		return false;
 
 	return true;
-}
-
-static bool intel_dp_can_link_train_fallback_for_edp(struct intel_dp *intel_dp,
-						     int link_rate,
-						     u8 lane_count)
-{
-	/* FIXME figure out what we actually want here */
-	const struct drm_display_mode *fixed_mode =
-		intel_panel_preferred_fixed_mode(intel_dp->attached_connector);
-	int mode_rate, max_rate;
-
-	mode_rate = intel_dp_link_required(fixed_mode->clock, 18);
-	max_rate = intel_dp_max_link_data_rate(intel_dp, link_rate, lane_count);
-	if (mode_rate > max_rate)
-		return false;
-
-	return true;
-}
-
-int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
-					    int link_rate, u8 lane_count)
-{
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	int index;
-
-	/*
-	 * TODO: Enable fallback on MST links once MST link compute can handle
-	 * the fallback params.
-	 */
-	if (intel_dp->is_mst) {
-		drm_err(&i915->drm, "Link Training Unsuccessful\n");
-		return -1;
-	}
-
-	if (intel_dp_is_edp(intel_dp) && !intel_dp->use_max_params) {
-		drm_dbg_kms(&i915->drm,
-			    "Retrying Link training for eDP with max parameters\n");
-		intel_dp->use_max_params = true;
-		return 0;
-	}
-
-	index = intel_dp_rate_index(intel_dp->common_rates,
-				    intel_dp->num_common_rates,
-				    link_rate);
-	if (index > 0) {
-		if (intel_dp_is_edp(intel_dp) &&
-		    !intel_dp_can_link_train_fallback_for_edp(intel_dp,
-							      intel_dp_common_rate(intel_dp, index - 1),
-							      lane_count)) {
-			drm_dbg_kms(&i915->drm,
-				    "Retrying Link training for eDP with same parameters\n");
-			return 0;
-		}
-		intel_dp->link.max_rate = intel_dp_common_rate(intel_dp, index - 1);
-		intel_dp->link.max_lane_count = lane_count;
-	} else if (lane_count > 1) {
-		if (intel_dp_is_edp(intel_dp) &&
-		    !intel_dp_can_link_train_fallback_for_edp(intel_dp,
-							      intel_dp_max_common_rate(intel_dp),
-							      lane_count >> 1)) {
-			drm_dbg_kms(&i915->drm,
-				    "Retrying Link training for eDP with same parameters\n");
-			return 0;
-		}
-		intel_dp->link.max_rate = intel_dp_max_common_rate(intel_dp);
-		intel_dp->link.max_lane_count = lane_count >> 1;
-	} else {
-		drm_err(&i915->drm, "Link Training Unsuccessful\n");
-		return -1;
-	}
-
-	return 0;
 }
 
 u32 intel_dp_mode_to_fec_clock(u32 mode_clock)
