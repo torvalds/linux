@@ -420,6 +420,9 @@ static void del_scan(struct dlm_ls *ls, struct dlm_rsb *r)
 {
 	struct dlm_rsb *first;
 
+	/* active rsbs should never be on the scan list */
+	WARN_ON(!rsb_flag(r, RSB_INACTIVE));
+
 	spin_lock_bh(&ls->ls_scan_lock);
 	r->res_toss_time = 0;
 
@@ -457,17 +460,16 @@ static void add_scan(struct dlm_ls *ls, struct dlm_rsb *r)
 	int our_nodeid = dlm_our_nodeid();
 	struct dlm_rsb *first;
 
-	/* If we're the directory record for this rsb, and
-	 * we're not the master of it, then we need to wait
-	 * for the master node to send us a dir remove for
-	 * before removing the dir record.
-	 */
-	if (!dlm_no_directory(ls) &&
-	    (r->res_master_nodeid != our_nodeid) &&
-	    (dlm_dir_nodeid(r) == our_nodeid)) {
-		del_scan(ls, r);
-		return;
-	}
+	/* A dir record for a remote master rsb should never be on the scan list. */
+	WARN_ON(!dlm_no_directory(ls) &&
+		(r->res_master_nodeid != our_nodeid) &&
+		(dlm_dir_nodeid(r) == our_nodeid));
+
+	/* An active rsb should never be on the scan list. */
+	WARN_ON(!rsb_flag(r, RSB_INACTIVE));
+
+	/* An rsb should not already be on the scan list. */
+	WARN_ON(!list_empty(&r->res_scan_list));
 
 	spin_lock_bh(&ls->ls_scan_lock);
 	/* set the new rsb absolute expire time in the rsb */
@@ -479,12 +481,6 @@ static void add_scan(struct dlm_ls *ls, struct dlm_rsb *r)
 		list_add_tail(&r->res_scan_list, &ls->ls_scan_list);
 		enable_scan_timer(ls, r->res_toss_time);
 	} else {
-		/* check if the rsb was already queued, if so delete
-		 * it from the toss queue
-		 */
-		if (!list_empty(&r->res_scan_list))
-			list_del(&r->res_scan_list);
-
 		/* try to get the maybe new first element and then add
 		 * to this rsb with the oldest expire time to the end
 		 * of the queue. If the list was empty before this
@@ -807,10 +803,12 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 		r->res_first_lkid = 0;
 	}
 
+	/* A dir record will not be on the scan list. */
+	if (r->res_dir_nodeid != our_nodeid)
+		del_scan(ls, r);
 	list_move(&r->res_slow_list, &ls->ls_slow_active);
 	rsb_clear_flag(r, RSB_INACTIVE);
-	kref_init(&r->res_ref);
-	del_scan(ls, r);
+	kref_init(&r->res_ref); /* ref is now used in active state */
 	write_unlock_bh(&ls->ls_rsbtbl_lock);
 
 	goto out;
@@ -1272,7 +1270,10 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 	__dlm_master_lookup(ls, r, our_nodeid, from_nodeid, true, flags,
 			    r_nodeid, result);
 
-	add_scan(ls, r);
+	/* A dir record rsb should never be on scan list. */
+	/* Try to fix this with del_scan? */
+	WARN_ON(!list_empty(&r->res_scan_list));
+
 	write_unlock_bh(&ls->ls_rsbtbl_lock);
 
 	return 0;
@@ -1305,7 +1306,6 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 	}
 
 	list_add(&r->res_slow_list, &ls->ls_slow_inactive);
-	add_scan(ls, r);
 	write_unlock_bh(&ls->ls_rsbtbl_lock);
 
 	if (result)
@@ -1346,11 +1346,24 @@ static void deactivate_rsb(struct kref *kref)
 {
 	struct dlm_rsb *r = container_of(kref, struct dlm_rsb, res_ref);
 	struct dlm_ls *ls = r->res_ls;
+	int our_nodeid = dlm_our_nodeid();
 
 	DLM_ASSERT(list_empty(&r->res_root_list), dlm_print_rsb(r););
 	rsb_set_flag(r, RSB_INACTIVE);
 	list_move(&r->res_slow_list, &ls->ls_slow_inactive);
-	add_scan(ls, r);
+
+	/*
+	 * When the rsb becomes unused:
+	 * - If it's not a dir record for a remote master rsb,
+	 *   then it is put on the scan list to be freed.
+	 * - If it's a dir record for a remote master rsb,
+	 *   then it is kept in the inactive state until
+	 *   receive_remove() from the master node.
+	 */
+	if (!dlm_no_directory(ls) &&
+	    (r->res_master_nodeid != our_nodeid) &&
+	    (dlm_dir_nodeid(r) != our_nodeid))
+		add_scan(ls, r);
 
 	if (r->res_lvbptr) {
 		dlm_free_lvb(r->res_lvbptr);
