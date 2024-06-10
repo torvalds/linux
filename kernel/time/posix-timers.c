@@ -881,6 +881,7 @@ int common_timer_set(struct k_itimer *timr, int flags,
 	timr->it_requeue_pending = (timr->it_requeue_pending + 2) &
 		~REQUEUE_PENDING;
 	timr->it_overrun_last = 0;
+	timr->it_overrun = -1LL;
 
 	/* Switch off the timer when it_value is zero */
 	if (!new_setting->it_value.tv_sec && !new_setting->it_value.tv_nsec)
