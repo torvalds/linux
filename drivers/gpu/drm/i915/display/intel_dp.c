@@ -5065,7 +5065,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst_mgr);
 	}
 
-	if (!link_ok)
+	if (!link_ok || intel_dp->link.force_retrain)
 		intel_encoder_link_check_queue_work(encoder, 0);
 
 	return !reprobe_needed;
@@ -5113,6 +5113,9 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 	 */
 	if (intel_psr_enabled(intel_dp))
 		return false;
+
+	if (intel_dp->link.force_retrain)
+		return true;
 
 	if (drm_dp_dpcd_read_phy_link_status(&intel_dp->aux, DP_PHY_DPRX,
 					     link_status) < 0)
@@ -5252,8 +5255,9 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 	if (!intel_dp_needs_link_retrain(intel_dp))
 		return 0;
 
-	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] retraining link\n",
-		    encoder->base.base.id, encoder->base.name);
+	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] retraining link (forced %s)\n",
+		    encoder->base.base.id, encoder->base.name,
+		    str_yes_no(intel_dp->link.force_retrain));
 
 	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
 		const struct intel_crtc_state *crtc_state =
@@ -5281,7 +5285,7 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 				    encoder->base.base.id, encoder->base.name,
 				    ERR_PTR(ret));
 
-		return ret;
+		goto out;
 	}
 
 	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
@@ -5308,7 +5312,11 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 							      intel_crtc_pch_transcoder(crtc), true);
 	}
 
-	return 0;
+out:
+	if (ret != -EDEADLK)
+		intel_dp->link.force_retrain = false;
+
+	return ret;
 }
 
 void intel_dp_link_check(struct intel_encoder *encoder)
