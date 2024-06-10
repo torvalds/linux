@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <stdio.h>
 #include <signal.h>
+#include <string.h>
 #include <unistd.h>
 #include <time.h>
 #include <pthread.h>
@@ -18,6 +19,20 @@
 
 #define DELAY 2
 #define USECS_PER_SEC 1000000
+
+static void __fatal_error(const char *test, const char *name, const char *what)
+{
+	char buf[64];
+
+	strerror_r(errno, buf, sizeof(buf));
+
+	if (name && strlen(name))
+		ksft_exit_fail_msg("%s %s %s %s\n", test, name, what, buf);
+	else
+		ksft_exit_fail_msg("%s %s %s\n", test, what, buf);
+}
+
+#define fatal_error(name, what)	__fatal_error(__func__, name, what)
 
 static volatile int done;
 
@@ -74,23 +89,12 @@ static int check_diff(struct timeval start, struct timeval end)
 	return 0;
 }
 
-static int check_itimer(int which)
+static void check_itimer(int which, const char *name)
 {
-	const char *name;
-	int err;
 	struct timeval start, end;
 	struct itimerval val = {
 		.it_value.tv_sec = DELAY,
 	};
-
-	if (which == ITIMER_VIRTUAL)
-		name = "ITIMER_VIRTUAL";
-	else if (which == ITIMER_PROF)
-		name = "ITIMER_PROF";
-	else if (which == ITIMER_REAL)
-		name = "ITIMER_REAL";
-	else
-		return -1;
 
 	done = 0;
 
@@ -101,17 +105,11 @@ static int check_itimer(int which)
 	else if (which == ITIMER_REAL)
 		signal(SIGALRM, sig_handler);
 
-	err = gettimeofday(&start, NULL);
-	if (err < 0) {
-		ksft_perror("Can't call gettimeofday()");
-		return -1;
-	}
+	if (gettimeofday(&start, NULL) < 0)
+		fatal_error(name, "gettimeofday()");
 
-	err = setitimer(which, &val, NULL);
-	if (err < 0) {
-		ksft_perror("Can't set timer");
-		return -1;
-	}
+	if (setitimer(which, &val, NULL) < 0)
+		fatal_error(name, "setitimer()");
 
 	if (which == ITIMER_VIRTUAL)
 		user_loop();
@@ -120,68 +118,41 @@ static int check_itimer(int which)
 	else if (which == ITIMER_REAL)
 		idle_loop();
 
-	err = gettimeofday(&end, NULL);
-	if (err < 0) {
-		ksft_perror("Can't call gettimeofday()");
-		return -1;
-	}
+	if (gettimeofday(&end, NULL) < 0)
+		fatal_error(name, "gettimeofday()");
 
 	ksft_test_result(check_diff(start, end) == 0, "%s\n", name);
-
-	return 0;
 }
 
-static int check_timer_create(int which)
+static void check_timer_create(int which, const char *name)
 {
-	const char *type;
-	int err;
-	timer_t id;
 	struct timeval start, end;
 	struct itimerspec val = {
 		.it_value.tv_sec = DELAY,
 	};
-
-	if (which == CLOCK_THREAD_CPUTIME_ID) {
-		type = "thread";
-	} else if (which == CLOCK_PROCESS_CPUTIME_ID) {
-		type = "process";
-	} else {
-		ksft_print_msg("Unknown timer_create() type %d\n", which);
-		return -1;
-	}
+	timer_t id;
 
 	done = 0;
-	err = timer_create(which, NULL, &id);
-	if (err < 0) {
-		ksft_perror("Can't create timer");
-		return -1;
-	}
-	signal(SIGALRM, sig_handler);
 
-	err = gettimeofday(&start, NULL);
-	if (err < 0) {
-		ksft_perror("Can't call gettimeofday()");
-		return -1;
-	}
+	if (timer_create(which, NULL, &id) < 0)
+		fatal_error(name, "timer_create()");
 
-	err = timer_settime(id, 0, &val, NULL);
-	if (err < 0) {
-		ksft_perror("Can't set timer");
-		return -1;
-	}
+	if (signal(SIGALRM, sig_handler) == SIG_ERR)
+		fatal_error(name, "signal()");
+
+	if (gettimeofday(&start, NULL) < 0)
+		fatal_error(name, "gettimeofday()");
+
+	if (timer_settime(id, 0, &val, NULL) < 0)
+		fatal_error(name, "timer_settime()");
 
 	user_loop();
 
-	err = gettimeofday(&end, NULL);
-	if (err < 0) {
-		ksft_perror("Can't call gettimeofday()");
-		return -1;
-	}
+	if (gettimeofday(&end, NULL) < 0)
+		fatal_error(name, "gettimeofday()");
 
 	ksft_test_result(check_diff(start, end) == 0,
-			 "timer_create() per %s\n", type);
-
-	return 0;
+			 "timer_create() per %s\n", name);
 }
 
 static pthread_t ctd_thread;
@@ -209,15 +180,14 @@ static void *ctd_thread_func(void *arg)
 
 	ctd_count = 100;
 	if (timer_create(CLOCK_PROCESS_CPUTIME_ID, NULL, &id))
-		return "Can't create timer\n";
+		fatal_error(NULL, "timer_create()");
 	if (timer_settime(id, 0, &val, NULL))
-		return "Can't set timer\n";
-
+		fatal_error(NULL, "timer_settime()");
 	while (ctd_count > 0 && !ctd_failed)
 		;
 
 	if (timer_delete(id))
-		return "Can't delete timer\n";
+		fatal_error(NULL, "timer_delete()");
 
 	return NULL;
 }
@@ -225,19 +195,16 @@ static void *ctd_thread_func(void *arg)
 /*
  * Test that only the running thread receives the timer signal.
  */
-static int check_timer_distribution(void)
+static void check_timer_distribution(void)
 {
-	const char *errmsg;
+	if (signal(SIGALRM, ctd_sighandler) == SIG_ERR)
+		fatal_error(NULL, "signal()");
 
-	signal(SIGALRM, ctd_sighandler);
-
-	errmsg = "Can't create thread\n";
 	if (pthread_create(&ctd_thread, NULL, ctd_thread_func, NULL))
-		goto err;
+		fatal_error(NULL, "pthread_create()");
 
-	errmsg = "Can't join thread\n";
-	if (pthread_join(ctd_thread, (void **)&errmsg) || errmsg)
-		goto err;
+	if (pthread_join(ctd_thread, NULL))
+		fatal_error(NULL, "pthread_join()");
 
 	if (!ctd_failed)
 		ksft_test_result_pass("check signal distribution\n");
@@ -245,10 +212,6 @@ static int check_timer_distribution(void)
 		ksft_test_result_fail("check signal distribution\n");
 	else
 		ksft_test_result_skip("check signal distribution (old kernel)\n");
-	return 0;
-err:
-	ksft_print_msg("%s", errmsg);
-	return -1;
 }
 
 int main(int argc, char **argv)
@@ -259,17 +222,10 @@ int main(int argc, char **argv)
 	ksft_print_msg("Testing posix timers. False negative may happen on CPU execution \n");
 	ksft_print_msg("based timers if other threads run on the CPU...\n");
 
-	if (check_itimer(ITIMER_VIRTUAL) < 0)
-		ksft_exit_fail();
-
-	if (check_itimer(ITIMER_PROF) < 0)
-		ksft_exit_fail();
-
-	if (check_itimer(ITIMER_REAL) < 0)
-		ksft_exit_fail();
-
-	if (check_timer_create(CLOCK_THREAD_CPUTIME_ID) < 0)
-		ksft_exit_fail();
+	check_itimer(ITIMER_VIRTUAL, "ITIMER_VIRTUAL");
+	check_itimer(ITIMER_PROF, "ITIMER_PROF");
+	check_itimer(ITIMER_REAL, "ITIMER_REAL");
+	check_timer_create(CLOCK_THREAD_CPUTIME_ID, "CLOCK_THREAD_CPUTIME_ID");
 
 	/*
 	 * It's unfortunately hard to reliably test a timer expiration
@@ -280,11 +236,8 @@ int main(int argc, char **argv)
 	 * to ensure true parallelism. So test only one thread until we
 	 * find a better solution.
 	 */
-	if (check_timer_create(CLOCK_PROCESS_CPUTIME_ID) < 0)
-		ksft_exit_fail();
-
-	if (check_timer_distribution() < 0)
-		ksft_exit_fail();
+	check_timer_create(CLOCK_PROCESS_CPUTIME_ID, "CLOCK_PROCESS_CPUTIME_ID");
+	check_timer_distribution();
 
 	ksft_finished();
 }
