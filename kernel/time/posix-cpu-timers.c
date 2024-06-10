@@ -787,8 +787,24 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 
 static void __posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp, u64 now)
 {
-	u64 expires = cpu_timer_getexpires(&timer->it.cpu);
+	u64 expires, iv = timer->it_interval;
 
+	/*
+	 * Make sure that interval timers are moved forward for the
+	 * following cases:
+	 *  - Timers which expired, but the signal has not yet been
+	 *    delivered
+	 */
+	if (iv && (timer->it_requeue_pending & REQUEUE_PENDING))
+		expires = bump_cpu_timer(timer, now);
+	else
+		expires = cpu_timer_getexpires(&timer->it.cpu);
+
+	/*
+	 * Expired interval timers cannot have a remaining time <= 0.
+	 * The kernel has to move them forward so that the next
+	 * timer expiry is > @now.
+	 */
 	if (now < expires) {
 		itp->it_value = ns_to_timespec64(expires - now);
 	} else {
