@@ -383,4 +383,5 @@ static struct platform_driver meson_secure_pwrc_driver = {
 	},
 };
 module_platform_driver(meson_secure_pwrc_driver);
+MODULE_DESCRIPTION("Amlogic Meson Secure Power Domains driver");
 MODULE_LICENSE("Dual MIT/GPL");
