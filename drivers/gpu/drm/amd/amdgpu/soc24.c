@@ -484,6 +484,10 @@ static int soc24_common_hw_init(void *handle)
 	 */
 	if (adev->nbio.funcs->remap_hdp_registers)
 		adev->nbio.funcs->remap_hdp_registers(adev);
+
+	if (adev->df.funcs->hw_init)
+		adev->df.funcs->hw_init(adev);
+
 	/* enable the doorbell aperture */
 	soc24_enable_doorbell_aperture(adev, true);
 
