@@ -1465,9 +1465,27 @@ static struct attribute *ims_pcu_ofn_attrs[] = {
 	NULL
 };
 
+static umode_t ims_pcu_ofn_is_attr_visible(struct kobject *kobj,
+					   struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct ims_pcu *pcu = usb_get_intfdata(intf);
+	umode_t mode = attr->mode;
+
+	/*
+	 * PCU-B devices, both GEN_1 and GEN_2 do not have OFN sensor.
+	 */
+	if (pcu->bootloader_mode || pcu->device_id == IMS_PCU_PCU_B_DEVICE_ID)
+		mode = 0;
+
+	return mode;
+}
+
 static const struct attribute_group ims_pcu_ofn_attr_group = {
-	.name	= "ofn",
-	.attrs	= ims_pcu_ofn_attrs,
+	.name		= "ofn",
+	.is_visible	= ims_pcu_ofn_is_attr_visible,
+	.attrs		= ims_pcu_ofn_attrs,
 };
 
 static void ims_pcu_irq(struct urb *urb)
@@ -1889,16 +1907,6 @@ static int ims_pcu_init_application_mode(struct ims_pcu *pcu)
 	/* Device appears to be operable, complete initialization */
 	pcu->device_no = atomic_inc_return(&device_no);
 
-	/*
-	 * PCU-B devices, both GEN_1 and GEN_2 do not have OFN sensor
-	 */
-	if (pcu->device_id != IMS_PCU_PCU_B_DEVICE_ID) {
-		error = sysfs_create_group(&pcu->dev->kobj,
-					   &ims_pcu_ofn_attr_group);
-		if (error)
-			return error;
-	}
-
 	error = ims_pcu_setup_backlight(pcu);
 	if (error)
 		return error;
@@ -1935,10 +1943,6 @@ static void ims_pcu_destroy_application_mode(struct ims_pcu *pcu)
 			ims_pcu_destroy_gamepad(pcu);
 		ims_pcu_destroy_buttons(pcu);
 		ims_pcu_destroy_backlight(pcu);
-
-		if (pcu->device_id != IMS_PCU_PCU_B_DEVICE_ID)
-			sysfs_remove_group(&pcu->dev->kobj,
-					   &ims_pcu_ofn_attr_group);
 	}
 }
 
@@ -2030,20 +2034,14 @@ static int ims_pcu_probe(struct usb_interface *intf,
 	if (error)
 		goto err_stop_io;
 
-	error = sysfs_create_group(&intf->dev.kobj, &ims_pcu_attr_group);
-	if (error)
-		goto err_stop_io;
-
 	error = pcu->bootloader_mode ?
 			ims_pcu_init_bootloader_mode(pcu) :
 			ims_pcu_init_application_mode(pcu);
 	if (error)
-		goto err_remove_sysfs;
+		goto err_stop_io;
 
 	return 0;
 
-err_remove_sysfs:
-	sysfs_remove_group(&intf->dev.kobj, &ims_pcu_attr_group);
 err_stop_io:
 	ims_pcu_stop_io(pcu);
 err_free_buffers:
@@ -2068,8 +2066,6 @@ static void ims_pcu_disconnect(struct usb_interface *intf)
 	 */
 	if (alt->desc.bInterfaceClass != USB_CLASS_COMM)
 		return;
-
-	sysfs_remove_group(&intf->dev.kobj, &ims_pcu_attr_group);
 
 	ims_pcu_stop_io(pcu);
 
@@ -2129,9 +2125,16 @@ static const struct usb_device_id ims_pcu_id_table[] = {
 	{ }
 };
 
+static const struct attribute_group *ims_pcu_sysfs_groups[] = {
+	&ims_pcu_attr_group,
+	&ims_pcu_ofn_attr_group,
+	NULL
+};
+
 static struct usb_driver ims_pcu_driver = {
 	.name			= "ims_pcu",
 	.id_table		= ims_pcu_id_table,
+	.dev_groups		= ims_pcu_sysfs_groups,
 	.probe			= ims_pcu_probe,
 	.disconnect		= ims_pcu_disconnect,
 #ifdef CONFIG_PM
