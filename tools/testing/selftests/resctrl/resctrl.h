@@ -43,13 +43,6 @@
 
 #define DEFAULT_SPAN		(250 * MB)
 
-#define PARENT_EXIT()				\
-	do {					\
-		kill(ppid, SIGKILL);		\
-		umount_resctrlfs();		\
-		exit(EXIT_FAILURE);		\
-	} while (0)
-
 /*
  * user_params:		User supplied parameters
  * @cpu:		CPU number to which the benchmark will be bound to
@@ -126,8 +119,6 @@ struct perf_event_read {
  * compiler.
  */
 extern volatile int *value_sink;
-
-extern pid_t bm_pid, ppid;
 
 extern char llc_occup_path[1024];
 
