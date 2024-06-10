@@ -1998,7 +1998,7 @@ static int alvium_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	int val;
 
 	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
+	case V4L2_CID_ANALOGUE_GAIN:
 		val = alvium_get_gain(alvium);
 		if (val < 0)
 			return val;
@@ -2030,7 +2030,7 @@ static int alvium_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 
 	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
+	case V4L2_CID_ANALOGUE_GAIN:
 		ret = alvium_set_ctrl_gain(alvium, ctrl->val);
 		break;
 	case V4L2_CID_AUTOGAIN:
@@ -2159,7 +2159,7 @@ static int alvium_ctrl_init(struct alvium_dev *alvium)
 
 	if (alvium->avail_ft.gain) {
 		ctrls->gain = v4l2_ctrl_new_std(hdl, ops,
-						V4L2_CID_GAIN,
+						V4L2_CID_ANALOGUE_GAIN,
 						alvium->min_gain,
 						alvium->max_gain,
 						alvium->inc_gain,
