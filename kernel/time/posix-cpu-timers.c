@@ -705,10 +705,16 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	/*
 	 * Arm the timer if it is not disabled, the new expiry value has
 	 * not yet expired and the timer requires signal delivery.
-	 * SIGEV_NONE timers are never armed.
+	 * SIGEV_NONE timers are never armed. In case the timer is not
+	 * armed, enforce the reevaluation of the timer base so that the
+	 * process wide cputime counter can be disabled eventually.
 	 */
-	if (!sigev_none && new_expires && now < new_expires)
-		arm_timer(timer, p);
+	if (likely(!sigev_none)) {
+		if (new_expires && now < new_expires)
+			arm_timer(timer, p);
+		else
+			trigger_base_recalc_expires(timer, p);
+	}
 
 	unlock_task_sighand(p, &flags);
 	/*
@@ -727,30 +733,14 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	timer->it_overrun_last = 0;
 	timer->it_overrun = -1;
 
-	if (!sigev_none && now >= new_expires) {
-		if (new_expires != 0) {
-			/*
-			 * The designated time already passed, so we notify
-			 * immediately, even if the thread never runs to
-			 * accumulate more time on this clock.
-			 */
-			cpu_timer_fire(timer);
-		}
-
-		/*
-		 * Make sure we don't keep around the process wide cputime
-		 * counter or the tick dependency if they are not necessary.
-		 */
-		sighand = lock_task_sighand(p, &flags);
-		if (!sighand)
-			goto out;
-
-		if (!cpu_timer_queued(ctmr))
-			trigger_base_recalc_expires(timer, p);
-
-		unlock_task_sighand(p, &flags);
-	}
- out:
+	/*
+	 * If the new expiry time was already in the past the timer was not
+	 * queued. Fire it immediately even if the thread never runs to
+	 * accumulate more time on this clock.
+	 */
+	if (!sigev_none && new_expires && now >= new_expires)
+		cpu_timer_fire(timer);
+out:
 	rcu_read_unlock();
 	if (old)
 		old->it_interval = ns_to_timespec64(old_incr);
