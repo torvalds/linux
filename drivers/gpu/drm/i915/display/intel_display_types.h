@@ -1771,6 +1771,7 @@ struct intel_dp {
 		int max_lane_count;
 		/* Max rate for the current link */
 		int max_rate;
+		bool retrain_disabled;
 		/* Sequential link training failures after a passing LT */
 		int seq_train_failures;
 	} link;
