@@ -207,6 +207,7 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		int remote_bw_overhead;
 		int link_bpp_x16;
 		int remote_tu;
+		fixed20_12 pbn;
 
 		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
 
@@ -237,11 +238,29 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		 * crtc_state->dp_m_n.tu), provided that the driver doesn't
 		 * enable SSC on the corresponding link.
 		 */
-		crtc_state->pbn = intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
-							link_bpp_x16,
-							remote_bw_overhead);
+		pbn.full = dfixed_const(intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
+							      link_bpp_x16,
+							      remote_bw_overhead));
+		remote_tu = DIV_ROUND_UP(pbn.full, mst_state->pbn_div.full);
 
-		remote_tu = DIV_ROUND_UP(dfixed_const(crtc_state->pbn), mst_state->pbn_div.full);
+		/*
+		 * Aligning the TUs ensures that symbols consisting of multiple
+		 * (4) symbol cycles don't get split between two consecutive
+		 * MTPs, as required by Bspec.
+		 * TODO: remove the alignment restriction for 128b/132b links
+		 * on some platforms, where Bspec allows this.
+		 */
+		remote_tu = ALIGN(remote_tu, 4 / crtc_state->lane_count);
+
+		/*
+		 * Also align PBNs accordingly, since MST core will derive its
+		 * own copy of TU from the PBN in drm_dp_atomic_find_time_slots().
+		 * The above comment about the difference between the PBN
+		 * allocated for the whole path and the TUs allocated for the
+		 * first branch device's link also applies here.
+		 */
+		pbn.full = remote_tu * mst_state->pbn_div.full;
+		crtc_state->pbn = dfixed_trunc(pbn);
 
 		drm_WARN_ON(&i915->drm, remote_tu < crtc_state->dp_m_n.tu);
 		crtc_state->dp_m_n.tu = remote_tu;
