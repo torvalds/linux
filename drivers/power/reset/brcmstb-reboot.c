@@ -58,9 +58,6 @@ static int brcmstb_restart_handler(struct sys_off_data *data)
 		return NOTIFY_DONE;
 	}
 
-	while (1)
-		;
-
 	return NOTIFY_DONE;
 }
 
