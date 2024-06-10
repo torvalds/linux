@@ -156,4 +156,5 @@ static struct i2c_driver tps6286x_regulator_driver = {
 
 module_i2c_driver(tps6286x_regulator_driver);
 
+MODULE_DESCRIPTION("TI TPS6286x Power Regulator driver");
 MODULE_LICENSE("GPL v2");
