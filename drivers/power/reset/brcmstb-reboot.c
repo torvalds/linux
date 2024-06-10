@@ -83,24 +83,16 @@ static const struct reset_reg_mask reset_bits_65nm = {
 	.sw_mstr_rst_mask = BIT(31),
 };
 
-static const struct of_device_id of_match[] = {
-	{ .compatible = "brcm,brcmstb-reboot", .data = &reset_bits_40nm },
-	{ .compatible = "brcm,bcm7038-reboot", .data = &reset_bits_65nm },
-	{},
-};
-
 static int brcmstb_reboot_probe(struct platform_device *pdev)
 {
 	int rc;
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *of_id;
 
-	of_id = of_match_node(of_match, np);
-	if (!of_id) {
-		pr_err("failed to look up compatible string\n");
+	reset_masks = device_get_match_data(&pdev->dev);
+	if (!reset_masks) {
+		pr_err("failed to get match data\n");
 		return -EINVAL;
 	}
-	reset_masks = of_id->data;
 
 	regmap = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(regmap)) {
@@ -129,6 +121,12 @@ static int brcmstb_reboot_probe(struct platform_device *pdev)
 
 	return rc;
 }
+
+static const struct of_device_id of_match[] = {
+	{ .compatible = "brcm,brcmstb-reboot", .data = &reset_bits_40nm },
+	{ .compatible = "brcm,bcm7038-reboot", .data = &reset_bits_65nm },
+	{},
+};
 
 static struct platform_driver brcmstb_reboot_driver = {
 	.probe = brcmstb_reboot_probe,
