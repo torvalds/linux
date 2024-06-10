@@ -714,21 +714,8 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	}
 
 	unlock_task_sighand(p, &flags);
-	/*
-	 * Install the new reload setting, and
-	 * set up the signal and overrun bookkeeping.
-	 */
-	timer->it_interval = timespec64_to_ktime(new->it_interval);
 
-	/*
-	 * This acts as a modification timestamp for the timer,
-	 * so any automatic reload attempt will punt on seeing
-	 * that we have reset the timer manually.
-	 */
-	timer->it_requeue_pending = (timer->it_requeue_pending + 2) &
-		~REQUEUE_PENDING;
-	timer->it_overrun_last = 0;
-	timer->it_overrun = -1;
+	posix_timer_set_common(timer, new);
 
 	/*
 	 * If the new expiry time was already in the past the timer was not
