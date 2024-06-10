@@ -2961,6 +2961,7 @@ static void intel_dp_reset_link_params(struct intel_dp *intel_dp)
 {
 	intel_dp->link.max_lane_count = intel_dp_max_common_lane_count(intel_dp);
 	intel_dp->link.max_rate = intel_dp_max_common_rate(intel_dp);
+	intel_dp->link.seq_train_failures = 0;
 }
 
 /* Enable backlight PWM and backlight PP control. */
@@ -5074,6 +5075,9 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 	if (!intel_dp_link_params_valid(intel_dp, intel_dp->link_rate,
 					intel_dp->lane_count))
 		return false;
+
+	if (intel_dp->link.seq_train_failures)
+		return true;
 
 	/* Retrain if link not ok */
 	return !intel_dp_link_ok(intel_dp, link_status);

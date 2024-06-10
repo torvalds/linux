@@ -1487,9 +1487,12 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 		passed = intel_dp_link_train_all_phys(intel_dp, crtc_state, lttpr_count);
 
 	if (passed) {
+		intel_dp->link.seq_train_failures = 0;
 		intel_encoder_link_check_queue_work(encoder, 2000);
 		return;
 	}
+
+	intel_dp->link.seq_train_failures++;
 
 	/*
 	 * Ignore the link failure in CI
@@ -1505,6 +1508,11 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 	 */
 	if (i915->display.hotplug.ignore_long_hpd) {
 		lt_dbg(intel_dp, DP_PHY_DPRX, "Ignore the link failure\n");
+		return;
+	}
+
+	if (intel_dp->link.seq_train_failures < 2) {
+		intel_encoder_link_check_queue_work(encoder, 0);
 		return;
 	}
 
