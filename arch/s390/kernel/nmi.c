@@ -117,6 +117,7 @@ static __always_inline char *u64_to_hex(char *dest, u64 val)
 
 static notrace void s390_handle_damage(void)
 {
+	struct lowcore *lc = get_lowcore();
 	union ctlreg0 cr0, cr0_new;
 	char message[100];
 	psw_t psw_save;
@@ -125,7 +126,7 @@ static notrace void s390_handle_damage(void)
 	smp_emergency_stop();
 	diag_amode31_ops.diag308_reset();
 	ptr = nmi_puts(message, "System stopped due to unrecoverable machine check, code: 0x");
-	u64_to_hex(ptr, get_lowcore()->mcck_interruption_code);
+	u64_to_hex(ptr, lc->mcck_interruption_code);
 
 	/*
 	 * Disable low address protection and make machine check new PSW a
@@ -135,17 +136,17 @@ static notrace void s390_handle_damage(void)
 	cr0_new = cr0;
 	cr0_new.lap = 0;
 	local_ctl_load(0, &cr0_new.reg);
-	psw_save = get_lowcore()->mcck_new_psw;
-	psw_bits(get_lowcore()->mcck_new_psw).io = 0;
-	psw_bits(get_lowcore()->mcck_new_psw).ext = 0;
-	psw_bits(get_lowcore()->mcck_new_psw).wait = 1;
+	psw_save = lc->mcck_new_psw;
+	psw_bits(lc->mcck_new_psw).io = 0;
+	psw_bits(lc->mcck_new_psw).ext = 0;
+	psw_bits(lc->mcck_new_psw).wait = 1;
 	sclp_emergency_printk(message);
 
 	/*
 	 * Restore machine check new PSW and control register 0 to original
 	 * values. This makes possible system dump analysis easier.
 	 */
-	get_lowcore()->mcck_new_psw = psw_save;
+	lc->mcck_new_psw = psw_save;
 	local_ctl_load(0, &cr0.reg);
 	disabled_wait();
 	while (1);
@@ -301,6 +302,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	static int ipd_count;
 	static DEFINE_SPINLOCK(ipd_lock);
 	static unsigned long long last_ipd;
+	struct lowcore *lc = get_lowcore();
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
 	irqentry_state_t irq_state;
@@ -313,7 +315,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	if (user_mode(regs))
 		update_timer_mcck();
 	inc_irq_stat(NMI_NMI);
-	mci.val = get_lowcore()->mcck_interruption_code;
+	mci.val = lc->mcck_interruption_code;
 	mcck = this_cpu_ptr(&cpu_mcck);
 
 	/*
@@ -381,9 +383,9 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	}
 	if (mci.ed && mci.ec) {
 		/* External damage */
-		if (get_lowcore()->external_damage_code & (1U << ED_STP_SYNC))
+		if (lc->external_damage_code & (1U << ED_STP_SYNC))
 			mcck->stp_queue |= stp_sync_check();
-		if (get_lowcore()->external_damage_code & (1U << ED_STP_ISLAND))
+		if (lc->external_damage_code & (1U << ED_STP_ISLAND))
 			mcck->stp_queue |= stp_island_check();
 		mcck_pending = 1;
 	}
