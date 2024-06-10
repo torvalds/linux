@@ -108,4 +108,18 @@
 #define VRR_VSYNC_START_MASK			REG_GENMASK(12, 0)
 #define VRR_VSYNC_START(vsync_start)		REG_FIELD_PREP(VRR_VSYNC_START_MASK, (vsync_start))
 
+/*CMRR Registers*/
+
+#define _TRANS_CMRR_M_LO_A			0x604F0
+#define TRANS_CMRR_M_LO(dev_priv, trans)        _MMIO_TRANS2(dev_priv, trans, _TRANS_CMRR_M_LO_A)
+
+#define _TRANS_CMRR_M_HI_A			0x604F4
+#define TRANS_CMRR_M_HI(dev_priv, trans)        _MMIO_TRANS2(dev_priv, trans, _TRANS_CMRR_M_HI_A)
+
+#define _TRANS_CMRR_N_LO_A			0x604F8
+#define TRANS_CMRR_N_LO(dev_priv, trans)        _MMIO_TRANS2(dev_priv, trans, _TRANS_CMRR_N_LO_A)
+
+#define _TRANS_CMRR_N_HI_A			0x604FC
+#define TRANS_CMRR_N_HI(dev_priv, trans)        _MMIO_TRANS2(dev_priv, trans, _TRANS_CMRR_N_HI_A)
+
 #endif /* __INTEL_VRR_REGS__ */
