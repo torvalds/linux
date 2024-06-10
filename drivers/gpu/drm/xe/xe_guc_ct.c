@@ -22,6 +22,7 @@
 #include "xe_gt_pagefault.h"
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_pf_control.h"
+#include "xe_gt_sriov_pf_monitor.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_guc.h"
 #include "xe_guc_relay.h"
@@ -1070,6 +1071,9 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		break;
 	case GUC_ACTION_GUC2PF_VF_STATE_NOTIFY:
 		ret = xe_gt_sriov_pf_control_process_guc2pf(gt, hxg, hxg_len);
+		break;
+	case GUC_ACTION_GUC2PF_ADVERSE_EVENT:
+		ret = xe_gt_sriov_pf_monitor_process_guc2pf(gt, hxg, hxg_len);
 		break;
 	default:
 		xe_gt_err(gt, "unexpected G2H action 0x%04x\n", action);

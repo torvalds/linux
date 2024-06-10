@@ -15,6 +15,7 @@
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_idle.h"
 #include "xe_gt_sysfs.h"
@@ -888,19 +889,16 @@ int xe_guc_pc_stop(struct xe_guc_pc *pc)
 }
 
 /**
- * xe_guc_pc_fini - Finalize GuC's Power Conservation component
- * @drm: DRM device
+ * xe_guc_pc_fini_hw - Finalize GuC's Power Conservation component
  * @arg: opaque pointer that should point to Xe_GuC_PC instance
  */
-static void xe_guc_pc_fini(struct drm_device *drm, void *arg)
+static void xe_guc_pc_fini_hw(void *arg)
 {
 	struct xe_guc_pc *pc = arg;
 	struct xe_device *xe = pc_to_xe(pc);
 
-	if (xe->info.skip_guc_pc) {
-		xe_gt_idle_disable_c6(pc_to_gt(pc));
+	if (xe_device_wedged(xe))
 		return;
-	}
 
 	XE_WARN_ON(xe_force_wake_get(gt_to_fw(pc_to_gt(pc)), XE_FORCEWAKE_ALL));
 	XE_WARN_ON(xe_guc_pc_gucrc_disable(pc));
@@ -937,5 +935,5 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 
 	pc->bo = bo;
 
-	return drmm_add_action_or_reset(&xe->drm, xe_guc_pc_fini, pc);
+	return devm_add_action_or_reset(xe->drm.dev, xe_guc_pc_fini_hw, pc);
 }

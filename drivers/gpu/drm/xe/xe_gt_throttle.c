@@ -9,14 +9,14 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_sysfs.h"
-#include "xe_gt_throttle_sysfs.h"
+#include "xe_gt_throttle.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
 
 /**
  * DOC: Xe GT Throttle
  *
- * Provides sysfs entries for frequency throttle reasons in GT
+ * Provides sysfs entries and other helpers for frequency throttle reasons in GT
  *
  * device/gt#/freq0/throttle/status - Overall status
  * device/gt#/freq0/throttle/reason_pl1 - Frequency throttle due to PL1
@@ -35,7 +35,7 @@ dev_to_gt(struct device *dev)
 	return kobj_to_gt(dev->kobj.parent);
 }
 
-static u32 read_perf_limit_reasons(struct xe_gt *gt)
+u32 xe_gt_throttle_get_limit_reasons(struct xe_gt *gt)
 {
 	u32 reg;
 
@@ -51,63 +51,63 @@ static u32 read_perf_limit_reasons(struct xe_gt *gt)
 
 static u32 read_status(struct xe_gt *gt)
 {
-	u32 status = read_perf_limit_reasons(gt) & GT0_PERF_LIMIT_REASONS_MASK;
+	u32 status = xe_gt_throttle_get_limit_reasons(gt) & GT0_PERF_LIMIT_REASONS_MASK;
 
 	return status;
 }
 
 static u32 read_reason_pl1(struct xe_gt *gt)
 {
-	u32 pl1 = read_perf_limit_reasons(gt) & POWER_LIMIT_1_MASK;
+	u32 pl1 = xe_gt_throttle_get_limit_reasons(gt) & POWER_LIMIT_1_MASK;
 
 	return pl1;
 }
 
 static u32 read_reason_pl2(struct xe_gt *gt)
 {
-	u32 pl2 = read_perf_limit_reasons(gt) & POWER_LIMIT_2_MASK;
+	u32 pl2 = xe_gt_throttle_get_limit_reasons(gt) & POWER_LIMIT_2_MASK;
 
 	return pl2;
 }
 
 static u32 read_reason_pl4(struct xe_gt *gt)
 {
-	u32 pl4 = read_perf_limit_reasons(gt) & POWER_LIMIT_4_MASK;
+	u32 pl4 = xe_gt_throttle_get_limit_reasons(gt) & POWER_LIMIT_4_MASK;
 
 	return pl4;
 }
 
 static u32 read_reason_thermal(struct xe_gt *gt)
 {
-	u32 thermal = read_perf_limit_reasons(gt) & THERMAL_LIMIT_MASK;
+	u32 thermal = xe_gt_throttle_get_limit_reasons(gt) & THERMAL_LIMIT_MASK;
 
 	return thermal;
 }
 
 static u32 read_reason_prochot(struct xe_gt *gt)
 {
-	u32 prochot = read_perf_limit_reasons(gt) & PROCHOT_MASK;
+	u32 prochot = xe_gt_throttle_get_limit_reasons(gt) & PROCHOT_MASK;
 
 	return prochot;
 }
 
 static u32 read_reason_ratl(struct xe_gt *gt)
 {
-	u32 ratl = read_perf_limit_reasons(gt) & RATL_MASK;
+	u32 ratl = xe_gt_throttle_get_limit_reasons(gt) & RATL_MASK;
 
 	return ratl;
 }
 
 static u32 read_reason_vr_thermalert(struct xe_gt *gt)
 {
-	u32 thermalert = read_perf_limit_reasons(gt) & VR_THERMALERT_MASK;
+	u32 thermalert = xe_gt_throttle_get_limit_reasons(gt) & VR_THERMALERT_MASK;
 
 	return thermalert;
 }
 
 static u32 read_reason_vr_tdc(struct xe_gt *gt)
 {
-	u32 tdc = read_perf_limit_reasons(gt) & VR_TDC_MASK;
+	u32 tdc = xe_gt_throttle_get_limit_reasons(gt) & VR_TDC_MASK;
 
 	return tdc;
 }
@@ -229,14 +229,14 @@ static const struct attribute_group throttle_group_attrs = {
 	.attrs = throttle_attrs,
 };
 
-static void gt_throttle_sysfs_fini(struct drm_device *drm, void *arg)
+static void gt_throttle_sysfs_fini(void *arg)
 {
 	struct xe_gt *gt = arg;
 
 	sysfs_remove_group(gt->freq, &throttle_group_attrs);
 }
 
-int xe_gt_throttle_sysfs_init(struct xe_gt *gt)
+int xe_gt_throttle_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;
@@ -245,5 +245,5 @@ int xe_gt_throttle_sysfs_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	return drmm_add_action_or_reset(&xe->drm, gt_throttle_sysfs_fini, gt);
+	return devm_add_action_or_reset(xe->drm.dev, gt_throttle_sysfs_fini, gt);
 }

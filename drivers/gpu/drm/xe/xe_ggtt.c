@@ -8,6 +8,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/sizes.h>
 
+#include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/i915_drm.h>
 
@@ -19,6 +20,7 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_sriov_vf.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
 #include "xe_pm.h"
@@ -140,6 +142,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	struct xe_device *xe = tile_to_xe(ggtt->tile);
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	unsigned int gsm_size;
+	int err;
 
 	if (IS_SRIOV_VF(xe))
 		gsm_size = SZ_8M; /* GGTT is expected to be 4GiB */
@@ -193,7 +196,17 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	mutex_init(&ggtt->lock);
 	primelockdep(ggtt);
 
-	return drmm_add_action_or_reset(&xe->drm, ggtt_fini_early, ggtt);
+	err = drmm_add_action_or_reset(&xe->drm, ggtt_fini_early, ggtt);
+	if (err)
+		return err;
+
+	if (IS_SRIOV_VF(xe)) {
+		err = xe_gt_sriov_vf_prepare_ggtt(xe_tile_get_gt(ggtt->tile, 0));
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static void xe_ggtt_invalidate(struct xe_ggtt *ggtt);
@@ -433,18 +446,29 @@ int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 void xe_ggtt_remove_node(struct xe_ggtt *ggtt, struct drm_mm_node *node,
 			 bool invalidate)
 {
-	xe_pm_runtime_get_noresume(tile_to_xe(ggtt->tile));
+	struct xe_device *xe = tile_to_xe(ggtt->tile);
+	bool bound;
+	int idx;
+
+	bound = drm_dev_enter(&xe->drm, &idx);
+	if (bound)
+		xe_pm_runtime_get_noresume(xe);
 
 	mutex_lock(&ggtt->lock);
-	xe_ggtt_clear(ggtt, node->start, node->size);
+	if (bound)
+		xe_ggtt_clear(ggtt, node->start, node->size);
 	drm_mm_remove_node(node);
 	node->size = 0;
 	mutex_unlock(&ggtt->lock);
 
+	if (!bound)
+		return;
+
 	if (invalidate)
 		xe_ggtt_invalidate(ggtt);
 
-	xe_pm_runtime_put(tile_to_xe(ggtt->tile));
+	xe_pm_runtime_put(xe);
+	drm_dev_exit(idx);
 }
 
 void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
