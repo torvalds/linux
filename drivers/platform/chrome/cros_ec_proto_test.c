@@ -2740,4 +2740,5 @@ static struct kunit_suite cros_ec_proto_test_suite = {
 
 kunit_test_suite(cros_ec_proto_test_suite);
 
+MODULE_DESCRIPTION("Kunit tests for ChromeOS Embedded Controller protocol");
 MODULE_LICENSE("GPL");
