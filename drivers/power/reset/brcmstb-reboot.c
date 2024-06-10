@@ -140,7 +140,6 @@ static struct platform_driver brcmstb_reboot_driver = {
 
 static int __init brcmstb_reboot_init(void)
 {
-	return platform_driver_probe(&brcmstb_reboot_driver,
-					brcmstb_reboot_probe);
+	return platform_driver_register(&brcmstb_reboot_driver);
 }
 subsys_initcall(brcmstb_reboot_init);
