@@ -1515,7 +1515,6 @@ static int msm_geni_serial_power_on(struct uart_port *uport)
 		ret = pm_runtime_get_sync(uport->dev);
 		if (ret < 0) {
 			UART_LOG_DBG(port->ipc_log_pwr, uport->dev, "%s Err\n", __func__);
-			WARN_ON_ONCE(1);
 			pm_runtime_put_noidle(uport->dev);
 			pm_runtime_set_suspended(uport->dev);
 			return ret;
@@ -3119,11 +3118,9 @@ static int handle_rx_hs(struct uart_port *uport,
 
 	rx_char = (unsigned char *)msm_port->rx_fifo;
 	ret = tty_insert_flip_string(tport, rx_char, rx_bytes);
-	if (ret != rx_bytes) {
-		dev_err(uport->dev, "%s: ret %d rx_bytes %d\n", __func__,
-								ret, rx_bytes);
-		WARN_ON(1);
-	}
+	if (ret != rx_bytes)
+		dev_err(uport->dev, "%s: ret %d rx_bytes %d\n", __func__, ret, rx_bytes);
+
 	uport->icount.rx += ret;
 	tty_flip_buffer_push(tport);
 	dump_ipc(uport, msm_port->ipc_log_rx, "Rx", (char *)msm_port->rx_fifo, 0,
@@ -3381,7 +3378,6 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 					     __func__, cnt, rx_bytes);
 				msm_geni_update_uart_error_code(msm_port,
 								UART_ERROR_RX_TTY_INSERT_FAIL);
-				WARN_ON_ONCE(1);
 				break;
 			}
 			offset += cnt;
@@ -3621,11 +3617,8 @@ static bool handle_rx_dma_xfer(u32 s_irq_status, struct uart_port *uport)
 
 		if (dma_rx_status & RX_SBE) {
 			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
-				     "%s dma_rx_status:0x%x\n", __func__,
-				     dma_rx_status);
-			msm_geni_update_uart_error_code(msm_port,
-							UART_ERROR_RX_SBE_ERROR);
-			WARN_ON(1);
+				     "%s dma_rx_status:0x%x\n", __func__, dma_rx_status);
+			msm_geni_update_uart_error_code(msm_port, UART_ERROR_RX_SBE_ERROR);
 		}
 
 		if (dma_rx_status & (RX_EOT | RX_GENI_CANCEL_IRQ | RX_DMA_DONE))
@@ -3700,11 +3693,13 @@ static void msm_geni_serial_handle_isr(struct uart_port *uport,
 	if ((m_irq_status & M_ILLEGAL_CMD_EN)) {
 		if (uart_console(uport))
 			IPC_LOG_MSG(msm_port->console_log,
-				"%s.Illegal interrupt. sirq 0x%x mirq:0x%x\n",
-				 __func__, s_irq_status, m_irq_status);
+				    "%s Illegal interrupt sirq:0x%x mirq:0x%x\n",
+				    __func__, s_irq_status, m_irq_status);
 		else {
 			msm_geni_update_uart_error_code(msm_port, UART_ERROR_ILLEGAL_INTERRUPT);
-			WARN_ON(1);
+			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
+				     "%s Illegal interrupt sirq:0x%x mirq:0x%x\n",
+				     __func__, s_irq_status, m_irq_status);
 		}
 		goto exit_geni_serial_isr;
 	}
@@ -3842,7 +3837,6 @@ static irqreturn_t msm_geni_wakeup_isr(int isr, void *dev)
 	if (!tty) {
 		UART_LOG_DBG(port->ipc_log_rx, uport->dev,
 			     "%s: Unexpected wakeup ISR\n", __func__);
-		WARN_ON(1);
 		spin_unlock_irqrestore(&uport->lock, flags);
 		return IRQ_HANDLED;
 	}
@@ -4444,7 +4438,6 @@ static int msm_geni_serial_config_baud_rate(struct uart_port *uport,
 		dev_err(uport->dev, "Error setting clock rate\n");
 		UART_LOG_DBG(port->ipc_log_misc, uport->dev,
 			     "%s: SE clock set_rate error:%d\n", __func__, ret);
-		WARN_ON(1);
 	}
 	ser_clk_cfg |= SER_CLK_EN;
 	ser_clk_cfg |= (clk_div << CLK_DIV_SHFT);
