@@ -1187,10 +1187,13 @@ static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 	return 0;
 }
 
-static void intel_dp_schedule_fallback_link_training(struct intel_dp *intel_dp,
+/* NOTE: @state is only valid for MST links and can be %NULL for SST. */
+static void intel_dp_schedule_fallback_link_training(struct intel_atomic_state *state,
+						     struct intel_dp *intel_dp,
 						     const struct intel_crtc_state *crtc_state)
 {
-	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
 	if (!intel_digital_port_connected(&dp_to_dig_port(intel_dp)->base)) {
 		lt_dbg(intel_dp, DP_PHY_DPRX, "Link Training failed on disconnected sink.\n");
@@ -1205,8 +1208,13 @@ static void intel_dp_schedule_fallback_link_training(struct intel_dp *intel_dp,
 		return;
 	}
 
+	if (drm_WARN_ON(&i915->drm,
+			intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
+			!state))
+		return;
+
 	/* Schedule a Hotplug Uevent to userspace to start modeset */
-	intel_dp_queue_modeset_retry_work(intel_connector);
+	intel_dp_queue_modeset_retry_for_link(state, encoder, crtc_state);
 }
 
 /* Perform the link training on all LTTPRs and the DPRX on a link. */
@@ -1525,7 +1533,7 @@ void intel_dp_start_link_train(struct intel_atomic_state *state,
 		return;
 	}
 
-	intel_dp_schedule_fallback_link_training(intel_dp, crtc_state);
+	intel_dp_schedule_fallback_link_training(state, intel_dp, crtc_state);
 }
 
 void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,

@@ -44,7 +44,6 @@ bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state);
 int intel_dp_min_bpp(enum intel_output_format output_format);
 void intel_dp_init_modeset_retry_work(struct intel_connector *connector);
-void intel_dp_queue_modeset_retry_work(struct intel_connector *connector);
 void
 intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
 				      struct intel_encoder *encoder,
