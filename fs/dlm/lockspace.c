@@ -412,8 +412,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	 */
 	ls->ls_exflags = (flags & ~(DLM_LSFL_FS | DLM_LSFL_NEWEXCL));
 
-	INIT_LIST_HEAD(&ls->ls_toss);
-	INIT_LIST_HEAD(&ls->ls_keep);
+	INIT_LIST_HEAD(&ls->ls_slow_inactive);
+	INIT_LIST_HEAD(&ls->ls_slow_active);
 	rwlock_init(&ls->ls_rsbtbl_lock);
 
 	error = rhashtable_init(&ls->ls_rsbtbl, &dlm_rhash_rsb_params);
@@ -490,10 +490,9 @@ static int new_lockspace(const char *name, const char *cluster,
 	INIT_LIST_HEAD(&ls->ls_dir_dump_list);
 	rwlock_init(&ls->ls_dir_dump_lock);
 
-	INIT_LIST_HEAD(&ls->ls_toss_q);
-	spin_lock_init(&ls->ls_toss_q_lock);
-	timer_setup(&ls->ls_timer, dlm_rsb_toss_timer,
-		    TIMER_DEFERRABLE);
+	INIT_LIST_HEAD(&ls->ls_scan_list);
+	spin_lock_init(&ls->ls_scan_lock);
+	timer_setup(&ls->ls_scan_timer, dlm_rsb_scan, TIMER_DEFERRABLE);
 
 	spin_lock_bh(&lslist_lock);
 	ls->ls_create_count = 1;
@@ -723,7 +722,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	 * time_shutdown_sync(), we don't care anymore
 	 */
 	clear_bit(LSFL_RUNNING, &ls->ls_flags);
-	timer_shutdown_sync(&ls->ls_timer);
+	timer_shutdown_sync(&ls->ls_scan_timer);
 
 	if (ls_count == 1) {
 		dlm_clear_members(ls);

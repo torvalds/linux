@@ -882,29 +882,26 @@ void dlm_recover_rsbs(struct dlm_ls *ls, const struct list_head *root_list)
 		log_rinfo(ls, "dlm_recover_rsbs %d done", count);
 }
 
-/* Create a single list of all root rsb's to be used during recovery */
-
-void dlm_clear_toss(struct dlm_ls *ls)
+void dlm_clear_inactive(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r, *safe;
 	unsigned int count = 0;
 
 	write_lock_bh(&ls->ls_rsbtbl_lock);
-	list_for_each_entry_safe(r, safe, &ls->ls_toss, res_rsbs_list) {
-		list_del(&r->res_rsbs_list);
+	list_for_each_entry_safe(r, safe, &ls->ls_slow_inactive, res_slow_list) {
+		list_del(&r->res_slow_list);
 		rhashtable_remove_fast(&ls->ls_rsbtbl, &r->res_node,
 				       dlm_rhash_rsb_params);
 
-		/* remove it from the toss queue if its part of it */
-		if (!list_empty(&r->res_toss_q_list))
-			list_del_init(&r->res_toss_q_list);
+		if (!list_empty(&r->res_scan_list))
+			list_del_init(&r->res_scan_list);
 
-		free_toss_rsb(r);
+		free_inactive_rsb(r);
 		count++;
 	}
 	write_unlock_bh(&ls->ls_rsbtbl_lock);
 
 	if (count)
-		log_rinfo(ls, "dlm_clear_toss %u done", count);
+		log_rinfo(ls, "dlm_clear_inactive %u done", count);
 }
 

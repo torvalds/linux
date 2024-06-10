@@ -327,11 +327,11 @@ struct dlm_rsb {
 	struct list_head	res_convertqueue;
 	struct list_head	res_waitqueue;
 
-	struct list_head	res_rsbs_list;
+	struct list_head	res_slow_list;      /* ls_slow_* */
+	struct list_head	res_scan_list;
 	struct list_head	res_root_list;	    /* used for recovery */
 	struct list_head	res_masters_list;   /* used for recovery */
 	struct list_head	res_recover_list;   /* used for recovery */
-	struct list_head	res_toss_q_list;
 	int			res_recover_locks_count;
 
 	char			*res_lvbptr;
@@ -365,7 +365,7 @@ enum rsb_flags {
 	RSB_RECOVER_CONVERT,
 	RSB_RECOVER_GRANT,
 	RSB_RECOVER_LVB_INVAL,
-	RSB_TOSS,
+	RSB_INACTIVE,
 };
 
 static inline void rsb_set_flag(struct dlm_rsb *r, enum rsb_flags flag)
@@ -572,20 +572,16 @@ struct dlm_ls {
 	struct xarray		ls_lkbxa;
 	rwlock_t		ls_lkbxa_lock;
 
+	/* an rsb is on rsbtl for primary locking functions,
+	   and on a slow list for recovery/dump iteration  */
 	struct rhashtable	ls_rsbtbl;
-	rwlock_t		ls_rsbtbl_lock;
+	rwlock_t		ls_rsbtbl_lock; /* for ls_rsbtbl and ls_slow */
+	struct list_head	ls_slow_inactive; /* to iterate rsbtbl */
+	struct list_head	ls_slow_active;   /* to iterate rsbtbl */
 
-	struct list_head	ls_toss;
-	struct list_head	ls_keep;
-
-	struct timer_list	ls_timer;
-	/* this queue is ordered according the
-	 * absolute res_toss_time jiffies time
-	 * to mod_timer() with the first element
-	 * if necessary.
-	 */
-	struct list_head	ls_toss_q;
-	spinlock_t		ls_toss_q_lock;
+	struct timer_list	ls_scan_timer; /* based on first scan_list rsb toss_time */
+	struct list_head	ls_scan_list;  /* rsbs ordered by res_toss_time */
+	spinlock_t		ls_scan_lock;
 
 	spinlock_t		ls_waiters_lock;
 	struct list_head	ls_waiters;	/* lkbs needing a reply */
