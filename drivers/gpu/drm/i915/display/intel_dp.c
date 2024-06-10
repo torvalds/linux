@@ -5164,6 +5164,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc;
+	bool mst_output = false;
 	u8 pipe_mask;
 	int ret;
 
@@ -5195,6 +5196,11 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
+		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
+			mst_output = true;
+			break;
+		}
+
 		/* Suppress underruns caused by re-training */
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
 		if (crtc_state->has_pch_encoder)
@@ -5202,15 +5208,22 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 							      intel_crtc_pch_transcoder(crtc), false);
 	}
 
+	/* TODO: use a modeset for SST as well. */
+	if (mst_output) {
+		ret = intel_modeset_commit_pipes(dev_priv, pipe_mask, ctx);
+
+		if (ret && ret != -EDEADLK)
+			drm_dbg_kms(&dev_priv->drm,
+				    "[ENCODER:%d:%s] link retraining failed: %pe\n",
+				    encoder->base.base.id, encoder->base.name,
+				    ERR_PTR(ret));
+
+		return ret;
+	}
+
 	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
-
-		/* retrain on the MST master transcoder */
-		if (DISPLAY_VER(dev_priv) >= 12 &&
-		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
-		    !intel_dp_mst_is_master_trans(crtc_state))
-			continue;
 
 		intel_dp_check_frl_training(intel_dp);
 		intel_dp_pcon_dsc_configure(intel_dp, crtc_state);
