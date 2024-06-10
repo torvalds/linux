@@ -1189,6 +1189,20 @@ static int alvium_set_frame_rate(struct alvium_dev *alvium, u64 fr)
 	struct device *dev = &alvium->i2c_client->dev;
 	int ret;
 
+	ret = alvium_write_hshake(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_EN_RW,
+				  1);
+	if (ret) {
+		dev_err(dev, "Fail to set acquisition frame rate enable reg\n");
+		return ret;
+	}
+
+	ret = alvium_write_hshake(alvium, REG_BCRM_FRAME_START_TRIGGER_MODE_RW,
+				  0);
+	if (ret) {
+		dev_err(dev, "Fail to set frame start trigger mode reg\n");
+		return ret;
+	}
+
 	ret = alvium_write_hshake(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_RW,
 				  fr);
 	if (ret) {
