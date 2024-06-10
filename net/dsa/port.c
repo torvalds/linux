@@ -1467,9 +1467,33 @@ int dsa_port_change_conduit(struct dsa_port *dp, struct net_device *conduit,
 	 */
 	dsa_user_unsync_ha(dev);
 
+	/* If live-changing, we also need to uninstall the user device address
+	 * from the port FDB and the conduit interface.
+	 */
+	if (dev->flags & IFF_UP)
+		dsa_user_host_uc_uninstall(dev);
+
 	err = dsa_port_assign_conduit(dp, conduit, extack, true);
 	if (err)
 		goto rewind_old_addrs;
+
+	/* If the port doesn't have its own MAC address and relies on the DSA
+	 * conduit's one, inherit it again from the new DSA conduit.
+	 */
+	if (is_zero_ether_addr(dp->mac))
+		eth_hw_addr_inherit(dev, conduit);
+
+	/* If live-changing, we need to install the user device address to the
+	 * port FDB and the conduit interface.
+	 */
+	if (dev->flags & IFF_UP) {
+		err = dsa_user_host_uc_install(dev, dev->dev_addr);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Failed to install host UC address");
+			goto rewind_addr_inherit;
+		}
+	}
 
 	dsa_user_sync_ha(dev);
 
@@ -1500,10 +1524,26 @@ rewind_new_vlan:
 rewind_new_addrs:
 	dsa_user_unsync_ha(dev);
 
+	if (dev->flags & IFF_UP)
+		dsa_user_host_uc_uninstall(dev);
+
+rewind_addr_inherit:
+	if (is_zero_ether_addr(dp->mac))
+		eth_hw_addr_inherit(dev, old_conduit);
+
 	dsa_port_assign_conduit(dp, old_conduit, NULL, false);
 
 /* Restore the objects on the old CPU port */
 rewind_old_addrs:
+	if (dev->flags & IFF_UP) {
+		tmp = dsa_user_host_uc_install(dev, dev->dev_addr);
+		if (tmp) {
+			dev_err(ds->dev,
+				"port %d failed to restore host UC address: %pe\n",
+				dp->index, ERR_PTR(tmp));
+		}
+	}
+
 	dsa_user_sync_ha(dev);
 
 	if (vlan_filtering) {
