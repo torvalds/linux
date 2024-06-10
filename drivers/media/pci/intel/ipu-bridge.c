@@ -47,6 +47,12 @@
  * Please keep the list sorted by ACPI HID.
  */
 static const struct ipu_sensor_config ipu_supported_sensors[] = {
+	/* Himax HM11B1 */
+	IPU_SENSOR_CONFIG("HIMX11B1", 1, 384000000),
+	/* Himax HM2170 */
+	IPU_SENSOR_CONFIG("HIMX2170", 1, 384000000),
+	/* Himax HM2172 */
+	IPU_SENSOR_CONFIG("HIMX2172", 1, 384000000),
 	/* GalaxyCore GC0310 */
 	IPU_SENSOR_CONFIG("INT0310", 0),
 	/* Omnivision OV5693 */
@@ -59,14 +65,24 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	IPU_SENSOR_CONFIG("INT347E", 1, 319200000),
 	/* Hynix Hi-556 */
 	IPU_SENSOR_CONFIG("INT3537", 1, 437000000),
-	/* Omnivision OV01A10 */
+	/* Omnivision OV01A10 / OV01A1S */
 	IPU_SENSOR_CONFIG("OVTI01A0", 1, 400000000),
+	IPU_SENSOR_CONFIG("OVTI01AS", 1, 400000000),
+	/* Omnivision OV02C10 */
+	IPU_SENSOR_CONFIG("OVTI02C1", 1, 400000000),
+	/* Omnivision OV02E10 */
+	IPU_SENSOR_CONFIG("OVTI02E1", 1, 360000000),
+	/* Omnivision OV08A10 */
+	IPU_SENSOR_CONFIG("OVTI08A1", 1, 500000000),
+	/* Omnivision OV08x40 */
+	IPU_SENSOR_CONFIG("OVTI08F4", 1, 400000000),
+	/* Omnivision OV13B10 */
+	IPU_SENSOR_CONFIG("OVTI13B1", 1, 560000000),
+	IPU_SENSOR_CONFIG("OVTIDB10", 1, 560000000),
 	/* Omnivision OV2680 */
 	IPU_SENSOR_CONFIG("OVTI2680", 1, 331200000),
 	/* Omnivision OV8856 */
 	IPU_SENSOR_CONFIG("OVTI8856", 3, 180000000, 360000000, 720000000),
-	/* Omnivision OV13B10 */
-	IPU_SENSOR_CONFIG("OVTIDB10", 1, 560000000),
 };
 
 static const struct ipu_property_names prop_names = {
