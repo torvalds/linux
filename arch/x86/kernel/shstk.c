@@ -588,3 +588,8 @@ int shstk_update_last_frame(unsigned long val)
 	ssp = get_user_shstk_addr();
 	return write_user_shstk_64((u64 __user *)ssp, (u64)val);
 }
+
+bool shstk_is_enabled(void)
+{
+	return features_enabled(ARCH_SHSTK_SHSTK);
+}
