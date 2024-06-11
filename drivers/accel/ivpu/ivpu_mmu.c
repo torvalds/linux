@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <linux/circ_buf.h>
@@ -878,8 +878,9 @@ static void ivpu_mmu_dump_event(struct ivpu_device *vdev, u32 *event)
 	u64 in_addr = ((u64)event[5]) << 32 | event[4];
 	u32 sid = event[1];
 
-	ivpu_err(vdev, "MMU EVTQ: 0x%x (%s) SSID: %d SID: %d, e[2] %08x, e[3] %08x, in addr: 0x%llx, fetch addr: 0x%llx\n",
-		 op, ivpu_mmu_event_to_str(op), ssid, sid, event[2], event[3], in_addr, fetch_addr);
+	ivpu_err_ratelimited(vdev, "MMU EVTQ: 0x%x (%s) SSID: %d SID: %d, e[2] %08x, e[3] %08x, in addr: 0x%llx, fetch addr: 0x%llx\n",
+			     op, ivpu_mmu_event_to_str(op), ssid, sid,
+			     event[2], event[3], in_addr, fetch_addr);
 }
 
 static u32 *ivpu_mmu_get_event(struct ivpu_device *vdev)
@@ -915,6 +916,9 @@ void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 		ivpu_mmu_user_context_mark_invalid(vdev, ssid);
 		REGV_WR32(IVPU_MMU_REG_EVTQ_CONS_SEC, vdev->mmu->evtq.cons);
 	}
+
+	if (!kfifo_put(&vdev->hw->irq.fifo, IVPU_HW_IRQ_SRC_MMU_EVTQ))
+		ivpu_err_ratelimited(vdev, "IRQ FIFO full\n");
 }
 
 void ivpu_mmu_evtq_dump(struct ivpu_device *vdev)

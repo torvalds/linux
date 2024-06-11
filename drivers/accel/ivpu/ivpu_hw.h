@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020 - 2024 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __IVPU_HW_H__
@@ -15,6 +15,7 @@
 #define IVPU_HW_IRQ_FIFO_LENGTH 1024
 
 #define IVPU_HW_IRQ_SRC_IPC 1
+#define IVPU_HW_IRQ_SRC_MMU_EVTQ 2
 
 struct ivpu_addr_range {
 	resource_size_t start;

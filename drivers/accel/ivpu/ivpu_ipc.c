@@ -210,8 +210,7 @@ void ivpu_ipc_consumer_del(struct ivpu_device *vdev, struct ivpu_ipc_consumer *c
 	ivpu_ipc_tx_release(vdev, cons->tx_vpu_addr);
 }
 
-static int
-ivpu_ipc_send(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons, struct vpu_jsm_msg *req)
+int ivpu_ipc_send(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons, struct vpu_jsm_msg *req)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	int ret;

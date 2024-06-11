@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <drm/drm_file.h>
@@ -310,6 +310,33 @@ void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev)
 		ivpu_cmdq_reset(file_priv);
 
 	mutex_unlock(&vdev->context_list_lock);
+}
+
+static void ivpu_cmdq_fini_all(struct ivpu_file_priv *file_priv)
+{
+	u16 engine;
+	u8 priority;
+
+	for (engine = 0; engine < IVPU_NUM_ENGINES; engine++) {
+		for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++) {
+			int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
+
+			if (file_priv->cmdq[cmdq_idx])
+				ivpu_cmdq_fini(file_priv, file_priv->cmdq[cmdq_idx]);
+		}
+	}
+}
+
+void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv)
+{
+	struct ivpu_device *vdev = file_priv->vdev;
+
+	lockdep_assert_held(&file_priv->lock);
+
+	ivpu_cmdq_fini_all(file_priv);
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_OS)
+		ivpu_jsm_context_release(vdev, file_priv->ctx.id);
 }
 
 static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)

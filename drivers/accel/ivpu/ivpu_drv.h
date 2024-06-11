@@ -169,6 +169,7 @@ struct ivpu_file_priv {
 	struct ivpu_bo *ms_info_bo;
 	bool has_mmu_faults;
 	bool bound;
+	bool aborted;
 };
 
 extern int ivpu_dbg_mask;

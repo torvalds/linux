@@ -255,11 +255,16 @@ int ivpu_jsm_context_release(struct ivpu_device *vdev, u32 host_ssid)
 {
 	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_SSID_RELEASE };
 	struct vpu_jsm_msg resp;
+	int ret;
 
 	req.payload.ssid_release.host_ssid = host_ssid;
 
-	return ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_SSID_RELEASE_DONE, &resp,
-				     VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_SSID_RELEASE_DONE, &resp,
+				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	if (ret)
+		ivpu_warn_ratelimited(vdev, "Failed to release context: %d\n", ret);
+
+	return ret;
 }
 
 int ivpu_jsm_pwr_d0i3_enter(struct ivpu_device *vdev)
