@@ -61,7 +61,8 @@ static void wa_init(struct ivpu_device *vdev)
 	if (ivpu_hw_btrs_gen(vdev) == IVPU_HW_BTRS_MTL)
 		vdev->wa.interrupt_clear_with_0 = ivpu_hw_btrs_irqs_clear_with_0_mtl(vdev);
 
-	if (ivpu_device_id(vdev) == PCI_DEVICE_ID_LNL)
+	if (ivpu_device_id(vdev) == PCI_DEVICE_ID_LNL &&
+	    ivpu_revision(vdev) < IVPU_HW_IP_REV_LNL_B0)
 		vdev->wa.disable_clock_relinquish = true;
 
 	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX)
