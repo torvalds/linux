@@ -3372,7 +3372,7 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 static struct ath12k*
 ath12k_mac_select_scan_device(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      struct ieee80211_scan_request *req)
+			      u32 center_freq)
 {
 	struct ath12k_hw *ah = hw->priv;
 	enum nl80211_band band;
@@ -3389,9 +3389,9 @@ ath12k_mac_select_scan_device(struct ieee80211_hw *hw,
 	 * split the hw request and perform multiple scans
 	 */
 
-	if (req->req.channels[0]->center_freq < ATH12K_MIN_5G_FREQ)
+	if (center_freq < ATH12K_MIN_5G_FREQ)
 		band = NL80211_BAND_2GHZ;
-	else if (req->req.channels[0]->center_freq < ATH12K_MIN_6G_FREQ)
+	else if (center_freq < ATH12K_MIN_6G_FREQ)
 		band = NL80211_BAND_5GHZ;
 	else
 		band = NL80211_BAND_6GHZ;
@@ -3591,7 +3591,7 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 	/* Since the targeted scan device could depend on the frequency
 	 * requested in the hw_req, select the corresponding radio
 	 */
-	ar = ath12k_mac_select_scan_device(hw, vif, hw_req);
+	ar = ath12k_mac_select_scan_device(hw, vif, hw_req->req.channels[0]->center_freq);
 	if (!ar)
 		return -EINVAL;
 
@@ -8416,12 +8416,68 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k_wmi_scan_req_arg arg;
-	struct ath12k *ar;
+	struct ath12k *ar, *prev_ar;
 	u32 scan_time_msec;
+	bool create = true;
 	int ret;
 
-	ar = ath12k_ah_to_ar(ah, 0);
+	if (ah->num_radio == 1) {
+		WARN_ON(!arvif->is_created);
+		ar = ath12k_ah_to_ar(ah, 0);
+		goto scan;
+	}
 
+	ar = ath12k_mac_select_scan_device(hw, vif, chan->center_freq);
+	if (!ar)
+		return -EINVAL;
+
+	/* If the vif is already assigned to a specific vdev of an ar,
+	 * check whether its already started, vdev which is started
+	 * are not allowed to switch to a new radio.
+	 * If the vdev is not started, but was earlier created on a
+	 * different ar, delete that vdev and create a new one. We don't
+	 * delete at the scan stop as an optimization to avoid redundant
+	 * delete-create vdev's for the same ar, in case the request is
+	 * always on the same band for the vif
+	 */
+	if (arvif->is_created) {
+		if (WARN_ON(!arvif->ar))
+			return -EINVAL;
+
+		if (ar != arvif->ar && arvif->is_started)
+			return -EBUSY;
+
+		if (ar != arvif->ar) {
+			/* backup the previously used ar ptr, since the vdev delete
+			 * would assign the arvif->ar to NULL after the call
+			 */
+			prev_ar = arvif->ar;
+			mutex_lock(&prev_ar->conf_mutex);
+			ret = ath12k_mac_vdev_delete(prev_ar, vif);
+			mutex_unlock(&prev_ar->conf_mutex);
+			if (ret) {
+				ath12k_warn(prev_ar->ab,
+					    "unable to delete scan vdev for roc: %d\n",
+					    ret);
+				return ret;
+			}
+		} else {
+			create = false;
+		}
+	}
+
+	if (create) {
+		mutex_lock(&ar->conf_mutex);
+		ret = ath12k_mac_vdev_create(ar, vif);
+		mutex_unlock(&ar->conf_mutex);
+		if (ret) {
+			ath12k_warn(ar->ab, "unable to create scan vdev for roc: %d\n",
+				    ret);
+			return -EINVAL;
+		}
+	}
+
+scan:
 	mutex_lock(&ar->conf_mutex);
 	spin_lock_bh(&ar->data_lock);
 
