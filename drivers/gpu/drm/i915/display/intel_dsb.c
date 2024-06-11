@@ -434,7 +434,8 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 
 /**
  * intel_dsb_prepare() - Allocate, pin and map the DSB command buffer.
- * @crtc_state: the CRTC state
+ * @state: the atomic state
+ * @crtc: the CRTC
  * @dsb_id: the DSB engine to use
  * @max_cmds: number of commands we need to fit into command buffer
  *
@@ -444,12 +445,14 @@ void intel_dsb_wait(struct intel_dsb *dsb)
  * Returns:
  * DSB context, NULL on failure
  */
-struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
+struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc,
 				    enum intel_dsb_id dsb_id,
 				    unsigned int max_cmds)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	intel_wakeref_t wakeref;
 	struct intel_dsb *dsb;
 	unsigned int size;
