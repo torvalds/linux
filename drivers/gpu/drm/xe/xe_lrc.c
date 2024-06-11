@@ -652,6 +652,7 @@ u32 xe_lrc_pphwsp_offset(struct xe_lrc *lrc)
 
 #define LRC_SEQNO_PPHWSP_OFFSET 512
 #define LRC_START_SEQNO_PPHWSP_OFFSET (LRC_SEQNO_PPHWSP_OFFSET + 8)
+#define LRC_CTX_JOB_TIMESTAMP_OFFSET (LRC_START_SEQNO_PPHWSP_OFFSET + 8)
 #define LRC_PARALLEL_PPHWSP_OFFSET 2048
 #define LRC_PPHWSP_SIZE SZ_4K
 
@@ -680,6 +681,12 @@ static inline u32 __xe_lrc_start_seqno_offset(struct xe_lrc *lrc)
 	return xe_lrc_pphwsp_offset(lrc) + LRC_START_SEQNO_PPHWSP_OFFSET;
 }
 
+static u32 __xe_lrc_ctx_job_timestamp_offset(struct xe_lrc *lrc)
+{
+	/* The start seqno is stored in the driver-defined portion of PPHWSP */
+	return xe_lrc_pphwsp_offset(lrc) + LRC_CTX_JOB_TIMESTAMP_OFFSET;
+}
+
 static inline u32 __xe_lrc_parallel_offset(struct xe_lrc *lrc)
 {
 	/* The parallel is stored in the driver-defined portion of PPHWSP */
@@ -689,6 +696,11 @@ static inline u32 __xe_lrc_parallel_offset(struct xe_lrc *lrc)
 static inline u32 __xe_lrc_regs_offset(struct xe_lrc *lrc)
 {
 	return xe_lrc_pphwsp_offset(lrc) + LRC_PPHWSP_SIZE;
+}
+
+static u32 __xe_lrc_ctx_timestamp_offset(struct xe_lrc *lrc)
+{
+	return __xe_lrc_regs_offset(lrc) + CTX_TIMESTAMP * sizeof(u32);
 }
 
 static inline u32 __xe_lrc_indirect_ring_offset(struct xe_lrc *lrc)
@@ -716,10 +728,64 @@ DECL_MAP_ADDR_HELPERS(pphwsp)
 DECL_MAP_ADDR_HELPERS(seqno)
 DECL_MAP_ADDR_HELPERS(regs)
 DECL_MAP_ADDR_HELPERS(start_seqno)
+DECL_MAP_ADDR_HELPERS(ctx_job_timestamp)
+DECL_MAP_ADDR_HELPERS(ctx_timestamp)
 DECL_MAP_ADDR_HELPERS(parallel)
 DECL_MAP_ADDR_HELPERS(indirect_ring)
 
 #undef DECL_MAP_ADDR_HELPERS
+
+/**
+ * xe_lrc_ctx_timestamp_ggtt_addr() - Get ctx timestamp GGTT address
+ * @lrc: Pointer to the lrc.
+ *
+ * Returns: ctx timestamp GGTT address
+ */
+u32 xe_lrc_ctx_timestamp_ggtt_addr(struct xe_lrc *lrc)
+{
+	return __xe_lrc_ctx_timestamp_ggtt_addr(lrc);
+}
+
+/**
+ * xe_lrc_ctx_timestamp() - Read ctx timestamp value
+ * @lrc: Pointer to the lrc.
+ *
+ * Returns: ctx timestamp value
+ */
+u32 xe_lrc_ctx_timestamp(struct xe_lrc *lrc)
+{
+	struct xe_device *xe = lrc_to_xe(lrc);
+	struct iosys_map map;
+
+	map = __xe_lrc_ctx_timestamp_map(lrc);
+	return xe_map_read32(xe, &map);
+}
+
+/**
+ * xe_lrc_ctx_job_timestamp_ggtt_addr() - Get ctx job timestamp GGTT address
+ * @lrc: Pointer to the lrc.
+ *
+ * Returns: ctx timestamp job GGTT address
+ */
+u32 xe_lrc_ctx_job_timestamp_ggtt_addr(struct xe_lrc *lrc)
+{
+	return __xe_lrc_ctx_job_timestamp_ggtt_addr(lrc);
+}
+
+/**
+ * xe_lrc_ctx_job_timestamp() - Read ctx job timestamp value
+ * @lrc: Pointer to the lrc.
+ *
+ * Returns: ctx timestamp job value
+ */
+u32 xe_lrc_ctx_job_timestamp(struct xe_lrc *lrc)
+{
+	struct xe_device *xe = lrc_to_xe(lrc);
+	struct iosys_map map;
+
+	map = __xe_lrc_ctx_job_timestamp_map(lrc);
+	return xe_map_read32(xe, &map);
+}
 
 u32 xe_lrc_ggtt_addr(struct xe_lrc *lrc)
 {
@@ -1659,11 +1725,21 @@ void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot)
 	kfree(snapshot);
 }
 
+/**
+ * xe_lrc_update_timestamp() - Update ctx timestamp
+ * @lrc: Pointer to the lrc.
+ * @old_ts: Old timestamp value
+ *
+ * Populate @old_ts current saved ctx timestamp, read new ctx timestamp and
+ * update saved value.
+ *
+ * Returns: New ctx timestamp value
+ */
 u32 xe_lrc_update_timestamp(struct xe_lrc *lrc, u32 *old_ts)
 {
 	*old_ts = lrc->ctx_timestamp;
 
-	lrc->ctx_timestamp = xe_lrc_read_ctx_reg(lrc, CTX_TIMESTAMP);
+	lrc->ctx_timestamp = xe_lrc_ctx_timestamp(lrc);
 
 	return lrc->ctx_timestamp;
 }
