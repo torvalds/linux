@@ -227,7 +227,9 @@ static struct bch_inode_info *__bch2_new_inode(struct bch_fs *c)
 	mutex_init(&inode->ei_update_lock);
 	two_state_lock_init(&inode->ei_pagecache_lock);
 	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
+	inode->ei_flags = 0;
 	mutex_init(&inode->ei_quota_lock);
+	memset(&inode->ei_devs_need_flush, 0, sizeof(inode->ei_devs_need_flush));
 	inode->v.i_state = 0;
 
 	if (unlikely(inode_init_always(c->vfs_sb, &inode->v))) {
