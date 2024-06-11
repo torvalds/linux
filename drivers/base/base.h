@@ -175,8 +175,8 @@ static inline void dev_sync_state(struct device *dev)
 		dev->driver->sync_state(dev);
 }
 
-int driver_add_groups(struct device_driver *drv, const struct attribute_group **groups);
-void driver_remove_groups(struct device_driver *drv, const struct attribute_group **groups);
+int driver_add_groups(const struct device_driver *drv, const struct attribute_group **groups);
+void driver_remove_groups(const struct device_driver *drv, const struct attribute_group **groups);
 void device_driver_detach(struct device *dev);
 
 int devres_release_all(struct device *dev);
