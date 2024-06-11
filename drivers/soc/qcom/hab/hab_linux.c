@@ -58,7 +58,22 @@ static int hab_open(struct inode *inodep, struct file *filep)
 		return -ENOMEM;
 	}
 
-	ctx->owner = task_pid_nr(current);
+	/*
+	 * w/ the /dev/hab node split feature, when one single process
+	 * using different threads to call habmm_socket_open() w/ different
+	 * MMIDs from different MMID groups, we can know those different
+	 * uhab_context are belonging to the same process.
+	 *
+	 * even if w/o /dev/hab node split feature, there will be a case where
+	 * a child thread is responsible for managing habmm_socket_open/close,
+	 * and other child threads use vcid for communication.
+	 * If ctx->owner is pid, then context_stat will display the pid of the child thread.
+	 * This is not what we want. We hope that context_stat will display the
+	 * thread group id of the process, not the pid of a child thread.
+	 * Because the threa group id often has more information
+	 * for us to analyze and debug.
+	 */
+	ctx->owner = task_tgid_nr(current);
 	ctx->mmid_grp_index = MINOR(inodep->i_rdev);
 
 	filep->private_data = ctx;
