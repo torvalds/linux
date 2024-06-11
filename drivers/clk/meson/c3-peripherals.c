@@ -2359,7 +2359,8 @@ static struct platform_driver c3_peripherals_driver = {
 		.of_match_table = c3_peripherals_clkc_match_table,
 	},
 };
-
 module_platform_driver(c3_peripherals_driver);
+
+MODULE_DESCRIPTION("Amlogic C3 Peripherals Clock Controller driver");
 MODULE_AUTHOR("Chuan Liu <chuan.liu@amlogic.com>");
 MODULE_LICENSE("GPL");

@@ -2240,8 +2240,9 @@ static struct platform_driver a1_periphs_clkc_driver = {
 		.of_match_table = a1_periphs_clkc_match_table,
 	},
 };
-
 module_platform_driver(a1_periphs_clkc_driver);
+
+MODULE_DESCRIPTION("Amlogic A1 Peripherals Clock Controller driver");
 MODULE_AUTHOR("Jian Hu <jian.hu@amlogic.com>");
 MODULE_AUTHOR("Dmitry Rokosov <ddrokosov@sberdevices.ru>");
 MODULE_LICENSE("GPL");
