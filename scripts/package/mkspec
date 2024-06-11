@@ -24,7 +24,7 @@ fi
 cat<<EOF
 %define ARCH ${ARCH}
 %define KERNELRELEASE ${KERNELRELEASE}
-%define pkg_release $("${srctree}/init/build-version")
+%define pkg_release $("${srctree}/scripts/build-version")
 EOF
 
 cat "${srctree}/scripts/package/kernel.spec"
