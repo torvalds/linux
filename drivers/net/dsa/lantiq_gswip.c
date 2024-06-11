@@ -1413,7 +1413,7 @@ static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
 {
 	struct gswip_priv *priv = ds->priv;
 	struct gswip_pce_table_entry mac_bridge = {0,};
-	unsigned char addr[6];
+	unsigned char addr[ETH_ALEN];
 	int i;
 	int err;
 
