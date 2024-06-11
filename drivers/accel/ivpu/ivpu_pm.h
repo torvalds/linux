@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __IVPU_PM_H__
@@ -19,7 +19,6 @@ struct ivpu_pm_info {
 	atomic_t reset_counter;
 	atomic_t reset_pending;
 	bool is_warmboot;
-	u32 suspend_reschedule_counter;
 };
 
 void ivpu_pm_init(struct ivpu_device *vdev);

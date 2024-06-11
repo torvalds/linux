@@ -237,41 +237,34 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct ivpu_device *vdev = to_ivpu_device(drm);
-	bool hw_is_idle = true;
-	int ret;
+	int ret, ret_d0i3;
+	bool is_idle;
 
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));
 	drm_WARN_ON(&vdev->drm, work_pending(&vdev->pm->recovery_work));
 
 	ivpu_dbg(vdev, PM, "Runtime suspend..\n");
 
-	if (!ivpu_hw_is_idle(vdev) && vdev->pm->suspend_reschedule_counter) {
-		ivpu_dbg(vdev, PM, "Failed to enter idle, rescheduling suspend, retries left %d\n",
-			 vdev->pm->suspend_reschedule_counter);
-		pm_schedule_suspend(dev, vdev->timeout.reschedule_suspend);
-		vdev->pm->suspend_reschedule_counter--;
-		return -EAGAIN;
-	}
+	is_idle = ivpu_hw_is_idle(vdev);
+	if (!is_idle)
+		ivpu_err(vdev, "NPU is not idle before autosuspend\n");
 
-	if (!vdev->pm->suspend_reschedule_counter)
-		hw_is_idle = false;
-	else if (ivpu_jsm_pwr_d0i3_enter(vdev))
-		hw_is_idle = false;
+	ret_d0i3 = ivpu_jsm_pwr_d0i3_enter(vdev);
+	if (ret_d0i3)
+		ivpu_err(vdev, "Failed to prepare for d0i3: %d\n", ret_d0i3);
 
 	ret = ivpu_suspend(vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to suspend NPU: %d\n", ret);
 
-	if (!hw_is_idle) {
-		ivpu_err(vdev, "NPU failed to enter idle, force suspended.\n");
+	if (!is_idle || ret_d0i3) {
+		ivpu_err(vdev, "Forcing cold boot due to previous errors\n");
 		atomic_inc(&vdev->pm->reset_counter);
 		ivpu_fw_log_dump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
 		ivpu_pm_prepare_warm_boot(vdev);
 	}
-
-	vdev->pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
 
 	ivpu_dbg(vdev, PM, "Runtime suspend done.\n");
 
@@ -300,8 +293,7 @@ int ivpu_rpm_get(struct ivpu_device *vdev)
 	int ret;
 
 	ret = pm_runtime_resume_and_get(vdev->drm.dev);
-	if (!drm_WARN_ON(&vdev->drm, ret < 0))
-		vdev->pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
+	drm_WARN_ON(&vdev->drm, ret < 0);
 
 	return ret;
 }
@@ -365,7 +357,6 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 	int delay;
 
 	pm->vdev = vdev;
-	pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
 
 	init_rwsem(&pm->reset_lock);
 	atomic_set(&pm->reset_pending, 0);
