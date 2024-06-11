@@ -106,6 +106,7 @@ def define_anorak():
         "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/crypto-qti.ko",
         "drivers/soc/qcom/dcvs/bwmon.ko",
+        "drivers/soc/qcom/dcvs/bwprof.ko",
         "drivers/soc/qcom/dcvs/dcvs_fp.ko",
         "drivers/soc/qcom/dcvs/memlat.ko",
         "drivers/soc/qcom/dcvs/qcom-dcvs.ko",
