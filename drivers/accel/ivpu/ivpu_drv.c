@@ -58,11 +58,11 @@ module_param_named(sched_mode, ivpu_sched_mode, int, 0444);
 MODULE_PARM_DESC(sched_mode, "Scheduler mode: 0 - Default scheduler, 1 - Force HW scheduler");
 
 bool ivpu_disable_mmu_cont_pages;
-module_param_named(disable_mmu_cont_pages, ivpu_disable_mmu_cont_pages, bool, 0644);
+module_param_named(disable_mmu_cont_pages, ivpu_disable_mmu_cont_pages, bool, 0444);
 MODULE_PARM_DESC(disable_mmu_cont_pages, "Disable MMU contiguous pages optimization");
 
 bool ivpu_force_snoop;
-module_param_named(force_snoop, ivpu_force_snoop, bool, 0644);
+module_param_named(force_snoop, ivpu_force_snoop, bool, 0444);
 MODULE_PARM_DESC(force_snoop, "Force snooping for NPU host memory access");
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv)
