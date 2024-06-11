@@ -643,8 +643,11 @@ bool ivpu_hw_btrs_irq_handler_lnl(struct ivpu_device *vdev, int irq)
 	if (!status)
 		return false;
 
-	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, SURV_ERR, status))
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, SURV_ERR, status)) {
 		ivpu_dbg(vdev, IRQ, "Survivability IRQ\n");
+		if (!kfifo_put(&vdev->hw->irq.fifo, IVPU_HW_IRQ_SRC_DCT))
+			ivpu_err_ratelimited(vdev, "IRQ FIFO full\n");
+	}
 
 	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, FREQ_CHANGE, status))
 		ivpu_dbg(vdev, IRQ, "FREQ_CHANGE irq: %08x", REGB_RD32(VPU_HW_BTRS_LNL_PLL_FREQ));
@@ -694,21 +697,40 @@ bool ivpu_hw_btrs_irq_handler_lnl(struct ivpu_device *vdev, int irq)
 	return true;
 }
 
-static void dct_drive_40xx(struct ivpu_device *vdev, u32 dct_val)
+int ivpu_hw_btrs_dct_get_request(struct ivpu_device *vdev, bool *enable)
 {
-	u32 val = REGB_RD32(VPU_HW_BTRS_LNL_PCODE_MAILBOX);
+	u32 val = REGB_RD32(VPU_HW_BTRS_LNL_PCODE_MAILBOX_SHADOW);
+	u32 cmd = REG_GET_FLD(VPU_HW_BTRS_LNL_PCODE_MAILBOX_SHADOW, CMD, val);
+	u32 param1 = REG_GET_FLD(VPU_HW_BTRS_LNL_PCODE_MAILBOX_SHADOW, PARAM1, val);
 
-	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_PCODE_MAILBOX, CMD, DCT_REQ, val);
-	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_PCODE_MAILBOX, PARAM1,
-			      dct_val ? DCT_ENABLE : DCT_DISABLE, val);
-	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_PCODE_MAILBOX, PARAM2, dct_val, val);
+	if (cmd != DCT_REQ) {
+		ivpu_err_ratelimited(vdev, "Unsupported PCODE command: 0x%x\n", cmd);
+		return -EBADR;
+	}
 
-	REGB_WR32(VPU_HW_BTRS_LNL_PCODE_MAILBOX, val);
+	switch (param1) {
+	case DCT_ENABLE:
+		*enable = true;
+		return 0;
+	case DCT_DISABLE:
+		*enable = false;
+		return 0;
+	default:
+		ivpu_err_ratelimited(vdev, "Invalid PARAM1 value: %u\n", param1);
+		return -EINVAL;
+	}
 }
 
-void ivpu_hw_btrs_dct_drive(struct ivpu_device *vdev, u32 dct_val)
+void ivpu_hw_btrs_dct_set_status(struct ivpu_device *vdev, bool enable, u32 active_percent)
 {
-	return dct_drive_40xx(vdev, dct_val);
+	u32 val = 0;
+	u32 cmd = enable ? DCT_ENABLE : DCT_DISABLE;
+
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_PCODE_MAILBOX_STATUS, CMD, DCT_REQ, val);
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_PCODE_MAILBOX_STATUS, PARAM1, cmd, val);
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_PCODE_MAILBOX_STATUS, PARAM2, active_percent, val);
+
+	REGB_WR32(VPU_HW_BTRS_LNL_PCODE_MAILBOX_STATUS, val);
 }
 
 static u32 pll_ratio_to_freq_mtl(u32 ratio, u32 config)

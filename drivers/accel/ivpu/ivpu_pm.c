@@ -245,7 +245,7 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 
 	ivpu_dbg(vdev, PM, "Runtime suspend..\n");
 
-	is_idle = ivpu_hw_is_idle(vdev);
+	is_idle = ivpu_hw_is_idle(vdev) || vdev->pm->dct_active_percent;
 	if (!is_idle)
 		ivpu_err(vdev, "NPU is not idle before autosuspend\n");
 
@@ -396,4 +396,69 @@ void ivpu_pm_disable(struct ivpu_device *vdev)
 {
 	pm_runtime_get_noresume(vdev->drm.dev);
 	pm_runtime_forbid(vdev->drm.dev);
+}
+
+int ivpu_pm_dct_init(struct ivpu_device *vdev)
+{
+	if (vdev->pm->dct_active_percent)
+		return ivpu_pm_dct_enable(vdev, vdev->pm->dct_active_percent);
+
+	return 0;
+}
+
+int ivpu_pm_dct_enable(struct ivpu_device *vdev, u8 active_percent)
+{
+	u32 active_us, inactive_us;
+	int ret;
+
+	if (active_percent == 0 || active_percent > 100)
+		return -EINVAL;
+
+	active_us = (DCT_PERIOD_US * active_percent) / 100;
+	inactive_us = DCT_PERIOD_US - active_us;
+
+	ret = ivpu_jsm_dct_enable(vdev, active_us, inactive_us);
+	if (ret) {
+		ivpu_err_ratelimited(vdev, "Filed to enable DCT: %d\n", ret);
+		return ret;
+	}
+
+	vdev->pm->dct_active_percent = active_percent;
+
+	ivpu_dbg(vdev, PM, "DCT set to %u%% (D0: %uus, D0i2: %uus)\n",
+		 active_percent, active_us, inactive_us);
+	return 0;
+}
+
+int ivpu_pm_dct_disable(struct ivpu_device *vdev)
+{
+	int ret;
+
+	ret = ivpu_jsm_dct_disable(vdev);
+	if (ret) {
+		ivpu_err_ratelimited(vdev, "Filed to disable DCT: %d\n", ret);
+		return ret;
+	}
+
+	vdev->pm->dct_active_percent = 0;
+
+	ivpu_dbg(vdev, PM, "DCT disabled\n");
+	return 0;
+}
+
+void ivpu_pm_dct_irq_thread_handler(struct ivpu_device *vdev)
+{
+	bool enable;
+	int ret;
+
+	if (ivpu_hw_btrs_dct_get_request(vdev, &enable))
+		return;
+
+	if (vdev->pm->dct_active_percent)
+		ret = ivpu_pm_dct_enable(vdev, DCT_DEFAULT_ACTIVE_PERCENT);
+	else
+		ret = ivpu_pm_dct_disable(vdev);
+
+	if (!ret)
+		ivpu_hw_btrs_dct_set_status(vdev, enable, vdev->pm->dct_active_percent);
 }

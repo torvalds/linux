@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -381,6 +381,39 @@ static const struct file_operations ivpu_resume_engine_fops = {
 	.write = ivpu_resume_engine_fn,
 };
 
+static int dct_active_get(void *data, u64 *active_percent)
+{
+	struct ivpu_device *vdev = data;
+
+	*active_percent = vdev->pm->dct_active_percent;
+
+	return 0;
+}
+
+static int dct_active_set(void *data, u64 active_percent)
+{
+	struct ivpu_device *vdev = data;
+	int ret;
+
+	if (active_percent > 100)
+		return -EINVAL;
+
+	ret = ivpu_rpm_get(vdev);
+	if (ret)
+		return ret;
+
+	if (active_percent)
+		ret = ivpu_pm_dct_enable(vdev, active_percent);
+	else
+		ret = ivpu_pm_dct_disable(vdev);
+
+	ivpu_rpm_put(vdev);
+
+	return ret;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(ivpu_dct_fops, dct_active_get, dct_active_set, "%llu\n");
+
 void ivpu_debugfs_init(struct ivpu_device *vdev)
 {
 	struct dentry *debugfs_root = vdev->drm.debugfs_root;
@@ -409,7 +442,9 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 	debugfs_create_file("resume_engine", 0200, debugfs_root, vdev,
 			    &ivpu_resume_engine_fops);
 
-	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX)
+	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX) {
 		debugfs_create_file("fw_profiling_freq_drive", 0200,
 				    debugfs_root, vdev, &fw_profiling_freq_fops);
+		debugfs_create_file("dct", 0644, debugfs_root, vdev, &ivpu_dct_fops);
+	}
 }

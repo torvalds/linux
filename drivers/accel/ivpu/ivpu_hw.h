@@ -16,6 +16,7 @@
 
 #define IVPU_HW_IRQ_SRC_IPC 1
 #define IVPU_HW_IRQ_SRC_MMU_EVTQ 2
+#define IVPU_HW_IRQ_SRC_DCT 3
 
 struct ivpu_addr_range {
 	resource_size_t start;

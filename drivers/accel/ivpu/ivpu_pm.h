@@ -19,6 +19,7 @@ struct ivpu_pm_info {
 	atomic_t reset_counter;
 	atomic_t reset_pending;
 	bool is_warmboot;
+	u8 dct_active_percent;
 };
 
 void ivpu_pm_init(struct ivpu_device *vdev);
@@ -41,5 +42,10 @@ void ivpu_rpm_put(struct ivpu_device *vdev);
 void ivpu_pm_trigger_recovery(struct ivpu_device *vdev, const char *reason);
 void ivpu_start_job_timeout_detection(struct ivpu_device *vdev);
 void ivpu_stop_job_timeout_detection(struct ivpu_device *vdev);
+
+int ivpu_pm_dct_init(struct ivpu_device *vdev);
+int ivpu_pm_dct_enable(struct ivpu_device *vdev, u8 active_percent);
+int ivpu_pm_dct_disable(struct ivpu_device *vdev);
+void ivpu_pm_dct_irq_thread_handler(struct ivpu_device *vdev);
 
 #endif /* __IVPU_PM_H__ */

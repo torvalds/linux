@@ -391,8 +391,13 @@ int ivpu_boot(struct ivpu_device *vdev)
 	ivpu_hw_irq_enable(vdev);
 	ivpu_ipc_enable(vdev);
 
-	if (ivpu_fw_is_cold_boot(vdev))
+	if (ivpu_fw_is_cold_boot(vdev)) {
+		ret = ivpu_pm_dct_init(vdev);
+		if (ret)
+			return ret;
+
 		return ivpu_hw_sched_init(vdev);
+	}
 
 	return 0;
 }
@@ -481,6 +486,9 @@ static irqreturn_t ivpu_irq_thread_handler(int irq, void *arg)
 			break;
 		case IVPU_HW_IRQ_SRC_MMU_EVTQ:
 			ivpu_context_abort_invalid(vdev);
+			break;
+		case IVPU_HW_IRQ_SRC_DCT:
+			ivpu_pm_dct_irq_thread_handler(vdev);
 			break;
 		default:
 			ivpu_err_ratelimited(vdev, "Unknown IRQ source: %u\n", irq_src);

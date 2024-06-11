@@ -543,3 +543,26 @@ int ivpu_jsm_metric_streamer_info(struct ivpu_device *vdev, u64 metric_group_mas
 
 	return ret;
 }
+
+int ivpu_jsm_dct_enable(struct ivpu_device *vdev, u32 active_us, u32 inactive_us)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_DCT_ENABLE };
+	struct vpu_jsm_msg resp;
+
+	req.payload.pwr_dct_control.dct_active_us = active_us;
+	req.payload.pwr_dct_control.dct_inactive_us = inactive_us;
+
+	return ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_DCT_ENABLE_DONE,
+					    &resp, VPU_IPC_CHAN_ASYNC_CMD,
+					    vdev->timeout.jsm);
+}
+
+int ivpu_jsm_dct_disable(struct ivpu_device *vdev)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_DCT_DISABLE };
+	struct vpu_jsm_msg resp;
+
+	return ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_DCT_DISABLE_DONE,
+					    &resp, VPU_IPC_CHAN_ASYNC_CMD,
+					    vdev->timeout.jsm);
+}
