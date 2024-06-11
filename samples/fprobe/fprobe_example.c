@@ -150,4 +150,5 @@ static void __exit fprobe_exit(void)
 
 module_init(fprobe_init)
 module_exit(fprobe_exit)
+MODULE_DESCRIPTION("sample kernel module showing the use of fprobe");
 MODULE_LICENSE("GPL");
