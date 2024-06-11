@@ -474,6 +474,7 @@ struct ath12k_fw_stats {
 
 struct ath12k_debug {
 	struct dentry *debugfs_pdev;
+	struct dentry *debugfs_pdev_symlink;
 };
 
 struct ath12k_per_peer_tx_stats {
