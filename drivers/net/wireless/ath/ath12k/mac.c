@@ -8892,8 +8892,10 @@ static void ath12k_mac_hw_unregister(struct ath12k_hw *ah)
 	struct ath12k *ar;
 	int i;
 
-	for_each_ar(ah, ar, i)
+	for_each_ar(ah, ar, i) {
 		cancel_work_sync(&ar->regd_update_work);
+		ath12k_debugfs_unregister(ar);
+	}
 
 	ieee80211_unregister_hw(hw);
 
@@ -9140,6 +9142,9 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	return 0;
 
 err_unregister_hw:
+	for_each_ar(ah, ar, i)
+		ath12k_debugfs_unregister(ar);
+
 	ieee80211_unregister_hw(hw);
 
 err_free_if_combs:

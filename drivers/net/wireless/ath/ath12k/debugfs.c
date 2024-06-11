@@ -88,3 +88,13 @@ void ath12k_debugfs_register(struct ath12k *ar)
 				    &fops_simulate_radar);
 	}
 }
+
+void ath12k_debugfs_unregister(struct ath12k *ar)
+{
+	if (!ar->debug.debugfs_pdev)
+		return;
+
+	/* TODO: Remove symlink under ieee80211/phy* */
+	debugfs_remove_recursive(ar->debug.debugfs_pdev);
+	ar->debug.debugfs_pdev = NULL;
+}
