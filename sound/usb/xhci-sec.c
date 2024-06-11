@@ -242,11 +242,11 @@ int xhci_sec_event_ring_cleanup(struct usb_device *udev, struct xhci_ring *ring)
 	spin_lock_irqsave(&xhci->lock, flags);
 	list_for_each_entry(sec, &xhci_sec, list) {
 		if (sec->event_ring == ring) {
+			list_del(&sec->list);
+			spin_unlock_irqrestore(&xhci->lock, flags);
 			sec_event_ring_cleanup(xhci, ring, sec->ir_set,
 					&sec->erst);
-			list_del(&sec->list);
 			kfree(sec);
-			spin_unlock_irqrestore(&xhci->lock, flags);
 			return 0;
 		}
 	}
