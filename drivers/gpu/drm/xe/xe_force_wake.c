@@ -15,12 +15,6 @@
 
 #define XE_FORCE_WAKE_ACK_TIMEOUT_MS	50
 
-static struct xe_gt *
-fw_to_gt(struct xe_force_wake *fw)
-{
-	return fw->gt;
-}
-
 static void domain_init(struct xe_force_wake_domain *domain,
 			enum xe_force_wake_domain_id id,
 			struct xe_reg reg, struct xe_reg ack)
@@ -130,7 +124,7 @@ static int domain_sleep_wait(struct xe_gt *gt,
 int xe_force_wake_get(struct xe_force_wake *fw,
 		      enum xe_force_wake_domains domains)
 {
-	struct xe_gt *gt = fw_to_gt(fw);
+	struct xe_gt *gt = fw->gt;
 	struct xe_force_wake_domain *domain;
 	enum xe_force_wake_domains tmp, woken = 0;
 	unsigned long flags;
@@ -159,7 +153,7 @@ int xe_force_wake_get(struct xe_force_wake *fw,
 int xe_force_wake_put(struct xe_force_wake *fw,
 		      enum xe_force_wake_domains domains)
 {
-	struct xe_gt *gt = fw_to_gt(fw);
+	struct xe_gt *gt = fw->gt;
 	struct xe_force_wake_domain *domain;
 	enum xe_force_wake_domains tmp, sleep = 0;
 	unsigned long flags;
