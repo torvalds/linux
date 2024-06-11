@@ -1014,6 +1014,10 @@ static const struct pci_endpoint_test_data rk3588_data = {
 	.irq_type = IRQ_TYPE_MSI,
 };
 
+/*
+ * If the controller's Vendor/Device ID are programmable, you may be able to
+ * use one of the existing entries for testing instead of adding a new one.
+ */
 static const struct pci_device_id pci_endpoint_test_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_DRA74x),
 	  .driver_data = (kernel_ulong_t)&default_data,
