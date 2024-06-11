@@ -593,9 +593,7 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	ret_stack->fp = frame_pointer;
 #endif
-#ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 	ret_stack->retp = retp;
-#endif
 	return offset;
 }
 
@@ -887,10 +885,8 @@ ftrace_graph_get_ret_stack(struct task_struct *task, int idx)
  * will be assigned that location so that if called again, it will continue
  * where it left off.
  *
- * @retp is a pointer to the return address on the stack.  It's ignored if
- * the arch doesn't have HAVE_FUNCTION_GRAPH_RET_ADDR_PTR defined.
+ * @retp is a pointer to the return address on the stack.
  */
-#ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 				    unsigned long ret, unsigned long *retp)
 {
@@ -926,35 +922,6 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 
 	return ret;
 }
-#else /* !HAVE_FUNCTION_GRAPH_RET_ADDR_PTR */
-unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
-				    unsigned long ret, unsigned long *retp)
-{
-	struct ftrace_ret_stack *ret_stack;
-	unsigned long return_handler = (unsigned long)dereference_kernel_function_descriptor(return_to_handler);
-	int offset = task->curr_ret_stack;
-	int i;
-
-	if (ret != return_handler)
-		return ret;
-
-	if (!idx)
-		return ret;
-
-	i = *idx;
-	do {
-		ret_stack = get_ret_stack(task, offset, &offset);
-		if (ret_stack && ret_stack->ret == return_handler)
-			continue;
-		i--;
-	} while (i >= 0 && ret_stack);
-
-	if (ret_stack)
-		return ret_stack->ret;
-
-	return ret;
-}
-#endif /* HAVE_FUNCTION_GRAPH_RET_ADDR_PTR */
 
 static struct ftrace_ops graph_ops = {
 	.func			= ftrace_graph_func,
