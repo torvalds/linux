@@ -1122,7 +1122,7 @@ static int platform_legacy_resume(struct device *dev)
 
 int platform_pm_suspend(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1140,7 +1140,7 @@ int platform_pm_suspend(struct device *dev)
 
 int platform_pm_resume(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1162,7 +1162,7 @@ int platform_pm_resume(struct device *dev)
 
 int platform_pm_freeze(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1180,7 +1180,7 @@ int platform_pm_freeze(struct device *dev)
 
 int platform_pm_thaw(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1198,7 +1198,7 @@ int platform_pm_thaw(struct device *dev)
 
 int platform_pm_poweroff(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1216,7 +1216,7 @@ int platform_pm_poweroff(struct device *dev)
 
 int platform_pm_restore(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
