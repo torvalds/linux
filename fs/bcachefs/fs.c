@@ -228,7 +228,6 @@ static struct bch_inode_info *__bch2_new_inode(struct bch_fs *c)
 	two_state_lock_init(&inode->ei_pagecache_lock);
 	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
 	mutex_init(&inode->ei_quota_lock);
-	inode->v.i_state = 0;
 
 	if (unlikely(inode_init_always(c->vfs_sb, &inode->v))) {
 		kmem_cache_free(bch2_inode_cache, inode);
