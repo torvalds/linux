@@ -298,6 +298,8 @@ properties:
           - mps,mp2993
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
           - mps,mp5990
+            # Monolithic Power Systems Inc. digital step-down converter mp9941
+          - mps,mp9941
             # Monolithic Power Systems Inc. synchronous step-down converter mpq8785
           - mps,mpq8785
             # Temperature sensor with integrated fan control
