@@ -26,6 +26,7 @@
 
 #include <linux/spi/spi.h>
 
+#include "internals.h"
 #include "spi-pxa2xx.h"
 
 #define TIMOUT_DFLT		1000
@@ -993,11 +994,8 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 	}
 
 	dma_thresh = SSCR1_RxTresh(RX_THRESH_DFLT) | SSCR1_TxTresh(TX_THRESH_DFLT);
-	dma_mapped = controller->can_dma &&
-		     controller->can_dma(controller, spi, transfer) &&
-		     controller->cur_msg_mapped;
+	dma_mapped = spi_xfer_is_dma_mapped(controller, spi, transfer);
 	if (dma_mapped) {
-
 		/* Ensure we have the correct interrupt handler */
 		drv_data->transfer_handler = pxa2xx_spi_dma_transfer;
 
