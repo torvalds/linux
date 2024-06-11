@@ -314,6 +314,7 @@ xfs_reinit_inode(
 	dev_t			dev = inode->i_rdev;
 	kuid_t			uid = inode->i_uid;
 	kgid_t			gid = inode->i_gid;
+	unsigned long		state = inode->i_state;
 
 	error = inode_init_always(mp->m_super, inode);
 
@@ -324,6 +325,7 @@ xfs_reinit_inode(
 	inode->i_rdev = dev;
 	inode->i_uid = uid;
 	inode->i_gid = gid;
+	inode->i_state = state;
 	mapping_set_large_folios(inode->i_mapping);
 	return error;
 }
