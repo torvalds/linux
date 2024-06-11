@@ -12,6 +12,7 @@
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
 #include "xe_mmio.h"
+#include "xe_sriov.h"
 
 #define XE_FORCE_WAKE_ACK_TIMEOUT_MS	50
 
@@ -96,6 +97,9 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 
 static void __domain_ctl(struct xe_gt *gt, struct xe_force_wake_domain *domain, bool wake)
 {
+	if (IS_SRIOV(gt_to_xe(gt)))
+		return;
+
 	xe_mmio_write32(gt, domain->reg_ctl, domain->mask | (wake ? domain->val : 0));
 }
 
@@ -103,6 +107,9 @@ static int __domain_wait(struct xe_gt *gt, struct xe_force_wake_domain *domain, 
 {
 	u32 value;
 	int ret;
+
+	if (IS_SRIOV(gt_to_xe(gt)))
+		return 0;
 
 	ret = xe_mmio_wait32(gt, domain->reg_ack, domain->val, wake ? domain->val : 0,
 			     XE_FORCE_WAKE_ACK_TIMEOUT_MS * USEC_PER_MSEC,
