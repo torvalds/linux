@@ -994,16 +994,12 @@ void calculate_replay_link_off_frame_count(struct dc_link *link,
 	max_deviation_line = link->dpcd_caps.pr_info.max_deviation_line;
 	pixel_deviation_per_line = link->dpcd_caps.pr_info.pixel_deviation_per_line;
 
-	if (htotal != 0 && vtotal != 0)
+	if (htotal != 0 && vtotal != 0 && pixel_deviation_per_line != 0)
 		max_link_off_frame_count = htotal * max_deviation_line / (pixel_deviation_per_line * vtotal);
 	else
 		ASSERT(0);
 
-	link->replay_settings.link_off_frame_count_level =
-		max_link_off_frame_count >= PR_LINK_OFF_FRAME_COUNT_BEST ? PR_LINK_OFF_FRAME_COUNT_BEST :
-		max_link_off_frame_count >= PR_LINK_OFF_FRAME_COUNT_GOOD ? PR_LINK_OFF_FRAME_COUNT_GOOD :
-		PR_LINK_OFF_FRAME_COUNT_FAIL;
-
+	link->replay_settings.link_off_frame_count = max_link_off_frame_count;
 }
 
 bool fill_custom_backlight_caps(unsigned int config_no, struct dm_acpi_atif_backlight_caps *caps)

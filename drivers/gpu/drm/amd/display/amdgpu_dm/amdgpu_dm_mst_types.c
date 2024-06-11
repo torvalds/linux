@@ -210,6 +210,7 @@ bool needs_dsc_aux_workaround(struct dc_link *link)
 	return false;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 static bool is_synaptics_cascaded_panamera(struct dc_link *link, struct drm_dp_mst_port *port)
 {
 	u8 branch_vendor_data[4] = { 0 }; // Vendor data 0x50C ~ 0x50F
@@ -269,6 +270,7 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 
 	return true;
 }
+#endif
 
 static bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnector)
 {
@@ -402,9 +404,11 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			amdgpu_dm_update_freesync_caps(
 					connector, aconnector->edid);
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 			if (!validate_dsc_caps_on_connector(aconnector))
 				memset(&aconnector->dc_sink->dsc_caps,
 				       0, sizeof(aconnector->dc_sink->dsc_caps));
+#endif
 
 			if (!retrieve_downstream_port_device(aconnector))
 				memset(&aconnector->mst_downstream_port_present,
@@ -794,6 +798,7 @@ struct dsc_mst_fairness_params {
 	struct amdgpu_dm_connector *aconnector;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 static int kbps_to_peak_pbn(int kbps)
 {
 	u64 peak_kbps = kbps;
@@ -1594,13 +1599,16 @@ static bool is_dsc_common_config_possible(struct dc_stream_state *stream,
 
 	return bw_range->max_target_bpp_x16 && bw_range->min_target_bpp_x16;
 }
+#endif
 
 enum dc_status dm_dp_mst_is_port_support_mode(
 	struct amdgpu_dm_connector *aconnector,
 	struct dc_stream_state *stream)
 {
-	int pbn, branch_max_throughput_mps = 0;
+	int branch_max_throughput_mps = 0;
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	struct dc_link_settings cur_link_settings;
+	int pbn;
 	unsigned int end_to_end_bw_in_kbps = 0;
 	unsigned int upper_link_bw_in_kbps = 0, down_link_bw_in_kbps = 0;
 	struct dc_dsc_bw_range bw_range = {0};
@@ -1678,7 +1686,6 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 			return DC_FAIL_BANDWIDTH_VALIDATE;
 		}
 	}
-
 	/* check is mst dsc output bandwidth branch_overall_throughput_0_mps */
 	switch (stream->timing.pixel_encoding) {
 	case PIXEL_ENCODING_RGB:
@@ -1694,6 +1701,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	default:
 		break;
 	}
+#endif
 
 	if (branch_max_throughput_mps != 0 &&
 		((stream->timing.pix_clk_100hz / 10) >  branch_max_throughput_mps * 1000))

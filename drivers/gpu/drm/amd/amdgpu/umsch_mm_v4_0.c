@@ -24,6 +24,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include "amdgpu.h"
 #include "soc15_common.h"
 #include "soc21.h"
@@ -115,9 +116,8 @@ static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 		upper_32_bits(adev->umsch_mm.data_start_addr));
 
 	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_MASK0_LO,
-		lower_32_bits(adev->umsch_mm.data_size - 1));
-	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_MASK0_HI,
-		upper_32_bits(adev->umsch_mm.data_size - 1));
+		adev->umsch_mm.data_size - 1);
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_MASK0_HI, 0);
 
 	data = adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ?
 	       0 : adev->umsch_mm.data_fw_gpu_addr;
@@ -142,6 +142,11 @@ static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 
 	WREG32_SOC15_UMSCH(regVCN_MES_GP0_LO, 0);
 	WREG32_SOC15_UMSCH(regVCN_MES_GP0_HI, 0);
+
+#if defined(CONFIG_DEBUG_FS)
+	WREG32_SOC15_UMSCH(regVCN_MES_GP0_LO, lower_32_bits(umsch->log_gpu_addr));
+	WREG32_SOC15_UMSCH(regVCN_MES_GP0_HI, upper_32_bits(umsch->log_gpu_addr));
+#endif
 
 	WREG32_SOC15_UMSCH(regVCN_MES_GP1_LO, 0);
 	WREG32_SOC15_UMSCH(regVCN_MES_GP1_HI, 0);

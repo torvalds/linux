@@ -17,6 +17,7 @@ config DRM_AMDGPU
 	select HWMON
 	select I2C
 	select I2C_ALGOBIT
+	select CRC16
 	select BACKLIGHT_CLASS_DEVICE
 	select INTERVAL_TREE
 	select DRM_BUDDY

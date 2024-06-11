@@ -1641,6 +1641,23 @@ typedef struct {
   uint16_t dGPU_W_MAX             ;
   uint16_t padding                ;
 
+  uint16_t MovingAverageGfxclkFrequencyTarget;
+  uint16_t MovingAverageGfxclkFrequencyPreDs;
+  uint16_t MovingAverageGfxclkFrequencyPostDs;
+  uint16_t MovingAverageFclkFrequencyPreDs;
+  uint16_t MovingAverageFclkFrequencyPostDs;
+  uint16_t MovingAverageMemclkFrequencyPreDs;
+  uint16_t MovingAverageMemclkFrequencyPostDs;
+  uint16_t MovingAverageVclk0Frequency;
+  uint16_t MovingAverageDclk0Frequency;
+  uint16_t MovingAverageGfxActivity;
+  uint16_t MovingAverageUclkActivity;
+  uint16_t MovingAverageVcn0ActivityPercentage;
+  uint16_t MovingAveragePCIeBusy;
+  uint16_t MovingAverageUclkActivity_MAX;
+  uint16_t MovingAverageSocketPower;
+  uint16_t MovingAveragePadding;
+
   uint32_t MetricsCounter         ;
 
   uint16_t AvgVoltage[SVI_PLANE_COUNT];
@@ -1653,7 +1670,7 @@ typedef struct {
 
   uint32_t EnergyAccumulator;
   uint16_t AverageSocketPower;
-  uint16_t AverageTotalBoardPower;
+  uint16_t MovingAverageTotalBoardPower;
 
   uint16_t AvgTemperature[TEMP_COUNT];
   uint16_t AvgTemperatureFanIntake;
@@ -1676,7 +1693,7 @@ typedef struct {
 
   uint16_t ApuSTAPMSmartShiftLimit;
   uint16_t ApuSTAPMLimit;
-  uint16_t AvgApuSocketPower;
+  uint16_t MovingAvgApuSocketPower;
 
   uint16_t AverageUclkActivity_MAX;
 

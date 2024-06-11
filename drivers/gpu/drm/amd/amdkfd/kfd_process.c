@@ -2109,7 +2109,8 @@ int kfd_process_drain_interrupts(struct kfd_process_device *pdd)
 	/*
 	 * For GFX 9.4.3, send the NodeId also in IH cookie DW[3]
 	 */
-	if (KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 4, 3)) {
+	if (KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 4, 3) ||
+	    KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 4, 4)) {
 		node_id = ffs(pdd->dev->interrupt_bitmap) - 1;
 		irq_drain_fence[3] |= node_id << 16;
 	}

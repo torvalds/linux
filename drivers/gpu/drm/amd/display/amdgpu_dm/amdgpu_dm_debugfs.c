@@ -30,6 +30,7 @@
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_debugfs.h"
+#include "amdgpu_dm_replay.h"
 #include "dm_helpers.h"
 #include "dmub/dmub_srv.h"
 #include "resource.h"
@@ -958,6 +959,57 @@ static int dmub_fw_state_show(struct seq_file *m, void *data)
 	state_size = fb_info->fb[DMUB_WINDOW_6_FW_STATE].size;
 
 	return seq_write(m, state_base, state_size);
+}
+
+/* replay_capability_show() - show eDP panel replay capability
+ *
+ * The read function: replay_capability_show
+ * Shows if sink and driver has Replay capability or not.
+ *
+ *	cat /sys/kernel/debug/dri/0/eDP-X/replay_capability
+ *
+ * Expected output:
+ * "Sink support: no\n" - if panel doesn't support Replay
+ * "Sink support: yes\n" - if panel supports Replay
+ * "Driver support: no\n" - if driver doesn't support Replay
+ * "Driver support: yes\n" - if driver supports Replay
+ */
+static int replay_capability_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dc_link *link = aconnector->dc_link;
+	bool sink_support_replay = false;
+	bool driver_support_replay = false;
+
+	if (!link)
+		return -ENODEV;
+
+	if (link->type == dc_connection_none)
+		return -ENODEV;
+
+	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
+		return -ENODEV;
+
+	/* If Replay is already set to support, skip the checks */
+	if (link->replay_settings.config.replay_supported) {
+		sink_support_replay = true;
+		driver_support_replay = true;
+	} else if ((amdgpu_dc_debug_mask & DC_DISABLE_REPLAY)) {
+		sink_support_replay = amdgpu_dm_link_supports_replay(link, aconnector);
+	} else {
+		struct dc *dc = link->ctx->dc;
+
+		sink_support_replay = amdgpu_dm_link_supports_replay(link, aconnector);
+		if (dc->ctx->dmub_srv && dc->ctx->dmub_srv->dmub)
+			driver_support_replay =
+				(bool)dc->ctx->dmub_srv->dmub->feature_caps.replay_supported;
+	}
+
+	seq_printf(m, "Sink support: %s\n", str_yes_no(sink_support_replay));
+	seq_printf(m, "Driver support: %s\n", str_yes_no(driver_support_replay));
+
+	return 0;
 }
 
 /* psr_capability_show() - show eDP panel PSR capability
@@ -2619,6 +2671,49 @@ unlock:
 }
 
 /*
+ * IPS status.  Read only.
+ *
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_ips_status
+ */
+static int ips_status_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = m->private;
+	struct dc *dc = adev->dm.dc;
+	struct dc_dmub_srv *dc_dmub_srv;
+
+	seq_printf(m, "IPS config: %d\n", dc->config.disable_ips);
+	seq_printf(m, "Idle optimization: %d\n", dc->idle_optimizations_allowed);
+
+	if (adev->dm.idle_workqueue) {
+		seq_printf(m, "Idle workqueue - enabled: %d\n", adev->dm.idle_workqueue->enable);
+		seq_printf(m, "Idle workqueue - running: %d\n", adev->dm.idle_workqueue->running);
+	}
+
+	dc_dmub_srv = dc->ctx->dmub_srv;
+	if (dc_dmub_srv && dc_dmub_srv->dmub) {
+		uint32_t rcg_count, ips1_count, ips2_count;
+		volatile const struct dmub_shared_state_ips_fw *ips_fw =
+			&dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_FW].data.ips_fw;
+		rcg_count = ips_fw->rcg_entry_count;
+		ips1_count = ips_fw->ips1_entry_count;
+		ips2_count = ips_fw->ips2_entry_count;
+		seq_printf(m, "entry counts: rcg=%u ips1=%u ips2=%u\n",
+			   rcg_count,
+			   ips1_count,
+			   ips2_count);
+		rcg_count = ips_fw->rcg_exit_count;
+		ips1_count = ips_fw->ips1_exit_count;
+		ips2_count = ips_fw->ips2_exit_count;
+		seq_printf(m, "exit counts: rcg=%u ips1=%u ips2=%u",
+			   rcg_count,
+			   ips1_count,
+			   ips2_count);
+		seq_puts(m, "\n");
+	}
+	return 0;
+}
+
+/*
  * Backlight at this moment.  Read only.
  * As written to display, taking ABM and backlight lut into account.
  * Ranges from 0x0 to 0x10000 (= 100% PWM)
@@ -2768,6 +2863,7 @@ DEFINE_SHOW_ATTRIBUTE(dp_lttpr_status);
 DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
 DEFINE_SHOW_ATTRIBUTE(internal_display);
 DEFINE_SHOW_ATTRIBUTE(odm_combine_segments);
+DEFINE_SHOW_ATTRIBUTE(replay_capability);
 DEFINE_SHOW_ATTRIBUTE(psr_capability);
 DEFINE_SHOW_ATTRIBUTE(dp_is_mst_connector);
 DEFINE_SHOW_ATTRIBUTE(dp_mst_progress_status);
@@ -2936,6 +3032,22 @@ static int force_yuv420_output_get(void *data, u64 *val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(force_yuv420_output_fops, force_yuv420_output_get,
 			 force_yuv420_output_set, "%llu\n");
+
+/*
+ *  Read Replay state
+ */
+static int replay_get_state(void *data, u64 *val)
+{
+	struct amdgpu_dm_connector *connector = data;
+	struct dc_link *link = connector->dc_link;
+	uint64_t state = REPLAY_STATE_INVALID;
+
+	dc_link_get_replay_state(link, &state);
+
+	*val = state;
+
+	return 0;
+}
 
 /*
  *  Read PSR state
@@ -3155,6 +3267,8 @@ static int dmcub_trace_event_state_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(dmcub_trace_event_state_fops, dmcub_trace_event_state_get,
 			 dmcub_trace_event_state_set, "%llu\n");
 
+DEFINE_DEBUGFS_ATTRIBUTE(replay_state_fops, replay_get_state, NULL, "%llu\n");
+
 DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
 DEFINE_DEBUGFS_ATTRIBUTE(psr_residency_fops, psr_read_residency, NULL,
 			 "%llu\n");
@@ -3169,6 +3283,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(disallow_edp_enter_psr_fops,
 
 DEFINE_SHOW_ATTRIBUTE(current_backlight);
 DEFINE_SHOW_ATTRIBUTE(target_backlight);
+DEFINE_SHOW_ATTRIBUTE(ips_status);
 
 static const struct {
 	char *name;
@@ -3328,6 +3443,9 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 		}
 	}
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
+		debugfs_create_file("replay_capability", 0444, dir, connector,
+					&replay_capability_fops);
+		debugfs_create_file("replay_state", 0444, dir, connector, &replay_state_fops);
 		debugfs_create_file_unsafe("psr_capability", 0444, dir, connector, &psr_capability_fops);
 		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
 		debugfs_create_file_unsafe("psr_residency", 0444, dir,
@@ -4055,4 +4173,7 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 	debugfs_create_file_unsafe("amdgpu_dm_disable_hpd", 0644, root, adev,
 				   &disable_hpd_ops);
 
+	if (adev->dm.dc->caps.ips_support)
+		debugfs_create_file_unsafe("amdgpu_dm_ips_status", 0644, root, adev,
+					   &ips_status_fops);
 }

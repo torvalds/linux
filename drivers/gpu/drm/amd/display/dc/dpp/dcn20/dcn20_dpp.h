@@ -26,7 +26,7 @@
 #define __DCN20_DPP_H__
 
 #include "dcn10/dcn10_dpp.h"
-
+#include "spl/dc_spl_types.h"
 #define TO_DCN20_DPP(dpp)\
 	container_of(dpp, struct dcn20_dpp, base)
 
@@ -747,6 +747,13 @@ void dscl2_calc_lb_num_partitions(
 			enum lb_memory_config lb_config,
 			int *num_part_y,
 			int *num_part_c);
+
+void dscl2_spl_calc_lb_num_partitions(
+	bool alpha_en,
+	const struct spl_scaler_data *scl_data,
+	enum lb_memory_config lb_config,
+	int *num_part_y,
+	int *num_part_c);
 
 void dpp2_set_cursor_attributes(
 		struct dpp *dpp_base,

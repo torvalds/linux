@@ -298,10 +298,7 @@ dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			dce_use_lut(plane_state->format))
 		ipp->funcs->ipp_program_input_lut(ipp, &plane_state->gamma_correction);
 
-	if (tf == NULL) {
-		/* Default case if no input transfer function specified */
-		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
-	} else if (tf->type == TF_TYPE_PREDEFINED) {
+	if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
 			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
@@ -1782,6 +1779,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	struct dc_stream_state *edp_streams[MAX_NUM_EDP];
 	struct dc_link *edp_link_with_sink = NULL;
 	struct dc_link *edp_link = NULL;
+	struct pipe_ctx *pipe_ctx = NULL;
 	struct dce_hwseq *hws = dc->hwseq;
 	int edp_with_sink_num;
 	int edp_num;
@@ -1818,9 +1816,26 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 				can_apply_edp_fast_boot = dc_validate_boot_timing(dc,
 					edp_stream->sink, &edp_stream->timing);
 				edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
-				if (can_apply_edp_fast_boot)
-					DC_LOG_EVENT_LINK_TRAINING("eDP fast boot disabled to optimize link rate\n");
+				if (can_apply_edp_fast_boot) {
+					DC_LOG_EVENT_LINK_TRAINING("eDP fast boot Enable\n");
 
+					// Vbios & Driver support different pixel rate div policy.
+					pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, edp_stream);
+					if (pipe_ctx &&
+						hws->funcs.is_dp_dig_pixel_rate_div_policy &&
+						hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx)) {
+						// Get Vbios div factor from register
+						dc->res_pool->dccg->funcs->get_pixel_rate_div(
+							dc->res_pool->dccg,
+							pipe_ctx->stream_res.tg->inst,
+							&pipe_ctx->pixel_rate_divider.div_factor1,
+							&pipe_ctx->pixel_rate_divider.div_factor2);
+
+						// VBios doesn't support pixel rate div, so force it.
+						// If VBios supports it, we check it from reigster or other flags.
+						pipe_ctx->stream_res.pix_clk_params.dio_se_pix_per_cycle = 1;
+					}
+				}
 				break;
 			}
 		}

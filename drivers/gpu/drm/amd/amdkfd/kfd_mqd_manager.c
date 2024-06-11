@@ -129,7 +129,7 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	}
 
 	cu_bitmap_sh_mul = (KFD_GC_VERSION(mm->dev) >= IP_VERSION(11, 0, 0) &&
-			    KFD_GC_VERSION(mm->dev) < IP_VERSION(12, 0, 0)) ? 2 : 1;
+			    KFD_GC_VERSION(mm->dev) < IP_VERSION(13, 0, 0)) ? 2 : 1;
 
 	/* Count active CUs per SH.
 	 *

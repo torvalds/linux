@@ -254,6 +254,7 @@ static void enc35_stream_encoder_enable(
 			break;
 		case SIGNAL_TYPE_EDP:
 		case SIGNAL_TYPE_DISPLAY_PORT:
+		case SIGNAL_TYPE_VIRTUAL:
 			/* DP SST */
 			REG_UPDATE(DIG_FE_CLK_CNTL, DIG_FE_MODE, 0);
 			break;
@@ -273,46 +274,12 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
-static bool is_h_timing_divisible_by_2(const struct dc_crtc_timing *timing)
-{
-	/* math borrowed from function of same name in inc/resource
-	 * checks if h_timing is divisible by 2
-	 */
-
-	bool divisible = false;
-	uint16_t h_blank_start = 0;
-	uint16_t h_blank_end = 0;
-
-	if (timing) {
-		h_blank_start = timing->h_total - timing->h_front_porch;
-		h_blank_end = h_blank_start - timing->h_addressable;
-
-		/* HTOTAL, Hblank start/end, and Hsync start/end all must be
-		 * divisible by 2 in order for the horizontal timing params
-		 * to be considered divisible by 2. Hsync start is always 0.
-		 */
-		divisible = (timing->h_total % 2 == 0) &&
-				(h_blank_start % 2 == 0) &&
-				(h_blank_end % 2 == 0) &&
-				(timing->h_sync_width % 2 == 0);
-	}
-	return divisible;
-}
-
-static bool is_dp_dig_pixel_rate_div_policy(struct dc *dc, const struct dc_crtc_timing *timing)
-{
-	/* should be functionally the same as dcn32_is_dp_dig_pixel_rate_div_policy for DP encoders*/
-	return is_h_timing_divisible_by_2(timing) &&
-		dc->debug.enable_dp_dig_pixel_rate_div_policy;
-}
-
 static void enc35_stream_encoder_dp_unblank(
 		struct dc_link *link,
 		struct stream_encoder *enc,
 		const struct encoder_unblank_param *param)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-	struct dc *dc = enc->ctx->dc;
 
 	if (param->link_settings.link_rate != LINK_RATE_UNKNOWN) {
 		uint32_t n_vid = 0x8000;
@@ -323,7 +290,7 @@ static void enc35_stream_encoder_dp_unblank(
 
 		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
 		if (is_two_pixels_per_containter(&param->timing) || param->opp_cnt > 1
-			|| is_dp_dig_pixel_rate_div_policy(dc, &param->timing)) {
+			|| param->pix_per_cycle > 1) {
 			/*this logic should be the same in get_pixel_clock_parameters() */
 			n_multiply = 1;
 			pix_per_cycle = 1;
@@ -493,7 +460,7 @@ static const struct stream_encoder_funcs dcn35_str_enc_funcs = {
 	.dp_set_dsc_pps_info_packet = enc3_dp_set_dsc_pps_info_packet,
 	.set_dynamic_metadata = enc2_set_dynamic_metadata,
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
-	.dig_stream_enable = enc35_stream_encoder_enable,
+	.enable_stream = enc35_stream_encoder_enable,
 
 	.set_input_mode = enc314_set_dig_input_mode,
 	.enable_fifo = enc35_enable_fifo,

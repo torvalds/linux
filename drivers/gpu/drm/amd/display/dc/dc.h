@@ -46,6 +46,8 @@
 
 #include "dmub/inc/dmub_cmd.h"
 
+#include "spl/dc_spl_types.h"
+
 struct abm_save_restore;
 
 /* forward declaration */
@@ -53,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.281"
+#define DC_VER "3.2.286"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -258,7 +260,10 @@ struct dc_caps {
 	bool zstate_support;
 	bool ips_support;
 	uint32_t num_of_internal_disp;
+	uint32_t max_dwb_htap;
+	uint32_t max_dwb_vtap;
 	enum dp_protocol_version max_dp_protocol_version;
+	bool spdif_aud;
 	unsigned int mall_size_per_mem_channel;
 	unsigned int mall_size_total;
 	unsigned int cursor_cache_size;
@@ -284,6 +289,8 @@ struct dc_caps {
 	uint32_t max_v_total;
 	uint32_t max_disp_clock_khz_at_vmin;
 	uint8_t subvp_drr_vblank_start_margin_us;
+	bool cursor_not_scaled;
+	bool dcmode_power_limits_present;
 };
 
 struct dc_bug_wa {
@@ -297,11 +304,19 @@ struct dc_bug_wa {
 		uint8_t dcfclk : 1;
 		uint8_t dcfclk_ds: 1;
 	} clock_update_disable_mask;
+	//Customer Specific WAs
+	uint32_t force_backlight_start_level;
 };
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
 	enum surface_pixel_format format;
-	enum swizzle_mode_values swizzle_mode;
+	unsigned int plane0_pitch;
+	struct dc_size plane1_size;
+	unsigned int plane1_pitch;
+	union {
+		enum swizzle_mode_values swizzle_mode;
+		enum swizzle_mode_addr3_values swizzle_mode_addr3;
+	};
 	enum dc_scan_direction scan;
 };
 
@@ -382,7 +397,6 @@ struct dc;
 struct dc_plane_state;
 struct dc_state;
 
-
 struct dc_cap_funcs {
 	bool (*get_dcc_compression_cap)(const struct dc *dc,
 			const struct dc_dcc_surface_param *input,
@@ -425,6 +439,8 @@ struct dc_config {
 	bool is_asymmetric_memory;
 	bool is_single_rank_dimm;
 	bool is_vmin_only_asic;
+	bool use_spl;
+	bool prefer_easf;
 	bool use_pipe_ctx_sync_logic;
 	bool ignore_dpref_ss;
 	bool enable_mipi_converter_optimization;
@@ -441,6 +457,7 @@ struct dc_config {
 	bool allow_0_dtb_clk;
 	bool use_assr_psp_message;
 	bool support_edp0_on_dp1;
+	unsigned int enable_fpo_flicker_detection;
 };
 
 enum visual_confirm {
@@ -455,6 +472,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_REPLAY = 12,
 	VISUAL_CONFIRM_SUBVP = 14,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
+	VISUAL_CONFIRM_FAMS2 = 19,
 };
 
 enum dc_psr_power_opts {
@@ -480,6 +498,12 @@ enum dcc_option {
 	DCC_ENABLE = 0,
 	DCC_DISABLE = 1,
 	DCC_HALF_REQ_DISALBE = 2,
+};
+
+enum in_game_fams_config {
+	INGAME_FAMS_SINGLE_DISP_ENABLE, // enable in-game fams
+	INGAME_FAMS_DISABLE, // disable in-game fams
+	INGAME_FAMS_MULTI_DISP_ENABLE, //enable in-game fams for multi-display
 };
 
 /**
@@ -586,6 +610,8 @@ struct dc_clocks {
 	int max_supported_dispclk_khz;
 	int bw_dppclk_khz; /*a copy of dppclk_khz*/
 	int bw_dispclk_khz;
+	int idle_dramclk_khz;
+	int idle_fclk_khz;
 };
 
 struct dc_bw_validation_profile {
@@ -701,6 +727,7 @@ enum pg_hw_pipe_resources {
 	PG_OPTC,
 	PG_DPSTREAM,
 	PG_HDMISTREAM,
+	PG_PHYSYMCLK,
 	PG_HW_PIPE_RESOURCES_NUM_ELEMENT
 };
 
@@ -934,7 +961,7 @@ struct dc_debug_options {
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
 	bool disable_fams;
-	bool disable_fams_gaming;
+	enum in_game_fams_config disable_fams_gaming;
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
@@ -968,6 +995,7 @@ struct dc_debug_options {
 	bool enable_single_display_2to1_odm_policy;
 	bool enable_double_buffered_dsc_pg_support;
 	bool enable_dp_dig_pixel_rate_div_policy;
+	bool using_dml21;
 	enum lttpr_mode lttpr_mode_override;
 	unsigned int dsc_delay_factor_wa_x1000;
 	unsigned int min_prefetch_in_strobe_ns;
@@ -1001,9 +1029,20 @@ struct dc_debug_options {
 	bool disable_extblankadj;
 	bool enable_idle_reg_checks;
 	unsigned int static_screen_wait_frames;
+	uint32_t pwm_freq;
 	bool force_chroma_subsampling_1tap;
 	bool disable_422_left_edge_pixel;
+	bool dml21_force_pstate_method;
+	uint32_t dml21_force_pstate_method_value;
+	uint32_t dml21_disable_pstate_method_mask;
+	union dmub_fams2_global_feature_config fams2_config;
+	bool enable_legacy_clock_update;
 	unsigned int force_cositing;
+	unsigned int disable_spl;
+	unsigned int force_easf;
+	unsigned int force_sharpness;
+	unsigned int force_lls;
+	bool edp_oled_no_backlight_enable;
 };
 
 
@@ -1028,6 +1067,8 @@ struct dchub_init_data {
 	bool dchub_initialzied;
 	bool dchub_info_valid;
 };
+
+struct dml2_soc_bb;
 
 struct dc_init_data {
 	struct hw_asic_id asic_id;
@@ -1061,6 +1102,7 @@ struct dc_init_data {
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
 	uint32_t *clk_reg_offsets;
+	struct dml2_soc_bb *bb_from_dmub;
 };
 
 struct dc_callback_init {
@@ -1212,6 +1254,7 @@ union surface_update_flags {
 		uint32_t stereo_format_change:1;
 		uint32_t lut_3d:1;
 		uint32_t tmz_changed:1;
+		uint32_t mcm_transfer_function_enable_change:1; /* disable or enable MCM transfer func */
 		uint32_t full_update:1;
 	} bits;
 
@@ -1286,6 +1329,15 @@ struct dc_plane_state {
 
 	bool is_statically_allocated;
 	enum chroma_cositing cositing;
+	enum dc_cm2_shaper_3dlut_setting mcm_shaper_3dlut_setting;
+	bool mcm_lut1d_enable;
+	struct dc_cm2_func_luts mcm_luts;
+	bool lut_bank_a;
+	enum mpcc_movable_cm_location mcm_location;
+	struct dc_csc_transform cursor_csc_color_matrix;
+	bool adaptive_sharpness_en;
+	unsigned int sharpnessX1000;
+	enum linear_light_scaling linear_light_scaling;
 };
 
 struct dc_plane_info {
@@ -1304,6 +1356,7 @@ struct dc_plane_info {
 	int  global_alpha_value;
 	bool input_csc_enabled;
 	int layer_index;
+	bool front_buffer_rendering_active;
 	enum chroma_cositing cositing;
 };
 
@@ -1411,6 +1464,7 @@ struct dc_fast_update {
 	const struct fixed31_32 *coeff_reduction_factor;
 	struct dc_transfer_func *out_transfer_func;
 	struct dc_csc_transform *output_csc_transform;
+	const struct dc_csc_transform *cursor_csc_color_matrix;
 };
 
 struct dc_surface_update {
@@ -1433,6 +1487,14 @@ struct dc_surface_update {
 	const struct dc_3dlut *lut3d_func;
 	const struct dc_transfer_func *blend_tf;
 	const struct colorspace_transform *gamut_remap_matrix;
+	/*
+	 * Color Transformations for pre-blend MCM (Shaper, 3DLUT, 1DLUT)
+	 *
+	 * change cm2_params.component_settings: Full update
+	 * change cm2_params.cm2_luts: Fast update
+	 */
+	struct dc_cm2_parameters *cm2_params;
+	const struct dc_csc_transform *cursor_csc_color_matrix;
 };
 
 /*
@@ -1658,7 +1720,6 @@ struct dc_link {
 	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
 
 	struct psr_settings psr_settings;
-
 	struct replay_settings replay_settings;
 
 	/* Drive settings read from integrated info table */

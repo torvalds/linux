@@ -137,6 +137,13 @@ struct vblank_control_work {
 	bool enable;
 };
 
+struct idle_workqueue {
+	struct work_struct work;
+	struct amdgpu_display_manager *dm;
+	bool enable;
+	bool running;
+};
+
 /**
  * struct amdgpu_dm_backlight_caps - Information about backlight
  *
@@ -487,6 +494,7 @@ struct amdgpu_display_manager {
 	 * Deferred work for vblank control events.
 	 */
 	struct workqueue_struct *vblank_control_workqueue;
+	struct idle_workqueue *idle_workqueue;
 
 	struct drm_atomic_state *cached_state;
 	struct dc_state *cached_dc_state;
@@ -570,6 +578,11 @@ struct amdgpu_display_manager {
 	 * Guards access to DPIA AUX
 	 */
 	struct mutex dpia_aux_lock;
+
+	/*
+	 * Bounding box data read from dmub during early initialization for DCN4+
+	 */
+	struct dml2_soc_bb *bb_from_dmub;
 };
 
 enum dsc_clock_force_state {
@@ -678,7 +691,6 @@ struct amdgpu_dm_connector {
 	 * value is set to zero when there is no FreeSync support.
 	 */
 	int max_vfreq ;
-	int pixel_clock_mhz;
 
 	/* Audio instance - protected by audio_lock. */
 	int audio_inst;
@@ -956,4 +968,10 @@ amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
 					     struct drm_crtc *crtc);
 
 int convert_dc_color_depth_into_bpc(enum dc_color_depth display_color_depth);
+struct idle_workqueue *idle_create_workqueue(struct amdgpu_device *adev);
+
+void *dm_allocate_gpu_mem(struct amdgpu_device *adev,
+						  enum dc_gpu_mem_alloc_type type,
+						  size_t size,
+						  long long *addr);
 #endif /* __AMDGPU_DM_H__ */
