@@ -131,9 +131,9 @@
 };
 
 &usbdrd31 {
-	status = "okay";
 	vdd10-supply = <&reg_placeholder>;
 	vdd33-supply = <&reg_placeholder>;
+	status = "okay";
 };
 
 &usbdrd31_dwc3 {
