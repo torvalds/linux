@@ -246,11 +246,10 @@ static size_t cs42l43_spi_max_length(struct spi_device *spi)
 	return CS42L43_SPI_MAX_LENGTH;
 }
 
-static bool cs42l43_has_sidecar(struct fwnode_handle *fwnode)
+static struct fwnode_handle *cs42l43_find_xu_node(struct fwnode_handle *fwnode)
 {
 	static const u32 func_smart_amp = 0x1;
 	struct fwnode_handle *child_fwnode, *ext_fwnode;
-	unsigned int val;
 	u32 function;
 	int ret;
 
@@ -266,21 +265,12 @@ static bool cs42l43_has_sidecar(struct fwnode_handle *fwnode)
 		if (!ext_fwnode)
 			continue;
 
-		ret = fwnode_property_read_u32(ext_fwnode,
-					       "01fa-sidecar-instances",
-					       &val);
-
-		fwnode_handle_put(ext_fwnode);
-
-		if (ret)
-			continue;
-
 		fwnode_handle_put(child_fwnode);
 
-		return !!val;
+		return ext_fwnode;
 	}
 
-	return false;
+	return NULL;
 }
 
 static void cs42l43_release_of_node(void *data)
@@ -298,7 +288,8 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	struct cs42l43 *cs42l43 = dev_get_drvdata(pdev->dev.parent);
 	struct cs42l43_spi *priv;
 	struct fwnode_handle *fwnode = dev_fwnode(cs42l43->dev);
-	bool has_sidecar = cs42l43_has_sidecar(fwnode);
+	struct fwnode_handle *xu_fwnode __free(fwnode_handle) = cs42l43_find_xu_node(fwnode);
+	int nsidecars = 0;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -350,7 +341,9 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	if (has_sidecar) {
+	fwnode_property_read_u32(xu_fwnode, "01fa-sidecar-instances", &nsidecars);
+
+	if (nsidecars) {
 		ret = software_node_register(&cs42l43_gpiochip_swnode);
 		if (ret)
 			return dev_err_probe(priv->dev, ret,
@@ -373,7 +366,7 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 		return dev_err_probe(priv->dev, ret,
 				     "Failed to register SPI controller\n");
 
-	if (has_sidecar) {
+	if (nsidecars) {
 		if (!spi_new_device(priv->ctlr, &ampl_info))
 			return dev_err_probe(priv->dev, -ENODEV,
 					     "Failed to create left amp slave\n");
