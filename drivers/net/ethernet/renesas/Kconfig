@@ -33,6 +33,7 @@ config RAVB
 	select CRC32
 	select MII
 	select MDIO_BITBANG
+	select PAGE_POOL
 	select PHYLIB
 	select RESET_CONTROLLER
 	help
