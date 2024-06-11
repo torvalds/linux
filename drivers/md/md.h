@@ -432,7 +432,7 @@ struct mddev {
 	 * when the sync thread is "frozen" (interrupted) or "idle" (stopped
 	 * or finished).  It is overwritten when a new sync operation is begun.
 	 */
-	char				*last_sync_action;
+	const char			*last_sync_action;
 	sector_t			curr_resync;	/* last block scheduled */
 	/* As resync requests can complete out of order, we cannot easily track
 	 * how much resync has been completed.  So we occasionally pause until
