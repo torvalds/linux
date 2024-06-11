@@ -1592,16 +1592,21 @@ static void deregister_exec_queue(struct xe_guc *guc, struct xe_exec_queue *q)
 	xe_guc_ct_send_g2h_handler(&guc->ct, action, ARRAY_SIZE(action));
 }
 
-static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q)
+static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
+			      u32 runnable_state)
 {
 	trace_xe_exec_queue_scheduling_done(q);
 
 	if (exec_queue_pending_enable(q)) {
+		xe_gt_assert(guc_to_gt(guc), runnable_state == 1);
+
 		q->guc->resume_time = ktime_get();
 		clear_exec_queue_pending_enable(q);
 		smp_wmb();
 		wake_up_all(&guc->ct.wq);
 	} else {
+		xe_gt_assert(guc_to_gt(guc), runnable_state == 0);
+
 		clear_exec_queue_pending_disable(q);
 		if (q->guc->suspend_pending) {
 			suspend_fence_signal(q);
@@ -1640,7 +1645,7 @@ int xe_guc_sched_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 		return -EPROTO;
 	}
 
-	handle_sched_done(guc, q);
+	handle_sched_done(guc, q, runnable_state);
 
 	return 0;
 }
