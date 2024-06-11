@@ -3149,6 +3149,7 @@ S: Germany
 N: Gustavo Pimentel
 E: gustavo.pimentel@synopsys.com
 D: PCI driver for Synopsys DesignWare
+D: Synopsys DesignWare eDMA driver
 D: Synopsys DesignWare xData traffic generator
 
 N: Emanuel Pirker
