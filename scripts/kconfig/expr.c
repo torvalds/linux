@@ -1096,11 +1096,8 @@ static int expr_compare_type(enum expr_type t1, enum expr_type t2)
 	case E_OR:
 		if (t2 == E_LIST)
 			return 1;
-	case E_LIST:
-		if (t2 == 0)
-			return 1;
 	default:
-		return -1;
+		break;
 	}
 	return 0;
 }
