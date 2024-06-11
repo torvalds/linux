@@ -1366,19 +1366,6 @@ static struct kvm_mmu_page *tdp_mmu_alloc_sp_for_split(struct kvm *kvm,
 
 	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
 
-	/*
-	 * Since we are allocating while under the MMU lock we have to be
-	 * careful about GFP flags. Use GFP_NOWAIT to avoid blocking on direct
-	 * reclaim and to avoid making any filesystem callbacks (which can end
-	 * up invoking KVM MMU notifiers, resulting in a deadlock).
-	 *
-	 * If this allocation fails we drop the lock and retry with reclaim
-	 * allowed.
-	 */
-	sp = __tdp_mmu_alloc_sp_for_split(GFP_NOWAIT | __GFP_ACCOUNT);
-	if (sp)
-		return sp;
-
 	rcu_read_unlock();
 
 	if (shared)
@@ -1478,8 +1465,7 @@ retry:
 				break;
 			}
 
-			if (iter.yielded)
-				continue;
+			continue;
 		}
 
 		tdp_mmu_init_child_sp(sp, &iter);
