@@ -117,4 +117,5 @@ const struct pinmux_ops meson_axg_pmx_ops = {
 };
 EXPORT_SYMBOL_GPL(meson_axg_pmx_ops);
 
+MODULE_DESCRIPTION("Amlogic Meson AXG second generation pinmux driver");
 MODULE_LICENSE("Dual BSD/GPL");
