@@ -86,9 +86,8 @@ xfs_inode_alloc(
 		return NULL;
 	}
 
-	/* VFS doesn't initialise i_mode or i_state! */
+	/* VFS doesn't initialise i_mode! */
 	VFS_I(ip)->i_mode = 0;
-	VFS_I(ip)->i_state = 0;
 	mapping_set_large_folios(VFS_I(ip)->i_mapping);
 
 	XFS_STATS_INC(mp, vn_active);
