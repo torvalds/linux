@@ -155,7 +155,7 @@ bool bus_is_registered(const struct bus_type *bus);
 
 int bus_add_driver(struct device_driver *drv);
 void bus_remove_driver(struct device_driver *drv);
-void device_release_driver_internal(struct device *dev, struct device_driver *drv,
+void device_release_driver_internal(struct device *dev, const struct device_driver *drv,
 				    struct device *parent);
 
 void driver_detach(struct device_driver *drv);

@@ -1284,7 +1284,7 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 }
 
 void device_release_driver_internal(struct device *dev,
-				    struct device_driver *drv,
+				    const struct device_driver *drv,
 				    struct device *parent)
 {
 	__device_driver_lock(dev, parent);
