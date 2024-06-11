@@ -139,14 +139,14 @@ out:
 	return ret;
 }
 
-static int v6only_true(int fd, const struct post_socket_opts *opts)
+static int v6only_true(int fd, void *opts)
 {
 	int mode = true;
 
 	return setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &mode, sizeof(mode));
 }
 
-static int v6only_false(int fd, const struct post_socket_opts *opts)
+static int v6only_false(int fd, void *opts)
 {
 	int mode = false;
 
