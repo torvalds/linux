@@ -36,7 +36,6 @@ void ivpu_pm_reset_prepare_cb(struct pci_dev *pdev);
 void ivpu_pm_reset_done_cb(struct pci_dev *pdev);
 
 int __must_check ivpu_rpm_get(struct ivpu_device *vdev);
-int __must_check ivpu_rpm_get_if_active(struct ivpu_device *vdev);
 void ivpu_rpm_put(struct ivpu_device *vdev);
 
 void ivpu_pm_trigger_recovery(struct ivpu_device *vdev, const char *reason);
