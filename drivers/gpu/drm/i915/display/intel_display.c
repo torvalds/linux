@@ -1160,8 +1160,8 @@ static void intel_crtc_async_flip_disable_wa(struct intel_atomic_state *state,
 			 * Apart from the async flip bit we want to
 			 * preserve the old state for the plane.
 			 */
-			plane->async_flip(plane, old_crtc_state,
-					  old_plane_state, false);
+			intel_plane_async_flip(plane, old_crtc_state,
+					       old_plane_state, false);
 			need_vbl_wait = true;
 		}
 	}

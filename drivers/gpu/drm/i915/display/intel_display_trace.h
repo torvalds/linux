@@ -308,6 +308,33 @@ TRACE_EVENT(vlv_fifo_size,
 		      __entry->sprite0_start, __entry->sprite1_start, __entry->fifo_size)
 );
 
+TRACE_EVENT(intel_plane_async_flip,
+	    TP_PROTO(struct intel_plane *plane, struct intel_crtc *crtc, bool async_flip),
+	    TP_ARGS(plane, crtc, async_flip),
+
+	    TP_STRUCT__entry(
+			     __string(dev, __dev_name_kms(plane))
+			     __field(enum pipe, pipe)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     __field(bool, async_flip)
+			     __string(name, plane->base.name)
+			     ),
+
+	    TP_fast_assign(
+			   __assign_str(dev);
+			   __assign_str(name);
+			   __entry->pipe = crtc->pipe;
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->async_flip = async_flip;
+			   ),
+
+	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u, async_flip=%s",
+		      __get_str(dev), pipe_name(__entry->pipe), __get_str(name),
+		      __entry->frame, __entry->scanline, str_yes_no(__entry->async_flip))
+);
+
 TRACE_EVENT(intel_plane_update_noarm,
 	    TP_PROTO(struct intel_plane *plane, struct intel_crtc *crtc),
 	    TP_ARGS(plane, crtc),
