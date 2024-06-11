@@ -708,4 +708,5 @@ static void __exit rtllib_crypto_tkip_exit(void)
 module_init(rtllib_crypto_tkip_init);
 module_exit(rtllib_crypto_tkip_exit);
 
+MODULE_DESCRIPTION("Support module for rtllib TKIP crypto");
 MODULE_LICENSE("GPL");

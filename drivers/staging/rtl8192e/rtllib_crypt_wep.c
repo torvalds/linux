@@ -238,4 +238,5 @@ static void __exit rtllib_crypto_wep_exit(void)
 module_init(rtllib_crypto_wep_init);
 module_exit(rtllib_crypto_wep_exit);
 
+MODULE_DESCRIPTION("Support module for rtllib WEP crypto");
 MODULE_LICENSE("GPL");

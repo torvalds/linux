@@ -407,4 +407,5 @@ static void __exit rtllib_crypto_ccmp_exit(void)
 module_init(rtllib_crypto_ccmp_init);
 module_exit(rtllib_crypto_ccmp_exit);
 
+MODULE_DESCRIPTION("Support module for rtllib CCMP crypto");
 MODULE_LICENSE("GPL");
