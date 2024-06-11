@@ -965,17 +965,6 @@ static int secref_whitelist(const char *fromsec, const char *fromsym,
 	    match(fromsym, PATTERNS("*_ops", "*_probe", "*_console")))
 		return 0;
 
-	/*
-	 * symbols in data sections must not refer to .exit.*, but there are
-	 * quite a few offenders, so hide these unless for W=1 builds until
-	 * these are fixed.
-	 */
-	if (!extra_warn &&
-	    match(fromsec, PATTERNS(DATA_SECTIONS)) &&
-	    match(tosec, PATTERNS(ALL_EXIT_SECTIONS)) &&
-	    match(fromsym, PATTERNS("*driver")))
-		return 0;
-
 	/* Check for pattern 3 */
 	if (strstarts(fromsec, ".head.text") &&
 	    match(tosec, PATTERNS(ALL_INIT_SECTIONS)))
