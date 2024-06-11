@@ -83,6 +83,8 @@ int ath12k_core_suspend_late(struct ath12k_base *ab)
 	if (!ab->hw_params->supports_suspend)
 		return -EOPNOTSUPP;
 
+	ath12k_acpi_stop(ab);
+
 	ath12k_hif_irq_disable(ab);
 	ath12k_hif_ce_irq_disable(ab);
 
