@@ -7079,6 +7079,15 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	}
 
 	/*
+	 * If we're logging an inode from a subvolume created in the current
+	 * transaction we must force a commit since the root is not persisted.
+	 */
+	if (btrfs_root_generation(&root->root_item) == trans->transid) {
+		ret = BTRFS_LOG_FORCE_COMMIT;
+		goto end_no_trans;
+	}
+
+	/*
 	 * Skip already logged inodes or inodes corresponding to tmpfiles
 	 * (since logging them is pointless, a link count of 0 means they
 	 * will never be accessible).
@@ -7452,6 +7461,24 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
  */
 void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 				   struct btrfs_inode *dir)
+{
+	mutex_lock(&dir->log_mutex);
+	dir->last_unlink_trans = trans->transid;
+	mutex_unlock(&dir->log_mutex);
+}
+
+/*
+ * Call this when creating a subvolume in a directory.
+ * Because we don't commit a transaction when creating a subvolume, we can't
+ * allow the directory pointing to the subvolume to be logged with an entry that
+ * points to an unpersisted root if we are still in the transaction used to
+ * create the subvolume, so make any attempt to log the directory to result in a
+ * full log sync.
+ * Also we don't need to worry with renames, since btrfs_rename() marks the log
+ * for full commit when renaming a subvolume.
+ */
+void btrfs_record_new_subvolume(const struct btrfs_trans_handle *trans,
+				struct btrfs_inode *dir)
 {
 	mutex_lock(&dir->log_mutex);
 	dir->last_unlink_trans = trans->transid;

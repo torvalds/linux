@@ -94,6 +94,8 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 			     bool for_rename);
 void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 				   struct btrfs_inode *dir);
+void btrfs_record_new_subvolume(const struct btrfs_trans_handle *trans,
+				struct btrfs_inode *dir);
 void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct dentry *old_dentry, struct btrfs_inode *old_dir,
 			u64 old_dir_index, struct dentry *parent);
