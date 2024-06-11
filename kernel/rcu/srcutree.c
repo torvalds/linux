@@ -667,7 +667,10 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 		pr_info("%s: Active srcu_struct %p read state: %d gp state: %lu/%lu\n",
 			__func__, ssp, rcu_seq_state(READ_ONCE(sup->srcu_gp_seq)),
 			rcu_seq_current(&sup->srcu_gp_seq), sup->srcu_gp_seq_needed);
-		return; /* Caller forgot to stop doing call_srcu()? */
+		return; // Caller forgot to stop doing call_srcu()?
+			// Or caller invoked start_poll_synchronize_srcu()
+			// and then cleanup_srcu_struct() before that grace
+			// period ended?
 	}
 	kfree(sup->node);
 	sup->node = NULL;
