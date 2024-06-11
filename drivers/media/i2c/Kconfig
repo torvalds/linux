@@ -70,6 +70,16 @@ config VIDEO_GC0308
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc0308.
 
+config VIDEO_GC05A2
+	tristate "GalaxyCore gc05a2 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the GalaxyCore gc05a2
+	  camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc05a2.
+
 config VIDEO_GC08A3
 	tristate "GalaxyCore gc08a3 sensor support"
 	select V4L2_CCI_I2C
