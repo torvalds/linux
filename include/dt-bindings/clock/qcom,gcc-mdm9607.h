@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause) */
 /*
  * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_MSM_GCC_9607_H
@@ -114,6 +114,7 @@
 #define GCC_USB2_HS_PHY_ONLY_CLK		104
 #define GCC_QUSB2_PHY_CLK			105
 #define GPLL0_AO				106
+#define EMAC_0_125M_CLK_SRC			107
 
 /* Resets */
 #define USB2_HS_PHY_ONLY_BCR			0
