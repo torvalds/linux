@@ -938,8 +938,8 @@ static const struct inode_operations hostfs_link_iops = {
 static int hostfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct hostfs_fs_info *fsi = sb->s_fs_info;
+	const char *host_root = fc->source;
 	struct inode *root_inode;
-	char *host_root = fc->source;
 	int err;
 
 	sb->s_blocksize = 1024;
