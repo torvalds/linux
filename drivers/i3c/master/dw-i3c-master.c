@@ -631,7 +631,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
 	thld_ctrl &= ~(QUEUE_THLD_CTRL_RESP_BUF_MASK |
 		       QUEUE_THLD_CTRL_IBI_STAT_MASK |
-		       QUEUE_THLD_CTRL_IBI_STAT_MASK);
+		       QUEUE_THLD_CTRL_IBI_DATA_MASK);
 	thld_ctrl |= QUEUE_THLD_CTRL_IBI_STAT(1) |
 		QUEUE_THLD_CTRL_IBI_DATA(31);
 	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
