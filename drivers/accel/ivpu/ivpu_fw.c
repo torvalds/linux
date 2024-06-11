@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <linux/firmware.h>
@@ -123,6 +123,14 @@ ivpu_fw_check_api_ver_lt(struct ivpu_device *vdev, const struct vpu_firmware_hea
 	return false;
 }
 
+static bool is_within_range(u64 addr, size_t size, u64 range_start, size_t range_size)
+{
+	if (addr < range_start || addr + size > range_start + range_size)
+		return false;
+
+	return true;
+}
+
 static int ivpu_fw_parse(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
@@ -205,10 +213,24 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	fw->primary_preempt_buf_size = fw_hdr->preemption_buffer_1_size;
 	fw->secondary_preempt_buf_size = fw_hdr->preemption_buffer_2_size;
 
+	if (fw_hdr->ro_section_start_address && !is_within_range(fw_hdr->ro_section_start_address,
+								 fw_hdr->ro_section_size,
+								 fw_hdr->image_load_address,
+								 fw_hdr->image_size)) {
+		ivpu_err(vdev, "Invalid read-only section: start address 0x%llx, size %u\n",
+			 fw_hdr->ro_section_start_address, fw_hdr->ro_section_size);
+		return -EINVAL;
+	}
+
+	fw->read_only_addr = fw_hdr->ro_section_start_address;
+	fw->read_only_size = fw_hdr->ro_section_size;
+
 	ivpu_dbg(vdev, FW_BOOT, "Size: file %lu image %u runtime %u shavenn %u\n",
 		 fw->file->size, fw->image_size, fw->runtime_size, fw->shave_nn_size);
 	ivpu_dbg(vdev, FW_BOOT, "Address: runtime 0x%llx, load 0x%llx, entry point 0x%llx\n",
 		 fw->runtime_addr, image_load_addr, fw->entry_point);
+	ivpu_dbg(vdev, FW_BOOT, "Read-only section: address 0x%llx, size %u\n",
+		 fw->read_only_addr, fw->read_only_size);
 
 	return 0;
 }
@@ -268,6 +290,13 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	if (!fw->mem) {
 		ivpu_err(vdev, "Failed to create firmware runtime memory buffer\n");
 		return -ENOMEM;
+	}
+
+	ret = ivpu_mmu_context_set_pages_ro(vdev, &vdev->gctx, fw->read_only_addr,
+					    fw->read_only_size);
+	if (ret) {
+		ivpu_err(vdev, "Failed to set firmware image read-only\n");
+		goto err_free_fw_mem;
 	}
 
 	fw->mem_log_crit = ivpu_bo_create_global(vdev, IVPU_FW_CRITICAL_BUFFER_SIZE,
