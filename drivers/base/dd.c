@@ -568,7 +568,7 @@ static void device_remove(struct device *dev)
 		dev->driver->remove(dev);
 }
 
-static int call_driver_probe(struct device *dev, struct device_driver *drv)
+static int call_driver_probe(struct device *dev, const struct device_driver *drv)
 {
 	int ret = 0;
 
@@ -599,7 +599,7 @@ static int call_driver_probe(struct device *dev, struct device_driver *drv)
 	return ret;
 }
 
-static int really_probe(struct device *dev, struct device_driver *drv)
+static int really_probe(struct device *dev, const struct device_driver *drv)
 {
 	bool test_remove = IS_ENABLED(CONFIG_DEBUG_TEST_DRIVER_REMOVE) &&
 			   !drv->suppress_bind_attrs;
@@ -628,7 +628,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	}
 
 re_probe:
-	dev->driver = drv;
+	// FIXME - this cast should not be needed "soon"
+	dev->driver = (struct device_driver *)drv;
 
 	/* If using pinctrl, bind pins now before probing */
 	ret = pinctrl_bind_pins(dev);
@@ -727,7 +728,7 @@ done:
 /*
  * For initcall_debug, show the driver probe time.
  */
-static int really_probe_debug(struct device *dev, struct device_driver *drv)
+static int really_probe_debug(struct device *dev, const struct device_driver *drv)
 {
 	ktime_t calltime, rettime;
 	int ret;
@@ -774,7 +775,7 @@ void wait_for_device_probe(void)
 }
 EXPORT_SYMBOL_GPL(wait_for_device_probe);
 
-static int __driver_probe_device(struct device_driver *drv, struct device *dev)
+static int __driver_probe_device(const struct device_driver *drv, struct device *dev)
 {
 	int ret = 0;
 
@@ -819,7 +820,7 @@ static int __driver_probe_device(struct device_driver *drv, struct device *dev)
  *
  * If the device has a parent, runtime-resume the parent before driver probing.
  */
-static int driver_probe_device(struct device_driver *drv, struct device *dev)
+static int driver_probe_device(const struct device_driver *drv, struct device *dev)
 {
 	int trigger_count = atomic_read(&deferred_trigger_count);
 	int ret;
@@ -1137,7 +1138,7 @@ EXPORT_SYMBOL_GPL(device_driver_attach);
 static void __driver_attach_async_helper(void *_dev, async_cookie_t cookie)
 {
 	struct device *dev = _dev;
-	struct device_driver *drv;
+	const struct device_driver *drv;
 	int ret;
 
 	__device_driver_lock(dev, dev->parent);
