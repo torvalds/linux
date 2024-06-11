@@ -863,7 +863,7 @@ static int __init save_async_options(char *buf)
 }
 __setup("driver_async_probe=", save_async_options);
 
-static bool driver_allows_async_probing(struct device_driver *drv)
+static bool driver_allows_async_probing(const struct device_driver *drv)
 {
 	switch (drv->probe_type) {
 	case PROBE_PREFER_ASYNCHRONOUS:
@@ -1333,7 +1333,7 @@ void device_driver_detach(struct device *dev)
  * driver_detach - detach driver from all devices it controls.
  * @drv: driver.
  */
-void driver_detach(struct device_driver *drv)
+void driver_detach(const struct device_driver *drv)
 {
 	struct device_private *dev_prv;
 	struct device *dev;
