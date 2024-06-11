@@ -245,6 +245,8 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 
 	ivpu_dbg(vdev, PM, "Runtime suspend..\n");
 
+	ivpu_mmu_disable(vdev);
+
 	is_idle = ivpu_hw_is_idle(vdev) || vdev->pm->dct_active_percent;
 	if (!is_idle)
 		ivpu_err(vdev, "NPU is not idle before autosuspend\n");
