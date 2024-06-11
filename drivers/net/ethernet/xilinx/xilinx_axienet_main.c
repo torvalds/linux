@@ -1945,9 +1945,9 @@ axienet_ethtools_set_coalesce(struct net_device *ndev,
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	if (netif_running(ndev)) {
-		netdev_err(ndev,
-			   "Please stop netif before applying configuration\n");
-		return -EFAULT;
+		NL_SET_ERR_MSG(extack,
+			       "Please stop netif before applying configuration");
+		return -EBUSY;
 	}
 
 	if (ecoalesce->rx_max_coalesced_frames)
