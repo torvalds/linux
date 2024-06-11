@@ -426,13 +426,12 @@ struct mddev {
 	struct md_thread __rcu		*thread;	/* management thread */
 	struct md_thread __rcu		*sync_thread;	/* doing resync or reconstruct */
 
-	/* 'last_sync_action' is initialized to "none".  It is set when a
-	 * sync operation (i.e "data-check", "requested-resync", "resync",
-	 * "recovery", or "reshape") is started.  It holds this value even
+	/*
+	 * Set when a sync operation is started. It holds this value even
 	 * when the sync thread is "frozen" (interrupted) or "idle" (stopped
-	 * or finished).  It is overwritten when a new sync operation is begun.
+	 * or finished). It is overwritten when a new sync operation is begun.
 	 */
-	const char			*last_sync_action;
+	enum sync_action		last_sync_action;
 	sector_t			curr_resync;	/* last block scheduled */
 	/* As resync requests can complete out of order, we cannot easily track
 	 * how much resync has been completed.  So we occasionally pause until
