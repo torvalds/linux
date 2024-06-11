@@ -77,25 +77,28 @@ static void wa_init(struct ivpu_device *vdev)
 
 static void timeouts_init(struct ivpu_device *vdev)
 {
-	if (ivpu_is_fpga(vdev)) {
+	if (ivpu_test_mode & IVPU_TEST_MODE_DISABLE_TIMEOUTS) {
+		vdev->timeout.boot = -1;
+		vdev->timeout.jsm = -1;
+		vdev->timeout.tdr = -1;
+		vdev->timeout.autosuspend = -1;
+		vdev->timeout.d0i3_entry_msg = -1;
+	} else if (ivpu_is_fpga(vdev)) {
 		vdev->timeout.boot = 100000;
 		vdev->timeout.jsm = 50000;
 		vdev->timeout.tdr = 2000000;
-		vdev->timeout.reschedule_suspend = 1000;
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = 500;
 	} else if (ivpu_is_simics(vdev)) {
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 10000;
-		vdev->timeout.reschedule_suspend = 10;
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = 100;
 	} else {
 		vdev->timeout.boot = 1000;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 2000;
-		vdev->timeout.reschedule_suspend = 10;
 		vdev->timeout.autosuspend = 10;
 		vdev->timeout.d0i3_entry_msg = 5;
 	}

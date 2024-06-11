@@ -150,7 +150,6 @@ struct ivpu_device {
 		int boot;
 		int jsm;
 		int tdr;
-		int reschedule_suspend;
 		int autosuspend;
 		int d0i3_entry_msg;
 	} timeout;
@@ -188,6 +187,7 @@ extern bool ivpu_force_snoop;
 #define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
 #define IVPU_TEST_MODE_PREEMPTION_DISABLE BIT(6)
 #define IVPU_TEST_MODE_HWS_EXTRA_EVENTS	  BIT(7)
+#define IVPU_TEST_MODE_DISABLE_TIMEOUTS   BIT(8)
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
