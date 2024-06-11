@@ -112,7 +112,7 @@ conditions are met, the features are enabled by the set_cpu_cap or
 setup_force_cpu_cap macros. For example, if bit 5 is set in MSR_IA32_CORE_CAPS,
 the feature X86_FEATURE_SPLIT_LOCK_DETECT will be enabled and
 "split_lock_detect" will be displayed. The flag "ring3mwait" will be
-displayed only when running on INTEL_FAM6_XEON_PHI_[KNL|KNM] processors.
+displayed only when running on INTEL_XEON_PHI_[KNL|KNM] processors.
 
 d: Flags can represent purely software features.
 ------------------------------------------------
