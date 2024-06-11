@@ -853,8 +853,15 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_hw_init, SND_SOC_CS35L56_SHARED);
 int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base)
 {
 	struct gpio_descs *descs;
-	int speaker_id;
+	u32 speaker_id;
 	int i, ret;
+
+	/* Attempt to read the speaker type from a device property first */
+	ret = device_property_read_u32(cs35l56_base->dev, "cirrus,speaker-id", &speaker_id);
+	if (!ret) {
+		dev_dbg(cs35l56_base->dev, "Speaker ID = %d\n", speaker_id);
+		return speaker_id;
+	}
 
 	/* Read the speaker type qualifier from the motherboard GPIOs */
 	descs = gpiod_get_array_optional(cs35l56_base->dev, "spk-id", GPIOD_IN);
