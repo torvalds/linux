@@ -15,6 +15,11 @@
 
 #define XE_FORCE_WAKE_ACK_TIMEOUT_MS	50
 
+static const char *str_wake_sleep(bool wake)
+{
+	return wake ? "wake" : "sleep";
+}
+
 static void domain_init(struct xe_force_wake_domain *domain,
 			enum xe_force_wake_domain_id id,
 			struct xe_reg reg, struct xe_reg ack)
@@ -89,46 +94,47 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 			    FORCEWAKE_ACK_GSC);
 }
 
+static void __domain_ctl(struct xe_gt *gt, struct xe_force_wake_domain *domain, bool wake)
+{
+	xe_mmio_write32(gt, domain->reg_ctl, domain->mask | (wake ? domain->val : 0));
+}
+
+static int __domain_wait(struct xe_gt *gt, struct xe_force_wake_domain *domain, bool wake)
+{
+	u32 value;
+	int ret;
+
+	ret = xe_mmio_wait32(gt, domain->reg_ack, domain->val, wake ? domain->val : 0,
+			     XE_FORCE_WAKE_ACK_TIMEOUT_MS * USEC_PER_MSEC,
+			     &value, true);
+	if (ret)
+		xe_gt_notice(gt, "Force wake domain %d failed to ack %s (%pe) reg[%#x] = %#x\n",
+			     domain->id, str_wake_sleep(wake), ERR_PTR(ret),
+			     domain->reg_ack.addr, value);
+
+	return ret;
+}
+
 static void domain_wake(struct xe_gt *gt, struct xe_force_wake_domain *domain)
 {
-	xe_mmio_write32(gt, domain->reg_ctl, domain->mask | domain->val);
+	__domain_ctl(gt, domain, true);
 }
 
 static int domain_wake_wait(struct xe_gt *gt,
 			    struct xe_force_wake_domain *domain)
 {
-	u32 value;
-	int ret;
-
-	ret = xe_mmio_wait32(gt, domain->reg_ack, domain->val, domain->val,
-			     XE_FORCE_WAKE_ACK_TIMEOUT_MS * USEC_PER_MSEC,
-			     &value, true);
-	if (ret)
-		xe_gt_notice(gt, "Force wake domain %d failed to ack wake (%pe) reg[%#x] = %#x\n",
-			     domain->id, ERR_PTR(ret), domain->reg_ack.addr, value);
-
-	return ret;
+	return __domain_wait(gt, domain, true);
 }
 
 static void domain_sleep(struct xe_gt *gt, struct xe_force_wake_domain *domain)
 {
-	xe_mmio_write32(gt, domain->reg_ctl, domain->mask);
+	__domain_ctl(gt, domain, false);
 }
 
 static int domain_sleep_wait(struct xe_gt *gt,
 			     struct xe_force_wake_domain *domain)
 {
-	u32 value;
-	int ret;
-
-	ret = xe_mmio_wait32(gt, domain->reg_ack, domain->val, 0,
-			     XE_FORCE_WAKE_ACK_TIMEOUT_MS * USEC_PER_MSEC,
-			     &value, true);
-	if (ret)
-		xe_gt_notice(gt, "Force wake domain %d failed to ack sleep (%pe) reg[%#x] = %#x\n",
-			     domain->id, ERR_PTR(ret), domain->reg_ack.addr, value);
-
-	return ret;
+	return __domain_wait(gt, domain, false);
 }
 
 #define for_each_fw_domain_masked(domain__, mask__, fw__, tmp__) \
