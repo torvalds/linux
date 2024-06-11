@@ -1464,12 +1464,11 @@ static int gswip_port_max_mtu(struct dsa_switch *ds, int port)
 static int gswip_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
 	struct gswip_priv *priv = ds->priv;
-	int cpu_port = priv->hw_info->cpu_port;
 
 	/* CPU port always has maximum mtu of user ports, so use it to set
 	 * switch frame size, including 8 byte special header.
 	 */
-	if (port == cpu_port) {
+	if (dsa_is_cpu_port(ds, port)) {
 		new_mtu += 8;
 		gswip_switch_w(priv, VLAN_ETH_HLEN + new_mtu + ETH_FCS_LEN,
 			       GSWIP_MAC_FLEN);
