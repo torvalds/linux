@@ -460,6 +460,9 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	if (!HAS_DSB(i915))
 		return NULL;
 
+	if (!i915->display.params.enable_dsb)
+		return NULL;
+
 	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
 	if (!IS_ENABLED(I915))
 		return NULL;
