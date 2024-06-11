@@ -870,18 +870,24 @@ ftrace_graph_get_ret_stack(struct task_struct *task, int idx)
 }
 
 /**
- * ftrace_graph_ret_addr - convert a potentially modified stack return address
- *			   to its original value
+ * ftrace_graph_ret_addr - return the original value of the return address
+ * @task: The task the unwinder is being executed on
+ * @idx: An initialized pointer to the next stack index to use
+ * @ret: The current return address (likely pointing to return_handler)
+ * @retp: The address on the stack of the current return location
  *
  * This function can be called by stack unwinding code to convert a found stack
- * return address ('ret') to its original value, in case the function graph
+ * return address (@ret) to its original value, in case the function graph
  * tracer has modified it to be 'return_to_handler'.  If the address hasn't
- * been modified, the unchanged value of 'ret' is returned.
+ * been modified, the unchanged value of @ret is returned.
  *
- * 'idx' is a state variable which should be initialized by the caller to zero
- * before the first call.
+ * @idx holds the last index used to know where to start from. It should be
+ * initialized to zero for the first iteration as that will mean to start
+ * at the top of the shadow stack. If the location is found, this pointer
+ * will be assigned that location so that if called again, it will continue
+ * where it left off.
  *
- * 'retp' is a pointer to the return address on the stack.  It's ignored if
+ * @retp is a pointer to the return address on the stack.  It's ignored if
  * the arch doesn't have HAVE_FUNCTION_GRAPH_RET_ADDR_PTR defined.
  */
 #ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
@@ -895,6 +901,10 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 	if (ret != return_handler)
 		return ret;
 
+	if (!idx)
+		return ret;
+
+	i = *idx ? : task->curr_ret_stack;
 	while (i > 0) {
 		ret_stack = get_ret_stack(current, i, &i);
 		if (!ret_stack)
@@ -908,8 +918,10 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 		 * Thus we will continue to find real return address.
 		 */
 		if (ret_stack->retp == retp &&
-		    ret_stack->ret != return_handler)
+		    ret_stack->ret != return_handler) {
+			*idx = i;
 			return ret_stack->ret;
+		}
 	}
 
 	return ret;
