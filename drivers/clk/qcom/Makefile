@@ -107,6 +107,7 @@ obj-$(CONFIG_SDM_VIDEOCC_845) += videocc-sdm845.o
 obj-$(CONFIG_SDX_GCC_55) += gcc-sdx55.o
 obj-$(CONFIG_SDX_GCC_65) += gcc-sdx65.o
 obj-$(CONFIG_SDX_GCC_75) += gcc-sdx75.o
+obj-$(CONFIG_SM_CAMCC_4450) += camcc-sm4450.o
 obj-$(CONFIG_SM_CAMCC_6350) += camcc-sm6350.o
 obj-$(CONFIG_SM_CAMCC_7150) += camcc-sm7150.o
 obj-$(CONFIG_SM_CAMCC_8150) += camcc-sm8150.o

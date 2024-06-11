@@ -810,6 +810,14 @@ config SDX_GCC_75
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/eMMC, PCIe etc.
 
+config SM_CAMCC_4450
+	tristate "SM4450 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SM_GCC_4450
+	help
+	  Support for the camera clock controller on SM4450 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_CAMCC_6350
 	tristate "SM6350 Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
