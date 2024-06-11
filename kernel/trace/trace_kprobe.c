@@ -2114,10 +2114,6 @@ static __init int kprobe_trace_self_tests_init(void)
 
 
 end:
-	ret = dyn_events_release_all(&trace_kprobe_ops);
-	if (WARN_ONCE(ret, "error on cleaning up probes."))
-		warn++;
-
 	/*
 	 * Wait for the optimizer work to finish. Otherwise it might fiddle
 	 * with probes in already freed __init text.
