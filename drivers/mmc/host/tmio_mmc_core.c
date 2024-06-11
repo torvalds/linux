@@ -1319,4 +1319,5 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 EXPORT_SYMBOL_GPL(tmio_mmc_host_runtime_resume);
 #endif
 
+MODULE_DESCRIPTION("TMIO MMC core driver");
 MODULE_LICENSE("GPL v2");
