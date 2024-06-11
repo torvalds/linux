@@ -516,8 +516,6 @@ bool sym_tristate_within_range(struct symbol *sym, tristate val)
 		return false;
 	if (sym->visible <= sym->rev_dep.tri)
 		return false;
-	if (sym_is_choice_value(sym) && sym->visible == yes)
-		return val == yes;
 	return val >= sym->rev_dep.tri && val <= sym->visible;
 }
 
@@ -532,23 +530,6 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 		sym->flags |= SYMBOL_DEF_USER;
 		sym_set_changed(sym);
 	}
-	/*
-	 * setting a choice value also resets the new flag of the choice
-	 * symbol and all other choice values.
-	 */
-	if (sym_is_choice_value(sym) && val == yes) {
-		struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
-		struct property *prop;
-		struct expr *e;
-
-		cs->def[S_DEF_USER].val = sym;
-		cs->flags |= SYMBOL_DEF_USER;
-		prop = sym_get_choice_prop(cs);
-		for (e = prop->expr; e; e = e->left.expr) {
-			if (e->right.sym->visible != no)
-				e->right.sym->flags |= SYMBOL_DEF_USER;
-		}
-	}
 
 	sym->def[S_DEF_USER].tri = val;
 	if (oldval != val)
@@ -557,9 +538,52 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 	return true;
 }
 
+/**
+ * choice_set_value - set the user input to a choice
+ *
+ * @choice: menu entry for the choice
+ * @sym: selected symbol
+ */
+void choice_set_value(struct menu *choice, struct symbol *sym)
+{
+	struct menu *menu;
+	bool changed = false;
+
+	menu_for_each_sub_entry(menu, choice) {
+		tristate val;
+
+		if (!menu->sym)
+			continue;
+
+		if (menu->sym->visible == no)
+			continue;
+
+		val = menu->sym == sym ? yes : no;
+
+		if (menu->sym->curr.tri != val)
+			changed = true;
+
+		menu->sym->def[S_DEF_USER].tri = val;
+		menu->sym->flags |= SYMBOL_DEF_USER;
+	}
+
+	choice->sym->def[S_DEF_USER].val = sym;
+	choice->sym->flags |= SYMBOL_DEF_USER;
+
+	if (changed)
+		sym_clear_all_valid();
+}
+
 tristate sym_toggle_tristate_value(struct symbol *sym)
 {
+	struct menu *choice;
 	tristate oldval, newval;
+
+	choice = sym_get_choice_menu(sym);
+	if (choice) {
+		choice_set_value(choice, sym);
+		return yes;
+	}
 
 	oldval = newval = sym_get_tristate_value(sym);
 	do {

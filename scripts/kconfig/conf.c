@@ -507,7 +507,7 @@ static void conf_choice(struct menu *menu)
 			print_help(child);
 			continue;
 		}
-		sym_set_tristate_value(child->sym, yes);
+		choice_set_value(menu, child->sym);
 		return;
 	}
 }

@@ -1331,7 +1331,7 @@ static void conf_choice(struct menu *menu)
 		case ' ':
 		case  10:
 		case KEY_RIGHT:
-			sym_set_tristate_value(child->sym, yes);
+			choice_set_value(menu, child->sym);
 			return;
 		case 'h':
 		case '?':

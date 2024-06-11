@@ -636,7 +636,7 @@ static void conf_choice(struct menu *menu)
 				if (!child->sym)
 					break;
 
-				sym_set_tristate_value(child->sym, yes);
+				choice_set_value(menu, child->sym);
 			}
 			return;
 		case 1:
