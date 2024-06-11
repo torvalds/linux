@@ -6718,7 +6718,7 @@ int intel_atomic_check(struct drm_device *dev,
 
 static int intel_atomic_prepare_commit(struct intel_atomic_state *state)
 {
-	struct intel_crtc_state *crtc_state;
+	struct intel_crtc_state __maybe_unused *crtc_state;
 	struct intel_crtc *crtc;
 	int i, ret;
 
@@ -6726,10 +6726,8 @@ static int intel_atomic_prepare_commit(struct intel_atomic_state *state)
 	if (ret < 0)
 		return ret;
 
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		if (intel_crtc_needs_color_update(crtc_state))
-			intel_color_prepare_commit(crtc_state);
-	}
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
+		intel_color_prepare_commit(state, crtc);
 
 	return 0;
 }
