@@ -1611,6 +1611,7 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 		wake_up_all(&guc->ct.wq);
 	} else {
 		xe_gt_assert(guc_to_gt(guc), runnable_state == 0);
+		xe_gt_assert(guc_to_gt(guc), exec_queue_pending_disable(q));
 
 		clear_exec_queue_pending_disable(q);
 		if (q->guc->suspend_pending) {
