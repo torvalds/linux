@@ -236,7 +236,9 @@
 #define GSWIP_TABLE_ACTIVE_VLAN		0x01
 #define GSWIP_TABLE_VLAN_MAPPING	0x02
 #define GSWIP_TABLE_MAC_BRIDGE		0x0b
-#define  GSWIP_TABLE_MAC_BRIDGE_STATIC	0x01	/* Static not, aging entry */
+#define  GSWIP_TABLE_MAC_BRIDGE_KEY3_FID	GENMASK(5, 0)	/* Filtering identifier */
+#define  GSWIP_TABLE_MAC_BRIDGE_VAL0_PORT	GENMASK(7, 4)	/* Port on learned entries */
+#define  GSWIP_TABLE_MAC_BRIDGE_VAL1_STATIC	BIT(0)		/* Static, non-aging entry */
 
 #define XRX200_GPHY_FW_ALIGN	(16 * 1024)
 
@@ -1304,10 +1306,11 @@ static void gswip_port_fast_age(struct dsa_switch *ds, int port)
 		if (!mac_bridge.valid)
 			continue;
 
-		if (mac_bridge.val[1] & GSWIP_TABLE_MAC_BRIDGE_STATIC)
+		if (mac_bridge.val[1] & GSWIP_TABLE_MAC_BRIDGE_VAL1_STATIC)
 			continue;
 
-		if (((mac_bridge.val[0] & GENMASK(7, 4)) >> 4) != port)
+		if (port != FIELD_GET(GSWIP_TABLE_MAC_BRIDGE_VAL0_PORT,
+				      mac_bridge.val[0]))
 			continue;
 
 		mac_bridge.valid = false;
@@ -1382,9 +1385,9 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 	mac_bridge.key[0] = addr[5] | (addr[4] << 8);
 	mac_bridge.key[1] = addr[3] | (addr[2] << 8);
 	mac_bridge.key[2] = addr[1] | (addr[0] << 8);
-	mac_bridge.key[3] = fid;
+	mac_bridge.key[3] = FIELD_PREP(GSWIP_TABLE_MAC_BRIDGE_KEY3_FID, fid);
 	mac_bridge.val[0] = add ? BIT(port) : 0; /* port map */
-	mac_bridge.val[1] = GSWIP_TABLE_MAC_BRIDGE_STATIC;
+	mac_bridge.val[1] = GSWIP_TABLE_MAC_BRIDGE_VAL1_STATIC;
 	mac_bridge.valid = add;
 
 	err = gswip_pce_table_entry_write(priv, &mac_bridge);
@@ -1438,14 +1441,15 @@ static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
 		addr[2] = (mac_bridge.key[1] >> 8) & 0xff;
 		addr[1] = mac_bridge.key[2] & 0xff;
 		addr[0] = (mac_bridge.key[2] >> 8) & 0xff;
-		if (mac_bridge.val[1] & GSWIP_TABLE_MAC_BRIDGE_STATIC) {
+		if (mac_bridge.val[1] & GSWIP_TABLE_MAC_BRIDGE_VAL1_STATIC) {
 			if (mac_bridge.val[0] & BIT(port)) {
 				err = cb(addr, 0, true, data);
 				if (err)
 					return err;
 			}
 		} else {
-			if (((mac_bridge.val[0] & GENMASK(7, 4)) >> 4) == port) {
+			if (port == FIELD_GET(GSWIP_TABLE_MAC_BRIDGE_VAL0_PORT,
+					      mac_bridge.val[0])) {
 				err = cb(addr, 0, false, data);
 				if (err)
 					return err;
