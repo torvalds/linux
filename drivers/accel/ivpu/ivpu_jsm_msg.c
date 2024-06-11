@@ -103,14 +103,10 @@ int ivpu_jsm_register_db(struct ivpu_device *vdev, u32 ctx_id, u32 db_id,
 
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_REGISTER_DB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
-	if (ret) {
-		ivpu_err_ratelimited(vdev, "Failed to register doorbell %d: %d\n", db_id, ret);
-		return ret;
-	}
+	if (ret)
+		ivpu_err_ratelimited(vdev, "Failed to register doorbell %u: %d\n", db_id, ret);
 
-	ivpu_dbg(vdev, JSM, "Doorbell %d registered to context %d\n", db_id, ctx_id);
-
-	return 0;
+	return ret;
 }
 
 int ivpu_jsm_unregister_db(struct ivpu_device *vdev, u32 db_id)
@@ -123,14 +119,10 @@ int ivpu_jsm_unregister_db(struct ivpu_device *vdev, u32 db_id)
 
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_UNREGISTER_DB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
-	if (ret) {
-		ivpu_warn_ratelimited(vdev, "Failed to unregister doorbell %d: %d\n", db_id, ret);
-		return ret;
-	}
+	if (ret)
+		ivpu_warn_ratelimited(vdev, "Failed to unregister doorbell %u: %d\n", db_id, ret);
 
-	ivpu_dbg(vdev, JSM, "Doorbell %d unregistered\n", db_id);
-
-	return 0;
+	return ret;
 }
 
 int ivpu_jsm_get_heartbeat(struct ivpu_device *vdev, u32 engine, u64 *heartbeat)
