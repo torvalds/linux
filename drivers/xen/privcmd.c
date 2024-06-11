@@ -48,6 +48,7 @@
 
 #include "privcmd.h"
 
+MODULE_DESCRIPTION("Xen hypercall passthrough driver");
 MODULE_LICENSE("GPL");
 
 #define PRIV_VMA_LOCKED ((void *)1)
