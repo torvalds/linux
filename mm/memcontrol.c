@@ -8434,7 +8434,7 @@ void obj_cgroup_uncharge_zswap(struct obj_cgroup *objcg, size_t size)
 bool mem_cgroup_zswap_writeback_enabled(struct mem_cgroup *memcg)
 {
 	/* if zswap is disabled, do not block pages going to the swapping device */
-	return !is_zswap_enabled() || !memcg || READ_ONCE(memcg->zswap_writeback);
+	return !zswap_is_enabled() || !memcg || READ_ONCE(memcg->zswap_writeback);
 }
 
 static u64 zswap_current_read(struct cgroup_subsys_state *css,

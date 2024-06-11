@@ -131,7 +131,7 @@ static bool zswap_shrinker_enabled = IS_ENABLED(
 		CONFIG_ZSWAP_SHRINKER_DEFAULT_ON);
 module_param_named(shrinker_enabled, zswap_shrinker_enabled, bool, 0644);
 
-bool is_zswap_enabled(void)
+bool zswap_is_enabled(void)
 {
 	return zswap_enabled;
 }
