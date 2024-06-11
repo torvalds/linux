@@ -3034,6 +3034,13 @@ static int __qcom_multi_smc_init(struct qcom_scm *__scm,
 			return ret;
 		}
 
+		/* Return success if "no-multi-smc-support" property is present */
+		if (of_property_read_bool(__scm->dev->of_node,
+				"qcom,no-multi-smc-support")) {
+			dev_info(__scm->dev, "Multi smc is not supported\n");
+			return 0;
+		}
+
 		/* Detect Multi SMC support present or not */
 		ret = qcom_scm_query_wq_queue_info(__scm);
 		if (!ret)
