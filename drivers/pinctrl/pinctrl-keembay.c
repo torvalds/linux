@@ -1627,7 +1627,7 @@ static int keembay_build_functions(struct keembay_pinctrl *kpc)
 			}
 
 			/* Setup new function for this mux we didn't see before */
-			if (!fdesc->name) {
+			if (!fdesc->func.name) {
 				fdesc->func.name = mux->name;
 				fdesc->func.ngroups = 1;
 				fdesc->data = &mux->mode;
