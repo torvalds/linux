@@ -504,6 +504,8 @@ static int ip_reset_lnl(struct ivpu_device *vdev)
 	int ret;
 	u32 val;
 
+	ivpu_hw_btrs_clock_relinquish_disable_lnl(vdev);
+
 	ret = REGB_POLL_FLD(VPU_HW_BTRS_LNL_IP_RESET, TRIGGER, 0, TIMEOUT_US);
 	if (ret) {
 		ivpu_err(vdev, "Wait for *_TRIGGER timed out\n");
