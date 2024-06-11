@@ -346,6 +346,7 @@ static void flip_done_handler(struct drm_i915_private *i915,
 	spin_lock(&i915->drm.event_lock);
 
 	if (crtc->flip_done_event) {
+		trace_intel_crtc_flip_done(crtc);
 		drm_crtc_send_vblank_event(&crtc->base, crtc->flip_done_event);
 		crtc->flip_done_event = NULL;
 	}
