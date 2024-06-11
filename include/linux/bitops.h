@@ -47,12 +47,17 @@ extern unsigned long __sw_hweight64(__u64 w);
 	  __builtin_constant_p(*(const unsigned long *)(addr))) ?	\
 	 const##op(nr, addr) : op(nr, addr))
 
+/*
+ * The following macros are non-atomic versions of their non-underscored
+ * counterparts.
+ */
 #define __set_bit(nr, addr)		bitop(___set_bit, nr, addr)
 #define __clear_bit(nr, addr)		bitop(___clear_bit, nr, addr)
 #define __change_bit(nr, addr)		bitop(___change_bit, nr, addr)
 #define __test_and_set_bit(nr, addr)	bitop(___test_and_set_bit, nr, addr)
 #define __test_and_clear_bit(nr, addr)	bitop(___test_and_clear_bit, nr, addr)
 #define __test_and_change_bit(nr, addr)	bitop(___test_and_change_bit, nr, addr)
+
 #define test_bit(nr, addr)		bitop(_test_bit, nr, addr)
 #define test_bit_acquire(nr, addr)	bitop(_test_bit_acquire, nr, addr)
 
