@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/wlf,wm8804.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: WM8804 audio codec
+
+description: |
+  This device supports both I2C and SPI (configured with pin strapping on the
+  board).
+
+maintainers:
+  - patches@opensource.cirrus.com
+
+properties:
+  compatible:
+    const: wlf,wm8804
+
+  reg:
+    description:
+      The I2C address of the device for I2C, the chip select number for SPI.
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 0
+
+  PVDD-supply:
+    description: PLL core supply
+
+  DVDD-supply:
+    description: Digital core supply
+
+  wlf,reset-gpio:
+    description: A GPIO specifier for the GPIO controlling the reset pin.
+    maxItems: 1
+
+required:
+  - reg
+  - compatible
+  - PVDD-supply
+  - DVDD-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        codec@1a {
+            compatible = "wlf,wm8804";
+            reg = <0x1a>;
+            PVDD-supply = <&pvdd_reg>;
+            DVDD-supply = <&dvdd_reg>;
+        };
+    };
