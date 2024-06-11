@@ -397,15 +397,14 @@ static void rtw89_conf_tx(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_station_mode_sta_assoc(struct rtw89_dev *rtwdev,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_bss_conf *conf)
+					 struct ieee80211_vif *vif)
 {
 	struct ieee80211_sta *sta;
 
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
-	sta = ieee80211_find_sta(vif, conf->bssid);
+	sta = ieee80211_find_sta(vif, vif->cfg.ap_addr);
 	if (!sta) {
 		rtw89_err(rtwdev, "can't find sta to set sta_assoc state\n");
 		return;
@@ -416,10 +415,8 @@ static void rtw89_station_mode_sta_assoc(struct rtw89_dev *rtwdev,
 	rtw89_core_sta_assoc(rtwdev, vif, sta);
 }
 
-static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif,
-				       struct ieee80211_bss_conf *conf,
-				       u64 changed)
+static void rtw89_ops_vif_cfg_changed(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif, u64 changed)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
@@ -429,7 +426,7 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (vif->cfg.assoc) {
-			rtw89_station_mode_sta_assoc(rtwdev, vif, conf);
+			rtw89_station_mode_sta_assoc(rtwdev, vif);
 			rtw89_phy_set_bss_color(rtwdev, vif);
 			rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, vif);
 			rtw89_mac_port_update(rtwdev, rtwvif);
@@ -444,6 +441,26 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 				rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
 		}
 	}
+
+	if (changed & BSS_CHANGED_PS)
+		rtw89_recalc_lps(rtwdev);
+
+	if (changed & BSS_CHANGED_ARP_FILTER)
+		rtwvif->ip_addr = vif->cfg.arp_addr_list[0];
+
+	mutex_unlock(&rtwdev->mutex);
+}
+
+static void rtw89_ops_link_info_changed(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_bss_conf *conf,
+					u64 changed)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+
+	mutex_lock(&rtwdev->mutex);
+	rtw89_leave_ps_mode(rtwdev);
 
 	if (changed & BSS_CHANGED_BSSID) {
 		ether_addr_copy(rtwvif->bssid, conf->bssid);
@@ -469,12 +486,6 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_CQM)
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
-
-	if (changed & BSS_CHANGED_PS)
-		rtw89_recalc_lps(rtwdev);
-
-	if (changed & BSS_CHANGED_ARP_FILTER)
-		rtwvif->ip_addr = vif->cfg.arp_addr_list[0];
 
 	mutex_unlock(&rtwdev->mutex);
 }
@@ -1143,7 +1154,8 @@ const struct ieee80211_ops rtw89_ops = {
 	.change_interface       = rtw89_ops_change_interface,
 	.remove_interface	= rtw89_ops_remove_interface,
 	.configure_filter	= rtw89_ops_configure_filter,
-	.bss_info_changed	= rtw89_ops_bss_info_changed,
+	.vif_cfg_changed	= rtw89_ops_vif_cfg_changed,
+	.link_info_changed	= rtw89_ops_link_info_changed,
 	.start_ap		= rtw89_ops_start_ap,
 	.stop_ap		= rtw89_ops_stop_ap,
 	.set_tim		= rtw89_ops_set_tim,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2019-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2019-2022, 2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2016 Intel Deutschland GmbH
  */
@@ -618,48 +618,35 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
 	int ret;
 	int temp;
 
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
-		ret = -ENODATA;
-		goto out;
-	}
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
+		return -ENODATA;
 
 	ret = iwl_mvm_get_temp(mvm, &temp);
 	if (ret)
-		goto out;
+		return ret;
 
 	*temperature = temp * 1000;
-
-out:
-	mutex_unlock(&mvm->mutex);
-	return ret;
+	return 0;
 }
 
 static int iwl_mvm_tzone_set_trip_temp(struct thermal_zone_device *device,
 				       int trip, int temp)
 {
 	struct iwl_mvm *mvm = thermal_zone_device_priv(device);
-	int ret;
 
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
-		ret = -EIO;
-		goto out;
-	}
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
+		return -EIO;
 
-	if ((temp / 1000) > S16_MAX) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if ((temp / 1000) > S16_MAX)
+		return -EINVAL;
 
-	ret = iwl_mvm_send_temp_report_ths_cmd(mvm);
-out:
-	mutex_unlock(&mvm->mutex);
-	return ret;
+	return iwl_mvm_send_temp_report_ths_cmd(mvm);
 }
 
 static  struct thermal_zone_device_ops tzone_ops = {
@@ -733,27 +720,18 @@ static int iwl_mvm_tcool_set_cur_state(struct thermal_cooling_device *cdev,
 				       unsigned long new_state)
 {
 	struct iwl_mvm *mvm = (struct iwl_mvm *)(cdev->devdata);
-	int ret;
 
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
-		ret = -EIO;
-		goto unlock;
-	}
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
+		return -EIO;
 
-	if (new_state >= ARRAY_SIZE(iwl_mvm_cdev_budgets)) {
-		ret = -EINVAL;
-		goto unlock;
-	}
+	if (new_state >= ARRAY_SIZE(iwl_mvm_cdev_budgets))
+		return -EINVAL;
 
-	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START,
-				   new_state);
-
-unlock:
-	mutex_unlock(&mvm->mutex);
-	return ret;
+	return iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START,
+				    new_state);
 }
 
 static const struct thermal_cooling_device_ops tcooling_ops = {

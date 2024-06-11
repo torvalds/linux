@@ -50,19 +50,16 @@ int ath12k_core_suspend(struct ath12k_base *ab)
 	if (!ab->hw_params->supports_suspend)
 		return -EOPNOTSUPP;
 
-	rcu_read_lock();
 	for (i = 0; i < ab->num_radios; i++) {
-		ar = ath12k_mac_get_ar_by_pdev_id(ab, i);
+		ar = ab->pdevs[i].ar;
 		if (!ar)
 			continue;
 		ret = ath12k_mac_wait_tx_complete(ar);
 		if (ret) {
 			ath12k_warn(ab, "failed to wait tx complete: %d\n", ret);
-			rcu_read_unlock();
 			return ret;
 		}
 	}
-	rcu_read_unlock();
 
 	/* PM framework skips suspend_late/resume_early callbacks
 	 * if other devices report errors in their suspend callbacks.
@@ -994,9 +991,8 @@ void ath12k_core_halt(struct ath12k *ar)
 static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 {
 	struct ath12k *ar;
-	struct ath12k_pdev *pdev;
 	struct ath12k_hw *ah;
-	int i;
+	int i, j;
 
 	spin_lock_bh(&ab->base_lock);
 	ab->stats.fw_crash_counter++;
@@ -1006,35 +1002,32 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 		set_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags);
 
 	for (i = 0; i < ab->num_hw; i++) {
-		if (!ab->ah[i])
-			continue;
-
 		ah = ab->ah[i];
-		ieee80211_stop_queues(ah->hw);
-	}
-
-	for (i = 0; i < ab->num_radios; i++) {
-		pdev = &ab->pdevs[i];
-		ar = pdev->ar;
-		if (!ar || ar->state == ATH12K_STATE_OFF)
+		if (!ah || ah->state == ATH12K_HW_STATE_OFF)
 			continue;
 
-		ath12k_mac_drain_tx(ar);
-		complete(&ar->scan.started);
-		complete(&ar->scan.completed);
-		complete(&ar->scan.on_channel);
-		complete(&ar->peer_assoc_done);
-		complete(&ar->peer_delete_done);
-		complete(&ar->install_key_done);
-		complete(&ar->vdev_setup_done);
-		complete(&ar->vdev_delete_done);
-		complete(&ar->bss_survey_done);
+		ieee80211_stop_queues(ah->hw);
 
-		wake_up(&ar->dp.tx_empty_waitq);
-		idr_for_each(&ar->txmgmt_idr,
-			     ath12k_mac_tx_mgmt_pending_free, ar);
-		idr_destroy(&ar->txmgmt_idr);
-		wake_up(&ar->txmgmt_empty_waitq);
+		for (j = 0; j < ah->num_radio; j++) {
+			ar = &ah->radio[j];
+
+			ath12k_mac_drain_tx(ar);
+			complete(&ar->scan.started);
+			complete(&ar->scan.completed);
+			complete(&ar->scan.on_channel);
+			complete(&ar->peer_assoc_done);
+			complete(&ar->peer_delete_done);
+			complete(&ar->install_key_done);
+			complete(&ar->vdev_setup_done);
+			complete(&ar->vdev_delete_done);
+			complete(&ar->bss_survey_done);
+
+			wake_up(&ar->dp.tx_empty_waitq);
+			idr_for_each(&ar->txmgmt_idr,
+				     ath12k_mac_tx_mgmt_pending_free, ar);
+			idr_destroy(&ar->txmgmt_idr);
+			wake_up(&ar->txmgmt_empty_waitq);
+		}
 	}
 
 	wake_up(&ab->wmi_ab.tx_credits_wq);
@@ -1043,41 +1036,51 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 
 static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 {
+	struct ath12k_hw *ah;
 	struct ath12k *ar;
-	struct ath12k_pdev *pdev;
-	int i;
+	int i, j;
 
-	for (i = 0; i < ab->num_radios; i++) {
-		pdev = &ab->pdevs[i];
-		ar = pdev->ar;
-		if (!ar || ar->state == ATH12K_STATE_OFF)
+	for (i = 0; i < ab->num_hw; i++) {
+		ah = ab->ah[i];
+		if (!ah || ah->state == ATH12K_HW_STATE_OFF)
 			continue;
 
-		mutex_lock(&ar->conf_mutex);
+		mutex_lock(&ah->hw_mutex);
 
-		switch (ar->state) {
-		case ATH12K_STATE_ON:
-			ar->state = ATH12K_STATE_RESTARTING;
-			ath12k_core_halt(ar);
-			ieee80211_restart_hw(ath12k_ar_to_hw(ar));
+		switch (ah->state) {
+		case ATH12K_HW_STATE_ON:
+			ah->state = ATH12K_HW_STATE_RESTARTING;
+
+			for (j = 0; j < ah->num_radio; j++) {
+				ar = &ah->radio[j];
+
+				mutex_lock(&ar->conf_mutex);
+				ath12k_core_halt(ar);
+				mutex_unlock(&ar->conf_mutex);
+			}
+
+			/* Restart after all the link/radio halt */
+			ieee80211_restart_hw(ah->hw);
 			break;
-		case ATH12K_STATE_OFF:
+		case ATH12K_HW_STATE_OFF:
 			ath12k_warn(ab,
-				    "cannot restart radio %d that hasn't been started\n",
+				    "cannot restart hw %d that hasn't been started\n",
 				    i);
 			break;
-		case ATH12K_STATE_RESTARTING:
+		case ATH12K_HW_STATE_RESTARTING:
 			break;
-		case ATH12K_STATE_RESTARTED:
-			ar->state = ATH12K_STATE_WEDGED;
+		case ATH12K_HW_STATE_RESTARTED:
+			ah->state = ATH12K_HW_STATE_WEDGED;
 			fallthrough;
-		case ATH12K_STATE_WEDGED:
+		case ATH12K_HW_STATE_WEDGED:
 			ath12k_warn(ab,
-				    "device is wedged, will not restart radio %d\n", i);
+				    "device is wedged, will not restart hw %d\n", i);
 			break;
 		}
-		mutex_unlock(&ar->conf_mutex);
+
+		mutex_unlock(&ah->hw_mutex);
 	}
+
 	complete(&ab->driver_recovery);
 }
 
@@ -1185,6 +1188,29 @@ int ath12k_core_pre_init(struct ath12k_base *ab)
 	return 0;
 }
 
+static int ath12k_core_panic_handler(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	struct ath12k_base *ab = container_of(nb, struct ath12k_base,
+					      panic_nb);
+
+	return ath12k_hif_panic_handler(ab);
+}
+
+static int ath12k_core_panic_notifier_register(struct ath12k_base *ab)
+{
+	ab->panic_nb.notifier_call = ath12k_core_panic_handler;
+
+	return atomic_notifier_chain_register(&panic_notifier_list,
+					      &ab->panic_nb);
+}
+
+static void ath12k_core_panic_notifier_unregister(struct ath12k_base *ab)
+{
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &ab->panic_nb);
+}
+
 int ath12k_core_init(struct ath12k_base *ab)
 {
 	int ret;
@@ -1195,11 +1221,17 @@ int ath12k_core_init(struct ath12k_base *ab)
 		return ret;
 	}
 
+	ret = ath12k_core_panic_notifier_register(ab);
+	if (ret)
+		ath12k_warn(ab, "failed to register panic handler: %d\n", ret);
+
 	return 0;
 }
 
 void ath12k_core_deinit(struct ath12k_base *ab)
 {
+	ath12k_core_panic_notifier_unregister(ab);
+
 	mutex_lock(&ab->core_lock);
 
 	ath12k_core_pdev_destroy(ab);
@@ -1261,6 +1293,16 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	ab->hif.bus = bus;
 	ab->qmi.num_radios = U8_MAX;
 	ab->mlo_capable_flags = ATH12K_INTRA_DEVICE_MLO_SUPPORT;
+
+	/* Device index used to identify the devices in a group.
+	 *
+	 * In Intra-device MLO, only one device present in a group,
+	 * so it is always zero.
+	 *
+	 * In Inter-device MLO, Multiple device present in a group,
+	 * expect non-zero value.
+	 */
+	ab->device_id = 0;
 
 	return ab;
 

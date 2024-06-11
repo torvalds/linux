@@ -4433,6 +4433,7 @@ void iwl_mvm_count_mpdu(struct iwl_mvm_sta *mvm_sta, u8 fw_sta_id, u32 count,
 			bool tx, int queue)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvm_sta->vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
 	struct iwl_mvm_tpt_counter *queue_counter;
 	struct iwl_mvm_mpdu_counter *link_counter;
 	u32 total_mpdus = 0;
@@ -4469,6 +4470,8 @@ void iwl_mvm_count_mpdu(struct iwl_mvm_sta *mvm_sta, u8 fw_sta_id, u32 count,
 		memset(queue_counter->per_link, 0,
 		       sizeof(queue_counter->per_link));
 		queue_counter->window_start = jiffies;
+
+		IWL_DEBUG_STATS(mvm, "MPDU counters are cleared\n");
 	}
 
 	for (int i = 0; i < IWL_MVM_FW_MAX_LINK_ID; i++)

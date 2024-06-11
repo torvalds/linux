@@ -754,7 +754,6 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	struct iwl_mvm *mvm = file->private_data;
 	char *buff, *pos, *endpos;
 	static const size_t bufsz = 1024;
-	char _fw_name_pre[FW_NAME_PRE_BUFSIZE];
 	int ret;
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
@@ -764,8 +763,8 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	pos = buff;
 	endpos = pos + bufsz;
 
-	pos += scnprintf(pos, endpos - pos, "FW prefix: %s\n",
-			 iwl_drv_get_fwname_pre(mvm->trans, _fw_name_pre));
+	pos += scnprintf(pos, endpos - pos, "FW id: %s\n",
+			 mvm->fwrt.fw->fw_version);
 	pos += scnprintf(pos, endpos - pos, "FW: %s\n",
 			 mvm->fwrt.fw->human_readable);
 	pos += scnprintf(pos, endpos - pos, "Device: %s\n",
@@ -1395,6 +1394,8 @@ static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 {
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
+
+	IWL_ERR(mvm, "Triggering an NMI from debugfs\n");
 
 	if (count == 6 && !strcmp(buf, "nolog\n"))
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
@@ -2447,6 +2448,9 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 
 	debugfs_create_file("mem", 0600, mvm->debugfs_dir, mvm,
 			    &iwl_dbgfs_mem_ops);
+
+	debugfs_create_bool("rx_ts_ptp", 0600, mvm->debugfs_dir,
+			    &mvm->rx_ts_ptp);
 
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211

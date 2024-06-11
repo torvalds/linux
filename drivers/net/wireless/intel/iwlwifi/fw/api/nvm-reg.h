@@ -23,7 +23,8 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	 *	&struct iwl_lari_config_change_cmd_v4,
 	 *	&struct iwl_lari_config_change_cmd_v5,
 	 *	&struct iwl_lari_config_change_cmd_v6,
-	 *	&struct iwl_lari_config_change_cmd_v7 or
+	 *	&struct iwl_lari_config_change_cmd_v7,
+	 *	&struct iwl_lari_config_change_cmd_v10 or
 	 *	&struct iwl_lari_config_change_cmd
 	 */
 	LARI_CONFIG_CHANGE = 0x1,
@@ -648,7 +649,7 @@ struct iwl_lari_config_change_cmd_v7 {
 /* LARI_CHANGE_CONF_CMD_S_VER_9 */
 
 /**
- * struct iwl_lari_config_change_cmd - change LARI configuration
+ * struct iwl_lari_config_change_cmd_v10 - change LARI configuration
  * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
  *	different predefined FW config operation.
  * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
@@ -674,7 +675,7 @@ struct iwl_lari_config_change_cmd_v7 {
  *	bit1: enable 320Mhz in South Korea.
  *	bit 2 - 31: reserved.
  */
-struct iwl_lari_config_change_cmd {
+struct iwl_lari_config_change_cmd_v10 {
 	__le32 config_bitmap;
 	__le32 oem_uhb_allow_bitmap;
 	__le32 oem_11ax_allow_bitmap;
@@ -685,6 +686,51 @@ struct iwl_lari_config_change_cmd {
 	__le32 oem_320mhz_allow_bitmap;
 } __packed;
 /* LARI_CHANGE_CONF_CMD_S_VER_10 */
+
+/**
+ * struct iwl_lari_config_change_cmd - change LARI configuration
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *	different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *	per country, one to indicate whether to override and the other to
+ *	indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *	per country, one to indicate whether to override and the other to
+ *	indicate allow/disallow unii4 channels.
+ *	For LARI cmd version 11 - bits 0:5 are supported.
+ * @chan_state_active_bitmap: Bitmap to enable different bands per country
+ *	or region.
+ *	Each bit represents a country or region, and a band to activate
+ *	according to the BIOS definitions.
+ *	For LARI cmd version 11 - bits 0:4 are supported.
+ * @force_disable_channels_bitmap: Bitmap of disabled bands/channels.
+ *	Each bit represents a set of channels in a specific band that should be
+ *	disabled
+ * @edt_bitmap: Bitmap of energy detection threshold table.
+ *	Disable/enable the EDT optimization method for different band.
+ * @oem_320mhz_allow_bitmap: 320Mhz bandwidth enablement bitmap per MCC.
+ *	bit0: enable 320Mhz in Japan.
+ *	bit1: enable 320Mhz in South Korea.
+ *	bit 2 - 31: reserved.
+ * @oem_11be_allow_bitmap: Bitmap of 11be allowed MCCs. No need to mask out the
+ *	unsupported bits
+ *	bit0: enable 11be in China(CB/CN).
+ *	bit1: enable 11be in South Korea.
+ *	bit 2 - 31: reserved.
+ */
+struct iwl_lari_config_change_cmd {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+	__le32 chan_state_active_bitmap;
+	__le32 force_disable_channels_bitmap;
+	__le32 edt_bitmap;
+	__le32 oem_320mhz_allow_bitmap;
+	__le32 oem_11be_allow_bitmap;
+} __packed;
+/* LARI_CHANGE_CONF_CMD_S_VER_11 */
 
 /* Activate UNII-1 (5.2GHz) for World Wide */
 #define ACTIVATE_5G2_IN_WW_MASK	BIT(4)

@@ -470,6 +470,10 @@ enum iwl_fw_ini_region_device_memory_subtype {
  * @IWL_FW_INI_TIME_POINT_EAPOL_FAILED: EAPOL failed
  * @IWL_FW_INI_TIME_POINT_FAKE_TX: fake Tx
  * @IWL_FW_INI_TIME_POINT_DEASSOC: de association
+ * @IWL_FW_INI_TIME_POINT_PRESET_OVERRIDE_EXT_REQ: request to override preset
+ * @IWL_FW_INI_TIME_POINT_PRESET_OVERRIDE_START: start handling override preset
+ *	request
+ * @IWL_FW_INI_TIME_SCAN_FAILURE: failed scan channel list
  * @IWL_FW_INI_TIME_POINT_NUM: number of time points
  */
 enum iwl_fw_ini_time_point {
@@ -500,6 +504,9 @@ enum iwl_fw_ini_time_point {
 	IWL_FW_INI_TIME_POINT_EAPOL_FAILED,
 	IWL_FW_INI_TIME_POINT_FAKE_TX,
 	IWL_FW_INI_TIME_POINT_DEASSOC,
+	IWL_FW_INI_TIME_POINT_PRESET_OVERRIDE_EXT_REQ,
+	IWL_FW_INI_TIME_POINT_PRESET_OVERRIDE_START,
+	IWL_FW_INI_TIME_SCAN_FAILURE,
 	IWL_FW_INI_TIME_POINT_NUM,
 }; /* FW_TLV_DEBUG_TIME_POINT_API_E */
 

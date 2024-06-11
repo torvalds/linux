@@ -181,7 +181,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		u8 btype_ibss = val[0];
 
 		if (btype_ibss)
-			rtl92de_stop_tx_beacon(hw);
+			rtl92d_stop_tx_beacon(hw);
 		_rtl92de_set_bcn_ctrl_reg(hw, 0, BIT(3));
 		rtl_write_dword(rtlpriv, REG_TSFTR,
 				(u32) (mac->tsf & 0xffffffff));
@@ -189,7 +189,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				(u32) ((mac->tsf >> 32) & 0xffffffff));
 		_rtl92de_set_bcn_ctrl_reg(hw, BIT(3), 0);
 		if (btype_ibss)
-			rtl92de_resume_tx_beacon(hw);
+			rtl92d_resume_tx_beacon(hw);
 
 		break;
 	}
@@ -295,13 +295,13 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 
 	/* 18.  LLT_table_init(Adapter);  */
 	for (i = 0; i < (txpktbuf_bndy - 1); i++) {
-		status = rtl92de_llt_write(hw, i, i + 1);
+		status = rtl92d_llt_write(hw, i, i + 1);
 		if (!status)
 			return status;
 	}
 
 	/* end of list */
-	status = rtl92de_llt_write(hw, (txpktbuf_bndy - 1), 0xFF);
+	status = rtl92d_llt_write(hw, (txpktbuf_bndy - 1), 0xFF);
 	if (!status)
 		return status;
 
@@ -310,13 +310,13 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 	/* config this MAC as two MAC transfer. */
 	/* Otherwise used as local loopback buffer.  */
 	for (i = txpktbuf_bndy; i < maxpage; i++) {
-		status = rtl92de_llt_write(hw, i, (i + 1));
+		status = rtl92d_llt_write(hw, i, (i + 1));
 		if (!status)
 			return status;
 	}
 
 	/* Let last entry point to the start entry of ring buffer */
-	status = rtl92de_llt_write(hw, maxpage, txpktbuf_bndy);
+	status = rtl92d_llt_write(hw, maxpage, txpktbuf_bndy);
 	if (!status)
 		return status;
 
@@ -688,7 +688,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 
 	/* reset hw sec */
 	rtl_cam_reset_all_entry(hw);
-	rtl92de_enable_hw_security_config(hw);
+	rtl92d_enable_hw_security_config(hw);
 
 	/* Read EEPROM TX power index and PHY_REG_PG.txt to capture correct */
 	/* TX power index for different rate set. */
@@ -742,11 +742,11 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 
 	if (type == NL80211_IFTYPE_UNSPECIFIED ||
 	    type == NL80211_IFTYPE_STATION) {
-		rtl92de_stop_tx_beacon(hw);
+		rtl92d_stop_tx_beacon(hw);
 		_rtl92de_enable_bcn_sub_func(hw);
 	} else if (type == NL80211_IFTYPE_ADHOC ||
 		type == NL80211_IFTYPE_AP) {
-		rtl92de_resume_tx_beacon(hw);
+		rtl92d_resume_tx_beacon(hw);
 		_rtl92de_disable_bcn_sub_func(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,

@@ -1293,7 +1293,7 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 	return result;
 }
 
-int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
+int wilc_set_mac_address(struct wilc_vif *vif, const u8 *mac_addr)
 {
 	struct wid wid;
 	int result;
@@ -1301,7 +1301,7 @@ int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 	wid.id = WID_MAC_ADDR;
 	wid.type = WID_STR;
 	wid.size = ETH_ALEN;
-	wid.val = mac_addr;
+	wid.val = (u8 *)mac_addr;
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)

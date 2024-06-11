@@ -403,6 +403,8 @@ static int rtw8852b_pwr_on_func(struct rtw89_dev *rtwdev)
 	u32 val32;
 	u32 ret;
 
+	rtw8852b_pwr_sps_ana(rtwdev);
+
 	rtw89_write32_clr(rtwdev, R_AX_SYS_PW_CTRL, B_AX_AFSM_WLSUS_EN |
 						    B_AX_AFSM_PCIE_SUS_EN);
 	rtw89_write32_set(rtwdev, R_AX_SYS_PW_CTRL, B_AX_DIS_WLBT_PDNSUSEN_SOPC);
@@ -530,9 +532,7 @@ static int rtw8852b_pwr_off_func(struct rtw89_dev *rtwdev)
 	u32 val32;
 	u32 ret;
 
-	/* Only do once during probe stage after reading efuse */
-	if (!test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags))
-		rtw8852b_pwr_sps_ana(rtwdev);
+	rtw8852b_pwr_sps_ana(rtwdev);
 
 	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_ANAPAR_WL, XTAL_SI_RFC2RF,
 				      XTAL_SI_RFC2RF);
@@ -2610,6 +2610,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.dig_table		= NULL,
 	.dig_regs		= &rtw8852b_dig_regs,
 	.tssi_dbw_table		= NULL,
+	.support_macid_num	= RTW89_MAX_MAC_ID_NUM,
 	.support_chanctx_num	= 0,
 	.support_rnr		= false,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |

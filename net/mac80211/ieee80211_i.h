@@ -26,6 +26,7 @@
 #include <linux/idr.h>
 #include <linux/rhashtable.h>
 #include <linux/rbtree.h>
+#include <kunit/visibility.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
@@ -974,10 +975,15 @@ struct ieee80211_link_data_managed {
 	bool disable_wmm_tracking;
 	bool operating_11g_mode;
 
-	bool csa_waiting_bcn;
-	bool csa_ignored_same_chan;
-	bool csa_blocked_tx;
-	struct wiphy_delayed_work chswitch_work;
+	struct {
+		struct wiphy_delayed_work switch_work;
+		struct cfg80211_chan_def ap_chandef;
+		struct ieee80211_parsed_tpe tpe;
+		unsigned long time;
+		bool waiting_bcn;
+		bool ignored_same_chan;
+		bool blocked_tx;
+	} csa;
 
 	struct wiphy_work request_smps_work;
 	/* used to reconfigure hardware SM PS */
@@ -1036,11 +1042,13 @@ struct ieee80211_link_data {
 	struct ieee80211_key __rcu *default_mgmt_key;
 	struct ieee80211_key __rcu *default_beacon_key;
 
-	struct wiphy_work csa_finalize_work;
 
 	bool operating_11g_mode;
 
-	struct ieee80211_chan_req csa_chanreq;
+	struct {
+		struct wiphy_work finalize_work;
+		struct ieee80211_chan_req chanreq;
+	} csa;
 
 	struct wiphy_work color_change_finalize_work;
 	struct delayed_work color_collision_detect_work;
@@ -1059,7 +1067,6 @@ struct ieee80211_link_data {
 	int ap_power_level; /* in dBm */
 
 	bool radar_required;
-	struct wiphy_delayed_work dfs_cac_timer_work;
 
 	union {
 		struct ieee80211_link_data_managed mgd;
@@ -1157,6 +1164,8 @@ struct ieee80211_sub_if_data {
 
 	struct ieee80211_link_data deflink;
 	struct ieee80211_link_data __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+
+	struct wiphy_delayed_work dfs_cac_timer_work;
 
 	/* for ieee80211_set_active_links_async() */
 	struct wiphy_work activate_links_work;
@@ -1708,7 +1717,6 @@ struct ieee802_11_elems {
 	const struct ieee80211_he_spr *he_spr;
 	const struct ieee80211_mu_edca_param_set *mu_edca_param_set;
 	const struct ieee80211_he_6ghz_capa *he_6ghz_capa;
-	const struct ieee80211_tx_pwr_env *tx_pwr_env[IEEE80211_TPE_MAX_IE_COUNT];
 	const u8 *uora_element;
 	const u8 *mesh_id;
 	const u8 *peering;
@@ -1746,6 +1754,10 @@ struct ieee802_11_elems {
 	const struct ieee80211_bandwidth_indication *bandwidth_indication;
 	const struct ieee80211_ttlm_elem *ttlm[IEEE80211_TTLM_MAX_CNT];
 
+	/* not the order in the psd values is per element, not per chandef */
+	struct ieee80211_parsed_tpe tpe;
+	struct ieee80211_parsed_tpe csa_tpe;
+
 	/* length of them, respectively */
 	u8 ext_capab_len;
 	u8 ssid_len;
@@ -1764,8 +1776,6 @@ struct ieee802_11_elems {
 	u8 perr_len;
 	u8 country_elem_len;
 	u8 bssid_index_len;
-	u8 tx_pwr_env_len[IEEE80211_TPE_MAX_IE_COUNT];
-	u8 tx_pwr_env_num;
 	u8 eht_cap_len;
 
 	/* mult-link element can be de-fragmented and thus u8 is not sufficient */
@@ -1970,6 +1980,7 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local);
 void ieee80211_offchannel_return(struct ieee80211_local *local);
 void ieee80211_roc_setup(struct ieee80211_local *local);
 void ieee80211_start_next_roc(struct ieee80211_local *local);
+void ieee80211_reconfig_roc(struct ieee80211_local *local);
 void ieee80211_roc_purge(struct ieee80211_local *local,
 			 struct ieee80211_sub_if_data *sdata);
 int ieee80211_remain_on_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
@@ -2245,6 +2256,7 @@ int ieee80211_frame_duration(enum nl80211_band band, size_t len,
 void ieee80211_regulatory_limit_wmm_params(struct ieee80211_sub_if_data *sdata,
 					   struct ieee80211_tx_queue_params *qparam,
 					   int ac);
+void ieee80211_clear_tpe(struct ieee80211_parsed_tpe *tpe);
 void ieee80211_set_wmm_default(struct ieee80211_link_data *link,
 			       bool bss_notify, bool enable_qos);
 void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
@@ -2683,6 +2695,11 @@ void ieee80211_remove_wbrf(struct ieee80211_local *local, struct cfg80211_chan_d
 #define VISIBLE_IF_MAC80211_KUNIT
 ieee80211_rx_result
 ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx);
+int ieee80211_calc_chandef_subchan_offset(const struct cfg80211_chan_def *ap,
+					  u8 n_partial_subchans);
+void ieee80211_rearrange_tpe_psd(struct ieee80211_parsed_tpe_psd *psd,
+				 const struct cfg80211_chan_def *ap,
+				 const struct cfg80211_chan_def *used);
 #else
 #define EXPORT_SYMBOL_IF_MAC80211_KUNIT(sym)
 #define VISIBLE_IF_MAC80211_KUNIT static

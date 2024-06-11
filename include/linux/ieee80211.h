@@ -373,6 +373,7 @@ struct ieee80211_trigger {
 /**
  * ieee80211_has_tods - check if IEEE80211_FCTL_TODS is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame has to-DS set
  */
 static inline bool ieee80211_has_tods(__le16 fc)
 {
@@ -382,6 +383,7 @@ static inline bool ieee80211_has_tods(__le16 fc)
 /**
  * ieee80211_has_fromds - check if IEEE80211_FCTL_FROMDS is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame has from-DS set
  */
 static inline bool ieee80211_has_fromds(__le16 fc)
 {
@@ -391,6 +393,7 @@ static inline bool ieee80211_has_fromds(__le16 fc)
 /**
  * ieee80211_has_a4 - check if IEEE80211_FCTL_TODS and IEEE80211_FCTL_FROMDS are set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not it's a 4-address frame (from-DS and to-DS set)
  */
 static inline bool ieee80211_has_a4(__le16 fc)
 {
@@ -401,6 +404,7 @@ static inline bool ieee80211_has_a4(__le16 fc)
 /**
  * ieee80211_has_morefrags - check if IEEE80211_FCTL_MOREFRAGS is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame has more fragments (more frags bit set)
  */
 static inline bool ieee80211_has_morefrags(__le16 fc)
 {
@@ -410,6 +414,7 @@ static inline bool ieee80211_has_morefrags(__le16 fc)
 /**
  * ieee80211_has_retry - check if IEEE80211_FCTL_RETRY is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the retry flag is set
  */
 static inline bool ieee80211_has_retry(__le16 fc)
 {
@@ -419,6 +424,7 @@ static inline bool ieee80211_has_retry(__le16 fc)
 /**
  * ieee80211_has_pm - check if IEEE80211_FCTL_PM is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the power management flag is set
  */
 static inline bool ieee80211_has_pm(__le16 fc)
 {
@@ -428,6 +434,7 @@ static inline bool ieee80211_has_pm(__le16 fc)
 /**
  * ieee80211_has_moredata - check if IEEE80211_FCTL_MOREDATA is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the more data flag is set
  */
 static inline bool ieee80211_has_moredata(__le16 fc)
 {
@@ -437,6 +444,7 @@ static inline bool ieee80211_has_moredata(__le16 fc)
 /**
  * ieee80211_has_protected - check if IEEE80211_FCTL_PROTECTED is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the protected flag is set
  */
 static inline bool ieee80211_has_protected(__le16 fc)
 {
@@ -446,6 +454,7 @@ static inline bool ieee80211_has_protected(__le16 fc)
 /**
  * ieee80211_has_order - check if IEEE80211_FCTL_ORDER is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the order flag is set
  */
 static inline bool ieee80211_has_order(__le16 fc)
 {
@@ -455,6 +464,7 @@ static inline bool ieee80211_has_order(__le16 fc)
 /**
  * ieee80211_is_mgmt - check if type is IEEE80211_FTYPE_MGMT
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame type is management
  */
 static inline bool ieee80211_is_mgmt(__le16 fc)
 {
@@ -465,6 +475,7 @@ static inline bool ieee80211_is_mgmt(__le16 fc)
 /**
  * ieee80211_is_ctl - check if type is IEEE80211_FTYPE_CTL
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame type is control
  */
 static inline bool ieee80211_is_ctl(__le16 fc)
 {
@@ -475,6 +486,7 @@ static inline bool ieee80211_is_ctl(__le16 fc)
 /**
  * ieee80211_is_data - check if type is IEEE80211_FTYPE_DATA
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a data frame
  */
 static inline bool ieee80211_is_data(__le16 fc)
 {
@@ -485,6 +497,7 @@ static inline bool ieee80211_is_data(__le16 fc)
 /**
  * ieee80211_is_ext - check if type is IEEE80211_FTYPE_EXT
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame type is extended
  */
 static inline bool ieee80211_is_ext(__le16 fc)
 {
@@ -496,6 +509,7 @@ static inline bool ieee80211_is_ext(__le16 fc)
 /**
  * ieee80211_is_data_qos - check if type is IEEE80211_FTYPE_DATA and IEEE80211_STYPE_QOS_DATA is set
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a QoS data frame
  */
 static inline bool ieee80211_is_data_qos(__le16 fc)
 {
@@ -510,6 +524,8 @@ static inline bool ieee80211_is_data_qos(__le16 fc)
 /**
  * ieee80211_is_data_present - check if type is IEEE80211_FTYPE_DATA and has data
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a QoS data frame that has data
+ *	(i.e. is not null data)
  */
 static inline bool ieee80211_is_data_present(__le16 fc)
 {
@@ -524,6 +540,7 @@ static inline bool ieee80211_is_data_present(__le16 fc)
 /**
  * ieee80211_is_assoc_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ASSOC_REQ
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an association request
  */
 static inline bool ieee80211_is_assoc_req(__le16 fc)
 {
@@ -534,6 +551,7 @@ static inline bool ieee80211_is_assoc_req(__le16 fc)
 /**
  * ieee80211_is_assoc_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ASSOC_RESP
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an association response
  */
 static inline bool ieee80211_is_assoc_resp(__le16 fc)
 {
@@ -544,6 +562,7 @@ static inline bool ieee80211_is_assoc_resp(__le16 fc)
 /**
  * ieee80211_is_reassoc_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_REASSOC_REQ
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a reassociation request
  */
 static inline bool ieee80211_is_reassoc_req(__le16 fc)
 {
@@ -554,6 +573,7 @@ static inline bool ieee80211_is_reassoc_req(__le16 fc)
 /**
  * ieee80211_is_reassoc_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_REASSOC_RESP
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a reassociation response
  */
 static inline bool ieee80211_is_reassoc_resp(__le16 fc)
 {
@@ -564,6 +584,7 @@ static inline bool ieee80211_is_reassoc_resp(__le16 fc)
 /**
  * ieee80211_is_probe_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_PROBE_REQ
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a probe request
  */
 static inline bool ieee80211_is_probe_req(__le16 fc)
 {
@@ -574,6 +595,7 @@ static inline bool ieee80211_is_probe_req(__le16 fc)
 /**
  * ieee80211_is_probe_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_PROBE_RESP
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a probe response
  */
 static inline bool ieee80211_is_probe_resp(__le16 fc)
 {
@@ -584,6 +606,7 @@ static inline bool ieee80211_is_probe_resp(__le16 fc)
 /**
  * ieee80211_is_beacon - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_BEACON
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a (regular, not S1G) beacon
  */
 static inline bool ieee80211_is_beacon(__le16 fc)
 {
@@ -595,6 +618,7 @@ static inline bool ieee80211_is_beacon(__le16 fc)
  * ieee80211_is_s1g_beacon - check if IEEE80211_FTYPE_EXT &&
  * IEEE80211_STYPE_S1G_BEACON
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an S1G beacon
  */
 static inline bool ieee80211_is_s1g_beacon(__le16 fc)
 {
@@ -604,30 +628,21 @@ static inline bool ieee80211_is_s1g_beacon(__le16 fc)
 }
 
 /**
- * ieee80211_next_tbtt_present - check if IEEE80211_FTYPE_EXT &&
- * IEEE80211_STYPE_S1G_BEACON && IEEE80211_S1G_BCN_NEXT_TBTT
+ * ieee80211_is_s1g_short_beacon - check if frame is an S1G short beacon
  * @fc: frame control bytes in little-endian byteorder
- */
-static inline bool ieee80211_next_tbtt_present(__le16 fc)
-{
-	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
-	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON) &&
-	       fc & cpu_to_le16(IEEE80211_S1G_BCN_NEXT_TBTT);
-}
-
-/**
- * ieee80211_is_s1g_short_beacon - check if next tbtt present bit is set. Only
- * true for S1G beacons when they're short.
- * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an S1G short beacon,
+ *	i.e. it is an S1G beacon with 'next TBTT' flag set
  */
 static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
 {
-	return ieee80211_is_s1g_beacon(fc) && ieee80211_next_tbtt_present(fc);
+	return ieee80211_is_s1g_beacon(fc) &&
+		(fc & cpu_to_le16(IEEE80211_S1G_BCN_NEXT_TBTT));
 }
 
 /**
  * ieee80211_is_atim - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ATIM
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an ATIM frame
  */
 static inline bool ieee80211_is_atim(__le16 fc)
 {
@@ -638,6 +653,7 @@ static inline bool ieee80211_is_atim(__le16 fc)
 /**
  * ieee80211_is_disassoc - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_DISASSOC
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a disassociation frame
  */
 static inline bool ieee80211_is_disassoc(__le16 fc)
 {
@@ -648,6 +664,7 @@ static inline bool ieee80211_is_disassoc(__le16 fc)
 /**
  * ieee80211_is_auth - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_AUTH
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an authentication frame
  */
 static inline bool ieee80211_is_auth(__le16 fc)
 {
@@ -658,6 +675,7 @@ static inline bool ieee80211_is_auth(__le16 fc)
 /**
  * ieee80211_is_deauth - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_DEAUTH
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a deauthentication frame
  */
 static inline bool ieee80211_is_deauth(__le16 fc)
 {
@@ -668,6 +686,7 @@ static inline bool ieee80211_is_deauth(__le16 fc)
 /**
  * ieee80211_is_action - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ACTION
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an action frame
  */
 static inline bool ieee80211_is_action(__le16 fc)
 {
@@ -678,6 +697,7 @@ static inline bool ieee80211_is_action(__le16 fc)
 /**
  * ieee80211_is_back_req - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_BACK_REQ
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a block-ACK request frame
  */
 static inline bool ieee80211_is_back_req(__le16 fc)
 {
@@ -688,6 +708,7 @@ static inline bool ieee80211_is_back_req(__le16 fc)
 /**
  * ieee80211_is_back - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_BACK
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a block-ACK frame
  */
 static inline bool ieee80211_is_back(__le16 fc)
 {
@@ -698,6 +719,7 @@ static inline bool ieee80211_is_back(__le16 fc)
 /**
  * ieee80211_is_pspoll - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_PSPOLL
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a PS-poll frame
  */
 static inline bool ieee80211_is_pspoll(__le16 fc)
 {
@@ -708,6 +730,7 @@ static inline bool ieee80211_is_pspoll(__le16 fc)
 /**
  * ieee80211_is_rts - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_RTS
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an RTS frame
  */
 static inline bool ieee80211_is_rts(__le16 fc)
 {
@@ -718,6 +741,7 @@ static inline bool ieee80211_is_rts(__le16 fc)
 /**
  * ieee80211_is_cts - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CTS
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a CTS frame
  */
 static inline bool ieee80211_is_cts(__le16 fc)
 {
@@ -728,6 +752,7 @@ static inline bool ieee80211_is_cts(__le16 fc)
 /**
  * ieee80211_is_ack - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_ACK
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an ACK frame
  */
 static inline bool ieee80211_is_ack(__le16 fc)
 {
@@ -738,6 +763,7 @@ static inline bool ieee80211_is_ack(__le16 fc)
 /**
  * ieee80211_is_cfend - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CFEND
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a CF-end frame
  */
 static inline bool ieee80211_is_cfend(__le16 fc)
 {
@@ -748,6 +774,7 @@ static inline bool ieee80211_is_cfend(__le16 fc)
 /**
  * ieee80211_is_cfendack - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CFENDACK
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a CF-end-ack frame
  */
 static inline bool ieee80211_is_cfendack(__le16 fc)
 {
@@ -758,6 +785,7 @@ static inline bool ieee80211_is_cfendack(__le16 fc)
 /**
  * ieee80211_is_nullfunc - check if frame is a regular (non-QoS) nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a nullfunc frame
  */
 static inline bool ieee80211_is_nullfunc(__le16 fc)
 {
@@ -768,6 +796,7 @@ static inline bool ieee80211_is_nullfunc(__le16 fc)
 /**
  * ieee80211_is_qos_nullfunc - check if frame is a QoS nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a QoS nullfunc frame
  */
 static inline bool ieee80211_is_qos_nullfunc(__le16 fc)
 {
@@ -778,6 +807,7 @@ static inline bool ieee80211_is_qos_nullfunc(__le16 fc)
 /**
  * ieee80211_is_trigger - check if frame is trigger frame
  * @fc: frame control field in little-endian byteorder
+ * Return: whether or not the frame is a trigger frame
  */
 static inline bool ieee80211_is_trigger(__le16 fc)
 {
@@ -788,6 +818,7 @@ static inline bool ieee80211_is_trigger(__le16 fc)
 /**
  * ieee80211_is_any_nullfunc - check if frame is regular or QoS nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is a nullfunc or QoS nullfunc frame
  */
 static inline bool ieee80211_is_any_nullfunc(__le16 fc)
 {
@@ -797,6 +828,8 @@ static inline bool ieee80211_is_any_nullfunc(__le16 fc)
 /**
  * ieee80211_is_first_frag - check if IEEE80211_SCTL_FRAG is not set
  * @seq_ctrl: frame sequence control bytes in little-endian byteorder
+ * Return: whether or not the frame is the first fragment (also true if
+ *	it's not fragmented at all)
  */
 static inline bool ieee80211_is_first_frag(__le16 seq_ctrl)
 {
@@ -806,6 +839,7 @@ static inline bool ieee80211_is_first_frag(__le16 seq_ctrl)
 /**
  * ieee80211_is_frag - check if a frame is a fragment
  * @hdr: 802.11 header of the frame
+ * Return: whether or not the frame is a fragment
  */
 static inline bool ieee80211_is_frag(struct ieee80211_hdr *hdr)
 {
@@ -1101,7 +1135,7 @@ enum ieee80211_vht_opmode_bits {
 };
 
 /**
- * enum ieee80211_s1g_chanwidth
+ * enum ieee80211_s1g_chanwidth - S1G channel widths
  * These are defined in IEEE802.11-2016ah Table 10-20
  * as BSS Channel Width
  *
@@ -2359,6 +2393,8 @@ struct ieee80211_eht_operation_info {
  * @max_vht_nss: current maximum NSS as advertised by the STA in
  *	operating mode notification, can be 0 in which case the
  *	capability data will be used to derive this (from MCS support)
+ * Return: The maximum NSS that can be used for the given bandwidth/MCS
+ *	combination
  *
  * Due to the VHT Extended NSS Bandwidth Support, the maximum NSS can
  * vary for a given BW/MCS. This function parses the data.
@@ -2789,22 +2825,6 @@ struct ieee80211_he_6ghz_oper {
 	u8 minrate;
 } __packed;
 
-/*
- * In "9.4.2.161 Transmit Power Envelope element" of "IEEE Std 802.11ax-2021",
- * it show four types in "Table 9-275a-Maximum Transmit Power Interpretation
- * subfield encoding", and two category for each type in "Table E-12-Regulatory
- * Info subfield encoding in the United States".
- * So it it totally max 8 Transmit Power Envelope element.
- */
-#define IEEE80211_TPE_MAX_IE_COUNT	8
-/*
- * In "Table 9-277—Meaning of Maximum Transmit Power Count subfield"
- * of "IEEE Std 802.11ax™‐2021", the max power level is 8.
- */
-#define IEEE80211_MAX_NUM_PWR_LEVEL	8
-
-#define IEEE80211_TPE_MAX_POWER_COUNT	8
-
 /* transmit power interpretation type of transmit power envelope element */
 enum ieee80211_tx_power_intrpt_type {
 	IEEE80211_TPE_LOCAL_EIRP,
@@ -2813,23 +2833,106 @@ enum ieee80211_tx_power_intrpt_type {
 	IEEE80211_TPE_REG_CLIENT_EIRP_PSD,
 };
 
+/* category type of transmit power envelope element */
+enum ieee80211_tx_power_category_6ghz {
+	IEEE80211_TPE_CAT_6GHZ_DEFAULT = 0,
+	IEEE80211_TPE_CAT_6GHZ_SUBORDINATE = 1,
+};
+
+/*
+ * For IEEE80211_TPE_LOCAL_EIRP / IEEE80211_TPE_REG_CLIENT_EIRP,
+ * setting to 63.5 dBm means no constraint.
+ */
+#define IEEE80211_TPE_MAX_TX_PWR_NO_CONSTRAINT	127
+
+/*
+ * For IEEE80211_TPE_LOCAL_EIRP_PSD / IEEE80211_TPE_REG_CLIENT_EIRP_PSD,
+ * setting to 127 indicates no PSD limit for the 20 MHz channel.
+ */
+#define IEEE80211_TPE_PSD_NO_LIMIT		127
+
 /**
  * struct ieee80211_tx_pwr_env - Transmit Power Envelope
- * @tx_power_info: Transmit Power Information field
- * @tx_power: Maximum Transmit Power field
+ * @info: Transmit Power Information field
+ * @variable: Maximum Transmit Power field
  *
  * This structure represents the payload of the "Transmit Power
  * Envelope element" as described in IEEE Std 802.11ax-2021 section
  * 9.4.2.161
  */
 struct ieee80211_tx_pwr_env {
-	u8 tx_power_info;
-	s8 tx_power[IEEE80211_TPE_MAX_POWER_COUNT];
+	u8 info;
+	u8 variable[];
 } __packed;
 
 #define IEEE80211_TX_PWR_ENV_INFO_COUNT 0x7
 #define IEEE80211_TX_PWR_ENV_INFO_INTERPRET 0x38
 #define IEEE80211_TX_PWR_ENV_INFO_CATEGORY 0xC0
+
+#define IEEE80211_TX_PWR_ENV_EXT_COUNT	0xF
+
+static inline bool ieee80211_valid_tpe_element(const u8 *data, u8 len)
+{
+	const struct ieee80211_tx_pwr_env *env = (const void *)data;
+	u8 count, interpret, category;
+	u8 needed = sizeof(*env);
+	u8 N; /* also called N in the spec */
+
+	if (len < needed)
+		return false;
+
+	count = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_COUNT);
+	interpret = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_INTERPRET);
+	category = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_CATEGORY);
+
+	switch (category) {
+	case IEEE80211_TPE_CAT_6GHZ_DEFAULT:
+	case IEEE80211_TPE_CAT_6GHZ_SUBORDINATE:
+		break;
+	default:
+		return false;
+	}
+
+	switch (interpret) {
+	case IEEE80211_TPE_LOCAL_EIRP:
+	case IEEE80211_TPE_REG_CLIENT_EIRP:
+		if (count > 3)
+			return false;
+
+		/* count == 0 encodes 1 value for 20 MHz, etc. */
+		needed += count + 1;
+
+		if (len < needed)
+			return false;
+
+		/* there can be extension fields not accounted for in 'count' */
+
+		return true;
+	case IEEE80211_TPE_LOCAL_EIRP_PSD:
+	case IEEE80211_TPE_REG_CLIENT_EIRP_PSD:
+		if (count > 4)
+			return false;
+
+		N = count ? 1 << (count - 1) : 1;
+		needed += N;
+
+		if (len < needed)
+			return false;
+
+		if (len > needed) {
+			u8 K = u8_get_bits(env->variable[N],
+					   IEEE80211_TX_PWR_ENV_EXT_COUNT);
+
+			needed += 1 + K;
+			if (len < needed)
+				return false;
+		}
+
+		return true;
+	}
+
+	return false;
+}
 
 /*
  * ieee80211_he_oper_size - calculate 802.11ax HE Operations IE size
@@ -4145,7 +4248,7 @@ enum ieee80211_idle_options {
 };
 
 /**
- * struct ieee80211_bss_max_idle_period_ie
+ * struct ieee80211_bss_max_idle_period_ie - BSS max idle period element struct
  *
  * This structure refers to "BSS Max idle period element"
  *
@@ -4180,7 +4283,7 @@ enum ieee80211_sa_query_action {
 };
 
 /**
- * struct ieee80211_bssid_index
+ * struct ieee80211_bssid_index - multiple BSSID index element structure
  *
  * This structure refers to "Multiple BSSID-index element"
  *
@@ -4195,7 +4298,8 @@ struct ieee80211_bssid_index {
 };
 
 /**
- * struct ieee80211_multiple_bssid_configuration
+ * struct ieee80211_multiple_bssid_configuration - multiple BSSID configuration
+ *	element structure
  *
  * This structure refers to "Multiple BSSID Configuration element"
  *
@@ -4326,6 +4430,7 @@ struct ieee80211_he_6ghz_capa {
 /**
  * ieee80211_get_qos_ctl - get pointer to qos control bytes
  * @hdr: the frame
+ * Return: a pointer to the QoS control field in the frame header
  *
  * The qos ctrl bytes come after the frame_control, duration, seq_num
  * and 3 or 4 addresses of length ETH_ALEN. Checks frame_control to choose
@@ -4348,6 +4453,7 @@ static inline u8 *ieee80211_get_qos_ctl(struct ieee80211_hdr *hdr)
 /**
  * ieee80211_get_tid - get qos TID
  * @hdr: the frame
+ * Return: the TID from the QoS control field
  */
 static inline u8 ieee80211_get_tid(struct ieee80211_hdr *hdr)
 {
@@ -4359,6 +4465,7 @@ static inline u8 ieee80211_get_tid(struct ieee80211_hdr *hdr)
 /**
  * ieee80211_get_SA - get pointer to SA
  * @hdr: the frame
+ * Return: a pointer to the source address (SA)
  *
  * Given an 802.11 frame, this function returns the offset
  * to the source address (SA). It does not verify that the
@@ -4378,6 +4485,7 @@ static inline u8 *ieee80211_get_SA(struct ieee80211_hdr *hdr)
 /**
  * ieee80211_get_DA - get pointer to DA
  * @hdr: the frame
+ * Return: a pointer to the destination address (DA)
  *
  * Given an 802.11 frame, this function returns the offset
  * to the destination address (DA). It does not verify that
@@ -4396,6 +4504,7 @@ static inline u8 *ieee80211_get_DA(struct ieee80211_hdr *hdr)
 /**
  * ieee80211_is_bufferable_mmpdu - check if frame is bufferable MMPDU
  * @skb: the skb to check, starting with the 802.11 header
+ * Return: whether or not the MMPDU is bufferable
  */
 static inline bool ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
 {
@@ -4434,6 +4543,7 @@ static inline bool ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
 /**
  * _ieee80211_is_robust_mgmt_frame - check if frame is a robust management frame
  * @hdr: the frame (buffer must include at least the first octet of payload)
+ * Return: whether or not the frame is a robust management frame
  */
 static inline bool _ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
 {
@@ -4470,6 +4580,7 @@ static inline bool _ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
 /**
  * ieee80211_is_robust_mgmt_frame - check if skb contains a robust mgmt frame
  * @skb: the skb containing the frame, length will be checked
+ * Return: whether or not the frame is a robust management frame
  */
 static inline bool ieee80211_is_robust_mgmt_frame(struct sk_buff *skb)
 {
@@ -4482,6 +4593,7 @@ static inline bool ieee80211_is_robust_mgmt_frame(struct sk_buff *skb)
  * ieee80211_is_public_action - check if frame is a public action frame
  * @hdr: the frame
  * @len: length of the frame
+ * Return: whether or not the frame is a public action frame
  */
 static inline bool ieee80211_is_public_action(struct ieee80211_hdr *hdr,
 					      size_t len)
@@ -4527,8 +4639,9 @@ ieee80211_is_protected_dual_of_public_action(struct sk_buff *skb)
 
 /**
  * _ieee80211_is_group_privacy_action - check if frame is a group addressed
- * privacy action frame
+ *	privacy action frame
  * @hdr: the frame
+ * Return: whether or not the frame is a group addressed privacy action frame
  */
 static inline bool _ieee80211_is_group_privacy_action(struct ieee80211_hdr *hdr)
 {
@@ -4544,8 +4657,9 @@ static inline bool _ieee80211_is_group_privacy_action(struct ieee80211_hdr *hdr)
 
 /**
  * ieee80211_is_group_privacy_action - check if frame is a group addressed
- * privacy action frame
+ *	privacy action frame
  * @skb: the skb containing the frame, length will be checked
+ * Return: whether or not the frame is a group addressed privacy action frame
  */
 static inline bool ieee80211_is_group_privacy_action(struct sk_buff *skb)
 {
@@ -4557,6 +4671,7 @@ static inline bool ieee80211_is_group_privacy_action(struct sk_buff *skb)
 /**
  * ieee80211_tu_to_usec - convert time units (TU) to microseconds
  * @tu: the TUs
+ * Return: the time value converted to microseconds
  */
 static inline unsigned long ieee80211_tu_to_usec(unsigned long tu)
 {
@@ -4568,6 +4683,7 @@ static inline unsigned long ieee80211_tu_to_usec(unsigned long tu)
  * @tim: the TIM IE
  * @tim_len: length of the TIM IE
  * @aid: the AID to look for
+ * Return: whether or not traffic is indicated in the TIM for the given AID
  */
 static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 				       u8 tim_len, u16 aid)
@@ -4594,8 +4710,10 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 }
 
 /**
- * ieee80211_get_tdls_action - get tdls packet action (or -1, if not tdls packet)
+ * ieee80211_get_tdls_action - get TDLS action code
  * @skb: the skb containing the frame, length will not be checked
+ * Return: the TDLS action code, or -1 if it's not an encapsulated TDLS action
+ *	frame
  *
  * This function assumes the frame is a data frame, and that the network header
  * is in the correct place.
@@ -4635,6 +4753,7 @@ static inline int ieee80211_get_tdls_action(struct sk_buff *skb)
 /**
  * ieee80211_action_contains_tpc - checks if the frame contains TPC element
  * @skb: the skb containing the frame, length will be checked
+ * Return: %true if the frame contains a TPC element, %false otherwise
  *
  * This function checks if it's either TPC report action frame or Link
  * Measurement report action frame as defined in IEEE Std. 802.11-2012 8.5.2.5
@@ -4679,6 +4798,11 @@ static inline bool ieee80211_action_contains_tpc(struct sk_buff *skb)
 	return true;
 }
 
+/**
+ * ieee80211_is_timing_measurement - check if frame is timing measurement response
+ * @skb: the SKB to check
+ * Return: whether or not the frame is a valid timing measurement response
+ */
 static inline bool ieee80211_is_timing_measurement(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
@@ -4698,6 +4822,11 @@ static inline bool ieee80211_is_timing_measurement(struct sk_buff *skb)
 	return false;
 }
 
+/**
+ * ieee80211_is_ftm - check if frame is FTM response
+ * @skb: the SKB to check
+ * Return: whether or not the frame is a valid FTM response action frame
+ */
 static inline bool ieee80211_is_ftm(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
@@ -4752,6 +4881,7 @@ struct element {
  * @element: element pointer after for_each_element() or friends
  * @data: same data pointer as passed to for_each_element() or friends
  * @datalen: same data length as passed to for_each_element() or friends
+ * Return: %true if all elements were iterated, %false otherwise; see notes
  *
  * This function returns %true if all the data was parsed or considered
  * while walking the elements. Only use this if your for_each_element()
@@ -4955,6 +5085,7 @@ struct ieee80211_mle_tdls_common_info {
  * ieee80211_mle_common_size - check multi-link element common size
  * @data: multi-link element, must already be checked for size using
  *	ieee80211_mle_size_ok()
+ * Return: the size of the multi-link element's "common" subfield 
  */
 static inline u8 ieee80211_mle_common_size(const u8 *data)
 {
@@ -4987,11 +5118,10 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
 /**
  * ieee80211_mle_get_link_id - returns the link ID
  * @data: the basic multi link element
+ * Return: the link ID, or -1 if not present
  *
  * The element is assumed to be of the correct type (BASIC) and big enough,
  * this must be checked using ieee80211_mle_type_ok().
- *
- * If the BSS link ID can't be found, -1 will be returned
  */
 static inline int ieee80211_mle_get_link_id(const u8 *data)
 {
@@ -5011,12 +5141,10 @@ static inline int ieee80211_mle_get_link_id(const u8 *data)
 /**
  * ieee80211_mle_get_bss_param_ch_cnt - returns the BSS parameter change count
  * @data: pointer to the basic multi link element
+ * Return: the BSS Parameter Change Count field value, or -1 if not present
  *
  * The element is assumed to be of the correct type (BASIC) and big enough,
  * this must be checked using ieee80211_mle_type_ok().
- *
- * If the BSS parameter change count value can't be found (the presence bit
- * for it is clear), -1 will be returned.
  */
 static inline int
 ieee80211_mle_get_bss_param_ch_cnt(const u8 *data)
@@ -5039,13 +5167,13 @@ ieee80211_mle_get_bss_param_ch_cnt(const u8 *data)
 
 /**
  * ieee80211_mle_get_eml_med_sync_delay - returns the medium sync delay
- * @data: pointer to the multi link EHT IE
+ * @data: pointer to the multi-link element
+ * Return: the medium synchronization delay field value from the multi-link
+ *	element, or the default value (%IEEE80211_MED_SYNC_DELAY_DEFAULT)
+ *	if not present
  *
  * The element is assumed to be of the correct type (BASIC) and big enough,
  * this must be checked using ieee80211_mle_type_ok().
- *
- * If the medium synchronization is not present, then the default value is
- * returned.
  */
 static inline u16 ieee80211_mle_get_eml_med_sync_delay(const u8 *data)
 {
@@ -5069,12 +5197,12 @@ static inline u16 ieee80211_mle_get_eml_med_sync_delay(const u8 *data)
 
 /**
  * ieee80211_mle_get_eml_cap - returns the EML capability
- * @data: pointer to the multi link EHT IE
+ * @data: pointer to the multi-link element
+ * Return: the EML capability field value from the multi-link element,
+ *	or 0 if not present
  *
  * The element is assumed to be of the correct type (BASIC) and big enough,
  * this must be checked using ieee80211_mle_type_ok().
- *
- * If the EML capability is not present, 0 will be returned.
  */
 static inline u16 ieee80211_mle_get_eml_cap(const u8 *data)
 {
@@ -5100,13 +5228,12 @@ static inline u16 ieee80211_mle_get_eml_cap(const u8 *data)
 
 /**
  * ieee80211_mle_get_mld_capa_op - returns the MLD capabilities and operations.
- * @data: pointer to the multi link EHT IE
+ * @data: pointer to the multi-link element
+ * Return: the MLD capabilities and operations field value from the multi-link
+ *	element, or 0 if not present
  *
  * The element is assumed to be of the correct type (BASIC) and big enough,
  * this must be checked using ieee80211_mle_type_ok().
- *
- * If the MLD capabilities and operations field is not present, 0 will be
- * returned.
  */
 static inline u16 ieee80211_mle_get_mld_capa_op(const u8 *data)
 {
@@ -5137,12 +5264,11 @@ static inline u16 ieee80211_mle_get_mld_capa_op(const u8 *data)
 
 /**
  * ieee80211_mle_get_mld_id - returns the MLD ID
- * @data: pointer to the multi link element
+ * @data: pointer to the multi-link element
+ * Return: The MLD ID in the given multi-link element, or 0 if not present
  *
  * The element is assumed to be of the correct type (BASIC) and big enough,
  * this must be checked using ieee80211_mle_type_ok().
- *
- * If the MLD ID is not present, 0 will be returned.
  */
 static inline u8 ieee80211_mle_get_mld_id(const u8 *data)
 {
@@ -5177,6 +5303,7 @@ static inline u8 ieee80211_mle_get_mld_id(const u8 *data)
  * ieee80211_mle_size_ok - validate multi-link element size
  * @data: pointer to the element data
  * @len: length of the containing element
+ * Return: whether or not the multi-link element size is OK
  */
 static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 {
@@ -5246,6 +5373,7 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
  * @data: pointer to the element data
  * @type: expected type of the element
  * @len: length of the containing element
+ * Return: whether or not the multi-link element type matches and size is OK
  */
 static inline bool ieee80211_mle_type_ok(const u8 *data, u8 type, size_t len)
 {
@@ -5289,6 +5417,7 @@ struct ieee80211_mle_per_sta_profile {
  *	profile size
  * @data: pointer to the sub element data
  * @len: length of the containing sub element
+ * Return: %true if the STA profile is large enough, %false otherwise
  */
 static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 							size_t len)
@@ -5373,6 +5502,7 @@ ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(const struct ieee80211_mle_per_sta
  *	element sta profile size.
  * @data: pointer to the sub element data
  * @len: length of the containing sub element
+ * Return: %true if the STA profile is large enough, %false otherwise
  */
 static inline bool ieee80211_mle_reconf_sta_prof_size_ok(const u8 *data,
 							 size_t len)

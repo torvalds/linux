@@ -8,7 +8,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2019, 2022-2023 Intel Corporation
+ * Copyright (C) 2019, 2022-2024 Intel Corporation
  */
 #include <linux/export.h>
 #include <net/mac80211.h>
@@ -411,6 +411,39 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 		wiphy_delayed_work_queue(local->hw.wiphy, &local->roc_work,
 					 round_jiffies_relative(HZ / 2));
 	}
+}
+
+void ieee80211_reconfig_roc(struct ieee80211_local *local)
+{
+	struct ieee80211_roc_work *roc, *tmp;
+
+	/*
+	 * In the software implementation can just continue with the
+	 * interruption due to reconfig, roc_work is still queued if
+	 * needed.
+	 */
+	if (!local->ops->remain_on_channel)
+		return;
+
+	/* flush work so nothing from the driver is still pending */
+	wiphy_work_flush(local->hw.wiphy, &local->hw_roc_start);
+	wiphy_work_flush(local->hw.wiphy, &local->hw_roc_done);
+
+	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
+		if (!roc->started)
+			break;
+
+		if (!roc->hw_begun) {
+			/* it didn't start in HW yet, so we can restart it */
+			roc->started = false;
+			continue;
+		}
+
+		/* otherwise destroy it and tell userspace */
+		ieee80211_roc_notify_destroy(roc);
+	}
+
+	ieee80211_start_next_roc(local);
 }
 
 static void __ieee80211_roc_work(struct ieee80211_local *local)
