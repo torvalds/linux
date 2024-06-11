@@ -836,7 +836,7 @@ static int gswip_setup(struct dsa_switch *ds)
 
 	err = gswip_pce_load_microcode(priv);
 	if (err) {
-		dev_err(priv->dev, "writing PCE microcode failed, %i", err);
+		dev_err(priv->dev, "writing PCE microcode failed, %i\n", err);
 		return err;
 	}
 
@@ -1792,7 +1792,7 @@ static u32 gswip_bcm_ram_entry_read(struct gswip_priv *priv, u32 table,
 	err = gswip_switch_r_timeout(priv, GSWIP_BM_RAM_CTRL,
 				     GSWIP_BM_RAM_CTRL_BAS);
 	if (err) {
-		dev_err(priv->dev, "timeout while reading table: %u, index: %u",
+		dev_err(priv->dev, "timeout while reading table: %u, index: %u\n",
 			table, index);
 		return 0;
 	}
@@ -2021,7 +2021,7 @@ static void gswip_gphy_fw_remove(struct gswip_priv *priv,
 
 	ret = regmap_write(priv->rcu_regmap, gphy_fw->fw_addr_offset, 0);
 	if (ret)
-		dev_err(priv->dev, "can not reset GPHY FW pointer");
+		dev_err(priv->dev, "can not reset GPHY FW pointer\n");
 
 	clk_disable_unprepare(gphy_fw->clk_gate);
 
@@ -2050,7 +2050,7 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 			priv->gphy_fw_name_cfg = &xrx200a2x_gphy_data;
 			break;
 		default:
-			dev_err(dev, "unknown GSWIP version: 0x%x", version);
+			dev_err(dev, "unknown GSWIP version: 0x%x\n", version);
 			return -ENOENT;
 		}
 	}
@@ -2060,7 +2060,7 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 		priv->gphy_fw_name_cfg = match->data;
 
 	if (!priv->gphy_fw_name_cfg) {
-		dev_err(dev, "GPHY compatible type not supported");
+		dev_err(dev, "GPHY compatible type not supported\n");
 		return -ENOENT;
 	}
 
@@ -2163,7 +2163,7 @@ static int gswip_probe(struct platform_device *pdev)
 			return -EINVAL;
 		break;
 	default:
-		dev_err(dev, "unknown GSWIP version: 0x%x", version);
+		dev_err(dev, "unknown GSWIP version: 0x%x\n", version);
 		return -ENOENT;
 	}
 
@@ -2191,7 +2191,7 @@ static int gswip_probe(struct platform_device *pdev)
 		goto gphy_fw_remove;
 	}
 	if (!dsa_is_cpu_port(priv->ds, priv->hw_info->cpu_port)) {
-		dev_err(dev, "wrong CPU port defined, HW only supports port: %i",
+		dev_err(dev, "wrong CPU port defined, HW only supports port: %i\n",
 			priv->hw_info->cpu_port);
 		err = -EINVAL;
 		goto disable_switch;
