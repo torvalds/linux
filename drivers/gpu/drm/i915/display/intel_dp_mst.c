@@ -349,6 +349,8 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 	if (max_bpp > sink_max_bpp)
 		max_bpp = sink_max_bpp;
 
+	crtc_state->pipe_bpp = max_bpp;
+
 	max_compressed_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
 								  crtc_state,
 								  max_bpp / 3);
