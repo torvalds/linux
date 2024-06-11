@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -1713,7 +1713,7 @@ static struct clk_branch gcc_emac_0_sys_25m_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_emac_0_sys_25m_clk",
-			.parent_hws = (const struct clk_hw *[]){ &emac_0_125m_clk_src.clkr.hw },
+			.parent_hws = (const struct clk_hw *[]){ &emac_0_sys_25m_clk_src.clkr.hw },
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
@@ -1946,6 +1946,7 @@ static struct clk_regmap *gcc_mdm9607_clocks[] = {
 	[GCC_QDSS_DAP_CLK] = &gcc_qdss_dap_clk.clkr,
 	[GCC_APSS_AHB_CLK] = &gcc_apss_ahb_clk.clkr,
 	[GCC_APSS_AXI_CLK] = &gcc_apss_axi_clk.clkr,
+	[EMAC_0_125M_CLK_SRC] = &emac_0_125m_clk_src.clkr,
 	[EMAC_0_SYS_25M_CLK_SRC] = &emac_0_sys_25m_clk_src.clkr,
 	[EMAC_0_TX_CLK_SRC] = &emac_0_tx_clk_src.clkr,
 	[GCC_EMAC_0_125M_CLK] = &gcc_emac_0_125m_clk.clkr,
