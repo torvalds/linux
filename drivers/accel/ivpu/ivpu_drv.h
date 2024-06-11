@@ -102,6 +102,7 @@ struct ivpu_wa_table {
 	bool interrupt_clear_with_0;
 	bool disable_clock_relinquish;
 	bool disable_d0i3_msg;
+	bool wp0_during_power_up;
 };
 
 struct ivpu_hw_info;

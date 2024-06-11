@@ -64,10 +64,14 @@ static void wa_init(struct ivpu_device *vdev)
 	if (ivpu_device_id(vdev) == PCI_DEVICE_ID_LNL)
 		vdev->wa.disable_clock_relinquish = true;
 
+	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX)
+		vdev->wa.wp0_during_power_up = true;
+
 	IVPU_PRINT_WA(punit_disabled);
 	IVPU_PRINT_WA(clear_runtime_mem);
 	IVPU_PRINT_WA(interrupt_clear_with_0);
 	IVPU_PRINT_WA(disable_clock_relinquish);
+	IVPU_PRINT_WA(wp0_during_power_up);
 }
 
 static void timeouts_init(struct ivpu_device *vdev)
@@ -124,6 +128,13 @@ static int wp_disable(struct ivpu_device *vdev)
 int ivpu_hw_power_up(struct ivpu_device *vdev)
 {
 	int ret;
+
+	if (IVPU_WA(wp0_during_power_up)) {
+		/* WP requests may fail when powering down, so issue WP 0 here */
+		ret = wp_disable(vdev);
+		if (ret)
+			ivpu_warn(vdev, "Failed to disable workpoint: %d\n", ret);
+	}
 
 	ret = ivpu_hw_btrs_d0i3_disable(vdev);
 	if (ret)
