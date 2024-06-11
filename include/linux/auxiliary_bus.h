@@ -203,7 +203,7 @@ static inline struct auxiliary_device *to_auxiliary_dev(struct device *dev)
 	return container_of(dev, struct auxiliary_device, dev);
 }
 
-static inline struct auxiliary_driver *to_auxiliary_drv(struct device_driver *drv)
+static inline const struct auxiliary_driver *to_auxiliary_drv(const struct device_driver *drv)
 {
 	return container_of(drv, struct auxiliary_driver, driver);
 }

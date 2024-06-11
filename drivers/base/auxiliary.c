@@ -180,7 +180,7 @@ static const struct auxiliary_device_id *auxiliary_match_id(const struct auxilia
 static int auxiliary_match(struct device *dev, struct device_driver *drv)
 {
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
-	struct auxiliary_driver *auxdrv = to_auxiliary_drv(drv);
+	const struct auxiliary_driver *auxdrv = to_auxiliary_drv(drv);
 
 	return !!auxiliary_match_id(auxdrv->id_table, auxdev);
 }
@@ -203,7 +203,7 @@ static const struct dev_pm_ops auxiliary_dev_pm_ops = {
 
 static int auxiliary_bus_probe(struct device *dev)
 {
-	struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
+	const struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 	int ret;
 
@@ -222,7 +222,7 @@ static int auxiliary_bus_probe(struct device *dev)
 
 static void auxiliary_bus_remove(struct device *dev)
 {
-	struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
+	const struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 
 	if (auxdrv->remove)
@@ -232,7 +232,7 @@ static void auxiliary_bus_remove(struct device *dev)
 
 static void auxiliary_bus_shutdown(struct device *dev)
 {
-	struct auxiliary_driver *auxdrv = NULL;
+	const struct auxiliary_driver *auxdrv = NULL;
 	struct auxiliary_device *auxdev;
 
 	if (dev->driver) {
