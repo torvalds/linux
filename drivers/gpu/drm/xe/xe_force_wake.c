@@ -10,6 +10,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_reg_defs.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_mmio.h"
 
 #define XE_FORCE_WAKE_ACK_TIMEOUT_MS	50
@@ -18,12 +19,6 @@ static struct xe_gt *
 fw_to_gt(struct xe_force_wake *fw)
 {
 	return fw->gt;
-}
-
-static struct xe_device *
-fw_to_xe(struct xe_force_wake *fw)
-{
-	return gt_to_xe(fw_to_gt(fw));
 }
 
 static void domain_init(struct xe_force_wake_domain *domain,
@@ -135,7 +130,6 @@ static int domain_sleep_wait(struct xe_gt *gt,
 int xe_force_wake_get(struct xe_force_wake *fw,
 		      enum xe_force_wake_domains domains)
 {
-	struct xe_device *xe = fw_to_xe(fw);
 	struct xe_gt *gt = fw_to_gt(fw);
 	struct xe_force_wake_domain *domain;
 	enum xe_force_wake_domains tmp, woken = 0;
@@ -153,8 +147,8 @@ int xe_force_wake_get(struct xe_force_wake *fw,
 		ret = domain_wake_wait(gt, domain);
 		ret2 |= ret;
 		if (ret)
-			drm_notice(&xe->drm, "Force wake domain (%d) failed to ack wake, ret=%d\n",
-				   domain->id, ret);
+			xe_gt_notice(gt, "Force wake domain (%d) failed to ack wake, ret=%d\n",
+				     domain->id, ret);
 	}
 	fw->awake_domains |= woken;
 	spin_unlock_irqrestore(&fw->lock, flags);
@@ -165,7 +159,6 @@ int xe_force_wake_get(struct xe_force_wake *fw,
 int xe_force_wake_put(struct xe_force_wake *fw,
 		      enum xe_force_wake_domains domains)
 {
-	struct xe_device *xe = fw_to_xe(fw);
 	struct xe_gt *gt = fw_to_gt(fw);
 	struct xe_force_wake_domain *domain;
 	enum xe_force_wake_domains tmp, sleep = 0;
@@ -183,8 +176,8 @@ int xe_force_wake_put(struct xe_force_wake *fw,
 		ret = domain_sleep_wait(gt, domain);
 		ret2 |= ret;
 		if (ret)
-			drm_notice(&xe->drm, "Force wake domain (%d) failed to ack sleep, ret=%d\n",
-				   domain->id, ret);
+			xe_gt_notice(gt, "Force wake domain (%d) failed to ack sleep, ret=%d\n",
+				     domain->id, ret);
 	}
 	fw->awake_domains &= ~sleep;
 	spin_unlock_irqrestore(&fw->lock, flags);
