@@ -2218,6 +2218,8 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
  * @conn: contains information about own capabilities and restrictions
  *	to decide which channel switch announcements can be accepted
  * @bssid: the currently connected bssid (for reporting)
+ * @unprot_action: whether the frame was an unprotected frame or not,
+ *	used for reporting
  * @csa_ie: parsed 802.11 csa elements on count, mode, chandef and mesh ttl.
  *	All of them will be filled with if success only.
  * Return: 0 on success, <0 on error and >0 if there is nothing to parse.
@@ -2227,7 +2229,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 enum nl80211_band current_band,
 				 u32 vht_cap_info,
 				 struct ieee80211_conn_settings *conn,
-				 u8 *bssid,
+				 u8 *bssid, bool unprot_action,
 				 struct ieee80211_csa_ie *csa_ie);
 
 /* Suspend/resume and hw reconfiguration */
