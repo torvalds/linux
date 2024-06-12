@@ -413,7 +413,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	/* ls_exflags are forced to match among nodes, and we don't
 	 * need to require all nodes to have some flags set
 	 */
-	ls->ls_exflags = (flags & ~(DLM_LSFL_FS | DLM_LSFL_NEWEXCL));
+	ls->ls_exflags = (flags & ~(DLM_LSFL_FS | DLM_LSFL_NEWEXCL |
+				    DLM_LSFL_SOFTIRQ));
 
 	INIT_LIST_HEAD(&ls->ls_slow_inactive);
 	INIT_LIST_HEAD(&ls->ls_slow_active);
