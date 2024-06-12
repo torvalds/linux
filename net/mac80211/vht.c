@@ -351,7 +351,8 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 
 /* FIXME: move this to some better location - parses HE/EHT now */
 enum ieee80211_sta_rx_bandwidth
-ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
+_ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta,
+			 struct cfg80211_chan_def *chandef)
 {
 	unsigned int link_id = link_sta->link_id;
 	struct ieee80211_sub_if_data *sdata = link_sta->sta->sdata;
@@ -361,44 +362,43 @@ ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
 	u32 cap_width;
 
 	if (he_cap->has_he) {
-		struct ieee80211_bss_conf *link_conf;
-		enum ieee80211_sta_rx_bandwidth ret;
+		enum nl80211_band band;
 		u8 info;
 
-		rcu_read_lock();
-		link_conf = rcu_dereference(sdata->vif.link_conf[link_id]);
+		if (chandef) {
+			band = chandef->chan->band;
+		} else {
+			struct ieee80211_bss_conf *link_conf;
 
-		if (eht_cap->has_eht &&
-		    link_conf->chanreq.oper.chan->band == NL80211_BAND_6GHZ) {
+			rcu_read_lock();
+			link_conf = rcu_dereference(sdata->vif.link_conf[link_id]);
+			band = link_conf->chanreq.oper.chan->band;
+			rcu_read_unlock();
+		}
+
+		if (eht_cap->has_eht && band == NL80211_BAND_6GHZ) {
 			info = eht_cap->eht_cap_elem.phy_cap_info[0];
 
-			if (info & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ) {
-				ret = IEEE80211_STA_RX_BW_320;
-				goto out;
-			}
+			if (info & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ)
+				return IEEE80211_STA_RX_BW_320;
 		}
 
 		info = he_cap->he_cap_elem.phy_cap_info[0];
 
-		if (link_conf->chanreq.oper.chan->band == NL80211_BAND_2GHZ) {
+		if (band == NL80211_BAND_2GHZ) {
 			if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G)
-				ret = IEEE80211_STA_RX_BW_40;
-			else
-				ret = IEEE80211_STA_RX_BW_20;
-			goto out;
+				return IEEE80211_STA_RX_BW_40;
+			return IEEE80211_STA_RX_BW_20;
 		}
 
 		if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G ||
 		    info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)
-			ret = IEEE80211_STA_RX_BW_160;
-		else if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G)
-			ret = IEEE80211_STA_RX_BW_80;
-		else
-			ret = IEEE80211_STA_RX_BW_20;
-out:
-		rcu_read_unlock();
+			return IEEE80211_STA_RX_BW_160;
 
-		return ret;
+		if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G)
+			return IEEE80211_STA_RX_BW_80;
+
+		return IEEE80211_STA_RX_BW_20;
 	}
 
 	if (!vht_cap->vht_supported)

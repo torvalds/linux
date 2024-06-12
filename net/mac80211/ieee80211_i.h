@@ -2158,7 +2158,13 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    const struct ieee80211_vht_cap *vht_cap_ie2,
 				    struct link_sta_info *link_sta);
 enum ieee80211_sta_rx_bandwidth
-ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta);
+_ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta,
+			 struct cfg80211_chan_def *chandef);
+static inline enum ieee80211_sta_rx_bandwidth
+ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
+{
+	return _ieee80211_sta_cap_rx_bw(link_sta, NULL);
+}
 enum ieee80211_sta_rx_bandwidth
 ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta);
 void ieee80211_sta_init_nss(struct link_sta_info *link_sta);
