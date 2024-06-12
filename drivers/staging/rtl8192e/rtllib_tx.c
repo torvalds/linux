@@ -335,15 +335,15 @@ static void rtllib_query_HTCapShortGI(struct rtllib_device *ieee,
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
-	tcb_desc->bUseShortGI		= false;
+	tcb_desc->use_short_gi		= false;
 
 	if (!ht_info->current_ht_support || !ht_info->enable_ht)
 		return;
 
 	if (ht_info->cur_bw_40mhz && ht_info->cur_short_gi_40mhz)
-		tcb_desc->bUseShortGI = true;
+		tcb_desc->use_short_gi = true;
 	else if (!ht_info->cur_bw_40mhz && ht_info->cur_short_gi_20mhz)
-		tcb_desc->bUseShortGI = true;
+		tcb_desc->use_short_gi = true;
 }
 
 static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
