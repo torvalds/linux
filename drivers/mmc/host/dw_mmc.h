@@ -566,6 +566,7 @@ struct dw_mci_slot {
  * @execute_tuning: implementation specific tuning procedure.
  * @set_data_timeout: implementation specific timeout.
  * @get_drto_clks: implementation specific cycle count for data read timeout.
+ * @hw_reset: implementation specific HW reset.
  *
  * Provide controller implementation specific extensions. The usage of this
  * data structure is fully optional and usage of each member in this structure
@@ -586,5 +587,6 @@ struct dw_mci_drv_data {
 	void		(*set_data_timeout)(struct dw_mci *host,
 					  unsigned int timeout_ns);
 	u32		(*get_drto_clks)(struct dw_mci *host);
+	void		(*hw_reset)(struct dw_mci *host);
 };
 #endif /* _DW_MMC_H_ */

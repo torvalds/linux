@@ -1617,6 +1617,7 @@ static void dw_mci_hw_reset(struct mmc_host *mmc)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
+	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int reset;
 
 	if (host->use_dma == TRANS_MODE_IDMAC)
@@ -1625,6 +1626,11 @@ static void dw_mci_hw_reset(struct mmc_host *mmc)
 	if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_DMA_RESET |
 				     SDMMC_CTRL_FIFO_RESET))
 		return;
+
+	if (drv_data && drv_data->hw_reset) {
+		drv_data->hw_reset(host);
+		return;
+	}
 
 	/*
 	 * According to eMMC spec, card reset procedure:
