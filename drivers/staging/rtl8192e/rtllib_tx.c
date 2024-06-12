@@ -346,7 +346,7 @@ static void rtllib_query_HTCapShortGI(struct rtllib_device *ieee,
 		tcb_desc->use_short_gi = true;
 }
 
-static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
+static void rtllib_query_bandwidth_mode(struct rtllib_device *ieee,
 				       struct cb_desc *tcb_desc)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
@@ -872,7 +872,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			rtllib_tx_query_agg_cap(ieee, txb->fragments[0],
 						tcb_desc);
 			rtllib_query_HTCapShortGI(ieee, tcb_desc);
-			rtllib_query_BandwidthMode(ieee, tcb_desc);
+			rtllib_query_bandwidth_mode(ieee, tcb_desc);
 			rtllib_query_protectionmode(ieee, tcb_desc,
 						    txb->fragments[0]);
 		}
