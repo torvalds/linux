@@ -260,26 +260,42 @@ err_out:
 static bool permitted_event_name(const char *name)
 {
 	bool has_lower = false, has_upper = false;
+	__u64 config;
 
 	for (size_t i = 0; i < strlen(name); i++) {
 		char c = name[i];
 
 		if (islower(c)) {
 			if (has_upper)
-				return false;
+				goto check_legacy;
 			has_lower = true;
 			continue;
 		}
 		if (isupper(c)) {
 			if (has_lower)
-				return false;
+				goto check_legacy;
 			has_upper = true;
 			continue;
 		}
 		if (!isdigit(c) && c != '.' && c != '_' && c != '-')
-			return false;
+			goto check_legacy;
 	}
 	return true;
+check_legacy:
+	/*
+	 * If the event name matches a legacy cache name the legacy encoding
+	 * will still be used. This isn't quite WAI as sysfs events should take
+	 * priority, but this case happens on PowerPC and matches the behavior
+	 * in older perf tools where legacy events were the priority. Be
+	 * permissive and assume later PMU drivers will use all lower or upper
+	 * case names.
+	 */
+	if (parse_events__decode_legacy_cache(name, /*extended_pmu_type=*/0, &config) == 0) {
+		pr_warning("sysfs event '%s' should be all lower/upper case, it will be matched using legacy encoding.",
+			   name);
+		return true;
+	}
+	return false;
 }
 
 static int test__pmu_event_names(struct test_suite *test __maybe_unused,
