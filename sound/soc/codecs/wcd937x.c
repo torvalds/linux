@@ -103,7 +103,6 @@ struct wcd937x_priv {
 	u32 micb1_mv;
 	u32 micb2_mv;
 	u32 micb3_mv;
-	u32 micb4_mv; /* 9375 only */
 	int hphr_pdm_wd_int;
 	int hphl_pdm_wd_int;
 	int aux_pdm_wd_int;
@@ -113,9 +112,6 @@ struct wcd937x_priv {
 	struct gpio_desc *us_euro_gpio;
 	struct gpio_desc *reset_gpio;
 
-	int dmic_0_1_clk_cnt;
-	int dmic_2_3_clk_cnt;
-	int dmic_4_5_clk_cnt;
 	atomic_t rx_clk_cnt;
 	atomic_t ana_clk_count;
 };
