@@ -514,7 +514,9 @@ static int meson_spicc_prepare_message(struct spi_controller *host,
 	/* Setup no wait cycles by default */
 	writel_relaxed(0, spicc->base + SPICC_PERIODREG);
 
-	writel_bits_relaxed(SPICC_LBC_W1, 0, spicc->base + SPICC_TESTREG);
+	writel_bits_relaxed(SPICC_LBC_W1,
+			    spi->mode & SPI_LOOP ? SPICC_LBC_W1 : 0,
+			    spicc->base + SPICC_TESTREG);
 
 	return 0;
 }
@@ -850,7 +852,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	host->num_chipselect = 4;
 	host->dev.of_node = pdev->dev.of_node;
-	host->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
+	host->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LOOP;
 	host->bits_per_word_mask = SPI_BPW_MASK(32) |
 				   SPI_BPW_MASK(24) |
 				   SPI_BPW_MASK(16) |
