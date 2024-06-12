@@ -449,4 +449,5 @@ int otg_statemachine(struct otg_fsm *fsm)
 	return fsm->state_changed;
 }
 EXPORT_SYMBOL_GPL(otg_statemachine);
+MODULE_DESCRIPTION("OTG Finite State Machine");
 MODULE_LICENSE("GPL");
