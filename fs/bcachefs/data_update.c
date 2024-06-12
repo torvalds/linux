@@ -202,9 +202,8 @@ restart_drop_conflicting_replicas:
 			bch2_bkey_durability(c, bkey_i_to_s_c(&new->k_i));
 
 		/* Now, drop excess replicas: */
-restart_drop_extra_replicas:
-
 		rcu_read_lock();
+restart_drop_extra_replicas:
 		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs(bkey_i_to_s(insert)), p, entry) {
 			unsigned ptr_durability = bch2_extent_ptr_durability(c, &p);
 
