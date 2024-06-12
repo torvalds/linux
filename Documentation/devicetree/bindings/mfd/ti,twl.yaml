@@ -225,6 +225,7 @@ examples:
         gpadc {
           compatible = "ti,twl6030-gpadc";
           interrupts = <6>;
+          #io-channel-cells = <1>;
         };
 
         rtc {
