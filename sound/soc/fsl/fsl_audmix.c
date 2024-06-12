@@ -326,15 +326,6 @@ static struct snd_soc_dai_driver fsl_audmix_dai[] = {
 			.rates = SNDRV_PCM_RATE_8000_96000,
 			.formats = FSL_AUDMIX_FORMATS,
 		},
-		.capture = {
-			.stream_name = "AUDMIX-Capture-0",
-			.channels_min = 8,
-			.channels_max = 8,
-			.rate_min = 8000,
-			.rate_max = 96000,
-			.rates = SNDRV_PCM_RATE_8000_96000,
-			.formats = FSL_AUDMIX_FORMATS,
-		},
 		.ops = &fsl_audmix_dai_ops,
 	},
 	{
@@ -349,8 +340,13 @@ static struct snd_soc_dai_driver fsl_audmix_dai[] = {
 			.rates = SNDRV_PCM_RATE_8000_96000,
 			.formats = FSL_AUDMIX_FORMATS,
 		},
+		.ops = &fsl_audmix_dai_ops,
+	},
+	{
+		.id   = 2,
+		.name = "audmix-2",
 		.capture = {
-			.stream_name = "AUDMIX-Capture-1",
+			.stream_name = "AUDMIX-Capture-0",
 			.channels_min = 8,
 			.channels_max = 8,
 			.rate_min = 8000,
