@@ -2290,9 +2290,10 @@ static int sev_gmem_post_populate(struct kvm *kvm, gfn_t gfn_start, kvm_pfn_t pf
 		if (src) {
 			void *vaddr = kmap_local_pfn(pfn + i);
 
-			ret = copy_from_user(vaddr, src + i * PAGE_SIZE, PAGE_SIZE);
-			if (ret)
+			if (copy_from_user(vaddr, src + i * PAGE_SIZE, PAGE_SIZE)) {
+				ret = -EFAULT;
 				goto err;
+			}
 			kunmap_local(vaddr);
 		}
 
