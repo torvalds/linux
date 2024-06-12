@@ -242,10 +242,10 @@ static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
  *   MD	 EXTAL		PLL1	PLL2	PLL3	PLL4	PLL5	PLL6	OSC
  * 14 13 (MHz)
  * ------------------------------------------------------------------------
- * 0  0	 16.66 / 1	x192	x204	x192	x144	x192	x168	/16
- * 0  1	 20    / 1	x160	x170	x160	x120	x160	x140	/19
+ * 0  0	 16.66 / 1	x192	x240	x192	x240	x192	x168	/16
+ * 0  1	 20    / 1	x160	x200	x160	x200	x160	x140	/19
  * 1  0	 Prohibited setting
- * 1  1	 33.33 / 2	x192	x204	x192	x144	x192	x168	/32
+ * 1  1	 33.33 / 2	x192	x240	x192	x240	x192	x168	/32
  */
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
 					 (((md) & BIT(13)) >> 13))
