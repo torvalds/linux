@@ -7,4 +7,5 @@ obj-$(CONFIG_DRM_TTM_KUNIT_TEST) += \
         ttm_tt_test.o \
         ttm_bo_test.o \
         ttm_bo_validate_test.o \
+        ttm_mock_manager.o \
         ttm_kunit_helpers.o
