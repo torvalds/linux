@@ -7,6 +7,8 @@
 #ifndef __DW_DSI_REG_H__
 #define __DW_DSI_REG_H__
 
+#include <linux/io.h>
+
 #define MASK(x)				(BIT(x) - 1)
 
 /*

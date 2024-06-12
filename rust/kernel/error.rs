@@ -4,14 +4,10 @@
 //!
 //! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
 
-use crate::str::CStr;
+use crate::{alloc::AllocError, str::CStr};
 
-use alloc::{
-    alloc::{AllocError, LayoutError},
-    collections::TryReserveError,
-};
+use alloc::alloc::LayoutError;
 
-use core::convert::From;
 use core::fmt;
 use core::num::TryFromIntError;
 use core::str::Utf8Error;
@@ -189,12 +185,6 @@ impl From<TryFromIntError> for Error {
 impl From<Utf8Error> for Error {
     fn from(_: Utf8Error) -> Error {
         code::EINVAL
-    }
-}
-
-impl From<TryReserveError> for Error {
-    fn from(_: TryReserveError) -> Error {
-        code::ENOMEM
     }
 }
 

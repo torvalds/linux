@@ -39,7 +39,7 @@ static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct inode *inode = file_inode(vma->vm_file);
 	struct address_space *mapping = inode->i_mapping;
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	loff_t size;
 	unsigned int end;
 	vm_fault_t ret = VM_FAULT_LOCKED;
@@ -48,31 +48,31 @@ static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
 	sb_start_pagefault(inode->i_sb);
 	file_update_time(vma->vm_file);
 	filemap_invalidate_lock_shared(mapping);
-	lock_page(page);
+	folio_lock(folio);
 	size = i_size_read(inode);
-	if (page->mapping != inode->i_mapping || page_offset(page) >= size) {
-		unlock_page(page);
+	if (folio->mapping != inode->i_mapping || folio_pos(folio) >= size) {
+		folio_unlock(folio);
 		ret = VM_FAULT_NOPAGE;
 		goto out_unlock;
 	}
 	/* Space is already allocated for in-ICB file */
 	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 		goto out_dirty;
-	if (page->index == size >> PAGE_SHIFT)
+	if (folio->index == size >> PAGE_SHIFT)
 		end = size & ~PAGE_MASK;
 	else
 		end = PAGE_SIZE;
-	err = __block_write_begin(page, 0, end, udf_get_block);
+	err = __block_write_begin(&folio->page, 0, end, udf_get_block);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		ret = vmf_fs_error(err);
 		goto out_unlock;
 	}
 
-	block_commit_write(page, 0, end);
+	block_commit_write(&folio->page, 0, end);
 out_dirty:
-	set_page_dirty(page);
-	wait_for_stable_page(page);
+	folio_mark_dirty(folio);
+	folio_wait_stable(folio);
 out_unlock:
 	filemap_invalidate_unlock_shared(mapping);
 	sb_end_pagefault(inode->i_sb);

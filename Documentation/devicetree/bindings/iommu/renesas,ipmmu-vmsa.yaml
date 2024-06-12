@@ -50,6 +50,7 @@ properties:
               - renesas,ipmmu-r8a779a0           # R-Car V3U
               - renesas,ipmmu-r8a779f0           # R-Car S4-8
               - renesas,ipmmu-r8a779g0           # R-Car V4H
+              - renesas,ipmmu-r8a779h0           # R-Car V4M
           - const: renesas,rcar-gen4-ipmmu-vmsa  # R-Car Gen4
 
   reg:

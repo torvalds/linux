@@ -87,6 +87,7 @@ config PHY_ROCKCHIP_SAMSUNG_HDPTX
 	tristate "Rockchip Samsung HDMI/eDP Combo PHY driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	select GENERIC_PHY
+	select RATIONAL
 	help
 	  Enable this to support the Rockchip HDMI/eDP Combo PHY
 	  with Samsung IP block.
@@ -115,3 +116,15 @@ config PHY_ROCKCHIP_USB
 	select GENERIC_PHY
 	help
 	  Enable this to support the Rockchip USB 2.0 PHY.
+
+config PHY_ROCKCHIP_USBDP
+	tristate "Rockchip USBDP COMBO PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	depends on TYPEC
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip USB3.0/DP combo PHY with
+	  Samsung IP block. This is required for USB3 support on RK3588.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-rockchip-usbdp

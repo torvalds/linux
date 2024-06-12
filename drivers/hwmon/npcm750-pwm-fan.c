@@ -196,8 +196,6 @@ struct npcm7xx_pwm_fan_data {
 	void __iomem *pwm_base;
 	void __iomem *fan_base;
 	int pwm_modules;
-	unsigned long pwm_clk_freq;
-	unsigned long fan_clk_freq;
 	struct clk *pwm_clk;
 	struct clk *fan_clk;
 	struct mutex pwm_lock[NPCM7XX_PWM_MAX_MODULES];
@@ -692,11 +690,12 @@ static u32 npcm7xx_pwm_init(struct npcm7xx_pwm_fan_data *data)
 {
 	int m, ch;
 	u32 prescale_val, output_freq;
+	unsigned long pwm_clk_freq;
 
-	data->pwm_clk_freq = clk_get_rate(data->pwm_clk);
+	pwm_clk_freq = clk_get_rate(data->pwm_clk);
 
 	/* Adjust NPCM7xx PWMs output frequency to ~25Khz */
-	output_freq = data->pwm_clk_freq / PWN_CNT_DEFAULT;
+	output_freq = pwm_clk_freq / PWN_CNT_DEFAULT;
 	prescale_val = DIV_ROUND_CLOSEST(output_freq, PWM_OUTPUT_FREQ_25KHZ);
 
 	/* If prescale_val = 0, then the prescale output clock is stopped */

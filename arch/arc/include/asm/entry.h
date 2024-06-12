@@ -7,7 +7,7 @@
 #ifndef __ASM_ARC_ENTRY_H
 #define __ASM_ARC_ENTRY_H
 
-#include <asm/unistd.h>		/* For NR_syscalls defination */
+#include <asm/unistd.h>		/* For NR_syscalls definition */
 #include <asm/arcregs.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>	/* For VMALLOC_START */
@@ -56,7 +56,7 @@
 .endm
 
 /*-------------------------------------------------------------
- * given a tsk struct, get to the base of it's kernel mode stack
+ * given a tsk struct, get to the base of its kernel mode stack
  * tsk->thread_info is really a PAGE, whose bottom hoists stack
  * which grows upwards towards thread_info
  *------------------------------------------------------------*/

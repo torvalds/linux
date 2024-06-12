@@ -37,8 +37,8 @@
  */
 
 /* number of bytes addressable by LDX/STX insn with 16-bit 'off' field */
-#define GUARD_SZ (1ull << sizeof(((struct bpf_insn *)0)->off) * 8)
-#define KERN_VM_SZ ((1ull << 32) + GUARD_SZ)
+#define GUARD_SZ (1ull << sizeof_field(struct bpf_insn, off) * 8)
+#define KERN_VM_SZ (SZ_4G + GUARD_SZ)
 
 struct bpf_arena {
 	struct bpf_map map;
@@ -110,7 +110,7 @@ static struct bpf_map *arena_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-EINVAL);
 
 	vm_range = (u64)attr->max_entries * PAGE_SIZE;
-	if (vm_range > (1ull << 32))
+	if (vm_range > SZ_4G)
 		return ERR_PTR(-E2BIG);
 
 	if ((attr->map_extra >> 32) != ((attr->map_extra + vm_range - 1) >> 32))
@@ -251,7 +251,7 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 	int ret;
 
 	kbase = bpf_arena_get_kern_vm_start(arena);
-	kaddr = kbase + (u32)(vmf->address & PAGE_MASK);
+	kaddr = kbase + (u32)(vmf->address);
 
 	guard(mutex)(&arena->lock);
 	page = vmalloc_to_page((void *)kaddr);
@@ -301,7 +301,7 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 
 	if (pgoff)
 		return -EINVAL;
-	if (len > (1ull << 32))
+	if (len > SZ_4G)
 		return -E2BIG;
 
 	/* if user_vm_start was specified at arena creation time */
@@ -314,7 +314,7 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 			return -EINVAL;
 	}
 
-	ret = current->mm->get_unmapped_area(filp, addr, len * 2, 0, flags);
+	ret = mm_get_unmapped_area(current->mm, filp, addr, len * 2, 0, flags);
 	if (IS_ERR_VALUE(ret))
 		return ret;
 	if ((ret >> 32) == ((ret + len - 1) >> 32))
@@ -322,7 +322,7 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 	if (WARN_ON_ONCE(arena->user_vm_start))
 		/* checks at map creation time should prevent this */
 		return -EFAULT;
-	return round_up(ret, 1ull << 32);
+	return round_up(ret, SZ_4G);
 }
 
 static int arena_map_mmap(struct bpf_map *map, struct vm_area_struct *vma)
@@ -346,7 +346,7 @@ static int arena_map_mmap(struct bpf_map *map, struct vm_area_struct *vma)
 		return -EBUSY;
 
 	/* Earlier checks should prevent this */
-	if (WARN_ON_ONCE(vma->vm_end - vma->vm_start > (1ull << 32) || vma->vm_pgoff))
+	if (WARN_ON_ONCE(vma->vm_end - vma->vm_start > SZ_4G || vma->vm_pgoff))
 		return -EFAULT;
 
 	if (remember_vma(arena, vma))
@@ -420,7 +420,7 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 		if (uaddr & ~PAGE_MASK)
 			return 0;
 		pgoff = compute_pgoff(arena, uaddr);
-		if (pgoff + page_cnt > page_cnt_max)
+		if (pgoff > page_cnt_max - page_cnt)
 			/* requested address will be outside of user VMA */
 			return 0;
 	}
@@ -447,7 +447,13 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 		goto out;
 
 	uaddr32 = (u32)(arena->user_vm_start + pgoff * PAGE_SIZE);
-	/* Earlier checks make sure that uaddr32 + page_cnt * PAGE_SIZE will not overflow 32-bit */
+	/* Earlier checks made sure that uaddr32 + page_cnt * PAGE_SIZE - 1
+	 * will not overflow 32-bit. Lower 32-bit need to represent
+	 * contiguous user address range.
+	 * Map these pages at kern_vm_start base.
+	 * kern_vm_start + uaddr32 + page_cnt * PAGE_SIZE - 1 can overflow
+	 * lower 32-bit and it's ok.
+	 */
 	ret = vm_area_map_pages(arena->kern_vm, kern_vm_start + uaddr32,
 				kern_vm_start + uaddr32 + page_cnt * PAGE_SIZE, pages);
 	if (ret) {
@@ -510,6 +516,11 @@ static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt)
 		if (!page)
 			continue;
 		if (page_cnt == 1 && page_mapped(page)) /* mapped by some user process */
+			/* Optimization for the common case of page_cnt==1:
+			 * If page wasn't mapped into some user vma there
+			 * is no need to call zap_pages which is slow. When
+			 * page_cnt is big it's faster to do the batched zap.
+			 */
 			zap_pages(arena, full_uaddr, 1);
 		vm_area_unmap_pages(arena->kern_vm, kaddr, kaddr + PAGE_SIZE);
 		__free_page(page);

@@ -198,7 +198,7 @@ EXPORT_SYMBOL_GPL(ip_build_and_send_pkt);
 static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
-	struct rtable *rt = (struct rtable *)dst;
+	struct rtable *rt = dst_rtable(dst);
 	struct net_device *dev = dst->dev;
 	unsigned int hh_len = LL_RESERVED_SPACE(dev);
 	struct neighbour *neigh;
@@ -475,7 +475,7 @@ int __ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 		goto packet_routed;
 
 	/* Make sure we can route this packet. */
-	rt = (struct rtable *)__sk_dst_check(sk, 0);
+	rt = dst_rtable(__sk_dst_check(sk, 0));
 	if (!rt) {
 		__be32 daddr;
 
@@ -971,7 +971,7 @@ static int __ip_append_data(struct sock *sk,
 	bool zc = false;
 	unsigned int maxfraglen, fragheaderlen, maxnonfragsize;
 	int csummode = CHECKSUM_NONE;
-	struct rtable *rt = (struct rtable *)cork->dst;
+	struct rtable *rt = dst_rtable(cork->dst);
 	bool paged, hold_tskey, extra_uref = false;
 	unsigned int wmem_alloc_delta = 0;
 	u32 tskey = 0;
@@ -1390,7 +1390,7 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	struct inet_sock *inet = inet_sk(sk);
 	struct net *net = sock_net(sk);
 	struct ip_options *opt = NULL;
-	struct rtable *rt = (struct rtable *)cork->dst;
+	struct rtable *rt = dst_rtable(cork->dst);
 	struct iphdr *iph;
 	u8 pmtudisc, ttl;
 	__be16 df = 0;
@@ -1473,7 +1473,7 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 		 * by icmp_hdr(skb)->type.
 		 */
 		if (sk->sk_type == SOCK_RAW &&
-		    !inet_test_bit(HDRINCL, sk))
+		    !(fl4->flowi4_flags & FLOWI_FLAG_KNOWN_NH))
 			icmp_type = fl4->fl4_icmp_type;
 		else
 			icmp_type = icmp_hdr(skb)->type;

@@ -325,7 +325,7 @@ static void cleanup_params(void)
 	for (i = 0; i < params->nevents; i++)
 		clear_perf_probe_event(params->events + i);
 	line_range__clear(&params->line_range);
-	free(params->target);
+	zfree(&params->target);
 	strfilter__delete(params->filter);
 	nsinfo__put(params->nsi);
 	zfree(&params);

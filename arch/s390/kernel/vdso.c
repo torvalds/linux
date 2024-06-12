@@ -210,15 +210,20 @@ static unsigned long vdso_addr(unsigned long start, unsigned long len)
 	return addr;
 }
 
-unsigned long vdso_size(void)
+unsigned long vdso_text_size(void)
 {
-	unsigned long size = VVAR_NR_PAGES * PAGE_SIZE;
+	unsigned long size;
 
 	if (is_compat_task())
-		size += vdso32_end - vdso32_start;
+		size = vdso32_end - vdso32_start;
 	else
-		size += vdso64_end - vdso64_start;
+		size = vdso64_end - vdso64_start;
 	return PAGE_ALIGN(size);
+}
+
+unsigned long vdso_size(void)
+{
+	return vdso_text_size() + VVAR_NR_PAGES * PAGE_SIZE;
 }
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)

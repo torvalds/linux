@@ -78,7 +78,7 @@ void xe_drm_client_add_bo(struct xe_drm_client *client,
 
 	spin_lock(&client->bos_lock);
 	bo->client = xe_drm_client_get(client);
-	list_add_tail_rcu(&bo->client_link, &client->bos_list);
+	list_add_tail(&bo->client_link, &client->bos_list);
 	spin_unlock(&client->bos_lock);
 }
 
@@ -96,7 +96,7 @@ void xe_drm_client_remove_bo(struct xe_bo *bo)
 	struct xe_drm_client *client = bo->client;
 
 	spin_lock(&client->bos_lock);
-	list_del_rcu(&bo->client_link);
+	list_del(&bo->client_link);
 	spin_unlock(&client->bos_lock);
 
 	xe_drm_client_put(client);
@@ -154,8 +154,8 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 
 	/* Internal objects. */
 	spin_lock(&client->bos_lock);
-	list_for_each_entry_rcu(bo, &client->bos_list, client_link) {
-		if (!bo || !kref_get_unless_zero(&bo->ttm.base.refcount))
+	list_for_each_entry(bo, &client->bos_list, client_link) {
+		if (!kref_get_unless_zero(&bo->ttm.base.refcount))
 			continue;
 		bo_meminfo(bo, stats);
 		xe_bo_put(bo);

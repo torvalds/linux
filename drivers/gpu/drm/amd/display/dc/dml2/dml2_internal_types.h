@@ -109,10 +109,21 @@ enum dml2_architecture {
 	dml2_architecture_20,
 };
 
+struct dml2_pipe_combine_factor {
+	unsigned int source;
+	unsigned int target;
+};
+
+struct dml2_pipe_combine_scratch {
+	struct dml2_pipe_combine_factor odm_factors[MAX_PIPES];
+	struct dml2_pipe_combine_factor mpc_factors[MAX_PIPES][MAX_PIPES];
+};
+
 struct dml2_context {
 	enum dml2_architecture architecture;
 	struct dml2_configuration_options config;
 	struct dml2_helper_det_policy_scratch det_helper_scratch;
+	struct dml2_pipe_combine_scratch pipe_combine_scratch;
 	union {
 		struct {
 			struct display_mode_lib_st dml_core_ctx;

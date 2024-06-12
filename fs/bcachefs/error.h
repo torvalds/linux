@@ -32,6 +32,12 @@ bool bch2_inconsistent_error(struct bch_fs *);
 
 int bch2_topology_error(struct bch_fs *);
 
+#define bch2_fs_topology_error(c, ...)					\
+({									\
+	bch_err(c, "btree topology error: " __VA_ARGS__);		\
+	bch2_topology_error(c);						\
+})
+
 #define bch2_fs_inconsistent(c, ...)					\
 ({									\
 	bch_err(c, __VA_ARGS__);					\

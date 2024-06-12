@@ -277,7 +277,8 @@ static int sun6i_spi_transfer_one(struct spi_controller *host,
 				  struct spi_transfer *tfr)
 {
 	struct sun6i_spi *sspi = spi_controller_get_devdata(host);
-	unsigned int div, div_cdr1, div_cdr2, timeout;
+	unsigned int div, div_cdr1, div_cdr2;
+	unsigned long time_left;
 	unsigned int start, end, tx_time;
 	unsigned int trig_level;
 	unsigned int tx_len = 0, rx_len = 0, nbits = 0;
@@ -488,26 +489,26 @@ static int sun6i_spi_transfer_one(struct spi_controller *host,
 
 	tx_time = spi_controller_xfer_timeout(host, tfr);
 	start = jiffies;
-	timeout = wait_for_completion_timeout(&sspi->done,
-					      msecs_to_jiffies(tx_time));
+	time_left = wait_for_completion_timeout(&sspi->done,
+						msecs_to_jiffies(tx_time));
 
 	if (!use_dma) {
 		sun6i_spi_drain_fifo(sspi);
 	} else {
-		if (timeout && rx_len) {
+		if (time_left && rx_len) {
 			/*
 			 * Even though RX on the peripheral side has finished
 			 * RX DMA might still be in flight
 			 */
-			timeout = wait_for_completion_timeout(&sspi->dma_rx_done,
-							      timeout);
-			if (!timeout)
+			time_left = wait_for_completion_timeout(&sspi->dma_rx_done,
+								time_left);
+			if (!time_left)
 				dev_warn(&host->dev, "RX DMA timeout\n");
 		}
 	}
 
 	end = jiffies;
-	if (!timeout) {
+	if (!time_left) {
 		dev_warn(&host->dev,
 			 "%s: timeout transferring %u bytes@%iHz for %i(%i)ms",
 			 dev_name(&spi->dev), tfr->len, tfr->speed_hz,

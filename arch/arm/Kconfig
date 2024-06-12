@@ -35,6 +35,7 @@ config ARM
 	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT if CPU_V7
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_CFI_CLANG
 	select ARCH_SUPPORTS_HUGETLBFS if ARM_LPAE
 	select ARCH_SUPPORTS_PER_VMA_LOCK
 	select ARCH_USE_BUILTIN_BSWAP
@@ -99,7 +100,7 @@ config ARM
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && MMU
 	select HAVE_EXIT_THREAD
-	select HAVE_FAST_GUP if ARM_LPAE
+	select HAVE_GUP_FAST if ARM_LPAE
 	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
 	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -1233,9 +1234,9 @@ config HIGHPTE
 	  consumed by page tables.  Setting this option will allow
 	  user-space 2nd level page tables to reside in high memory.
 
-config CPU_SW_DOMAIN_PAN
-	bool "Enable use of CPU domains to implement privileged no-access"
-	depends on MMU && !ARM_LPAE
+config ARM_PAN
+	bool "Enable privileged no-access"
+	depends on MMU
 	default y
 	help
 	  Increase kernel security by ensuring that normal kernel accesses
@@ -1244,9 +1245,25 @@ config CPU_SW_DOMAIN_PAN
 	  by ensuring that magic values (such as LIST_POISON) will always
 	  fault when dereferenced.
 
+	  The implementation uses CPU domains when !CONFIG_ARM_LPAE and
+	  disabling of TTBR0 page table walks with CONFIG_ARM_LPAE.
+
+config CPU_SW_DOMAIN_PAN
+	def_bool y
+	depends on ARM_PAN && !ARM_LPAE
+	help
+	  Enable use of CPU domains to implement privileged no-access.
+
 	  CPUs with low-vector mappings use a best-efforts implementation.
 	  Their lower 1MB needs to remain accessible for the vectors, but
 	  the remainder of userspace will become appropriately inaccessible.
+
+config CPU_TTBR0_PAN
+	def_bool y
+	depends on ARM_PAN && ARM_LPAE
+	help
+	  Enable privileged no-access by disabling TTBR0 page table walks when
+	  running in kernel mode.
 
 config HW_PERF_EVENTS
 	def_bool y

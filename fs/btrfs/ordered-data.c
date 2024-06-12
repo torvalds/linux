@@ -294,6 +294,12 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 	spin_unlock_irq(&inode->ordered_tree_lock);
 }
 
+void btrfs_mark_ordered_extent_error(struct btrfs_ordered_extent *ordered)
+{
+	if (!test_and_set_bit(BTRFS_ORDERED_IOERR, &ordered->flags))
+		mapping_set_error(ordered->inode->i_mapping, -EIO);
+}
+
 static void finish_ordered_fn(struct btrfs_work *work)
 {
 	struct btrfs_ordered_extent *ordered_extent;
@@ -332,7 +338,7 @@ static bool can_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 	if (WARN_ON_ONCE(len > ordered->bytes_left)) {
 		btrfs_crit(fs_info,
 "bad ordered extent accounting, root=%llu ino=%llu OE offset=%llu OE len=%llu to_dec=%llu left=%llu",
-			   inode->root->root_key.objectid, btrfs_ino(inode),
+			   btrfs_root_id(inode->root), btrfs_ino(inode),
 			   ordered->file_offset, ordered->num_bytes,
 			   len, ordered->bytes_left);
 		ordered->bytes_left = 0;
@@ -1188,6 +1194,7 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	ordered->disk_bytenr += len;
 	ordered->num_bytes -= len;
 	ordered->disk_num_bytes -= len;
+	ordered->ram_bytes -= len;
 
 	if (test_bit(BTRFS_ORDERED_IO_DONE, &ordered->flags)) {
 		ASSERT(ordered->bytes_left == 0);

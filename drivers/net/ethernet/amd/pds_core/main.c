@@ -239,6 +239,7 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 	snprintf(wq_name, sizeof(wq_name), "%s.%d", PDS_CORE_DRV_NAME, pdsc->uid);
 	pdsc->wq = create_singlethread_workqueue(wq_name);
 	INIT_WORK(&pdsc->health_work, pdsc_health_thread);
+	INIT_WORK(&pdsc->pci_reset_work, pdsc_pci_reset_thread);
 	timer_setup(&pdsc->wdtimer, pdsc_wdtimer_cb, 0);
 	pdsc->wdtimer_period = PDSC_WATCHDOG_SECS * HZ;
 

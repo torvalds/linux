@@ -935,14 +935,10 @@ static void fuse_readpages_end(struct fuse_mount *fm, struct fuse_args *args,
 	}
 
 	for (i = 0; i < ap->num_pages; i++) {
-		struct page *page = ap->pages[i];
+		struct folio *folio = page_folio(ap->pages[i]);
 
-		if (!err)
-			SetPageUptodate(page);
-		else
-			SetPageError(page);
-		unlock_page(page);
-		put_page(page);
+		folio_end_read(folio, !err);
+		folio_put(folio);
 	}
 	if (ia->ff)
 		fuse_file_put(ia->ff, false);
@@ -1362,7 +1358,7 @@ static void fuse_dio_lock(struct kiocb *iocb, struct iov_iter *from,
 			  bool *exclusive)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
-	struct fuse_file *ff = iocb->ki_filp->private_data;
+	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	*exclusive = fuse_dio_wr_exclusive_lock(iocb, from);
 	if (*exclusive) {
@@ -1377,7 +1373,7 @@ static void fuse_dio_lock(struct kiocb *iocb, struct iov_iter *from,
 		 * have raced, so check it again.
 		 */
 		if (fuse_io_past_eof(iocb, from) ||
-		    fuse_file_uncached_io_start(inode, ff, NULL) != 0) {
+		    fuse_inode_uncached_io_start(fi, NULL) != 0) {
 			inode_unlock_shared(inode);
 			inode_lock(inode);
 			*exclusive = true;
@@ -1388,13 +1384,13 @@ static void fuse_dio_lock(struct kiocb *iocb, struct iov_iter *from,
 static void fuse_dio_unlock(struct kiocb *iocb, bool exclusive)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
-	struct fuse_file *ff = iocb->ki_filp->private_data;
+	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	if (exclusive) {
 		inode_unlock(inode);
 	} else {
 		/* Allow opens in caching mode after last parallel dio end */
-		fuse_file_uncached_io_end(inode, ff);
+		fuse_inode_uncached_io_end(fi);
 		inode_unlock_shared(inode);
 	}
 }
@@ -2574,8 +2570,10 @@ static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 		 * First mmap of direct_io file enters caching inode io mode.
 		 * Also waits for parallel dio writers to go into serial mode
 		 * (exclusive instead of shared lock).
+		 * After first mmap, the inode stays in caching io mode until
+		 * the direct_io file release.
 		 */
-		rc = fuse_file_cached_io_start(inode, ff);
+		rc = fuse_file_cached_io_open(inode, ff);
 		if (rc)
 			return rc;
 	}

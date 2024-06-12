@@ -130,7 +130,7 @@
 	x(bucket_gens_nonzero_for_invalid_buckets,		122)	\
 	x(need_discard_freespace_key_to_invalid_dev_bucket,	123)	\
 	x(need_discard_freespace_key_bad,			124)	\
-	x(backpointer_pos_wrong,				125)	\
+	x(backpointer_bucket_offset_wrong,			125)	\
 	x(backpointer_to_missing_device,			126)	\
 	x(backpointer_to_missing_alloc,				127)	\
 	x(backpointer_to_missing_ptr,				128)	\
@@ -265,7 +265,17 @@
 	x(subvol_children_bad,					257)	\
 	x(subvol_loop,						258)	\
 	x(subvol_unreachable,					259)	\
-	x(btree_node_bkey_bad_u64s,				260)
+	x(btree_node_bkey_bad_u64s,				260)	\
+	x(btree_node_topology_empty_interior_node,		261)	\
+	x(btree_ptr_v2_min_key_bad,				262)	\
+	x(btree_root_unreadable_and_scan_found_nothing,		263)	\
+	x(snapshot_node_missing,				264)	\
+	x(dup_backpointer_to_bad_csum_extent,			265)	\
+	x(btree_bitmap_not_marked,				266)	\
+	x(sb_clean_entry_overrun,				267)	\
+	x(btree_ptr_v2_written_0,				268)	\
+	x(subvol_snapshot_bad,					269)	\
+	x(subvol_inode_bad,					270)
 
 enum bch_sb_error_id {
 #define x(t, n) BCH_FSCK_ERR_##t = n,

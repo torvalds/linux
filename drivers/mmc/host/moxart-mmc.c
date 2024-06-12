@@ -300,6 +300,7 @@ static void moxart_transfer_pio(struct moxart_host *host)
 	remain = sgm->length;
 	if (remain > host->data_len)
 		remain = host->data_len;
+	sgm->consumed = 0;
 
 	if (data->flags & MMC_DATA_WRITE) {
 		while (remain > 0) {

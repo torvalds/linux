@@ -292,7 +292,7 @@ static u32 i915_perf_stream_paranoid = true;
 #define OAREPORT_REASON_CTX_SWITCH     (1<<3)
 #define OAREPORT_REASON_CLK_RATIO      (1<<5)
 
-#define HAS_MI_SET_PREDICATE(i915) (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+#define HAS_MI_SET_PREDICATE(i915) (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 
 /* For sysctl proc_dointvec_minmax of i915_oa_max_sample_rate
  *
@@ -817,7 +817,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 */
 
 		if (oa_report_ctx_invalid(stream, report) &&
-		    GRAPHICS_VER_FULL(stream->engine->i915) < IP_VER(12, 50)) {
+		    GRAPHICS_VER_FULL(stream->engine->i915) < IP_VER(12, 55)) {
 			ctx_id = INVALID_CTX_ID;
 			oa_context_id_squash(stream, report32);
 		}
@@ -1419,7 +1419,7 @@ static int gen12_get_render_context_id(struct i915_perf_stream *stream)
 
 		mask = ((1U << GEN12_GUC_SW_CTX_ID_WIDTH) - 1) <<
 			(GEN12_GUC_SW_CTX_ID_SHIFT - 32);
-	} else if (GRAPHICS_VER_FULL(stream->engine->i915) >= IP_VER(12, 50)) {
+	} else if (GRAPHICS_VER_FULL(stream->engine->i915) >= IP_VER(12, 55)) {
 		ctx_id = (XEHP_MAX_CONTEXT_HW_ID - 1) <<
 			(XEHP_SW_CTX_ID_SHIFT - 32);
 
@@ -2881,11 +2881,11 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 	int ret;
 
 	/*
-	 * Wa_1508761755:xehpsdv, dg2
+	 * Wa_1508761755
 	 * EU NOA signals behave incorrectly if EU clock gating is enabled.
 	 * Disable thread stall DOP gating and EU DOP gating.
 	 */
-	if (IS_XEHPSDV(i915) || IS_DG2(i915)) {
+	if (IS_DG2(i915)) {
 		intel_gt_mcr_multicast_write(uncore->gt, GEN8_ROW_CHICKEN,
 					     _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
 		intel_uncore_write(uncore, GEN7_ROW_CHICKEN2,
@@ -2911,7 +2911,7 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 	/*
 	 * Initialize Super Queue Internal Cnt Register
 	 * Set PMON Enable in order to collect valid metrics.
-	 * Enable byets per clock reporting in OA for XEHPSDV onward.
+	 * Enable bytes per clock reporting in OA.
 	 */
 	sqcnt1 = GEN12_SQCNT1_PMON_ENABLE |
 		 (HAS_OA_BPC_REPORTING(i915) ? GEN12_SQCNT1_OABPC : 0);
@@ -2971,10 +2971,9 @@ static void gen12_disable_metric_set(struct i915_perf_stream *stream)
 	u32 sqcnt1;
 
 	/*
-	 * Wa_1508761755:xehpsdv, dg2
-	 * Enable thread stall DOP gating and EU DOP gating.
+	 * Wa_1508761755: Enable thread stall DOP gating and EU DOP gating.
 	 */
-	if (IS_XEHPSDV(i915) || IS_DG2(i915)) {
+	if (IS_DG2(i915)) {
 		intel_gt_mcr_multicast_write(uncore->gt, GEN8_ROW_CHICKEN,
 					     _MASKED_BIT_DISABLE(STALL_DOP_GATING_DISABLE));
 		intel_uncore_write(uncore, GEN7_ROW_CHICKEN2,
@@ -4123,7 +4122,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 			props->hold_preemption = !!value;
 			break;
 		case DRM_I915_PERF_PROP_GLOBAL_SSEU: {
-			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 50)) {
+			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 55)) {
 				drm_dbg(&perf->i915->drm,
 					"SSEU config not supported on gfx %x\n",
 					GRAPHICS_VER_FULL(perf->i915));

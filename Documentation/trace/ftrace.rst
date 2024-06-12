@@ -1968,7 +1968,7 @@ wakeup
 One common case that people are interested in tracing is the
 time it takes for a task that is woken to actually wake up.
 Now for non Real-Time tasks, this can be arbitrary. But tracing
-it none the less can be interesting. 
+it nonetheless can be interesting. 
 
 Without function tracing::
 

@@ -57,48 +57,15 @@ static const struct intel_mmio_range icl_l3bank_steering_table[] = {
  * are of a "GAM" subclass that has special rules.  Thus we use a separate
  * GAM table farther down for those.
  */
-static const struct intel_mmio_range xehpsdv_mslice_steering_table[] = {
+static const struct intel_mmio_range dg2_mslice_steering_table[] = {
 	{ 0x00DD00, 0x00DDFF },
 	{ 0x00E900, 0x00FFFF }, /* 0xEA00 - OxEFFF is unused */
-	{},
-};
-
-static const struct intel_mmio_range xehpsdv_gam_steering_table[] = {
-	{ 0x004000, 0x004AFF },
-	{ 0x00C800, 0x00CFFF },
-	{},
-};
-
-static const struct intel_mmio_range xehpsdv_lncf_steering_table[] = {
-	{ 0x00B000, 0x00B0FF },
-	{ 0x00D800, 0x00D8FF },
 	{},
 };
 
 static const struct intel_mmio_range dg2_lncf_steering_table[] = {
 	{ 0x00B000, 0x00B0FF },
 	{ 0x00D880, 0x00D8FF },
-	{},
-};
-
-/*
- * We have several types of MCR registers on PVC where steering to (0,0)
- * will always provide us with a non-terminated value.  We'll stick them
- * all in the same table for simplicity.
- */
-static const struct intel_mmio_range pvc_instance0_steering_table[] = {
-	{ 0x004000, 0x004AFF },		/* HALF-BSLICE */
-	{ 0x008800, 0x00887F },		/* CC */
-	{ 0x008A80, 0x008AFF },		/* TILEPSMI */
-	{ 0x00B000, 0x00B0FF },		/* HALF-BSLICE */
-	{ 0x00B100, 0x00B3FF },		/* L3BANK */
-	{ 0x00C800, 0x00CFFF },		/* HALF-BSLICE */
-	{ 0x00D800, 0x00D8FF },		/* HALF-BSLICE */
-	{ 0x00DD00, 0x00DDFF },		/* BSLICE */
-	{ 0x00E900, 0x00E9FF },		/* HALF-BSLICE */
-	{ 0x00EC00, 0x00EEFF },		/* HALF-BSLICE */
-	{ 0x00F000, 0x00FFFF },		/* HALF-BSLICE */
-	{ 0x024180, 0x0241FF },		/* HALF-BSLICE */
 	{},
 };
 
@@ -185,22 +152,16 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 		gt->steering_table[INSTANCE0] = xelpg_instance0_steering_table;
 		gt->steering_table[L3BANK] = xelpg_l3bank_steering_table;
 		gt->steering_table[DSS] = xelpg_dss_steering_table;
-	} else if (IS_PONTEVECCHIO(i915)) {
-		gt->steering_table[INSTANCE0] = pvc_instance0_steering_table;
 	} else if (IS_DG2(i915)) {
-		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
+		gt->steering_table[MSLICE] = dg2_mslice_steering_table;
 		gt->steering_table[LNCF] = dg2_lncf_steering_table;
 		/*
 		 * No need to hook up the GAM table since it has a dedicated
 		 * steering control register on DG2 and can use implicit
 		 * steering.
 		 */
-	} else if (IS_XEHPSDV(i915)) {
-		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
-		gt->steering_table[LNCF] = xehpsdv_lncf_steering_table;
-		gt->steering_table[GAM] = xehpsdv_gam_steering_table;
 	} else if (GRAPHICS_VER(i915) >= 11 &&
-		   GRAPHICS_VER_FULL(i915) < IP_VER(12, 50)) {
+		   GRAPHICS_VER_FULL(i915) < IP_VER(12, 55)) {
 		gt->steering_table[L3BANK] = icl_l3bank_steering_table;
 		gt->info.l3bank_mask =
 			~intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
@@ -821,8 +782,6 @@ void intel_gt_mcr_report_steering(struct drm_printer *p, struct intel_gt *gt,
 		for (int i = 0; i < NUM_STEERING_TYPES; i++)
 			if (gt->steering_table[i])
 				report_steering_type(p, gt, i, dump_table);
-	} else if (IS_PONTEVECCHIO(gt->i915)) {
-		report_steering_type(p, gt, INSTANCE0, dump_table);
 	} else if (HAS_MSLICE_STEERING(gt->i915)) {
 		report_steering_type(p, gt, MSLICE, dump_table);
 		report_steering_type(p, gt, LNCF, dump_table);
@@ -842,10 +801,7 @@ void intel_gt_mcr_report_steering(struct drm_printer *p, struct intel_gt *gt,
 void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
 				   unsigned int *group, unsigned int *instance)
 {
-	if (IS_PONTEVECCHIO(gt->i915)) {
-		*group = dss / GEN_DSS_PER_CSLICE;
-		*instance = dss % GEN_DSS_PER_CSLICE;
-	} else if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55)) {
 		*group = dss / GEN_DSS_PER_GSLICE;
 		*instance = dss % GEN_DSS_PER_GSLICE;
 	} else {

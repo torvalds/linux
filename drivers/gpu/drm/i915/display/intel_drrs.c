@@ -63,6 +63,15 @@ const char *intel_drrs_type_str(enum drrs_type drrs_type)
 	return str[drrs_type];
 }
 
+bool intel_cpu_transcoder_has_drrs(struct drm_i915_private *i915,
+				   enum transcoder cpu_transcoder)
+{
+	if (HAS_DOUBLE_BUFFERED_M_N(i915))
+		return true;
+
+	return intel_cpu_transcoder_has_m2_n2(i915, cpu_transcoder);
+}
+
 static void
 intel_drrs_set_refresh_rate_pipeconf(struct intel_crtc *crtc,
 				     enum drrs_refresh_rate refresh_rate)
@@ -312,9 +321,8 @@ static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 	mutex_lock(&crtc->drrs.mutex);
 
 	seq_printf(m, "DRRS capable: %s\n",
-		   str_yes_no(crtc_state->has_drrs ||
-			      HAS_DOUBLE_BUFFERED_M_N(i915) ||
-			      intel_cpu_transcoder_has_m2_n2(i915, crtc_state->cpu_transcoder)));
+		   str_yes_no(intel_cpu_transcoder_has_drrs(i915,
+							    crtc_state->cpu_transcoder)));
 
 	seq_printf(m, "DRRS enabled: %s\n",
 		   str_yes_no(crtc_state->has_drrs));

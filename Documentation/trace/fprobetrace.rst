@@ -74,7 +74,7 @@ Function arguments at exit
 --------------------------
 Function arguments can be accessed at exit probe using $arg<N> fetcharg. This
 is useful to record the function parameter and return value at once, and
-trace the difference of structure fields (for debuging a function whether it
+trace the difference of structure fields (for debugging a function whether it
 correctly updates the given data structure or not)
 See the :ref:`sample<fprobetrace_exit_args_sample>` below for how it works.
 
@@ -248,4 +248,4 @@ mode. You can trace that changes with return probe.
              cat-143     [007] ...1.  1945.720616: vfs_open__entry: (vfs_open+0x4/0x40) mode=0x1 inode=0x0
              cat-143     [007] ...1.  1945.728263: vfs_open__exit: (do_open+0x274/0x3d0 <- vfs_open) mode=0xa800d inode=0xffff888004ada8d8
 
-You can see the `file::f_mode` and `file::f_inode` are upated in `vfs_open()`.
+You can see the `file::f_mode` and `file::f_inode` are updated in `vfs_open()`.

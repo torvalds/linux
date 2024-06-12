@@ -16,17 +16,19 @@ extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
 extern const char * const __bch2_btree_ids[];
-extern const char * const bch2_csum_types[];
 extern const char * const bch2_csum_opts[];
-extern const char * const __bch2_compression_types[];
 extern const char * const bch2_compression_opts[];
 extern const char * const bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
 extern const char * const __bch2_data_types[];
 extern const char * const bch2_member_states[];
-extern const char * const bch2_jset_entry_types[];
-extern const char * const bch2_fs_usage_types[];
 extern const char * const bch2_d_types[];
+
+void bch2_prt_jset_entry_type(struct printbuf *,	enum bch_jset_entry_type);
+void bch2_prt_fs_usage_type(struct printbuf *,		enum bch_fs_usage_type);
+void bch2_prt_data_type(struct printbuf *,		enum bch_data_type);
+void bch2_prt_csum_type(struct printbuf *,		enum bch_csum_type);
+void bch2_prt_compression_type(struct printbuf *,	enum bch_compression_type);
 
 static inline const char *bch2_d_type_str(unsigned d_type)
 {
@@ -362,12 +364,17 @@ enum fsck_err_opts {
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Don't replay the journal")			\
-	x(keep_journal,			u8,				\
+	  NULL,		"Exit recovery immediately prior to journal replay")\
+	x(recovery_pass_last,		u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_STR_NOLIMIT(bch2_recovery_passes),			\
+	  BCH2_NO_SB_OPT,		0,				\
+	  NULL,		"Exit recovery after specified pass")		\
+	x(retain_recovery_info,		u8,				\
 	  0,								\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Don't free journal entries/keys after startup")\
+	  NULL,		"Don't free journal entries/keys, scanned btree nodes after startup")\
 	x(read_entire_journal,		u8,				\
 	  0,								\
 	  OPT_BOOL(),							\
@@ -419,11 +426,6 @@ enum fsck_err_opts {
 	  BCH_SB_VERSION_UPGRADE,	BCH_VERSION_UPGRADE_compatible,	\
 	  NULL,		"Set superblock to latest version,\n"		\
 			"allowing any new features to be used")		\
-	x(buckets_nouse,		u8,				\
-	  0,								\
-	  OPT_BOOL(),							\
-	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Allocate the buckets_nouse bitmap")		\
 	x(stdio,			u64,				\
 	  0,								\
 	  OPT_UINT(0, S64_MAX),						\
@@ -473,7 +475,7 @@ enum fsck_err_opts {
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
-	  NULL,		"BTREE_ITER_PREFETCH casuse btree nodes to be\n"\
+	  NULL,		"BTREE_ITER_prefetch casuse btree nodes to be\n"\
 	  " prefetched sequentially")
 
 struct bch_opts {

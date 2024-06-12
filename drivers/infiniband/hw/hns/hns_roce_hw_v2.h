@@ -276,6 +276,10 @@ struct hns_roce_v2_cq_context {
 	__le32 byte_64_se_cqe_idx;
 };
 
+#define CQC_CQE_BA_L_S 3
+#define CQC_CQE_BA_H_S (32 + CQC_CQE_BA_L_S)
+#define CQC_CQE_DB_RECORD_ADDR_H_S 32
+
 #define HNS_ROCE_V2_CQ_DEFAULT_BURST_NUM 0x0
 #define HNS_ROCE_V2_CQ_DEFAULT_INTERVAL	0x0
 
@@ -446,6 +450,12 @@ struct hns_roce_v2_qp_context {
 
 	struct hns_roce_v2_qp_context_ex ext;
 };
+
+#define QPC_TRRL_BA_L_S 4
+#define QPC_TRRL_BA_M_S (16 + QPC_TRRL_BA_L_S)
+#define QPC_TRRL_BA_H_S (32 + QPC_TRRL_BA_M_S)
+#define QPC_IRRL_BA_L_S 6
+#define QPC_IRRL_BA_H_S (32 + QPC_IRRL_BA_L_S)
 
 #define QPC_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_v2_qp_context, h, l)
 
@@ -715,6 +725,9 @@ struct hns_roce_v2_mpt_entry {
 	__le32	pa1_l;
 	__le32	byte_64_buf_pa1;
 };
+
+#define MPT_PBL_BUF_ADDR_S 6
+#define MPT_PBL_BA_ADDR_S 3
 
 #define MPT_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_v2_mpt_entry, h, l)
 
@@ -1334,7 +1347,7 @@ struct fmea_ram_ecc {
 
 /* only for RNR timeout issue of HIP08 */
 #define HNS_ROCE_CLOCK_ADJUST 1000
-#define HNS_ROCE_MAX_CQ_PERIOD 65
+#define HNS_ROCE_MAX_CQ_PERIOD_HIP08 65
 #define HNS_ROCE_MAX_EQ_PERIOD 65
 #define HNS_ROCE_RNR_TIMER_10NS 1
 #define HNS_ROCE_1US_CFG 999

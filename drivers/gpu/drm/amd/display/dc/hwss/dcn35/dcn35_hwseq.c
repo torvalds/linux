@@ -349,36 +349,13 @@ void dcn35_init_hw(struct dc *dc)
 	if (dc->ctx->dmub_srv) {
 		dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv);
 		dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
-		dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch;
+		dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver;
 	}
 
 	if (dc->res_pool->pg_cntl) {
 		if (dc->res_pool->pg_cntl->funcs->init_pg_status)
 			dc->res_pool->pg_cntl->funcs->init_pg_status(dc->res_pool->pg_cntl);
 	}
-}
-
-static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
-		int opp_cnt)
-{
-	bool hblank_halved = optc2_is_two_pixels_per_containter(&stream->timing);
-	int flow_ctrl_cnt;
-
-	if (opp_cnt >= 2)
-		hblank_halved = true;
-
-	flow_ctrl_cnt = stream->timing.h_total - stream->timing.h_addressable -
-			stream->timing.h_border_left -
-			stream->timing.h_border_right;
-
-	if (hblank_halved)
-		flow_ctrl_cnt /= 2;
-
-	/* ODM combine 4:1 case */
-	if (opp_cnt == 4)
-		flow_ctrl_cnt /= 2;
-
-	return flow_ctrl_cnt;
 }
 
 static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
@@ -396,7 +373,7 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 	if (enable) {
 		struct dsc_config dsc_cfg;
-		struct dsc_optc_config dsc_optc_cfg;
+		struct dsc_optc_config dsc_optc_cfg = {0};
 		enum optc_dsc_mode optc_dsc_mode;
 
 		/* Enable DSC hw block */
@@ -474,10 +451,6 @@ void dcn35_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 0;
 	int opp_inst[MAX_PIPES] = {0};
-	bool rate_control_2x_pclk = (pipe_ctx->stream->timing.flags.INTERLACE || optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing));
-	struct mpc_dwb_flow_control flow_control;
-	struct mpc *mpc = dc->res_pool->mpc;
-	int i;
 
 	opp_cnt = get_odm_config(pipe_ctx, opp_inst);
 
@@ -489,20 +462,6 @@ void dcn35_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 	else
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
-
-	rate_control_2x_pclk = rate_control_2x_pclk || opp_cnt > 1;
-	flow_control.flow_ctrl_mode = 0;
-	flow_control.flow_ctrl_cnt0 = 0x80;
-	flow_control.flow_ctrl_cnt1 = calc_mpc_flow_ctrl_cnt(pipe_ctx->stream, opp_cnt);
-	if (mpc->funcs->set_out_rate_control) {
-		for (i = 0; i < opp_cnt; ++i) {
-			mpc->funcs->set_out_rate_control(
-					mpc, opp_inst[i],
-					true,
-					rate_control_2x_pclk,
-					&flow_control);
-		}
-	}
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
@@ -533,6 +492,17 @@ void dcn35_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst, 
 	if (hws->ctx->dc->res_pool->dccg->funcs->dpp_root_clock_control) {
 		hws->ctx->dc->res_pool->dccg->funcs->dpp_root_clock_control(
 			hws->ctx->dc->res_pool->dccg, dpp_inst, clock_on);
+	}
+}
+
+void dcn35_dpstream_root_clock_control(struct dce_hwseq *hws, unsigned int dp_hpo_inst, bool clock_on)
+{
+	if (!hws->ctx->dc->debug.root_clock_optimization.bits.dpstream)
+		return;
+
+	if (hws->ctx->dc->res_pool->dccg->funcs->set_dpstreamclk_root_clock_gating) {
+		hws->ctx->dc->res_pool->dccg->funcs->set_dpstreamclk_root_clock_gating(
+			hws->ctx->dc->res_pool->dccg, dp_hpo_inst, clock_on);
 	}
 }
 
@@ -679,22 +649,43 @@ void dcn35_power_down_on_boot(struct dc *dc)
 
 bool dcn35_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
-	struct dc_link *edp_links[MAX_NUM_EDP];
-	int i, edp_num;
 	if (dc->debug.dmcub_emulation)
 		return true;
 
 	if (enable) {
-		dc_get_edp_links(dc, edp_links, &edp_num);
-		if (edp_num == 0 || edp_num > 1)
-			return false;
+		uint32_t num_active_edp = 0;
+		int i;
 
 		for (i = 0; i < dc->current_state->stream_count; ++i) {
 			struct dc_stream_state *stream = dc->current_state->streams[i];
+			struct dc_link *link = stream->link;
+			bool is_psr = link && !link->panel_config.psr.disable_psr &&
+				      (link->psr_settings.psr_version == DC_PSR_VERSION_1 ||
+				       link->psr_settings.psr_version == DC_PSR_VERSION_SU_1);
+			bool is_replay = link && link->replay_settings.replay_feature_enabled;
 
-			if (!stream->dpms_off && !dc_is_embedded_signal(stream->signal))
+			/* Ignore streams that disabled. */
+			if (stream->dpms_off)
+				continue;
+
+			/* Active external displays block idle optimizations. */
+			if (!dc_is_embedded_signal(stream->signal))
 				return false;
+
+			/* If not PWRSEQ0 can't enter idle optimizations */
+			if (link && link->link_index != 0)
+				return false;
+
+			/* Check for panel power features required for idle optimizations. */
+			if (!is_psr && !is_replay)
+				return false;
+
+			num_active_edp += 1;
 		}
+
+		/* If more than one active eDP then disallow. */
+		if (num_active_edp > 1)
+			return false;
 	}
 
 	// TODO: review other cases when idle optimization is allowed
@@ -720,6 +711,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 	struct pg_cntl *pg_cntl = dc->res_pool->pg_cntl;
 	bool can_apply_seamless_boot = false;
+	bool tg_enabled[MAX_PIPES] = {false};
 
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->streams[i]->apply_seamless_boot_optimization) {
@@ -801,6 +793,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 			// requesting data while in PSR.
 			tg->funcs->tg_init(tg);
 			hubp->power_gated = true;
+			tg_enabled[i] = true;
 			continue;
 		}
 
@@ -840,6 +833,20 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 		}
 
 		tg->funcs->tg_init(tg);
+	}
+
+	/* Clean up MPC tree */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (tg_enabled[i]) {
+			if (dc->res_pool->opps[i]->mpc_tree_params.opp_list) {
+				if (dc->res_pool->opps[i]->mpc_tree_params.opp_list->mpcc_bot) {
+					int bot_id = dc->res_pool->opps[i]->mpc_tree_params.opp_list->mpcc_bot->mpcc_id;
+
+					if ((bot_id < MAX_MPCC) && (bot_id < MAX_PIPES) && (!tg_enabled[bot_id]))
+						dc->res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
+				}
+			}
+		}
 	}
 
 	if (pg_cntl != NULL) {
@@ -1002,6 +1009,9 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	if (!hpo_frl_stream_enc_acquired && !hpo_dp_stream_enc_acquired)
 		update_state->pg_res_update[PG_HPO] = true;
 
+	if (hpo_frl_stream_enc_acquired)
+		update_state->pg_pipe_res_update[PG_HDMISTREAM][0] = true;
+
 	update_state->pg_res_update[PG_DWB] = true;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1019,8 +1029,7 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 		if (pipe_ctx->plane_res.dpp)
 			update_state->pg_pipe_res_update[PG_DPP][pipe_ctx->plane_res.hubp->inst] = false;
 
-		if ((pipe_ctx->plane_res.dpp || pipe_ctx->stream_res.opp) &&
-			pipe_ctx->plane_res.mpcc_inst >= 0)
+		if (pipe_ctx->plane_res.dpp || pipe_ctx->stream_res.opp)
 			update_state->pg_pipe_res_update[PG_MPCC][pipe_ctx->plane_res.mpcc_inst] = false;
 
 		if (pipe_ctx->stream_res.dsc)
@@ -1028,6 +1037,9 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 
 		if (pipe_ctx->stream_res.opp)
 			update_state->pg_pipe_res_update[PG_OPP][pipe_ctx->stream_res.opp->inst] = false;
+
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc)
+			update_state->pg_pipe_res_update[PG_DPSTREAM][pipe_ctx->stream_res.hpo_dp_stream_enc->inst] = false;
 	}
 	/*domain24 controls all the otg, mpc, opp, as long as one otg is still up, avoid enabling OTG PG*/
 	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
@@ -1085,6 +1097,9 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 
 				if (j == PG_OPTC && new_pipe->stream_res.tg)
 					update_state->pg_pipe_res_update[j][new_pipe->stream_res.tg->inst] = true;
+
+				if (j == PG_DPSTREAM && new_pipe->stream_res.hpo_dp_stream_enc)
+					update_state->pg_pipe_res_update[j][new_pipe->stream_res.hpo_dp_stream_enc->inst] = true;
 			}
 		} else if (cur_pipe->plane_state == new_pipe->plane_state ||
 				cur_pipe == new_pipe) {
@@ -1114,6 +1129,11 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 					cur_pipe->stream_res.tg != new_pipe->stream_res.tg &&
 					new_pipe->stream_res.tg)
 					update_state->pg_pipe_res_update[j][new_pipe->stream_res.tg->inst] = true;
+
+				if (j == PG_DPSTREAM &&
+					cur_pipe->stream_res.hpo_dp_stream_enc != new_pipe->stream_res.hpo_dp_stream_enc &&
+					new_pipe->stream_res.hpo_dp_stream_enc)
+					update_state->pg_pipe_res_update[j][new_pipe->stream_res.hpo_dp_stream_enc->inst] = true;
 			}
 		}
 	}
@@ -1128,6 +1148,9 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 
 	if (hpo_frl_stream_enc_acquired || hpo_dp_stream_enc_acquired)
 		update_state->pg_res_update[PG_HPO] = true;
+
+	if (hpo_frl_stream_enc_acquired)
+		update_state->pg_pipe_res_update[PG_HDMISTREAM][0] = true;
 
 }
 
@@ -1253,14 +1276,19 @@ void dcn35_root_clock_control(struct dc *dc,
 	if (!pg_cntl)
 		return;
 	/*enable root clock first when power up*/
-	if (power_on)
+	if (power_on) {
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
 				update_state->pg_pipe_res_update[PG_DPP][i]) {
 				if (dc->hwseq->funcs.dpp_root_clock_control)
 					dc->hwseq->funcs.dpp_root_clock_control(dc->hwseq, i, power_on);
 			}
+			if (update_state->pg_pipe_res_update[PG_DPSTREAM][i])
+				if (dc->hwseq->funcs.dpstream_root_clock_control)
+					dc->hwseq->funcs.dpstream_root_clock_control(dc->hwseq, i, power_on);
 		}
+
+	}
 	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
 		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
 			if (power_on) {
@@ -1273,14 +1301,19 @@ void dcn35_root_clock_control(struct dc *dc,
 		}
 	}
 	/*disable root clock first when power down*/
-	if (!power_on)
+	if (!power_on) {
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
 				update_state->pg_pipe_res_update[PG_DPP][i]) {
 				if (dc->hwseq->funcs.dpp_root_clock_control)
 					dc->hwseq->funcs.dpp_root_clock_control(dc->hwseq, i, power_on);
 			}
+			if (update_state->pg_pipe_res_update[PG_DPSTREAM][i])
+				if (dc->hwseq->funcs.dpstream_root_clock_control)
+					dc->hwseq->funcs.dpstream_root_clock_control(dc->hwseq, i, power_on);
 		}
+
+	}
 }
 
 void dcn35_prepare_bandwidth(
@@ -1319,22 +1352,6 @@ void dcn35_optimize_bandwidth(
 		if (dc->hwss.root_clock_control)
 			dc->hwss.root_clock_control(dc, &pg_update_state, false);
 	}
-}
-
-void dcn35_set_idle_state(const struct dc *dc, bool allow_idle)
-{
-	// TODO: Find a more suitable communcation
-	if (dc->clk_mgr->funcs->set_idle_state)
-		dc->clk_mgr->funcs->set_idle_state(dc->clk_mgr, allow_idle);
-}
-
-uint32_t dcn35_get_idle_state(const struct dc *dc)
-{
-	// TODO: Find a more suitable communcation
-	if (dc->clk_mgr->funcs->get_idle_state)
-		return dc->clk_mgr->funcs->get_idle_state(dc->clk_mgr);
-
-	return 0;
 }
 
 void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
@@ -1393,4 +1410,32 @@ void dcn35_set_static_screen_control(struct pipe_ctx **pipe_ctx,
 		pipe_ctx[i]->stream_res.tg->funcs->
 			set_static_screen_control(pipe_ctx[i]->stream_res.tg,
 					triggers, params->num_frames);
+}
+
+void dcn35_set_long_vblank(struct pipe_ctx **pipe_ctx,
+		int num_pipes, uint32_t v_total_min, uint32_t v_total_max)
+{
+	int i = 0;
+	struct long_vtotal_params params = {0};
+
+	params.vertical_total_max = v_total_max;
+	params.vertical_total_min = v_total_min;
+
+	for (i = 0; i < num_pipes; i++) {
+		if (!pipe_ctx[i])
+			continue;
+
+		if (pipe_ctx[i]->stream) {
+			struct dc_crtc_timing *timing = &pipe_ctx[i]->stream->timing;
+
+			if (timing)
+				params.vertical_blank_start = timing->v_total - timing->v_front_porch;
+			else
+				params.vertical_blank_start = 0;
+
+			if ((pipe_ctx[i]->stream_res.tg != NULL) && pipe_ctx[i]->stream_res.tg->funcs &&
+				pipe_ctx[i]->stream_res.tg->funcs->set_long_vtotal)
+				pipe_ctx[i]->stream_res.tg->funcs->set_long_vtotal(pipe_ctx[i]->stream_res.tg, &params);
+		}
+	}
 }

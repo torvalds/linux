@@ -1283,11 +1283,13 @@ qca8k_mac_config_setup_internal_delay(struct qca8k_priv *priv, int cpu_port_inde
 }
 
 static struct phylink_pcs *
-qca8k_phylink_mac_select_pcs(struct dsa_switch *ds, int port,
+qca8k_phylink_mac_select_pcs(struct phylink_config *config,
 			     phy_interface_t interface)
 {
-	struct qca8k_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct qca8k_priv *priv = dp->ds->priv;
 	struct phylink_pcs *pcs = NULL;
+	int port = dp->index;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_SGMII:
@@ -1311,12 +1313,17 @@ qca8k_phylink_mac_select_pcs(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
+qca8k_phylink_mac_config(struct phylink_config *config, unsigned int mode,
 			 const struct phylink_link_state *state)
 {
-	struct qca8k_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct dsa_switch *ds = dp->ds;
+	struct qca8k_priv *priv;
+	int port = dp->index;
 	int cpu_port_index;
 	u32 reg;
+
+	priv = ds->priv;
 
 	switch (port) {
 	case 0: /* 1st CPU port */
@@ -1426,20 +1433,24 @@ static void qca8k_phylink_get_caps(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_phylink_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+qca8k_phylink_mac_link_down(struct phylink_config *config, unsigned int mode,
 			    phy_interface_t interface)
 {
-	struct qca8k_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct qca8k_priv *priv = dp->ds->priv;
 
-	qca8k_port_set_status(priv, port, 0);
+	qca8k_port_set_status(priv, dp->index, 0);
 }
 
 static void
-qca8k_phylink_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
-			  phy_interface_t interface, struct phy_device *phydev,
-			  int speed, int duplex, bool tx_pause, bool rx_pause)
+qca8k_phylink_mac_link_up(struct phylink_config *config,
+			  struct phy_device *phydev, unsigned int mode,
+			  phy_interface_t interface, int speed, int duplex,
+			  bool tx_pause, bool rx_pause)
 {
-	struct qca8k_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct qca8k_priv *priv = dp->ds->priv;
+	int port = dp->index;
 	u32 reg;
 
 	if (phylink_autoneg_inband(mode)) {
@@ -1463,10 +1474,10 @@ qca8k_phylink_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 		if (duplex == DUPLEX_FULL)
 			reg |= QCA8K_PORT_STATUS_DUPLEX;
 
-		if (rx_pause || dsa_is_cpu_port(ds, port))
+		if (rx_pause || dsa_port_is_cpu(dp))
 			reg |= QCA8K_PORT_STATUS_RXFLOW;
 
-		if (tx_pause || dsa_is_cpu_port(ds, port))
+		if (tx_pause || dsa_port_is_cpu(dp))
 			reg |= QCA8K_PORT_STATUS_TXFLOW;
 	}
 
@@ -1991,6 +2002,13 @@ qca8k_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+static const struct phylink_mac_ops qca8k_phylink_mac_ops = {
+	.mac_select_pcs	= qca8k_phylink_mac_select_pcs,
+	.mac_config	= qca8k_phylink_mac_config,
+	.mac_link_down	= qca8k_phylink_mac_link_down,
+	.mac_link_up	= qca8k_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops qca8k_switch_ops = {
 	.get_tag_protocol	= qca8k_get_tag_protocol,
 	.setup			= qca8k_setup,
@@ -2021,10 +2039,6 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.port_vlan_add		= qca8k_port_vlan_add,
 	.port_vlan_del		= qca8k_port_vlan_del,
 	.phylink_get_caps	= qca8k_phylink_get_caps,
-	.phylink_mac_select_pcs	= qca8k_phylink_mac_select_pcs,
-	.phylink_mac_config	= qca8k_phylink_mac_config,
-	.phylink_mac_link_down	= qca8k_phylink_mac_link_down,
-	.phylink_mac_link_up	= qca8k_phylink_mac_link_up,
 	.get_phy_flags		= qca8k_get_phy_flags,
 	.port_lag_join		= qca8k_port_lag_join,
 	.port_lag_leave		= qca8k_port_lag_leave,
@@ -2091,6 +2105,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	priv->ds->num_ports = QCA8K_NUM_PORTS;
 	priv->ds->priv = priv;
 	priv->ds->ops = &qca8k_switch_ops;
+	priv->ds->phylink_mac_ops = &qca8k_phylink_mac_ops;
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 

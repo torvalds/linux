@@ -8,7 +8,7 @@
 #include "rk3568.dtsi"
 
 / {
-	model = "Radxa ROCK3 Model A";
+	model = "Radxa ROCK 3A";
 	compatible = "radxa,rock3a", "rockchip,rk3568";
 
 	aliases {
@@ -755,6 +755,20 @@
 	vmmc-supply = <&vcc3v3_sys>;
 	vqmmc-supply = <&vcc_1v8>;
 	status = "okay";
+};
+
+&sfc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <104000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
 };
 
 &tsadc {

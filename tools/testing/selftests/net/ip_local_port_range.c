@@ -359,7 +359,7 @@ TEST_F(ip_local_port_range, late_bind)
 		struct sockaddr_in v4;
 		struct sockaddr_in6 v6;
 	} addr;
-	socklen_t addr_len;
+	socklen_t addr_len = 0;
 	const int one = 1;
 	int fd, err;
 	__u32 range;

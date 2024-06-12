@@ -1194,6 +1194,13 @@ static inline void sk_prot_clear_nulls(struct sock *sk, int size)
 	       size - offsetof(struct sock, sk_node.pprev));
 }
 
+struct proto_accept_arg {
+	int flags;
+	int err;
+	int is_empty;
+	bool kern;
+};
+
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
  */
@@ -1208,8 +1215,8 @@ struct proto {
 					int addr_len);
 	int			(*disconnect)(struct sock *sk, int flags);
 
-	struct sock *		(*accept)(struct sock *sk, int flags, int *err,
-					  bool kern);
+	struct sock *		(*accept)(struct sock *sk,
+					  struct proto_accept_arg *arg);
 
 	int			(*ioctl)(struct sock *sk, int cmd,
 					 int *karg);
@@ -1371,73 +1378,6 @@ static inline int sk_under_cgroup_hierarchy(struct sock *sk,
 #endif
 }
 
-static inline bool sk_has_memory_pressure(const struct sock *sk)
-{
-	return sk->sk_prot->memory_pressure != NULL;
-}
-
-static inline bool sk_under_global_memory_pressure(const struct sock *sk)
-{
-	return sk->sk_prot->memory_pressure &&
-		!!READ_ONCE(*sk->sk_prot->memory_pressure);
-}
-
-static inline bool sk_under_memory_pressure(const struct sock *sk)
-{
-	if (!sk->sk_prot->memory_pressure)
-		return false;
-
-	if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
-	    mem_cgroup_under_socket_pressure(sk->sk_memcg))
-		return true;
-
-	return !!READ_ONCE(*sk->sk_prot->memory_pressure);
-}
-
-static inline long
-proto_memory_allocated(const struct proto *prot)
-{
-	return max(0L, atomic_long_read(prot->memory_allocated));
-}
-
-static inline long
-sk_memory_allocated(const struct sock *sk)
-{
-	return proto_memory_allocated(sk->sk_prot);
-}
-
-/* 1 MB per cpu, in page units */
-#define SK_MEMORY_PCPU_RESERVE (1 << (20 - PAGE_SHIFT))
-extern int sysctl_mem_pcpu_rsv;
-
-static inline void
-sk_memory_allocated_add(struct sock *sk, int amt)
-{
-	int local_reserve;
-
-	preempt_disable();
-	local_reserve = __this_cpu_add_return(*sk->sk_prot->per_cpu_fw_alloc, amt);
-	if (local_reserve >= READ_ONCE(sysctl_mem_pcpu_rsv)) {
-		__this_cpu_sub(*sk->sk_prot->per_cpu_fw_alloc, local_reserve);
-		atomic_long_add(local_reserve, sk->sk_prot->memory_allocated);
-	}
-	preempt_enable();
-}
-
-static inline void
-sk_memory_allocated_sub(struct sock *sk, int amt)
-{
-	int local_reserve;
-
-	preempt_disable();
-	local_reserve = __this_cpu_sub_return(*sk->sk_prot->per_cpu_fw_alloc, amt);
-	if (local_reserve <= -READ_ONCE(sysctl_mem_pcpu_rsv)) {
-		__this_cpu_sub(*sk->sk_prot->per_cpu_fw_alloc, local_reserve);
-		atomic_long_add(local_reserve, sk->sk_prot->memory_allocated);
-	}
-	preempt_enable();
-}
-
 #define SK_ALLOC_PERCPU_COUNTER_BATCH 16
 
 static inline void sk_sockets_allocated_dec(struct sock *sk)
@@ -1463,15 +1403,6 @@ proto_sockets_allocated_sum_positive(struct proto *prot)
 {
 	return percpu_counter_sum_positive(prot->sockets_allocated);
 }
-
-static inline bool
-proto_memory_pressure(struct proto *prot)
-{
-	if (!prot->memory_pressure)
-		return false;
-	return !!READ_ONCE(*prot->memory_pressure);
-}
-
 
 #ifdef CONFIG_PROC_FS
 #define PROTO_INUSE_NR	64	/* should be enough for the first time */
@@ -1759,6 +1690,13 @@ static inline void sock_owned_by_me(const struct sock *sk)
 #endif
 }
 
+static inline void sock_not_owned_by_me(const struct sock *sk)
+{
+#ifdef CONFIG_LOCKDEP
+	WARN_ON_ONCE(lockdep_sock_is_held(sk) && debug_locks);
+#endif
+}
+
 static inline bool sock_owned_by_user(const struct sock *sk)
 {
 	sock_owned_by_me(sk);
@@ -1873,7 +1811,7 @@ int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
 int sock_no_bind(struct socket *, struct sockaddr *, int);
 int sock_no_connect(struct socket *, struct sockaddr *, int, int);
 int sock_no_socketpair(struct socket *, struct socket *);
-int sock_no_accept(struct socket *, struct socket *, int, bool);
+int sock_no_accept(struct socket *, struct socket *, struct proto_accept_arg *);
 int sock_no_getname(struct socket *, struct sockaddr *, int);
 int sock_no_ioctl(struct socket *, unsigned int, unsigned long);
 int sock_no_listen(struct socket *, int);
@@ -2506,6 +2444,12 @@ static inline void sk_wake_async(const struct sock *sk, int how, int band)
 	}
 }
 
+static inline void sk_wake_async_rcu(const struct sock *sk, int how, int band)
+{
+	if (unlikely(sock_flag(sk, SOCK_FASYNC)))
+		sock_wake_async(rcu_dereference(sk->sk_wq), how, band);
+}
+
 /* Since sk_{r,w}mem_alloc sums skb->truesize, even a small frame might
  * need sizeof(sk_buff) + MTU + padding, unless net driver perform copybreak.
  * Note: for send buffers, TCP works better if we can build two skbs at
@@ -2822,12 +2766,10 @@ static inline struct sk_buff *sk_validate_xmit_skb(struct sk_buff *skb,
 
 	if (sk && sk_fullsock(sk) && sk->sk_validate_xmit_skb) {
 		skb = sk->sk_validate_xmit_skb(sk, dev, skb);
-#ifdef CONFIG_TLS_DEVICE
-	} else if (unlikely(skb->decrypted)) {
+	} else if (unlikely(skb_is_decrypted(skb))) {
 		pr_warn_ratelimited("unencrypted skb with no associated socket - dropping\n");
 		kfree_skb(skb);
 		skb = NULL;
-#endif
 	}
 #endif
 

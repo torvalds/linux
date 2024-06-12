@@ -59,6 +59,7 @@ enum dentist_dispclk_change_mode {
 struct dp_dto_params {
 	int otg_inst;
 	enum signal_type signal;
+	enum streamclk_source clk_src;
 	uint64_t pixclk_hz;
 	uint64_t refclk_hz;
 };
@@ -105,6 +106,10 @@ struct dccg_funcs {
 	void (*otg_drop_pixel)(struct dccg *dccg,
 			uint32_t otg_inst);
 	void (*dccg_init)(struct dccg *dccg);
+	void (*set_dpstreamclk_root_clock_gating)(
+			struct dccg *dccg,
+			int dp_hpo_inst,
+			bool enable);
 
 	void (*set_dpstreamclk)(
 			struct dccg *dccg,

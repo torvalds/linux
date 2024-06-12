@@ -805,6 +805,7 @@
 		     &pinctrl_usb_pwr>;
 	dr_mode = "host";
 	power-active-high;
+	over-current-active-low;
 	disable-over-current;
 	status = "okay";
 };

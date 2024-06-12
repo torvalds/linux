@@ -15,6 +15,7 @@
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <linux/sunrpc/svc.h>
 #include <linux/module.h>
 #include <linux/fsnotify.h>
 
@@ -48,12 +49,10 @@ enum {
 	NFSD_MaxBlkSize,
 	NFSD_MaxConnections,
 	NFSD_Filecache,
-#ifdef CONFIG_NFSD_V4
 	NFSD_Leasetime,
 	NFSD_Gracetime,
 	NFSD_RecoveryDir,
 	NFSD_V4EndGrace,
-#endif
 	NFSD_MaxReserved
 };
 
@@ -406,7 +405,9 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 		if (newthreads < 0)
 			return -EINVAL;
 		trace_nfsd_ctl_threads(net, newthreads);
-		rv = nfsd_svc(newthreads, net, file->f_cred);
+		mutex_lock(&nfsd_mutex);
+		rv = nfsd_svc(newthreads, net, file->f_cred, NULL);
+		mutex_unlock(&nfsd_mutex);
 		if (rv < 0)
 			return rv;
 	} else
@@ -1360,7 +1361,9 @@ static int nfsd_fill_super(struct super_block *sb, struct fs_context *fc)
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Gracetime] = {"nfsv4gracetime", &transaction_ops, S_IWUSR|S_IRUSR},
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 		[NFSD_RecoveryDir] = {"nfsv4recoverydir", &transaction_ops, S_IWUSR|S_IRUSR},
+#endif
 		[NFSD_V4EndGrace] = {"v4_end_grace", &transaction_ops, S_IWUSR|S_IRUGO},
 #endif
 		/* last one */ {""}
@@ -1652,6 +1655,518 @@ int nfsd_nl_rpc_status_get_done(struct netlink_callback *cb)
 }
 
 /**
+ * nfsd_nl_threads_set_doit - set the number of running threads
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	int nthreads = 0, count = 0, nrpools, ret = -EOPNOTSUPP, rem;
+	struct net *net = genl_info_net(info);
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	const struct nlattr *attr;
+	const char *scope = NULL;
+
+	if (GENL_REQ_ATTR_CHECK(info, NFSD_A_SERVER_THREADS))
+		return -EINVAL;
+
+	/* count number of SERVER_THREADS values */
+	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+		if (nla_type(attr) == NFSD_A_SERVER_THREADS)
+			count++;
+	}
+
+	mutex_lock(&nfsd_mutex);
+
+	nrpools = nfsd_nrpools(net);
+	if (nrpools && count > nrpools)
+		count = nrpools;
+
+	/* XXX: make this handle non-global pool-modes */
+	if (count > 1)
+		goto out_unlock;
+
+	nthreads = nla_get_u32(info->attrs[NFSD_A_SERVER_THREADS]);
+	if (info->attrs[NFSD_A_SERVER_GRACETIME] ||
+	    info->attrs[NFSD_A_SERVER_LEASETIME] ||
+	    info->attrs[NFSD_A_SERVER_SCOPE]) {
+		ret = -EBUSY;
+		if (nn->nfsd_serv && nn->nfsd_serv->sv_nrthreads)
+			goto out_unlock;
+
+		ret = -EINVAL;
+		attr = info->attrs[NFSD_A_SERVER_GRACETIME];
+		if (attr) {
+			u32 gracetime = nla_get_u32(attr);
+
+			if (gracetime < 10 || gracetime > 3600)
+				goto out_unlock;
+
+			nn->nfsd4_grace = gracetime;
+		}
+
+		attr = info->attrs[NFSD_A_SERVER_LEASETIME];
+		if (attr) {
+			u32 leasetime = nla_get_u32(attr);
+
+			if (leasetime < 10 || leasetime > 3600)
+				goto out_unlock;
+
+			nn->nfsd4_lease = leasetime;
+		}
+
+		attr = info->attrs[NFSD_A_SERVER_SCOPE];
+		if (attr)
+			scope = nla_data(attr);
+	}
+
+	ret = nfsd_svc(nthreads, net, get_current_cred(), scope);
+
+out_unlock:
+	mutex_unlock(&nfsd_mutex);
+
+	return ret == nthreads ? 0 : ret;
+}
+
+/**
+ * nfsd_nl_threads_get_doit - get the number of running threads
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_threads_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = genl_info_net(info);
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	void *hdr;
+	int err;
+
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = genlmsg_iput(skb, info);
+	if (!hdr) {
+		err = -EMSGSIZE;
+		goto err_free_msg;
+	}
+
+	mutex_lock(&nfsd_mutex);
+
+	err = nla_put_u32(skb, NFSD_A_SERVER_GRACETIME,
+			  nn->nfsd4_grace) ||
+	      nla_put_u32(skb, NFSD_A_SERVER_LEASETIME,
+			  nn->nfsd4_lease) ||
+	      nla_put_string(skb, NFSD_A_SERVER_SCOPE,
+			  nn->nfsd_name);
+	if (err)
+		goto err_unlock;
+
+	if (nn->nfsd_serv) {
+		int i;
+
+		for (i = 0; i < nfsd_nrpools(net); ++i) {
+			struct svc_pool *sp = &nn->nfsd_serv->sv_pools[i];
+
+			err = nla_put_u32(skb, NFSD_A_SERVER_THREADS,
+					  atomic_read(&sp->sp_nrthreads));
+			if (err)
+				goto err_unlock;
+		}
+	} else {
+		err = nla_put_u32(skb, NFSD_A_SERVER_THREADS, 0);
+		if (err)
+			goto err_unlock;
+	}
+
+	mutex_unlock(&nfsd_mutex);
+
+	genlmsg_end(skb, hdr);
+
+	return genlmsg_reply(skb, info);
+
+err_unlock:
+	mutex_unlock(&nfsd_mutex);
+err_free_msg:
+	nlmsg_free(skb);
+
+	return err;
+}
+
+/**
+ * nfsd_nl_version_set_doit - set the nfs enabled versions
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_version_set_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	const struct nlattr *attr;
+	struct nfsd_net *nn;
+	int i, rem;
+
+	if (GENL_REQ_ATTR_CHECK(info, NFSD_A_SERVER_PROTO_VERSION))
+		return -EINVAL;
+
+	mutex_lock(&nfsd_mutex);
+
+	nn = net_generic(genl_info_net(info), nfsd_net_id);
+	if (nn->nfsd_serv) {
+		mutex_unlock(&nfsd_mutex);
+		return -EBUSY;
+	}
+
+	/* clear current supported versions. */
+	nfsd_vers(nn, 2, NFSD_CLEAR);
+	nfsd_vers(nn, 3, NFSD_CLEAR);
+	for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++)
+		nfsd_minorversion(nn, i, NFSD_CLEAR);
+
+	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+		struct nlattr *tb[NFSD_A_VERSION_MAX + 1];
+		u32 major, minor = 0;
+		bool enabled;
+
+		if (nla_type(attr) != NFSD_A_SERVER_PROTO_VERSION)
+			continue;
+
+		if (nla_parse_nested(tb, NFSD_A_VERSION_MAX, attr,
+				     nfsd_version_nl_policy, info->extack) < 0)
+			continue;
+
+		if (!tb[NFSD_A_VERSION_MAJOR])
+			continue;
+
+		major = nla_get_u32(tb[NFSD_A_VERSION_MAJOR]);
+		if (tb[NFSD_A_VERSION_MINOR])
+			minor = nla_get_u32(tb[NFSD_A_VERSION_MINOR]);
+
+		enabled = nla_get_flag(tb[NFSD_A_VERSION_ENABLED]);
+
+		switch (major) {
+		case 4:
+			nfsd_minorversion(nn, minor, enabled ? NFSD_SET : NFSD_CLEAR);
+			break;
+		case 3:
+		case 2:
+			if (!minor)
+				nfsd_vers(nn, major, enabled ? NFSD_SET : NFSD_CLEAR);
+			break;
+		default:
+			break;
+		}
+	}
+
+	mutex_unlock(&nfsd_mutex);
+
+	return 0;
+}
+
+/**
+ * nfsd_nl_version_get_doit - get the enabled status for all supported nfs versions
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_version_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfsd_net *nn;
+	int i, err;
+	void *hdr;
+
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = genlmsg_iput(skb, info);
+	if (!hdr) {
+		err = -EMSGSIZE;
+		goto err_free_msg;
+	}
+
+	mutex_lock(&nfsd_mutex);
+	nn = net_generic(genl_info_net(info), nfsd_net_id);
+
+	for (i = 2; i <= 4; i++) {
+		int j;
+
+		for (j = 0; j <= NFSD_SUPPORTED_MINOR_VERSION; j++) {
+			struct nlattr *attr;
+
+			/* Don't record any versions the kernel doesn't have
+			 * compiled in
+			 */
+			if (!nfsd_support_version(i))
+				continue;
+
+			/* NFSv{2,3} does not support minor numbers */
+			if (i < 4 && j)
+				continue;
+
+			attr = nla_nest_start(skb,
+					      NFSD_A_SERVER_PROTO_VERSION);
+			if (!attr) {
+				err = -EINVAL;
+				goto err_nfsd_unlock;
+			}
+
+			if (nla_put_u32(skb, NFSD_A_VERSION_MAJOR, i) ||
+			    nla_put_u32(skb, NFSD_A_VERSION_MINOR, j)) {
+				err = -EINVAL;
+				goto err_nfsd_unlock;
+			}
+
+			/* Set the enabled flag if the version is enabled */
+			if (nfsd_vers(nn, i, NFSD_TEST) &&
+			    (i < 4 || nfsd_minorversion(nn, j, NFSD_TEST)) &&
+			    nla_put_flag(skb, NFSD_A_VERSION_ENABLED)) {
+				err = -EINVAL;
+				goto err_nfsd_unlock;
+			}
+
+			nla_nest_end(skb, attr);
+		}
+	}
+
+	mutex_unlock(&nfsd_mutex);
+	genlmsg_end(skb, hdr);
+
+	return genlmsg_reply(skb, info);
+
+err_nfsd_unlock:
+	mutex_unlock(&nfsd_mutex);
+err_free_msg:
+	nlmsg_free(skb);
+
+	return err;
+}
+
+/**
+ * nfsd_nl_listener_set_doit - set the nfs running sockets
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = genl_info_net(info);
+	struct svc_xprt *xprt, *tmp;
+	const struct nlattr *attr;
+	struct svc_serv *serv;
+	LIST_HEAD(permsocks);
+	struct nfsd_net *nn;
+	int err, rem;
+
+	mutex_lock(&nfsd_mutex);
+
+	err = nfsd_create_serv(net);
+	if (err) {
+		mutex_unlock(&nfsd_mutex);
+		return err;
+	}
+
+	nn = net_generic(net, nfsd_net_id);
+	serv = nn->nfsd_serv;
+
+	spin_lock_bh(&serv->sv_lock);
+
+	/* Move all of the old listener sockets to a temp list */
+	list_splice_init(&serv->sv_permsocks, &permsocks);
+
+	/*
+	 * Walk the list of server_socks from userland and move any that match
+	 * back to sv_permsocks
+	 */
+	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+		struct nlattr *tb[NFSD_A_SOCK_MAX + 1];
+		const char *xcl_name;
+		struct sockaddr *sa;
+
+		if (nla_type(attr) != NFSD_A_SERVER_SOCK_ADDR)
+			continue;
+
+		if (nla_parse_nested(tb, NFSD_A_SOCK_MAX, attr,
+				     nfsd_sock_nl_policy, info->extack) < 0)
+			continue;
+
+		if (!tb[NFSD_A_SOCK_ADDR] || !tb[NFSD_A_SOCK_TRANSPORT_NAME])
+			continue;
+
+		if (nla_len(tb[NFSD_A_SOCK_ADDR]) < sizeof(*sa))
+			continue;
+
+		xcl_name = nla_data(tb[NFSD_A_SOCK_TRANSPORT_NAME]);
+		sa = nla_data(tb[NFSD_A_SOCK_ADDR]);
+
+		/* Put back any matching sockets */
+		list_for_each_entry_safe(xprt, tmp, &permsocks, xpt_list) {
+			/* This shouldn't be possible */
+			if (WARN_ON_ONCE(xprt->xpt_net != net)) {
+				list_move(&xprt->xpt_list, &serv->sv_permsocks);
+				continue;
+			}
+
+			/* If everything matches, put it back */
+			if (!strcmp(xprt->xpt_class->xcl_name, xcl_name) &&
+			    rpc_cmp_addr_port(sa, (struct sockaddr *)&xprt->xpt_local)) {
+				list_move(&xprt->xpt_list, &serv->sv_permsocks);
+				break;
+			}
+		}
+	}
+
+	/* For now, no removing old sockets while server is running */
+	if (serv->sv_nrthreads && !list_empty(&permsocks)) {
+		list_splice_init(&permsocks, &serv->sv_permsocks);
+		spin_unlock_bh(&serv->sv_lock);
+		err = -EBUSY;
+		goto out_unlock_mtx;
+	}
+
+	/* Close the remaining sockets on the permsocks list */
+	while (!list_empty(&permsocks)) {
+		xprt = list_first_entry(&permsocks, struct svc_xprt, xpt_list);
+		list_move(&xprt->xpt_list, &serv->sv_permsocks);
+
+		/*
+		 * Newly-created sockets are born with the BUSY bit set. Clear
+		 * it if there are no threads, since nothing can pick it up
+		 * in that case.
+		 */
+		if (!serv->sv_nrthreads)
+			clear_bit(XPT_BUSY, &xprt->xpt_flags);
+
+		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		spin_unlock_bh(&serv->sv_lock);
+		svc_xprt_close(xprt);
+		spin_lock_bh(&serv->sv_lock);
+	}
+
+	spin_unlock_bh(&serv->sv_lock);
+
+	/* walk list of addrs again, open any that still don't exist */
+	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+		struct nlattr *tb[NFSD_A_SOCK_MAX + 1];
+		const char *xcl_name;
+		struct sockaddr *sa;
+		int ret;
+
+		if (nla_type(attr) != NFSD_A_SERVER_SOCK_ADDR)
+			continue;
+
+		if (nla_parse_nested(tb, NFSD_A_SOCK_MAX, attr,
+				     nfsd_sock_nl_policy, info->extack) < 0)
+			continue;
+
+		if (!tb[NFSD_A_SOCK_ADDR] || !tb[NFSD_A_SOCK_TRANSPORT_NAME])
+			continue;
+
+		if (nla_len(tb[NFSD_A_SOCK_ADDR]) < sizeof(*sa))
+			continue;
+
+		xcl_name = nla_data(tb[NFSD_A_SOCK_TRANSPORT_NAME]);
+		sa = nla_data(tb[NFSD_A_SOCK_ADDR]);
+
+		xprt = svc_find_listener(serv, xcl_name, net, sa);
+		if (xprt) {
+			svc_xprt_put(xprt);
+			continue;
+		}
+
+		ret = svc_xprt_create_from_sa(serv, xcl_name, net, sa,
+					      SVC_SOCK_ANONYMOUS,
+					      get_current_cred());
+		/* always save the latest error */
+		if (ret < 0)
+			err = ret;
+	}
+
+	if (!serv->sv_nrthreads && list_empty(&nn->nfsd_serv->sv_permsocks))
+		nfsd_destroy_serv(net);
+
+out_unlock_mtx:
+	mutex_unlock(&nfsd_mutex);
+
+	return err;
+}
+
+/**
+ * nfsd_nl_listener_get_doit - get the nfs running listeners
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_listener_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct svc_xprt *xprt;
+	struct svc_serv *serv;
+	struct nfsd_net *nn;
+	void *hdr;
+	int err;
+
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = genlmsg_iput(skb, info);
+	if (!hdr) {
+		err = -EMSGSIZE;
+		goto err_free_msg;
+	}
+
+	mutex_lock(&nfsd_mutex);
+	nn = net_generic(genl_info_net(info), nfsd_net_id);
+
+	/* no nfs server? Just send empty socket list */
+	if (!nn->nfsd_serv)
+		goto out_unlock_mtx;
+
+	serv = nn->nfsd_serv;
+	spin_lock_bh(&serv->sv_lock);
+	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list) {
+		struct nlattr *attr;
+
+		attr = nla_nest_start(skb, NFSD_A_SERVER_SOCK_ADDR);
+		if (!attr) {
+			err = -EINVAL;
+			goto err_serv_unlock;
+		}
+
+		if (nla_put_string(skb, NFSD_A_SOCK_TRANSPORT_NAME,
+				   xprt->xpt_class->xcl_name) ||
+		    nla_put(skb, NFSD_A_SOCK_ADDR,
+			    sizeof(struct sockaddr_storage),
+			    &xprt->xpt_local)) {
+			err = -EINVAL;
+			goto err_serv_unlock;
+		}
+
+		nla_nest_end(skb, attr);
+	}
+	spin_unlock_bh(&serv->sv_lock);
+out_unlock_mtx:
+	mutex_unlock(&nfsd_mutex);
+	genlmsg_end(skb, hdr);
+
+	return genlmsg_reply(skb, info);
+
+err_serv_unlock:
+	spin_unlock_bh(&serv->sv_lock);
+	mutex_unlock(&nfsd_mutex);
+err_free_msg:
+	nlmsg_free(skb);
+
+	return err;
+}
+
+/**
  * nfsd_net_init - Prepare the nfsd_net portion of a new net namespace
  * @net: a freshly-created network namespace
  *
@@ -1672,7 +2187,8 @@ static __net_init int nfsd_net_init(struct net *net)
 	retval = nfsd_idmap_init(net);
 	if (retval)
 		goto out_idmap_error;
-	retval = nfsd_stat_counters_init(nn);
+	retval = percpu_counter_init_many(nn->counter, 0, GFP_KERNEL,
+					  NFSD_STATS_COUNTERS_NUM);
 	if (retval)
 		goto out_repcache_error;
 	memset(&nn->nfsd_svcstats, 0, sizeof(nn->nfsd_svcstats));
@@ -1704,7 +2220,7 @@ static __net_exit void nfsd_net_exit(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	nfsd_proc_stat_shutdown(net);
-	nfsd_stat_counters_destroy(nn);
+	percpu_counter_destroy_many(nn->counter, NFSD_STATS_COUNTERS_NUM);
 	nfsd_idmap_shutdown(net);
 	nfsd_export_shutdown(net);
 	nfsd_netns_free_versions(nn);

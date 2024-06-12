@@ -204,6 +204,7 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 			     VMW_BO_DOMAIN_VRAM,
 			     VMW_BO_DOMAIN_VRAM);
 	buf->places[0].lpfn = PFN_UP(bo->resource->size);
+	buf->busy_places[0].lpfn = PFN_UP(bo->resource->size);
 	ret = ttm_bo_validate(bo, &buf->placement, &ctx);
 
 	/* For some reason we didn't end up at the start of vram */
@@ -377,7 +378,8 @@ static int vmw_bo_init(struct vmw_private *dev_priv,
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = params->bo_type != ttm_bo_type_kernel,
-		.no_wait_gpu = false
+		.no_wait_gpu = false,
+		.resv = params->resv,
 	};
 	struct ttm_device *bdev = &dev_priv->bdev;
 	struct drm_device *vdev = &dev_priv->drm;
@@ -394,8 +396,8 @@ static int vmw_bo_init(struct vmw_private *dev_priv,
 
 	vmw_bo_placement_set(vmw_bo, params->domain, params->busy_domain);
 	ret = ttm_bo_init_reserved(bdev, &vmw_bo->tbo, params->bo_type,
-				   &vmw_bo->placement, 0, &ctx, NULL,
-				   NULL, destroy);
+				   &vmw_bo->placement, 0, &ctx,
+				   params->sg, params->resv, destroy);
 	if (unlikely(ret))
 		return ret;
 

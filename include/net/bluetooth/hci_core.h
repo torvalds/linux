@@ -126,7 +126,6 @@ enum suspended_state {
 struct hci_conn_hash {
 	struct list_head list;
 	unsigned int     acl_num;
-	unsigned int     amp_num;
 	unsigned int     sco_num;
 	unsigned int     iso_num;
 	unsigned int     le_num;
@@ -247,6 +246,7 @@ struct adv_info {
 	bool	periodic;
 	__u8	mesh;
 	__u8	instance;
+	__u8	handle;
 	__u32	flags;
 	__u16	timeout;
 	__u16	remaining_time;
@@ -341,14 +341,6 @@ struct adv_monitor {
 /* Default authenticated payload timeout 30s */
 #define DEFAULT_AUTH_PAYLOAD_TIMEOUT   0x0bb8
 
-struct amp_assoc {
-	__u16	len;
-	__u16	offset;
-	__u16	rem_len;
-	__u16	len_so_far;
-	__u8	data[HCI_MAX_AMP_ASSOC_SIZE];
-};
-
 #define HCI_MAX_PAGES	3
 
 struct hci_dev {
@@ -361,7 +353,6 @@ struct hci_dev {
 	unsigned long	flags;
 	__u16		id;
 	__u8		bus;
-	__u8		dev_type;
 	bdaddr_t	bdaddr;
 	bdaddr_t	setup_addr;
 	bdaddr_t	public_addr;
@@ -467,21 +458,6 @@ struct hci_dev {
 	__u16		sniff_min_interval;
 	__u16		sniff_max_interval;
 
-	__u8		amp_status;
-	__u32		amp_total_bw;
-	__u32		amp_max_bw;
-	__u32		amp_min_latency;
-	__u32		amp_max_pdu;
-	__u8		amp_type;
-	__u16		amp_pal_cap;
-	__u16		amp_assoc_size;
-	__u32		amp_max_flush_to;
-	__u32		amp_be_flush_to;
-
-	struct amp_assoc	loc_assoc;
-
-	__u8		flow_ctl_mode;
-
 	unsigned int	auto_accept_delay;
 
 	unsigned long	quirks;
@@ -500,11 +476,6 @@ struct hci_dev {
 	unsigned int	sco_pkts;
 	unsigned int	le_pkts;
 	unsigned int	iso_pkts;
-
-	__u16		block_len;
-	__u16		block_mtu;
-	__u16		num_blocks;
-	__u16		block_cnt;
 
 	unsigned long	acl_last_tx;
 	unsigned long	sco_last_tx;
@@ -706,6 +677,7 @@ struct hci_conn {
 	__u16		handle;
 	__u16		sync_handle;
 	__u16		state;
+	__u16		mtu;
 	__u8		mode;
 	__u8		type;
 	__u8		role;
@@ -738,6 +710,8 @@ struct hci_conn {
 	__u8		le_per_adv_data[HCI_MAX_PER_AD_TOT_LEN];
 	__u16		le_per_adv_data_len;
 	__u16		le_per_adv_data_offset;
+	__u8		le_adv_phy;
+	__u8		le_adv_sec_phy;
 	__u8		le_tx_phy;
 	__u8		le_rx_phy;
 	__s8		rssi;
@@ -775,7 +749,6 @@ struct hci_conn {
 	void		*l2cap_data;
 	void		*sco_data;
 	void		*iso_data;
-	struct amp_mgr	*amp_mgr;
 
 	struct list_head link_list;
 	struct hci_conn	*parent;
@@ -802,7 +775,6 @@ struct hci_chan {
 	struct sk_buff_head data_q;
 	unsigned int	sent;
 	__u8		state;
-	bool		amp;
 };
 
 struct hci_conn_params {
@@ -1011,9 +983,6 @@ static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 	case ACL_LINK:
 		h->acl_num++;
 		break;
-	case AMP_LINK:
-		h->amp_num++;
-		break;
 	case LE_LINK:
 		h->le_num++;
 		if (c->role == HCI_ROLE_SLAVE)
@@ -1040,9 +1009,6 @@ static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
 	case ACL_LINK:
 		h->acl_num--;
 		break;
-	case AMP_LINK:
-		h->amp_num--;
-		break;
 	case LE_LINK:
 		h->le_num--;
 		if (c->role == HCI_ROLE_SLAVE)
@@ -1064,8 +1030,6 @@ static inline unsigned int hci_conn_num(struct hci_dev *hdev, __u8 type)
 	switch (type) {
 	case ACL_LINK:
 		return h->acl_num;
-	case AMP_LINK:
-		return h->amp_num;
 	case LE_LINK:
 		return h->le_num;
 	case SCO_LINK:
@@ -1082,7 +1046,7 @@ static inline unsigned int hci_conn_count(struct hci_dev *hdev)
 {
 	struct hci_conn_hash *c = &hdev->conn_hash;
 
-	return c->acl_num + c->amp_num + c->sco_num + c->le_num + c->iso_num;
+	return c->acl_num + c->sco_num + c->le_num + c->iso_num;
 }
 
 static inline bool hci_conn_valid(struct hci_dev *hdev, struct hci_conn *conn)
@@ -1371,8 +1335,7 @@ hci_conn_hash_lookup_pa_sync_handle(struct hci_dev *hdev, __u16 sync_handle)
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(c, &h->list, list) {
-		if (c->type != ISO_LINK ||
-			!test_bit(HCI_CONN_PA_SYNC, &c->flags))
+		if (c->type != ISO_LINK)
 			continue;
 
 		if (c->sync_handle == sync_handle) {
@@ -1512,7 +1475,7 @@ struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 				     enum conn_reasons conn_reason);
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, bool dst_resolved, u8 sec_level,
-				u16 conn_timeout, u8 role);
+				u16 conn_timeout, u8 role, u8 phy, u8 sec_phy);
 void hci_connect_le_scan_cleanup(struct hci_conn *conn, u8 status);
 struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 				 u8 sec_level, u8 auth_type,
@@ -1606,10 +1569,6 @@ static inline void hci_conn_drop(struct hci_conn *conn)
 			} else {
 				timeo = 0;
 			}
-			break;
-
-		case AMP_LINK:
-			timeo = conn->disc_timeout;
 			break;
 
 		default:
@@ -1904,6 +1863,10 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 
 #define privacy_mode_capable(dev) (use_ll_privacy(dev) && \
 				   (hdev->commands[39] & 0x04))
+
+#define read_key_size_capable(dev) \
+	((dev)->commands[20] & 0x10 && \
+	 !test_bit(HCI_QUIRK_BROKEN_READ_ENC_KEY_SIZE, &hdev->quirks))
 
 /* Use enhanced synchronous connection if command is supported and its quirk
  * has not been set.
@@ -2229,8 +2192,22 @@ void hci_mgmt_chan_unregister(struct hci_mgmt_chan *c);
 /* These LE scan and inquiry parameters were chosen according to LE General
  * Discovery Procedure specification.
  */
-#define DISCOV_LE_SCAN_WIN		0x12
-#define DISCOV_LE_SCAN_INT		0x12
+#define DISCOV_LE_SCAN_WIN		0x0012 /* 11.25 msec */
+#define DISCOV_LE_SCAN_INT		0x0012 /* 11.25 msec */
+#define DISCOV_LE_SCAN_INT_FAST		0x0060 /* 60 msec */
+#define DISCOV_LE_SCAN_WIN_FAST		0x0030 /* 30 msec */
+#define DISCOV_LE_SCAN_INT_CONN		0x0060 /* 60 msec */
+#define DISCOV_LE_SCAN_WIN_CONN		0x0060 /* 60 msec */
+#define DISCOV_LE_SCAN_INT_SLOW1	0x0800 /* 1.28 sec */
+#define DISCOV_LE_SCAN_WIN_SLOW1	0x0012 /* 11.25 msec */
+#define DISCOV_LE_SCAN_INT_SLOW2	0x1000 /* 2.56 sec */
+#define DISCOV_LE_SCAN_WIN_SLOW2	0x0024 /* 22.5 msec */
+#define DISCOV_CODED_SCAN_INT_FAST	0x0120 /* 180 msec */
+#define DISCOV_CODED_SCAN_WIN_FAST	0x0090 /* 90 msec */
+#define DISCOV_CODED_SCAN_INT_SLOW1	0x1800 /* 3.84 sec */
+#define DISCOV_CODED_SCAN_WIN_SLOW1	0x0036 /* 33.75 msec */
+#define DISCOV_CODED_SCAN_INT_SLOW2	0x3000 /* 7.68 sec */
+#define DISCOV_CODED_SCAN_WIN_SLOW2	0x006c /* 67.5 msec */
 #define DISCOV_LE_TIMEOUT		10240	/* msec */
 #define DISCOV_INTERLEAVED_TIMEOUT	5120	/* msec */
 #define DISCOV_INTERLEAVED_INQUIRY_LEN	0x04

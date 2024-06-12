@@ -148,8 +148,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (ret > 0) {
 		btrfs_crit(fs_info,
 			"unable to find root key (%llu %u %llu) in tree %llu",
-			key->objectid, key->type, key->offset,
-			root->root_key.objectid);
+			key->objectid, key->type, key->offset, btrfs_root_id(root));
 		ret = -EUCLEAN;
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -547,14 +546,4 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 		spin_unlock(&rsv->lock);
 	}
 	return ret;
-}
-
-void btrfs_subvolume_release_metadata(struct btrfs_root *root,
-				      struct btrfs_block_rsv *rsv)
-{
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	u64 qgroup_to_release;
-
-	btrfs_block_rsv_release(fs_info, rsv, (u64)-1, &qgroup_to_release);
-	btrfs_qgroup_convert_reserved_meta(root, qgroup_to_release);
 }

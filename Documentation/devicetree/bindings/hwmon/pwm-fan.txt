@@ -1,1 +1,0 @@
-This file has moved to pwm-fan.yaml.

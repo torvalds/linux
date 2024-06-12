@@ -6,7 +6,7 @@
 //!
 //! C headers: [`include/linux/phy.h`](srctree/include/linux/phy.h).
 
-use crate::{bindings, error::*, prelude::*, str::CStr, types::Opaque};
+use crate::{error::*, prelude::*, types::Opaque};
 
 use core::marker::PhantomData;
 
@@ -639,6 +639,10 @@ pub trait Driver {
 pub struct Registration {
     drivers: Pin<&'static mut [DriverVTable]>,
 }
+
+// SAFETY: The only action allowed in a `Registration` instance is dropping it, which is safe to do
+// from any thread because `phy_drivers_unregister` can be called from any thread context.
+unsafe impl Send for Registration {}
 
 impl Registration {
     /// Registers a PHY driver.

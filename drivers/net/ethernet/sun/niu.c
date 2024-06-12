@@ -6751,7 +6751,7 @@ static int niu_change_mtu(struct net_device *dev, int new_mtu)
 	orig_jumbo = (dev->mtu > ETH_DATA_LEN);
 	new_jumbo = (new_mtu > ETH_DATA_LEN);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	if (!netif_running(dev) ||
 	    (orig_jumbo == new_jumbo))

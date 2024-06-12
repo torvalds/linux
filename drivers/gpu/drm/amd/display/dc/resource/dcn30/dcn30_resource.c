@@ -1639,7 +1639,7 @@ noinline bool dcn30_internal_validate_bw(
 	int split[MAX_PIPES] = { 0 };
 	bool merge[MAX_PIPES] = { false };
 	bool newly_split[MAX_PIPES] = { false };
-	int pipe_cnt, i, pipe_idx, vlevel;
+	int pipe_cnt, i, pipe_idx, vlevel = 0;
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 
 	ASSERT(pipes);
@@ -2049,6 +2049,9 @@ bool dcn30_validate_bandwidth(struct dc *dc,
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	BW_VAL_TRACE_COUNT();
+
+	if (!pipes)
+		goto validate_fail;
 
 	DC_FP_START();
 	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate, true);

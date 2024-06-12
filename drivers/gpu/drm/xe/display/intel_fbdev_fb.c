@@ -42,9 +42,9 @@ struct drm_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 	if (!IS_DGFX(dev_priv)) {
 		obj = xe_bo_create_pin_map(dev_priv, xe_device_get_root_tile(dev_priv),
 					   NULL, size,
-					   ttm_bo_type_kernel, XE_BO_SCANOUT_BIT |
-					   XE_BO_CREATE_STOLEN_BIT |
-					   XE_BO_CREATE_PINNED_BIT);
+					   ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
+					   XE_BO_FLAG_STOLEN |
+					   XE_BO_FLAG_PINNED);
 		if (!IS_ERR(obj))
 			drm_info(&dev_priv->drm, "Allocated fbdev into stolen\n");
 		else
@@ -52,9 +52,9 @@ struct drm_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 	}
 	if (IS_ERR(obj)) {
 		obj = xe_bo_create_pin_map(dev_priv, xe_device_get_root_tile(dev_priv), NULL, size,
-					  ttm_bo_type_kernel, XE_BO_SCANOUT_BIT |
-					  XE_BO_CREATE_VRAM_IF_DGFX(xe_device_get_root_tile(dev_priv)) |
-					  XE_BO_CREATE_PINNED_BIT);
+					  ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
+					  XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(dev_priv)) |
+					  XE_BO_FLAG_PINNED);
 	}
 
 	if (IS_ERR(obj)) {
@@ -81,8 +81,8 @@ int intel_fbdev_fb_fill_info(struct drm_i915_private *i915, struct fb_info *info
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 
-	if (!(obj->flags & XE_BO_CREATE_SYSTEM_BIT)) {
-		if (obj->flags & XE_BO_CREATE_STOLEN_BIT)
+	if (!(obj->flags & XE_BO_FLAG_SYSTEM)) {
+		if (obj->flags & XE_BO_FLAG_STOLEN)
 			info->fix.smem_start = xe_ttm_stolen_io_offset(obj, 0);
 		else
 			info->fix.smem_start =

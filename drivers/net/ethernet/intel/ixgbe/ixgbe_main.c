@@ -6847,7 +6847,7 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 		   netdev->mtu, new_mtu);
 
 	/* must set new MTU before calling down or up */
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (netif_running(netdev))
 		ixgbe_reinit_locked(adapter);
@@ -6974,7 +6974,7 @@ int ixgbe_close(struct net_device *netdev)
 	return 0;
 }
 
-static int __maybe_unused ixgbe_resume(struct device *dev_d)
+static int ixgbe_resume(struct device *dev_d)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
@@ -7082,7 +7082,7 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	return 0;
 }
 
-static int __maybe_unused ixgbe_suspend(struct device *dev_d)
+static int ixgbe_suspend(struct device *dev_d)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_d);
 	int retval;
@@ -10061,15 +10061,10 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 	if (!br_spec)
 		return -EINVAL;
 
-	nla_for_each_nested(attr, br_spec, rem) {
-		int status;
-		__u16 mode;
+	nla_for_each_nested_type(attr, IFLA_BRIDGE_MODE, br_spec, rem) {
+		__u16 mode = nla_get_u16(attr);
+		int status = ixgbe_configure_bridge_mode(adapter, mode);
 
-		if (nla_type(attr) != IFLA_BRIDGE_MODE)
-			continue;
-
-		mode = nla_get_u16(attr);
-		status = ixgbe_configure_bridge_mode(adapter, mode);
 		if (status)
 			return status;
 
@@ -11588,14 +11583,14 @@ static const struct pci_error_handlers ixgbe_err_handler = {
 	.resume = ixgbe_io_resume,
 };
 
-static SIMPLE_DEV_PM_OPS(ixgbe_pm_ops, ixgbe_suspend, ixgbe_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ixgbe_pm_ops, ixgbe_suspend, ixgbe_resume);
 
 static struct pci_driver ixgbe_driver = {
 	.name      = ixgbe_driver_name,
 	.id_table  = ixgbe_pci_tbl,
 	.probe     = ixgbe_probe,
 	.remove    = ixgbe_remove,
-	.driver.pm = &ixgbe_pm_ops,
+	.driver.pm = pm_sleep_ptr(&ixgbe_pm_ops),
 	.shutdown  = ixgbe_shutdown,
 	.sriov_configure = ixgbe_pci_sriov_configure,
 	.err_handler = &ixgbe_err_handler

@@ -555,8 +555,7 @@ ice_construct_skb_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
 	}
 	net_prefetch(xdp->data_meta);
 
-	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, totalsize,
-			       GFP_ATOMIC | __GFP_NOWARN);
+	skb = napi_alloc_skb(&rx_ring->q_vector->napi, totalsize);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -879,7 +878,7 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 				   ICE_RX_FLX_DESC_PKT_LEN_M;
 
 		xsk_buff_set_size(xdp, size);
-		xsk_buff_dma_sync_for_cpu(xdp, xsk_pool);
+		xsk_buff_dma_sync_for_cpu(xdp);
 
 		if (!first) {
 			first = xdp;

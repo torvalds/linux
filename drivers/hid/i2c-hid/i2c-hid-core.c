@@ -64,7 +64,6 @@
 /* flags */
 #define I2C_HID_STARTED		0
 #define I2C_HID_RESET_PENDING	1
-#define I2C_HID_READ_PENDING	2
 
 #define I2C_HID_PWR_ON		0x00
 #define I2C_HID_PWR_SLEEP	0x01
@@ -164,6 +163,24 @@ static u32 i2c_hid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 	return quirks;
 }
 
+static int i2c_hid_probe_address(struct i2c_hid *ihid)
+{
+	int ret;
+
+	/*
+	 * Some STM-based devices need 400µs after a rising clock edge to wake
+	 * from deep sleep, in which case the first read will fail. Try after a
+	 * short sleep to see if the device came alive on the bus. Certain
+	 * Weida Tech devices also need this.
+	 */
+	ret = i2c_smbus_read_byte(ihid->client);
+	if (ret < 0) {
+		usleep_range(400, 500);
+		ret = i2c_smbus_read_byte(ihid->client);
+	}
+	return ret < 0 ? ret : 0;
+}
+
 static int i2c_hid_xfer(struct i2c_hid *ihid,
 			u8 *send_buf, int send_len, u8 *recv_buf, int recv_len)
 {
@@ -190,14 +207,9 @@ static int i2c_hid_xfer(struct i2c_hid *ihid,
 		msgs[n].len = recv_len;
 		msgs[n].buf = recv_buf;
 		n++;
-
-		set_bit(I2C_HID_READ_PENDING, &ihid->flags);
 	}
 
 	ret = i2c_transfer(client->adapter, msgs, n);
-
-	if (recv_len)
-		clear_bit(I2C_HID_READ_PENDING, &ihid->flags);
 
 	if (ret != n)
 		return ret < 0 ? ret : -EIO;
@@ -390,25 +402,10 @@ static int i2c_hid_set_power(struct i2c_hid *ihid, int power_state)
 
 	i2c_hid_dbg(ihid, "%s\n", __func__);
 
-	/*
-	 * Some devices require to send a command to wakeup before power on.
-	 * The call will get a return value (EREMOTEIO) but device will be
-	 * triggered and activated. After that, it goes like a normal device.
-	 */
-	if (power_state == I2C_HID_PWR_ON) {
-		ret = i2c_hid_set_power_command(ihid, I2C_HID_PWR_ON);
-
-		/* Device was already activated */
-		if (!ret)
-			goto set_pwr_exit;
-	}
-
 	ret = i2c_hid_set_power_command(ihid, power_state);
 	if (ret)
 		dev_err(&ihid->client->dev,
 			"failed to change power setting.\n");
-
-set_pwr_exit:
 
 	/*
 	 * The HID over I2C specification states that if a DEVICE needs time
@@ -555,9 +552,6 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 static irqreturn_t i2c_hid_irq(int irq, void *dev_id)
 {
 	struct i2c_hid *ihid = dev_id;
-
-	if (test_bit(I2C_HID_READ_PENDING, &ihid->flags))
-		return IRQ_HANDLED;
 
 	i2c_hid_get_input(ihid);
 
@@ -735,12 +729,15 @@ static int i2c_hid_parse(struct hid_device *hid)
 	mutex_lock(&ihid->reset_lock);
 	do {
 		ret = i2c_hid_start_hwreset(ihid);
-		if (ret)
+		if (ret == 0)
+			ret = i2c_hid_finish_hwreset(ihid);
+		else
 			msleep(1000);
 	} while (tries-- > 0 && ret);
+	mutex_unlock(&ihid->reset_lock);
 
 	if (ret)
-		goto abort_reset;
+		return ret;
 
 	use_override = i2c_hid_get_dmi_hid_report_desc_override(client->name,
 								&rsize);
@@ -750,11 +747,8 @@ static int i2c_hid_parse(struct hid_device *hid)
 		i2c_hid_dbg(ihid, "Using a HID report descriptor override\n");
 	} else {
 		rdesc = kzalloc(rsize, GFP_KERNEL);
-
-		if (!rdesc) {
-			ret = -ENOMEM;
-			goto abort_reset;
-		}
+		if (!rdesc)
+			return -ENOMEM;
 
 		i2c_hid_dbg(ihid, "asking HID report descriptor\n");
 
@@ -763,22 +757,9 @@ static int i2c_hid_parse(struct hid_device *hid)
 					    rdesc, rsize);
 		if (ret) {
 			hid_err(hid, "reading report descriptor failed\n");
-			goto abort_reset;
+			goto out;
 		}
 	}
-
-	/*
-	 * Windows directly reads the report-descriptor after sending reset
-	 * and then waits for resets completion afterwards. Some touchpads
-	 * actually wait for the report-descriptor to be read before signalling
-	 * reset completion.
-	 */
-	ret = i2c_hid_finish_hwreset(ihid);
-abort_reset:
-	clear_bit(I2C_HID_RESET_PENDING, &ihid->flags);
-	mutex_unlock(&ihid->reset_lock);
-	if (ret)
-		goto out;
 
 	i2c_hid_dbg(ihid, "Report Descriptor: %*ph\n", rsize, rdesc);
 
@@ -981,6 +962,14 @@ static int i2c_hid_core_resume(struct i2c_hid *ihid)
 
 	enable_irq(client->irq);
 
+	/* Make sure the device is awake on the bus */
+	ret = i2c_hid_probe_address(ihid);
+	if (ret < 0) {
+		dev_err(&client->dev, "nothing at address after resume: %d\n",
+			ret);
+		return -ENXIO;
+	}
+
 	/* Instead of resetting device, simply powers the device on. This
 	 * solves "incomplete reports" on Raydium devices 2386:3118 and
 	 * 2386:4B33 and fixes various SIS touchscreens no longer sending
@@ -1014,8 +1003,7 @@ static int __i2c_hid_core_probe(struct i2c_hid *ihid)
 	struct hid_device *hid = ihid->hid;
 	int ret;
 
-	/* Make sure there is something at this address */
-	ret = i2c_smbus_read_byte(client);
+	ret = i2c_hid_probe_address(ihid);
 	if (ret < 0) {
 		i2c_hid_dbg(ihid, "nothing at this address: %d\n", ret);
 		return -ENXIO;

@@ -5,6 +5,10 @@
 
 #include <linux/types.h>
 #include <linux/refcount.h>
+#include <linux/atomic.h>
+#include <linux/cpumask.h>
+#include <linux/irqflags.h>
+#include <linux/smp.h>
 
 /*
  * objpool: ring-array based lockless MPMC queue
@@ -69,7 +73,7 @@ typedef int (*objpool_fini_cb)(struct objpool_head *head, void *context);
  * struct objpool_head - object pooling metadata
  * @obj_size:   object size, aligned to sizeof(void *)
  * @nr_objs:    total objs (to be pre-allocated with objpool)
- * @nr_cpus:    local copy of nr_cpu_ids
+ * @nr_possible_cpus: cached value of num_possible_cpus()
  * @capacity:   max objs can be managed by one objpool_slot
  * @gfp:        gfp flags for kmalloc & vmalloc
  * @ref:        refcount of objpool
@@ -81,7 +85,7 @@ typedef int (*objpool_fini_cb)(struct objpool_head *head, void *context);
 struct objpool_head {
 	int                     obj_size;
 	int                     nr_objs;
-	int                     nr_cpus;
+	int                     nr_possible_cpus;
 	int                     capacity;
 	gfp_t                   gfp;
 	refcount_t              ref;
@@ -118,13 +122,94 @@ int objpool_init(struct objpool_head *pool, int nr_objs, int object_size,
 		 gfp_t gfp, void *context, objpool_init_obj_cb objinit,
 		 objpool_fini_cb release);
 
+/* try to retrieve object from slot */
+static inline void *__objpool_try_get_slot(struct objpool_head *pool, int cpu)
+{
+	struct objpool_slot *slot = pool->cpu_slots[cpu];
+	/* load head snapshot, other cpus may change it */
+	uint32_t head = smp_load_acquire(&slot->head);
+
+	while (head != READ_ONCE(slot->last)) {
+		void *obj;
+
+		/*
+		 * data visibility of 'last' and 'head' could be out of
+		 * order since memory updating of 'last' and 'head' are
+		 * performed in push() and pop() independently
+		 *
+		 * before any retrieving attempts, pop() must guarantee
+		 * 'last' is behind 'head', that is to say, there must
+		 * be available objects in slot, which could be ensured
+		 * by condition 'last != head && last - head <= nr_objs'
+		 * that is equivalent to 'last - head - 1 < nr_objs' as
+		 * 'last' and 'head' are both unsigned int32
+		 */
+		if (READ_ONCE(slot->last) - head - 1 >= pool->nr_objs) {
+			head = READ_ONCE(slot->head);
+			continue;
+		}
+
+		/* obj must be retrieved before moving forward head */
+		obj = READ_ONCE(slot->entries[head & slot->mask]);
+
+		/* move head forward to mark it's consumption */
+		if (try_cmpxchg_release(&slot->head, &head, head + 1))
+			return obj;
+	}
+
+	return NULL;
+}
+
 /**
  * objpool_pop() - allocate an object from objpool
  * @pool: object pool
  *
  * return value: object ptr or NULL if failed
  */
-void *objpool_pop(struct objpool_head *pool);
+static inline void *objpool_pop(struct objpool_head *pool)
+{
+	void *obj = NULL;
+	unsigned long flags;
+	int i, cpu;
+
+	/* disable local irq to avoid preemption & interruption */
+	raw_local_irq_save(flags);
+
+	cpu = raw_smp_processor_id();
+	for (i = 0; i < pool->nr_possible_cpus; i++) {
+		obj = __objpool_try_get_slot(pool, cpu);
+		if (obj)
+			break;
+		cpu = cpumask_next_wrap(cpu, cpu_possible_mask, -1, 1);
+	}
+	raw_local_irq_restore(flags);
+
+	return obj;
+}
+
+/* adding object to slot, abort if the slot was already full */
+static inline int
+__objpool_try_add_slot(void *obj, struct objpool_head *pool, int cpu)
+{
+	struct objpool_slot *slot = pool->cpu_slots[cpu];
+	uint32_t head, tail;
+
+	/* loading tail and head as a local snapshot, tail first */
+	tail = READ_ONCE(slot->tail);
+
+	do {
+		head = READ_ONCE(slot->head);
+		/* fault caught: something must be wrong */
+		WARN_ON_ONCE(tail - head > pool->nr_objs);
+	} while (!try_cmpxchg_acquire(&slot->tail, &tail, tail + 1));
+
+	/* now the tail position is reserved for the given obj */
+	WRITE_ONCE(slot->entries[tail & slot->mask], obj);
+	/* update sequence to make this obj available for pop() */
+	smp_store_release(&slot->last, tail + 1);
+
+	return 0;
+}
 
 /**
  * objpool_push() - reclaim the object and return back to objpool
@@ -134,7 +219,19 @@ void *objpool_pop(struct objpool_head *pool);
  * return: 0 or error code (it fails only when user tries to push
  * the same object multiple times or wrong "objects" into objpool)
  */
-int objpool_push(void *obj, struct objpool_head *pool);
+static inline int objpool_push(void *obj, struct objpool_head *pool)
+{
+	unsigned long flags;
+	int rc;
+
+	/* disable local irq to avoid preemption & interruption */
+	raw_local_irq_save(flags);
+	rc = __objpool_try_add_slot(obj, pool, raw_smp_processor_id());
+	raw_local_irq_restore(flags);
+
+	return rc;
+}
+
 
 /**
  * objpool_drop() - discard the object and deref objpool

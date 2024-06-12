@@ -131,8 +131,8 @@ struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
 {
 	struct mv88e6xxx_mdio_bus *mdio_bus;
 
-	mdio_bus = list_first_entry(&chip->mdios, struct mv88e6xxx_mdio_bus,
-				    list);
+	mdio_bus = list_first_entry_or_null(&chip->mdios,
+					    struct mv88e6xxx_mdio_bus, list);
 	if (!mdio_bus)
 		return NULL;
 
@@ -566,13 +566,61 @@ static void mv88e6xxx_translate_cmode(u8 cmode, unsigned long *supported)
 		phy_interface_set_rgmii(supported);
 }
 
+static void
+mv88e6250_setup_supported_interfaces(struct mv88e6xxx_chip *chip, int port,
+				     struct phylink_config *config)
+{
+	unsigned long *supported = config->supported_interfaces;
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
+	if (err) {
+		dev_err(chip->dev, "p%d: failed to read port status\n", port);
+		return;
+	}
+
+	switch (reg & MV88E6250_PORT_STS_PORTMODE_MASK) {
+	case MV88E6250_PORT_STS_PORTMODE_MII_10_HALF_PHY:
+	case MV88E6250_PORT_STS_PORTMODE_MII_100_HALF_PHY:
+	case MV88E6250_PORT_STS_PORTMODE_MII_10_FULL_PHY:
+	case MV88E6250_PORT_STS_PORTMODE_MII_100_FULL_PHY:
+		__set_bit(PHY_INTERFACE_MODE_REVMII, supported);
+		break;
+
+	case MV88E6250_PORT_STS_PORTMODE_MII_HALF:
+	case MV88E6250_PORT_STS_PORTMODE_MII_FULL:
+		__set_bit(PHY_INTERFACE_MODE_MII, supported);
+		break;
+
+	case MV88E6250_PORT_STS_PORTMODE_MII_DUAL_100_RMII_FULL_PHY:
+	case MV88E6250_PORT_STS_PORTMODE_MII_200_RMII_FULL_PHY:
+	case MV88E6250_PORT_STS_PORTMODE_MII_10_100_RMII_HALF_PHY:
+	case MV88E6250_PORT_STS_PORTMODE_MII_10_100_RMII_FULL_PHY:
+		__set_bit(PHY_INTERFACE_MODE_REVRMII, supported);
+		break;
+
+	case MV88E6250_PORT_STS_PORTMODE_MII_DUAL_100_RMII_FULL:
+	case MV88E6250_PORT_STS_PORTMODE_MII_10_100_RMII_FULL:
+		__set_bit(PHY_INTERFACE_MODE_RMII, supported);
+		break;
+
+	case MV88E6250_PORT_STS_PORTMODE_MII_100_RGMII:
+		__set_bit(PHY_INTERFACE_MODE_RGMII, supported);
+		break;
+
+	default:
+		dev_err(chip->dev,
+			"p%d: invalid port mode in status register: %04x\n",
+			port, reg);
+	}
+}
+
 static void mv88e6250_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 				       struct phylink_config *config)
 {
-	unsigned long *supported = config->supported_interfaces;
-
-	/* Translate the default cmode */
-	mv88e6xxx_translate_cmode(chip->ports[port].cmode, supported);
+	if (!mv88e6xxx_phy_is_internal(chip, port))
+		mv88e6250_setup_supported_interfaces(chip, port, config);
 
 	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100;
 }
@@ -589,12 +637,12 @@ static void mv88e6351_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 				   MAC_1000FD;
 }
 
-static int mv88e6352_get_port4_serdes_cmode(struct mv88e6xxx_chip *chip)
+static int mv88e63xx_get_port_serdes_cmode(struct mv88e6xxx_chip *chip, int port)
 {
 	u16 reg, val;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, 4, MV88E6XXX_PORT_STS, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 	if (err)
 		return err;
 
@@ -603,16 +651,16 @@ static int mv88e6352_get_port4_serdes_cmode(struct mv88e6xxx_chip *chip)
 		return 0xf;
 
 	val = reg & ~MV88E6XXX_PORT_STS_PHY_DETECT;
-	err = mv88e6xxx_port_write(chip, 4, MV88E6XXX_PORT_STS, val);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, val);
 	if (err)
 		return err;
 
-	err = mv88e6xxx_port_read(chip, 4, MV88E6XXX_PORT_STS, &val);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &val);
 	if (err)
 		return err;
 
 	/* Restore PHY_DETECT value */
-	err = mv88e6xxx_port_write(chip, 4, MV88E6XXX_PORT_STS, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, reg);
 	if (err)
 		return err;
 
@@ -640,7 +688,30 @@ static void mv88e6352_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 		if (err <= 0)
 			return;
 
-		cmode = mv88e6352_get_port4_serdes_cmode(chip);
+		cmode = mv88e63xx_get_port_serdes_cmode(chip, port);
+		if (cmode < 0)
+			dev_err(chip->dev, "p%d: failed to read serdes cmode\n",
+				port);
+		else
+			mv88e6xxx_translate_cmode(cmode, supported);
+	}
+}
+
+static void mv88e632x_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
+				       struct phylink_config *config)
+{
+	unsigned long *supported = config->supported_interfaces;
+	int cmode;
+
+	/* Translate the default cmode */
+	mv88e6xxx_translate_cmode(chip->ports[port].cmode, supported);
+
+	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 |
+				   MAC_1000FD;
+
+	/* Port 0/1 are serdes only ports */
+	if (port == 0 || port == 1) {
+		cmode = mv88e63xx_get_port_serdes_cmode(chip, port);
 		if (cmode < 0)
 			dev_err(chip->dev, "p%d: failed to read serdes cmode\n",
 				port);
@@ -790,24 +861,27 @@ static void mv88e6xxx_get_caps(struct dsa_switch *ds, int port,
 	}
 }
 
-static struct phylink_pcs *mv88e6xxx_mac_select_pcs(struct dsa_switch *ds,
-						    int port,
-						    phy_interface_t interface)
+static struct phylink_pcs *
+mv88e6xxx_mac_select_pcs(struct phylink_config *config,
+			 phy_interface_t interface)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
 	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
 
 	if (chip->info->ops->pcs_ops)
-		pcs = chip->info->ops->pcs_ops->pcs_select(chip, port,
+		pcs = chip->info->ops->pcs_ops->pcs_select(chip, dp->index,
 							   interface);
 
 	return pcs;
 }
 
-static int mv88e6xxx_mac_prepare(struct dsa_switch *ds, int port,
+static int mv88e6xxx_mac_prepare(struct phylink_config *config,
 				 unsigned int mode, phy_interface_t interface)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
+	int port = dp->index;
 	int err = 0;
 
 	/* In inband mode, the link may come up at any time while the link
@@ -826,11 +900,13 @@ static int mv88e6xxx_mac_prepare(struct dsa_switch *ds, int port,
 	return err;
 }
 
-static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
+static void mv88e6xxx_mac_config(struct phylink_config *config,
 				 unsigned int mode,
 				 const struct phylink_link_state *state)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
+	int port = dp->index;
 	int err = 0;
 
 	mv88e6xxx_reg_lock(chip);
@@ -846,13 +922,15 @@ err_unlock:
 	mv88e6xxx_reg_unlock(chip);
 
 	if (err && err != -EOPNOTSUPP)
-		dev_err(ds->dev, "p%d: failed to configure MAC/PCS\n", port);
+		dev_err(chip->dev, "p%d: failed to configure MAC/PCS\n", port);
 }
 
-static int mv88e6xxx_mac_finish(struct dsa_switch *ds, int port,
+static int mv88e6xxx_mac_finish(struct phylink_config *config,
 				unsigned int mode, phy_interface_t interface)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
+	int port = dp->index;
 	int err = 0;
 
 	/* Undo the forced down state above after completing configuration
@@ -876,12 +954,14 @@ static int mv88e6xxx_mac_finish(struct dsa_switch *ds, int port,
 	return err;
 }
 
-static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
+static void mv88e6xxx_mac_link_down(struct phylink_config *config,
 				    unsigned int mode,
 				    phy_interface_t interface)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
 	const struct mv88e6xxx_ops *ops;
+	int port = dp->index;
 	int err = 0;
 
 	ops = chip->info->ops;
@@ -904,14 +984,16 @@ static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
 			"p%d: failed to force MAC link down\n", port);
 }
 
-static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
-				  unsigned int mode, phy_interface_t interface,
+static void mv88e6xxx_mac_link_up(struct phylink_config *config,
 				  struct phy_device *phydev,
+				  unsigned int mode, phy_interface_t interface,
 				  int speed, int duplex,
 				  bool tx_pause, bool rx_pause)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
 	const struct mv88e6xxx_ops *ops;
+	int port = dp->index;
 	int err = 0;
 
 	ops = chip->info->ops;
@@ -937,7 +1019,7 @@ error:
 	mv88e6xxx_reg_unlock(chip);
 
 	if (err && err != -EOPNOTSUPP)
-		dev_err(ds->dev,
+		dev_err(chip->dev,
 			"p%d: failed to configure MAC link up\n", port);
 }
 
@@ -3075,6 +3157,7 @@ static int mv88e6xxx_software_reset(struct mv88e6xxx_chip *chip)
 static void mv88e6xxx_hardware_reset(struct mv88e6xxx_chip *chip)
 {
 	struct gpio_desc *gpiod = chip->reset;
+	int err;
 
 	/* If there is a GPIO connected to the reset pin, toggle it */
 	if (gpiod) {
@@ -3083,17 +3166,26 @@ static void mv88e6xxx_hardware_reset(struct mv88e6xxx_chip *chip)
 		 * mid-byte, causing the first EEPROM read after the reset
 		 * from the wrong location resulting in the switch booting
 		 * to wrong mode and inoperable.
+		 * For this reason, switch families with EEPROM support
+		 * generally wait for EEPROM loads to complete as their pre-
+		 * and post-reset handlers.
 		 */
-		if (chip->info->ops->get_eeprom)
-			mv88e6xxx_g2_eeprom_wait(chip);
+		if (chip->info->ops->hardware_reset_pre) {
+			err = chip->info->ops->hardware_reset_pre(chip);
+			if (err)
+				dev_err(chip->dev, "pre-reset error: %d\n", err);
+		}
 
 		gpiod_set_value_cansleep(gpiod, 1);
 		usleep_range(10000, 20000);
 		gpiod_set_value_cansleep(gpiod, 0);
 		usleep_range(10000, 20000);
 
-		if (chip->info->ops->get_eeprom)
-			mv88e6xxx_g2_eeprom_wait(chip);
+		if (chip->info->ops->hardware_reset_post) {
+			err = chip->info->ops->hardware_reset_post(chip);
+			if (err)
+				dev_err(chip->dev, "post-reset error: %d\n", err);
+		}
 	}
 }
 
@@ -4323,6 +4415,8 @@ static const struct mv88e6xxx_ops mv88e6141_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu =  mv88e6390_g1_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -4513,6 +4607,8 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.watchdog_ops = &mv88e6097_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6352_g2_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6352_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -4613,6 +4709,8 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.watchdog_ops = &mv88e6097_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6352_g2_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6352_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -4707,6 +4805,8 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -4765,6 +4865,8 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -4821,6 +4923,8 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -4880,6 +4984,8 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.watchdog_ops = &mv88e6097_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6352_g2_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6352_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -4933,6 +5039,8 @@ static const struct mv88e6xxx_ops mv88e6250_ops = {
 	.watchdog_ops = &mv88e6250_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6352_g2_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6250_g1_wait_eeprom_done_prereset,
+	.hardware_reset_post = mv88e6xxx_g1_wait_eeprom_done,
 	.reset = mv88e6250_g1_reset,
 	.vtu_getnext = mv88e6185_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
@@ -4980,6 +5088,8 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -5039,13 +5149,15 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6352_g2_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6185_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
-	.phylink_get_caps = mv88e6185_phylink_get_caps,
+	.phylink_get_caps = mv88e632x_phylink_get_caps,
 };
 
 static const struct mv88e6xxx_ops mv88e6321_ops = {
@@ -5085,13 +5197,15 @@ static const struct mv88e6xxx_ops mv88e6321_ops = {
 	.set_egress_port = mv88e6095_g1_set_egress_port,
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6352_g2_mgmt_rsvd2cpu,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6185_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
-	.phylink_get_caps = mv88e6185_phylink_get_caps,
+	.phylink_get_caps = mv88e632x_phylink_get_caps,
 };
 
 static const struct mv88e6xxx_ops mv88e6341_ops = {
@@ -5135,6 +5249,8 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu =  mv88e6390_g1_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -5290,6 +5406,8 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.watchdog_ops = &mv88e6097_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6352_g2_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6352_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -5352,6 +5470,8 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -5414,6 +5534,8 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.watchdog_ops = &mv88e6390_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -5479,6 +5601,8 @@ static const struct mv88e6xxx_ops mv88e6393x_ops = {
 	.watchdog_ops = &mv88e6393x_watchdog_ops,
 	.mgmt_rsvd2cpu = mv88e6393x_port_mgmt_rsvd2cpu,
 	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.hardware_reset_pre = mv88e6xxx_g2_eeprom_wait,
+	.hardware_reset_post = mv88e6xxx_g2_eeprom_wait,
 	.reset = mv88e6352_g1_reset,
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.atu_get_hash = mv88e6165_g1_atu_get_hash,
@@ -5503,8 +5627,12 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.family = MV88E6XXX_FAMILY_6250,
 		.name = "Marvell 88E6020",
 		.num_databases = 64,
-		.num_ports = 4,
+		/* Ports 2-4 are not routed to pins
+		 * => usable ports 0, 1, 5, 6
+		 */
+		.num_ports = 7,
 		.num_internal_phys = 2,
+		.invalid_port_mask = BIT(2) | BIT(3) | BIT(4),
 		.max_vid = 4095,
 		.port_base_addr = 0x8,
 		.phy_base_addr = 0x0,
@@ -5653,7 +5781,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6141,
 		.family = MV88E6XXX_FAMILY_6341,
 		.name = "Marvell 88E6141",
-		.num_databases = 4096,
+		.num_databases = 256,
 		.num_macs = 2048,
 		.num_ports = 6,
 		.num_internal_phys = 5,
@@ -6112,7 +6240,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6341,
 		.family = MV88E6XXX_FAMILY_6341,
 		.name = "Marvell 88E6341",
-		.num_databases = 4096,
+		.num_databases = 256,
 		.num_macs = 2048,
 		.num_internal_phys = 5,
 		.num_ports = 6,
@@ -6918,6 +7046,15 @@ static int mv88e6xxx_crosschip_lag_leave(struct dsa_switch *ds, int sw_index,
 	return err_sync ? : err_pvt;
 }
 
+static const struct phylink_mac_ops mv88e6xxx_phylink_mac_ops = {
+	.mac_select_pcs		= mv88e6xxx_mac_select_pcs,
+	.mac_prepare		= mv88e6xxx_mac_prepare,
+	.mac_config		= mv88e6xxx_mac_config,
+	.mac_finish		= mv88e6xxx_mac_finish,
+	.mac_link_down		= mv88e6xxx_mac_link_down,
+	.mac_link_up		= mv88e6xxx_mac_link_up,
+};
+
 static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.change_tag_protocol	= mv88e6xxx_change_tag_protocol,
@@ -6926,12 +7063,6 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_setup		= mv88e6xxx_port_setup,
 	.port_teardown		= mv88e6xxx_port_teardown,
 	.phylink_get_caps	= mv88e6xxx_get_caps,
-	.phylink_mac_select_pcs	= mv88e6xxx_mac_select_pcs,
-	.phylink_mac_prepare	= mv88e6xxx_mac_prepare,
-	.phylink_mac_config	= mv88e6xxx_mac_config,
-	.phylink_mac_finish	= mv88e6xxx_mac_finish,
-	.phylink_mac_link_down	= mv88e6xxx_mac_link_down,
-	.phylink_mac_link_up	= mv88e6xxx_mac_link_up,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_eth_mac_stats	= mv88e6xxx_get_eth_mac_stats,
@@ -7000,6 +7131,7 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 	ds->priv = chip;
 	ds->dev = dev;
 	ds->ops = &mv88e6xxx_switch_ops;
+	ds->phylink_mac_ops = &mv88e6xxx_phylink_mac_ops;
 	ds->ageing_time_min = chip->info->age_time_coeff;
 	ds->ageing_time_max = chip->info->age_time_coeff * U8_MAX;
 

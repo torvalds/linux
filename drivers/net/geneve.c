@@ -225,10 +225,11 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 	void *oiph;
 
 	if (ip_tunnel_collect_metadata() || gs->collect_md) {
-		__be16 flags;
+		IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 
-		flags = TUNNEL_KEY | (gnvh->oam ? TUNNEL_OAM : 0) |
-			(gnvh->critical ? TUNNEL_CRIT_OPT : 0);
+		__set_bit(IP_TUNNEL_KEY_BIT, flags);
+		__assign_bit(IP_TUNNEL_OAM_BIT, flags, gnvh->oam);
+		__assign_bit(IP_TUNNEL_CRIT_OPT_BIT, flags, gnvh->critical);
 
 		tun_dst = udp_tun_rx_dst(skb, geneve_get_sk_family(gs), flags,
 					 vni_to_tunnel_id(gnvh->vni),
@@ -238,9 +239,11 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 			goto drop;
 		}
 		/* Update tunnel dst according to Geneve options. */
+		ip_tunnel_flags_zero(flags);
+		__set_bit(IP_TUNNEL_GENEVE_OPT_BIT, flags);
 		ip_tunnel_info_opts_set(&tun_dst->u.tun_info,
 					gnvh->options, gnvh->opt_len * 4,
-					TUNNEL_GENEVE_OPT);
+					flags);
 	} else {
 		/* Drop packets w/ critical options,
 		 * since we don't support any...
@@ -745,14 +748,15 @@ static void geneve_build_header(struct genevehdr *geneveh,
 {
 	geneveh->ver = GENEVE_VER;
 	geneveh->opt_len = info->options_len / 4;
-	geneveh->oam = !!(info->key.tun_flags & TUNNEL_OAM);
-	geneveh->critical = !!(info->key.tun_flags & TUNNEL_CRIT_OPT);
+	geneveh->oam = test_bit(IP_TUNNEL_OAM_BIT, info->key.tun_flags);
+	geneveh->critical = test_bit(IP_TUNNEL_CRIT_OPT_BIT,
+				     info->key.tun_flags);
 	geneveh->rsvd1 = 0;
 	tunnel_id_to_vni(info->key.tun_id, geneveh->vni);
 	geneveh->proto_type = inner_proto;
 	geneveh->rsvd2 = 0;
 
-	if (info->key.tun_flags & TUNNEL_GENEVE_OPT)
+	if (test_bit(IP_TUNNEL_GENEVE_OPT_BIT, info->key.tun_flags))
 		ip_tunnel_info_opts_get(geneveh->options, info);
 }
 
@@ -761,7 +765,7 @@ static int geneve_build_skb(struct dst_entry *dst, struct sk_buff *skb,
 			    bool xnet, int ip_hdr_len,
 			    bool inner_proto_inherit)
 {
-	bool udp_sum = !!(info->key.tun_flags & TUNNEL_CSUM);
+	bool udp_sum = test_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 	struct genevehdr *gnvh;
 	__be16 inner_proto;
 	int min_headroom;
@@ -822,7 +826,7 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	__be16 sport;
 	int err;
 
-	if (!pskb_inet_may_pull(skb))
+	if (!skb_vlan_inet_prepare(skb))
 		return -EINVAL;
 
 	if (!gs4)
@@ -878,7 +882,8 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	if (geneve->cfg.collect_md) {
 		ttl = key->ttl;
 
-		df = key->tun_flags & TUNNEL_DONT_FRAGMENT ? htons(IP_DF) : 0;
+		df = test_bit(IP_TUNNEL_DONT_FRAGMENT_BIT, key->tun_flags) ?
+		     htons(IP_DF) : 0;
 	} else {
 		if (geneve->cfg.ttl_inherit)
 			ttl = ip_tunnel_get_ttl(ip_hdr(skb), skb);
@@ -910,7 +915,8 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	udp_tunnel_xmit_skb(rt, gs4->sock->sk, skb, saddr, info->key.u.ipv4.dst,
 			    tos, ttl, df, sport, geneve->cfg.info.key.tp_dst,
 			    !net_eq(geneve->net, dev_net(geneve->dev)),
-			    !(info->key.tun_flags & TUNNEL_CSUM));
+			    !test_bit(IP_TUNNEL_CSUM_BIT,
+				      info->key.tun_flags));
 	return 0;
 }
 
@@ -929,7 +935,7 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	__be16 sport;
 	int err;
 
-	if (!pskb_inet_may_pull(skb))
+	if (!skb_vlan_inet_prepare(skb))
 		return -EINVAL;
 
 	if (!gs6)
@@ -998,7 +1004,8 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	udp_tunnel6_xmit_skb(dst, gs6->sock->sk, skb, dev,
 			     &saddr, &key->u.ipv6.dst, prio, ttl,
 			     info->key.label, sport, geneve->cfg.info.key.tp_dst,
-			     !(info->key.tun_flags & TUNNEL_CSUM));
+			     !test_bit(IP_TUNNEL_CSUM_BIT,
+				       info->key.tun_flags));
 	return 0;
 }
 #endif
@@ -1052,7 +1059,7 @@ static int geneve_change_mtu(struct net_device *dev, int new_mtu)
 	else if (new_mtu < dev->min_mtu)
 		new_mtu = dev->min_mtu;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 
@@ -1297,7 +1304,8 @@ static struct geneve_dev *geneve_find_dev(struct geneve_net *gn,
 
 static bool is_tnl_info_zero(const struct ip_tunnel_info *info)
 {
-	return !(info->key.tun_id || info->key.tun_flags || info->key.tos ||
+	return !(info->key.tun_id || info->key.tos ||
+		 !ip_tunnel_flags_empty(info->key.tun_flags) ||
 		 info->key.ttl || info->key.label || info->key.tp_src ||
 		 memchr_inv(&info->key.u, 0, sizeof(info->key.u)));
 }
@@ -1435,7 +1443,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 					    "Remote IPv6 address cannot be Multicast");
 			return -EINVAL;
 		}
-		info->key.tun_flags |= TUNNEL_CSUM;
+		__set_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 		cfg->use_udp6_rx_checksums = true;
 #else
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_REMOTE6],
@@ -1510,7 +1518,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 			goto change_notsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
-			info->key.tun_flags |= TUNNEL_CSUM;
+			__set_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 	}
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]) {
@@ -1520,7 +1528,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 			goto change_notsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]))
-			info->key.tun_flags &= ~TUNNEL_CSUM;
+			__clear_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 #else
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX],
 				    "IPv6 support not enabled in the kernel");
@@ -1753,7 +1761,8 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 				    info->key.u.ipv4.dst))
 			goto nla_put_failure;
 		if (nla_put_u8(skb, IFLA_GENEVE_UDP_CSUM,
-			       !!(info->key.tun_flags & TUNNEL_CSUM)))
+			       test_bit(IP_TUNNEL_CSUM_BIT,
+					info->key.tun_flags)))
 			goto nla_put_failure;
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1762,7 +1771,8 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 				     &info->key.u.ipv6.dst))
 			goto nla_put_failure;
 		if (nla_put_u8(skb, IFLA_GENEVE_UDP_ZERO_CSUM6_TX,
-			       !(info->key.tun_flags & TUNNEL_CSUM)))
+			       !test_bit(IP_TUNNEL_CSUM_BIT,
+					 info->key.tun_flags)))
 			goto nla_put_failure;
 #endif
 	}

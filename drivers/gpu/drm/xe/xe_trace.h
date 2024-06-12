@@ -258,7 +258,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			     __field(u32, guc_state)
 			     __field(u32, flags)
 			     __field(int, error)
-			     __field(u64, fence)
+			     __field(struct dma_fence *, fence)
 			     __field(u64, batch_addr)
 			     ),
 
@@ -269,11 +269,11 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			   atomic_read(&job->q->guc->state);
 			   __entry->flags = job->q->flags;
 			   __entry->error = job->fence->error;
-			   __entry->fence = (unsigned long)job->fence;
+			   __entry->fence = job->fence;
 			   __entry->batch_addr = (u64)job->batch_addr[0];
 			   ),
 
-		    TP_printk("fence=0x%016llx, seqno=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
+		    TP_printk("fence=%p, seqno=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
 			      __entry->fence, __entry->seqno, __entry->guc_id,
 			      __entry->batch_addr, __entry->guc_state,
 			      __entry->flags, __entry->error)

@@ -4,6 +4,7 @@
  * Copyright (c) 2008 Jonathan Cameron
  */
 
+#include <linux/cleanup.h>
 #include <linux/kernel.h>
 #include <linux/idr.h>
 #include <linux/err.h>
@@ -80,19 +81,18 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 		goto error_unregister_id;
 
 	/* Add to list of available triggers held by the IIO core */
-	mutex_lock(&iio_trigger_list_lock);
-	if (__iio_trigger_find_by_name(trig_info->name)) {
-		pr_err("Duplicate trigger name '%s'\n", trig_info->name);
-		ret = -EEXIST;
-		goto error_device_del;
+	scoped_guard(mutex, &iio_trigger_list_lock) {
+		if (__iio_trigger_find_by_name(trig_info->name)) {
+			pr_err("Duplicate trigger name '%s'\n", trig_info->name);
+			ret = -EEXIST;
+			goto error_device_del;
+		}
+		list_add_tail(&trig_info->list, &iio_trigger_list);
 	}
-	list_add_tail(&trig_info->list, &iio_trigger_list);
-	mutex_unlock(&iio_trigger_list_lock);
 
 	return 0;
 
 error_device_del:
-	mutex_unlock(&iio_trigger_list_lock);
 	device_del(&trig_info->dev);
 error_unregister_id:
 	ida_free(&iio_trigger_ida, trig_info->id);
@@ -102,9 +102,8 @@ EXPORT_SYMBOL(iio_trigger_register);
 
 void iio_trigger_unregister(struct iio_trigger *trig_info)
 {
-	mutex_lock(&iio_trigger_list_lock);
-	list_del(&trig_info->list);
-	mutex_unlock(&iio_trigger_list_lock);
+	scoped_guard(mutex, &iio_trigger_list_lock)
+		list_del(&trig_info->list);
 
 	ida_free(&iio_trigger_ida, trig_info->id);
 	/* Possible issue in here */
@@ -120,12 +119,11 @@ int iio_trigger_set_immutable(struct iio_dev *indio_dev, struct iio_trigger *tri
 		return -EINVAL;
 
 	iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	mutex_lock(&iio_dev_opaque->mlock);
+	guard(mutex)(&iio_dev_opaque->mlock);
 	WARN_ON(iio_dev_opaque->trig_readonly);
 
 	indio_dev->trig = iio_trigger_get(trig);
 	iio_dev_opaque->trig_readonly = true;
-	mutex_unlock(&iio_dev_opaque->mlock);
 
 	return 0;
 }
@@ -145,18 +143,14 @@ static struct iio_trigger *__iio_trigger_find_by_name(const char *name)
 
 static struct iio_trigger *iio_trigger_acquire_by_name(const char *name)
 {
-	struct iio_trigger *trig = NULL, *iter;
+	struct iio_trigger *iter;
 
-	mutex_lock(&iio_trigger_list_lock);
+	guard(mutex)(&iio_trigger_list_lock);
 	list_for_each_entry(iter, &iio_trigger_list, list)
-		if (sysfs_streq(iter->name, name)) {
-			trig = iter;
-			iio_trigger_get(trig);
-			break;
-		}
-	mutex_unlock(&iio_trigger_list_lock);
+		if (sysfs_streq(iter->name, name))
+			return iio_trigger_get(iter);
 
-	return trig;
+	return NULL;
 }
 
 static void iio_reenable_work_fn(struct work_struct *work)
@@ -259,22 +253,21 @@ static int iio_trigger_get_irq(struct iio_trigger *trig)
 {
 	int ret;
 
-	mutex_lock(&trig->pool_lock);
-	ret = bitmap_find_free_region(trig->pool,
-				      CONFIG_IIO_CONSUMERS_PER_TRIGGER,
-				      ilog2(1));
-	mutex_unlock(&trig->pool_lock);
-	if (ret >= 0)
-		ret += trig->subirq_base;
+	scoped_guard(mutex, &trig->pool_lock) {
+		ret = bitmap_find_free_region(trig->pool,
+					      CONFIG_IIO_CONSUMERS_PER_TRIGGER,
+					      ilog2(1));
+		if (ret < 0)
+			return ret;
+	}
 
-	return ret;
+	return ret + trig->subirq_base;
 }
 
 static void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
 {
-	mutex_lock(&trig->pool_lock);
+	guard(mutex)(&trig->pool_lock);
 	clear_bit(irq - trig->subirq_base, trig->pool);
-	mutex_unlock(&trig->pool_lock);
 }
 
 /* Complexity in here.  With certain triggers (datardy) an acknowledgement
@@ -451,16 +444,12 @@ static ssize_t current_trigger_store(struct device *dev,
 	struct iio_trigger *trig;
 	int ret;
 
-	mutex_lock(&iio_dev_opaque->mlock);
-	if (iio_dev_opaque->currentmode == INDIO_BUFFER_TRIGGERED) {
-		mutex_unlock(&iio_dev_opaque->mlock);
-		return -EBUSY;
+	scoped_guard(mutex, &iio_dev_opaque->mlock) {
+		if (iio_dev_opaque->currentmode == INDIO_BUFFER_TRIGGERED)
+			return -EBUSY;
+		if (iio_dev_opaque->trig_readonly)
+			return -EPERM;
 	}
-	if (iio_dev_opaque->trig_readonly) {
-		mutex_unlock(&iio_dev_opaque->mlock);
-		return -EPERM;
-	}
-	mutex_unlock(&iio_dev_opaque->mlock);
 
 	trig = iio_trigger_acquire_by_name(buf);
 	if (oldtrig == trig) {

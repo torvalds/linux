@@ -3272,19 +3272,6 @@ static int igb_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 
-static int igb_ethtool_begin(struct net_device *netdev)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	pm_runtime_get_sync(&adapter->pdev->dev);
-	return 0;
-}
-
-static void igb_ethtool_complete(struct net_device *netdev)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	pm_runtime_put(&adapter->pdev->dev);
-}
-
 static u32 igb_get_rxfh_indir_size(struct net_device *netdev)
 {
 	return IGB_RETA_SIZE;
@@ -3508,8 +3495,6 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.set_channels		= igb_set_channels,
 	.get_priv_flags		= igb_get_priv_flags,
 	.set_priv_flags		= igb_set_priv_flags,
-	.begin			= igb_ethtool_begin,
-	.complete		= igb_ethtool_complete,
 	.get_link_ksettings	= igb_get_link_ksettings,
 	.set_link_ksettings	= igb_set_link_ksettings,
 };

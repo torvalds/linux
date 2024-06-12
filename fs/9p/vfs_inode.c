@@ -83,7 +83,7 @@ static int p9mode2perm(struct v9fs_session_info *v9ses,
 	int res;
 	int mode = stat->mode;
 
-	res = mode & S_IALLUGO;
+	res = mode & 0777; /* S_IRWXUGO */
 	if (v9fs_proto_dotu(v9ses)) {
 		if ((mode & P9_DMSETUID) == P9_DMSETUID)
 			res |= S_ISUID;
@@ -177,6 +177,9 @@ int v9fs_uflags2omode(int uflags, int extended)
 		ret = P9_ORDWR;
 		break;
 	}
+
+	if (uflags & O_TRUNC)
+		ret |= P9_OTRUNC;
 
 	if (extended) {
 		if (uflags & O_EXCL)
@@ -344,20 +347,25 @@ void v9fs_evict_inode(struct inode *inode)
 	struct v9fs_inode __maybe_unused *v9inode = V9FS_I(inode);
 	__le32 __maybe_unused version;
 
-	truncate_inode_pages_final(&inode->i_data);
+	if (!is_bad_inode(inode)) {
+		truncate_inode_pages_final(&inode->i_data);
 
-	version = cpu_to_le32(v9inode->qid.version);
-	netfs_clear_inode_writeback(inode, &version);
+		version = cpu_to_le32(v9inode->qid.version);
+		netfs_clear_inode_writeback(inode, &version);
 
-	clear_inode(inode);
-	filemap_fdatawrite(&inode->i_data);
+		clear_inode(inode);
+		filemap_fdatawrite(&inode->i_data);
 
 #ifdef CONFIG_9P_FSCACHE
-	fscache_relinquish_cookie(v9fs_inode_cookie(v9inode), false);
+		if (v9fs_inode_cookie(v9inode))
+			fscache_relinquish_cookie(v9fs_inode_cookie(v9inode), false);
 #endif
+	} else
+		clear_inode(inode);
 }
 
-struct inode *v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid)
+struct inode *
+v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid, bool new)
 {
 	dev_t rdev;
 	int retval;
@@ -369,8 +377,18 @@ struct inode *v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid)
 	inode = iget_locked(sb, QID2INO(&fid->qid));
 	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(inode->i_state & I_NEW)) {
+		if (!new) {
+			goto done;
+		} else {
+			p9_debug(P9_DEBUG_VFS, "WARNING: Inode collision %ld\n",
+						inode->i_ino);
+			iput(inode);
+			remove_inode_hash(inode);
+			inode = iget_locked(sb, QID2INO(&fid->qid));
+			WARN_ON(!(inode->i_state & I_NEW));
+		}
+	}
 
 	/*
 	 * initialize the inode with the stat info
@@ -394,11 +412,11 @@ struct inode *v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid)
 	v9fs_set_netfs_context(inode);
 	v9fs_cache_inode_get_cookie(inode);
 	unlock_new_inode(inode);
+done:
 	return inode;
 error:
 	iget_failed(inode);
 	return ERR_PTR(retval);
-
 }
 
 /**
@@ -430,8 +448,15 @@ static int v9fs_at_to_dotl_flags(int flags)
  */
 static void v9fs_dec_count(struct inode *inode)
 {
-	if (!S_ISDIR(inode->i_mode) || inode->i_nlink > 2)
-		drop_nlink(inode);
+	if (!S_ISDIR(inode->i_mode) || inode->i_nlink > 2) {
+		if (inode->i_nlink) {
+			drop_nlink(inode);
+		} else {
+			p9_debug(P9_DEBUG_VFS,
+						"WARNING: unexpected i_nlink zero %d inode %ld\n",
+						inode->i_nlink, inode->i_ino);
+		}
+	}
 }
 
 /**
@@ -481,6 +506,9 @@ static int v9fs_remove(struct inode *dir, struct dentry *dentry, int flags)
 			v9fs_dec_count(dir);
 		} else
 			v9fs_dec_count(inode);
+
+		if (inode->i_nlink <= 0)	/* no more refs unhash it */
+			remove_inode_hash(inode);
 
 		v9fs_invalidate_inode_attr(inode);
 		v9fs_invalidate_inode_attr(dir);
@@ -547,7 +575,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		/*
 		 * instantiate inode and assign the unopened fid to the dentry
 		 */
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb, true);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			p9_debug(P9_DEBUG_VFS,
@@ -676,7 +704,7 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	else if (IS_ERR(fid))
 		inode = ERR_CAST(fid);
 	else
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb, false);
 	/*
 	 * If we had a rename on the server and a parallel lookup
 	 * for the new name, then make sure we instantiate with
@@ -1056,8 +1084,6 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	umode_t mode;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 	struct v9fs_inode *v9inode = V9FS_I(inode);
-
-	set_nlink(inode, 1);
 
 	inode_set_atime(inode, stat->atime, 0);
 	inode_set_mtime(inode, stat->mtime, 0);

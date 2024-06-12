@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <linux/highmem.h>
@@ -18,6 +18,7 @@
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
+#include "ivpu_ms.h"
 #include "ivpu_pm.h"
 
 static bool ivpu_disable_recovery;
@@ -58,14 +59,11 @@ static int ivpu_suspend(struct ivpu_device *vdev)
 {
 	int ret;
 
-	/* Save PCI state before powering down as it sometimes gets corrupted if NPU hangs */
-	pci_save_state(to_pci_dev(vdev->drm.dev));
+	ivpu_prepare_for_reset(vdev);
 
 	ret = ivpu_shutdown(vdev);
 	if (ret)
-		ivpu_err(vdev, "Failed to shutdown VPU: %d\n", ret);
-
-	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
+		ivpu_err(vdev, "Failed to shutdown NPU: %d\n", ret);
 
 	return ret;
 }
@@ -74,10 +72,10 @@ static int ivpu_resume(struct ivpu_device *vdev)
 {
 	int ret;
 
-	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D0);
-	pci_restore_state(to_pci_dev(vdev->drm.dev));
-
 retry:
+	pci_restore_state(to_pci_dev(vdev->drm.dev));
+	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D0);
+
 	ret = ivpu_hw_power_up(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to power up HW: %d\n", ret);
@@ -100,6 +98,7 @@ err_mmu_disable:
 	ivpu_mmu_disable(vdev);
 err_power_down:
 	ivpu_hw_power_down(vdev);
+	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 
 	if (!ivpu_fw_is_cold_boot(vdev)) {
 		ivpu_pm_prepare_cold_boot(vdev);
@@ -133,6 +132,7 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 	ivpu_suspend(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);
 	ivpu_jobs_abort_all(vdev);
+	ivpu_ms_cleanup_all(vdev);
 
 	ret = ivpu_resume(vdev);
 	if (ret)
@@ -264,6 +264,7 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 
 	if (!hw_is_idle) {
 		ivpu_err(vdev, "NPU failed to enter idle, force suspended.\n");
+		atomic_inc(&vdev->pm->reset_counter);
 		ivpu_fw_log_dump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
@@ -335,6 +336,8 @@ void ivpu_pm_reset_prepare_cb(struct pci_dev *pdev)
 	ivpu_hw_reset(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);
 	ivpu_jobs_abort_all(vdev);
+	ivpu_ms_cleanup_all(vdev);
+
 	ivpu_dbg(vdev, PM, "Pre-reset done.\n");
 }
 

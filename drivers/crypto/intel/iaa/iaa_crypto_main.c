@@ -347,18 +347,16 @@ int add_iaa_compression_mode(const char *name,
 		goto free;
 
 	if (ll_table) {
-		mode->ll_table = kzalloc(ll_table_size, GFP_KERNEL);
+		mode->ll_table = kmemdup(ll_table, ll_table_size, GFP_KERNEL);
 		if (!mode->ll_table)
 			goto free;
-		memcpy(mode->ll_table, ll_table, ll_table_size);
 		mode->ll_table_size = ll_table_size;
 	}
 
 	if (d_table) {
-		mode->d_table = kzalloc(d_table_size, GFP_KERNEL);
+		mode->d_table = kmemdup(d_table, d_table_size, GFP_KERNEL);
 		if (!mode->d_table)
 			goto free;
-		memcpy(mode->d_table, d_table, d_table_size);
 		mode->d_table_size = d_table_size;
 	}
 
@@ -806,6 +804,8 @@ static int save_iaa_wq(struct idxd_wq *wq)
 		return -EINVAL;
 
 	cpus_per_iaa = (nr_nodes * nr_cpus_per_node) / nr_iaa;
+	if (!cpus_per_iaa)
+		cpus_per_iaa = 1;
 out:
 	return 0;
 }
@@ -821,10 +821,12 @@ static void remove_iaa_wq(struct idxd_wq *wq)
 		}
 	}
 
-	if (nr_iaa)
+	if (nr_iaa) {
 		cpus_per_iaa = (nr_nodes * nr_cpus_per_node) / nr_iaa;
-	else
-		cpus_per_iaa = 0;
+		if (!cpus_per_iaa)
+			cpus_per_iaa = 1;
+	} else
+		cpus_per_iaa = 1;
 }
 
 static int wq_table_add_wqs(int iaa, int cpu)
@@ -918,7 +920,7 @@ static void rebalance_wq_table(void)
 	for_each_node_with_cpus(node) {
 		node_cpus = cpumask_of_node(node);
 
-		for (cpu = 0; cpu < nr_cpus_per_node; cpu++) {
+		for (cpu = 0; cpu <  cpumask_weight(node_cpus); cpu++) {
 			int node_cpu = cpumask_nth(cpu, node_cpus);
 
 			if (WARN_ON(node_cpu >= nr_cpu_ids)) {
@@ -1075,8 +1077,8 @@ static void iaa_desc_complete(struct idxd_desc *idxd_desc,
 		update_total_comp_bytes_out(ctx->req->dlen);
 		update_wq_comp_bytes(iaa_wq->wq, ctx->req->dlen);
 	} else {
-		update_total_decomp_bytes_in(ctx->req->dlen);
-		update_wq_decomp_bytes(iaa_wq->wq, ctx->req->dlen);
+		update_total_decomp_bytes_in(ctx->req->slen);
+		update_wq_decomp_bytes(iaa_wq->wq, ctx->req->slen);
 	}
 
 	if (ctx->compress && compression_ctx->verify_compress) {
@@ -1494,7 +1496,6 @@ static int iaa_comp_acompress(struct acomp_req *req)
 	u32 compression_crc;
 	struct idxd_wq *wq;
 	struct device *dev;
-	u64 start_time_ns;
 	int order = -1;
 
 	compression_ctx = crypto_tfm_ctx(tfm);
@@ -1568,10 +1569,8 @@ static int iaa_comp_acompress(struct acomp_req *req)
 		" req->dlen %d, sg_dma_len(sg) %d\n", dst_addr, nr_sgs,
 		req->dst, req->dlen, sg_dma_len(req->dst));
 
-	start_time_ns = iaa_get_ts();
 	ret = iaa_compress(tfm, req, wq, src_addr, req->slen, dst_addr,
 			   &req->dlen, &compression_crc, disable_async);
-	update_max_comp_delay_ns(start_time_ns);
 	if (ret == -EINPROGRESS)
 		return ret;
 
@@ -1618,7 +1617,6 @@ static int iaa_comp_adecompress_alloc_dest(struct acomp_req *req)
 	struct iaa_wq *iaa_wq;
 	struct device *dev;
 	struct idxd_wq *wq;
-	u64 start_time_ns;
 	int order = -1;
 
 	cpu = get_cpu();
@@ -1675,10 +1673,8 @@ alloc_dest:
 	dev_dbg(dev, "dma_map_sg, dst_addr %llx, nr_sgs %d, req->dst %p,"
 		" req->dlen %d, sg_dma_len(sg) %d\n", dst_addr, nr_sgs,
 		req->dst, req->dlen, sg_dma_len(req->dst));
-	start_time_ns = iaa_get_ts();
 	ret = iaa_decompress(tfm, req, wq, src_addr, req->slen,
 			     dst_addr, &req->dlen, true);
-	update_max_decomp_delay_ns(start_time_ns);
 	if (ret == -EOVERFLOW) {
 		dma_unmap_sg(dev, req->dst, sg_nents(req->dst), DMA_FROM_DEVICE);
 		req->dlen *= 2;
@@ -1709,7 +1705,6 @@ static int iaa_comp_adecompress(struct acomp_req *req)
 	int nr_sgs, cpu, ret = 0;
 	struct iaa_wq *iaa_wq;
 	struct device *dev;
-	u64 start_time_ns;
 	struct idxd_wq *wq;
 
 	if (!iaa_crypto_enabled) {
@@ -1769,10 +1764,8 @@ static int iaa_comp_adecompress(struct acomp_req *req)
 		" req->dlen %d, sg_dma_len(sg) %d\n", dst_addr, nr_sgs,
 		req->dst, req->dlen, sg_dma_len(req->dst));
 
-	start_time_ns = iaa_get_ts();
 	ret = iaa_decompress(tfm, req, wq, src_addr, req->slen,
 			     dst_addr, &req->dlen, false);
-	update_max_decomp_delay_ns(start_time_ns);
 	if (ret == -EINPROGRESS)
 		return ret;
 
@@ -2010,7 +2003,7 @@ static int __init iaa_crypto_init_module(void)
 	int ret = 0;
 	int node;
 
-	nr_cpus = num_online_cpus();
+	nr_cpus = num_possible_cpus();
 	for_each_node_with_cpus(node)
 		nr_nodes++;
 	if (!nr_nodes) {

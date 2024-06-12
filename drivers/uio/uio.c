@@ -438,20 +438,34 @@ void uio_event_notify(struct uio_info *info)
 EXPORT_SYMBOL_GPL(uio_event_notify);
 
 /**
- * uio_interrupt - hardware interrupt handler
+ * uio_interrupt_handler - hardware interrupt handler
  * @irq: IRQ number, can be UIO_IRQ_CYCLIC for cyclic timer
  * @dev_id: Pointer to the devices uio_device structure
  */
-static irqreturn_t uio_interrupt(int irq, void *dev_id)
+static irqreturn_t uio_interrupt_handler(int irq, void *dev_id)
 {
 	struct uio_device *idev = (struct uio_device *)dev_id;
 	irqreturn_t ret;
 
 	ret = idev->info->handler(irq, idev->info);
 	if (ret == IRQ_HANDLED)
-		uio_event_notify(idev->info);
+		ret = IRQ_WAKE_THREAD;
 
 	return ret;
+}
+
+/**
+ * uio_interrupt_thread - irq thread handler
+ * @irq: IRQ number
+ * @dev_id: Pointer to the devices uio_device structure
+ */
+static irqreturn_t uio_interrupt_thread(int irq, void *dev_id)
+{
+	struct uio_device *idev = (struct uio_device *)dev_id;
+
+	uio_event_notify(idev->info);
+
+	return IRQ_HANDLED;
 }
 
 struct uio_listener {
@@ -792,7 +806,7 @@ static int uio_mmap_dma_coherent(struct vm_area_struct *vma)
 	 */
 	vma->vm_pgoff = 0;
 
-	addr = (void *)mem->addr;
+	addr = (void *)(uintptr_t)mem->addr;
 	ret = dma_mmap_coherent(mem->dma_device,
 				vma,
 				addr,
@@ -1024,8 +1038,8 @@ int __uio_register_device(struct module *owner,
 		 * FDs at the time of unregister and therefore may not be
 		 * freed until they are released.
 		 */
-		ret = request_irq(info->irq, uio_interrupt,
-				  info->irq_flags, info->name, idev);
+		ret = request_threaded_irq(info->irq, uio_interrupt_handler, uio_interrupt_thread,
+					   info->irq_flags, info->name, idev);
 		if (ret) {
 			info->uio_dev = NULL;
 			goto err_request_irq;

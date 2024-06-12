@@ -33,7 +33,7 @@ TRACE_EVENT(cdns3_halt,
 		__field(u8, flush)
 	),
 	TP_fast_assign(
-		__assign_str(name, ep_priv->name);
+		__assign_str(name);
 		__entry->halt = halt;
 		__entry->flush = flush;
 	),
@@ -49,8 +49,8 @@ TRACE_EVENT(cdns3_wa1,
 		__string(msg, msg)
 	),
 	TP_fast_assign(
-		__assign_str(ep_name, ep_priv->name);
-		__assign_str(msg, msg);
+		__assign_str(ep_name);
+		__assign_str(msg);
 	),
 	TP_printk("WA1: %s %s", __get_str(ep_name), __get_str(msg))
 );
@@ -63,8 +63,8 @@ TRACE_EVENT(cdns3_wa2,
 		__string(msg, msg)
 	),
 	TP_fast_assign(
-		__assign_str(ep_name, ep_priv->name);
-		__assign_str(msg, msg);
+		__assign_str(ep_name);
+		__assign_str(msg);
 	),
 	TP_printk("WA2: %s %s", __get_str(ep_name), __get_str(msg))
 );
@@ -77,7 +77,7 @@ DECLARE_EVENT_CLASS(cdns3_log_doorbell,
 		__field(u32, ep_trbaddr)
 	),
 	TP_fast_assign(
-		__assign_str(name, ep_name);
+		__assign_str(name);
 		__entry->ep_trbaddr = ep_trbaddr;
 	),
 	TP_printk("%s, ep_trbaddr %08x", __get_str(name),
@@ -125,7 +125,7 @@ DECLARE_EVENT_CLASS(cdns3_log_epx_irq,
 		__field(u32, use_streams)
 	),
 	TP_fast_assign(
-		__assign_str(ep_name, priv_ep->name);
+		__assign_str(ep_name);
 		__entry->ep_sts = readl(&priv_dev->regs->ep_sts);
 		__entry->ep_traddr = readl(&priv_dev->regs->ep_traddr);
 		__entry->ep_last_sid = priv_ep->last_stream_id;
@@ -214,7 +214,7 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__field(unsigned int, stream_id)
 	),
 	TP_fast_assign(
-		__assign_str(name, req->priv_ep->name);
+		__assign_str(name);
 		__entry->req = req;
 		__entry->buf = req->request.buf;
 		__entry->actual = req->request.actual;
@@ -294,7 +294,7 @@ DECLARE_EVENT_CLASS(cdns3_stream_split_transfer_len,
 		__field(unsigned int, stream_id)
 	),
 	TP_fast_assign(
-		__assign_str(name, req->priv_ep->name);
+		__assign_str(name);
 		__entry->req = req;
 		__entry->actual = req->request.length;
 		__entry->length = req->request.actual;
@@ -329,7 +329,7 @@ DECLARE_EVENT_CLASS(cdns3_log_aligned_request,
 		__field(u32, aligned_buf_size)
 	),
 	TP_fast_assign(
-		__assign_str(name, priv_req->priv_ep->name);
+		__assign_str(name);
 		__entry->req = &priv_req->request;
 		__entry->buf = priv_req->request.buf;
 		__entry->dma = priv_req->request.dma;
@@ -364,7 +364,7 @@ DECLARE_EVENT_CLASS(cdns3_log_map_request,
 		__field(dma_addr_t, dma)
 	),
 	TP_fast_assign(
-		__assign_str(name, priv_req->priv_ep->name);
+		__assign_str(name);
 		__entry->req = &priv_req->request;
 		__entry->buf = priv_req->request.buf;
 		__entry->dma = priv_req->request.dma;
@@ -395,7 +395,7 @@ DECLARE_EVENT_CLASS(cdns3_log_trb,
 		__field(unsigned int, last_stream_id)
 	),
 	TP_fast_assign(
-		__assign_str(name, priv_ep->name);
+		__assign_str(name);
 		__entry->trb = trb;
 		__entry->buffer = le32_to_cpu(trb->buffer);
 		__entry->length = le32_to_cpu(trb->length);
@@ -467,7 +467,7 @@ DECLARE_EVENT_CLASS(cdns3_log_ep,
 		__field(u8, dequeue)
 	),
 	TP_fast_assign(
-		__assign_str(name, priv_ep->name);
+		__assign_str(name);
 		__entry->maxpacket = priv_ep->endpoint.maxpacket;
 		__entry->maxpacket_limit = priv_ep->endpoint.maxpacket_limit;
 		__entry->max_streams = priv_ep->endpoint.max_streams;

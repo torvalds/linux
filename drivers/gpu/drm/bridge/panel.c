@@ -4,6 +4,8 @@
  * Copyright (C) 2017 Broadcom
  */
 
+#include <linux/debugfs.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_connector.h>
@@ -64,11 +66,6 @@ static int panel_bridge_attach(struct drm_bridge *bridge,
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
 		return 0;
-
-	if (!bridge->encoder) {
-		DRM_ERROR("Missing encoder\n");
-		return -ENODEV;
-	}
 
 	drm_connector_helper_add(connector,
 				 &panel_bridge_connector_helper_funcs);

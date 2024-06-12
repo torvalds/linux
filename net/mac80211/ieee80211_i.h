@@ -89,7 +89,8 @@ enum ieee80211_status_data {
 	IEEE80211_STATUS_TYPE_MASK	= 0x00f,
 	IEEE80211_STATUS_TYPE_INVALID	= 0,
 	IEEE80211_STATUS_TYPE_SMPS	= 1,
-	IEEE80211_STATUS_SUBDATA_MASK	= 0xff0,
+	IEEE80211_STATUS_TYPE_NEG_TTLM	= 2,
+	IEEE80211_STATUS_SUBDATA_MASK	= 0x1ff0,
 };
 
 static inline bool
@@ -131,7 +132,7 @@ struct ieee80211_bss {
 };
 
 /**
- * enum ieee80211_corrupt_data_flags - BSS data corruption flags
+ * enum ieee80211_bss_corrupt_data_flags - BSS data corruption flags
  * @IEEE80211_BSS_CORRUPT_BEACON: last beacon frame received was corrupted
  * @IEEE80211_BSS_CORRUPT_PROBE_RESP: last probe response received was corrupted
  *
@@ -144,7 +145,7 @@ enum ieee80211_bss_corrupt_data_flags {
 };
 
 /**
- * enum ieee80211_valid_data_flags - BSS valid data flags
+ * enum ieee80211_bss_valid_data_flags - BSS valid data flags
  * @IEEE80211_BSS_VALID_WMM: WMM/UAPSD data was gathered from non-corrupt IE
  * @IEEE80211_BSS_VALID_RATES: Supported rates were gathered from non-corrupt IE
  * @IEEE80211_BSS_VALID_ERP: ERP flag was gathered from non-corrupt IE
@@ -595,6 +596,7 @@ struct ieee80211_if_managed {
 	/* TID-to-link mapping support */
 	struct wiphy_delayed_work ttlm_work;
 	struct ieee80211_adv_ttlm_info ttlm_info;
+	struct wiphy_work teardown_ttlm_work;
 
 	/* dialog token enumerator for neg TTLM request */
 	u8 dialog_token_alloc;
@@ -684,7 +686,7 @@ struct mesh_csa_settings {
 };
 
 /**
- * struct mesh_table
+ * struct mesh_table - mesh hash table
  *
  * @known_gates: list of known mesh gates and their mpaths by the station. The
  * gate's mpath may or may not be resolved and active.
@@ -974,6 +976,7 @@ struct ieee80211_link_data_managed {
 
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;
+	bool csa_blocked_tx;
 	struct wiphy_delayed_work chswitch_work;
 
 	struct wiphy_work request_smps_work;
@@ -1092,7 +1095,7 @@ struct ieee80211_sub_if_data {
 
 	unsigned long state;
 
-	bool csa_blocked_tx;
+	bool csa_blocked_queues;
 
 	char name[IFNAMSIZ];
 
@@ -1158,6 +1161,8 @@ struct ieee80211_sub_if_data {
 	/* for ieee80211_set_active_links_async() */
 	struct wiphy_work activate_links_work;
 	u16 desired_active_links;
+
+	u16 restart_active_links;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
@@ -2549,9 +2554,19 @@ bool ieee80211_chanreq_identical(const struct ieee80211_chan_req *a,
 				 const struct ieee80211_chan_req *b);
 
 int __must_check
+_ieee80211_link_use_channel(struct ieee80211_link_data *link,
+			    const struct ieee80211_chan_req *req,
+			    enum ieee80211_chanctx_mode mode,
+			    bool assign_on_failure);
+
+static inline int __must_check
 ieee80211_link_use_channel(struct ieee80211_link_data *link,
 			   const struct ieee80211_chan_req *req,
-			   enum ieee80211_chanctx_mode mode);
+			   enum ieee80211_chanctx_mode mode)
+{
+	return _ieee80211_link_use_channel(link, req, mode, false);
+}
+
 int __must_check
 ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 			       const struct ieee80211_chan_req *req,
@@ -2565,6 +2580,8 @@ int __must_check
 ieee80211_link_change_chanreq(struct ieee80211_link_data *link,
 			      const struct ieee80211_chan_req *req,
 			      u64 *changed);
+void __ieee80211_link_release_channel(struct ieee80211_link_data *link,
+				      bool skip_idle_recalc);
 void ieee80211_link_release_channel(struct ieee80211_link_data *link);
 void ieee80211_link_vlan_copy_chanctx(struct ieee80211_link_data *link);
 void ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,

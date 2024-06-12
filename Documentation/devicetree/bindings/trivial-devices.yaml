@@ -126,6 +126,8 @@ properties:
           - ibm,cffps1
             # IBM Common Form Factor Power Supply Versions 2
           - ibm,cffps2
+            # IBM On-Chip Controller hwmon device
+          - ibm,p8-occ-hwmon
             # Infineon barometric pressure and temperature sensor
           - infineon,dps310
             # Infineon IR36021 digital POL buck controller
@@ -134,6 +136,8 @@ properties:
           - infineon,irps5401
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
           - infineon,tlv493d-a1b6
+            # Infineon Hot-swap controller xdp710
+          - infineon,xdp710
             # Infineon Multi-phase Digital VR Controller xdpe11280
           - infineon,xdpe11280
             # Infineon Multi-phase Digital VR Controller xdpe12254
@@ -160,6 +164,8 @@ properties:
           - isil,isl29030
             # Intersil ISL68137 Digital Output Configurable PWM Controller
           - isil,isl68137
+            # Intersil ISL69269 PMBus Voltage Regulator
+          - isil,isl69269
             # Intersil ISL76682 Ambient Light Sensor
           - isil,isl76682
             # Linear Technology LTC2488

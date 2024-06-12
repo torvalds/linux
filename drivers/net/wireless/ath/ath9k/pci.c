@@ -21,8 +21,6 @@
 #include <linux/module.h>
 #include "ath9k.h"
 
-extern int ath9k_use_msi;
-
 static const struct pci_device_id ath_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, 0x0023) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x0024) }, /* PCI-E */

@@ -32,16 +32,11 @@ endif
 # Enable -Werror in CI and development
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 
-# Fine grained warnings disable
-CFLAGS_i915_pci.o = $(call cc-disable-warning, override-init)
-CFLAGS_display/intel_display_device.o = $(call cc-disable-warning, override-init)
-CFLAGS_display/intel_fbdev.o = $(call cc-disable-warning, override-init)
-
 # Support compiling the display code separately for both i915 and xe
 # drivers. Define I915 when building i915.
 subdir-ccflags-y += -DI915
 
-subdir-ccflags-y += -I$(srctree)/$(src)
+subdir-ccflags-y += -I$(src)
 
 # Please keep these build lists sorted!
 
@@ -118,6 +113,7 @@ gt-y += \
 	gt/intel_ggtt_fencing.o \
 	gt/intel_gt.o \
 	gt/intel_gt_buffer_pool.o \
+	gt/intel_gt_ccs_mode.o \
 	gt/intel_gt_clock_utils.o \
 	gt/intel_gt_debugfs.o \
 	gt/intel_gt_engines_debugfs.o \
@@ -270,6 +266,7 @@ i915-y += \
 	display/intel_display_rps.o \
 	display/intel_display_wa.o \
 	display/intel_dmc.o \
+	display/intel_dmc_wl.o \
 	display/intel_dpio_phy.o \
 	display/intel_dpll.o \
 	display/intel_dpll_mgr.o \
@@ -433,7 +430,7 @@ no-header-test := \
 
 always-$(CONFIG_DRM_I915_WERROR) += \
 	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
-		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
+		$(shell cd $(src) && find * -name '*.h')))
 
 quiet_cmd_hdrtest = HDRTEST $(patsubst %.hdrtest,%.h,$@)
       cmd_hdrtest = $(CC) $(filter-out $(CFLAGS_GCOV), $(c_flags)) -S -o /dev/null -x c /dev/null -include $<; \

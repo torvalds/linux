@@ -69,7 +69,9 @@ static void sun4i_backend_disable_color_correction(struct sunxi_engine *engine)
 			   SUN4I_BACKEND_OCCTL_ENABLE, 0);
 }
 
-static void sun4i_backend_commit(struct sunxi_engine *engine)
+static void sun4i_backend_commit(struct sunxi_engine *engine,
+				 struct drm_crtc *crtc,
+				 struct drm_atomic_state *state)
 {
 	DRM_DEBUG_DRIVER("Committing changes\n");
 

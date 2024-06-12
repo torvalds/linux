@@ -7,7 +7,7 @@
 
 char _license[] SEC("license") = "GPL";
 
-SEC("struct_ops/unsupp_cong_op_get_info")
+SEC("struct_ops")
 size_t BPF_PROG(unsupp_cong_op_get_info, struct sock *sk, u32 ext, int *attr,
 		union tcp_cc_info *info)
 {

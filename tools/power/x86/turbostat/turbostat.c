@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2023 Intel Corporation.
+ * Copyright (c) 2024 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -36,6 +36,9 @@
 #include <linux/perf_event.h>
 #include <asm/unistd.h>
 #include <stdbool.h>
+#include <assert.h>
+#include <linux/kernel.h>
+#include <linux/build_bug.h>
 
 #define UNUSED(x) (void)(x)
 
@@ -53,14 +56,25 @@
 #define	NAME_BYTES 20
 #define PATH_BYTES 128
 
+#define MAX_NOFILE 0x8000
+
 enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
-enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC };
-enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT };
+enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC, COUNTER_K2M };
+enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT, FORMAT_AVERAGE };
+enum amperf_source { AMPERF_SOURCE_PERF, AMPERF_SOURCE_MSR };
+enum rapl_source { RAPL_SOURCE_NONE, RAPL_SOURCE_PERF, RAPL_SOURCE_MSR };
+enum cstate_source { CSTATE_SOURCE_NONE, CSTATE_SOURCE_PERF, CSTATE_SOURCE_MSR };
+
+struct sysfs_path {
+	char path[PATH_BYTES];
+	int id;
+	struct sysfs_path *next;
+};
 
 struct msr_counter {
 	unsigned int msr_num;
 	char name[NAME_BYTES];
-	char path[PATH_BYTES];
+	struct sysfs_path *sp;
 	unsigned int width;
 	enum counter_type type;
 	enum counter_format format;
@@ -72,61 +86,64 @@ struct msr_counter {
 };
 
 struct msr_counter bic[] = {
-	{ 0x0, "usec", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Time_Of_Day_Seconds", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Package", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Node", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Avg_MHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Busy%", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Bzy_MHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "TSC_MHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "IRQ", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL, 0 },
-	{ 0x0, "sysfs", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%c1", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%c3", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%c6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%c7", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "ThreadC", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CoreTmp", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CoreCnt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "PkgTmp", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFX%rc6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFXMHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc2", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc3", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc7", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc8", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc9", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pk%pc10", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%LPI", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "SYS%LPI", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "PkgWatt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CorWatt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFXWatt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "PkgCnt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "RAMWatt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "PKG_%", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "RAM_%", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg_J", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Cor_J", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFX_J", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "RAM_J", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Mod%c6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Totl%C0", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Any%C0", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFX%C0", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPUGFX%", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Core", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "APIC", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "X2APIC", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Die", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFXAMHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "IPC", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CoreThr", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "UncMHz", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "usec", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Time_Of_Day_Seconds", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Package", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Node", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Avg_MHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Busy%", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Bzy_MHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "TSC_MHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "IRQ", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SMI", NULL, 32, 0, FORMAT_DELTA, NULL, 0 },
+	{ 0x0, "sysfs", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c1", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c3", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c7", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "ThreadC", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreTmp", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreCnt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgTmp", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX%rc6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc2", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc3", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc7", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc8", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc9", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pk%pc10", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%LPI", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SYS%LPI", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CorWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgCnt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAMWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "PKG_%", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAM_%", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Cor_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAM_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Mod%c6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Totl%C0", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Any%C0", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX%C0", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPUGFX%", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Core", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "APIC", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "X2APIC", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Die", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXAMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "IPC", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreThr", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "UncMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SAM%mc6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SAMMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SAMAMHz", NULL, 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -185,11 +202,14 @@ struct msr_counter bic[] = {
 #define	BIC_IPC		(1ULL << 52)
 #define	BIC_CORE_THROT_CNT	(1ULL << 53)
 #define	BIC_UNCORE_MHZ		(1ULL << 54)
+#define	BIC_SAM_mc6		(1ULL << 55)
+#define	BIC_SAMMHz		(1ULL << 56)
+#define	BIC_SAMACTMHz		(1ULL << 57)
 
 #define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
 #define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
-#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_UNCORE_MHZ)
-#define BIC_IDLE ( BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX)
+#define BIC_FREQUENCY (BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_SAMMHz | BIC_SAMACTMHz | BIC_UNCORE_MHZ)
+#define BIC_IDLE (BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6)
 #define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
@@ -204,10 +224,35 @@ unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC
 #define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
 #define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
 
+/*
+ * MSR_PKG_CST_CONFIG_CONTROL decoding for pkg_cstate_limit:
+ * If you change the values, note they are used both in comparisons
+ * (>= PCL__7) and to index pkg_cstate_limit_strings[].
+ */
+#define PCLUKN 0		/* Unknown */
+#define PCLRSV 1		/* Reserved */
+#define PCL__0 2		/* PC0 */
+#define PCL__1 3		/* PC1 */
+#define PCL__2 4		/* PC2 */
+#define PCL__3 5		/* PC3 */
+#define PCL__4 6		/* PC4 */
+#define PCL__6 7		/* PC6 */
+#define PCL_6N 8		/* PC6 No Retention */
+#define PCL_6R 9		/* PC6 Retention */
+#define PCL__7 10		/* PC7 */
+#define PCL_7S 11		/* PC7 Shrink */
+#define PCL__8 12		/* PC8 */
+#define PCL__9 13		/* PC9 */
+#define PCL_10 14		/* PC10 */
+#define PCLUNL 15		/* Unlimited */
+
+struct amperf_group_fd;
+
 char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
 int *fd_instr_count_percpu;
+struct amperf_group_fd *fd_amperf_percpu;	/* File descriptors for perf group with APERF and MPERF counters. */
 struct timeval interval_tv = { 5, 0 };
 struct timespec interval_ts = { 5, 0 };
 
@@ -242,11 +287,8 @@ char *output_buffer, *outp;
 unsigned int do_dts;
 unsigned int do_ptm;
 unsigned int do_ipc;
-unsigned long long gfx_cur_rc6_ms;
 unsigned long long cpuidle_cur_cpu_lpi_us;
 unsigned long long cpuidle_cur_sys_lpi_us;
-unsigned int gfx_cur_mhz;
-unsigned int gfx_act_mhz;
 unsigned int tj_max;
 unsigned int tj_max_override;
 double rapl_power_units, rapl_time_units;
@@ -263,8 +305,33 @@ unsigned int has_hwp_epp;	/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;	/* IA32_HWP_REQUEST_PKG */
 unsigned int first_counter_read = 1;
 int ignore_stdin;
+bool no_msr;
+bool no_perf;
+enum amperf_source amperf_source;
+
+enum gfx_sysfs_idx {
+	GFX_rc6,
+	GFX_MHz,
+	GFX_ACTMHz,
+	SAM_mc6,
+	SAM_MHz,
+	SAM_ACTMHz,
+	GFX_MAX
+};
+
+struct gfx_sysfs_info {
+	const char *path;
+	FILE *fp;
+	unsigned int val;
+	unsigned long long val_ull;
+};
+
+static struct gfx_sysfs_info gfx_info[GFX_MAX];
 
 int get_msr(int cpu, off_t offset, unsigned long long *msr);
+int add_counter(unsigned int msr_num, char *path, char *name,
+		unsigned int width, enum counter_scope scope,
+		enum counter_type type, enum counter_format format, int flags, int package_num);
 
 /* Model specific support Start */
 
@@ -629,6 +696,23 @@ static const struct platform_features adl_features = {
 	.enable_tsc_tweak = 1,
 };
 
+static const struct platform_features arl_features = {
+	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
+	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
+	.bclk_freq = BCLK_100MHZ,
+	.supported_cstates = CC1 | CC6 | CC7 | PC2 | PC3 | PC6 | PC10,
+	.cst_limit = CST_LIMIT_HSW,
+	.has_irtl_msrs = 1,
+	.has_msr_core_c1_res = 1,
+	.has_ext_cst_msrs = 1,
+	.trl_msrs = TRL_BASE,
+	.tcc_offset_bits = 6,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX,
+	.enable_tsc_tweak = 1,
+};
+
 static const struct platform_features skx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
@@ -652,6 +736,7 @@ static const struct platform_features icx_features = {
 	.bclk_freq = BCLK_100MHZ,
 	.supported_cstates = CC1 | CC6 | PC2 | PC6,
 	.cst_limit = CST_LIMIT_ICX,
+	.has_msr_core_c1_res = 1,
 	.has_irtl_msrs = 1,
 	.has_cst_prewake_bit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
@@ -870,8 +955,10 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_FAM6_RAPTORLAKE_S, &adl_features },
 	{ INTEL_FAM6_METEORLAKE, &cnl_features },
 	{ INTEL_FAM6_METEORLAKE_L, &cnl_features },
-	{ INTEL_FAM6_ARROWLAKE, &cnl_features },
-	{ INTEL_FAM6_LUNARLAKE_M, &cnl_features },
+	{ INTEL_FAM6_ARROWLAKE_H, &arl_features },
+	{ INTEL_FAM6_ARROWLAKE_U, &arl_features },
+	{ INTEL_FAM6_ARROWLAKE, &arl_features },
+	{ INTEL_FAM6_LUNARLAKE_M, &arl_features },
 	{ INTEL_FAM6_ATOM_SILVERMONT, &slv_features },
 	{ INTEL_FAM6_ATOM_SILVERMONT_D, &slvd_features },
 	{ INTEL_FAM6_ATOM_AIRMONT, &amt_features },
@@ -944,9 +1031,335 @@ char *progname;
 #define CPU_SUBSET_MAXCPUS	1024	/* need to use before probe... */
 cpu_set_t *cpu_present_set, *cpu_effective_set, *cpu_allowed_set, *cpu_affinity_set, *cpu_subset;
 size_t cpu_present_setsize, cpu_effective_setsize, cpu_allowed_setsize, cpu_affinity_setsize, cpu_subset_size;
-#define MAX_ADDED_COUNTERS 8
 #define MAX_ADDED_THREAD_COUNTERS 24
+#define MAX_ADDED_CORE_COUNTERS 8
+#define MAX_ADDED_PACKAGE_COUNTERS 16
 #define BITMASK_SIZE 32
+
+/* Indexes used to map data read from perf and MSRs into global variables */
+enum rapl_rci_index {
+	RAPL_RCI_INDEX_ENERGY_PKG = 0,
+	RAPL_RCI_INDEX_ENERGY_CORES = 1,
+	RAPL_RCI_INDEX_DRAM = 2,
+	RAPL_RCI_INDEX_GFX = 3,
+	RAPL_RCI_INDEX_PKG_PERF_STATUS = 4,
+	RAPL_RCI_INDEX_DRAM_PERF_STATUS = 5,
+	RAPL_RCI_INDEX_CORE_ENERGY = 6,
+	NUM_RAPL_COUNTERS,
+};
+
+enum rapl_unit {
+	RAPL_UNIT_INVALID,
+	RAPL_UNIT_JOULES,
+	RAPL_UNIT_WATTS,
+};
+
+struct rapl_counter_info_t {
+	unsigned long long data[NUM_RAPL_COUNTERS];
+	enum rapl_source source[NUM_RAPL_COUNTERS];
+	unsigned long long flags[NUM_RAPL_COUNTERS];
+	double scale[NUM_RAPL_COUNTERS];
+	enum rapl_unit unit[NUM_RAPL_COUNTERS];
+
+	union {
+		/* Active when source == RAPL_SOURCE_MSR */
+		struct {
+			unsigned long long msr[NUM_RAPL_COUNTERS];
+			unsigned long long msr_mask[NUM_RAPL_COUNTERS];
+			int msr_shift[NUM_RAPL_COUNTERS];
+		};
+	};
+
+	int fd_perf;
+};
+
+/* struct rapl_counter_info_t for each RAPL domain */
+struct rapl_counter_info_t *rapl_counter_info_perdomain;
+unsigned int rapl_counter_info_perdomain_size;
+
+#define RAPL_COUNTER_FLAG_USE_MSR_SUM (1u << 1)
+
+struct rapl_counter_arch_info {
+	int feature_mask;	/* Mask for testing if the counter is supported on host */
+	const char *perf_subsys;
+	const char *perf_name;
+	unsigned long long msr;
+	unsigned long long msr_mask;
+	int msr_shift;		/* Positive mean shift right, negative mean shift left */
+	double *platform_rapl_msr_scale;	/* Scale applied to values read by MSR (platform dependent, filled at runtime) */
+	unsigned int rci_index;	/* Maps data from perf counters to global variables */
+	unsigned long long bic;
+	double compat_scale;	/* Some counters require constant scaling to be in the same range as other, similar ones */
+	unsigned long long flags;
+};
+
+static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
+	{
+	 .feature_mask = RAPL_PKG,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-pkg",
+	 .msr = MSR_PKG_ENERGY_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_ENERGY_PKG,
+	 .bic = BIC_PkgWatt | BIC_Pkg_J,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_AMD_F17H,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-pkg",
+	 .msr = MSR_PKG_ENERGY_STAT,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_ENERGY_PKG,
+	 .bic = BIC_PkgWatt | BIC_Pkg_J,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_CORE_ENERGY_STATUS,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-cores",
+	 .msr = MSR_PP0_ENERGY_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_ENERGY_CORES,
+	 .bic = BIC_CorWatt | BIC_Cor_J,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_DRAM,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-ram",
+	 .msr = MSR_DRAM_ENERGY_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_dram_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_DRAM,
+	 .bic = BIC_RAMWatt | BIC_RAM_J,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_GFX,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-gpu",
+	 .msr = MSR_PP1_ENERGY_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_GFX,
+	 .bic = BIC_GFXWatt | BIC_GFX_J,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_PKG_PERF_STATUS,
+	 .perf_subsys = NULL,
+	 .perf_name = NULL,
+	 .msr = MSR_PKG_PERF_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_time_units,
+	 .rci_index = RAPL_RCI_INDEX_PKG_PERF_STATUS,
+	 .bic = BIC_PKG__,
+	 .compat_scale = 100.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_DRAM_PERF_STATUS,
+	 .perf_subsys = NULL,
+	 .perf_name = NULL,
+	 .msr = MSR_DRAM_PERF_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_time_units,
+	 .rci_index = RAPL_RCI_INDEX_DRAM_PERF_STATUS,
+	 .bic = BIC_RAM__,
+	 .compat_scale = 100.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_AMD_F17H,
+	 .perf_subsys = NULL,
+	 .perf_name = NULL,
+	 .msr = MSR_CORE_ENERGY_STAT,
+	 .msr_mask = 0xFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_CORE_ENERGY,
+	 .bic = BIC_CorWatt | BIC_Cor_J,
+	 .compat_scale = 1.0,
+	 .flags = 0,
+	  },
+};
+
+struct rapl_counter {
+	unsigned long long raw_value;
+	enum rapl_unit unit;
+	double scale;
+};
+
+/* Indexes used to map data read from perf and MSRs into global variables */
+enum ccstate_rci_index {
+	CCSTATE_RCI_INDEX_C1_RESIDENCY = 0,
+	CCSTATE_RCI_INDEX_C3_RESIDENCY = 1,
+	CCSTATE_RCI_INDEX_C6_RESIDENCY = 2,
+	CCSTATE_RCI_INDEX_C7_RESIDENCY = 3,
+	PCSTATE_RCI_INDEX_C2_RESIDENCY = 4,
+	PCSTATE_RCI_INDEX_C3_RESIDENCY = 5,
+	PCSTATE_RCI_INDEX_C6_RESIDENCY = 6,
+	PCSTATE_RCI_INDEX_C7_RESIDENCY = 7,
+	PCSTATE_RCI_INDEX_C8_RESIDENCY = 8,
+	PCSTATE_RCI_INDEX_C9_RESIDENCY = 9,
+	PCSTATE_RCI_INDEX_C10_RESIDENCY = 10,
+	NUM_CSTATE_COUNTERS,
+};
+
+struct cstate_counter_info_t {
+	unsigned long long data[NUM_CSTATE_COUNTERS];
+	enum cstate_source source[NUM_CSTATE_COUNTERS];
+	unsigned long long msr[NUM_CSTATE_COUNTERS];
+	int fd_perf_core;
+	int fd_perf_pkg;
+};
+
+struct cstate_counter_info_t *ccstate_counter_info;
+unsigned int ccstate_counter_info_size;
+
+#define CSTATE_COUNTER_FLAG_COLLECT_PER_CORE   (1u << 0)
+#define CSTATE_COUNTER_FLAG_COLLECT_PER_THREAD ((1u << 1) | CSTATE_COUNTER_FLAG_COLLECT_PER_CORE)
+#define CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY (1u << 2)
+
+struct cstate_counter_arch_info {
+	int feature_mask;	/* Mask for testing if the counter is supported on host */
+	const char *perf_subsys;
+	const char *perf_name;
+	unsigned long long msr;
+	unsigned int rci_index;	/* Maps data from perf counters to global variables */
+	unsigned long long bic;
+	unsigned long long flags;
+	int pkg_cstate_limit;
+};
+
+static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
+	{
+	 .feature_mask = CC1,
+	 .perf_subsys = "cstate_core",
+	 .perf_name = "c1-residency",
+	 .msr = MSR_CORE_C1_RES,
+	 .rci_index = CCSTATE_RCI_INDEX_C1_RESIDENCY,
+	 .bic = BIC_CPU_c1,
+	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_THREAD,
+	 .pkg_cstate_limit = 0,
+	  },
+	{
+	 .feature_mask = CC3,
+	 .perf_subsys = "cstate_core",
+	 .perf_name = "c3-residency",
+	 .msr = MSR_CORE_C3_RESIDENCY,
+	 .rci_index = CCSTATE_RCI_INDEX_C3_RESIDENCY,
+	 .bic = BIC_CPU_c3,
+	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .pkg_cstate_limit = 0,
+	  },
+	{
+	 .feature_mask = CC6,
+	 .perf_subsys = "cstate_core",
+	 .perf_name = "c6-residency",
+	 .msr = MSR_CORE_C6_RESIDENCY,
+	 .rci_index = CCSTATE_RCI_INDEX_C6_RESIDENCY,
+	 .bic = BIC_CPU_c6,
+	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .pkg_cstate_limit = 0,
+	  },
+	{
+	 .feature_mask = CC7,
+	 .perf_subsys = "cstate_core",
+	 .perf_name = "c7-residency",
+	 .msr = MSR_CORE_C7_RESIDENCY,
+	 .rci_index = CCSTATE_RCI_INDEX_C7_RESIDENCY,
+	 .bic = BIC_CPU_c7,
+	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .pkg_cstate_limit = 0,
+	  },
+	{
+	 .feature_mask = PC2,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c2-residency",
+	 .msr = MSR_PKG_C2_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C2_RESIDENCY,
+	 .bic = BIC_Pkgpc2,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__2,
+	  },
+	{
+	 .feature_mask = PC3,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c3-residency",
+	 .msr = MSR_PKG_C3_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C3_RESIDENCY,
+	 .bic = BIC_Pkgpc3,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__3,
+	  },
+	{
+	 .feature_mask = PC6,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c6-residency",
+	 .msr = MSR_PKG_C6_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C6_RESIDENCY,
+	 .bic = BIC_Pkgpc6,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__6,
+	  },
+	{
+	 .feature_mask = PC7,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c7-residency",
+	 .msr = MSR_PKG_C7_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C7_RESIDENCY,
+	 .bic = BIC_Pkgpc7,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__7,
+	  },
+	{
+	 .feature_mask = PC8,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c8-residency",
+	 .msr = MSR_PKG_C8_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C8_RESIDENCY,
+	 .bic = BIC_Pkgpc8,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__8,
+	  },
+	{
+	 .feature_mask = PC9,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c9-residency",
+	 .msr = MSR_PKG_C9_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C9_RESIDENCY,
+	 .bic = BIC_Pkgpc9,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__9,
+	  },
+	{
+	 .feature_mask = PC10,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c10-residency",
+	 .msr = MSR_PKG_C10_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C10_RESIDENCY,
+	 .bic = BIC_Pkgpc10,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL_10,
+	  },
+};
 
 struct thread_data {
 	struct timeval tv_begin;
@@ -974,10 +1387,10 @@ struct core_data {
 	unsigned long long c7;
 	unsigned long long mc6_us;	/* duplicate as per-core for now, even though per module */
 	unsigned int core_temp_c;
-	unsigned int core_energy;	/* MSR_CORE_ENERGY_STAT */
+	struct rapl_counter core_energy;	/* MSR_CORE_ENERGY_STAT */
 	unsigned int core_id;
 	unsigned long long core_throt_cnt;
-	unsigned long long counter[MAX_ADDED_COUNTERS];
+	unsigned long long counter[MAX_ADDED_CORE_COUNTERS];
 } *core_even, *core_odd;
 
 struct pkg_data {
@@ -989,8 +1402,8 @@ struct pkg_data {
 	unsigned long long pc8;
 	unsigned long long pc9;
 	unsigned long long pc10;
-	unsigned long long cpu_lpi;
-	unsigned long long sys_lpi;
+	long long cpu_lpi;
+	long long sys_lpi;
 	unsigned long long pkg_wtd_core_c0;
 	unsigned long long pkg_any_core_c0;
 	unsigned long long pkg_any_gfxe_c0;
@@ -998,16 +1411,19 @@ struct pkg_data {
 	long long gfx_rc6_ms;
 	unsigned int gfx_mhz;
 	unsigned int gfx_act_mhz;
+	long long sam_mc6_ms;
+	unsigned int sam_mhz;
+	unsigned int sam_act_mhz;
 	unsigned int package_id;
-	unsigned long long energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
-	unsigned long long energy_dram;	/* MSR_DRAM_ENERGY_STATUS */
-	unsigned long long energy_cores;	/* MSR_PP0_ENERGY_STATUS */
-	unsigned long long energy_gfx;	/* MSR_PP1_ENERGY_STATUS */
-	unsigned long long rapl_pkg_perf_status;	/* MSR_PKG_PERF_STATUS */
-	unsigned long long rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
+	struct rapl_counter energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
+	struct rapl_counter energy_dram;	/* MSR_DRAM_ENERGY_STATUS */
+	struct rapl_counter energy_cores;	/* MSR_PP0_ENERGY_STATUS */
+	struct rapl_counter energy_gfx;	/* MSR_PP1_ENERGY_STATUS */
+	struct rapl_counter rapl_pkg_perf_status;	/* MSR_PKG_PERF_STATUS */
+	struct rapl_counter rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
 	unsigned int pkg_temp_c;
 	unsigned int uncore_mhz;
-	unsigned long long counter[MAX_ADDED_COUNTERS];
+	unsigned long long counter[MAX_ADDED_PACKAGE_COUNTERS];
 } *package_even, *package_odd;
 
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
@@ -1150,6 +1566,44 @@ struct sys_counters {
 	struct msr_counter *pp;
 } sys;
 
+static size_t free_msr_counters_(struct msr_counter **pp)
+{
+	struct msr_counter *p = NULL;
+	size_t num_freed = 0;
+
+	while (*pp) {
+		p = *pp;
+
+		if (p->msr_num != 0) {
+			*pp = p->next;
+
+			free(p);
+			++num_freed;
+
+			continue;
+		}
+
+		pp = &p->next;
+	}
+
+	return num_freed;
+}
+
+/*
+ * Free all added counters accessed via msr.
+ */
+static void free_sys_msr_counters(void)
+{
+	/* Thread counters */
+	sys.added_thread_counters -= free_msr_counters_(&sys.tp);
+
+	/* Core counters */
+	sys.added_core_counters -= free_msr_counters_(&sys.cp);
+
+	/* Package counters */
+	sys.added_package_counters -= free_msr_counters_(&sys.pp);
+}
+
 struct system_summary {
 	struct thread_data threads;
 	struct core_data cores;
@@ -1176,6 +1630,9 @@ struct topo_params {
 	int allowed_cpus;
 	int allowed_cores;
 	int max_cpu_num;
+	int max_core_id;
+	int max_package_id;
+	int max_die_id;
 	int max_node_num;
 	int nodes_per_pkg;
 	int cores_per_node;
@@ -1280,34 +1737,49 @@ int get_msr_fd(int cpu)
 	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
-		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
+		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, "
+		    "or run with --no-msr, or run as root", pathname);
 
 	fd_percpu[cpu] = fd;
 
 	return fd;
 }
 
+static void bic_disable_msr_access(void)
+{
+	const unsigned long bic_msrs = BIC_SMI | BIC_Mod_c6 | BIC_CoreTmp |
+	    BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_PkgTmp;
+
+	bic_enabled &= ~bic_msrs;
+
+	free_sys_msr_counters();
+}
+
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags)
 {
+	assert(!no_perf);
+
 	return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
 }
 
-static int perf_instr_count_open(int cpu_num)
+static long open_perf_counter(int cpu, unsigned int type, unsigned int config, int group_fd, __u64 read_format)
 {
-	struct perf_event_attr pea;
-	int fd;
+	struct perf_event_attr attr;
+	const pid_t pid = -1;
+	const unsigned long flags = 0;
 
-	memset(&pea, 0, sizeof(struct perf_event_attr));
-	pea.type = PERF_TYPE_HARDWARE;
-	pea.size = sizeof(struct perf_event_attr);
-	pea.config = PERF_COUNT_HW_INSTRUCTIONS;
+	assert(!no_perf);
 
-	/* counter for cpu_num, including user + kernel and all processes */
-	fd = perf_event_open(&pea, -1, cpu_num, -1, 0);
-	if (fd == -1) {
-		warnx("capget(CAP_PERFMON) failed, try \"# setcap cap_sys_admin=ep %s\"", progname);
-		BIC_NOT_PRESENT(BIC_IPC);
-	}
+	memset(&attr, 0, sizeof(struct perf_event_attr));
+
+	attr.type = type;
+	attr.size = sizeof(struct perf_event_attr);
+	attr.config = config;
+	attr.disabled = 0;
+	attr.sample_type = PERF_SAMPLE_IDENTIFIER;
+	attr.read_format = read_format;
+
+	const int fd = perf_event_open(&attr, pid, cpu, group_fd, flags);
 
 	return fd;
 }
@@ -1317,7 +1789,7 @@ int get_instr_count_fd(int cpu)
 	if (fd_instr_count_percpu[cpu])
 		return fd_instr_count_percpu[cpu];
 
-	fd_instr_count_percpu[cpu] = perf_instr_count_open(cpu);
+	fd_instr_count_percpu[cpu] = open_perf_counter(cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, -1, 0);
 
 	return fd_instr_count_percpu[cpu];
 }
@@ -1326,10 +1798,27 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
 
+	assert(!no_msr);
+
 	retval = pread(get_msr_fd(cpu), msr, sizeof(*msr), offset);
 
 	if (retval != sizeof *msr)
 		err(-1, "cpu%d: msr offset 0x%llx read failed", cpu, (unsigned long long)offset);
+
+	return 0;
+}
+
+int probe_msr(int cpu, off_t offset)
+{
+	ssize_t retval;
+	unsigned long long dummy;
+
+	assert(!no_msr);
+
+	retval = pread(get_msr_fd(cpu), &dummy, sizeof(dummy), offset);
+
+	if (retval != sizeof(dummy))
+		return 1;
 
 	return 0;
 }
@@ -1369,6 +1858,8 @@ void help(void)
 		"		Override default 5-second measurement interval\n"
 		"  -J, --Joules	displays energy in Joules instead of Watts\n"
 		"  -l, --list	list column headers only\n"
+		"  -M, --no-msr Disable all uses of the MSR driver\n"
+		"  -P, --no-perf Disable all uses of the perf API\n"
 		"  -n, --num_iterations num\n"
 		"		number of the measurement iterations\n"
 		"  -N, --header_iterations num\n"
@@ -1573,6 +2064,15 @@ void print_header(char *delim)
 	if (DO_BIC(BIC_GFXACTMHz))
 		outp += sprintf(outp, "%sGFXAMHz", (printed++ ? delim : ""));
 
+	if (DO_BIC(BIC_SAM_mc6))
+		outp += sprintf(outp, "%sSAM%%mc6", (printed++ ? delim : ""));
+
+	if (DO_BIC(BIC_SAMMHz))
+		outp += sprintf(outp, "%sSAMMHz", (printed++ ? delim : ""));
+
+	if (DO_BIC(BIC_SAMACTMHz))
+		outp += sprintf(outp, "%sSAMAMHz", (printed++ ? delim : ""));
+
 	if (DO_BIC(BIC_Totl_c0))
 		outp += sprintf(outp, "%sTotl%%C0", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Any_c0))
@@ -1635,13 +2135,15 @@ void print_header(char *delim)
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 64)
 				outp += sprintf(outp, "%s%18.18s", delim, mp->name);
-			else
+			else if (mp->width == 32)
 				outp += sprintf(outp, "%s%10.10s", delim, mp->name);
+			else
+				outp += sprintf(outp, "%s%7.7s", delim, mp->name);
 		} else {
 			if ((mp->type == COUNTER_ITEMS) && sums_need_wide_columns)
 				outp += sprintf(outp, "%s%8s", delim, mp->name);
 			else
-				outp += sprintf(outp, "%s%s", delim, mp->name);
+				outp += sprintf(outp, "%s%7.7s", delim, mp->name);
 		}
 	}
 
@@ -1671,26 +2173,35 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 			outp += sprintf(outp, "SMI: %d\n", t->smi_count);
 
 		for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
-			outp += sprintf(outp, "tADDED [%d] msr0x%x: %08llX\n", i, mp->msr_num, t->counter[i]);
+			outp +=
+			    sprintf(outp, "tADDED [%d] %8s msr0x%x: %08llX %s\n", i, mp->name, mp->msr_num,
+				    t->counter[i], mp->sp->path);
 		}
 	}
 
-	if (c) {
+	if (c && is_cpu_first_thread_in_core(t, c, p)) {
 		outp += sprintf(outp, "core: %d\n", c->core_id);
 		outp += sprintf(outp, "c3: %016llX\n", c->c3);
 		outp += sprintf(outp, "c6: %016llX\n", c->c6);
 		outp += sprintf(outp, "c7: %016llX\n", c->c7);
 		outp += sprintf(outp, "DTS: %dC\n", c->core_temp_c);
 		outp += sprintf(outp, "cpu_throt_count: %016llX\n", c->core_throt_cnt);
-		outp += sprintf(outp, "Joules: %0X\n", c->core_energy);
+
+		const unsigned long long energy_value = c->core_energy.raw_value * c->core_energy.scale;
+		const double energy_scale = c->core_energy.scale;
+
+		if (c->core_energy.unit == RAPL_UNIT_JOULES)
+			outp += sprintf(outp, "Joules: %0llX (scale: %lf)\n", energy_value, energy_scale);
 
 		for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
-			outp += sprintf(outp, "cADDED [%d] msr0x%x: %08llX\n", i, mp->msr_num, c->counter[i]);
+			outp +=
+			    sprintf(outp, "cADDED [%d] %8s msr0x%x: %08llX %s\n", i, mp->name, mp->msr_num,
+				    c->counter[i], mp->sp->path);
 		}
 		outp += sprintf(outp, "mc6_us: %016llX\n", c->mc6_us);
 	}
 
-	if (p) {
+	if (p && is_cpu_first_core_in_package(t, c, p)) {
 		outp += sprintf(outp, "package: %d\n", p->package_id);
 
 		outp += sprintf(outp, "Weighted cores: %016llX\n", p->pkg_wtd_core_c0);
@@ -1710,22 +2221,41 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		outp += sprintf(outp, "pc10: %016llX\n", p->pc10);
 		outp += sprintf(outp, "cpu_lpi: %016llX\n", p->cpu_lpi);
 		outp += sprintf(outp, "sys_lpi: %016llX\n", p->sys_lpi);
-		outp += sprintf(outp, "Joules PKG: %0llX\n", p->energy_pkg);
-		outp += sprintf(outp, "Joules COR: %0llX\n", p->energy_cores);
-		outp += sprintf(outp, "Joules GFX: %0llX\n", p->energy_gfx);
-		outp += sprintf(outp, "Joules RAM: %0llX\n", p->energy_dram);
-		outp += sprintf(outp, "Throttle PKG: %0llX\n", p->rapl_pkg_perf_status);
-		outp += sprintf(outp, "Throttle RAM: %0llX\n", p->rapl_dram_perf_status);
+		outp += sprintf(outp, "Joules PKG: %0llX\n", p->energy_pkg.raw_value);
+		outp += sprintf(outp, "Joules COR: %0llX\n", p->energy_cores.raw_value);
+		outp += sprintf(outp, "Joules GFX: %0llX\n", p->energy_gfx.raw_value);
+		outp += sprintf(outp, "Joules RAM: %0llX\n", p->energy_dram.raw_value);
+		outp += sprintf(outp, "Throttle PKG: %0llX\n", p->rapl_pkg_perf_status.raw_value);
+		outp += sprintf(outp, "Throttle RAM: %0llX\n", p->rapl_dram_perf_status.raw_value);
 		outp += sprintf(outp, "PTM: %dC\n", p->pkg_temp_c);
 
 		for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
-			outp += sprintf(outp, "pADDED [%d] msr0x%x: %08llX\n", i, mp->msr_num, p->counter[i]);
+			outp +=
+			    sprintf(outp, "pADDED [%d] %8s msr0x%x: %08llX %s\n", i, mp->name, mp->msr_num,
+				    p->counter[i], mp->sp->path);
 		}
 	}
 
 	outp += sprintf(outp, "\n");
 
 	return 0;
+}
+
+double rapl_counter_get_value(const struct rapl_counter *c, enum rapl_unit desired_unit, double interval)
+{
+	assert(desired_unit != RAPL_UNIT_INVALID);
+
+	/*
+	 * For now we don't expect anything other than joules,
+	 * so just simplify the logic.
+	 */
+	assert(c->unit == RAPL_UNIT_JOULES);
+
+	const double scaled = c->raw_value * c->scale;
+
+	if (desired_unit == RAPL_UNIT_WATTS)
+		return scaled / interval;
+	return scaled;
 }
 
 /*
@@ -1921,9 +2451,11 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	if (DO_BIC(BIC_CorWatt) && platform->has_per_core_rapl)
 		outp +=
-		    sprintf(outp, fmt8, (printed++ ? delim : ""), c->core_energy * rapl_energy_units / interval_float);
+		    sprintf(outp, fmt8, (printed++ ? delim : ""),
+			    rapl_counter_get_value(&c->core_energy, RAPL_UNIT_WATTS, interval_float));
 	if (DO_BIC(BIC_Cor_J) && platform->has_per_core_rapl)
-		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), c->core_energy * rapl_energy_units);
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
+				rapl_counter_get_value(&c->core_energy, RAPL_UNIT_JOULES, interval_float));
 
 	/* print per-package data only for 1st core in package */
 	if (!is_cpu_first_core_in_package(t, c, p))
@@ -1951,6 +2483,24 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	if (DO_BIC(BIC_GFXACTMHz))
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->gfx_act_mhz);
 
+	/* SAMmc6 */
+	if (DO_BIC(BIC_SAM_mc6)) {
+		if (p->sam_mc6_ms == -1) {	/* detect GFX counter reset */
+			outp += sprintf(outp, "%s**.**", (printed++ ? delim : ""));
+		} else {
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""),
+					p->sam_mc6_ms / 10.0 / interval_float);
+		}
+	}
+
+	/* SAMMHz */
+	if (DO_BIC(BIC_SAMMHz))
+		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->sam_mhz);
+
+	/* SAMACTMHz */
+	if (DO_BIC(BIC_SAMACTMHz))
+		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->sam_act_mhz);
+
 	/* Totl%C0, Any%C0 GFX%C0 CPUGFX% */
 	if (DO_BIC(BIC_Totl_c0))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pkg_wtd_core_c0 / tsc);
@@ -1976,43 +2526,59 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pc10 / tsc);
 
-	if (DO_BIC(BIC_CPU_LPI))
-		outp +=
-		    sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->cpu_lpi / 1000000.0 / interval_float);
-	if (DO_BIC(BIC_SYS_LPI))
-		outp +=
-		    sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->sys_lpi / 1000000.0 / interval_float);
+	if (DO_BIC(BIC_CPU_LPI)) {
+		if (p->cpu_lpi >= 0)
+			outp +=
+			    sprintf(outp, "%s%.2f", (printed++ ? delim : ""),
+				    100.0 * p->cpu_lpi / 1000000.0 / interval_float);
+		else
+			outp += sprintf(outp, "%s(neg)", (printed++ ? delim : ""));
+	}
+	if (DO_BIC(BIC_SYS_LPI)) {
+		if (p->sys_lpi >= 0)
+			outp +=
+			    sprintf(outp, "%s%.2f", (printed++ ? delim : ""),
+				    100.0 * p->sys_lpi / 1000000.0 / interval_float);
+		else
+			outp += sprintf(outp, "%s(neg)", (printed++ ? delim : ""));
+	}
 
 	if (DO_BIC(BIC_PkgWatt))
 		outp +=
-		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_pkg * rapl_energy_units / interval_float);
-
+		    sprintf(outp, fmt8, (printed++ ? delim : ""),
+			    rapl_counter_get_value(&p->energy_pkg, RAPL_UNIT_WATTS, interval_float));
 	if (DO_BIC(BIC_CorWatt) && !platform->has_per_core_rapl)
 		outp +=
-		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_cores * rapl_energy_units / interval_float);
+		    sprintf(outp, fmt8, (printed++ ? delim : ""),
+			    rapl_counter_get_value(&p->energy_cores, RAPL_UNIT_WATTS, interval_float));
 	if (DO_BIC(BIC_GFXWatt))
 		outp +=
-		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_gfx * rapl_energy_units / interval_float);
+		    sprintf(outp, fmt8, (printed++ ? delim : ""),
+			    rapl_counter_get_value(&p->energy_gfx, RAPL_UNIT_WATTS, interval_float));
 	if (DO_BIC(BIC_RAMWatt))
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""),
-			    p->energy_dram * rapl_dram_energy_units / interval_float);
+			    rapl_counter_get_value(&p->energy_dram, RAPL_UNIT_WATTS, interval_float));
 	if (DO_BIC(BIC_Pkg_J))
-		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_pkg * rapl_energy_units);
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
+				rapl_counter_get_value(&p->energy_pkg, RAPL_UNIT_JOULES, interval_float));
 	if (DO_BIC(BIC_Cor_J) && !platform->has_per_core_rapl)
-		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_cores * rapl_energy_units);
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
+				rapl_counter_get_value(&p->energy_cores, RAPL_UNIT_JOULES, interval_float));
 	if (DO_BIC(BIC_GFX_J))
-		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_gfx * rapl_energy_units);
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
+				rapl_counter_get_value(&p->energy_gfx, RAPL_UNIT_JOULES, interval_float));
 	if (DO_BIC(BIC_RAM_J))
-		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_dram * rapl_dram_energy_units);
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
+				rapl_counter_get_value(&p->energy_dram, RAPL_UNIT_JOULES, interval_float));
 	if (DO_BIC(BIC_PKG__))
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""),
-			    100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
+			    rapl_counter_get_value(&p->rapl_pkg_perf_status, RAPL_UNIT_WATTS, interval_float));
 	if (DO_BIC(BIC_RAM__))
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""),
-			    100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
+			    rapl_counter_get_value(&p->rapl_dram_perf_status, RAPL_UNIT_WATTS, interval_float));
 	/* UncMHz */
 	if (DO_BIC(BIC_UNCORE_MHZ))
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->uncore_mhz);
@@ -2031,7 +2597,8 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 				outp += sprintf(outp, "%s%lld", (printed++ ? delim : ""), p->counter[i]);
 		} else if (mp->format == FORMAT_PERCENT) {
 			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->counter[i] / tsc);
-		}
+		} else if (mp->type == COUNTER_K2M)
+			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), (unsigned int)p->counter[i] / 1000);
 	}
 
 done:
@@ -2121,15 +2688,27 @@ int delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->gfx_mhz = new->gfx_mhz;
 	old->gfx_act_mhz = new->gfx_act_mhz;
 
-	old->energy_pkg = new->energy_pkg - old->energy_pkg;
-	old->energy_cores = new->energy_cores - old->energy_cores;
-	old->energy_gfx = new->energy_gfx - old->energy_gfx;
-	old->energy_dram = new->energy_dram - old->energy_dram;
-	old->rapl_pkg_perf_status = new->rapl_pkg_perf_status - old->rapl_pkg_perf_status;
-	old->rapl_dram_perf_status = new->rapl_dram_perf_status - old->rapl_dram_perf_status;
+	/* flag an error when mc6 counter resets/wraps */
+	if (old->sam_mc6_ms > new->sam_mc6_ms)
+		old->sam_mc6_ms = -1;
+	else
+		old->sam_mc6_ms = new->sam_mc6_ms - old->sam_mc6_ms;
+
+	old->sam_mhz = new->sam_mhz;
+	old->sam_act_mhz = new->sam_act_mhz;
+
+	old->energy_pkg.raw_value = new->energy_pkg.raw_value - old->energy_pkg.raw_value;
+	old->energy_cores.raw_value = new->energy_cores.raw_value - old->energy_cores.raw_value;
+	old->energy_gfx.raw_value = new->energy_gfx.raw_value - old->energy_gfx.raw_value;
+	old->energy_dram.raw_value = new->energy_dram.raw_value - old->energy_dram.raw_value;
+	old->rapl_pkg_perf_status.raw_value = new->rapl_pkg_perf_status.raw_value - old->rapl_pkg_perf_status.raw_value;
+	old->rapl_dram_perf_status.raw_value =
+	    new->rapl_dram_perf_status.raw_value - old->rapl_dram_perf_status.raw_value;
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
+			old->counter[i] = new->counter[i];
+		else if (mp->format == FORMAT_AVERAGE)
 			old->counter[i] = new->counter[i];
 		else
 			old->counter[i] = new->counter[i] - old->counter[i];
@@ -2150,7 +2729,7 @@ void delta_core(struct core_data *new, struct core_data *old)
 	old->core_throt_cnt = new->core_throt_cnt;
 	old->mc6_us = new->mc6_us - old->mc6_us;
 
-	DELTA_WRAP32(new->core_energy, old->core_energy);
+	DELTA_WRAP32(new->core_energy.raw_value, old->core_energy.raw_value);
 
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
@@ -2277,6 +2856,13 @@ int delta_cpu(struct thread_data *t, struct core_data *c,
 	return retval;
 }
 
+void rapl_counter_clear(struct rapl_counter *c)
+{
+	c->raw_value = 0;
+	c->scale = 0.0;
+	c->unit = RAPL_UNIT_INVALID;
+}
+
 void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	int i;
@@ -2304,7 +2890,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	c->c7 = 0;
 	c->mc6_us = 0;
 	c->core_temp_c = 0;
-	c->core_energy = 0;
+	rapl_counter_clear(&c->core_energy);
 	c->core_throt_cnt = 0;
 
 	p->pkg_wtd_core_c0 = 0;
@@ -2325,18 +2911,21 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->cpu_lpi = 0;
 	p->sys_lpi = 0;
 
-	p->energy_pkg = 0;
-	p->energy_dram = 0;
-	p->energy_cores = 0;
-	p->energy_gfx = 0;
-	p->rapl_pkg_perf_status = 0;
-	p->rapl_dram_perf_status = 0;
+	rapl_counter_clear(&p->energy_pkg);
+	rapl_counter_clear(&p->energy_dram);
+	rapl_counter_clear(&p->energy_cores);
+	rapl_counter_clear(&p->energy_gfx);
+	rapl_counter_clear(&p->rapl_pkg_perf_status);
+	rapl_counter_clear(&p->rapl_dram_perf_status);
 	p->pkg_temp_c = 0;
 
 	p->gfx_rc6_ms = 0;
 	p->uncore_mhz = 0;
 	p->gfx_mhz = 0;
 	p->gfx_act_mhz = 0;
+	p->sam_mc6_ms = 0;
+	p->sam_mhz = 0;
+	p->sam_act_mhz = 0;
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next)
 		t->counter[i] = 0;
 
@@ -2345,6 +2934,20 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next)
 		p->counter[i] = 0;
+}
+
+void rapl_counter_accumulate(struct rapl_counter *dst, const struct rapl_counter *src)
+{
+	/* Copy unit and scale from src if dst is not initialized */
+	if (dst->unit == RAPL_UNIT_INVALID) {
+		dst->unit = src->unit;
+		dst->scale = src->scale;
+	}
+
+	assert(dst->unit == src->unit);
+	assert(dst->scale == src->scale);
+
+	dst->raw_value += src->raw_value;
 }
 
 int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -2393,7 +2996,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	average.cores.core_temp_c = MAX(average.cores.core_temp_c, c->core_temp_c);
 	average.cores.core_throt_cnt = MAX(average.cores.core_throt_cnt, c->core_throt_cnt);
 
-	average.cores.core_energy += c->core_energy;
+	rapl_counter_accumulate(&average.cores.core_energy, &c->core_energy);
 
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
@@ -2428,25 +3031,29 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	average.packages.cpu_lpi = p->cpu_lpi;
 	average.packages.sys_lpi = p->sys_lpi;
 
-	average.packages.energy_pkg += p->energy_pkg;
-	average.packages.energy_dram += p->energy_dram;
-	average.packages.energy_cores += p->energy_cores;
-	average.packages.energy_gfx += p->energy_gfx;
+	rapl_counter_accumulate(&average.packages.energy_pkg, &p->energy_pkg);
+	rapl_counter_accumulate(&average.packages.energy_dram, &p->energy_dram);
+	rapl_counter_accumulate(&average.packages.energy_cores, &p->energy_cores);
+	rapl_counter_accumulate(&average.packages.energy_gfx, &p->energy_gfx);
 
 	average.packages.gfx_rc6_ms = p->gfx_rc6_ms;
 	average.packages.uncore_mhz = p->uncore_mhz;
 	average.packages.gfx_mhz = p->gfx_mhz;
 	average.packages.gfx_act_mhz = p->gfx_act_mhz;
+	average.packages.sam_mc6_ms = p->sam_mc6_ms;
+	average.packages.sam_mhz = p->sam_mhz;
+	average.packages.sam_act_mhz = p->sam_act_mhz;
 
 	average.packages.pkg_temp_c = MAX(average.packages.pkg_temp_c, p->pkg_temp_c);
 
-	average.packages.rapl_pkg_perf_status += p->rapl_pkg_perf_status;
-	average.packages.rapl_dram_perf_status += p->rapl_dram_perf_status;
+	rapl_counter_accumulate(&average.packages.rapl_pkg_perf_status, &p->rapl_pkg_perf_status);
+	rapl_counter_accumulate(&average.packages.rapl_dram_perf_status, &p->rapl_dram_perf_status);
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
-		if (mp->format == FORMAT_RAW)
-			continue;
-		average.packages.counter[i] += p->counter[i];
+		if ((mp->format == FORMAT_RAW) && (topo.num_packages == 0))
+			average.packages.counter[i] = p->counter[i];
+		else
+			average.packages.counter[i] += p->counter[i];
 	}
 	return 0;
 }
@@ -2575,34 +3182,50 @@ unsigned long long snapshot_sysfs_counter(char *path)
 	return counter;
 }
 
-int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
+int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp, char *counter_path)
 {
 	if (mp->msr_num != 0) {
+		assert(!no_msr);
 		if (get_msr(cpu, mp->msr_num, counterp))
 			return -1;
 	} else {
 		char path[128 + PATH_BYTES];
 
 		if (mp->flags & SYSFS_PERCPU) {
-			sprintf(path, "/sys/devices/system/cpu/cpu%d/%s", cpu, mp->path);
+			sprintf(path, "/sys/devices/system/cpu/cpu%d/%s", cpu, mp->sp->path);
 
 			*counterp = snapshot_sysfs_counter(path);
 		} else {
-			*counterp = snapshot_sysfs_counter(mp->path);
+			*counterp = snapshot_sysfs_counter(counter_path);
 		}
 	}
 
 	return 0;
 }
 
-unsigned long long get_uncore_mhz(int package, int die)
+unsigned long long get_legacy_uncore_mhz(int package)
 {
 	char path[128];
+	int die;
+	static int warn_once;
 
-	sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/current_freq_khz", package,
-		die);
+	/*
+	 * for this package, use the first die_id that exists
+	 */
+	for (die = 0; die <= topo.max_die_id; ++die) {
 
-	return (snapshot_sysfs_counter(path) / 1000);
+		sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/current_freq_khz",
+			package, die);
+
+		if (access(path, R_OK) == 0)
+			return (snapshot_sysfs_counter(path) / 1000);
+	}
+	if (!warn_once) {
+		warnx("BUG: %s: No %s", __func__, path);
+		warn_once = 1;
+	}
+
+	return 0;
 }
 
 int get_epb(int cpu)
@@ -2627,6 +3250,9 @@ int get_epb(int cpu)
 	return epb;
 
 msr_fallback:
+	if (no_msr)
+		return -1;
+
 	get_msr(cpu, MSR_IA32_ENERGY_PERF_BIAS, &msr);
 
 	return msr & 0xf;
@@ -2700,6 +3326,513 @@ int get_core_throt_cnt(int cpu, unsigned long long *cnt)
 	return 0;
 }
 
+struct amperf_group_fd {
+	int aperf;		/* Also the group descriptor */
+	int mperf;
+};
+
+static int read_perf_counter_info(const char *const path, const char *const parse_format, void *value_ptr)
+{
+	int fdmt;
+	int bytes_read;
+	char buf[64];
+	int ret = -1;
+
+	fdmt = open(path, O_RDONLY, 0);
+	if (fdmt == -1) {
+		if (debug)
+			fprintf(stderr, "Failed to parse perf counter info %s\n", path);
+		ret = -1;
+		goto cleanup_and_exit;
+	}
+
+	bytes_read = read(fdmt, buf, sizeof(buf) - 1);
+	if (bytes_read <= 0 || bytes_read >= (int)sizeof(buf)) {
+		if (debug)
+			fprintf(stderr, "Failed to parse perf counter info %s\n", path);
+		ret = -1;
+		goto cleanup_and_exit;
+	}
+
+	buf[bytes_read] = '\0';
+
+	if (sscanf(buf, parse_format, value_ptr) != 1) {
+		if (debug)
+			fprintf(stderr, "Failed to parse perf counter info %s\n", path);
+		ret = -1;
+		goto cleanup_and_exit;
+	}
+
+	ret = 0;
+
+cleanup_and_exit:
+	close(fdmt);
+	return ret;
+}
+
+static unsigned int read_perf_counter_info_n(const char *const path, const char *const parse_format)
+{
+	unsigned int v;
+	int status;
+
+	status = read_perf_counter_info(path, parse_format, &v);
+	if (status)
+		v = -1;
+
+	return v;
+}
+
+static unsigned int read_msr_type(void)
+{
+	const char *const path = "/sys/bus/event_source/devices/msr/type";
+	const char *const format = "%u";
+
+	return read_perf_counter_info_n(path, format);
+}
+
+static unsigned int read_aperf_config(void)
+{
+	const char *const path = "/sys/bus/event_source/devices/msr/events/aperf";
+	const char *const format = "event=%x";
+
+	return read_perf_counter_info_n(path, format);
+}
+
+static unsigned int read_mperf_config(void)
+{
+	const char *const path = "/sys/bus/event_source/devices/msr/events/mperf";
+	const char *const format = "event=%x";
+
+	return read_perf_counter_info_n(path, format);
+}
+
+static unsigned int read_perf_type(const char *subsys)
+{
+	const char *const path_format = "/sys/bus/event_source/devices/%s/type";
+	const char *const format = "%u";
+	char path[128];
+
+	snprintf(path, sizeof(path), path_format, subsys);
+
+	return read_perf_counter_info_n(path, format);
+}
+
+static unsigned int read_rapl_config(const char *subsys, const char *event_name)
+{
+	const char *const path_format = "/sys/bus/event_source/devices/%s/events/%s";
+	const char *const format = "event=%x";
+	char path[128];
+
+	snprintf(path, sizeof(path), path_format, subsys, event_name);
+
+	return read_perf_counter_info_n(path, format);
+}
+
+static unsigned int read_perf_rapl_unit(const char *subsys, const char *event_name)
+{
+	const char *const path_format = "/sys/bus/event_source/devices/%s/events/%s.unit";
+	const char *const format = "%s";
+	char path[128];
+	char unit_buffer[16];
+
+	snprintf(path, sizeof(path), path_format, subsys, event_name);
+
+	read_perf_counter_info(path, format, &unit_buffer);
+	if (strcmp("Joules", unit_buffer) == 0)
+		return RAPL_UNIT_JOULES;
+
+	return RAPL_UNIT_INVALID;
+}
+
+static double read_perf_rapl_scale(const char *subsys, const char *event_name)
+{
+	const char *const path_format = "/sys/bus/event_source/devices/%s/events/%s.scale";
+	const char *const format = "%lf";
+	char path[128];
+	double scale;
+
+	snprintf(path, sizeof(path), path_format, subsys, event_name);
+
+	if (read_perf_counter_info(path, format, &scale))
+		return 0.0;
+
+	return scale;
+}
+
+static struct amperf_group_fd open_amperf_fd(int cpu)
+{
+	const unsigned int msr_type = read_msr_type();
+	const unsigned int aperf_config = read_aperf_config();
+	const unsigned int mperf_config = read_mperf_config();
+	struct amperf_group_fd fds = {.aperf = -1, .mperf = -1 };
+
+	fds.aperf = open_perf_counter(cpu, msr_type, aperf_config, -1, PERF_FORMAT_GROUP);
+	fds.mperf = open_perf_counter(cpu, msr_type, mperf_config, fds.aperf, PERF_FORMAT_GROUP);
+
+	return fds;
+}
+
+static int get_amperf_fd(int cpu)
+{
+	assert(fd_amperf_percpu);
+
+	if (fd_amperf_percpu[cpu].aperf)
+		return fd_amperf_percpu[cpu].aperf;
+
+	fd_amperf_percpu[cpu] = open_amperf_fd(cpu);
+
+	return fd_amperf_percpu[cpu].aperf;
+}
+
+/* Read APERF, MPERF and TSC using the perf API. */
+static int read_aperf_mperf_tsc_perf(struct thread_data *t, int cpu)
+{
+	union {
+		struct {
+			unsigned long nr_entries;
+			unsigned long aperf;
+			unsigned long mperf;
+		};
+
+		unsigned long as_array[3];
+	} cnt;
+
+	const int fd_amperf = get_amperf_fd(cpu);
+
+	/*
+	 * Read the TSC with rdtsc, because we want the absolute value and not
+	 * the offset from the start of the counter.
+	 */
+	t->tsc = rdtsc();
+
+	const int n = read(fd_amperf, &cnt.as_array[0], sizeof(cnt.as_array));
+
+	if (n != sizeof(cnt.as_array))
+		return -2;
+
+	t->aperf = cnt.aperf * aperf_mperf_multiplier;
+	t->mperf = cnt.mperf * aperf_mperf_multiplier;
+
+	return 0;
+}
+
+/* Read APERF, MPERF and TSC using the MSR driver and rdtsc instruction. */
+static int read_aperf_mperf_tsc_msr(struct thread_data *t, int cpu)
+{
+	unsigned long long tsc_before, tsc_between, tsc_after, aperf_time, mperf_time;
+	int aperf_mperf_retry_count = 0;
+
+	/*
+	 * The TSC, APERF and MPERF must be read together for
+	 * APERF/MPERF and MPERF/TSC to give accurate results.
+	 *
+	 * Unfortunately, APERF and MPERF are read by
+	 * individual system call, so delays may occur
+	 * between them.  If the time to read them
+	 * varies by a large amount, we re-read them.
+	 */
+
+	/*
+	 * This initial dummy APERF read has been seen to
+	 * reduce jitter in the subsequent reads.
+	 */
+
+	if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
+		return -3;
+
+retry:
+	t->tsc = rdtsc();	/* re-read close to APERF */
+
+	tsc_before = t->tsc;
+
+	if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
+		return -3;
+
+	tsc_between = rdtsc();
+
+	if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
+		return -4;
+
+	tsc_after = rdtsc();
+
+	aperf_time = tsc_between - tsc_before;
+	mperf_time = tsc_after - tsc_between;
+
+	/*
+	 * If the system call latency to read APERF and MPERF
+	 * differ by more than 2x, then try again.
+	 */
+	if ((aperf_time > (2 * mperf_time)) || (mperf_time > (2 * aperf_time))) {
+		aperf_mperf_retry_count++;
+		if (aperf_mperf_retry_count < 5)
+			goto retry;
+		else
+			warnx("cpu%d jitter %lld %lld", cpu, aperf_time, mperf_time);
+	}
+	aperf_mperf_retry_count = 0;
+
+	t->aperf = t->aperf * aperf_mperf_multiplier;
+	t->mperf = t->mperf * aperf_mperf_multiplier;
+
+	return 0;
+}
+
+size_t rapl_counter_info_count_perf(const struct rapl_counter_info_t *rci)
+{
+	size_t ret = 0;
+
+	for (int i = 0; i < NUM_RAPL_COUNTERS; ++i)
+		if (rci->source[i] == RAPL_SOURCE_PERF)
+			++ret;
+
+	return ret;
+}
+
+static size_t cstate_counter_info_count_perf(const struct cstate_counter_info_t *cci)
+{
+	size_t ret = 0;
+
+	for (int i = 0; i < NUM_CSTATE_COUNTERS; ++i)
+		if (cci->source[i] == CSTATE_SOURCE_PERF)
+			++ret;
+
+	return ret;
+}
+
+void write_rapl_counter(struct rapl_counter *rc, struct rapl_counter_info_t *rci, unsigned int idx)
+{
+	rc->raw_value = rci->data[idx];
+	rc->unit = rci->unit[idx];
+	rc->scale = rci->scale[idx];
+}
+
+int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct pkg_data *p)
+{
+	unsigned long long perf_data[NUM_RAPL_COUNTERS + 1];
+	struct rapl_counter_info_t *rci;
+
+	if (debug)
+		fprintf(stderr, "%s: cpu%d domain%d\n", __func__, cpu, domain);
+
+	assert(rapl_counter_info_perdomain);
+	assert(domain < rapl_counter_info_perdomain_size);
+
+	rci = &rapl_counter_info_perdomain[domain];
+
+	/*
+	 * If we have any perf counters to read, read them all now, in bulk
+	 */
+	if (rci->fd_perf != -1) {
+		size_t num_perf_counters = rapl_counter_info_count_perf(rci);
+		const ssize_t expected_read_size = (num_perf_counters + 1) * sizeof(unsigned long long);
+		const ssize_t actual_read_size = read(rci->fd_perf, &perf_data[0], sizeof(perf_data));
+
+		if (actual_read_size != expected_read_size)
+			err(-1, "%s: failed to read perf_data (%zu %zu)", __func__, expected_read_size,
+			    actual_read_size);
+	}
+
+	for (unsigned int i = 0, pi = 1; i < NUM_RAPL_COUNTERS; ++i) {
+		switch (rci->source[i]) {
+		case RAPL_SOURCE_NONE:
+			break;
+
+		case RAPL_SOURCE_PERF:
+			assert(pi < ARRAY_SIZE(perf_data));
+			assert(rci->fd_perf != -1);
+
+			if (debug)
+				fprintf(stderr, "Reading rapl counter via perf at %u (%llu %e %lf)\n",
+					i, perf_data[pi], rci->scale[i], perf_data[pi] * rci->scale[i]);
+
+			rci->data[i] = perf_data[pi];
+
+			++pi;
+			break;
+
+		case RAPL_SOURCE_MSR:
+			if (debug)
+				fprintf(stderr, "Reading rapl counter via msr at %u\n", i);
+
+			assert(!no_msr);
+			if (rci->flags[i] & RAPL_COUNTER_FLAG_USE_MSR_SUM) {
+				if (get_msr_sum(cpu, rci->msr[i], &rci->data[i]))
+					return -13 - i;
+			} else {
+				if (get_msr(cpu, rci->msr[i], &rci->data[i]))
+					return -13 - i;
+			}
+
+			rci->data[i] &= rci->msr_mask[i];
+			if (rci->msr_shift[i] >= 0)
+				rci->data[i] >>= abs(rci->msr_shift[i]);
+			else
+				rci->data[i] <<= abs(rci->msr_shift[i]);
+
+			break;
+		}
+	}
+
+	BUILD_BUG_ON(NUM_RAPL_COUNTERS != 7);
+	write_rapl_counter(&p->energy_pkg, rci, RAPL_RCI_INDEX_ENERGY_PKG);
+	write_rapl_counter(&p->energy_cores, rci, RAPL_RCI_INDEX_ENERGY_CORES);
+	write_rapl_counter(&p->energy_dram, rci, RAPL_RCI_INDEX_DRAM);
+	write_rapl_counter(&p->energy_gfx, rci, RAPL_RCI_INDEX_GFX);
+	write_rapl_counter(&p->rapl_pkg_perf_status, rci, RAPL_RCI_INDEX_PKG_PERF_STATUS);
+	write_rapl_counter(&p->rapl_dram_perf_status, rci, RAPL_RCI_INDEX_DRAM_PERF_STATUS);
+	write_rapl_counter(&c->core_energy, rci, RAPL_RCI_INDEX_CORE_ENERGY);
+
+	return 0;
+}
+
+char *find_sysfs_path_by_id(struct sysfs_path *sp, int id)
+{
+	while (sp) {
+		if (sp->id == id)
+			return (sp->path);
+		sp = sp->next;
+	}
+	if (debug)
+		warnx("%s: id%d not found", __func__, id);
+	return NULL;
+}
+
+int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	/*
+	 * Overcommit memory a little bit here,
+	 * but skip calculating exact sizes for the buffers.
+	 */
+	unsigned long long perf_data[NUM_CSTATE_COUNTERS];
+	unsigned long long perf_data_core[NUM_CSTATE_COUNTERS + 1];
+	unsigned long long perf_data_pkg[NUM_CSTATE_COUNTERS + 1];
+
+	struct cstate_counter_info_t *cci;
+
+	if (debug)
+		fprintf(stderr, "%s: cpu%d\n", __func__, cpu);
+
+	assert(ccstate_counter_info);
+	assert(cpu <= ccstate_counter_info_size);
+
+	memset(perf_data, 0, sizeof(perf_data));
+	memset(perf_data_core, 0, sizeof(perf_data_core));
+	memset(perf_data_pkg, 0, sizeof(perf_data_pkg));
+
+	cci = &ccstate_counter_info[cpu];
+
+	/*
+	 * If we have any perf counters to read, read them all now, in bulk
+	 */
+	const size_t num_perf_counters = cstate_counter_info_count_perf(cci);
+	ssize_t expected_read_size = num_perf_counters * sizeof(unsigned long long);
+	ssize_t actual_read_size_core = 0, actual_read_size_pkg = 0;
+
+	if (cci->fd_perf_core != -1) {
+		/* Each descriptor read begins with number of counters read. */
+		expected_read_size += sizeof(unsigned long long);
+
+		actual_read_size_core = read(cci->fd_perf_core, &perf_data_core[0], sizeof(perf_data_core));
+
+		if (actual_read_size_core <= 0)
+			err(-1, "%s: read perf %s: %ld", __func__, "core", actual_read_size_core);
+	}
+
+	if (cci->fd_perf_pkg != -1) {
+		/* Each descriptor read begins with number of counters read. */
+		expected_read_size += sizeof(unsigned long long);
+
+		actual_read_size_pkg = read(cci->fd_perf_pkg, &perf_data_pkg[0], sizeof(perf_data_pkg));
+
+		if (actual_read_size_pkg <= 0)
+			err(-1, "%s: read perf %s: %ld", __func__, "pkg", actual_read_size_pkg);
+	}
+
+	const ssize_t actual_read_size_total = actual_read_size_core + actual_read_size_pkg;
+
+	if (actual_read_size_total != expected_read_size)
+		err(-1, "%s: failed to read perf_data (%zu %zu)", __func__, expected_read_size, actual_read_size_total);
+
+	/*
+	 * Copy ccstate and pcstate data into unified buffer.
+	 *
+	 * Skip first element from core and pkg buffers.
+	 * Kernel puts there how many counters were read.
+	 */
+	const size_t num_core_counters = perf_data_core[0];
+	const size_t num_pkg_counters = perf_data_pkg[0];
+
+	assert(num_perf_counters == num_core_counters + num_pkg_counters);
+
+	/* Copy ccstate perf data */
+	memcpy(&perf_data[0], &perf_data_core[1], num_core_counters * sizeof(unsigned long long));
+
+	/* Copy pcstate perf data */
+	memcpy(&perf_data[num_core_counters], &perf_data_pkg[1], num_pkg_counters * sizeof(unsigned long long));
+
+	for (unsigned int i = 0, pi = 0; i < NUM_CSTATE_COUNTERS; ++i) {
+		switch (cci->source[i]) {
+		case CSTATE_SOURCE_NONE:
+			break;
+
+		case CSTATE_SOURCE_PERF:
+			assert(pi < ARRAY_SIZE(perf_data));
+			assert(cci->fd_perf_core != -1 || cci->fd_perf_pkg != -1);
+
+			if (debug) {
+				fprintf(stderr, "cstate via %s %u: %llu\n", "perf", i, perf_data[pi]);
+			}
+
+			cci->data[i] = perf_data[pi];
+
+			++pi;
+			break;
+
+		case CSTATE_SOURCE_MSR:
+			assert(!no_msr);
+			if (get_msr(cpu, cci->msr[i], &cci->data[i]))
+				return -13 - i;
+
+			if (debug) {
+				fprintf(stderr, "cstate via %s0x%llx %u: %llu\n", "msr", cci->msr[i], i, cci->data[i]);
+			}
+
+			break;
+		}
+	}
+
+	/*
+	 * Helper to write the data only if the source of
+	 * the counter for the current cpu is not none.
+	 *
+	 * Otherwise we would overwrite core data with 0 (default value),
+	 * when invoked for the thread sibling.
+	 */
+#define PERF_COUNTER_WRITE_DATA(out_counter, index) do {	\
+	if (cci->source[index] != CSTATE_SOURCE_NONE)		\
+		out_counter = cci->data[index];			\
+} while (0)
+
+	BUILD_BUG_ON(NUM_CSTATE_COUNTERS != 11);
+
+	PERF_COUNTER_WRITE_DATA(t->c1, CCSTATE_RCI_INDEX_C1_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(c->c3, CCSTATE_RCI_INDEX_C3_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(c->c6, CCSTATE_RCI_INDEX_C6_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(c->c7, CCSTATE_RCI_INDEX_C7_RESIDENCY);
+
+	PERF_COUNTER_WRITE_DATA(p->pc2, PCSTATE_RCI_INDEX_C2_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc3, PCSTATE_RCI_INDEX_C3_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc6, PCSTATE_RCI_INDEX_C6_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc7, PCSTATE_RCI_INDEX_C7_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc8, PCSTATE_RCI_INDEX_C8_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc9, PCSTATE_RCI_INDEX_C9_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc10, PCSTATE_RCI_INDEX_C10_RESIDENCY);
+
+#undef PERF_COUNTER_WRITE_DATA
+
+	return 0;
+}
+
 /*
  * get_counters(...)
  * migrate to cpu
@@ -2709,12 +3842,12 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	int cpu = t->cpu_id;
 	unsigned long long msr;
-	int aperf_mperf_retry_count = 0;
 	struct msr_counter *mp;
 	int i;
+	int status;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "get_counters: Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "%s: Could not migrate to CPU %d\n", __func__, cpu);
 		return -1;
 	}
 
@@ -2722,63 +3855,26 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	if (first_counter_read)
 		get_apic_id(t);
-retry:
+
 	t->tsc = rdtsc();	/* we are running on local CPU of interest */
 
 	if (DO_BIC(BIC_Avg_MHz) || DO_BIC(BIC_Busy) || DO_BIC(BIC_Bzy_MHz) || DO_BIC(BIC_IPC)
 	    || soft_c1_residency_display(BIC_Avg_MHz)) {
-		unsigned long long tsc_before, tsc_between, tsc_after, aperf_time, mperf_time;
+		int status = -1;
 
-		/*
-		 * The TSC, APERF and MPERF must be read together for
-		 * APERF/MPERF and MPERF/TSC to give accurate results.
-		 *
-		 * Unfortunately, APERF and MPERF are read by
-		 * individual system call, so delays may occur
-		 * between them.  If the time to read them
-		 * varies by a large amount, we re-read them.
-		 */
+		assert(!no_perf || !no_msr);
 
-		/*
-		 * This initial dummy APERF read has been seen to
-		 * reduce jitter in the subsequent reads.
-		 */
-
-		if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
-			return -3;
-
-		t->tsc = rdtsc();	/* re-read close to APERF */
-
-		tsc_before = t->tsc;
-
-		if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
-			return -3;
-
-		tsc_between = rdtsc();
-
-		if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
-			return -4;
-
-		tsc_after = rdtsc();
-
-		aperf_time = tsc_between - tsc_before;
-		mperf_time = tsc_after - tsc_between;
-
-		/*
-		 * If the system call latency to read APERF and MPERF
-		 * differ by more than 2x, then try again.
-		 */
-		if ((aperf_time > (2 * mperf_time)) || (mperf_time > (2 * aperf_time))) {
-			aperf_mperf_retry_count++;
-			if (aperf_mperf_retry_count < 5)
-				goto retry;
-			else
-				warnx("cpu%d jitter %lld %lld", cpu, aperf_time, mperf_time);
+		switch (amperf_source) {
+		case AMPERF_SOURCE_PERF:
+			status = read_aperf_mperf_tsc_perf(t, cpu);
+			break;
+		case AMPERF_SOURCE_MSR:
+			status = read_aperf_mperf_tsc_msr(t, cpu);
+			break;
 		}
-		aperf_mperf_retry_count = 0;
 
-		t->aperf = t->aperf * aperf_mperf_multiplier;
-		t->mperf = t->mperf * aperf_mperf_multiplier;
+		if (status != 0)
+			return status;
 	}
 
 	if (DO_BIC(BIC_IPC))
@@ -2792,13 +3888,11 @@ retry:
 			return -5;
 		t->smi_count = msr & 0xFFFFFFFF;
 	}
-	if (DO_BIC(BIC_CPU_c1) && platform->has_msr_core_c1_res) {
-		if (get_msr(cpu, MSR_CORE_C1_RES, &t->c1))
-			return -6;
-	}
+
+	get_cstate_counters(cpu, t, c, p);
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
-		if (get_mp(cpu, mp, &t->counter[i]))
+		if (get_mp(cpu, mp, &t->counter[i], mp->sp->path))
 			return -10;
 	}
 
@@ -2806,31 +3900,20 @@ retry:
 	if (!is_cpu_first_thread_in_core(t, c, p))
 		goto done;
 
-	if (DO_BIC(BIC_CPU_c3) || soft_c1_residency_display(BIC_CPU_c3)) {
-		if (get_msr(cpu, MSR_CORE_C3_RESIDENCY, &c->c3))
-			return -6;
+	if (platform->has_per_core_rapl) {
+		status = get_rapl_counters(cpu, c->core_id, c, p);
+		if (status != 0)
+			return status;
 	}
 
-	if ((DO_BIC(BIC_CPU_c6) || soft_c1_residency_display(BIC_CPU_c6)) && !platform->has_msr_knl_core_c6_residency) {
-		if (get_msr(cpu, MSR_CORE_C6_RESIDENCY, &c->c6))
-			return -7;
-	} else if (platform->has_msr_knl_core_c6_residency && soft_c1_residency_display(BIC_CPU_c6)) {
-		if (get_msr(cpu, MSR_KNL_CORE_C6_RESIDENCY, &c->c6))
-			return -7;
-	}
-
-	if (DO_BIC(BIC_CPU_c7) || soft_c1_residency_display(BIC_CPU_c7)) {
-		if (get_msr(cpu, MSR_CORE_C7_RESIDENCY, &c->c7))
-			return -8;
-		else if (t->is_atom) {
-			/*
-			 * For Atom CPUs that has core cstate deeper than c6,
-			 * MSR_CORE_C6_RESIDENCY returns residency of cc6 and deeper.
-			 * Minus CC7 (and deeper cstates) residency to get
-			 * accturate cc6 residency.
-			 */
-			c->c6 -= c->c7;
-		}
+	if (DO_BIC(BIC_CPU_c7) && t->is_atom) {
+		/*
+		 * For Atom CPUs that has core cstate deeper than c6,
+		 * MSR_CORE_C6_RESIDENCY returns residency of cc6 and deeper.
+		 * Minus CC7 (and deeper cstates) residency to get
+		 * accturate cc6 residency.
+		 */
+		c->c6 -= c->c7;
 	}
 
 	if (DO_BIC(BIC_Mod_c6))
@@ -2846,14 +3929,8 @@ retry:
 	if (DO_BIC(BIC_CORE_THROT_CNT))
 		get_core_throt_cnt(cpu, &c->core_throt_cnt);
 
-	if (platform->rapl_msrs & RAPL_AMD_F17H) {
-		if (get_msr(cpu, MSR_CORE_ENERGY_STAT, &msr))
-			return -14;
-		c->core_energy = msr & 0xFFFFFFFF;
-	}
-
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
-		if (get_mp(cpu, mp, &c->counter[i]))
+		if (get_mp(cpu, mp, &c->counter[i], mp->sp->path))
 			return -10;
 	}
 
@@ -2877,96 +3954,56 @@ retry:
 		if (get_msr(cpu, MSR_PKG_BOTH_CORE_GFXE_C0_RES, &p->pkg_both_core_gfxe_c0))
 			return -13;
 	}
-	if (DO_BIC(BIC_Pkgpc3))
-		if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
-			return -9;
-	if (DO_BIC(BIC_Pkgpc6)) {
-		if (platform->has_msr_atom_pkg_c6_residency) {
-			if (get_msr(cpu, MSR_ATOM_PKG_C6_RESIDENCY, &p->pc6))
-				return -10;
-		} else {
-			if (get_msr(cpu, MSR_PKG_C6_RESIDENCY, &p->pc6))
-				return -10;
-		}
-	}
-
-	if (DO_BIC(BIC_Pkgpc2))
-		if (get_msr(cpu, MSR_PKG_C2_RESIDENCY, &p->pc2))
-			return -11;
-	if (DO_BIC(BIC_Pkgpc7))
-		if (get_msr(cpu, MSR_PKG_C7_RESIDENCY, &p->pc7))
-			return -12;
-	if (DO_BIC(BIC_Pkgpc8))
-		if (get_msr(cpu, MSR_PKG_C8_RESIDENCY, &p->pc8))
-			return -13;
-	if (DO_BIC(BIC_Pkgpc9))
-		if (get_msr(cpu, MSR_PKG_C9_RESIDENCY, &p->pc9))
-			return -13;
-	if (DO_BIC(BIC_Pkgpc10))
-		if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
-			return -13;
 
 	if (DO_BIC(BIC_CPU_LPI))
 		p->cpu_lpi = cpuidle_cur_cpu_lpi_us;
 	if (DO_BIC(BIC_SYS_LPI))
 		p->sys_lpi = cpuidle_cur_sys_lpi_us;
 
-	if (platform->rapl_msrs & RAPL_PKG) {
-		if (get_msr_sum(cpu, MSR_PKG_ENERGY_STATUS, &msr))
-			return -13;
-		p->energy_pkg = msr;
+	if (!platform->has_per_core_rapl) {
+		status = get_rapl_counters(cpu, p->package_id, c, p);
+		if (status != 0)
+			return status;
 	}
-	if (platform->rapl_msrs & RAPL_CORE_ENERGY_STATUS) {
-		if (get_msr_sum(cpu, MSR_PP0_ENERGY_STATUS, &msr))
-			return -14;
-		p->energy_cores = msr;
-	}
-	if (platform->rapl_msrs & RAPL_DRAM) {
-		if (get_msr_sum(cpu, MSR_DRAM_ENERGY_STATUS, &msr))
-			return -15;
-		p->energy_dram = msr;
-	}
-	if (platform->rapl_msrs & RAPL_GFX) {
-		if (get_msr_sum(cpu, MSR_PP1_ENERGY_STATUS, &msr))
-			return -16;
-		p->energy_gfx = msr;
-	}
-	if (platform->rapl_msrs & RAPL_PKG_PERF_STATUS) {
-		if (get_msr_sum(cpu, MSR_PKG_PERF_STATUS, &msr))
-			return -16;
-		p->rapl_pkg_perf_status = msr;
-	}
-	if (platform->rapl_msrs & RAPL_DRAM_PERF_STATUS) {
-		if (get_msr_sum(cpu, MSR_DRAM_PERF_STATUS, &msr))
-			return -16;
-		p->rapl_dram_perf_status = msr;
-	}
-	if (platform->rapl_msrs & RAPL_AMD_F17H) {
-		if (get_msr_sum(cpu, MSR_PKG_ENERGY_STAT, &msr))
-			return -13;
-		p->energy_pkg = msr;
-	}
+
 	if (DO_BIC(BIC_PkgTmp)) {
 		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_STATUS, &msr))
 			return -17;
 		p->pkg_temp_c = tj_max - ((msr >> 16) & 0x7F);
 	}
 
-	if (DO_BIC(BIC_GFX_rc6))
-		p->gfx_rc6_ms = gfx_cur_rc6_ms;
-
-	/* n.b. assume die0 uncore frequency applies to whole package */
 	if (DO_BIC(BIC_UNCORE_MHZ))
-		p->uncore_mhz = get_uncore_mhz(p->package_id, 0);
+		p->uncore_mhz = get_legacy_uncore_mhz(p->package_id);
+
+	if (DO_BIC(BIC_GFX_rc6))
+		p->gfx_rc6_ms = gfx_info[GFX_rc6].val_ull;
 
 	if (DO_BIC(BIC_GFXMHz))
-		p->gfx_mhz = gfx_cur_mhz;
+		p->gfx_mhz = gfx_info[GFX_MHz].val;
 
 	if (DO_BIC(BIC_GFXACTMHz))
-		p->gfx_act_mhz = gfx_act_mhz;
+		p->gfx_act_mhz = gfx_info[GFX_ACTMHz].val;
+
+	if (DO_BIC(BIC_SAM_mc6))
+		p->sam_mc6_ms = gfx_info[SAM_mc6].val_ull;
+
+	if (DO_BIC(BIC_SAMMHz))
+		p->sam_mhz = gfx_info[SAM_MHz].val;
+
+	if (DO_BIC(BIC_SAMACTMHz))
+		p->sam_act_mhz = gfx_info[SAM_ACTMHz].val;
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
-		if (get_mp(cpu, mp, &p->counter[i]))
+		char *path = NULL;
+
+		if (mp->msr_num == 0) {
+			path = find_sysfs_path_by_id(mp->sp, p->package_id);
+			if (path == NULL) {
+				warnx("%s: package_id %d not found", __func__, p->package_id);
+				return -10;
+			}
+		}
+		if (get_mp(cpu, mp, &p->counter[i], path))
 			return -10;
 	}
 done:
@@ -2975,31 +4012,8 @@ done:
 	return 0;
 }
 
-/*
- * MSR_PKG_CST_CONFIG_CONTROL decoding for pkg_cstate_limit:
- * If you change the values, note they are used both in comparisons
- * (>= PCL__7) and to index pkg_cstate_limit_strings[].
- */
-
-#define PCLUKN 0		/* Unknown */
-#define PCLRSV 1		/* Reserved */
-#define PCL__0 2		/* PC0 */
-#define PCL__1 3		/* PC1 */
-#define PCL__2 4		/* PC2 */
-#define PCL__3 5		/* PC3 */
-#define PCL__4 6		/* PC4 */
-#define PCL__6 7		/* PC6 */
-#define PCL_6N 8		/* PC6 No Retention */
-#define PCL_6R 9		/* PC6 Retention */
-#define PCL__7 10		/* PC7 */
-#define PCL_7S 11		/* PC7 Shrink */
-#define PCL__8 12		/* PC8 */
-#define PCL__9 13		/* PC9 */
-#define PCL_10 14		/* PC10 */
-#define PCLUNL 15		/* Unlimited */
-
 int pkg_cstate_limit = PCLUKN;
-char *pkg_cstate_limit_strings[] = { "reserved", "unknown", "pc0", "pc1", "pc2",
+char *pkg_cstate_limit_strings[] = { "unknown", "reserved", "pc0", "pc1", "pc2",
 	"pc3", "pc4", "pc6", "pc6n", "pc6r", "pc7", "pc7s", "pc8", "pc9", "pc10", "unlimited"
 };
 
@@ -3053,7 +4067,7 @@ void probe_cst_limit(void)
 	unsigned long long msr;
 	int *pkg_cstate_limits;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	switch (platform->cst_limit) {
@@ -3097,7 +4111,7 @@ static void dump_platform_info(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
@@ -3115,7 +4129,7 @@ static void dump_power_ctl(void)
 {
 	unsigned long long msr;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	get_msr(base_cpu, MSR_IA32_POWER_CTL, &msr);
@@ -3321,7 +4335,7 @@ static void dump_cst_cfg(void)
 {
 	unsigned long long msr;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	get_msr(base_cpu, MSR_PKG_CST_CONFIG_CONTROL, &msr);
@@ -3393,7 +4407,7 @@ void print_irtl(void)
 {
 	unsigned long long msr;
 
-	if (!platform->has_irtl_msrs)
+	if (!platform->has_irtl_msrs || no_msr)
 		return;
 
 	if (platform->supported_cstates & PC3) {
@@ -3443,12 +4457,86 @@ void free_fd_percpu(void)
 {
 	int i;
 
+	if (!fd_percpu)
+		return;
+
 	for (i = 0; i < topo.max_cpu_num + 1; ++i) {
 		if (fd_percpu[i] != 0)
 			close(fd_percpu[i]);
 	}
 
 	free(fd_percpu);
+	fd_percpu = NULL;
+}
+
+void free_fd_amperf_percpu(void)
+{
+	int i;
+
+	if (!fd_amperf_percpu)
+		return;
+
+	for (i = 0; i < topo.max_cpu_num + 1; ++i) {
+		if (fd_amperf_percpu[i].mperf != 0)
+			close(fd_amperf_percpu[i].mperf);
+
+		if (fd_amperf_percpu[i].aperf != 0)
+			close(fd_amperf_percpu[i].aperf);
+	}
+
+	free(fd_amperf_percpu);
+	fd_amperf_percpu = NULL;
+}
+
+void free_fd_instr_count_percpu(void)
+{
+	if (!fd_instr_count_percpu)
+		return;
+
+	for (int i = 0; i < topo.max_cpu_num + 1; ++i) {
+		if (fd_instr_count_percpu[i] != 0)
+			close(fd_instr_count_percpu[i]);
+	}
+
+	free(fd_instr_count_percpu);
+	fd_instr_count_percpu = NULL;
+}
+
+void free_fd_cstate(void)
+{
+	if (!ccstate_counter_info)
+		return;
+
+	const int counter_info_num = ccstate_counter_info_size;
+
+	for (int counter_id = 0; counter_id < counter_info_num; ++counter_id) {
+		if (ccstate_counter_info[counter_id].fd_perf_core != -1)
+			close(ccstate_counter_info[counter_id].fd_perf_core);
+
+		if (ccstate_counter_info[counter_id].fd_perf_pkg != -1)
+			close(ccstate_counter_info[counter_id].fd_perf_pkg);
+	}
+
+	free(ccstate_counter_info);
+	ccstate_counter_info = NULL;
+	ccstate_counter_info_size = 0;
+}
+
+void free_fd_rapl_percpu(void)
+{
+	if (!rapl_counter_info_perdomain)
+		return;
+
+	const int num_domains = rapl_counter_info_perdomain_size;
+
+	for (int domain_id = 0; domain_id < num_domains; ++domain_id) {
+		if (rapl_counter_info_perdomain[domain_id].fd_perf != -1)
+			close(rapl_counter_info_perdomain[domain_id].fd_perf);
+	}
+
+	free(rapl_counter_info_perdomain);
+	rapl_counter_info_perdomain = NULL;
+	rapl_counter_info_perdomain_size = 0;
 }
 
 void free_all_buffers(void)
@@ -3492,6 +4580,10 @@ void free_all_buffers(void)
 	outp = NULL;
 
 	free_fd_percpu();
+	free_fd_instr_count_percpu();
+	free_fd_amperf_percpu();
+	free_fd_rapl_percpu();
+	free_fd_cstate();
 
 	free(irq_column_2_cpu);
 	free(irqs_per_cpu);
@@ -3825,11 +4917,19 @@ static void update_effective_set(bool startup)
 		err(1, "%s: cpu str malformat %s\n", PATH_EFFECTIVE_CPUS, cpu_effective_str);
 }
 
+void linux_perf_init(void);
+void rapl_perf_init(void);
+void cstate_perf_init(void);
+
 void re_initialize(void)
 {
 	free_all_buffers();
 	setup_all_buffers(false);
-	fprintf(outf, "turbostat: re-initialized with num_cpus %d, allowed_cpus %d\n", topo.num_cpus, topo.allowed_cpus);
+	linux_perf_init();
+	rapl_perf_init();
+	cstate_perf_init();
+	fprintf(outf, "turbostat: re-initialized with num_cpus %d, allowed_cpus %d\n", topo.num_cpus,
+		topo.allowed_cpus);
 }
 
 void set_max_cpu_num(void)
@@ -3940,85 +5040,43 @@ int snapshot_proc_interrupts(void)
 }
 
 /*
- * snapshot_gfx_rc6_ms()
+ * snapshot_graphics()
  *
- * record snapshot of
- * /sys/class/drm/card0/power/rc6_residency_ms
+ * record snapshot of specified graphics sysfs knob
  *
  * return 1 if config change requires a restart, else return 0
  */
-int snapshot_gfx_rc6_ms(void)
+int snapshot_graphics(int idx)
 {
 	FILE *fp;
 	int retval;
 
-	fp = fopen_or_die("/sys/class/drm/card0/power/rc6_residency_ms", "r");
-
-	retval = fscanf(fp, "%lld", &gfx_cur_rc6_ms);
-	if (retval != 1)
-		err(1, "GFX rc6");
-
-	fclose(fp);
-
-	return 0;
-}
-
-/*
- * snapshot_gfx_mhz()
- *
- * fall back to /sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz
- * when /sys/class/drm/card0/gt_cur_freq_mhz is not available.
- *
- * return 1 if config change requires a restart, else return 0
- */
-int snapshot_gfx_mhz(void)
-{
-	static FILE *fp;
-	int retval;
-
-	if (fp == NULL) {
-		fp = fopen("/sys/class/drm/card0/gt_cur_freq_mhz", "r");
-		if (!fp)
-			fp = fopen_or_die("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", "r");
-	} else {
-		rewind(fp);
-		fflush(fp);
+	switch (idx) {
+	case GFX_rc6:
+	case SAM_mc6:
+		fp = fopen_or_die(gfx_info[idx].path, "r");
+		retval = fscanf(fp, "%lld", &gfx_info[idx].val_ull);
+		if (retval != 1)
+			err(1, "rc6");
+		fclose(fp);
+		return 0;
+	case GFX_MHz:
+	case GFX_ACTMHz:
+	case SAM_MHz:
+	case SAM_ACTMHz:
+		if (gfx_info[idx].fp == NULL) {
+			gfx_info[idx].fp = fopen_or_die(gfx_info[idx].path, "r");
+		} else {
+			rewind(gfx_info[idx].fp);
+			fflush(gfx_info[idx].fp);
+		}
+		retval = fscanf(gfx_info[idx].fp, "%d", &gfx_info[idx].val);
+		if (retval != 1)
+			err(1, "MHz");
+		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	retval = fscanf(fp, "%d", &gfx_cur_mhz);
-	if (retval != 1)
-		err(1, "GFX MHz");
-
-	return 0;
-}
-
-/*
- * snapshot_gfx_cur_mhz()
- *
- * fall back to /sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz
- * when /sys/class/drm/card0/gt_act_freq_mhz is not available.
- *
- * return 1 if config change requires a restart, else return 0
- */
-int snapshot_gfx_act_mhz(void)
-{
-	static FILE *fp;
-	int retval;
-
-	if (fp == NULL) {
-		fp = fopen("/sys/class/drm/card0/gt_act_freq_mhz", "r");
-		if (!fp)
-			fp = fopen_or_die("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", "r");
-	} else {
-		rewind(fp);
-		fflush(fp);
-	}
-
-	retval = fscanf(fp, "%d", &gfx_act_mhz);
-	if (retval != 1)
-		err(1, "GFX ACT MHz");
-
-	return 0;
 }
 
 /*
@@ -4083,13 +5141,22 @@ int snapshot_proc_sysfs_files(void)
 			return 1;
 
 	if (DO_BIC(BIC_GFX_rc6))
-		snapshot_gfx_rc6_ms();
+		snapshot_graphics(GFX_rc6);
 
 	if (DO_BIC(BIC_GFXMHz))
-		snapshot_gfx_mhz();
+		snapshot_graphics(GFX_MHz);
 
 	if (DO_BIC(BIC_GFXACTMHz))
-		snapshot_gfx_act_mhz();
+		snapshot_graphics(GFX_ACTMHz);
+
+	if (DO_BIC(BIC_SAM_mc6))
+		snapshot_graphics(SAM_mc6);
+
+	if (DO_BIC(BIC_SAMMHz))
+		snapshot_graphics(SAM_MHz);
+
+	if (DO_BIC(BIC_SAMACTMHz))
+		snapshot_graphics(SAM_ACTMHz);
 
 	if (DO_BIC(BIC_CPU_LPI))
 		snapshot_cpu_lpi_us();
@@ -4173,6 +5240,8 @@ int get_msr_sum(int cpu, off_t offset, unsigned long long *msr)
 	int ret, idx;
 	unsigned long long msr_cur, msr_last;
 
+	assert(!no_msr);
+
 	if (!per_cpu_msr_sum)
 		return 1;
 
@@ -4200,6 +5269,8 @@ static int update_msr_sum(struct thread_data *t, struct core_data *c, struct pkg
 
 	UNUSED(c);
 	UNUSED(p);
+
+	assert(!no_msr);
 
 	for (i = IDX_PKG_ENERGY; i < IDX_COUNT; i++) {
 		unsigned long long msr_cur, msr_last;
@@ -4280,7 +5351,8 @@ release_msr:
 
 /*
  * set_my_sched_priority(pri)
- * return previous
+ * return previous priority on success
+ * return value < -20 on failure
  */
 int set_my_sched_priority(int priority)
 {
@@ -4290,16 +5362,16 @@ int set_my_sched_priority(int priority)
 	errno = 0;
 	original_priority = getpriority(PRIO_PROCESS, 0);
 	if (errno && (original_priority == -1))
-		err(errno, "getpriority");
+		return -21;
 
 	retval = setpriority(PRIO_PROCESS, 0, priority);
 	if (retval)
-		errx(retval, "capget(CAP_SYS_NICE) failed,try \"# setcap cap_sys_nice=ep %s\"", progname);
+		return -21;
 
 	errno = 0;
 	retval = getpriority(PRIO_PROCESS, 0);
 	if (retval != priority)
-		err(retval, "getpriority(%d) != setpriority(%d)", retval, priority);
+		return -21;
 
 	return original_priority;
 }
@@ -4314,6 +5386,9 @@ void turbostat_loop()
 
 	/*
 	 * elevate own priority for interval mode
+	 *
+	 * ignore on error - we probably don't have permission to set it, but
+	 * it's not a big deal
 	 */
 	set_my_sched_priority(-20);
 
@@ -4399,10 +5474,13 @@ void check_dev_msr()
 	struct stat sb;
 	char pathname[32];
 
+	if (no_msr)
+		return;
+
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
 	if (stat(pathname, &sb))
 		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
-			err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
+			no_msr = 1;
 }
 
 /*
@@ -4414,47 +5492,51 @@ int check_for_cap_sys_rawio(void)
 {
 	cap_t caps;
 	cap_flag_value_t cap_flag_value;
+	int ret = 0;
 
 	caps = cap_get_proc();
 	if (caps == NULL)
-		err(-6, "cap_get_proc\n");
-
-	if (cap_get_flag(caps, CAP_SYS_RAWIO, CAP_EFFECTIVE, &cap_flag_value))
-		err(-6, "cap_get\n");
-
-	if (cap_flag_value != CAP_SET) {
-		warnx("capget(CAP_SYS_RAWIO) failed," " try \"# setcap cap_sys_rawio=ep %s\"", progname);
 		return 1;
+
+	if (cap_get_flag(caps, CAP_SYS_RAWIO, CAP_EFFECTIVE, &cap_flag_value)) {
+		ret = 1;
+		goto free_and_exit;
 	}
 
+	if (cap_flag_value != CAP_SET) {
+		ret = 1;
+		goto free_and_exit;
+	}
+
+free_and_exit:
 	if (cap_free(caps) == -1)
 		err(-6, "cap_free\n");
 
-	return 0;
+	return ret;
 }
 
-void check_permissions(void)
+void check_msr_permission(void)
 {
-	int do_exit = 0;
+	int failed = 0;
 	char pathname[32];
 
+	if (no_msr)
+		return;
+
 	/* check for CAP_SYS_RAWIO */
-	do_exit += check_for_cap_sys_rawio();
+	failed += check_for_cap_sys_rawio();
 
 	/* test file permissions */
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
 	if (euidaccess(pathname, R_OK)) {
-		do_exit++;
-		warn("/dev/cpu/0/msr open failed, try chown or chmod +r /dev/cpu/*/msr");
+		failed++;
 	}
 
-	/* if all else fails, thell them to be root */
-	if (do_exit)
-		if (getuid() != 0)
-			warnx("... or simply run as root");
-
-	if (do_exit)
-		exit(-6);
+	if (failed) {
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly", pathname, "--no-msr");
+		no_msr = 1;
+	}
 }
 
 void probe_bclk(void)
@@ -4462,7 +5544,7 @@ void probe_bclk(void)
 	unsigned long long msr;
 	unsigned int base_ratio;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	if (platform->bclk_freq == BCLK_100MHZ)
@@ -4502,7 +5584,7 @@ static void dump_turbo_ratio_info(void)
 	if (!has_turbo)
 		return;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	if (platform->trl_msrs & TRL_LIMIT2)
@@ -4564,64 +5646,224 @@ static void dump_sysfs_file(char *path)
 	fprintf(outf, "%s: %s", strrchr(path, '/') + 1, cpuidle_buf);
 }
 
-static void probe_intel_uncore_frequency(void)
+static void probe_intel_uncore_frequency_legacy(void)
 {
 	int i, j;
-	char path[128];
-
-	if (!genuine_intel)
-		return;
-
-	if (access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00", R_OK))
-		return;
-
-	/* Cluster level sysfs not supported yet. */
-	if (!access("/sys/devices/system/cpu/intel_uncore_frequency/uncore00", R_OK))
-		return;
-
-	if (!access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00/current_freq_khz", R_OK))
-		BIC_PRESENT(BIC_UNCORE_MHZ);
-
-	if (quiet)
-		return;
+	char path[256];
 
 	for (i = 0; i < topo.num_packages; ++i) {
-		for (j = 0; j < topo.num_die; ++j) {
+		for (j = 0; j <= topo.max_die_id; ++j) {
 			int k, l;
+			char path_base[128];
 
-			sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/min_freq_khz",
-				i, j);
-			k = read_sysfs_int(path);
-			sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/max_freq_khz",
-				i, j);
-			l = read_sysfs_int(path);
-			fprintf(outf, "Uncore Frequency pkg%d die%d: %d - %d MHz ", i, j, k / 1000, l / 1000);
+			sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d", i,
+				j);
 
-			sprintf(path,
-				"/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/initial_min_freq_khz",
-				i, j);
+			if (access(path_base, R_OK))
+				continue;
+
+			BIC_PRESENT(BIC_UNCORE_MHZ);
+
+			if (quiet)
+				return;
+
+			sprintf(path, "%s/min_freq_khz", path_base);
 			k = read_sysfs_int(path);
-			sprintf(path,
-				"/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/initial_max_freq_khz",
-				i, j);
+			sprintf(path, "%s/max_freq_khz", path_base);
 			l = read_sysfs_int(path);
-			fprintf(outf, "(%d - %d MHz)\n", k / 1000, l / 1000);
+			fprintf(outf, "Uncore Frequency package%d die%d: %d - %d MHz ", i, j, k / 1000, l / 1000);
+
+			sprintf(path, "%s/initial_min_freq_khz", path_base);
+			k = read_sysfs_int(path);
+			sprintf(path, "%s/initial_max_freq_khz", path_base);
+			l = read_sysfs_int(path);
+			fprintf(outf, "(%d - %d MHz)", k / 1000, l / 1000);
+
+			sprintf(path, "%s/current_freq_khz", path_base);
+			k = read_sysfs_int(path);
+			fprintf(outf, " %d MHz\n", k / 1000);
 		}
 	}
 }
 
+static void probe_intel_uncore_frequency_cluster(void)
+{
+	int i, uncore_max_id;
+	char path[256];
+	char path_base[128];
+
+	if (access("/sys/devices/system/cpu/intel_uncore_frequency/uncore00/current_freq_khz", R_OK))
+		return;
+
+	if (quiet)
+		return;
+
+	for (uncore_max_id = 0;; ++uncore_max_id) {
+
+		sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/uncore%02d", uncore_max_id);
+
+		/* uncore## start at 00 and skips no numbers, so stop upon first missing */
+		if (access(path_base, R_OK)) {
+			uncore_max_id -= 1;
+			break;
+		}
+	}
+	for (i = uncore_max_id; i >= 0; --i) {
+		int k, l;
+		int package_id, domain_id, cluster_id;
+		char name_buf[16];
+
+		sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/uncore%02d", i);
+
+		if (access(path_base, R_OK))
+			err(1, "%s: %s\n", __func__, path_base);
+
+		sprintf(path, "%s/package_id", path_base);
+		package_id = read_sysfs_int(path);
+
+		sprintf(path, "%s/domain_id", path_base);
+		domain_id = read_sysfs_int(path);
+
+		sprintf(path, "%s/fabric_cluster_id", path_base);
+		cluster_id = read_sysfs_int(path);
+
+		sprintf(path, "%s/min_freq_khz", path_base);
+		k = read_sysfs_int(path);
+		sprintf(path, "%s/max_freq_khz", path_base);
+		l = read_sysfs_int(path);
+		fprintf(outf, "Uncore Frequency package%d domain%d cluster%d: %d - %d MHz ", package_id, domain_id,
+			cluster_id, k / 1000, l / 1000);
+
+		sprintf(path, "%s/initial_min_freq_khz", path_base);
+		k = read_sysfs_int(path);
+		sprintf(path, "%s/initial_max_freq_khz", path_base);
+		l = read_sysfs_int(path);
+		fprintf(outf, "(%d - %d MHz)", k / 1000, l / 1000);
+
+		sprintf(path, "%s/current_freq_khz", path_base);
+		k = read_sysfs_int(path);
+		fprintf(outf, " %d MHz\n", k / 1000);
+
+		sprintf(path, "%s/current_freq_khz", path_base);
+		sprintf(name_buf, "UMHz%d.%d", domain_id, cluster_id);
+
+		add_counter(0, path, name_buf, 0, SCOPE_PACKAGE, COUNTER_K2M, FORMAT_AVERAGE, 0, package_id);
+	}
+}
+
+static void probe_intel_uncore_frequency(void)
+{
+	if (!genuine_intel)
+		return;
+
+	if (access("/sys/devices/system/cpu/intel_uncore_frequency/uncore00", R_OK) == 0)
+		probe_intel_uncore_frequency_cluster();
+	else
+		probe_intel_uncore_frequency_legacy();
+}
+
 static void probe_graphics(void)
 {
+	/* Xe graphics sysfs knobs */
+	if (!access("/sys/class/drm/card0/device/tile0/gt0/gtidle/idle_residency_ms", R_OK)) {
+		FILE *fp;
+		char buf[8];
+		bool gt0_is_gt;
+		int idx;
+
+		fp = fopen("/sys/class/drm/card0/device/tile0/gt0/gtidle/name", "r");
+		if (!fp)
+			goto next;
+
+		if (!fread(buf, sizeof(char), 7, fp)) {
+			fclose(fp);
+			goto next;
+		}
+		fclose(fp);
+
+		if (!strncmp(buf, "gt0-rc", strlen("gt0-rc")))
+			gt0_is_gt = true;
+		else if (!strncmp(buf, "gt0-mc", strlen("gt0-mc")))
+			gt0_is_gt = false;
+		else
+			goto next;
+
+		idx = gt0_is_gt ? GFX_rc6 : SAM_mc6;
+		gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/gtidle/idle_residency_ms";
+
+		idx = gt0_is_gt ? GFX_MHz : SAM_MHz;
+		if (!access("/sys/class/drm/card0/device/tile0/gt0/freq0/cur_freq", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/freq0/cur_freq";
+
+		idx = gt0_is_gt ? GFX_ACTMHz : SAM_ACTMHz;
+		if (!access("/sys/class/drm/card0/device/tile0/gt0/freq0/act_freq", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/freq0/act_freq";
+
+		idx = gt0_is_gt ? SAM_mc6 : GFX_rc6;
+		if (!access("/sys/class/drm/card0/device/tile0/gt1/gtidle/idle_residency_ms", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/gtidle/idle_residency_ms";
+
+		idx = gt0_is_gt ? SAM_MHz : GFX_MHz;
+		if (!access("/sys/class/drm/card0/device/tile0/gt1/freq0/cur_freq", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/freq0/cur_freq";
+
+		idx = gt0_is_gt ? SAM_ACTMHz : GFX_ACTMHz;
+		if (!access("/sys/class/drm/card0/device/tile0/gt1/freq0/act_freq", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/freq0/act_freq";
+
+		goto end;
+	}
+
+next:
+	/* New i915 graphics sysfs knobs */
+	if (!access("/sys/class/drm/card0/gt/gt0/rc6_residency_ms", R_OK)) {
+		gfx_info[GFX_rc6].path = "/sys/class/drm/card0/gt/gt0/rc6_residency_ms";
+
+		if (!access("/sys/class/drm/card0/gt/gt0/rps_cur_freq_mhz", R_OK))
+			gfx_info[GFX_MHz].path = "/sys/class/drm/card0/gt/gt0/rps_cur_freq_mhz";
+
+		if (!access("/sys/class/drm/card0/gt/gt0/rps_act_freq_mhz", R_OK))
+			gfx_info[GFX_ACTMHz].path = "/sys/class/drm/card0/gt/gt0/rps_act_freq_mhz";
+
+		if (!access("/sys/class/drm/card0/gt/gt1/rc6_residency_ms", R_OK))
+			gfx_info[SAM_mc6].path = "/sys/class/drm/card0/gt/gt1/rc6_residency_ms";
+
+		if (!access("/sys/class/drm/card0/gt/gt1/rps_cur_freq_mhz", R_OK))
+			gfx_info[SAM_MHz].path = "/sys/class/drm/card0/gt/gt1/rps_cur_freq_mhz";
+
+		if (!access("/sys/class/drm/card0/gt/gt1/rps_act_freq_mhz", R_OK))
+			gfx_info[SAM_ACTMHz].path = "/sys/class/drm/card0/gt/gt1/rps_act_freq_mhz";
+
+		goto end;
+	}
+
+	/* Fall back to traditional i915 graphics sysfs knobs */
 	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
+		gfx_info[GFX_rc6].path = "/sys/class/drm/card0/power/rc6_residency_ms";
+
+	if (!access("/sys/class/drm/card0/gt_cur_freq_mhz", R_OK))
+		gfx_info[GFX_MHz].path = "/sys/class/drm/card0/gt_cur_freq_mhz";
+	else if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
+		gfx_info[GFX_MHz].path = "/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz";
+
+	if (!access("/sys/class/drm/card0/gt_act_freq_mhz", R_OK))
+		gfx_info[GFX_ACTMHz].path = "/sys/class/drm/card0/gt_act_freq_mhz";
+	else if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", R_OK))
+		gfx_info[GFX_ACTMHz].path = "/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz";
+
+end:
+	if (gfx_info[GFX_rc6].path)
 		BIC_PRESENT(BIC_GFX_rc6);
-
-	if (!access("/sys/class/drm/card0/gt_cur_freq_mhz", R_OK) ||
-	    !access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
+	if (gfx_info[GFX_MHz].path)
 		BIC_PRESENT(BIC_GFXMHz);
-
-	if (!access("/sys/class/drm/card0/gt_act_freq_mhz", R_OK) ||
-	    !access("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", R_OK))
+	if (gfx_info[GFX_ACTMHz].path)
 		BIC_PRESENT(BIC_GFXACTMHz);
+	if (gfx_info[SAM_mc6].path)
+		BIC_PRESENT(BIC_SAM_mc6);
+	if (gfx_info[SAM_MHz].path)
+		BIC_PRESENT(BIC_SAMMHz);
+	if (gfx_info[SAM_ACTMHz].path)
+		BIC_PRESENT(BIC_SAMACTMHz);
 }
 
 static void dump_sysfs_cstate_config(void)
@@ -4783,6 +6025,9 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	UNUSED(c);
 	UNUSED(p);
 
+	if (no_msr)
+		return 0;
+
 	if (!has_hwp)
 		return 0;
 
@@ -4868,6 +6113,9 @@ int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data
 
 	UNUSED(c);
 	UNUSED(p);
+
+	if (no_msr)
+		return 0;
 
 	cpu = t->cpu_id;
 
@@ -4983,31 +6231,18 @@ void rapl_probe_intel(void)
 	unsigned long long msr;
 	unsigned int time_unit;
 	double tdp;
+	const unsigned long long bic_watt_bits = BIC_PkgWatt | BIC_CorWatt | BIC_RAMWatt | BIC_GFXWatt;
+	const unsigned long long bic_joules_bits = BIC_Pkg_J | BIC_Cor_J | BIC_RAM_J | BIC_GFX_J;
 
-	if (rapl_joules) {
-		if (platform->rapl_msrs & RAPL_PKG_ENERGY_STATUS)
-			BIC_PRESENT(BIC_Pkg_J);
-		if (platform->rapl_msrs & RAPL_CORE_ENERGY_STATUS)
-			BIC_PRESENT(BIC_Cor_J);
-		if (platform->rapl_msrs & RAPL_DRAM_ENERGY_STATUS)
-			BIC_PRESENT(BIC_RAM_J);
-		if (platform->rapl_msrs & RAPL_GFX_ENERGY_STATUS)
-			BIC_PRESENT(BIC_GFX_J);
-	} else {
-		if (platform->rapl_msrs & RAPL_PKG_ENERGY_STATUS)
-			BIC_PRESENT(BIC_PkgWatt);
-		if (platform->rapl_msrs & RAPL_CORE_ENERGY_STATUS)
-			BIC_PRESENT(BIC_CorWatt);
-		if (platform->rapl_msrs & RAPL_DRAM_ENERGY_STATUS)
-			BIC_PRESENT(BIC_RAMWatt);
-		if (platform->rapl_msrs & RAPL_GFX_ENERGY_STATUS)
-			BIC_PRESENT(BIC_GFXWatt);
-	}
+	if (rapl_joules)
+		bic_enabled &= ~bic_watt_bits;
+	else
+		bic_enabled &= ~bic_joules_bits;
 
-	if (platform->rapl_msrs & RAPL_PKG_PERF_STATUS)
-		BIC_PRESENT(BIC_PKG__);
-	if (platform->rapl_msrs & RAPL_DRAM_PERF_STATUS)
-		BIC_PRESENT(BIC_RAM__);
+	if (!(platform->rapl_msrs & RAPL_PKG_PERF_STATUS))
+		bic_enabled &= ~BIC_PKG__;
+	if (!(platform->rapl_msrs & RAPL_DRAM_PERF_STATUS))
+		bic_enabled &= ~BIC_RAM__;
 
 	/* units on package 0, verify later other packages match */
 	if (get_msr(base_cpu, MSR_RAPL_POWER_UNIT, &msr))
@@ -5041,14 +6276,13 @@ void rapl_probe_amd(void)
 {
 	unsigned long long msr;
 	double tdp;
+	const unsigned long long bic_watt_bits = BIC_PkgWatt | BIC_CorWatt;
+	const unsigned long long bic_joules_bits = BIC_Pkg_J | BIC_Cor_J;
 
-	if (rapl_joules) {
-		BIC_PRESENT(BIC_Pkg_J);
-		BIC_PRESENT(BIC_Cor_J);
-	} else {
-		BIC_PRESENT(BIC_PkgWatt);
-		BIC_PRESENT(BIC_CorWatt);
-	}
+	if (rapl_joules)
+		bic_enabled &= ~bic_watt_bits;
+	else
+		bic_enabled &= ~bic_joules_bits;
 
 	if (get_msr(base_cpu, MSR_RAPL_PWR_UNIT, &msr))
 		return;
@@ -5202,7 +6436,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
  */
 void probe_rapl(void)
 {
-	if (!platform->rapl_msrs)
+	if (!platform->rapl_msrs || no_msr)
 		return;
 
 	if (genuine_intel)
@@ -5258,7 +6492,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 	}
 
 	/* Temperature Target MSR is Nehalem and newer only */
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		goto guess;
 
 	if (get_msr(base_cpu, MSR_IA32_TEMPERATURE_TARGET, &msr))
@@ -5304,6 +6538,9 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 
 	UNUSED(c);
 	UNUSED(p);
+
+	if (no_msr)
+		return 0;
 
 	if (!(do_dts || do_ptm))
 		return 0;
@@ -5402,6 +6639,9 @@ void decode_feature_control_msr(void)
 {
 	unsigned long long msr;
 
+	if (no_msr)
+		return;
+
 	if (!get_msr(base_cpu, MSR_IA32_FEAT_CTL, &msr))
 		fprintf(outf, "cpu%d: MSR_IA32_FEATURE_CONTROL: 0x%08llx (%sLocked %s)\n",
 			base_cpu, msr, msr & FEAT_CTL_LOCKED ? "" : "UN-", msr & (1 << 18) ? "SGX" : "");
@@ -5410,6 +6650,9 @@ void decode_feature_control_msr(void)
 void decode_misc_enable_msr(void)
 {
 	unsigned long long msr;
+
+	if (no_msr)
+		return;
 
 	if (!genuine_intel)
 		return;
@@ -5427,6 +6670,9 @@ void decode_misc_enable_msr(void)
 void decode_misc_feature_control(void)
 {
 	unsigned long long msr;
+
+	if (no_msr)
+		return;
 
 	if (!platform->has_msr_misc_feature_control)
 		return;
@@ -5449,6 +6695,9 @@ void decode_misc_pwr_mgmt_msr(void)
 {
 	unsigned long long msr;
 
+	if (no_msr)
+		return;
+
 	if (!platform->has_msr_misc_pwr_mgmt)
 		return;
 
@@ -5467,6 +6716,9 @@ void decode_misc_pwr_mgmt_msr(void)
 void decode_c6_demotion_policy_msr(void)
 {
 	unsigned long long msr;
+
+	if (no_msr)
+		return;
 
 	if (!platform->has_msr_c6_demotion_policy_config)
 		return;
@@ -5489,7 +6741,8 @@ void print_dev_latency(void)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		warnx("capget(CAP_SYS_ADMIN) failed, try \"# setcap cap_sys_admin=ep %s\"", progname);
+		if (debug)
+			warnx("Read %s failed", path);
 		return;
 	}
 
@@ -5504,66 +6757,425 @@ void print_dev_latency(void)
 	close(fd);
 }
 
+static int has_instr_count_access(void)
+{
+	int fd;
+	int has_access;
+
+	if (no_perf)
+		return 0;
+
+	fd = open_perf_counter(base_cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, -1, 0);
+	has_access = fd != -1;
+
+	if (fd != -1)
+		close(fd);
+
+	if (!has_access)
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly",
+		      "instructions retired perf counter", "--no-perf");
+
+	return has_access;
+}
+
+bool is_aperf_access_required(void)
+{
+	return BIC_IS_ENABLED(BIC_Avg_MHz)
+	    || BIC_IS_ENABLED(BIC_Busy)
+	    || BIC_IS_ENABLED(BIC_Bzy_MHz)
+	    || BIC_IS_ENABLED(BIC_IPC)
+	    || BIC_IS_ENABLED(BIC_CPU_c1);
+}
+
+int add_rapl_perf_counter_(int cpu, struct rapl_counter_info_t *rci, const struct rapl_counter_arch_info *cai,
+			   double *scale_, enum rapl_unit *unit_)
+{
+	if (no_perf)
+		return -1;
+
+	const double scale = read_perf_rapl_scale(cai->perf_subsys, cai->perf_name);
+
+	if (scale == 0.0)
+		return -1;
+
+	const enum rapl_unit unit = read_perf_rapl_unit(cai->perf_subsys, cai->perf_name);
+
+	if (unit == RAPL_UNIT_INVALID)
+		return -1;
+
+	const unsigned int rapl_type = read_perf_type(cai->perf_subsys);
+	const unsigned int rapl_energy_pkg_config = read_rapl_config(cai->perf_subsys, cai->perf_name);
+
+	const int fd_counter =
+	    open_perf_counter(cpu, rapl_type, rapl_energy_pkg_config, rci->fd_perf, PERF_FORMAT_GROUP);
+	if (fd_counter == -1)
+		return -1;
+
+	/* If it's the first counter opened, make it a group descriptor */
+	if (rci->fd_perf == -1)
+		rci->fd_perf = fd_counter;
+
+	*scale_ = scale;
+	*unit_ = unit;
+	return fd_counter;
+}
+
+int add_rapl_perf_counter(int cpu, struct rapl_counter_info_t *rci, const struct rapl_counter_arch_info *cai,
+			  double *scale, enum rapl_unit *unit)
+{
+	int ret = add_rapl_perf_counter_(cpu, rci, cai, scale, unit);
+
+	if (debug)
+		fprintf(stderr, "%s: %d (cpu: %d)\n", __func__, ret, cpu);
+
+	return ret;
+}
+
 /*
  * Linux-perf manages the HW instructions-retired counter
  * by enabling when requested, and hiding rollover
  */
 void linux_perf_init(void)
 {
-	if (!BIC_IS_ENABLED(BIC_IPC))
-		return;
-
 	if (access("/proc/sys/kernel/perf_event_paranoid", F_OK))
 		return;
 
-	fd_instr_count_percpu = calloc(topo.max_cpu_num + 1, sizeof(int));
-	if (fd_instr_count_percpu == NULL)
-		err(-1, "calloc fd_instr_count_percpu");
+	if (BIC_IS_ENABLED(BIC_IPC) && has_aperf) {
+		fd_instr_count_percpu = calloc(topo.max_cpu_num + 1, sizeof(int));
+		if (fd_instr_count_percpu == NULL)
+			err(-1, "calloc fd_instr_count_percpu");
+	}
 
-	BIC_PRESENT(BIC_IPC);
+	const bool aperf_required = is_aperf_access_required();
+
+	if (aperf_required && has_aperf && amperf_source == AMPERF_SOURCE_PERF) {
+		fd_amperf_percpu = calloc(topo.max_cpu_num + 1, sizeof(*fd_amperf_percpu));
+		if (fd_amperf_percpu == NULL)
+			err(-1, "calloc fd_amperf_percpu");
+	}
+}
+
+void rapl_perf_init(void)
+{
+	const unsigned int num_domains = (platform->has_per_core_rapl ? topo.max_core_id : topo.max_package_id) + 1;
+	bool *domain_visited = calloc(num_domains, sizeof(bool));
+
+	rapl_counter_info_perdomain = calloc(num_domains, sizeof(*rapl_counter_info_perdomain));
+	if (rapl_counter_info_perdomain == NULL)
+		err(-1, "calloc rapl_counter_info_percpu");
+	rapl_counter_info_perdomain_size = num_domains;
+
+	/*
+	 * Initialize rapl_counter_info_percpu
+	 */
+	for (unsigned int domain_id = 0; domain_id < num_domains; ++domain_id) {
+		struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[domain_id];
+
+		rci->fd_perf = -1;
+		for (size_t i = 0; i < NUM_RAPL_COUNTERS; ++i) {
+			rci->data[i] = 0;
+			rci->source[i] = RAPL_SOURCE_NONE;
+		}
+	}
+
+	/*
+	 * Open/probe the counters
+	 * If can't get it via perf, fallback to MSR
+	 */
+	for (size_t i = 0; i < ARRAY_SIZE(rapl_counter_arch_infos); ++i) {
+
+		const struct rapl_counter_arch_info *const cai = &rapl_counter_arch_infos[i];
+		bool has_counter = 0;
+		double scale;
+		enum rapl_unit unit;
+		unsigned int next_domain;
+
+		memset(domain_visited, 0, num_domains * sizeof(*domain_visited));
+
+		for (int cpu = 0; cpu < topo.max_cpu_num + 1; ++cpu) {
+
+			if (cpu_is_not_allowed(cpu))
+				continue;
+
+			/* Skip already seen and handled RAPL domains */
+			next_domain =
+			    platform->has_per_core_rapl ? cpus[cpu].physical_core_id : cpus[cpu].physical_package_id;
+
+			assert(next_domain < num_domains);
+
+			if (domain_visited[next_domain])
+				continue;
+
+			domain_visited[next_domain] = 1;
+
+			struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[next_domain];
+
+			/* Check if the counter is enabled and accessible */
+			if (BIC_IS_ENABLED(cai->bic) && (platform->rapl_msrs & cai->feature_mask)) {
+
+				/* Use perf API for this counter */
+				if (!no_perf && cai->perf_name
+				    && add_rapl_perf_counter(cpu, rci, cai, &scale, &unit) != -1) {
+					rci->source[cai->rci_index] = RAPL_SOURCE_PERF;
+					rci->scale[cai->rci_index] = scale * cai->compat_scale;
+					rci->unit[cai->rci_index] = unit;
+					rci->flags[cai->rci_index] = cai->flags;
+
+					/* Use MSR for this counter */
+				} else if (!no_msr && cai->msr && probe_msr(cpu, cai->msr) == 0) {
+					rci->source[cai->rci_index] = RAPL_SOURCE_MSR;
+					rci->msr[cai->rci_index] = cai->msr;
+					rci->msr_mask[cai->rci_index] = cai->msr_mask;
+					rci->msr_shift[cai->rci_index] = cai->msr_shift;
+					rci->unit[cai->rci_index] = RAPL_UNIT_JOULES;
+					rci->scale[cai->rci_index] = *cai->platform_rapl_msr_scale * cai->compat_scale;
+					rci->flags[cai->rci_index] = cai->flags;
+				}
+			}
+
+			if (rci->source[cai->rci_index] != RAPL_SOURCE_NONE)
+				has_counter = 1;
+		}
+
+		/* If any CPU has access to the counter, make it present */
+		if (has_counter)
+			BIC_PRESENT(cai->bic);
+	}
+
+	free(domain_visited);
+}
+
+static int has_amperf_access_via_msr(void)
+{
+	if (no_msr)
+		return 0;
+
+	if (probe_msr(base_cpu, MSR_IA32_APERF))
+		return 0;
+
+	if (probe_msr(base_cpu, MSR_IA32_MPERF))
+		return 0;
+
+	return 1;
+}
+
+static int has_amperf_access_via_perf(void)
+{
+	struct amperf_group_fd fds;
+
+	/*
+	 * Cache the last result, so we don't warn the user multiple times
+	 *
+	 * Negative means cached, no access
+	 * Zero means not cached
+	 * Positive means cached, has access
+	 */
+	static int has_access_cached;
+
+	if (no_perf)
+		return 0;
+
+	if (has_access_cached != 0)
+		return has_access_cached > 0;
+
+	fds = open_amperf_fd(base_cpu);
+	has_access_cached = (fds.aperf != -1) && (fds.mperf != -1);
+
+	if (fds.aperf == -1)
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly",
+		      "APERF perf counter", "--no-perf");
+	else
+		close(fds.aperf);
+
+	if (fds.mperf == -1)
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly",
+		      "MPERF perf counter", "--no-perf");
+	else
+		close(fds.mperf);
+
+	if (has_access_cached == 0)
+		has_access_cached = -1;
+
+	return has_access_cached > 0;
+}
+
+/* Check if we can access APERF and MPERF */
+static int has_amperf_access(void)
+{
+	if (!is_aperf_access_required())
+		return 0;
+
+	if (!no_msr && has_amperf_access_via_msr())
+		return 1;
+
+	if (!no_perf && has_amperf_access_via_perf())
+		return 1;
+
+	return 0;
+}
+
+int *get_cstate_perf_group_fd(struct cstate_counter_info_t *cci, const char *group_name)
+{
+	if (strcmp(group_name, "cstate_core") == 0)
+		return &cci->fd_perf_core;
+
+	if (strcmp(group_name, "cstate_pkg") == 0)
+		return &cci->fd_perf_pkg;
+
+	return NULL;
+}
+
+int add_cstate_perf_counter_(int cpu, struct cstate_counter_info_t *cci, const struct cstate_counter_arch_info *cai)
+{
+	if (no_perf)
+		return -1;
+
+	int *pfd_group = get_cstate_perf_group_fd(cci, cai->perf_subsys);
+
+	if (pfd_group == NULL)
+		return -1;
+
+	const unsigned int type = read_perf_type(cai->perf_subsys);
+	const unsigned int config = read_rapl_config(cai->perf_subsys, cai->perf_name);
+
+	const int fd_counter = open_perf_counter(cpu, type, config, *pfd_group, PERF_FORMAT_GROUP);
+
+	if (fd_counter == -1)
+		return -1;
+
+	/* If it's the first counter opened, make it a group descriptor */
+	if (*pfd_group == -1)
+		*pfd_group = fd_counter;
+
+	return fd_counter;
+}
+
+int add_cstate_perf_counter(int cpu, struct cstate_counter_info_t *cci, const struct cstate_counter_arch_info *cai)
+{
+	int ret = add_cstate_perf_counter_(cpu, cci, cai);
+
+	if (debug)
+		fprintf(stderr, "%s: %d (cpu: %d)\n", __func__, ret, cpu);
+
+	return ret;
+}
+
+void cstate_perf_init_(bool soft_c1)
+{
+	bool has_counter;
+	bool *cores_visited = NULL, *pkg_visited = NULL;
+	const int cores_visited_elems = topo.max_core_id + 1;
+	const int pkg_visited_elems = topo.max_package_id + 1;
+	const int cci_num = topo.max_cpu_num + 1;
+
+	ccstate_counter_info = calloc(cci_num, sizeof(*ccstate_counter_info));
+	if (!ccstate_counter_info)
+		err(1, "calloc ccstate_counter_arch_info");
+	ccstate_counter_info_size = cci_num;
+
+	cores_visited = calloc(cores_visited_elems, sizeof(*cores_visited));
+	if (!cores_visited)
+		err(1, "calloc cores_visited");
+
+	pkg_visited = calloc(pkg_visited_elems, sizeof(*pkg_visited));
+	if (!pkg_visited)
+		err(1, "calloc pkg_visited");
+
+	/* Initialize cstate_counter_info_percpu */
+	for (int cpu = 0; cpu < cci_num; ++cpu) {
+		ccstate_counter_info[cpu].fd_perf_core = -1;
+		ccstate_counter_info[cpu].fd_perf_pkg = -1;
+	}
+
+	for (int cidx = 0; cidx < NUM_CSTATE_COUNTERS; ++cidx) {
+		has_counter = false;
+		memset(cores_visited, 0, cores_visited_elems * sizeof(*cores_visited));
+		memset(pkg_visited, 0, pkg_visited_elems * sizeof(*pkg_visited));
+
+		const struct cstate_counter_arch_info *cai = &ccstate_counter_arch_infos[cidx];
+
+		for (int cpu = 0; cpu < cci_num; ++cpu) {
+
+			struct cstate_counter_info_t *const cci = &ccstate_counter_info[cpu];
+
+			if (cpu_is_not_allowed(cpu))
+				continue;
+
+			const int core_id = cpus[cpu].physical_core_id;
+			const int pkg_id = cpus[cpu].physical_package_id;
+
+			assert(core_id < cores_visited_elems);
+			assert(pkg_id < pkg_visited_elems);
+
+			const bool per_thread = cai->flags & CSTATE_COUNTER_FLAG_COLLECT_PER_THREAD;
+			const bool per_core = cai->flags & CSTATE_COUNTER_FLAG_COLLECT_PER_CORE;
+
+			if (!per_thread && cores_visited[core_id])
+				continue;
+
+			if (!per_core && pkg_visited[pkg_id])
+				continue;
+
+			const bool counter_needed = BIC_IS_ENABLED(cai->bic) ||
+			    (soft_c1 && (cai->flags & CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY));
+			const bool counter_supported = (platform->supported_cstates & cai->feature_mask);
+
+			if (counter_needed && counter_supported) {
+				/* Use perf API for this counter */
+				if (!no_perf && cai->perf_name && add_cstate_perf_counter(cpu, cci, cai) != -1) {
+
+					cci->source[cai->rci_index] = CSTATE_SOURCE_PERF;
+
+					/* User MSR for this counter */
+				} else if (!no_msr && cai->msr && pkg_cstate_limit >= cai->pkg_cstate_limit
+					   && probe_msr(cpu, cai->msr) == 0) {
+					cci->source[cai->rci_index] = CSTATE_SOURCE_MSR;
+					cci->msr[cai->rci_index] = cai->msr;
+				}
+			}
+
+			if (cci->source[cai->rci_index] != CSTATE_SOURCE_NONE) {
+				has_counter = true;
+				cores_visited[core_id] = true;
+				pkg_visited[pkg_id] = true;
+			}
+		}
+
+		/* If any CPU has access to the counter, make it present */
+		if (has_counter)
+			BIC_PRESENT(cai->bic);
+	}
+
+	free(cores_visited);
+	free(pkg_visited);
+}
+
+void cstate_perf_init(void)
+{
+	/*
+	 * If we don't have a C1 residency MSR, we calculate it "in software",
+	 * but we need APERF, MPERF too.
+	 */
+	const bool soft_c1 = !platform->has_msr_core_c1_res && has_amperf_access()
+	    && platform->supported_cstates & CC1;
+
+	if (soft_c1)
+		BIC_PRESENT(BIC_CPU_c1);
+
+	cstate_perf_init_(soft_c1);
 }
 
 void probe_cstates(void)
 {
 	probe_cst_limit();
 
-	if (platform->supported_cstates & CC1)
-		BIC_PRESENT(BIC_CPU_c1);
-
-	if (platform->supported_cstates & CC3)
-		BIC_PRESENT(BIC_CPU_c3);
-
-	if (platform->supported_cstates & CC6)
-		BIC_PRESENT(BIC_CPU_c6);
-
-	if (platform->supported_cstates & CC7)
-		BIC_PRESENT(BIC_CPU_c7);
-
-	if (platform->supported_cstates & PC2 && (pkg_cstate_limit >= PCL__2))
-		BIC_PRESENT(BIC_Pkgpc2);
-
-	if (platform->supported_cstates & PC3 && (pkg_cstate_limit >= PCL__3))
-		BIC_PRESENT(BIC_Pkgpc3);
-
-	if (platform->supported_cstates & PC6 && (pkg_cstate_limit >= PCL__6))
-		BIC_PRESENT(BIC_Pkgpc6);
-
-	if (platform->supported_cstates & PC7 && (pkg_cstate_limit >= PCL__7))
-		BIC_PRESENT(BIC_Pkgpc7);
-
-	if (platform->supported_cstates & PC8 && (pkg_cstate_limit >= PCL__8))
-		BIC_PRESENT(BIC_Pkgpc8);
-
-	if (platform->supported_cstates & PC9 && (pkg_cstate_limit >= PCL__9))
-		BIC_PRESENT(BIC_Pkgpc9);
-
-	if (platform->supported_cstates & PC10 && (pkg_cstate_limit >= PCL_10))
-		BIC_PRESENT(BIC_Pkgpc10);
-
 	if (platform->has_msr_module_c6_res_ms)
 		BIC_PRESENT(BIC_Mod_c6);
 
-	if (platform->has_ext_cst_msrs) {
+	if (platform->has_ext_cst_msrs && !no_msr) {
 		BIC_PRESENT(BIC_Totl_c0);
 		BIC_PRESENT(BIC_Any_c0);
 		BIC_PRESENT(BIC_GFX_c0);
@@ -5623,6 +7235,7 @@ void process_cpuid()
 	unsigned int eax, ebx, ecx, edx;
 	unsigned int fms, family, model, stepping, ecx_flags, edx_flags;
 	unsigned long long ucode_patch = 0;
+	bool ucode_patch_valid = false;
 
 	eax = ebx = ecx = edx = 0;
 
@@ -5650,8 +7263,12 @@ void process_cpuid()
 	ecx_flags = ecx;
 	edx_flags = edx;
 
-	if (get_msr(sched_getcpu(), MSR_IA32_UCODE_REV, &ucode_patch))
-		warnx("get_msr(UCODE)");
+	if (!no_msr) {
+		if (get_msr(sched_getcpu(), MSR_IA32_UCODE_REV, &ucode_patch))
+			warnx("get_msr(UCODE)");
+		else
+			ucode_patch_valid = true;
+	}
 
 	/*
 	 * check max extended function levels of CPUID.
@@ -5662,9 +7279,12 @@ void process_cpuid()
 	__cpuid(0x80000000, max_extended_level, ebx, ecx, edx);
 
 	if (!quiet) {
-		fprintf(outf, "CPUID(1): family:model:stepping 0x%x:%x:%x (%d:%d:%d) microcode 0x%x\n",
-			family, model, stepping, family, model, stepping,
-			(unsigned int)((ucode_patch >> 32) & 0xFFFFFFFF));
+		fprintf(outf, "CPUID(1): family:model:stepping 0x%x:%x:%x (%d:%d:%d)",
+			family, model, stepping, family, model, stepping);
+		if (ucode_patch_valid)
+			fprintf(outf, " microcode 0x%x", (unsigned int)((ucode_patch >> 32) & 0xFFFFFFFF));
+		fputc('\n', outf);
+
 		fprintf(outf, "CPUID(0x80000000): max_extended_levels: 0x%x\n", max_extended_level);
 		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s %s\n",
 			ecx_flags & (1 << 0) ? "SSE3" : "-",
@@ -5700,10 +7320,11 @@ void process_cpuid()
 
 	__cpuid(0x6, eax, ebx, ecx, edx);
 	has_aperf = ecx & (1 << 0);
-	if (has_aperf) {
+	if (has_aperf && has_amperf_access()) {
 		BIC_PRESENT(BIC_Avg_MHz);
 		BIC_PRESENT(BIC_Busy);
 		BIC_PRESENT(BIC_Bzy_MHz);
+		BIC_PRESENT(BIC_IPC);
 	}
 	do_dts = eax & (1 << 0);
 	if (do_dts)
@@ -5786,6 +7407,15 @@ void process_cpuid()
 		base_mhz = max_mhz = bus_mhz = edx = 0;
 
 		__cpuid(0x16, base_mhz, max_mhz, bus_mhz, edx);
+
+		bclk = bus_mhz;
+
+		base_hz = base_mhz * 1000000;
+		has_base_hz = 1;
+
+		if (platform->enable_tsc_tweak)
+			tsc_tweak = base_hz / tsc_hz;
+
 		if (!quiet)
 			fprintf(outf, "CPUID(0x16): base_mhz: %d max_mhz: %d bus_mhz: %d\n",
 				base_mhz, max_mhz, bus_mhz);
@@ -5796,6 +7426,22 @@ void process_cpuid()
 
 	BIC_PRESENT(BIC_IRQ);
 	BIC_PRESENT(BIC_TSC_MHz);
+}
+
+static void counter_info_init(void)
+{
+	for (int i = 0; i < NUM_CSTATE_COUNTERS; ++i) {
+		struct cstate_counter_arch_info *const cai = &ccstate_counter_arch_infos[i];
+
+		if (platform->has_msr_knl_core_c6_residency && cai->msr == MSR_CORE_C6_RESIDENCY)
+			cai->msr = MSR_KNL_CORE_C6_RESIDENCY;
+
+		if (!platform->has_msr_core_c1_res && cai->msr == MSR_CORE_C1_RES)
+			cai->msr = 0;
+
+		if (platform->has_msr_atom_pkg_c6_residency && cai->msr == MSR_PKG_C6_RESIDENCY)
+			cai->msr = MSR_ATOM_PKG_C6_RESIDENCY;
+	}
 }
 
 void probe_pm_features(void)
@@ -5814,7 +7460,7 @@ void probe_pm_features(void)
 
 	probe_thermal();
 
-	if (platform->has_nhm_msrs)
+	if (platform->has_nhm_msrs && !no_msr)
 		BIC_PRESENT(BIC_SMI);
 
 	if (!quiet)
@@ -5838,7 +7484,6 @@ void topology_probe(bool startup)
 	int i;
 	int max_core_id = 0;
 	int max_package_id = 0;
-	int max_die_id = 0;
 	int max_siblings = 0;
 
 	/* Initialize num_cpus, max_cpu_num */
@@ -5955,8 +7600,8 @@ void topology_probe(bool startup)
 
 		/* get die information */
 		cpus[i].die_id = get_die_id(i);
-		if (cpus[i].die_id > max_die_id)
-			max_die_id = cpus[i].die_id;
+		if (cpus[i].die_id > topo.max_die_id)
+			topo.max_die_id = cpus[i].die_id;
 
 		/* get numa node information */
 		cpus[i].physical_node_id = get_physical_node_id(&cpus[i]);
@@ -5975,6 +7620,8 @@ void topology_probe(bool startup)
 		if (cpus[i].thread_id == 0)
 			topo.num_cores++;
 	}
+	topo.max_core_id = max_core_id;
+	topo.max_package_id = max_package_id;
 
 	topo.cores_per_node = max_core_id + 1;
 	if (debug > 1)
@@ -5982,9 +7629,9 @@ void topology_probe(bool startup)
 	if (!summary_only && topo.cores_per_node > 1)
 		BIC_PRESENT(BIC_Core);
 
-	topo.num_die = max_die_id + 1;
+	topo.num_die = topo.max_die_id + 1;
 	if (debug > 1)
-		fprintf(outf, "max_die_id %d, sizing for %d die\n", max_die_id, topo.num_die);
+		fprintf(outf, "max_die_id %d, sizing for %d die\n", topo.max_die_id, topo.num_die);
 	if (!summary_only && topo.num_die > 1)
 		BIC_PRESENT(BIC_Die);
 
@@ -6142,6 +7789,7 @@ void topology_update(void)
 	topo.allowed_packages = 0;
 	for_all_cpus(update_topo, ODD_COUNTERS);
 }
+
 void setup_all_buffers(bool startup)
 {
 	topology_probe(startup);
@@ -6169,21 +7817,131 @@ void set_base_cpu(void)
 	err(-ENODEV, "No valid cpus found");
 }
 
+static void set_amperf_source(void)
+{
+	amperf_source = AMPERF_SOURCE_PERF;
+
+	const bool aperf_required = is_aperf_access_required();
+
+	if (no_perf || !aperf_required || !has_amperf_access_via_perf())
+		amperf_source = AMPERF_SOURCE_MSR;
+
+	if (quiet || !debug)
+		return;
+
+	fprintf(outf, "aperf/mperf source preference: %s\n", amperf_source == AMPERF_SOURCE_MSR ? "msr" : "perf");
+}
+
+bool has_added_counters(void)
+{
+	/*
+	 * It only makes sense to call this after the command line is parsed,
+	 * otherwise sys structure is not populated.
+	 */
+
+	return sys.added_core_counters | sys.added_thread_counters | sys.added_package_counters;
+}
+
+bool is_msr_access_required(void)
+{
+	if (no_msr)
+		return false;
+
+	if (has_added_counters())
+		return true;
+
+	return BIC_IS_ENABLED(BIC_SMI)
+	    || BIC_IS_ENABLED(BIC_CPU_c1)
+	    || BIC_IS_ENABLED(BIC_CPU_c3)
+	    || BIC_IS_ENABLED(BIC_CPU_c6)
+	    || BIC_IS_ENABLED(BIC_CPU_c7)
+	    || BIC_IS_ENABLED(BIC_Mod_c6)
+	    || BIC_IS_ENABLED(BIC_CoreTmp)
+	    || BIC_IS_ENABLED(BIC_Totl_c0)
+	    || BIC_IS_ENABLED(BIC_Any_c0)
+	    || BIC_IS_ENABLED(BIC_GFX_c0)
+	    || BIC_IS_ENABLED(BIC_CPUGFX)
+	    || BIC_IS_ENABLED(BIC_Pkgpc3)
+	    || BIC_IS_ENABLED(BIC_Pkgpc6)
+	    || BIC_IS_ENABLED(BIC_Pkgpc2)
+	    || BIC_IS_ENABLED(BIC_Pkgpc7)
+	    || BIC_IS_ENABLED(BIC_Pkgpc8)
+	    || BIC_IS_ENABLED(BIC_Pkgpc9)
+	    || BIC_IS_ENABLED(BIC_Pkgpc10)
+	    /* TODO: Multiplex access with perf */
+	    || BIC_IS_ENABLED(BIC_CorWatt)
+	    || BIC_IS_ENABLED(BIC_Cor_J)
+	    || BIC_IS_ENABLED(BIC_PkgWatt)
+	    || BIC_IS_ENABLED(BIC_CorWatt)
+	    || BIC_IS_ENABLED(BIC_GFXWatt)
+	    || BIC_IS_ENABLED(BIC_RAMWatt)
+	    || BIC_IS_ENABLED(BIC_Pkg_J)
+	    || BIC_IS_ENABLED(BIC_Cor_J)
+	    || BIC_IS_ENABLED(BIC_GFX_J)
+	    || BIC_IS_ENABLED(BIC_RAM_J)
+	    || BIC_IS_ENABLED(BIC_PKG__)
+	    || BIC_IS_ENABLED(BIC_RAM__)
+	    || BIC_IS_ENABLED(BIC_PkgTmp)
+	    || (is_aperf_access_required() && !has_amperf_access_via_perf());
+}
+
+void check_msr_access(void)
+{
+	if (!is_msr_access_required())
+		no_msr = 1;
+
+	check_dev_msr();
+	check_msr_permission();
+
+	if (no_msr)
+		bic_disable_msr_access();
+}
+
+void check_perf_access(void)
+{
+	const bool intrcount_required = BIC_IS_ENABLED(BIC_IPC);
+
+	if (no_perf || !intrcount_required || !has_instr_count_access())
+		bic_enabled &= ~BIC_IPC;
+
+	const bool aperf_required = is_aperf_access_required();
+
+	if (!aperf_required || !has_amperf_access()) {
+		bic_enabled &= ~BIC_Avg_MHz;
+		bic_enabled &= ~BIC_Busy;
+		bic_enabled &= ~BIC_Bzy_MHz;
+		bic_enabled &= ~BIC_IPC;
+	}
+}
+
 void turbostat_init()
 {
 	setup_all_buffers(true);
 	set_base_cpu();
-	check_dev_msr();
-	check_permissions();
+	check_msr_access();
+	check_perf_access();
 	process_cpuid();
+	counter_info_init();
 	probe_pm_features();
+	set_amperf_source();
 	linux_perf_init();
+	rapl_perf_init();
+	cstate_perf_init();
 
 	for_all_cpus(get_cpu_type, ODD_COUNTERS);
 	for_all_cpus(get_cpu_type, EVEN_COUNTERS);
 
 	if (DO_BIC(BIC_IPC))
 		(void)get_instr_count_fd(base_cpu);
+
+	/*
+	 * If TSC tweak is needed, but couldn't get it,
+	 * disable more BICs, since it can't be reported accurately.
+	 */
+	if (platform->enable_tsc_tweak && !has_base_hz) {
+		bic_enabled &= ~BIC_Busy;
+		bic_enabled &= ~BIC_Bzy_MHz;
+	}
 }
 
 int fork_it(char **argv)
@@ -6259,7 +8017,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2023.11.07 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2024.05.10 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
@@ -6285,58 +8043,114 @@ void print_bootcmd(void)
 	fclose(fp);
 }
 
+struct msr_counter *find_msrp_by_name(struct msr_counter *head, char *name)
+{
+	struct msr_counter *mp;
+
+	for (mp = head; mp; mp = mp->next) {
+		if (debug)
+			printf("%s: %s %s\n", __func__, name, mp->name);
+		if (!strncmp(name, mp->name, strlen(mp->name)))
+			return mp;
+	}
+	return NULL;
+}
+
 int add_counter(unsigned int msr_num, char *path, char *name,
 		unsigned int width, enum counter_scope scope,
-		enum counter_type type, enum counter_format format, int flags)
+		enum counter_type type, enum counter_format format, int flags, int id)
 {
 	struct msr_counter *msrp;
 
-	msrp = calloc(1, sizeof(struct msr_counter));
-	if (msrp == NULL) {
-		perror("calloc");
-		exit(1);
-	}
+	if (no_msr && msr_num)
+		errx(1, "Requested MSR counter 0x%x, but in --no-msr mode", msr_num);
 
-	msrp->msr_num = msr_num;
-	strncpy(msrp->name, name, NAME_BYTES - 1);
-	if (path)
-		strncpy(msrp->path, path, PATH_BYTES - 1);
-	msrp->width = width;
-	msrp->type = type;
-	msrp->format = format;
-	msrp->flags = flags;
+	if (debug)
+		printf("%s(msr%d, %s, %s, width%d, scope%d, type%d, format%d, flags%x, id%d)\n", __func__, msr_num,
+		       path, name, width, scope, type, format, flags, id);
 
 	switch (scope) {
 
 	case SCOPE_CPU:
-		msrp->next = sys.tp;
-		sys.tp = msrp;
-		sys.added_thread_counters++;
-		if (sys.added_thread_counters > MAX_ADDED_THREAD_COUNTERS) {
-			fprintf(stderr, "exceeded max %d added thread counters\n", MAX_ADDED_COUNTERS);
-			exit(-1);
+		msrp = find_msrp_by_name(sys.tp, name);
+		if (msrp) {
+			if (debug)
+				printf("%s: %s FOUND\n", __func__, name);
+			break;
+		}
+		if (sys.added_thread_counters++ >= MAX_ADDED_THREAD_COUNTERS) {
+			warnx("ignoring thread counter %s", name);
+			return -1;
 		}
 		break;
-
 	case SCOPE_CORE:
-		msrp->next = sys.cp;
-		sys.cp = msrp;
-		sys.added_core_counters++;
-		if (sys.added_core_counters > MAX_ADDED_COUNTERS) {
-			fprintf(stderr, "exceeded max %d added core counters\n", MAX_ADDED_COUNTERS);
-			exit(-1);
+		msrp = find_msrp_by_name(sys.cp, name);
+		if (msrp) {
+			if (debug)
+				printf("%s: %s FOUND\n", __func__, name);
+			break;
+		}
+		if (sys.added_core_counters++ >= MAX_ADDED_CORE_COUNTERS) {
+			warnx("ignoring core counter %s", name);
+			return -1;
 		}
 		break;
-
 	case SCOPE_PACKAGE:
-		msrp->next = sys.pp;
-		sys.pp = msrp;
-		sys.added_package_counters++;
-		if (sys.added_package_counters > MAX_ADDED_COUNTERS) {
-			fprintf(stderr, "exceeded max %d added package counters\n", MAX_ADDED_COUNTERS);
-			exit(-1);
+		msrp = find_msrp_by_name(sys.pp, name);
+		if (msrp) {
+			if (debug)
+				printf("%s: %s FOUND\n", __func__, name);
+			break;
+		}
+		if (sys.added_package_counters++ >= MAX_ADDED_PACKAGE_COUNTERS) {
+			warnx("ignoring package counter %s", name);
+			return -1;
 		}
 		break;
+	default:
+		warnx("ignoring counter %s with unknown scope", name);
+		return -1;
+	}
+
+	if (msrp == NULL) {
+		msrp = calloc(1, sizeof(struct msr_counter));
+		if (msrp == NULL)
+			err(-1, "calloc msr_counter");
+		msrp->msr_num = msr_num;
+		strncpy(msrp->name, name, NAME_BYTES - 1);
+		msrp->width = width;
+		msrp->type = type;
+		msrp->format = format;
+		msrp->flags = flags;
+
+		switch (scope) {
+		case SCOPE_CPU:
+			msrp->next = sys.tp;
+			sys.tp = msrp;
+			break;
+		case SCOPE_CORE:
+			msrp->next = sys.cp;
+			sys.cp = msrp;
+			break;
+		case SCOPE_PACKAGE:
+			msrp->next = sys.pp;
+			sys.pp = msrp;
+			break;
+		}
+	}
+
+	if (path) {
+		struct sysfs_path *sp;
+
+		sp = calloc(1, sizeof(struct sysfs_path));
+		if (sp == NULL) {
+			perror("calloc");
+			exit(1);
+		}
+		strncpy(sp->path, path, PATH_BYTES - 1);
+		sp->id = id;
+		sp->next = msrp->sp;
+		msrp->sp = sp;
 	}
 
 	return 0;
@@ -6438,7 +8252,7 @@ next:
 			sprintf(name_buffer, "M0X%x%s", msr_num, format == FORMAT_PERCENT ? "%" : "");
 	}
 
-	if (add_counter(msr_num, path, name_buffer, width, scope, type, format, 0))
+	if (add_counter(msr_num, path, name_buffer, width, scope, type, format, 0, 0))
 		fail++;
 
 	if (fail) {
@@ -6503,7 +8317,7 @@ void probe_sysfs(void)
 		if (is_deferred_skip(name_buf))
 			continue;
 
-		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_USEC, FORMAT_PERCENT, SYSFS_PERCPU);
+		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_USEC, FORMAT_PERCENT, SYSFS_PERCPU, 0);
 	}
 
 	for (state = 10; state >= 0; --state) {
@@ -6531,7 +8345,7 @@ void probe_sysfs(void)
 		if (is_deferred_skip(name_buf))
 			continue;
 
-		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS, FORMAT_DELTA, SYSFS_PERCPU);
+		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS, FORMAT_DELTA, SYSFS_PERCPU, 0);
 	}
 
 }
@@ -6595,6 +8409,8 @@ void cmdline(int argc, char **argv)
 		{ "list", no_argument, 0, 'l' },
 		{ "out", required_argument, 0, 'o' },
 		{ "quiet", no_argument, 0, 'q' },
+		{ "no-msr", no_argument, 0, 'M' },
+		{ "no-perf", no_argument, 0, 'P' },
 		{ "show", required_argument, 0, 's' },
 		{ "Summary", no_argument, 0, 'S' },
 		{ "TCC", required_argument, 0, 'T' },
@@ -6604,7 +8420,25 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "+C:c:Dde:hi:Jn:o:qST:v", long_options, &option_index)) != -1) {
+	/*
+	 * Parse some options early, because they may make other options invalid,
+	 * like adding the MSR counter with --add and at the same time using --no-msr.
+	 */
+	while ((opt = getopt_long_only(argc, argv, "MP", long_options, &option_index)) != -1) {
+		switch (opt) {
+		case 'M':
+			no_msr = 1;
+			break;
+		case 'P':
+			no_perf = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	optind = 0;
+
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Dde:hi:Jn:o:qMST:v", long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
 			parse_add_command(optarg);
@@ -6662,6 +8496,10 @@ void cmdline(int argc, char **argv)
 		case 'q':
 			quiet = 1;
 			break;
+		case 'M':
+		case 'P':
+			/* Parsed earlier */
+			break;
 		case 'n':
 			num_iterations = strtod(optarg, NULL);
 
@@ -6704,6 +8542,22 @@ void cmdline(int argc, char **argv)
 	}
 }
 
+void set_rlimit(void)
+{
+	struct rlimit limit;
+
+	if (getrlimit(RLIMIT_NOFILE, &limit) < 0)
+		err(1, "Failed to get rlimit");
+
+	if (limit.rlim_max < MAX_NOFILE)
+		limit.rlim_max = MAX_NOFILE;
+	if (limit.rlim_cur < MAX_NOFILE)
+		limit.rlim_cur = MAX_NOFILE;
+
+	if (setrlimit(RLIMIT_NOFILE, &limit) < 0)
+		err(1, "Failed to set rlimit");
+}
+
 int main(int argc, char **argv)
 {
 	int fd, ret;
@@ -6729,9 +8583,13 @@ skip_cgroup_setting:
 
 	probe_sysfs();
 
+	if (!getuid())
+		set_rlimit();
+
 	turbostat_init();
 
-	msr_sum_record();
+	if (!no_msr)
+		msr_sum_record();
 
 	/* dump counters and exit */
 	if (dump_only)

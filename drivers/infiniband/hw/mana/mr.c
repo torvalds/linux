@@ -135,7 +135,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	}
 
 	ibdev_dbg(ibdev,
-		  "create_dma_region ret %d gdma_region %llx\n", err,
+		  "created dma region for user-mr 0x%llx\n",
 		  dma_region_handle);
 
 	mr_params.pd_handle = pd->pd_handle;

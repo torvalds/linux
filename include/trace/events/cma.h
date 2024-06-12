@@ -23,7 +23,7 @@ TRACE_EVENT(cma_release,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->pfn = pfn;
 		__entry->page = page;
 		__entry->count = count;
@@ -49,7 +49,7 @@ TRACE_EVENT(cma_alloc_start,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->count = count;
 		__entry->align = align;
 	),
@@ -77,7 +77,7 @@ TRACE_EVENT(cma_alloc_finish,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->pfn = pfn;
 		__entry->page = page;
 		__entry->count = count;
@@ -110,7 +110,7 @@ TRACE_EVENT(cma_alloc_busy_retry,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->pfn = pfn;
 		__entry->page = page;
 		__entry->count = count;

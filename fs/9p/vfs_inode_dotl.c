@@ -52,7 +52,10 @@ static kgid_t v9fs_get_fsgid_for_create(struct inode *dir_inode)
 	return current_fsgid();
 }
 
-struct inode *v9fs_fid_iget_dotl(struct super_block *sb, struct p9_fid *fid)
+
+
+struct inode *
+v9fs_fid_iget_dotl(struct super_block *sb, struct p9_fid *fid, bool new)
 {
 	int retval;
 	struct inode *inode;
@@ -62,8 +65,18 @@ struct inode *v9fs_fid_iget_dotl(struct super_block *sb, struct p9_fid *fid)
 	inode = iget_locked(sb, QID2INO(&fid->qid));
 	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(inode->i_state & I_NEW)) {
+		if (!new) {
+			goto done;
+		} else { /* deal with race condition in inode number reuse */
+			p9_debug(P9_DEBUG_ERROR, "WARNING: Inode collision %lx\n",
+						inode->i_ino);
+			iput(inode);
+			remove_inode_hash(inode);
+			inode = iget_locked(sb, QID2INO(&fid->qid));
+			WARN_ON(!(inode->i_state & I_NEW));
+		}
+	}
 
 	/*
 	 * initialize the inode with the stat info
@@ -78,11 +91,11 @@ struct inode *v9fs_fid_iget_dotl(struct super_block *sb, struct p9_fid *fid)
 
 	retval = v9fs_init_inode(v9ses, inode, &fid->qid,
 				 st->st_mode, new_decode_dev(st->st_rdev));
+	v9fs_stat2inode_dotl(st, inode, 0);
 	kfree(st);
 	if (retval)
 		goto error;
 
-	v9fs_stat2inode_dotl(st, inode, 0);
 	v9fs_set_netfs_context(inode);
 	v9fs_cache_inode_get_cookie(inode);
 	retval = v9fs_get_acl(inode, fid);
@@ -90,12 +103,11 @@ struct inode *v9fs_fid_iget_dotl(struct super_block *sb, struct p9_fid *fid)
 		goto error;
 
 	unlock_new_inode(inode);
-
+done:
 	return inode;
 error:
 	iget_failed(inode);
 	return ERR_PTR(retval);
-
 }
 
 struct dotl_openflag_map {
@@ -247,7 +259,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
 		goto out;
 	}
-	inode = v9fs_fid_iget_dotl(dir->i_sb, fid);
+	inode = v9fs_fid_iget_dotl(dir->i_sb, fid, true);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n", err);
@@ -297,7 +309,6 @@ static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 			       umode_t omode)
 {
 	int err;
-	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid = NULL, *dfid = NULL;
 	kgid_t gid;
 	const unsigned char *name;
@@ -307,7 +318,6 @@ static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
 	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
-	v9ses = v9fs_inode2v9ses(dir);
 
 	omode |= S_IFDIR;
 	if (dir->i_mode & S_ISGID)
@@ -342,7 +352,7 @@ static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 	}
 
 	/* instantiate inode and assign the unopened fid to the dentry */
-	inode = v9fs_fid_iget_dotl(dir->i_sb, fid);
+	inode = v9fs_fid_iget_dotl(dir->i_sb, fid, true);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n",
@@ -739,7 +749,6 @@ v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 	kgid_t gid;
 	const unsigned char *name;
 	umode_t mode;
-	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid = NULL, *dfid = NULL;
 	struct inode *inode;
 	struct p9_qid qid;
@@ -749,7 +758,6 @@ v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		 dir->i_ino, dentry, omode,
 		 MAJOR(rdev), MINOR(rdev));
 
-	v9ses = v9fs_inode2v9ses(dir);
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
@@ -780,7 +788,7 @@ v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 			 err);
 		goto error;
 	}
-	inode = v9fs_fid_iget_dotl(dir->i_sb, fid);
+	inode = v9fs_fid_iget_dotl(dir->i_sb, fid, true);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n",

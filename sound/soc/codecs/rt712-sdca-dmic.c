@@ -139,8 +139,8 @@ static int rt712_sdca_dmic_index_write(struct rt712_sdca_dmic_priv *rt712,
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt712->slave->dev,
-			"Failed to set private value: %06x <= %04x ret=%d\n",
-			addr, value, ret);
+			"%s: Failed to set private value: %06x <= %04x ret=%d\n",
+			__func__, addr, value, ret);
 
 	return ret;
 }
@@ -155,8 +155,8 @@ static int rt712_sdca_dmic_index_read(struct rt712_sdca_dmic_priv *rt712,
 	ret = regmap_read(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt712->slave->dev,
-			"Failed to get private value: %06x => %04x ret=%d\n",
-			addr, *value, ret);
+			"%s: Failed to get private value: %06x => %04x ret=%d\n",
+			__func__, addr, *value, ret);
 
 	return ret;
 }
@@ -317,7 +317,8 @@ static int rt712_sdca_dmic_set_gain_put(struct snd_kcontrol *kcontrol,
 	for (i = 0; i < p->count; i++) {
 		err = regmap_write(rt712->mbq_regmap, p->reg_base + i, gain_val[i]);
 		if (err < 0)
-			dev_err(&rt712->slave->dev, "0x%08x can't be set\n", p->reg_base + i);
+			dev_err(&rt712->slave->dev, "%s: 0x%08x can't be set\n",
+				__func__, p->reg_base + i);
 	}
 
 	return changed;
@@ -667,13 +668,13 @@ static int rt712_sdca_dmic_hw_params(struct snd_pcm_substream *substream,
 	retval = sdw_stream_add_slave(rt712->slave, &stream_config,
 					&port_config, 1, sdw_stream);
 	if (retval) {
-		dev_err(dai->dev, "Unable to configure port\n");
+		dev_err(dai->dev, "%s: Unable to configure port\n", __func__);
 		return retval;
 	}
 
 	if (params_channels(params) > 4) {
-		dev_err(component->dev, "Unsupported channels %d\n",
-			params_channels(params));
+		dev_err(component->dev, "%s: Unsupported channels %d\n",
+			__func__, params_channels(params));
 		return -EINVAL;
 	}
 
@@ -698,8 +699,8 @@ static int rt712_sdca_dmic_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT712_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
-			params_rate(params));
+		dev_err(component->dev, "%s: Rate %d is not supported\n",
+			__func__, params_rate(params));
 		return -EINVAL;
 	}
 
@@ -923,7 +924,8 @@ static int __maybe_unused rt712_sdca_dmic_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT712_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n",
+			__func__);
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;
@@ -976,7 +978,6 @@ static int rt712_sdca_dmic_sdw_remove(struct sdw_slave *slave)
 static struct sdw_driver rt712_sdca_dmic_sdw_driver = {
 	.driver = {
 		.name = "rt712-sdca-dmic",
-		.owner = THIS_MODULE,
 		.pm = &rt712_sdca_dmic_pm,
 	},
 	.probe = rt712_sdca_dmic_sdw_probe,

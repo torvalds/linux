@@ -100,7 +100,15 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (clk_mgr_base->clks.dispclk_khz == 0 ||
 	    dc->debug.force_clock_mode & 0x1) {
+		/* this is from resume or boot up, if forced_clock cfg option
+		 * used, we bypass program dispclk and DPPCLK, but need set them
+		 * for S3.
+		 */
+
 		force_reset = true;
+		/* force_clock_mode 0x1:  force reset the clock even it is the
+		 * same clock as long as it is in Passive level.
+		 */
 
 		dcn2_read_clocks_from_hw_dentist(clk_mgr_base);
 	}
@@ -150,11 +158,14 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
+			// if clock is being lowered, increase DTO before lowering refclk
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 			dcn20_update_clocks_update_dentist(clk_mgr, context);
 		} else {
+			// if clock is being raised, increase refclk before lowering DTO
 			if (update_dppclk || update_dispclk)
 				dcn20_update_clocks_update_dentist(clk_mgr, context);
+			// always update dtos unless clock is lowered and not safe to lower
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 		}
 	}

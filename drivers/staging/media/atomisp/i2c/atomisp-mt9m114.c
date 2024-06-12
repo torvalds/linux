@@ -35,7 +35,7 @@
 
 #include "mt9m114.h"
 
-#define to_mt9m114_sensor(sd) container_of(sd, struct mt9m114_device, sd)
+#define to_mt9m114_sensor(s) container_of(s, struct mt9m114_device, sd)
 
 /*
  * TODO: use debug parameter to actually define when debug messages should
@@ -1552,7 +1552,7 @@ static int mt9m114_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
+	ret = atomisp_register_i2c_module(&dev->sd, pdata);
 	if (ret) {
 		v4l2_device_unregister_subdev(&dev->sd);
 		kfree(dev);

@@ -358,7 +358,8 @@ static int proxy_channel_alloc(struct intel_gsc_uc *gsc)
 	void *vaddr;
 	int err;
 
-	err = intel_guc_allocate_and_map_vma(&gt->uc.guc, GSC_PROXY_CHANNEL_SIZE,
+	err = intel_guc_allocate_and_map_vma(gt_to_guc(gt),
+					     GSC_PROXY_CHANNEL_SIZE,
 					     &vma, &vaddr);
 	if (err)
 		return err;

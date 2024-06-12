@@ -136,9 +136,9 @@ void hashtab_destroy(struct hashtab *h);
 int hashtab_map(struct hashtab *h, int (*apply)(void *k, void *d, void *args),
 		void *args);
 
-int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
+int hashtab_duplicate(struct hashtab *new, const struct hashtab *orig,
 		      int (*copy)(struct hashtab_node *new,
-				  struct hashtab_node *orig, void *args),
+				  const struct hashtab_node *orig, void *args),
 		      int (*destroy)(void *k, void *d, void *args), void *args);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEBUG

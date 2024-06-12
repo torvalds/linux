@@ -7,7 +7,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/of_gpio.h>
 #include <linux/iopoll.h>
 #include <linux/reset.h>
 #include <linux/of_net.h>

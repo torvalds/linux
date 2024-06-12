@@ -124,7 +124,7 @@ bool hubbub3_get_dcc_compression_cap(struct hubbub *hubbub,
 
 bool hubbub3_program_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
 

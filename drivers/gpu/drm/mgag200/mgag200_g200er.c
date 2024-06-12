@@ -9,6 +9,7 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
 
+#include "mgag200_ddc.h"
 #include "mgag200_drv.h"
 
 static void mgag200_g200er_init_registers(struct mga_device *mdev)
@@ -243,8 +244,8 @@ static int mgag200_g200er_pipeline_init(struct mga_device *mdev)
 	struct drm_plane *primary_plane = &mdev->primary_plane;
 	struct drm_crtc *crtc = &mdev->crtc;
 	struct drm_encoder *encoder = &mdev->encoder;
-	struct mga_i2c_chan *i2c = &mdev->i2c;
 	struct drm_connector *connector = &mdev->connector;
+	struct i2c_adapter *ddc;
 	int ret;
 
 	ret = drm_universal_plane_init(dev, primary_plane, 0,
@@ -280,16 +281,16 @@ static int mgag200_g200er_pipeline_init(struct mga_device *mdev)
 		return ret;
 	}
 
-	ret = mgag200_i2c_init(mdev, i2c);
-	if (ret) {
+	ddc = mgag200_ddc_create(mdev);
+	if (IS_ERR(ddc)) {
+		ret = PTR_ERR(ddc);
 		drm_err(dev, "failed to add DDC bus: %d\n", ret);
 		return ret;
 	}
 
 	ret = drm_connector_init_with_ddc(dev, connector,
 					  &mgag200_g200er_vga_connector_funcs,
-					  DRM_MODE_CONNECTOR_VGA,
-					  &i2c->adapter);
+					  DRM_MODE_CONNECTOR_VGA, ddc);
 	if (ret) {
 		drm_err(dev, "drm_connector_init_with_ddc() failed: %d\n", ret);
 		return ret;

@@ -26,6 +26,7 @@
 #include "intel_global_state.h"
 #include "intel_gmbus.h"
 #include "intel_opregion.h"
+#include "intel_dmc_wl.h"
 #include "intel_wm_types.h"
 
 struct task_struct;
@@ -282,6 +283,9 @@ struct intel_wm {
 };
 
 struct intel_display {
+	/* drm device backpointer */
+	struct drm_device *drm;
+
 	/* Display functions */
 	struct {
 		/* Top level crtc-ish functions */
@@ -345,6 +349,8 @@ struct intel_display {
 		struct intel_global_obj obj;
 
 		unsigned int max_cdclk_freq;
+		unsigned int max_dotclk_freq;
+		unsigned int skl_preferred_vco_freq;
 	} cdclk;
 
 	struct {
@@ -446,6 +452,16 @@ struct intel_display {
 	} ips;
 
 	struct {
+		bool display_irqs_enabled;
+
+		/* For i915gm/i945gm vblank irq workaround */
+		u8 vblank_enabled;
+
+		u32 de_irq_mask[I915_MAX_PIPES];
+		u32 pipestat_irq_mask[I915_MAX_PIPES];
+	} irq;
+
+	struct {
 		wait_queue_head_t waitqueue;
 
 		/* mutex to protect pmdemand programming sequence */
@@ -534,6 +550,7 @@ struct intel_display {
 	struct intel_overlay *overlay;
 	struct intel_display_params params;
 	struct intel_vbt_data vbt;
+	struct intel_dmc_wl wl;
 	struct intel_wm wm;
 };
 

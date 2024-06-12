@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2023 Google Inc. All rights reserved.
+// Copyright(c) 2023 Google Inc
 //
 // Author: Curtis Malainey <cujomalainey@chromium.org>
 //

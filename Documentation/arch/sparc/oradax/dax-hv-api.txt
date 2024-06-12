@@ -41,7 +41,7 @@ Chapter 36. Coprocessor services
         submissions until they succeed; waiting for an outstanding CCB to complete is not necessary, and would
         not be a guarantee that a future submission would succeed.
 
-        The availablility of DAX coprocessor command service is indicated by the presence of the DAX virtual
+        The availability of DAX coprocessor command service is indicated by the presence of the DAX virtual
         device node in the guest MD (Section 8.24.17, “Database Analytics Accelerators (DAX) virtual-device
         node”).
 

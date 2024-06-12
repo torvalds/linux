@@ -226,19 +226,6 @@ static void __init memory_present(int nid, unsigned long start, unsigned long en
 {
 	unsigned long pfn;
 
-#ifdef CONFIG_SPARSEMEM_EXTREME
-	if (unlikely(!mem_section)) {
-		unsigned long size, align;
-
-		size = sizeof(struct mem_section *) * NR_SECTION_ROOTS;
-		align = 1 << (INTERNODE_CACHE_SHIFT);
-		mem_section = memblock_alloc(size, align);
-		if (!mem_section)
-			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-			      __func__, size, align);
-	}
-#endif
-
 	start &= PAGE_SECTION_MASK;
 	mminit_validate_memmodel_limits(&start, &end);
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
@@ -266,6 +253,19 @@ static void __init memblocks_present(void)
 {
 	unsigned long start, end;
 	int i, nid;
+
+#ifdef CONFIG_SPARSEMEM_EXTREME
+	if (unlikely(!mem_section)) {
+		unsigned long size, align;
+
+		size = sizeof(struct mem_section *) * NR_SECTION_ROOTS;
+		align = 1 << (INTERNODE_CACHE_SHIFT);
+		mem_section = memblock_alloc(size, align);
+		if (!mem_section)
+			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+			      __func__, size, align);
+	}
+#endif
 
 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, &nid)
 		memory_present(nid, start, end);
@@ -560,6 +560,8 @@ void __init sparse_init(void)
 	unsigned long pnum_end, pnum_begin, map_count = 1;
 	int nid_begin;
 
+	/* see include/linux/mmzone.h 'struct mem_section' definition */
+	BUILD_BUG_ON(!is_power_of_2(sizeof(struct mem_section)));
 	memblocks_present();
 
 	pnum_begin = first_present_section_nr();

@@ -18,16 +18,11 @@
 #include <linux/kvm_para.h>
 #include <linux/stringify.h>
 
-#include "../kvm_util.h"
+#include "kvm_util.h"
+#include "ucall_common.h"
 
 extern bool host_cpu_is_intel;
 extern bool host_cpu_is_amd;
-
-enum vm_guest_x86_subtype {
-	VM_SUBTYPE_NONE = 0,
-	VM_SUBTYPE_SEV,
-	VM_SUBTYPE_SEV_ES,
-};
 
 /* Forced emulation prefix, used to invoke the emulator unconditionally. */
 #define KVM_FEP "ud2; .byte 'k', 'v', 'm';"
@@ -1037,8 +1032,19 @@ static inline void vcpu_set_cpuid(struct kvm_vcpu *vcpu)
 void vcpu_set_cpuid_property(struct kvm_vcpu *vcpu,
 			     struct kvm_x86_cpu_property property,
 			     uint32_t value);
+void vcpu_set_cpuid_maxphyaddr(struct kvm_vcpu *vcpu, uint8_t maxphyaddr);
 
 void vcpu_clear_cpuid_entry(struct kvm_vcpu *vcpu, uint32_t function);
+
+static inline bool vcpu_cpuid_has(struct kvm_vcpu *vcpu,
+				  struct kvm_x86_cpu_feature feature)
+{
+	struct kvm_cpuid_entry2 *entry;
+
+	entry = __vcpu_get_cpuid_entry(vcpu, feature.function, feature.index);
+	return *((&entry->eax) + feature.reg) & BIT(feature.bit);
+}
+
 void vcpu_set_or_clear_cpuid_feature(struct kvm_vcpu *vcpu,
 				     struct kvm_x86_cpu_feature feature,
 				     bool set);
@@ -1128,8 +1134,6 @@ struct idt_entry {
 	uint32_t offset2; uint32_t reserved;
 };
 
-void vm_init_descriptor_tables(struct kvm_vm *vm);
-void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
 void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
 

@@ -7,13 +7,11 @@
  *
  * Copyright (c) 2024, Intel Corporation.
  */
-
-#define _GNU_SOURCE
-
 #include "arch_timer.h"
 #include "kvm_util.h"
 #include "processor.h"
 #include "timer_test.h"
+#include "ucall_common.h"
 
 static int timer_irq = IRQ_S_TIMER;
 
@@ -60,7 +58,7 @@ static void guest_run(struct test_vcpu_shared_data *shared_data)
 		irq_iter = READ_ONCE(shared_data->nr_iter);
 		__GUEST_ASSERT(config_iter + 1 == irq_iter,
 				"config_iter + 1 = 0x%x, irq_iter = 0x%x.\n"
-				"  Guest timer interrupt was not trigged within the specified\n"
+				"  Guest timer interrupt was not triggered within the specified\n"
 				"  interval, try to increase the error margin by [-e] option.\n",
 				config_iter + 1, irq_iter);
 	}
@@ -85,7 +83,7 @@ struct kvm_vm *test_vm_create(void)
 	int nr_vcpus = test_args.nr_vcpus;
 
 	vm = vm_create_with_vcpus(nr_vcpus, guest_code, vcpus);
-	__TEST_REQUIRE(__vcpu_has_ext(vcpus[0], RISCV_ISA_EXT_REG(KVM_RISCV_ISA_EXT_SSTC)),
+	__TEST_REQUIRE(__vcpu_has_isa_ext(vcpus[0], KVM_RISCV_ISA_EXT_SSTC),
 				   "SSTC not available, skipping test\n");
 
 	vm_init_vector_tables(vm);

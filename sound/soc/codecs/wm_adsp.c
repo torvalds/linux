@@ -7,6 +7,7 @@
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  */
 
+#include <linux/array_size.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -403,13 +404,8 @@ static int wm_coeff_put(struct snd_kcontrol *kctl,
 	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
 	struct cs_dsp_coeff_ctl *cs_ctl = ctl->cs_ctl;
 	char *p = ucontrol->value.bytes.data;
-	int ret = 0;
 
-	mutex_lock(&cs_ctl->dsp->pwr_lock);
-	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, p, cs_ctl->len);
-	mutex_unlock(&cs_ctl->dsp->pwr_lock);
-
-	return ret;
+	return cs_dsp_coeff_lock_and_write_ctrl(cs_ctl, 0, p, cs_ctl->len);
 }
 
 static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
@@ -426,13 +422,11 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 	if (!scratch)
 		return -ENOMEM;
 
-	if (copy_from_user(scratch, bytes, size)) {
+	if (copy_from_user(scratch, bytes, size))
 		ret = -EFAULT;
-	} else {
-		mutex_lock(&cs_ctl->dsp->pwr_lock);
-		ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, scratch, size);
-		mutex_unlock(&cs_ctl->dsp->pwr_lock);
-	}
+	else
+		ret = cs_dsp_coeff_lock_and_write_ctrl(cs_ctl, 0, scratch, size);
+
 	vfree(scratch);
 
 	return ret;
@@ -474,13 +468,8 @@ static int wm_coeff_get(struct snd_kcontrol *kctl,
 	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
 	struct cs_dsp_coeff_ctl *cs_ctl = ctl->cs_ctl;
 	char *p = ucontrol->value.bytes.data;
-	int ret;
 
-	mutex_lock(&cs_ctl->dsp->pwr_lock);
-	ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, p, cs_ctl->len);
-	mutex_unlock(&cs_ctl->dsp->pwr_lock);
-
-	return ret;
+	return cs_dsp_coeff_lock_and_read_ctrl(cs_ctl, 0, p, cs_ctl->len);
 }
 
 static int wm_coeff_tlv_get(struct snd_kcontrol *kctl,
@@ -683,23 +672,18 @@ static void wm_adsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
 int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 		      unsigned int alg, void *buf, size_t len)
 {
-	struct cs_dsp_coeff_ctl *cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
-	struct wm_coeff_ctl *ctl;
+	struct cs_dsp_coeff_ctl *cs_ctl;
 	int ret;
 
 	mutex_lock(&dsp->cs_dsp.pwr_lock);
+	cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
 	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, buf, len);
 	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 
 	if (ret < 0)
 		return ret;
 
-	if (ret == 0 || (cs_ctl->flags & WMFW_CTL_FLAG_SYS))
-		return 0;
-
-	ctl = cs_ctl->priv;
-
-	return snd_soc_component_notify_control(dsp->component, ctl->name);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_write_ctl);
 

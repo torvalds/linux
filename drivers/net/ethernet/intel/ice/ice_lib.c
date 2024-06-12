@@ -7,7 +7,6 @@
 #include "ice_lib.h"
 #include "ice_fltr.h"
 #include "ice_dcb_lib.h"
-#include "ice_devlink.h"
 #include "ice_vsi_vlan_ops.h"
 
 /**
@@ -27,8 +26,6 @@ const char *ice_vsi_type_str(enum ice_vsi_type vsi_type)
 		return "ICE_VSI_CHNL";
 	case ICE_VSI_LB:
 		return "ICE_VSI_LB";
-	case ICE_VSI_SWITCHDEV_CTRL:
-		return "ICE_VSI_SWITCHDEV_CTRL";
 	default:
 		return "unknown";
 	}
@@ -144,7 +141,6 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 {
 	switch (vsi->type) {
 	case ICE_VSI_PF:
-	case ICE_VSI_SWITCHDEV_CTRL:
 	case ICE_VSI_CTRL:
 	case ICE_VSI_LB:
 		/* a user could change the values of num_[tr]x_desc using
@@ -210,21 +206,6 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 		vsi->num_q_vectors = min_t(int, pf->num_lan_msix,
 					   max_t(int, vsi->alloc_rxq,
 						 vsi->alloc_txq));
-		break;
-	case ICE_VSI_SWITCHDEV_CTRL:
-		/* The number of queues for ctrl VSI is equal to number of PRs
-		 * Each ring is associated to the corresponding VF_PR netdev.
-		 * Tx and Rx rings are always equal
-		 */
-		if (vsi->req_txq && vsi->req_rxq) {
-			vsi->alloc_txq = vsi->req_txq;
-			vsi->alloc_rxq = vsi->req_rxq;
-		} else {
-			vsi->alloc_txq = 1;
-			vsi->alloc_rxq = 1;
-		}
-
-		vsi->num_q_vectors = 1;
 		break;
 	case ICE_VSI_VF:
 		if (vf->num_req_qs)
@@ -522,22 +503,6 @@ static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ice_eswitch_msix_clean_rings(int __always_unused irq, void *data)
-{
-	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
-	struct ice_pf *pf = q_vector->vsi->back;
-	struct ice_repr *repr;
-	unsigned long id;
-
-	if (!q_vector->tx.tx_ring && !q_vector->rx.rx_ring)
-		return IRQ_HANDLED;
-
-	xa_for_each(&pf->eswitch.reprs, id, repr)
-		napi_schedule(&repr->q_vector->napi);
-
-	return IRQ_HANDLED;
-}
-
 /**
  * ice_vsi_alloc_stat_arrays - Allocate statistics arrays
  * @vsi: VSI pointer
@@ -600,10 +565,6 @@ ice_vsi_alloc_def(struct ice_vsi *vsi, struct ice_channel *ch)
 	}
 
 	switch (vsi->type) {
-	case ICE_VSI_SWITCHDEV_CTRL:
-		/* Setup eswitch MSIX irq handler for VSI */
-		vsi->irq_handler = ice_eswitch_msix_clean_rings;
-		break;
 	case ICE_VSI_PF:
 		/* Setup default MSIX irq handler for VSI */
 		vsi->irq_handler = ice_msix_clean_rings;
@@ -933,11 +894,6 @@ static void ice_vsi_set_rss_params(struct ice_vsi *vsi)
 					      max_rss_size);
 		vsi->rss_lut_type = ICE_LUT_PF;
 		break;
-	case ICE_VSI_SWITCHDEV_CTRL:
-		vsi->rss_table_size = ICE_LUT_VSI_SIZE;
-		vsi->rss_size = min_t(u16, num_online_cpus(), max_rss_size);
-		vsi->rss_lut_type = ICE_LUT_VSI;
-		break;
 	case ICE_VSI_VF:
 		/* VF VSI will get a small RSS table.
 		 * For VSI_LUT, LUT size should be set to 64 bytes.
@@ -1263,7 +1219,6 @@ static int ice_vsi_init(struct ice_vsi *vsi, u32 vsi_flags)
 	case ICE_VSI_PF:
 		ctxt->flags = ICE_AQ_VSI_TYPE_PF;
 		break;
-	case ICE_VSI_SWITCHDEV_CTRL:
 	case ICE_VSI_CHNL:
 		ctxt->flags = ICE_AQ_VSI_TYPE_VMDQ2;
 		break;
@@ -2145,7 +2100,6 @@ static void ice_set_agg_vsi(struct ice_vsi *vsi)
 	case ICE_VSI_CHNL:
 	case ICE_VSI_LB:
 	case ICE_VSI_PF:
-	case ICE_VSI_SWITCHDEV_CTRL:
 		max_agg_nodes = ICE_MAX_PF_AGG_NODES;
 		agg_node_id_start = ICE_PF_AGG_NODE_ID_START;
 		agg_node_iter = &pf->pf_agg_node[0];
@@ -2273,10 +2227,8 @@ static int ice_vsi_cfg_tc_lan(struct ice_pf *pf, struct ice_vsi *vsi)
 /**
  * ice_vsi_cfg_def - configure default VSI based on the type
  * @vsi: pointer to VSI
- * @params: the parameters to configure this VSI with
  */
-static int
-ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
+static int ice_vsi_cfg_def(struct ice_vsi *vsi)
 {
 	struct device *dev = ice_pf_to_dev(vsi->back);
 	struct ice_pf *pf = vsi->back;
@@ -2284,7 +2236,7 @@ ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 
 	vsi->vsw = pf->first_sw;
 
-	ret = ice_vsi_alloc_def(vsi, params->ch);
+	ret = ice_vsi_alloc_def(vsi, vsi->ch);
 	if (ret)
 		return ret;
 
@@ -2309,7 +2261,7 @@ ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 	ice_vsi_set_tc_cfg(vsi);
 
 	/* create the VSI */
-	ret = ice_vsi_init(vsi, params->flags);
+	ret = ice_vsi_init(vsi, vsi->flags);
 	if (ret)
 		goto unroll_get_qs;
 
@@ -2317,7 +2269,6 @@ ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 
 	switch (vsi->type) {
 	case ICE_VSI_CTRL:
-	case ICE_VSI_SWITCHDEV_CTRL:
 	case ICE_VSI_PF:
 		ret = ice_vsi_alloc_q_vectors(vsi);
 		if (ret)
@@ -2430,23 +2381,16 @@ unroll_vsi_alloc:
 /**
  * ice_vsi_cfg - configure a previously allocated VSI
  * @vsi: pointer to VSI
- * @params: parameters used to configure this VSI
  */
-int ice_vsi_cfg(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
+int ice_vsi_cfg(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	int ret;
 
-	if (WARN_ON(params->type == ICE_VSI_VF && !params->vf))
+	if (WARN_ON(vsi->type == ICE_VSI_VF && !vsi->vf))
 		return -EINVAL;
 
-	vsi->type = params->type;
-	vsi->port_info = params->pi;
-
-	/* For VSIs which don't have a connected VF, this will be NULL */
-	vsi->vf = params->vf;
-
-	ret = ice_vsi_cfg_def(vsi, params);
+	ret = ice_vsi_cfg_def(vsi);
 	if (ret)
 		return ret;
 
@@ -2532,7 +2476,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_vsi_cfg_params *params)
 	 * a port_info structure for it.
 	 */
 	if (WARN_ON(!(params->flags & ICE_VSI_FLAG_INIT)) ||
-	    WARN_ON(!params->pi))
+	    WARN_ON(!params->port_info))
 		return NULL;
 
 	vsi = ice_vsi_alloc(pf);
@@ -2541,7 +2485,8 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_vsi_cfg_params *params)
 		return NULL;
 	}
 
-	ret = ice_vsi_cfg(vsi, params);
+	vsi->params = *params;
+	ret = ice_vsi_cfg(vsi);
 	if (ret)
 		goto err_vsi_cfg;
 
@@ -2750,8 +2695,7 @@ void ice_dis_vsi(struct ice_vsi *vsi, bool locked)
 		} else {
 			ice_vsi_close(vsi);
 		}
-	} else if (vsi->type == ICE_VSI_CTRL ||
-		   vsi->type == ICE_VSI_SWITCHDEV_CTRL) {
+	} else if (vsi->type == ICE_VSI_CTRL) {
 		ice_vsi_close(vsi);
 	}
 }
@@ -3089,21 +3033,27 @@ ice_vsi_realloc_stat_arrays(struct ice_vsi *vsi)
  */
 int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags)
 {
-	struct ice_vsi_cfg_params params = {};
 	struct ice_coalesce_stored *coalesce;
-	int prev_num_q_vectors = 0;
+	int prev_num_q_vectors;
 	struct ice_pf *pf;
 	int ret;
 
 	if (!vsi)
 		return -EINVAL;
 
-	params = ice_vsi_to_params(vsi);
-	params.flags = vsi_flags;
-
+	vsi->flags = vsi_flags;
 	pf = vsi->back;
 	if (WARN_ON(vsi->type == ICE_VSI_VF && !vsi->vf))
 		return -EINVAL;
+
+	ret = ice_vsi_realloc_stat_arrays(vsi);
+	if (ret)
+		goto err_vsi_cfg;
+
+	ice_vsi_decfg(vsi);
+	ret = ice_vsi_cfg_def(vsi);
+	if (ret)
+		goto err_vsi_cfg;
 
 	coalesce = kcalloc(vsi->num_q_vectors,
 			   sizeof(struct ice_coalesce_stored), GFP_KERNEL);
@@ -3111,15 +3061,6 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags)
 		return -ENOMEM;
 
 	prev_num_q_vectors = ice_vsi_rebuild_get_coalesce(vsi, coalesce);
-
-	ret = ice_vsi_realloc_stat_arrays(vsi);
-	if (ret)
-		goto err_vsi_cfg;
-
-	ice_vsi_decfg(vsi);
-	ret = ice_vsi_cfg_def(vsi, &params);
-	if (ret)
-		goto err_vsi_cfg;
 
 	ret = ice_vsi_cfg_tc_lan(pf, vsi);
 	if (ret) {
@@ -3139,8 +3080,8 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags)
 
 err_vsi_cfg_tc_lan:
 	ice_vsi_decfg(vsi);
-err_vsi_cfg:
 	kfree(coalesce);
+err_vsi_cfg:
 	return ret;
 }
 

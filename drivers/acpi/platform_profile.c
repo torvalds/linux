@@ -136,6 +136,45 @@ void platform_profile_notify(void)
 }
 EXPORT_SYMBOL_GPL(platform_profile_notify);
 
+int platform_profile_cycle(void)
+{
+	enum platform_profile_option profile;
+	enum platform_profile_option next;
+	int err;
+
+	err = mutex_lock_interruptible(&profile_lock);
+	if (err)
+		return err;
+
+	if (!cur_profile) {
+		mutex_unlock(&profile_lock);
+		return -ENODEV;
+	}
+
+	err = cur_profile->profile_get(cur_profile, &profile);
+	if (err) {
+		mutex_unlock(&profile_lock);
+		return err;
+	}
+
+	next = find_next_bit_wrap(cur_profile->choices, PLATFORM_PROFILE_LAST,
+				  profile + 1);
+
+	if (WARN_ON(next == PLATFORM_PROFILE_LAST)) {
+		mutex_unlock(&profile_lock);
+		return -EINVAL;
+	}
+
+	err = cur_profile->profile_set(cur_profile, next);
+	mutex_unlock(&profile_lock);
+
+	if (!err)
+		sysfs_notify(acpi_kobj, NULL, "platform_profile");
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(platform_profile_cycle);
+
 int platform_profile_register(struct platform_profile_handler *pprof)
 {
 	int err;

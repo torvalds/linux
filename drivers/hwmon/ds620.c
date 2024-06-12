@@ -233,7 +233,7 @@ static int ds620_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ds620_id[] = {
-	{"ds620", 0},
+	{"ds620"},
 	{}
 };
 

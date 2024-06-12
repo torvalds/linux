@@ -79,12 +79,15 @@ enum {
 struct kvm_sev_info {
 	bool active;		/* SEV enabled guest */
 	bool es_active;		/* SEV-ES enabled guest */
+	bool need_init;		/* waiting for SEV_INIT2 */
 	unsigned int asid;	/* ASID used for this guest */
 	unsigned int handle;	/* SEV firmware handle */
 	int fd;			/* SEV device fd */
 	unsigned long pages_locked; /* Number of pages locked */
 	struct list_head regions_list;  /* List of registered regions */
 	u64 ap_jump_table;	/* SEV-ES AP Jump Table address */
+	u64 vmsa_features;
+	u16 ghcb_version;	/* Highest guest GHCB protocol version allowed */
 	struct kvm *enc_context_owner; /* Owner of copied encryption context */
 	struct list_head mirror_vms; /* List of VMs mirroring */
 	struct list_head mirror_entry; /* Use as a list entry of mirrors */
@@ -197,6 +200,7 @@ struct vcpu_sev_es_state {
 	u8 valid_bitmap[16];
 	struct kvm_host_map ghcb_map;
 	bool received_first_sipi;
+	unsigned int ap_reset_hold_type;
 
 	/* SEV-ES scratch area support */
 	u64 sw_scratch;
@@ -316,6 +320,11 @@ void recalc_intercepts(struct vcpu_svm *svm);
 static __always_inline struct kvm_svm *to_kvm_svm(struct kvm *kvm)
 {
 	return container_of(kvm, struct kvm_svm, kvm);
+}
+
+static __always_inline struct kvm_sev_info *to_kvm_sev_info(struct kvm *kvm)
+{
+	return &to_kvm_svm(kvm)->sev_info;
 }
 
 static __always_inline bool sev_guest(struct kvm *kvm)
@@ -664,13 +673,16 @@ void avic_refresh_virtual_apic_mode(struct kvm_vcpu *vcpu);
 
 /* sev.c */
 
-#define GHCB_VERSION_MAX	1ULL
-#define GHCB_VERSION_MIN	1ULL
+void pre_sev_run(struct vcpu_svm *svm, int cpu);
+void sev_init_vmcb(struct vcpu_svm *svm);
+void sev_vcpu_after_set_cpuid(struct vcpu_svm *svm);
+int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
+void sev_es_vcpu_reset(struct vcpu_svm *svm);
+void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
+void sev_es_prepare_switch_to_guest(struct vcpu_svm *svm, struct sev_es_save_area *hostsa);
+void sev_es_unmap_ghcb(struct vcpu_svm *svm);
 
-
-extern unsigned int max_sev_asid;
-
-void sev_vm_destroy(struct kvm *kvm);
+#ifdef CONFIG_KVM_AMD_SEV
 int sev_mem_enc_ioctl(struct kvm *kvm, void __user *argp);
 int sev_mem_enc_register_region(struct kvm *kvm,
 				struct kvm_enc_region *range);
@@ -679,26 +691,37 @@ int sev_mem_enc_unregister_region(struct kvm *kvm,
 int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd);
 int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd);
 void sev_guest_memory_reclaimed(struct kvm *kvm);
+int sev_handle_vmgexit(struct kvm_vcpu *vcpu);
 
-void pre_sev_run(struct vcpu_svm *svm, int cpu);
+/* These symbols are used in common code and are stubbed below.  */
+struct page *snp_safe_alloc_page(struct kvm_vcpu *vcpu);
+void sev_free_vcpu(struct kvm_vcpu *vcpu);
+void sev_vm_destroy(struct kvm *kvm);
 void __init sev_set_cpu_caps(void);
 void __init sev_hardware_setup(void);
 void sev_hardware_unsetup(void);
 int sev_cpu_init(struct svm_cpu_data *sd);
-void sev_init_vmcb(struct vcpu_svm *svm);
-void sev_vcpu_after_set_cpuid(struct vcpu_svm *svm);
-void sev_free_vcpu(struct kvm_vcpu *vcpu);
-int sev_handle_vmgexit(struct kvm_vcpu *vcpu);
-int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
-void sev_es_vcpu_reset(struct vcpu_svm *svm);
-void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
-void sev_es_prepare_switch_to_guest(struct sev_es_save_area *hostsa);
-void sev_es_unmap_ghcb(struct vcpu_svm *svm);
-struct page *snp_safe_alloc_page(struct kvm_vcpu *vcpu);
+int sev_dev_get_attr(u32 group, u64 attr, u64 *val);
+extern unsigned int max_sev_asid;
+#else
+static inline struct page *snp_safe_alloc_page(struct kvm_vcpu *vcpu) {
+	return alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+}
+
+static inline void sev_free_vcpu(struct kvm_vcpu *vcpu) {}
+static inline void sev_vm_destroy(struct kvm *kvm) {}
+static inline void __init sev_set_cpu_caps(void) {}
+static inline void __init sev_hardware_setup(void) {}
+static inline void sev_hardware_unsetup(void) {}
+static inline int sev_cpu_init(struct svm_cpu_data *sd) { return 0; }
+static inline int sev_dev_get_attr(u32 group, u64 attr, u64 *val) { return -ENXIO; }
+#define max_sev_asid 0
+#endif
 
 /* vmenter.S */
 
-void __svm_sev_es_vcpu_run(struct vcpu_svm *svm, bool spec_ctrl_intercepted);
+void __svm_sev_es_vcpu_run(struct vcpu_svm *svm, bool spec_ctrl_intercepted,
+			   struct sev_es_save_area *hostsa);
 void __svm_vcpu_run(struct vcpu_svm *svm, bool spec_ctrl_intercepted);
 
 #define DEFINE_KVM_GHCB_ACCESSORS(field)						\

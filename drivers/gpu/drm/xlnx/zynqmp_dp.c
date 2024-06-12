@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -605,28 +606,21 @@ static void zynqmp_dp_adjust_train(struct zynqmp_dp *dp,
 				   u8 link_status[DP_LINK_STATUS_SIZE])
 {
 	u8 *train_set = dp->train_set;
-	u8 voltage = 0, preemphasis = 0;
 	u8 i;
 
 	for (i = 0; i < dp->mode.lane_cnt; i++) {
-		u8 v = drm_dp_get_adjust_request_voltage(link_status, i);
-		u8 p = drm_dp_get_adjust_request_pre_emphasis(link_status, i);
+		u8 voltage = drm_dp_get_adjust_request_voltage(link_status, i);
+		u8 preemphasis =
+			drm_dp_get_adjust_request_pre_emphasis(link_status, i);
 
-		if (v > voltage)
-			voltage = v;
+		if (voltage >= DP_TRAIN_VOLTAGE_SWING_LEVEL_3)
+			voltage |= DP_TRAIN_MAX_SWING_REACHED;
 
-		if (p > preemphasis)
-			preemphasis = p;
-	}
+		if (preemphasis >= DP_TRAIN_PRE_EMPH_LEVEL_2)
+			preemphasis |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
-	if (voltage >= DP_TRAIN_VOLTAGE_SWING_LEVEL_3)
-		voltage |= DP_TRAIN_MAX_SWING_REACHED;
-
-	if (preemphasis >= DP_TRAIN_PRE_EMPH_LEVEL_2)
-		preemphasis |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
-
-	for (i = 0; i < dp->mode.lane_cnt; i++)
 		train_set[i] = voltage | preemphasis;
+	}
 }
 
 /**
@@ -1006,7 +1000,7 @@ zynqmp_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 					       msg->buffer, msg->size,
 					       &msg->reply);
 		if (!ret) {
-			dev_dbg(dp->dev, "aux %d retries\n", i);
+			dev_vdbg(dp->dev, "aux %d retries\n", i);
 			return msg->size;
 		}
 
@@ -1276,28 +1270,45 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
  * DISP Configuration
  */
 
+/**
+ * zynqmp_dp_disp_connected_live_layer - Return the first connected live layer
+ * @dp: DisplayPort IP core structure
+ *
+ * Return: The first connected live display layer or NULL if none of the live
+ * layers are connected.
+ */
+static struct zynqmp_disp_layer *
+zynqmp_dp_disp_connected_live_layer(struct zynqmp_dp *dp)
+{
+	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
+		return dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_VID];
+	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
+		return dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX];
+	else
+		return NULL;
+}
+
 static void zynqmp_dp_disp_enable(struct zynqmp_dp *dp,
 				  struct drm_bridge_state *old_bridge_state)
 {
-	enum zynqmp_dpsub_layer_id layer_id;
 	struct zynqmp_disp_layer *layer;
-	const struct drm_format_info *info;
+	struct drm_bridge_state *bridge_state;
+	u32 bus_fmt;
 
-	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
-		layer_id = ZYNQMP_DPSUB_LAYER_VID;
-	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
-		layer_id = ZYNQMP_DPSUB_LAYER_GFX;
-	else
+	layer = zynqmp_dp_disp_connected_live_layer(dp);
+	if (!layer)
 		return;
 
-	layer = dp->dpsub->layers[layer_id];
+	bridge_state = drm_atomic_get_new_bridge_state(old_bridge_state->base.state,
+						       old_bridge_state->bridge);
+	if (WARN_ON(!bridge_state))
+		return;
 
-	/* TODO: Make the format configurable. */
-	info = drm_format_info(DRM_FORMAT_YUV422);
-	zynqmp_disp_layer_set_format(layer, info);
-	zynqmp_disp_layer_enable(layer, ZYNQMP_DPSUB_LAYER_LIVE);
+	bus_fmt = bridge_state->input_bus_cfg.format;
+	zynqmp_disp_layer_set_live_format(layer, bus_fmt);
+	zynqmp_disp_layer_enable(layer);
 
-	if (layer_id == ZYNQMP_DPSUB_LAYER_GFX)
+	if (layer == dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX])
 		zynqmp_disp_blend_set_global_alpha(dp->dpsub->disp, true, 255);
 	else
 		zynqmp_disp_blend_set_global_alpha(dp->dpsub->disp, false, 0);
@@ -1310,11 +1321,8 @@ static void zynqmp_dp_disp_disable(struct zynqmp_dp *dp,
 {
 	struct zynqmp_disp_layer *layer;
 
-	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
-		layer = dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_VID];
-	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
-		layer = dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX];
-	else
+	layer = zynqmp_dp_disp_connected_live_layer(dp);
+	if (!layer)
 		return;
 
 	zynqmp_disp_disable(dp->dpsub->disp);
@@ -1568,6 +1576,35 @@ static const struct drm_edid *zynqmp_dp_bridge_edid_read(struct drm_bridge *brid
 	return drm_edid_read_ddc(connector, &dp->aux.ddc);
 }
 
+static u32 *zynqmp_dp_bridge_default_bus_fmts(unsigned int *num_input_fmts)
+{
+	u32 *formats = kzalloc(sizeof(*formats), GFP_KERNEL);
+
+	if (formats)
+		*formats = MEDIA_BUS_FMT_FIXED;
+	*num_input_fmts = !!formats;
+
+	return formats;
+}
+
+static u32 *
+zynqmp_dp_bridge_get_input_bus_fmts(struct drm_bridge *bridge,
+				    struct drm_bridge_state *bridge_state,
+				    struct drm_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state,
+				    u32 output_fmt,
+				    unsigned int *num_input_fmts)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+	struct zynqmp_disp_layer *layer;
+
+	layer = zynqmp_dp_disp_connected_live_layer(dp);
+	if (layer)
+		return zynqmp_disp_live_layer_formats(layer, num_input_fmts);
+	else
+		return zynqmp_dp_bridge_default_bus_fmts(num_input_fmts);
+}
+
 static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
 	.attach = zynqmp_dp_bridge_attach,
 	.detach = zynqmp_dp_bridge_detach,
@@ -1580,6 +1617,7 @@ static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
 	.atomic_check = zynqmp_dp_bridge_atomic_check,
 	.detect = zynqmp_dp_bridge_detect,
 	.edid_read = zynqmp_dp_bridge_edid_read,
+	.atomic_get_input_bus_fmts = zynqmp_dp_bridge_get_input_bus_fmts,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1713,6 +1751,10 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub)
 		ret = PTR_ERR(dp->reset);
 		goto err_free;
 	}
+
+	ret = zynqmp_dp_reset(dp, true);
+	if (ret < 0)
+		goto err_free;
 
 	ret = zynqmp_dp_reset(dp, false);
 	if (ret < 0)

@@ -13,7 +13,7 @@
 #include "rk3588.dtsi"
 
 / {
-	model = "PINE64 QuartzPro64";
+	model = "Pine64 QuartzPro64";
 	compatible = "pine64,quartzpro64", "rockchip,rk3588";
 
 	aliases {
@@ -285,6 +285,12 @@
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	sram-supply = <&vdd_gpu_mem_s0>;
+	status = "okay";
+};
+
 &i2c2 {
 	status = "okay";
 
@@ -456,6 +462,7 @@
 			    <&rk806_dvs2_null>, <&rk806_dvs3_null>;
 		pinctrl-names = "default";
 		spi-max-frequency = <1000000>;
+		system-power-controller;
 
 		vcc1-supply = <&vcc4v0_sys>;
 		vcc2-supply = <&vcc4v0_sys>;
@@ -491,11 +498,15 @@
 		regulators {
 			vdd_gpu_s0: dcdc-reg1 {
 				regulator-name = "vdd_gpu_s0";
+				/* regulator coupling requires always-on */
+				regulator-always-on;
 				regulator-boot-on;
 				regulator-enable-ramp-delay = <400>;
 				regulator-min-microvolt = <550000>;
 				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <12500>;
+				regulator-coupled-with = <&vdd_gpu_mem_s0>;
+				regulator-coupled-max-spread = <10000>;
 
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -545,11 +556,15 @@
 
 			vdd_gpu_mem_s0: dcdc-reg5 {
 				regulator-name = "vdd_gpu_mem_s0";
+				/* regulator coupling requires always-on */
+				regulator-always-on;
 				regulator-boot-on;
 				regulator-enable-ramp-delay = <400>;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <12500>;
+				regulator-coupled-with = <&vdd_gpu_s0>;
+				regulator-coupled-max-spread = <10000>;
 
 				regulator-state-mem {
 					regulator-off-in-suspend;

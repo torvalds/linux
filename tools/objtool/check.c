@@ -585,7 +585,7 @@ static int add_dead_ends(struct objtool_file *file)
 	struct section *rsec;
 	struct reloc *reloc;
 	struct instruction *insn;
-	unsigned long offset;
+	uint64_t offset;
 
 	/*
 	 * Check for manually annotated dead ends.

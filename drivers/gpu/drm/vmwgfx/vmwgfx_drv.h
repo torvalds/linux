@@ -117,24 +117,7 @@ struct vmwgfx_hash_item {
 	unsigned long key;
 };
 
-
-/**
- * struct vmw_validate_buffer - Carries validation info about buffers.
- *
- * @base: Validation info for TTM.
- * @hash: Hash entry for quick lookup of the TTM buffer object.
- *
- * This structure contains also driver private validation info
- * on top of the info needed by TTM.
- */
-struct vmw_validate_buffer {
-	struct ttm_validate_buffer base;
-	struct vmwgfx_hash_item hash;
-	bool validate_as_mob;
-};
-
 struct vmw_res_func;
-
 
 /**
  * struct vmw-resource - base class for hardware resources
@@ -445,15 +428,6 @@ struct vmw_sw_context{
 struct vmw_legacy_display;
 struct vmw_overlay;
 
-struct vmw_vga_topology_state {
-	uint32_t width;
-	uint32_t height;
-	uint32_t primary;
-	uint32_t pos_x;
-	uint32_t pos_y;
-};
-
-
 /*
  * struct vmw_otable - Guest Memory OBject table metadata
  *
@@ -501,7 +475,6 @@ struct vmw_private {
 	struct drm_device drm;
 	struct ttm_device bdev;
 
-	struct drm_vma_offset_manager vma_manager;
 	u32 pci_id;
 	resource_size_t io_start;
 	resource_size_t vram_start;
@@ -641,6 +614,9 @@ struct vmw_private {
 	DECLARE_BITMAP(irqthread_pending, VMW_IRQTHREAD_MAX);
 
 	uint32 *devcaps;
+
+	bool vkms_enabled;
+	struct workqueue_struct *crc_workq;
 
 	/*
 	 * mksGuestStat instance-descriptor and pid arrays
@@ -836,6 +812,7 @@ void vmw_resource_mob_attach(struct vmw_resource *res);
 void vmw_resource_mob_detach(struct vmw_resource *res);
 void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
 			       pgoff_t end);
+int vmw_resource_clean(struct vmw_resource *res);
 int vmw_resources_clean(struct vmw_bo *vbo, pgoff_t start,
 			pgoff_t end, pgoff_t *num_prefault);
 
@@ -1130,6 +1107,9 @@ extern int vmw_prime_handle_to_fd(struct drm_device *dev,
 				  struct drm_file *file_priv,
 				  uint32_t handle, uint32_t flags,
 				  int *prime_fd);
+struct drm_gem_object *vmw_prime_import_sg_table(struct drm_device *dev,
+						 struct dma_buf_attachment *attach,
+						 struct sg_table *table);
 
 /*
  * MemoryOBject management -  vmwgfx_mob.c

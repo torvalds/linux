@@ -136,10 +136,11 @@
  *
  *         To assign a string, use the helper macro __assign_str().
  *
- *         __assign_str(foo, bar);
+ *         __assign_str(foo);
  *
- *         In most cases, the __assign_str() macro will take the same
- *         parameters as the __string() macro had to declare the string.
+ *	   The __string() macro saves off the string that is passed into
+ *         the second parameter, and the __assign_str() will store than
+ *         saved string into the "foo" field.
  *
  *   __vstring: This is similar to __string() but instead of taking a
  *         dynamic length, it takes a variable list va_list 'va' variable.
@@ -177,7 +178,7 @@
  *         The length is saved via the __string_len() and is retrieved in
  *         __assign_str().
  *
- *         __assign_str(foo, bar);
+ *         __assign_str(foo);
  *
  *         Then len + 1 is allocated to the ring buffer, and a nul terminating
  *         byte is added. This is similar to:
@@ -311,8 +312,8 @@ TRACE_EVENT(foo_bar,
 		__entry->bar	= bar;
 		memcpy(__get_dynamic_array(list), lst,
 		       __length_of(lst) * sizeof(int));
-		__assign_str(str, string);
-		__assign_str(lstr, foo);
+		__assign_str(str);
+		__assign_str(lstr);
 		__assign_vstr(vstr, fmt, va);
 		__assign_bitmask(cpus, cpumask_bits(mask), num_possible_cpus());
 		__assign_cpumask(cpum, cpumask_bits(mask));
@@ -418,7 +419,7 @@ TRACE_EVENT_CONDITION(foo_bar_with_cond,
 	),
 
 	TP_fast_assign(
-		__assign_str(foo, foo);
+		__assign_str(foo);
 		__entry->bar	= bar;
 	),
 
@@ -459,7 +460,7 @@ TRACE_EVENT_FN(foo_bar_with_fn,
 	),
 
 	TP_fast_assign(
-		__assign_str(foo, foo);
+		__assign_str(foo);
 		__entry->bar	= bar;
 	),
 
@@ -506,7 +507,7 @@ DECLARE_EVENT_CLASS(foo_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(foo, foo);
+		__assign_str(foo);
 		__entry->bar	= bar;
 	),
 

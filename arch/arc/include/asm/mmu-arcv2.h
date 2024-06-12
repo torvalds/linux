@@ -9,6 +9,8 @@
 #ifndef _ASM_ARC_MMU_ARCV2_H
 #define _ASM_ARC_MMU_ARCV2_H
 
+#include <soc/arc/aux.h>
+
 /*
  * TLB Management regs
  */

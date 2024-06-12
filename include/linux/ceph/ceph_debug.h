@@ -27,17 +27,13 @@
 		 ##__VA_ARGS__)
 # else
 /* faux printk call just to see any compiler warnings. */
-#  define dout(fmt, ...)	do {				\
-		if (0)						\
-			printk(KERN_DEBUG fmt, ##__VA_ARGS__);	\
-	} while (0)
-#  define doutc(client, fmt, ...)	do {			\
-		if (0)						\
-			printk(KERN_DEBUG "[%pU %llu] " fmt,	\
-			&client->fsid,				\
-			client->monc.auth->global_id,		\
-			##__VA_ARGS__);				\
-		} while (0)
+#  define dout(fmt, ...)					\
+		no_printk(KERN_DEBUG fmt, ##__VA_ARGS__)
+#  define doutc(client, fmt, ...)				\
+		no_printk(KERN_DEBUG "[%pU %llu] " fmt,		\
+			  &client->fsid,			\
+			  client->monc.auth->global_id,		\
+			  ##__VA_ARGS__)
 # endif
 
 #else

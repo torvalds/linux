@@ -498,8 +498,9 @@ static struct tb_tunnel *tb_find_first_usb3_tunnel(struct tb *tb,
  * @consumed_down: Consumed downstream bandwidth (Mb/s)
  *
  * Calculates consumed USB3 and PCIe bandwidth at @port between path
- * from @src_port to @dst_port. Does not take tunnel starting from
- * @src_port and ending from @src_port into account.
+ * from @src_port to @dst_port. Does not take USB3 tunnel starting from
+ * @src_port and ending on @src_port into account because that bandwidth is
+ * already included in as part of the "first hop" USB3 tunnel.
  */
 static int tb_consumed_usb3_pcie_bandwidth(struct tb *tb,
 					   struct tb_port *src_port,
@@ -514,8 +515,8 @@ static int tb_consumed_usb3_pcie_bandwidth(struct tb *tb,
 	*consumed_up = *consumed_down = 0;
 
 	tunnel = tb_find_first_usb3_tunnel(tb, src_port, dst_port);
-	if (tunnel && tunnel->src_port != src_port &&
-	    tunnel->dst_port != dst_port) {
+	if (tunnel && !tb_port_is_usb3_down(src_port) &&
+	    !tb_port_is_usb3_up(dst_port)) {
 		int ret;
 
 		ret = tb_tunnel_consumed_bandwidth(tunnel, consumed_up,
@@ -1801,6 +1802,12 @@ static struct tb_port *tb_find_dp_out(struct tb *tb, struct tb_port *in)
 			continue;
 		}
 
+		/* Needs to be on different routers */
+		if (in->sw == port->sw) {
+			tb_port_dbg(port, "skipping DP OUT on same router\n");
+			continue;
+		}
+
 		tb_port_dbg(port, "DP OUT available\n");
 
 		/*
@@ -2936,7 +2943,7 @@ static int tb_resume_noirq(struct tb *tb)
 	if (!tb_switch_is_usb4(tb->root_switch))
 		tb_switch_reset(tb->root_switch);
 
-	tb_switch_resume(tb->root_switch);
+	tb_switch_resume(tb->root_switch, false);
 	tb_free_invalid_tunnels(tb);
 	tb_free_unplugged_children(tb->root_switch);
 	tb_restore_children(tb->root_switch);
@@ -3062,7 +3069,7 @@ static int tb_runtime_resume(struct tb *tb)
 	struct tb_tunnel *tunnel, *n;
 
 	mutex_lock(&tb->lock);
-	tb_switch_resume(tb->root_switch);
+	tb_switch_resume(tb->root_switch, true);
 	tb_free_invalid_tunnels(tb);
 	tb_restore_children(tb->root_switch);
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)

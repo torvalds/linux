@@ -99,8 +99,16 @@ SECTIONS
 
 	_decompressor_end = .;
 
+	. = ALIGN(4);
+	.vmlinux.relocs : {
+		__vmlinux_relocs_64_start = .;
+		*(.vmlinux.relocs_64)
+		__vmlinux_relocs_64_end = .;
+	}
+
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
-	. = 0x100000;
+	. = ALIGN(PAGE_SIZE);
+	. += AMODE31_SIZE;		/* .amode31 section */
 #else
 	. = ALIGN(8);
 #endif
@@ -109,24 +117,6 @@ SECTIONS
 		*(.vmlinux.bin.compressed)
 		_compressed_end = .;
 	}
-
-#ifndef CONFIG_PIE_BUILD
-	/*
-	 * When the kernel is built with CONFIG_KERNEL_UNCOMPRESSED, the entire
-	 * uncompressed vmlinux.bin is positioned in the bzImage decompressor
-	 * image at the default kernel LMA of 0x100000, enabling it to be
-	 * executed in-place. However, the size of .vmlinux.relocs could be
-	 * large enough to cause an overlap with the uncompressed kernel at the
-	 * address 0x100000. To address this issue, .vmlinux.relocs is
-	 * positioned after the .rodata.compressed.
-	 */
-	. = ALIGN(4);
-	.vmlinux.relocs : {
-		__vmlinux_relocs_64_start = .;
-		*(.vmlinux.relocs_64)
-		__vmlinux_relocs_64_end = .;
-	}
-#endif
 
 #define SB_TRAILER_SIZE 32
 	/* Trailer needed for Secure Boot */

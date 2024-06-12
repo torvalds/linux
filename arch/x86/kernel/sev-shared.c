@@ -1203,12 +1203,14 @@ static enum es_result vc_check_opcode_bytes(struct es_em_ctxt *ctxt,
 		break;
 
 	case SVM_EXIT_MONITOR:
-		if (opcode == 0x010f && modrm == 0xc8)
+		/* MONITOR and MONITORX instructions generate the same error code */
+		if (opcode == 0x010f && (modrm == 0xc8 || modrm == 0xfa))
 			return ES_OK;
 		break;
 
 	case SVM_EXIT_MWAIT:
-		if (opcode == 0x010f && modrm == 0xc9)
+		/* MWAIT and MWAITX instructions generate the same error code */
+		if (opcode == 0x010f && (modrm == 0xc9 || modrm == 0xfb))
 			return ES_OK;
 		break;
 

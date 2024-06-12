@@ -52,6 +52,7 @@ struct stmmac_counters {
 	unsigned int mmc_tx_excessdef;
 	unsigned int mmc_tx_pause_frame;
 	unsigned int mmc_tx_vlan_frame_g;
+	unsigned int mmc_tx_oversize_g;
 	unsigned int mmc_tx_lpi_usec;
 	unsigned int mmc_tx_lpi_tran;
 
@@ -80,6 +81,7 @@ struct stmmac_counters {
 	unsigned int mmc_rx_fifo_overflow;
 	unsigned int mmc_rx_vlan_frames_gb;
 	unsigned int mmc_rx_watchdog_error;
+	unsigned int mmc_rx_error;
 	unsigned int mmc_rx_lpi_usec;
 	unsigned int mmc_rx_lpi_tran;
 	unsigned int mmc_rx_discard_frames_gb;

@@ -297,6 +297,9 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 		.wait_type_inner = _wait_type,		\
 		.lock_type = LD_LOCK_WAIT_OVERRIDE, }
 
+#define lock_map_assert_held(l)		\
+	lockdep_assert(lock_is_held(l) != LOCK_STATE_NOT_HELD)
+
 #else /* !CONFIG_LOCKDEP */
 
 static inline void lockdep_init_task(struct task_struct *task)
@@ -387,6 +390,8 @@ extern int lockdep_is_held(const void *);
 
 #define DEFINE_WAIT_OVERRIDE_MAP(_name, _wait_type)	\
 	struct lockdep_map __maybe_unused _name = {}
+
+#define lock_map_assert_held(l)			do { (void)(l); } while (0)
 
 #endif /* !LOCKDEP */
 

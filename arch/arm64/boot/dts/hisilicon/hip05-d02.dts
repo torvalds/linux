@@ -54,7 +54,7 @@
 	ranges = <0 0 0x0 0x90000000 0x08000000>,
 		 <1 0 0x0 0x98000000 0x08000000>;
 
-	nor-flash@0,0 {
+	nor-flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "numonyx,js28f00a", "cfi-flash";
@@ -75,7 +75,7 @@
 		};
 	};
 
-	cpld@1,0 {
+	cpld@100000000 {
 		compatible = "hisilicon,hip05-cpld";
 		reg = <1 0x0 0x100>;
 	};

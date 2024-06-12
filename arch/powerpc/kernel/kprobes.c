@@ -19,8 +19,8 @@
 #include <linux/extable.h>
 #include <linux/kdebug.h>
 #include <linux/slab.h>
-#include <linux/moduleloader.h>
 #include <linux/set_memory.h>
+#include <linux/execmem.h>
 #include <asm/code-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
@@ -124,26 +124,6 @@ kprobe_opcode_t *arch_adjust_kprobe_addr(unsigned long addr, unsigned long offse
 {
 	*on_func_entry = arch_kprobe_on_func_entry(offset);
 	return (kprobe_opcode_t *)(addr + offset);
-}
-
-void *alloc_insn_page(void)
-{
-	void *page;
-
-	page = module_alloc(PAGE_SIZE);
-	if (!page)
-		return NULL;
-
-	if (strict_module_rwx_enabled()) {
-		int err = set_memory_rox((unsigned long)page, 1);
-
-		if (err)
-			goto error;
-	}
-	return page;
-error:
-	module_memfree(page);
-	return NULL;
 }
 
 int arch_prepare_kprobe(struct kprobe *p)

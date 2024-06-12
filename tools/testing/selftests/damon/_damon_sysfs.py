@@ -2,7 +2,18 @@
 
 import os
 
-sysfs_root = '/sys/kernel/mm/damon/admin'
+ksft_skip=4
+
+sysfs_root = None
+with open('/proc/mounts', 'r') as f:
+    for line in f:
+        dev_name, mount_point, dev_fs = line.split()[:3]
+        if dev_fs == 'sysfs':
+            sysfs_root = '%s/kernel/mm/damon/admin' % mount_point
+            break
+if sysfs_root is None:
+    print('Seems sysfs not mounted?')
+    exit(ksft_skip)
 
 def write_file(path, string):
     "Returns error string if failed, or None otherwise"
@@ -34,11 +45,11 @@ class DamosAccessPattern:
         self.nr_accesses = nr_accesses
         self.age = age
 
-        if self.size == None:
+        if self.size is None:
             self.size = [0, 2**64 - 1]
-        if self.nr_accesses == None:
+        if self.nr_accesses is None:
             self.nr_accesses = [0, 2**64 - 1]
-        if self.age == None:
+        if self.age is None:
             self.age = [0, 2**64 - 1]
 
     def sysfs_dir(self):
@@ -47,54 +58,108 @@ class DamosAccessPattern:
     def stage(self):
         err = write_file(
                 os.path.join(self.sysfs_dir(), 'sz', 'min'), self.size[0])
-        if err != None:
+        if err is not None:
             return err
         err = write_file(
                 os.path.join(self.sysfs_dir(), 'sz', 'max'), self.size[1])
-        if err != None:
+        if err is not None:
             return err
         err = write_file(os.path.join(self.sysfs_dir(), 'nr_accesses', 'min'),
                 self.nr_accesses[0])
-        if err != None:
+        if err is not None:
             return err
         err = write_file(os.path.join(self.sysfs_dir(), 'nr_accesses', 'max'),
                 self.nr_accesses[1])
-        if err != None:
+        if err is not None:
             return err
         err = write_file(
                 os.path.join(self.sysfs_dir(), 'age', 'min'), self.age[0])
-        if err != None:
+        if err is not None:
             return err
         err = write_file(
                 os.path.join(self.sysfs_dir(), 'age', 'max'), self.age[1])
-        if err != None:
+        if err is not None:
             return err
+
+qgoal_metric_user_input = 'user_input'
+qgoal_metric_some_mem_psi_us = 'some_mem_psi_us'
+qgoal_metrics = [qgoal_metric_user_input, qgoal_metric_some_mem_psi_us]
+
+class DamosQuotaGoal:
+    metric = None
+    target_value = None
+    current_value = None
+    effective_bytes = None
+    quota = None            # owner quota
+    idx = None
+
+    def __init__(self, metric, target_value=10000, current_value=0):
+        self.metric = metric
+        self.target_value = target_value
+        self.current_value = current_value
+
+    def sysfs_dir(self):
+        return os.path.join(self.quota.sysfs_dir(), 'goals', '%d' % self.idx)
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'target_metric'),
+                         self.metric)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'target_value'),
+                         self.target_value)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'current_value'),
+                         self.current_value)
+        if err is not None:
+            return err
+        return None
 
 class DamosQuota:
     sz = None                   # size quota, in bytes
     ms = None                   # time quota
+    goals = None                # quota goals
     reset_interval_ms = None    # quota reset interval
     scheme = None               # owner scheme
 
-    def __init__(self, sz=0, ms=0, reset_interval_ms=0):
+    def __init__(self, sz=0, ms=0, goals=None, reset_interval_ms=0):
         self.sz = sz
         self.ms = ms
         self.reset_interval_ms = reset_interval_ms
+        self.goals = goals if goals is not None else []
+        for idx, goal in enumerate(self.goals):
+            goal.idx = idx
+            goal.quota = self
 
     def sysfs_dir(self):
         return os.path.join(self.scheme.sysfs_dir(), 'quotas')
 
     def stage(self):
         err = write_file(os.path.join(self.sysfs_dir(), 'bytes'), self.sz)
-        if err != None:
+        if err is not None:
             return err
         err = write_file(os.path.join(self.sysfs_dir(), 'ms'), self.ms)
-        if err != None:
+        if err is not None:
             return err
         err = write_file(os.path.join(self.sysfs_dir(), 'reset_interval_ms'),
                          self.reset_interval_ms)
-        if err != None:
+        if err is not None:
             return err
+
+        nr_goals_file = os.path.join(self.sysfs_dir(), 'goals', 'nr_goals')
+        content, err = read_file(nr_goals_file)
+        if err is not None:
+            return err
+        if int(content) != len(self.goals):
+            err = write_file(nr_goals_file, len(self.goals))
+            if err is not None:
+                return err
+        for goal in self.goals:
+            err = goal.stage()
+            if err is not None:
+                return err
+        return None
 
 class DamosStats:
     nr_tried = None
@@ -136,30 +201,30 @@ class Damos:
 
     def stage(self):
         err = write_file(os.path.join(self.sysfs_dir(), 'action'), self.action)
-        if err != None:
+        if err is not None:
             return err
         err = self.access_pattern.stage()
-        if err != None:
+        if err is not None:
             return err
         err = write_file(os.path.join(self.sysfs_dir(), 'apply_interval_us'),
                          '%d' % self.apply_interval_us)
-        if err != None:
+        if err is not None:
             return err
 
         err = self.quota.stage()
-        if err != None:
+        if err is not None:
             return err
 
         # disable watermarks
         err = write_file(
                 os.path.join(self.sysfs_dir(), 'watermarks', 'metric'), 'none')
-        if err != None:
+        if err is not None:
             return err
 
         # disable filters
         err = write_file(
                 os.path.join(self.sysfs_dir(), 'filters', 'nr_filters'), '0')
-        if err != None:
+        if err is not None:
             return err
 
 class DamonTarget:
@@ -178,7 +243,7 @@ class DamonTarget:
     def stage(self):
         err = write_file(
                 os.path.join(self.sysfs_dir(), 'regions', 'nr_regions'), '0')
-        if err != None:
+        if err is not None:
             return err
         return write_file(
                 os.path.join(self.sysfs_dir(), 'pid_target'), self.pid)
@@ -210,27 +275,27 @@ class DamonAttrs:
     def stage(self):
         err = write_file(os.path.join(self.interval_sysfs_dir(), 'sample_us'),
                 self.sample_us)
-        if err != None:
+        if err is not None:
             return err
         err = write_file(os.path.join(self.interval_sysfs_dir(), 'aggr_us'),
                 self.aggr_us)
-        if err != None:
+        if err is not None:
             return err
         err = write_file(os.path.join(self.interval_sysfs_dir(), 'update_us'),
                 self.update_us)
-        if err != None:
+        if err is not None:
             return err
 
         err = write_file(
                 os.path.join(self.nr_regions_range_sysfs_dir(), 'min'),
                 self.min_nr_regions)
-        if err != None:
+        if err is not None:
             return err
 
         err = write_file(
                 os.path.join(self.nr_regions_range_sysfs_dir(), 'max'),
                 self.max_nr_regions)
-        if err != None:
+        if err is not None:
             return err
 
 class DamonCtx:
@@ -264,36 +329,38 @@ class DamonCtx:
     def stage(self):
         err = write_file(
                 os.path.join(self.sysfs_dir(), 'operations'), self.ops)
-        if err != None:
+        if err is not None:
             return err
         err = self.monitoring_attrs.stage()
-        if err != None:
+        if err is not None:
             return err
 
         nr_targets_file = os.path.join(
                 self.sysfs_dir(), 'targets', 'nr_targets')
         content, err = read_file(nr_targets_file)
-        if err != None:
+        if err is not None:
             return err
         if int(content) != len(self.targets):
             err = write_file(nr_targets_file, '%d' % len(self.targets))
-            if err != None:
+            if err is not None:
                 return err
         for target in self.targets:
             err = target.stage()
-            if err != None:
+            if err is not None:
                 return err
 
         nr_schemes_file = os.path.join(
                 self.sysfs_dir(), 'schemes', 'nr_schemes')
         content, err = read_file(nr_schemes_file)
+        if err is not None:
+            return err
         if int(content) != len(self.schemes):
             err = write_file(nr_schemes_file, '%d' % len(self.schemes))
-            if err != None:
+            if err is not None:
                 return err
         for scheme in self.schemes:
             err = scheme.stage()
-            if err != None:
+            if err is not None:
                 return err
         return None
 
@@ -317,16 +384,16 @@ class Kdamond:
         nr_contexts_file = os.path.join(self.sysfs_dir(),
                 'contexts', 'nr_contexts')
         content, err = read_file(nr_contexts_file)
-        if err != None:
+        if err is not None:
             return err
         if int(content) != len(self.contexts):
             err = write_file(nr_contexts_file, '%d' % len(self.contexts))
-            if err != None:
+            if err is not None:
                 return err
 
         for context in self.contexts:
             err = context.stage()
-            if err != None:
+            if err is not None:
                 return err
         err = write_file(os.path.join(self.sysfs_dir(), 'state'), 'on')
         return err
@@ -334,20 +401,20 @@ class Kdamond:
     def update_schemes_tried_bytes(self):
         err = write_file(os.path.join(self.sysfs_dir(), 'state'),
                 'update_schemes_tried_bytes')
-        if err != None:
+        if err is not None:
             return err
         for context in self.contexts:
             for scheme in context.schemes:
                 content, err = read_file(os.path.join(scheme.sysfs_dir(),
                     'tried_regions', 'total_bytes'))
-                if err != None:
+                if err is not None:
                     return err
                 scheme.tried_bytes = int(content)
 
     def update_schemes_stats(self):
         err = write_file(os.path.join(self.sysfs_dir(), 'state'),
                 'update_schemes_stats')
-        if err != None:
+        if err is not None:
             return err
         for context in self.contexts:
             for scheme in context.schemes:
@@ -356,10 +423,38 @@ class Kdamond:
                              'sz_applied', 'qt_exceeds']:
                     content, err = read_file(
                             os.path.join(scheme.sysfs_dir(), 'stats', stat))
-                    if err != None:
+                    if err is not None:
                         return err
                     stat_values.append(int(content))
                 scheme.stats = DamosStats(*stat_values)
+
+    def update_schemes_effective_quotas(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'state'),
+                         'update_schemes_effective_quotas')
+        if err is not None:
+            return err
+        for context in self.contexts:
+            for scheme in context.schemes:
+                for goal in scheme.quota.goals:
+                    content, err = read_file(
+                            os.path.join(scheme.quota.sysfs_dir(),
+                                         'effective_bytes'))
+                    if err is not None:
+                        return err
+                    goal.effective_bytes = int(content)
+        return None
+
+    def commit_schemes_quota_goals(self):
+        for context in self.contexts:
+            for scheme in context.schemes:
+                for goal in scheme.quota.goals:
+                    err = goal.stage()
+                    if err is not None:
+                        print('commit_schemes_quota_goals failed stagign: %s'%
+                              err)
+                        exit(1)
+        return write_file(os.path.join(self.sysfs_dir(), 'state'),
+                         'commit_schemes_quota_goals')
 
 class Kdamonds:
     kdamonds = []
@@ -376,10 +471,10 @@ class Kdamonds:
     def start(self):
         err = write_file(os.path.join(self.sysfs_dir(),  'nr_kdamonds'),
                 '%s' % len(self.kdamonds))
-        if err != None:
+        if err is not None:
             return err
         for kdamond in self.kdamonds:
             err = kdamond.start()
-            if err != None:
+            if err is not None:
                 return err
         return None

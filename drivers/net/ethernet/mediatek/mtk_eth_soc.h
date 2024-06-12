@@ -327,8 +327,8 @@
 /* QDMA descriptor txd3 */
 #define TX_DMA_OWNER_CPU	BIT(31)
 #define TX_DMA_LS0		BIT(30)
-#define TX_DMA_PLEN0(x)		(((x) & eth->soc->txrx.dma_max_len) << eth->soc->txrx.dma_len_offset)
-#define TX_DMA_PLEN1(x)		((x) & eth->soc->txrx.dma_max_len)
+#define TX_DMA_PLEN0(x)		(((x) & eth->soc->tx.dma_max_len) << eth->soc->tx.dma_len_offset)
+#define TX_DMA_PLEN1(x)		((x) & eth->soc->tx.dma_max_len)
 #define TX_DMA_SWC		BIT(14)
 #define TX_DMA_PQID		GENMASK(3, 0)
 #define TX_DMA_ADDR64_MASK	GENMASK(3, 0)
@@ -348,8 +348,8 @@
 /* QDMA descriptor rxd2 */
 #define RX_DMA_DONE		BIT(31)
 #define RX_DMA_LSO		BIT(30)
-#define RX_DMA_PREP_PLEN0(x)	(((x) & eth->soc->txrx.dma_max_len) << eth->soc->txrx.dma_len_offset)
-#define RX_DMA_GET_PLEN0(x)	(((x) >> eth->soc->txrx.dma_len_offset) & eth->soc->txrx.dma_max_len)
+#define RX_DMA_PREP_PLEN0(x)	(((x) & eth->soc->rx.dma_max_len) << eth->soc->rx.dma_len_offset)
+#define RX_DMA_GET_PLEN0(x)	(((x) >> eth->soc->rx.dma_len_offset) & eth->soc->rx.dma_max_len)
 #define RX_DMA_VTAG		BIT(15)
 #define RX_DMA_ADDR64_MASK	GENMASK(3, 0)
 #if IS_ENABLED(CONFIG_64BIT)
@@ -1153,10 +1153,9 @@ struct mtk_reg_map {
  * @foe_entry_size		Foe table entry size.
  * @has_accounting		Bool indicating support for accounting of
  *				offloaded flows.
- * @txd_size			Tx DMA descriptor size.
- * @rxd_size			Rx DMA descriptor size.
- * @rx_irq_done_mask		Rx irq done register mask.
- * @rx_dma_l4_valid		Rx DMA valid register mask.
+ * @desc_size			Tx/Rx DMA descriptor size.
+ * @irq_done_mask		Rx irq done register mask.
+ * @dma_l4_valid		Rx DMA valid register mask.
  * @dma_max_len			Max DMA tx/rx buffer length.
  * @dma_len_offset		Tx/Rx DMA length field offset.
  */
@@ -1174,13 +1173,17 @@ struct mtk_soc_data {
 	bool		has_accounting;
 	bool		disable_pll_modes;
 	struct {
-		u32	txd_size;
-		u32	rxd_size;
-		u32	rx_irq_done_mask;
-		u32	rx_dma_l4_valid;
+		u32	desc_size;
 		u32	dma_max_len;
 		u32	dma_len_offset;
-	} txrx;
+	} tx;
+	struct {
+		u32	desc_size;
+		u32	irq_done_mask;
+		u32	dma_l4_valid;
+		u32	dma_max_len;
+		u32	dma_len_offset;
+	} rx;
 };
 
 #define MTK_DMA_MONITOR_TIMEOUT		msecs_to_jiffies(1000)
@@ -1242,7 +1245,7 @@ struct mtk_eth {
 	spinlock_t			page_lock;
 	spinlock_t			tx_irq_lock;
 	spinlock_t			rx_irq_lock;
-	struct net_device		dummy_dev;
+	struct net_device		*dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
 	int				irq[3];

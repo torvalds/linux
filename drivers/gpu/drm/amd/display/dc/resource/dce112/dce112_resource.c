@@ -864,8 +864,6 @@ static struct clock_source *find_matching_pll(
 	default:
 		return NULL;
 	}
-
-	return NULL;
 }
 
 static enum dc_status build_mapped_resource(

@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Authors: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //	    Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
@@ -142,6 +142,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_hw_params, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /* update SPIB register with appl position */
 int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
@@ -164,6 +165,7 @@ int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substrea
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_ack, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream, int cmd)
@@ -173,6 +175,7 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 
 	return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_trigger, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream)
@@ -204,6 +207,7 @@ found:
 	trace_sof_intel_hda_dsp_pcm(sdev, hstream, substream, pos);
 	return pos;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_pointer, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream)
@@ -259,10 +263,40 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		snd_pcm_hw_constraint_mask64(substream->runtime, SNDRV_PCM_HW_PARAM_FORMAT,
 					     SNDRV_PCM_FMTBIT_S16 | SNDRV_PCM_FMTBIT_S32);
 
+	/*
+	 * The dsp_max_burst_size_in_ms is the length of the maximum burst size
+	 * of the host DMA in the ALSA buffer.
+	 *
+	 * On playback start the DMA will transfer dsp_max_burst_size_in_ms
+	 * amount of data in one initial burst to fill up the host DMA buffer.
+	 * Consequent DMA burst sizes are shorter and their length can vary.
+	 * To make sure that userspace allocate large enough ALSA buffer we need
+	 * to place a constraint on the buffer time.
+	 *
+	 * On capture the DMA will transfer 1ms chunks.
+	 *
+	 * Exact dsp_max_burst_size_in_ms constraint is racy, so set the
+	 * constraint to a minimum of 2x dsp_max_burst_size_in_ms.
+	 */
+	if (spcm->stream[direction].dsp_max_burst_size_in_ms)
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+			SNDRV_PCM_HW_PARAM_BUFFER_TIME,
+			spcm->stream[direction].dsp_max_burst_size_in_ms * USEC_PER_MSEC * 2,
+			UINT_MAX);
+
 	/* binding pcm substream to hda stream */
 	substream->runtime->private_data = &dsp_stream->hstream;
+
+	/*
+	 * Reset the llp cache values (they are used for LLP compensation in
+	 * case the counter is not reset)
+	 */
+	dsp_stream->pplcllpl = 0;
+	dsp_stream->pplcllpu = 0;
+
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_open, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 		      struct snd_pcm_substream *substream)
@@ -282,3 +316,4 @@ int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 	substream->runtime->private_data = NULL;
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_close, SND_SOC_SOF_INTEL_HDA_COMMON);

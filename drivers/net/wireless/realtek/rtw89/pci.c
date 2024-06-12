@@ -19,6 +19,31 @@ MODULE_PARM_DESC(disable_clkreq, "Set Y to disable PCI clkreq support");
 MODULE_PARM_DESC(disable_aspm_l1, "Set Y to disable PCI ASPM L1 support");
 MODULE_PARM_DESC(disable_aspm_l1ss, "Set Y to disable PCI L1SS support");
 
+static int rtw89_pci_get_phy_offset_by_link_speed(struct rtw89_dev *rtwdev,
+						  u32 *phy_offset)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+	u32 val;
+	int ret;
+
+	ret = pci_read_config_dword(pdev, RTW89_PCIE_L1_STS_V1, &val);
+	if (ret)
+		return ret;
+
+	val = u32_get_bits(val, RTW89_BCFG_LINK_SPEED_MASK);
+	if (val == RTW89_PCIE_GEN1_SPEED) {
+		*phy_offset = R_RAC_DIRECT_OFFSET_G1;
+	} else if (val == RTW89_PCIE_GEN2_SPEED) {
+		*phy_offset = R_RAC_DIRECT_OFFSET_G2;
+	} else {
+		rtw89_warn(rtwdev, "Unknown PCI link speed %d\n", val);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static int rtw89_pci_rst_bdram_ax(struct rtw89_dev *rtwdev)
 {
 	u32 val;
@@ -1089,7 +1114,8 @@ u32 __rtw89_pci_check_and_reclaim_tx_resource_noio(struct rtw89_dev *rtwdev,
 
 	spin_lock_bh(&rtwpci->trx_lock);
 	cnt = rtw89_pci_get_avail_txbd_num(tx_ring);
-	cnt = min(cnt, wd_ring->curr_num);
+	if (txch != RTW89_TXCH_CH12)
+		cnt = min(cnt, wd_ring->curr_num);
 	spin_unlock_bh(&rtwpci->trx_lock);
 
 	return cnt;
@@ -2298,6 +2324,68 @@ static int rtw89_pci_deglitch_setting(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static void rtw89_pci_disable_eq(struct rtw89_dev *rtwdev)
+{
+	u16 g1_oobs, g2_oobs;
+	u32 backup_aspm;
+	u32 phy_offset;
+	u16 oobs_val;
+	u16 val16;
+	int ret;
+
+	if (rtwdev->chip->chip_id != RTL8852C)
+		return;
+
+	backup_aspm = rtw89_read32(rtwdev, R_AX_PCIE_MIX_CFG_V1);
+	rtw89_write32_clr(rtwdev, R_AX_PCIE_MIX_CFG_V1, B_AX_ASPM_CTRL_MASK);
+
+	g1_oobs = rtw89_read16_mask(rtwdev, R_RAC_DIRECT_OFFSET_G1 +
+					    RAC_ANA09 * RAC_MULT, BAC_OOBS_SEL);
+	g2_oobs = rtw89_read16_mask(rtwdev, R_RAC_DIRECT_OFFSET_G2 +
+					    RAC_ANA09 * RAC_MULT, BAC_OOBS_SEL);
+	if (g1_oobs && g2_oobs)
+		goto out;
+
+	ret = rtw89_pci_get_phy_offset_by_link_speed(rtwdev, &phy_offset);
+	if (ret)
+		goto out;
+
+	rtw89_write16_set(rtwdev, phy_offset + RAC_ANA0D * RAC_MULT, BAC_RX_TEST_EN);
+	rtw89_write16(rtwdev, phy_offset + RAC_ANA10 * RAC_MULT, ADDR_SEL_PINOUT_DIS_VAL);
+	rtw89_write16_set(rtwdev, phy_offset + RAC_ANA19 * RAC_MULT, B_PCIE_BIT_RD_SEL);
+
+	val16 = rtw89_read16_mask(rtwdev, phy_offset + RAC_ANA1F * RAC_MULT,
+				  OOBS_LEVEL_MASK);
+	oobs_val = u16_encode_bits(val16, OOBS_SEN_MASK);
+
+	rtw89_write16(rtwdev, R_RAC_DIRECT_OFFSET_G1 + RAC_ANA03 * RAC_MULT, oobs_val);
+	rtw89_write16_set(rtwdev, R_RAC_DIRECT_OFFSET_G1 + RAC_ANA09 * RAC_MULT,
+			  BAC_OOBS_SEL);
+
+	rtw89_write16(rtwdev, R_RAC_DIRECT_OFFSET_G2 + RAC_ANA03 * RAC_MULT, oobs_val);
+	rtw89_write16_set(rtwdev, R_RAC_DIRECT_OFFSET_G2 + RAC_ANA09 * RAC_MULT,
+			  BAC_OOBS_SEL);
+
+out:
+	rtw89_write32(rtwdev, R_AX_PCIE_MIX_CFG_V1, backup_aspm);
+}
+
+static void rtw89_pci_ber(struct rtw89_dev *rtwdev)
+{
+	u32 phy_offset;
+
+	if (!test_bit(RTW89_QUIRK_PCI_BER, rtwdev->quirks))
+		return;
+
+	phy_offset = R_RAC_DIRECT_OFFSET_G1;
+	rtw89_write16(rtwdev, phy_offset + RAC_ANA1E * RAC_MULT, RAC_ANA1E_G1_VAL);
+	rtw89_write16(rtwdev, phy_offset + RAC_ANA2E * RAC_MULT, RAC_ANA2E_VAL);
+
+	phy_offset = R_RAC_DIRECT_OFFSET_G2;
+	rtw89_write16(rtwdev, phy_offset + RAC_ANA1E * RAC_MULT, RAC_ANA1E_G2_VAL);
+	rtw89_write16(rtwdev, phy_offset + RAC_ANA2E * RAC_MULT, RAC_ANA2E_VAL);
+}
+
 static void rtw89_pci_rxdma_prefth(struct rtw89_dev *rtwdev)
 {
 	if (rtwdev->chip->chip_id != RTL8852A)
@@ -2695,6 +2783,8 @@ static int rtw89_pci_ops_mac_pre_init_ax(struct rtw89_dev *rtwdev)
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	int ret;
 
+	rtw89_pci_disable_eq(rtwdev);
+	rtw89_pci_ber(rtwdev);
 	rtw89_pci_rxdma_prefth(rtwdev);
 	rtw89_pci_l1off_pwroff(rtwdev);
 	rtw89_pci_deglitch_setting(rtwdev);
@@ -3547,7 +3637,7 @@ static int rtw89_pci_request_irq(struct rtw89_dev *rtwdev,
 	unsigned long flags = 0;
 	int ret;
 
-	flags |= PCI_IRQ_LEGACY | PCI_IRQ_MSI;
+	flags |= PCI_IRQ_INTX | PCI_IRQ_MSI;
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, flags);
 	if (ret < 0) {
 		rtw89_err(rtwdev, "failed to alloc irq vectors, ret %d\n", ret);
@@ -4170,6 +4260,8 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rtwdev->hci.type = RTW89_HCI_TYPE_PCIE;
 	rtwdev->hci.rpwm_addr = pci_info->rpwm_addr;
 	rtwdev->hci.cpwm_addr = pci_info->cpwm_addr;
+
+	rtw89_check_quirks(rtwdev, info->quirks);
 
 	SET_IEEE80211_DEV(rtwdev->hw, &pdev->dev);
 

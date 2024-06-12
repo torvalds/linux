@@ -52,46 +52,48 @@ static int add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
 	return 0;
 }
 
-const char *help_unknown_cmd(const char *cmd)
+const char *help_unknown_cmd(const char *cmd, struct cmdnames *main_cmds)
 {
 	unsigned int i, n = 0, best_similarity = 0;
-	struct cmdnames main_cmds, other_cmds;
+	struct cmdnames other_cmds;
 
-	memset(&main_cmds, 0, sizeof(main_cmds));
-	memset(&other_cmds, 0, sizeof(main_cmds));
+	memset(&other_cmds, 0, sizeof(other_cmds));
 
 	perf_config(perf_unknown_cmd_config, NULL);
 
-	load_command_list("perf-", &main_cmds, &other_cmds);
+	load_command_list("perf-", main_cmds, &other_cmds);
 
-	if (add_cmd_list(&main_cmds, &other_cmds) < 0) {
+	if (add_cmd_list(main_cmds, &other_cmds) < 0) {
 		fprintf(stderr, "ERROR: Failed to allocate command list for unknown command.\n");
 		goto end;
 	}
-	qsort(main_cmds.names, main_cmds.cnt,
-	      sizeof(main_cmds.names), cmdname_compare);
-	uniq(&main_cmds);
+	qsort(main_cmds->names, main_cmds->cnt,
+	      sizeof(main_cmds->names), cmdname_compare);
+	uniq(main_cmds);
 
-	if (main_cmds.cnt) {
+	if (main_cmds->cnt) {
 		/* This reuses cmdname->len for similarity index */
-		for (i = 0; i < main_cmds.cnt; ++i)
-			main_cmds.names[i]->len =
-				levenshtein(cmd, main_cmds.names[i]->name, 0, 2, 1, 4);
+		for (i = 0; i < main_cmds->cnt; ++i) {
+			main_cmds->names[i]->len =
+				levenshtein(cmd, main_cmds->names[i]->name,
+					/*swap_penalty=*/0,
+					/*substition_penality=*/2,
+					/*insertion_penality=*/1,
+					/*deletion_penalty=*/1);
+		}
+		qsort(main_cmds->names, main_cmds->cnt,
+		      sizeof(*main_cmds->names), levenshtein_compare);
 
-		qsort(main_cmds.names, main_cmds.cnt,
-		      sizeof(*main_cmds.names), levenshtein_compare);
-
-		best_similarity = main_cmds.names[0]->len;
+		best_similarity = main_cmds->names[0]->len;
 		n = 1;
-		while (n < main_cmds.cnt && best_similarity == main_cmds.names[n]->len)
+		while (n < main_cmds->cnt && best_similarity == main_cmds->names[n]->len)
 			++n;
 	}
 
 	if (autocorrect && n == 1) {
-		const char *assumed = main_cmds.names[0]->name;
+		const char *assumed = main_cmds->names[0]->name;
 
-		main_cmds.names[0] = NULL;
-		clean_cmdnames(&main_cmds);
+		main_cmds->names[0] = NULL;
 		clean_cmdnames(&other_cmds);
 		fprintf(stderr, "WARNING: You called a perf program named '%s', "
 			"which does not exist.\n"
@@ -107,15 +109,14 @@ const char *help_unknown_cmd(const char *cmd)
 
 	fprintf(stderr, "perf: '%s' is not a perf-command. See 'perf --help'.\n", cmd);
 
-	if (main_cmds.cnt && best_similarity < 6) {
+	if (main_cmds->cnt && best_similarity < 6) {
 		fprintf(stderr, "\nDid you mean %s?\n",
 			n < 2 ? "this": "one of these");
 
 		for (i = 0; i < n; i++)
-			fprintf(stderr, "\t%s\n", main_cmds.names[i]->name);
+			fprintf(stderr, "\t%s\n", main_cmds->names[i]->name);
 	}
 end:
-	clean_cmdnames(&main_cmds);
 	clean_cmdnames(&other_cmds);
-	exit(1);
+	return NULL;
 }

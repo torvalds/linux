@@ -1260,12 +1260,6 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 		}
 	}
 
-	if (req_op(rq) == REQ_OP_ZONE_APPEND) {
-		ret = sd_zbc_prepare_zone_append(cmd, &lba, nr_blocks);
-		if (ret)
-			goto fail;
-	}
-
 	fua = rq->cmd_flags & REQ_FUA ? 0x8 : 0;
 	dix = scsi_prot_sg_count(cmd);
 	dif = scsi_host_dif_capable(cmd->device->host, sdkp->protection_type);
@@ -1348,7 +1342,6 @@ static blk_status_t sd_init_command(struct scsi_cmnd *cmd)
 		return sd_setup_flush_cmnd(cmd);
 	case REQ_OP_READ:
 	case REQ_OP_WRITE:
-	case REQ_OP_ZONE_APPEND:
 		return sd_setup_read_write_cmnd(cmd);
 	case REQ_OP_ZONE_RESET:
 		return sd_zbc_setup_zone_mgmt_cmnd(cmd, ZO_RESET_WRITE_POINTER,
@@ -3120,6 +3113,7 @@ static void sd_read_io_hints(struct scsi_disk *sdkp, unsigned char *buffer)
 {
 	struct scsi_device *sdp = sdkp->device;
 	const struct scsi_io_group_descriptor *desc, *start, *end;
+	u16 permanent_stream_count_old;
 	struct scsi_sense_hdr sshdr;
 	struct scsi_mode_data data;
 	int res;
@@ -3140,12 +3134,13 @@ static void sd_read_io_hints(struct scsi_disk *sdkp, unsigned char *buffer)
 	for (desc = start; desc < end; desc++)
 		if (!desc->st_enble || !sd_is_perm_stream(sdkp, desc - start))
 			break;
+	permanent_stream_count_old = sdkp->permanent_stream_count;
 	sdkp->permanent_stream_count = desc - start;
 	if (sdkp->rscs && sdkp->permanent_stream_count < 2)
 		sd_printk(KERN_INFO, sdkp,
 			  "Unexpected: RSCS has been set and the permanent stream count is %u\n",
 			  sdkp->permanent_stream_count);
-	else if (sdkp->permanent_stream_count)
+	else if (sdkp->permanent_stream_count != permanent_stream_count_old)
 		sd_printk(KERN_INFO, sdkp, "permanent stream count = %d\n",
 			  sdkp->permanent_stream_count);
 }
@@ -3920,7 +3915,7 @@ static int sd_probe(struct device *dev)
 
 	error = device_add_disk(dev, gd, NULL);
 	if (error) {
-		put_device(&sdkp->disk_dev);
+		device_unregister(&sdkp->disk_dev);
 		put_disk(gd);
 		goto out;
 	}
@@ -3979,7 +3974,6 @@ static void scsi_disk_release(struct device *dev)
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
 	ida_free(&sd_index_ida, sdkp->index);
-	sd_zbc_free_zone_info(sdkp);
 	put_device(&sdkp->device->sdev_gendev);
 	free_opal_dev(sdkp->opal_dev);
 
@@ -4108,7 +4102,21 @@ static int sd_suspend_runtime(struct device *dev)
 	return sd_suspend_common(dev, true);
 }
 
-static int sd_resume(struct device *dev, bool runtime)
+static int sd_resume(struct device *dev)
+{
+	struct scsi_disk *sdkp = dev_get_drvdata(dev);
+
+	sd_printk(KERN_NOTICE, sdkp, "Starting disk\n");
+
+	if (opal_unlock_from_suspend(sdkp->opal_dev)) {
+		sd_printk(KERN_NOTICE, sdkp, "OPAL unlock failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int sd_resume_common(struct device *dev, bool runtime)
 {
 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 	int ret;
@@ -4124,7 +4132,7 @@ static int sd_resume(struct device *dev, bool runtime)
 	sd_printk(KERN_NOTICE, sdkp, "Starting disk\n");
 	ret = sd_start_stop_device(sdkp, 1);
 	if (!ret) {
-		opal_unlock_from_suspend(sdkp->opal_dev);
+		sd_resume(dev);
 		sdkp->suspended = false;
 	}
 
@@ -4143,7 +4151,7 @@ static int sd_resume_system(struct device *dev)
 		return 0;
 	}
 
-	return sd_resume(dev, false);
+	return sd_resume_common(dev, false);
 }
 
 static int sd_resume_runtime(struct device *dev)
@@ -4170,7 +4178,7 @@ static int sd_resume_runtime(struct device *dev)
 				  "Failed to clear sense data\n");
 	}
 
-	return sd_resume(dev, true);
+	return sd_resume_common(dev, true);
 }
 
 static const struct dev_pm_ops sd_pm_ops = {
@@ -4185,7 +4193,6 @@ static const struct dev_pm_ops sd_pm_ops = {
 static struct scsi_driver sd_template = {
 	.gendrv = {
 		.name		= "sd",
-		.owner		= THIS_MODULE,
 		.probe		= sd_probe,
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.remove		= sd_remove,
@@ -4193,6 +4200,7 @@ static struct scsi_driver sd_template = {
 		.pm		= &sd_pm_ops,
 	},
 	.rescan			= sd_rescan,
+	.resume			= sd_resume,
 	.init_command		= sd_init_command,
 	.uninit_command		= sd_uninit_command,
 	.done			= sd_done,

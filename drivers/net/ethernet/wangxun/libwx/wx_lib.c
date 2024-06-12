@@ -1598,7 +1598,7 @@ static void wx_set_num_queues(struct wx *wx)
  */
 static int wx_acquire_msix_vectors(struct wx *wx)
 {
-	struct irq_affinity affd = {0, };
+	struct irq_affinity affd = { .pre_vectors = 1 };
 	int nvecs, i;
 
 	/* We start by asking for one vector per queue pair */
@@ -1674,14 +1674,14 @@ static int wx_set_interrupt_capability(struct wx *wx)
 	/* minmum one for queue, one for misc*/
 	nvecs = 1;
 	nvecs = pci_alloc_irq_vectors(pdev, nvecs,
-				      nvecs, PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+				      nvecs, PCI_IRQ_MSI | PCI_IRQ_INTX);
 	if (nvecs == 1) {
 		if (pdev->msi_enabled)
 			wx_err(wx, "Fallback to MSI.\n");
 		else
-			wx_err(wx, "Fallback to LEGACY.\n");
+			wx_err(wx, "Fallback to INTx.\n");
 	} else {
-		wx_err(wx, "Failed to allocate MSI/LEGACY interrupts. Error: %d\n", nvecs);
+		wx_err(wx, "Failed to allocate MSI/INTx interrupts. Error: %d\n", nvecs);
 		return nvecs;
 	}
 
@@ -2127,7 +2127,7 @@ void wx_write_eitr(struct wx_q_vector *q_vector)
  * wx_configure_vectors - Configure vectors for hardware
  * @wx: board private structure
  *
- * wx_configure_vectors sets up the hardware to properly generate MSI-X/MSI/LEGACY
+ * wx_configure_vectors sets up the hardware to properly generate MSI-X/MSI/INTx
  * interrupts.
  **/
 void wx_configure_vectors(struct wx *wx)
@@ -2690,14 +2690,62 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 		wx->rss_enabled = false;
 	}
 
-	if (changed &
-	    (NETIF_F_HW_VLAN_CTAG_RX |
-	     NETIF_F_HW_VLAN_STAG_RX))
+	netdev->features = features;
+
+	if (wx->mac.type == wx_mac_sp && changed & NETIF_F_HW_VLAN_CTAG_RX)
+		wx->do_reset(netdev);
+	else if (changed & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER))
 		wx_set_rx_mode(netdev);
 
-	return 1;
+	return 0;
 }
 EXPORT_SYMBOL(wx_set_features);
+
+#define NETIF_VLAN_STRIPPING_FEATURES	(NETIF_F_HW_VLAN_CTAG_RX | \
+					 NETIF_F_HW_VLAN_STAG_RX)
+
+#define NETIF_VLAN_INSERTION_FEATURES	(NETIF_F_HW_VLAN_CTAG_TX | \
+					 NETIF_F_HW_VLAN_STAG_TX)
+
+#define NETIF_VLAN_FILTERING_FEATURES	(NETIF_F_HW_VLAN_CTAG_FILTER | \
+					 NETIF_F_HW_VLAN_STAG_FILTER)
+
+netdev_features_t wx_fix_features(struct net_device *netdev,
+				  netdev_features_t features)
+{
+	netdev_features_t changed = netdev->features ^ features;
+	struct wx *wx = netdev_priv(netdev);
+
+	if (changed & NETIF_VLAN_STRIPPING_FEATURES) {
+		if ((features & NETIF_VLAN_STRIPPING_FEATURES) != NETIF_VLAN_STRIPPING_FEATURES &&
+		    (features & NETIF_VLAN_STRIPPING_FEATURES) != 0) {
+			features &= ~NETIF_VLAN_STRIPPING_FEATURES;
+			features |= netdev->features & NETIF_VLAN_STRIPPING_FEATURES;
+			wx_err(wx, "802.1Q and 802.1ad VLAN stripping must be either both on or both off.");
+		}
+	}
+
+	if (changed & NETIF_VLAN_INSERTION_FEATURES) {
+		if ((features & NETIF_VLAN_INSERTION_FEATURES) != NETIF_VLAN_INSERTION_FEATURES &&
+		    (features & NETIF_VLAN_INSERTION_FEATURES) != 0) {
+			features &= ~NETIF_VLAN_INSERTION_FEATURES;
+			features |= netdev->features & NETIF_VLAN_INSERTION_FEATURES;
+			wx_err(wx, "802.1Q and 802.1ad VLAN insertion must be either both on or both off.");
+		}
+	}
+
+	if (changed & NETIF_VLAN_FILTERING_FEATURES) {
+		if ((features & NETIF_VLAN_FILTERING_FEATURES) != NETIF_VLAN_FILTERING_FEATURES &&
+		    (features & NETIF_VLAN_FILTERING_FEATURES) != 0) {
+			features &= ~NETIF_VLAN_FILTERING_FEATURES;
+			features |= netdev->features & NETIF_VLAN_FILTERING_FEATURES;
+			wx_err(wx, "802.1Q and 802.1ad VLAN filtering must be either both on or both off.");
+		}
+	}
+
+	return features;
+}
+EXPORT_SYMBOL(wx_fix_features);
 
 void wx_set_ring(struct wx *wx, u32 new_tx_count,
 		 u32 new_rx_count, struct wx_ring *temp_ring)

@@ -395,9 +395,12 @@ static void mpc20_program_ogam_pwl(
 				MPCC_OGAM_LUT_DATA, rgb[i].delta_green_reg);
 		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0,
 				MPCC_OGAM_LUT_DATA, rgb[i].delta_blue_reg);
-
 	}
 
+	REG_SEQ_SUBMIT();
+	PERF_TRACE();
+	REG_SEQ_WAIT_DONE();
+	PERF_TRACE();
 }
 
 static void apply_DEDCN20_305_wa(struct mpc *mpc, int mpcc_id,
@@ -501,11 +504,6 @@ void mpc2_assert_mpcc_idle_before_connect(struct mpc *mpc, int mpcc_id)
 		ASSERT(!mpc_disabled);
 		ASSERT(!mpc_idle);
 	}
-
-	REG_SEQ_SUBMIT();
-	PERF_TRACE();
-	REG_SEQ_WAIT_DONE();
-	PERF_TRACE();
 }
 
 static void mpc2_init_mpcc(struct mpcc *mpcc, int mpcc_inst)

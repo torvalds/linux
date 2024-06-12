@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2022 Intel Corporation
  */
 
 #ifndef __SOUND_SOC_SOF_IPC4_PRIV_H
@@ -92,27 +92,13 @@ struct sof_ipc4_fw_data {
 	struct mutex pipeline_state_mutex; /* protect pipeline triggers, ref counts and states */
 };
 
-/**
- * struct sof_ipc4_timestamp_info - IPC4 timestamp info
- * @host_copier: the host copier of the pcm stream
- * @dai_copier: the dai copier of the pcm stream
- * @stream_start_offset: reported by fw in memory window
- * @llp_offset: llp offset in memory window
- */
-struct sof_ipc4_timestamp_info {
-	struct sof_ipc4_copier *host_copier;
-	struct sof_ipc4_copier *dai_copier;
-	u64 stream_start_offset;
-	u32 llp_offset;
-};
-
 extern const struct sof_ipc_fw_loader_ops ipc4_loader_ops;
 extern const struct sof_ipc_tplg_ops ipc4_tplg_ops;
 extern const struct sof_ipc_tplg_control_ops tplg_ipc4_control_ops;
 extern const struct sof_ipc_pcm_ops ipc4_pcm_ops;
 extern const struct sof_ipc_fw_tracing_ops ipc4_mtrace_ops;
 
-int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 id, u32 state);
+int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 state);
 int sof_ipc4_mtrace_update_pos(struct snd_sof_dev *sdev, int core);
 
 int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev);

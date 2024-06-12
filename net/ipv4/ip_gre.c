@@ -265,6 +265,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	struct net *net = dev_net(skb->dev);
 	struct metadata_dst *tun_dst = NULL;
 	struct erspan_base_hdr *ershdr;
+	IP_TUNNEL_DECLARE_FLAGS(flags);
 	struct ip_tunnel_net *itn;
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph;
@@ -272,18 +273,25 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	int ver;
 	int len;
 
+	ip_tunnel_flags_copy(flags, tpi->flags);
+
 	itn = net_generic(net, erspan_net_id);
 	iph = ip_hdr(skb);
 	if (is_erspan_type1(gre_hdr_len)) {
 		ver = 0;
-		tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
-					  tpi->flags | TUNNEL_NO_KEY,
+		__set_bit(IP_TUNNEL_NO_KEY_BIT, flags);
+		tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, flags,
 					  iph->saddr, iph->daddr, 0);
 	} else {
+		if (unlikely(!pskb_may_pull(skb,
+					    gre_hdr_len + sizeof(*ershdr))))
+			return PACKET_REJECT;
+
 		ershdr = (struct erspan_base_hdr *)(skb->data + gre_hdr_len);
 		ver = ershdr->ver;
-		tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
-					  tpi->flags | TUNNEL_KEY,
+		iph = ip_hdr(skb);
+		__set_bit(IP_TUNNEL_KEY_BIT, flags);
+		tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, flags,
 					  iph->saddr, iph->daddr, tpi->key);
 	}
 
@@ -307,10 +315,9 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			struct ip_tunnel_info *info;
 			unsigned char *gh;
 			__be64 tun_id;
-			__be16 flags;
 
-			tpi->flags |= TUNNEL_KEY;
-			flags = tpi->flags;
+			__set_bit(IP_TUNNEL_KEY_BIT, tpi->flags);
+			ip_tunnel_flags_copy(flags, tpi->flags);
 			tun_id = key32_to_tunnel_id(tpi->key);
 
 			tun_dst = ip_tun_rx_dst(skb, flags,
@@ -333,7 +340,8 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 						       ERSPAN_V2_MDSIZE);
 
 			info = &tun_dst->u.tun_info;
-			info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
+			__set_bit(IP_TUNNEL_ERSPAN_OPT_BIT,
+				  info->key.tun_flags);
 			info->options_len = sizeof(*md);
 		}
 
@@ -376,10 +384,13 @@ static int __ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 
 		tnl_params = &tunnel->parms.iph;
 		if (tunnel->collect_md || tnl_params->daddr == 0) {
-			__be16 flags;
+			IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 			__be64 tun_id;
 
-			flags = tpi->flags & (TUNNEL_CSUM | TUNNEL_KEY);
+			__set_bit(IP_TUNNEL_CSUM_BIT, flags);
+			__set_bit(IP_TUNNEL_KEY_BIT, flags);
+			ip_tunnel_flags_and(flags, tpi->flags, flags);
+
 			tun_id = key32_to_tunnel_id(tpi->key);
 			tun_dst = ip_tun_rx_dst(skb, flags, tun_id, 0);
 			if (!tun_dst)
@@ -459,12 +470,15 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 		       __be16 proto)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	__be16 flags = tunnel->parms.o_flags;
+	IP_TUNNEL_DECLARE_FLAGS(flags);
+
+	ip_tunnel_flags_copy(flags, tunnel->parms.o_flags);
 
 	/* Push GRE header. */
 	gre_build_header(skb, tunnel->tun_hlen,
 			 flags, proto, tunnel->parms.o_key,
-			 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqno)) : 0);
+			 test_bit(IP_TUNNEL_SEQ_BIT, flags) ?
+			 htonl(atomic_fetch_inc(&tunnel->o_seqno)) : 0);
 
 	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
 }
@@ -478,10 +492,10 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 			__be16 proto)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
 	int tunnel_hlen;
-	__be16 flags;
 
 	tun_info = skb_tunnel_info(skb);
 	if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
@@ -495,14 +509,19 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		goto err_free_skb;
 
 	/* Push Tunnel header. */
-	if (gre_handle_offloads(skb, !!(tun_info->key.tun_flags & TUNNEL_CSUM)))
+	if (gre_handle_offloads(skb, test_bit(IP_TUNNEL_CSUM_BIT,
+					      tunnel->parms.o_flags)))
 		goto err_free_skb;
 
-	flags = tun_info->key.tun_flags &
-		(TUNNEL_CSUM | TUNNEL_KEY | TUNNEL_SEQ);
+	__set_bit(IP_TUNNEL_CSUM_BIT, flags);
+	__set_bit(IP_TUNNEL_KEY_BIT, flags);
+	__set_bit(IP_TUNNEL_SEQ_BIT, flags);
+	ip_tunnel_flags_and(flags, tun_info->key.tun_flags, flags);
+
 	gre_build_header(skb, tunnel_hlen, flags, proto,
 			 tunnel_id_to_key32(tun_info->key.tun_id),
-			 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqno)) : 0);
+			 test_bit(IP_TUNNEL_SEQ_BIT, flags) ?
+			 htonl(atomic_fetch_inc(&tunnel->o_seqno)) : 0);
 
 	ip_md_tunnel_xmit(skb, dev, IPPROTO_GRE, tunnel_hlen);
 
@@ -516,6 +535,7 @@ err_free_skb:
 static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
 	struct erspan_metadata *md;
@@ -531,7 +551,7 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_free_skb;
 
 	key = &tun_info->key;
-	if (!(tun_info->key.tun_flags & TUNNEL_ERSPAN_OPT))
+	if (!test_bit(IP_TUNNEL_ERSPAN_OPT_BIT, tun_info->key.tun_flags))
 		goto err_free_skb;
 	if (tun_info->options_len < sizeof(*md))
 		goto err_free_skb;
@@ -584,8 +604,9 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_free_skb;
 	}
 
-	gre_build_header(skb, 8, TUNNEL_SEQ,
-			 proto, 0, htonl(atomic_fetch_inc(&tunnel->o_seqno)));
+	__set_bit(IP_TUNNEL_SEQ_BIT, flags);
+	gre_build_header(skb, 8, flags, proto, 0,
+			 htonl(atomic_fetch_inc(&tunnel->o_seqno)));
 
 	ip_md_tunnel_xmit(skb, dev, IPPROTO_GRE, tunnel_hlen);
 
@@ -659,7 +680,8 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 		tnl_params = &tunnel->parms.iph;
 	}
 
-	if (gre_handle_offloads(skb, !!(tunnel->parms.o_flags & TUNNEL_CSUM)))
+	if (gre_handle_offloads(skb, test_bit(IP_TUNNEL_CSUM_BIT,
+					      tunnel->parms.o_flags)))
 		goto free_skb;
 
 	__gre_xmit(skb, dev, tnl_params, skb->protocol);
@@ -701,7 +723,7 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 	/* Push ERSPAN header */
 	if (tunnel->erspan_ver == 0) {
 		proto = htons(ETH_P_ERSPAN);
-		tunnel->parms.o_flags &= ~TUNNEL_SEQ;
+		__clear_bit(IP_TUNNEL_SEQ_BIT, tunnel->parms.o_flags);
 	} else if (tunnel->erspan_ver == 1) {
 		erspan_build_header(skb, ntohl(tunnel->parms.o_key),
 				    tunnel->index,
@@ -716,7 +738,7 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 		goto free_skb;
 	}
 
-	tunnel->parms.o_flags &= ~TUNNEL_KEY;
+	__clear_bit(IP_TUNNEL_KEY_BIT, tunnel->parms.o_flags);
 	__gre_xmit(skb, dev, &tunnel->parms.iph, proto);
 	return NETDEV_TX_OK;
 
@@ -739,7 +761,8 @@ static netdev_tx_t gre_tap_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	if (gre_handle_offloads(skb, !!(tunnel->parms.o_flags & TUNNEL_CSUM)))
+	if (gre_handle_offloads(skb, test_bit(IP_TUNNEL_CSUM_BIT,
+					      tunnel->parms.o_flags)))
 		goto free_skb;
 
 	if (skb_cow_head(skb, dev->needed_headroom))
@@ -757,7 +780,6 @@ free_skb:
 static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	__be16 flags;
 	int len;
 
 	len = tunnel->tun_hlen;
@@ -771,12 +793,11 @@ static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 		dev->needed_headroom += len;
 
 	if (set_mtu)
-		dev->mtu = max_t(int, dev->mtu - len, 68);
+		WRITE_ONCE(dev->mtu, max_t(int, dev->mtu - len, 68));
 
-	flags = tunnel->parms.o_flags;
-
-	if (flags & TUNNEL_SEQ ||
-	    (flags & TUNNEL_CSUM && tunnel->encap.type != TUNNEL_ENCAP_NONE)) {
+	if (test_bit(IP_TUNNEL_SEQ_BIT, tunnel->parms.o_flags) ||
+	    (test_bit(IP_TUNNEL_CSUM_BIT, tunnel->parms.o_flags) &&
+	     tunnel->encap.type != TUNNEL_ENCAP_NONE)) {
 		dev->features &= ~NETIF_F_GSO_SOFTWARE;
 		dev->hw_features &= ~NETIF_F_GSO_SOFTWARE;
 	} else {
@@ -785,20 +806,29 @@ static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 	}
 }
 
-static int ipgre_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p,
+static int ipgre_tunnel_ctl(struct net_device *dev,
+			    struct ip_tunnel_parm_kern *p,
 			    int cmd)
 {
+	__be16 i_flags, o_flags;
 	int err;
+
+	if (!ip_tunnel_flags_is_be16_compat(p->i_flags) ||
+	    !ip_tunnel_flags_is_be16_compat(p->o_flags))
+		return -EOVERFLOW;
+
+	i_flags = ip_tunnel_flags_to_be16(p->i_flags);
+	o_flags = ip_tunnel_flags_to_be16(p->o_flags);
 
 	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
 		if (p->iph.version != 4 || p->iph.protocol != IPPROTO_GRE ||
 		    p->iph.ihl != 5 || (p->iph.frag_off & htons(~IP_DF)) ||
-		    ((p->i_flags | p->o_flags) & (GRE_VERSION | GRE_ROUTING)))
+		    ((i_flags | o_flags) & (GRE_VERSION | GRE_ROUTING)))
 			return -EINVAL;
 	}
 
-	p->i_flags = gre_flags_to_tnl_flags(p->i_flags);
-	p->o_flags = gre_flags_to_tnl_flags(p->o_flags);
+	gre_flags_to_tnl_flags(p->i_flags, i_flags);
+	gre_flags_to_tnl_flags(p->o_flags, o_flags);
 
 	err = ip_tunnel_ctl(dev, p, cmd);
 	if (err)
@@ -807,15 +837,18 @@ static int ipgre_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p,
 	if (cmd == SIOCCHGTUNNEL) {
 		struct ip_tunnel *t = netdev_priv(dev);
 
-		t->parms.i_flags = p->i_flags;
-		t->parms.o_flags = p->o_flags;
+		ip_tunnel_flags_copy(t->parms.i_flags, p->i_flags);
+		ip_tunnel_flags_copy(t->parms.o_flags, p->o_flags);
 
 		if (strcmp(dev->rtnl_link_ops->kind, "erspan"))
 			ipgre_link_update(dev, true);
 	}
 
-	p->i_flags = gre_tnl_flags_to_gre_flags(p->i_flags);
-	p->o_flags = gre_tnl_flags_to_gre_flags(p->o_flags);
+	i_flags = gre_tnl_flags_to_gre_flags(p->i_flags);
+	ip_tunnel_flags_from_be16(p->i_flags, i_flags);
+	o_flags = gre_tnl_flags_to_gre_flags(p->o_flags);
+	ip_tunnel_flags_from_be16(p->o_flags, o_flags);
+
 	return 0;
 }
 
@@ -955,7 +988,6 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 static void __gre_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel;
-	__be16 flags;
 
 	tunnel = netdev_priv(dev);
 	tunnel->tun_hlen = gre_calc_hlen(tunnel->parms.o_flags);
@@ -967,14 +999,13 @@ static void __gre_tunnel_init(struct net_device *dev)
 	dev->features		|= GRE_FEATURES | NETIF_F_LLTX;
 	dev->hw_features	|= GRE_FEATURES;
 
-	flags = tunnel->parms.o_flags;
-
 	/* TCP offload with GRE SEQ is not supported, nor can we support 2
 	 * levels of outer headers requiring an update.
 	 */
-	if (flags & TUNNEL_SEQ)
+	if (test_bit(IP_TUNNEL_SEQ_BIT, tunnel->parms.o_flags))
 		return;
-	if (flags & TUNNEL_CSUM && tunnel->encap.type != TUNNEL_ENCAP_NONE)
+	if (test_bit(IP_TUNNEL_CSUM_BIT, tunnel->parms.o_flags) &&
+	    tunnel->encap.type != TUNNEL_ENCAP_NONE)
 		return;
 
 	dev->features |= NETIF_F_GSO_SOFTWARE;
@@ -1131,7 +1162,7 @@ static int erspan_validate(struct nlattr *tb[], struct nlattr *data[],
 static int ipgre_netlink_parms(struct net_device *dev,
 				struct nlattr *data[],
 				struct nlattr *tb[],
-				struct ip_tunnel_parm *parms,
+				struct ip_tunnel_parm_kern *parms,
 				__u32 *fwmark)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
@@ -1147,10 +1178,12 @@ static int ipgre_netlink_parms(struct net_device *dev,
 		parms->link = nla_get_u32(data[IFLA_GRE_LINK]);
 
 	if (data[IFLA_GRE_IFLAGS])
-		parms->i_flags = gre_flags_to_tnl_flags(nla_get_be16(data[IFLA_GRE_IFLAGS]));
+		gre_flags_to_tnl_flags(parms->i_flags,
+				       nla_get_be16(data[IFLA_GRE_IFLAGS]));
 
 	if (data[IFLA_GRE_OFLAGS])
-		parms->o_flags = gre_flags_to_tnl_flags(nla_get_be16(data[IFLA_GRE_OFLAGS]));
+		gre_flags_to_tnl_flags(parms->o_flags,
+				       nla_get_be16(data[IFLA_GRE_OFLAGS]));
 
 	if (data[IFLA_GRE_IKEY])
 		parms->i_key = nla_get_be32(data[IFLA_GRE_IKEY]);
@@ -1198,7 +1231,7 @@ static int ipgre_netlink_parms(struct net_device *dev,
 static int erspan_netlink_parms(struct net_device *dev,
 				struct nlattr *data[],
 				struct nlattr *tb[],
-				struct ip_tunnel_parm *parms,
+				struct ip_tunnel_parm_kern *parms,
 				__u32 *fwmark)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
@@ -1357,7 +1390,7 @@ static int ipgre_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[],
 			 struct netlink_ext_ack *extack)
 {
-	struct ip_tunnel_parm p;
+	struct ip_tunnel_parm_kern p;
 	__u32 fwmark = 0;
 	int err;
 
@@ -1375,7 +1408,7 @@ static int erspan_newlink(struct net *src_net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[],
 			  struct netlink_ext_ack *extack)
 {
-	struct ip_tunnel_parm p;
+	struct ip_tunnel_parm_kern p;
 	__u32 fwmark = 0;
 	int err;
 
@@ -1394,8 +1427,8 @@ static int ipgre_changelink(struct net_device *dev, struct nlattr *tb[],
 			    struct netlink_ext_ack *extack)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
+	struct ip_tunnel_parm_kern p;
 	__u32 fwmark = t->fwmark;
-	struct ip_tunnel_parm p;
 	int err;
 
 	err = ipgre_newlink_encap_setup(dev, data);
@@ -1410,8 +1443,8 @@ static int ipgre_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (err < 0)
 		return err;
 
-	t->parms.i_flags = p.i_flags;
-	t->parms.o_flags = p.o_flags;
+	ip_tunnel_flags_copy(t->parms.i_flags, p.i_flags);
+	ip_tunnel_flags_copy(t->parms.o_flags, p.o_flags);
 
 	ipgre_link_update(dev, !tb[IFLA_MTU]);
 
@@ -1423,8 +1456,8 @@ static int erspan_changelink(struct net_device *dev, struct nlattr *tb[],
 			     struct netlink_ext_ack *extack)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
+	struct ip_tunnel_parm_kern p;
 	__u32 fwmark = t->fwmark;
-	struct ip_tunnel_parm p;
 	int err;
 
 	err = ipgre_newlink_encap_setup(dev, data);
@@ -1439,8 +1472,8 @@ static int erspan_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (err < 0)
 		return err;
 
-	t->parms.i_flags = p.i_flags;
-	t->parms.o_flags = p.o_flags;
+	ip_tunnel_flags_copy(t->parms.i_flags, p.i_flags);
+	ip_tunnel_flags_copy(t->parms.o_flags, p.o_flags);
 
 	return 0;
 }
@@ -1496,8 +1529,10 @@ static size_t ipgre_get_size(const struct net_device *dev)
 static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
-	struct ip_tunnel_parm *p = &t->parms;
-	__be16 o_flags = p->o_flags;
+	struct ip_tunnel_parm_kern *p = &t->parms;
+	IP_TUNNEL_DECLARE_FLAGS(o_flags);
+
+	ip_tunnel_flags_copy(o_flags, p->o_flags);
 
 	if (nla_put_u32(skb, IFLA_GRE_LINK, p->link) ||
 	    nla_put_be16(skb, IFLA_GRE_IFLAGS,
@@ -1545,7 +1580,7 @@ static int erspan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (t->erspan_ver <= 2) {
 		if (t->erspan_ver != 0 && !t->collect_md)
-			t->parms.o_flags |= TUNNEL_KEY;
+			__set_bit(IP_TUNNEL_KEY_BIT, t->parms.o_flags);
 
 		if (nla_put_u8(skb, IFLA_GRE_ERSPAN_VER, t->erspan_ver))
 			goto nla_put_failure;

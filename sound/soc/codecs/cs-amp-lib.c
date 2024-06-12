@@ -56,6 +56,11 @@ static int _cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
 	dev_dbg(dsp->dev, "Calibration: Ambient=%#x, Status=%#x, CalR=%d\n",
 		data->calAmbient, data->calStatus, data->calR);
 
+	if (list_empty(&dsp->ctl_list)) {
+		dev_info(dsp->dev, "Calibration disabled due to missing firmware controls\n");
+		return -ENOENT;
+	}
+
 	ret = cs_amp_write_cal_coeff(dsp, controls, controls->ambient, data->calAmbient);
 	if (ret)
 		return ret;

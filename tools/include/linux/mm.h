@@ -2,17 +2,14 @@
 #ifndef _TOOLS_LINUX_MM_H
 #define _TOOLS_LINUX_MM_H
 
+#include <linux/align.h>
 #include <linux/mmzone.h>
-#include <uapi/linux/const.h>
 
 #define PAGE_SHIFT		12
 #define PAGE_SIZE		(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE - 1))
 
 #define PHYS_ADDR_MAX	(~(phys_addr_t)0)
-
-#define ALIGN(x, a)			__ALIGN_KERNEL((x), (a))
-#define ALIGN_DOWN(x, a)		__ALIGN_KERNEL((x) - ((a) - 1), (a))
 
 #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
 
@@ -35,6 +32,11 @@ static inline void totalram_pages_inc(void)
 
 static inline void totalram_pages_add(long count)
 {
+}
+
+static inline int early_pfn_to_nid(unsigned long pfn)
+{
+	return 0;
 }
 
 #endif

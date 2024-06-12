@@ -254,6 +254,17 @@ config GPIO_WATCHDOG_ARCH_INITCALL
 	  arch_initcall.
 	  If in doubt, say N.
 
+config LENOVO_SE10_WDT
+	tristate "Lenovo SE10 Watchdog"
+	depends on (X86 && DMI) || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for the watchdog
+	  functionality for the Lenovo SE10 platform.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lenovo-se10-wdt.
+
 config MENF21BMC_WATCHDOG
 	tristate "MEN 14F021P00 BMC Watchdog"
 	depends on MFD_MENF21BMC || COMPILE_TEST
@@ -482,6 +493,7 @@ config 21285_WATCHDOG
 config 977_WATCHDOG
 	tristate "NetWinder WB83C977 watchdog"
 	depends on (FOOTBRIDGE && ARCH_NETWINDER) || (ARM && COMPILE_TEST)
+	depends on HAS_IOPORT
 	help
 	  Say Y here to include support for the WB977 watchdog included in
 	  NetWinder machines. Alternatively say M to compile the driver as
@@ -1075,7 +1087,7 @@ config ACQUIRE_WDT
 
 config ADVANTECH_WDT
 	tristate "Advantech SBC Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  If you are configuring a Linux kernel for the Advantech single-board
 	  computer, say `Y' here to support its built-in watchdog timer
@@ -1084,7 +1096,7 @@ config ADVANTECH_WDT
 
 config ADVANTECH_EC_WDT
 	tristate "Advantech Embedded Controller Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	select ISA_BUS_API
 	select WATCHDOG_CORE
 	help
@@ -1117,7 +1129,7 @@ config ALIM7101_WDT
 
 config EBC_C384_WDT
 	tristate "WinSystems EBC-C384 Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	select ISA_BUS_API
 	select WATCHDOG_CORE
 	help
@@ -1127,7 +1139,7 @@ config EBC_C384_WDT
 
 config EXAR_WDT
 	tristate "Exar Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	select WATCHDOG_CORE
 	help
 	  Enables watchdog timer support for the watchdog timer present
@@ -1138,7 +1150,7 @@ config EXAR_WDT
 
 config F71808E_WDT
 	tristate "Fintek F718xx, F818xx Super I/O Watchdog"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	select WATCHDOG_CORE
 	help
 	  This is the driver for the hardware watchdog on the Fintek F71808E,
@@ -1150,7 +1162,7 @@ config F71808E_WDT
 
 config SP5100_TCO
 	tristate "AMD/ATI SP5100 TCO Timer/Watchdog"
-	depends on (X86 || COMPILE_TEST) && PCI
+	depends on (X86 || COMPILE_TEST) && PCI && HAS_IOPORT
 	select WATCHDOG_CORE
 	help
 	  Hardware watchdog driver for the AMD/ATI SP5100 chipset. The TCO
@@ -1189,7 +1201,7 @@ config SC520_WDT
 
 config SBC_FITPC2_WATCHDOG
 	tristate "Compulab SBC-FITPC2 watchdog"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the built-in watchdog timer on the fit-PC2,
 	  fit-PC2i, CM-iAM single-board computers made by Compulab.
@@ -1214,7 +1226,7 @@ config SBC_FITPC2_WATCHDOG
 
 config EUROTECH_WDT
 	tristate "Eurotech CPU-1220/1410 Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  Enable support for the watchdog timer on the Eurotech CPU-1220 and
 	  CPU-1410 cards.  These are PC/104 SBCs. Spec sheets and product
@@ -1222,7 +1234,7 @@ config EUROTECH_WDT
 
 config IB700_WDT
 	tristate "IB700 SBC Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the hardware watchdog on the IB700 Single
 	  Board Computer produced by TMC Technology (www.tmc-uk.com). This
@@ -1239,7 +1251,7 @@ config IB700_WDT
 
 config IBMASR
 	tristate "IBM Automatic Server Restart"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the IBM Automatic Server Restart watchdog
 	  timer built-in into some eServer xSeries machines.
@@ -1249,7 +1261,7 @@ config IBMASR
 
 config WAFER_WDT
 	tristate "ICP Single Board Computer Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is a driver for the hardware watchdog on the ICP Single
 	  Board Computer. This driver is working on (at least) the following
@@ -1271,7 +1283,7 @@ config I6300ESB_WDT
 
 config IE6XX_WDT
 	tristate "Intel Atom E6xx Watchdog"
-	depends on (X86 || COMPILE_TEST) && PCI
+	depends on (X86 || COMPILE_TEST) && PCI && HAS_IOPORT
 	select WATCHDOG_CORE
 	select MFD_CORE
 	select LPC_SCH
@@ -1301,6 +1313,7 @@ config ITCO_WDT
 	select WATCHDOG_CORE
 	depends on I2C || I2C=n
 	depends on MFD_INTEL_PMC_BXT || !MFD_INTEL_PMC_BXT
+	depends on HAS_IOPORT # for I2C_I801
 	select LPC_ICH if !EXPERT
 	select I2C_I801 if !EXPERT && I2C
 	help
@@ -1331,7 +1344,7 @@ config ITCO_VENDOR_SUPPORT
 
 config IT8712F_WDT
 	tristate "IT8712F (Smart Guardian) Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the built-in watchdog timer on the IT8712F
 	  Super I/0 chipset used on many motherboards.
@@ -1344,7 +1357,7 @@ config IT8712F_WDT
 
 config IT87_WDT
 	tristate "IT87 Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	select WATCHDOG_CORE
 	help
 	  This is the driver for the hardware watchdog on the ITE IT8607,
@@ -1392,7 +1405,7 @@ config KEMPLD_WDT
 
 config SC1200_WDT
 	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is a driver for National Semiconductor PC87307/PC97307 hardware
 	  watchdog cards as found on the SC1200. This watchdog is mainly used
@@ -1415,7 +1428,7 @@ config SCx200_WDT
 
 config PC87413_WDT
 	tristate "NS PC87413 watchdog"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the hardware watchdog on the PC87413 chipset
 	  This watchdog simply watches your kernel to make sure it doesn't
@@ -1429,7 +1442,7 @@ config PC87413_WDT
 
 config NV_TCO
 	tristate "nVidia TCO Timer/Watchdog"
-	depends on (X86 || COMPILE_TEST) && PCI
+	depends on (X86 || COMPILE_TEST) && PCI && HAS_IOPORT
 	help
 	  Hardware driver for the TCO timer built into the nVidia Hub family
 	  (such as the MCP51).  The TCO (Total Cost of Ownership) timer is a
@@ -1458,7 +1471,7 @@ config RDC321X_WDT
 
 config 60XX_WDT
 	tristate "SBC-60XX Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This driver can be used with the watchdog timer found on some
 	  single board computers, namely the 6010 PII based computer.
@@ -1498,7 +1511,7 @@ config SBC7240_WDT
 
 config CPU5_WDT
 	tristate "SMA CPU5 Watchdog"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  TBD.
 	  To compile this driver as a module, choose M here: the
@@ -1506,7 +1519,7 @@ config CPU5_WDT
 
 config SMSC_SCH311X_WDT
 	tristate "SMSC SCH311X Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the hardware watchdog timer on the
 	  SMSC SCH3112, SCH3114 and SCH3116 Super IO chipset
@@ -1518,7 +1531,7 @@ config SMSC_SCH311X_WDT
 
 config SMSC37B787_WDT
 	tristate "Winbond SMsC37B787 Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the hardware watchdog component on the
 	  Winbond SMsC37B787 chipset as used on the NetRunner Mainboard
@@ -1564,7 +1577,7 @@ config VIA_WDT
 
 config W83627HF_WDT
 	tristate "Watchdog timer for W83627HF/W83627DHG and compatibles"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	select WATCHDOG_CORE
 	help
 	  This is the driver for the hardware watchdog on the following
@@ -1594,7 +1607,7 @@ config W83627HF_WDT
 
 config W83877F_WDT
 	tristate "W83877F (EMACS) Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the hardware watchdog on the W83877F chipset
 	  as used in EMACS PC-104 motherboards (and likely others).  This
@@ -1609,7 +1622,7 @@ config W83877F_WDT
 
 config W83977F_WDT
 	tristate "W83977F (PCM-5335) Watchdog Timer"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the hardware watchdog on the W83977F I/O chip
 	  as used in AAEON's PCM-5335 SBC (and likely others).  This
@@ -1622,7 +1635,7 @@ config W83977F_WDT
 
 config MACHZ_WDT
 	tristate "ZF MachZ Watchdog"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  If you are using a ZF Micro MachZ processor, say Y here, otherwise
 	  N.  This is the driver for the watchdog timer built-in on that
@@ -1635,7 +1648,7 @@ config MACHZ_WDT
 
 config SBC_EPX_C3_WATCHDOG
 	tristate "Winsystems SBC EPX-C3 watchdog"
-	depends on X86 || COMPILE_TEST
+	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
 	  This is the driver for the built-in watchdog timer on the EPX-C3
 	  Single-board computer made by Winsystems, Inc.
@@ -2197,7 +2210,7 @@ comment "PCI-based Watchdog Cards"
 
 config PCIPCWATCHDOG
 	tristate "Berkshire Products PCI-PC Watchdog"
-	depends on PCI
+	depends on PCI && HAS_IOPORT
 	help
 	  This is the driver for the Berkshire Products PCI-PC Watchdog card.
 	  This card simply watches your kernel to make sure it doesn't freeze,
@@ -2212,7 +2225,7 @@ config PCIPCWATCHDOG
 
 config WDTPCI
 	tristate "PCI-WDT500/501 Watchdog timer"
-	depends on PCI
+	depends on PCI && HAS_IOPORT
 	help
 	  If you have a PCI-WDT500/501 watchdog board, say Y here, otherwise N.
 

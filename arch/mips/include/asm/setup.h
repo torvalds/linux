@@ -2,6 +2,7 @@
 #ifndef _MIPS_SETUP_H
 #define _MIPS_SETUP_H
 
+#include <linux/init.h>
 #include <linux/types.h>
 #include <uapi/asm/setup.h>
 
@@ -28,5 +29,10 @@ extern unsigned int hwrena;
 extern void per_cpu_trap_init(bool);
 extern void cpu_cache_init(void);
 extern void tlb_init(void);
+
+#ifdef CONFIG_RELOCATABLE
+extern void * __init relocate_kernel(void);
+extern int plat_post_relocation(long);
+#endif
 
 #endif /* __SETUP_H */

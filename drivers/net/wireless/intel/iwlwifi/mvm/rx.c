@@ -556,36 +556,40 @@ struct iwl_mvm_stat_data_all_macs {
 	struct iwl_stats_ntfy_per_mac *per_mac;
 };
 
-static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig)
+static void iwl_mvm_update_link_sig(struct ieee80211_vif *vif, int sig,
+				    struct iwl_mvm_vif_link_info *link_info)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = mvmvif->mvm;
-	int thold = vif->bss_conf.cqm_rssi_thold;
-	int hyst = vif->bss_conf.cqm_rssi_hyst;
+	struct iwl_mvm *mvm = iwl_mvm_vif_from_mac80211(vif)->mvm;
+	struct ieee80211_bss_conf *bss_conf =
+		iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, link_info->fw_link_id,
+						    false);
+	int thold = bss_conf->cqm_rssi_thold;
+	int hyst = bss_conf->cqm_rssi_hyst;
 	int last_event;
+	s8 exit_esr_thresh;
 
 	if (sig == 0) {
 		IWL_DEBUG_RX(mvm, "RSSI is 0 - skip signal based decision\n");
 		return;
 	}
 
-	mvmvif->bf_data.ave_beacon_signal = sig;
+	link_info->bf_data.ave_beacon_signal = sig;
 
 	/* BT Coex */
-	if (mvmvif->bf_data.bt_coex_min_thold !=
-	    mvmvif->bf_data.bt_coex_max_thold) {
-		last_event = mvmvif->bf_data.last_bt_coex_event;
-		if (sig > mvmvif->bf_data.bt_coex_max_thold &&
-		    (last_event <= mvmvif->bf_data.bt_coex_min_thold ||
+	if (link_info->bf_data.bt_coex_min_thold !=
+	    link_info->bf_data.bt_coex_max_thold) {
+		last_event = link_info->bf_data.last_bt_coex_event;
+		if (sig > link_info->bf_data.bt_coex_max_thold &&
+		    (last_event <= link_info->bf_data.bt_coex_min_thold ||
 		     last_event == 0)) {
-			mvmvif->bf_data.last_bt_coex_event = sig;
+			link_info->bf_data.last_bt_coex_event = sig;
 			IWL_DEBUG_RX(mvm, "cqm_iterator bt coex high %d\n",
 				     sig);
 			iwl_mvm_bt_rssi_event(mvm, vif, RSSI_EVENT_HIGH);
-		} else if (sig < mvmvif->bf_data.bt_coex_min_thold &&
-			   (last_event >= mvmvif->bf_data.bt_coex_max_thold ||
+		} else if (sig < link_info->bf_data.bt_coex_min_thold &&
+			   (last_event >= link_info->bf_data.bt_coex_max_thold ||
 			    last_event == 0)) {
-			mvmvif->bf_data.last_bt_coex_event = sig;
+			link_info->bf_data.last_bt_coex_event = sig;
 			IWL_DEBUG_RX(mvm, "cqm_iterator bt coex low %d\n",
 				     sig);
 			iwl_mvm_bt_rssi_event(mvm, vif, RSSI_EVENT_LOW);
@@ -596,10 +600,10 @@ static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig)
 		return;
 
 	/* CQM Notification */
-	last_event = mvmvif->bf_data.last_cqm_event;
+	last_event = link_info->bf_data.last_cqm_event;
 	if (thold && sig < thold && (last_event == 0 ||
 				     sig < last_event - hyst)) {
-		mvmvif->bf_data.last_cqm_event = sig;
+		link_info->bf_data.last_cqm_event = sig;
 		IWL_DEBUG_RX(mvm, "cqm_iterator cqm low %d\n",
 			     sig);
 		ieee80211_cqm_rssi_notify(
@@ -609,7 +613,7 @@ static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig)
 			GFP_KERNEL);
 	} else if (sig > thold &&
 		   (last_event == 0 || sig > last_event + hyst)) {
-		mvmvif->bf_data.last_cqm_event = sig;
+		link_info->bf_data.last_cqm_event = sig;
 		IWL_DEBUG_RX(mvm, "cqm_iterator cqm high %d\n",
 			     sig);
 		ieee80211_cqm_rssi_notify(
@@ -618,6 +622,20 @@ static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig)
 			sig,
 			GFP_KERNEL);
 	}
+
+	/* ESR recalculation */
+	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+		return;
+
+	exit_esr_thresh =
+		iwl_mvm_get_esr_rssi_thresh(mvm,
+					    &bss_conf->chanreq.oper,
+					    true);
+
+	if (sig < exit_esr_thresh)
+		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_LOW_RSSI,
+				 iwl_mvm_get_other_link(vif,
+							bss_conf->link_id));
 }
 
 static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
@@ -651,7 +669,8 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 		mvmvif->deflink.beacon_stats.accu_num_beacons +=
 			mvmvif->deflink.beacon_stats.num_beacons;
 
-	iwl_mvm_update_vif_sig(vif, sig);
+	/* This is used in pre-MLO API so use deflink */
+	iwl_mvm_update_link_sig(vif, sig, &mvmvif->deflink);
 }
 
 static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
@@ -684,7 +703,9 @@ static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
 			mvmvif->deflink.beacon_stats.num_beacons;
 
 	sig = -le32_to_cpu(mac_stats->beacon_filter_average_energy);
-	iwl_mvm_update_vif_sig(vif, sig);
+
+	/* This is used in pre-MLO API so use deflink */
+	iwl_mvm_update_link_sig(vif, sig, &mvmvif->deflink);
 }
 
 static inline void
@@ -889,8 +910,8 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 
 		if (link_info->phy_ctxt &&
 		    link_info->phy_ctxt->channel->band == NL80211_BAND_2GHZ)
-			iwl_mvm_bt_coex_update_vif_esr(mvm, bss_conf->vif,
-						       link_id);
+			iwl_mvm_bt_coex_update_link_esr(mvm, bss_conf->vif,
+							link_id);
 
 		/* make sure that beacon statistics don't go backwards with TCM
 		 * request to clear statistics
@@ -900,7 +921,7 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 				mvmvif->link[link_id]->beacon_stats.num_beacons;
 
 		sig = -le32_to_cpu(link_stats->beacon_filter_average_energy);
-		iwl_mvm_update_vif_sig(bss_conf->vif, sig);
+		iwl_mvm_update_link_sig(bss_conf->vif, sig, link_info);
 
 		if (WARN_ONCE(mvmvif->id >= MAC_INDEX_AUX,
 			      "invalid mvmvif id: %d", mvmvif->id))
@@ -930,6 +951,89 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 	}
 }
 
+#define SEC_LINK_MIN_PERC 10
+#define SEC_LINK_MIN_TX 3000
+#define SEC_LINK_MIN_RX 400
+
+static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
+{
+	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
+	struct iwl_mvm_vif *mvmvif;
+	struct iwl_mvm_sta *mvmsta;
+	unsigned long total_tx = 0, total_rx = 0;
+	unsigned long sec_link_tx = 0, sec_link_rx = 0;
+	u8 sec_link_tx_perc, sec_link_rx_perc;
+	u8 sec_link;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!bss_vif)
+		return;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(bss_vif);
+
+	if (!mvmvif->esr_active || !mvmvif->ap_sta)
+		return;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(mvmvif->ap_sta);
+	/* We only count for the AP sta in a MLO connection */
+	if (!mvmsta->mpdu_counters)
+		return;
+
+	/* Get the FW ID of the secondary link */
+	sec_link = iwl_mvm_get_other_link(bss_vif,
+					  iwl_mvm_get_primary_link(bss_vif));
+	if (WARN_ON(!mvmvif->link[sec_link]))
+		return;
+	sec_link = mvmvif->link[sec_link]->fw_link_id;
+
+	/* Sum up RX and TX MPDUs from the different queues/links */
+	for (int q = 0; q < mvm->trans->num_rx_queues; q++) {
+		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
+
+		/* The link IDs that doesn't exist will contain 0 */
+		for (int link = 0; link < IWL_MVM_FW_MAX_LINK_ID; link++) {
+			total_tx += mvmsta->mpdu_counters[q].per_link[link].tx;
+			total_rx += mvmsta->mpdu_counters[q].per_link[link].rx;
+		}
+
+		sec_link_tx += mvmsta->mpdu_counters[q].per_link[sec_link].tx;
+		sec_link_rx += mvmsta->mpdu_counters[q].per_link[sec_link].rx;
+
+		/*
+		 * In EMLSR we have statistics every 5 seconds, so we can reset
+		 * the counters upon every statistics notification.
+		 */
+		memset(mvmsta->mpdu_counters[q].per_link, 0,
+		       sizeof(mvmsta->mpdu_counters[q].per_link));
+
+		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
+	}
+
+	/* If we don't have enough MPDUs - exit EMLSR */
+	if (total_tx < IWL_MVM_ENTER_ESR_TPT_THRESH &&
+	    total_rx < IWL_MVM_ENTER_ESR_TPT_THRESH) {
+		iwl_mvm_block_esr(mvm, bss_vif, IWL_MVM_ESR_BLOCKED_TPT,
+				  iwl_mvm_get_primary_link(bss_vif));
+		return;
+	}
+
+	/* Calculate the percentage of the secondary link TX/RX */
+	sec_link_tx_perc = total_tx ? sec_link_tx * 100 / total_tx : 0;
+	sec_link_rx_perc = total_rx ? sec_link_rx * 100 / total_rx : 0;
+
+	/*
+	 * The TX/RX percentage is checked only if it exceeds the required
+	 * minimum. In addition, RX is checked only if the TX check failed.
+	 */
+	if ((total_tx > SEC_LINK_MIN_TX &&
+	     sec_link_tx_perc < SEC_LINK_MIN_PERC) ||
+	    (total_rx > SEC_LINK_MIN_RX &&
+	     sec_link_rx_perc < SEC_LINK_MIN_PERC))
+		iwl_mvm_exit_esr(mvm, bss_vif, IWL_MVM_ESR_EXIT_LINK_USAGE,
+				 iwl_mvm_get_primary_link(bss_vif));
+}
+
 void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
@@ -957,6 +1061,8 @@ void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
 	ieee80211_iterate_stations_atomic(mvm->hw, iwl_mvm_stats_energy_iter,
 					  average_energy);
 	iwl_mvm_handle_per_phy_stats(mvm, stats->per_phy);
+
+	iwl_mvm_update_esr_mode_tpt(mvm);
 }
 
 void iwl_mvm_handle_rx_system_oper_part1_stats(struct iwl_mvm *mvm,

@@ -27,6 +27,7 @@
 #define ACPI_WTAS_METHOD	"WTAS"
 #define ACPI_WPFC_METHOD	"WPFC"
 #define ACPI_GLAI_METHOD	"GLAI"
+#define ACPI_WBEM_METHOD	"WBEM"
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
@@ -67,6 +68,12 @@
 #define ACPI_WRDD_WIFI_DATA_SIZE	2
 #define ACPI_SPLC_WIFI_DATA_SIZE	2
 #define ACPI_ECKV_WIFI_DATA_SIZE	2
+
+/*
+ * One element for domain type,
+ * and one for enablement of Wi-Fi 320MHz per MCC
+ */
+#define ACPI_WBEM_WIFI_DATA_SIZE	2
 /*
  * One element for domain type,
  * and one for the status
@@ -93,6 +100,9 @@
 #define UEFI_WIFI_GUID_UNLOCKED		0
 
 #define ACPI_DSM_REV 0
+
+#define IWL_ACPI_WBEM_REV0_MASK (BIT(0) | BIT(1))
+#define IWL_ACPI_WBEM_REVISION 0
 
 #ifdef CONFIG_ACPI
 
@@ -142,6 +152,7 @@ void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt);
 int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 		     enum iwl_dsm_funcs func, u32 *value);
 
+int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value);
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
@@ -202,6 +213,11 @@ static inline void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
 
 static inline int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 				   enum iwl_dsm_funcs func, u32 *value)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
 {
 	return -ENOENT;
 }

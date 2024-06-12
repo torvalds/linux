@@ -18,3 +18,18 @@ config AMD_PMC
 
 	  If you choose to compile this driver as a module the module will be
 	  called amd-pmc.
+
+config AMD_MP2_STB
+	bool "AMD SoC MP2 STB function"
+	depends on AMD_PMC
+	default AMD_PMC
+	help
+	  AMD MP2 STB function provides a data buffer used to log debug
+	  information about the system execution during S2Idle suspend/resume.
+	  A data buffer known as the STB (Smart Trace Buffer) is a circular
+	  buffer which is a low-level log for the SoC which is used to debug
+	  any hangs/stalls during S2Idle suspend/resume.
+
+	  Creates debugfs to get STB, a userspace daemon can access STB log of
+	  last S2Idle suspend/resume which can help to debug if hangs/stalls
+	  during S2Idle suspend/resume.

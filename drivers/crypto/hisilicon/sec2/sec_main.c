@@ -99,8 +99,8 @@
 #define SEC_DBGFS_VAL_MAX_LEN		20
 #define SEC_SINGLE_PORT_MAX_TRANS	0x2060
 
-#define SEC_SQE_MASK_OFFSET		64
-#define SEC_SQE_MASK_LEN		48
+#define SEC_SQE_MASK_OFFSET		16
+#define SEC_SQE_MASK_LEN		108
 #define SEC_SHAPER_TYPE_RATE		400
 
 #define SEC_DFX_BASE		0x301000
@@ -152,7 +152,7 @@ static const struct hisi_qm_cap_info sec_basic_info[] = {
 	{SEC_CORE_TYPE_NUM_CAP, 0x313c, 16, GENMASK(3, 0), 0x1, 0x1, 0x1},
 	{SEC_CORE_NUM_CAP, 0x313c, 8, GENMASK(7, 0), 0x4, 0x4, 0x4},
 	{SEC_CORES_PER_CLUSTER_NUM_CAP, 0x313c, 0, GENMASK(7, 0), 0x4, 0x4, 0x4},
-	{SEC_CORE_ENABLE_BITMAP, 0x3140, 32, GENMASK(31, 0), 0x17F, 0x17F, 0xF},
+	{SEC_CORE_ENABLE_BITMAP, 0x3140, 0, GENMASK(31, 0), 0x17F, 0x17F, 0xF},
 	{SEC_DRV_ALG_BITMAP_LOW, 0x3144, 0, GENMASK(31, 0), 0x18050CB, 0x18050CB, 0x18670CF},
 	{SEC_DRV_ALG_BITMAP_HIGH, 0x3148, 0, GENMASK(31, 0), 0x395C, 0x395C, 0x395C},
 	{SEC_DEV_ALG_BITMAP_LOW, 0x314c, 0, GENMASK(31, 0), 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
@@ -901,37 +901,36 @@ static int sec_debugfs_init(struct hisi_qm *qm)
 	struct device *dev = &qm->pdev->dev;
 	int ret;
 
-	qm->debug.debug_root = debugfs_create_dir(dev_name(dev),
-						  sec_debugfs_root);
-	qm->debug.sqe_mask_offset = SEC_SQE_MASK_OFFSET;
-	qm->debug.sqe_mask_len = SEC_SQE_MASK_LEN;
-
 	ret = hisi_qm_regs_debugfs_init(qm, sec_diff_regs, ARRAY_SIZE(sec_diff_regs));
 	if (ret) {
 		dev_warn(dev, "Failed to init SEC diff regs!\n");
-		goto debugfs_remove;
+		return ret;
 	}
+
+	qm->debug.debug_root = debugfs_create_dir(dev_name(dev),
+							sec_debugfs_root);
+	qm->debug.sqe_mask_offset = SEC_SQE_MASK_OFFSET;
+	qm->debug.sqe_mask_len = SEC_SQE_MASK_LEN;
 
 	hisi_qm_debug_init(qm);
 
 	ret = sec_debug_init(qm);
 	if (ret)
-		goto failed_to_create;
+		goto debugfs_remove;
 
 	return 0;
 
-failed_to_create:
-	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
 debugfs_remove:
-	debugfs_remove_recursive(sec_debugfs_root);
+	debugfs_remove_recursive(qm->debug.debug_root);
+	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
 	return ret;
 }
 
 static void sec_debugfs_exit(struct hisi_qm *qm)
 {
-	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
-
 	debugfs_remove_recursive(qm->debug.debug_root);
+
+	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
 }
 
 static int sec_show_last_regs_init(struct hisi_qm *qm)
@@ -1324,7 +1323,8 @@ static struct pci_driver sec_pci_driver = {
 	.probe = sec_probe,
 	.remove = sec_remove,
 	.err_handler = &sec_err_handler,
-	.sriov_configure = hisi_qm_sriov_configure,
+	.sriov_configure = IS_ENABLED(CONFIG_PCI_IOV) ?
+				hisi_qm_sriov_configure : NULL,
 	.shutdown = hisi_qm_dev_shutdown,
 	.driver.pm = &sec_pm_ops,
 };

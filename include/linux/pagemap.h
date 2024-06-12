@@ -40,6 +40,8 @@ int filemap_fdatawait_keep_errors(struct address_space *mapping);
 int filemap_fdatawait_range(struct address_space *, loff_t lstart, loff_t lend);
 int filemap_fdatawait_range_keep_errors(struct address_space *mapping,
 		loff_t start_byte, loff_t end_byte);
+int filemap_invalidate_inode(struct inode *inode, bool flush,
+			     loff_t start, loff_t end);
 
 static inline int filemap_fdatawait(struct address_space *mapping)
 {
@@ -542,22 +544,20 @@ static inline void *detach_page_private(struct page *page)
 #endif
 
 #ifdef CONFIG_NUMA
-struct folio *filemap_alloc_folio(gfp_t gfp, unsigned int order);
+struct folio *filemap_alloc_folio_noprof(gfp_t gfp, unsigned int order);
 #else
-static inline struct folio *filemap_alloc_folio(gfp_t gfp, unsigned int order)
+static inline struct folio *filemap_alloc_folio_noprof(gfp_t gfp, unsigned int order)
 {
-	return folio_alloc(gfp, order);
+	return folio_alloc_noprof(gfp, order);
 }
 #endif
+
+#define filemap_alloc_folio(...)				\
+	alloc_hooks(filemap_alloc_folio_noprof(__VA_ARGS__))
 
 static inline struct page *__page_cache_alloc(gfp_t gfp)
 {
 	return &filemap_alloc_folio(gfp, 0)->page;
-}
-
-static inline struct page *page_cache_alloc(struct address_space *x)
-{
-	return __page_cache_alloc(mapping_gfp_mask(x));
 }
 
 static inline gfp_t readahead_gfp_mask(struct address_space *x)
@@ -1014,7 +1014,7 @@ static inline bool folio_trylock(struct folio *folio)
 /*
  * Return true if the page was successfully locked
  */
-static inline int trylock_page(struct page *page)
+static inline bool trylock_page(struct page *page)
 {
 	return folio_trylock(page_folio(page));
 }
@@ -1144,11 +1144,6 @@ void folio_end_writeback(struct folio *folio);
 void wait_for_stable_page(struct page *page);
 void folio_wait_stable(struct folio *folio);
 void __folio_mark_dirty(struct folio *folio, struct address_space *, int warn);
-static inline void __set_page_dirty(struct page *page,
-		struct address_space *mapping, int warn)
-{
-	__folio_mark_dirty(page_folio(page), mapping, warn);
-}
 void folio_account_cleaned(struct folio *folio, struct bdi_writeback *wb);
 void __folio_cancel_dirty(struct folio *folio);
 static inline void folio_cancel_dirty(struct folio *folio)
@@ -1160,7 +1155,6 @@ static inline void folio_cancel_dirty(struct folio *folio)
 bool folio_clear_dirty_for_io(struct folio *folio);
 bool clear_page_dirty_for_io(struct page *page);
 void folio_invalidate(struct folio *folio, size_t offset, size_t length);
-int __set_page_dirty_nobuffers(struct page *page);
 bool noop_dirty_folio(struct address_space *mapping, struct folio *folio);
 
 #ifdef CONFIG_MIGRATION

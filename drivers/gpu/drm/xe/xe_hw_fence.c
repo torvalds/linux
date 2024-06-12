@@ -130,7 +130,7 @@ void xe_hw_fence_ctx_init(struct xe_hw_fence_ctx *ctx, struct xe_gt *gt,
 	ctx->irq = irq;
 	ctx->dma_fence_ctx = dma_fence_context_alloc(1);
 	ctx->next_seqno = XE_FENCE_INITIAL_SEQNO;
-	sprintf(ctx->name, "%s", name);
+	snprintf(ctx->name, sizeof(ctx->name), "%s", name);
 }
 
 void xe_hw_fence_ctx_finish(struct xe_hw_fence_ctx *ctx)

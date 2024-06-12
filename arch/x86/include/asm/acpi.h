@@ -56,6 +56,8 @@ static inline void disable_acpi(void)
 
 extern int acpi_gsi_to_irq(u32 gsi, unsigned int *irq);
 
+extern int acpi_blacklisted(void);
+
 static inline void acpi_noirq_set(void) { acpi_noirq = 1; }
 static inline void acpi_disable_pci(void)
 {

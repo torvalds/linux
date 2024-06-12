@@ -44,6 +44,22 @@
 			};
 		};
 	};
+
+	sound-wm8960 {
+		compatible = "fsl,imx-audio-wm8960";
+		model = "wm8960-audio";
+		audio-cpu = <&sai1>;
+		audio-codec = <&wm8960>;
+		hp-det-gpio = <&lsio_gpio1 0 GPIO_ACTIVE_HIGH>;
+		audio-routing = "Headphone Jack", "HP_L",
+				"Headphone Jack", "HP_R",
+				"Ext Spk", "SPK_LP",
+				"Ext Spk", "SPK_LN",
+				"Ext Spk", "SPK_RP",
+				"Ext Spk", "SPK_RN",
+				"LINPUT1", "Mic Jack",
+				"Mic Jack", "MICB";
+	};
 };
 
 &dsp {
@@ -149,7 +165,7 @@
 	};
 
 	ptn5110: tcpc@50 {
-		compatible = "nxp,ptn5110";
+		compatible = "nxp,ptn5110", "tcpci";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_typec>;
 		reg = <0x50>;
@@ -188,6 +204,47 @@
 
 };
 
+&cm40_i2c {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_cm40_i2c>;
+	pinctrl-1 = <&pinctrl_cm40_i2c_gpio>;
+	scl-gpios = <&lsio_gpio1 10 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&lsio_gpio1 9 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	wm8960: audio-codec@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+		clocks = <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		clock-names = "mclk";
+		assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+				  <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		assigned-clock-rates = <786432000>,
+				       <49152000>,
+				       <12288000>,
+				       <12288000>;
+		wlf,shared-lrclk;
+		wlf,hp-cfg = <2 2 3>;
+		wlf,gpio-cfg = <1 3>;
+	};
+
+	pca6416: gpio@20 {
+		compatible = "ti,tca6416";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&cm40_intmux {
+	status = "okay";
+};
+
 &lpuart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart0>;
@@ -215,6 +272,53 @@
 };
 
 &scu_key {
+	status = "okay";
+};
+
+&sai0 {
+	#sound-dai-cells = <0>;
+	assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai0_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-rates = <786432000>, <49152000>, <12288000>, <49152000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai0>;
+	status = "okay";
+};
+
+&sai1 {
+	assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai1_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-rates = <786432000>, <49152000>, <12288000>, <49152000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai1>;
+	status = "okay";
+};
+
+&sai4 {
+	assigned-clocks = <&acm IMX_ADMA_ACM_SAI4_MCLK_SEL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai4_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-parents = <&aud_pll_div1_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-rates = <0>, <786432000>, <98304000>, <12288000>, <98304000>;
+	fsl,sai-asynchronous;
+	status = "okay";
+};
+
+&sai5 {
+	assigned-clocks = <&acm IMX_ADMA_ACM_SAI5_MCLK_SEL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai5_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-parents = <&aud_pll_div1_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-rates = <0>, <786432000>, <98304000>, <12288000>, <98304000>;
+	fsl,sai-asynchronous;
 	status = "okay";
 };
 
@@ -314,6 +418,21 @@
 };
 
 &iomuxc {
+
+	pinctrl_cm40_i2c: cm40i2cgrp {
+		fsl,pins = <
+			IMX8QXP_ADC_IN1_M40_I2C0_SDA                            0x0600004c
+			IMX8QXP_ADC_IN0_M40_I2C0_SCL                            0x0600004c
+		>;
+	};
+
+	pinctrl_cm40_i2c_gpio: cm40i2cgpio-grp {
+		fsl,pins = <
+			IMX8QXP_ADC_IN1_LSIO_GPIO1_IO09				0xc600004c
+			IMX8QXP_ADC_IN0_LSIO_GPIO1_IO10				0xc600004c
+		>;
+	};
+
 	pinctrl_fec1: fec1grp {
 		fsl,pins = <
 			IMX8QXP_ENET0_MDC_CONN_ENET0_MDC			0x06000020
@@ -382,6 +501,25 @@
 	pinctrl_typec_mux: typecmuxgrp {
 		fsl,pins = <
 			IMX8QXP_ENET0_REFCLK_125M_25M_LSIO_GPIO5_IO09           0x60
+		>;
+	};
+
+	pinctrl_sai0: sai0grp {
+		fsl,pins = <
+			IMX8QXP_SAI0_TXD_ADMA_SAI0_TXD		0x06000060
+			IMX8QXP_SAI0_RXD_ADMA_SAI0_RXD		0x06000040
+			IMX8QXP_SAI0_TXC_ADMA_SAI0_TXC		0x06000040
+			IMX8QXP_SAI0_TXFS_ADMA_SAI0_TXFS	0x06000040
+		>;
+	};
+
+	pinctrl_sai1: sai1grp {
+		fsl,pins = <
+			IMX8QXP_SAI1_RXD_ADMA_SAI1_RXD     0x06000040
+			IMX8QXP_SAI1_RXC_ADMA_SAI1_TXC     0x06000040
+			IMX8QXP_SAI1_RXFS_ADMA_SAI1_TXFS   0x06000040
+			IMX8QXP_SPI0_CS1_ADMA_SAI1_TXD     0x06000060
+			IMX8QXP_SPI2_CS0_LSIO_GPIO1_IO00   0x06000040
 		>;
 	};
 

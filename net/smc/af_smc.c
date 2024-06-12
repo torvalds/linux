@@ -53,6 +53,7 @@
 #include "smc_stats.h"
 #include "smc_tracepoint.h"
 #include "smc_sysctl.h"
+#include "smc_loopback.h"
 
 static DEFINE_MUTEX(smc_server_lgr_pending);	/* serialize link group
 						 * creation on server
@@ -177,7 +178,7 @@ static struct smc_hashinfo smc_v6_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(smc_v6_hashinfo.lock),
 };
 
-int smc_hash_sk(struct sock *sk)
+static int smc_hash_sk(struct sock *sk)
 {
 	struct smc_hashinfo *h = sk->sk_prot->h.smc_hash;
 	struct hlist_head *head;
@@ -191,9 +192,8 @@ int smc_hash_sk(struct sock *sk)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(smc_hash_sk);
 
-void smc_unhash_sk(struct sock *sk)
+static void smc_unhash_sk(struct sock *sk)
 {
 	struct smc_hashinfo *h = sk->sk_prot->h.smc_hash;
 
@@ -202,7 +202,6 @@ void smc_unhash_sk(struct sock *sk)
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	write_unlock_bh(&h->lock);
 }
-EXPORT_SYMBOL_GPL(smc_unhash_sk);
 
 /* This will be called before user really release sock_lock. So do the
  * work which we didn't do because of user hold the sock_lock in the
@@ -1437,6 +1436,14 @@ static int smc_connect_ism(struct smc_sock *smc,
 	}
 
 	smc_conn_save_peer_info(smc, aclc);
+
+	if (smc_ism_support_dmb_nocopy(smc->conn.lgr->smcd)) {
+		rc = smcd_buf_attach(smc);
+		if (rc) {
+			rc = SMC_CLC_DECL_MEM;	/* try to fallback */
+			goto connect_abort;
+		}
+	}
 	smc_close_init(smc);
 	smc_rx_init(smc);
 	smc_tx_init(smc);
@@ -2541,6 +2548,14 @@ static void smc_listen_work(struct work_struct *work)
 		mutex_unlock(&smc_server_lgr_pending);
 	}
 	smc_conn_save_peer_info(new_smc, cclc);
+
+	if (ini->is_smcd &&
+	    smc_ism_support_dmb_nocopy(new_smc->conn.lgr->smcd)) {
+		rc = smcd_buf_attach(new_smc);
+		if (rc)
+			goto out_decl;
+	}
+
 	smc_listen_out_connected(new_smc);
 	SMC_STAT_SERV_SUCC_INC(sock_net(newclcsock->sk), ini);
 	goto out_free;
@@ -2674,7 +2689,7 @@ out:
 }
 
 static int smc_accept(struct socket *sock, struct socket *new_sock,
-		      int flags, bool kern)
+		      struct proto_accept_arg *arg)
 {
 	struct sock *sk = sock->sk, *nsk;
 	DECLARE_WAITQUEUE(wait, current);
@@ -2693,7 +2708,7 @@ static int smc_accept(struct socket *sock, struct socket *new_sock,
 	}
 
 	/* Wait for an incoming connection */
-	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, arg->flags & O_NONBLOCK);
 	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	while (!(nsk = smc_accept_dequeue(sk, new_sock))) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -2720,7 +2735,7 @@ static int smc_accept(struct socket *sock, struct socket *new_sock,
 	if (rc)
 		goto out;
 
-	if (lsmc->sockopt_defer_accept && !(flags & O_NONBLOCK)) {
+	if (lsmc->sockopt_defer_accept && !(arg->flags & O_NONBLOCK)) {
 		/* wait till data arrives on the socket */
 		timeo = msecs_to_jiffies(lsmc->sockopt_defer_accept *
 								MSEC_PER_SEC);
@@ -3557,15 +3572,23 @@ static int __init smc_init(void)
 		goto out_sock;
 	}
 
+	rc = smc_loopback_init();
+	if (rc) {
+		pr_err("%s: smc_loopback_init fails with %d\n", __func__, rc);
+		goto out_ib;
+	}
+
 	rc = tcp_register_ulp(&smc_ulp_ops);
 	if (rc) {
 		pr_err("%s: tcp_ulp_register fails with %d\n", __func__, rc);
-		goto out_ib;
+		goto out_lo;
 	}
 
 	static_branch_enable(&tcp_have_smc);
 	return 0;
 
+out_lo:
+	smc_loopback_exit();
 out_ib:
 	smc_ib_unregister_client();
 out_sock:
@@ -3603,6 +3626,7 @@ static void __exit smc_exit(void)
 	tcp_unregister_ulp(&smc_ulp_ops);
 	sock_unregister(PF_SMC);
 	smc_core_exit();
+	smc_loopback_exit();
 	smc_ib_unregister_client();
 	smc_ism_exit();
 	destroy_workqueue(smc_close_wq);

@@ -40,8 +40,8 @@ int bch2_journal_key_insert(struct bch_fs *, enum btree_id,
 			    unsigned, struct bkey_i *);
 int bch2_journal_key_delete(struct bch_fs *, enum btree_id,
 			    unsigned, struct bpos);
-void bch2_journal_key_overwritten(struct bch_fs *, enum btree_id,
-				  unsigned, struct bpos);
+bool bch2_key_deleted_in_journal(struct btree_trans *, enum btree_id, unsigned, struct bpos);
+void bch2_journal_key_overwritten(struct bch_fs *, enum btree_id, unsigned, struct bpos);
 
 void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *);
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *);
@@ -65,5 +65,11 @@ static inline void bch2_journal_keys_put_initial(struct bch_fs *c)
 void bch2_journal_entries_free(struct bch_fs *);
 
 int bch2_journal_keys_sort(struct bch_fs *);
+
+void bch2_shoot_down_journal_keys(struct bch_fs *, enum btree_id,
+				  unsigned, unsigned,
+				  struct bpos, struct bpos);
+
+void bch2_journal_keys_dump(struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_JOURNAL_ITER_H */

@@ -162,7 +162,15 @@ static ssize_t efi_pstore_read(struct pstore_record *record)
 	efi_status_t status;
 
 	for (;;) {
-		varname_size = 1024;
+		/*
+		 * A small set of old UEFI implementations reject sizes
+		 * above a certain threshold, the lowest seen in the wild
+		 * is 512.
+		 *
+		 * TODO: Commonize with the iteration implementation in
+		 *       fs/efivarfs to keep all the quirks in one place.
+		 */
+		varname_size = 512;
 
 		/*
 		 * If this is the first read() call in the pstore enumeration,

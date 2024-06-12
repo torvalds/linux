@@ -68,7 +68,7 @@ config MIPS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_EBPF_JIT if !CPU_MICROMIPS
 	select HAVE_EXIT_THREAD
-	select HAVE_FAST_GUP
+	select HAVE_GUP_FAST
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
@@ -619,15 +619,6 @@ config MACH_EYEQ5
 
 	bool
 
-config FIT_IMAGE_FDT_EPM5
-	bool "Include FDT for Mobileye EyeQ5 development platforms"
-	depends on MACH_EYEQ5
-	default n
-	help
-	  Enable this to include the FDT for the EyeQ5 development platforms
-	  from Mobileye in the FIT kernel image.
-	  This requires u-boot on the platform.
-
 config MACH_NINTENDO64
 	bool "Nintendo 64 console"
 	select CEVT_R4K
@@ -1010,6 +1001,15 @@ config CAVIUM_OCTEON_SOC
 	  Say Y here for most Octeon reference boards.
 
 endchoice
+
+config FIT_IMAGE_FDT_EPM5
+	bool "Include FDT for Mobileye EyeQ5 development platforms"
+	depends on MACH_EYEQ5
+	default n
+	help
+	  Enable this to include the FDT for the EyeQ5 development platforms
+	  from Mobileye in the FIT kernel image.
+	  This requires u-boot on the platform.
 
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/ath25/Kconfig"

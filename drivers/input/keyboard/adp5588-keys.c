@@ -832,8 +832,8 @@ static int adp5588_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(adp5588_dev_pm_ops, adp5588_suspend, adp5588_resume);
 
 static const struct i2c_device_id adp5588_id[] = {
-	{ "adp5588-keys", 0 },
-	{ "adp5587-keys", 0 },
+	{ "adp5588-keys" },
+	{ "adp5587-keys" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adp5588_id);

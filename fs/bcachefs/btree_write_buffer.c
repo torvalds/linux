@@ -11,6 +11,7 @@
 #include "journal_reclaim.h"
 
 #include <linux/prefetch.h>
+#include <linux/sort.h>
 
 static int bch2_btree_write_buffer_journal_flush(struct journal *,
 				struct journal_entry_pin *, u64);
@@ -44,6 +45,14 @@ static inline bool wb_key_ref_cmp(const struct wb_key_ref *l, const struct wb_ke
 #else
 	return __wb_key_ref_cmp(l, r);
 #endif
+}
+
+static int wb_key_seq_cmp(const void *_l, const void *_r)
+{
+	const struct btree_write_buffered_key *l = _l;
+	const struct btree_write_buffered_key *r = _r;
+
+	return cmp_int(l->journal_seq, r->journal_seq);
 }
 
 /* Compare excluding idx, the low 24 bits: */
@@ -113,7 +122,7 @@ static noinline int wb_flush_one_slowpath(struct btree_trans *trans,
 	trans->journal_res.seq = wb->journal_seq;
 
 	return bch2_trans_update(trans, iter, &wb->k,
-				 BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+				 BTREE_UPDATE_internal_snapshot_node) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BCH_TRANS_COMMIT_no_enospc|
 				  BCH_TRANS_COMMIT_no_check_rw|
@@ -182,13 +191,13 @@ btree_write_buffered_insert(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, wb->btree, bkey_start_pos(&wb->k.k),
-			     BTREE_ITER_CACHED|BTREE_ITER_INTENT);
+			     BTREE_ITER_cached|BTREE_ITER_intent);
 
 	trans->journal_res.seq = wb->journal_seq;
 
 	ret   = bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(trans, &iter, &wb->k,
-				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				  BTREE_UPDATE_internal_snapshot_node);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -307,13 +316,23 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 			    bpos_gt(k->k.k.p, path->l[0].b->key.k.p)) {
 				bch2_btree_node_unlock_write(trans, path, path->l[0].b);
 				write_locked = false;
+
+				ret = lockrestart_do(trans,
+					bch2_btree_iter_traverse(&iter) ?:
+					bch2_foreground_maybe_merge(trans, iter.path, 0,
+							BCH_WATERMARK_reclaim|
+							BCH_TRANS_COMMIT_journal_reclaim|
+							BCH_TRANS_COMMIT_no_check_rw|
+							BCH_TRANS_COMMIT_no_enospc));
+				if (ret)
+					goto err;
 			}
 		}
 
 		if (!iter.path || iter.btree_id != k->btree) {
 			bch2_trans_iter_exit(trans, &iter);
 			bch2_trans_iter_init(trans, &iter, k->btree, k->k.k.p,
-					     BTREE_ITER_INTENT|BTREE_ITER_ALL_SNAPSHOTS);
+					     BTREE_ITER_intent|BTREE_ITER_all_snapshots);
 		}
 
 		bch2_btree_iter_set_pos(&iter, k->k.k.p);
@@ -357,6 +376,11 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		 */
 		trace_and_count(c, write_buffer_flush_slowpath, trans, slowpath, wb->flushing.keys.nr);
 
+		sort(wb->flushing.keys.data,
+		     wb->flushing.keys.nr,
+		     sizeof(wb->flushing.keys.data[0]),
+		     wb_key_seq_cmp, NULL);
+
 		darray_for_each(wb->flushing.keys, i) {
 			if (!i->journal_seq)
 				continue;
@@ -368,10 +392,10 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 
 			ret = commit_do(trans, NULL, NULL,
 					BCH_WATERMARK_reclaim|
+					BCH_TRANS_COMMIT_journal_reclaim|
 					BCH_TRANS_COMMIT_no_check_rw|
 					BCH_TRANS_COMMIT_no_enospc|
-					BCH_TRANS_COMMIT_no_journal_res|
-					BCH_TRANS_COMMIT_journal_reclaim,
+					BCH_TRANS_COMMIT_no_journal_res ,
 					btree_write_buffered_insert(trans, i));
 			if (ret)
 				goto err;

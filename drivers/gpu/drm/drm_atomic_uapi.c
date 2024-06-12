@@ -145,10 +145,10 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 					     &state->mode, blob->data);
 		if (ret) {
 			drm_dbg_atomic(crtc->dev,
-				       "[CRTC:%d:%s] invalid mode (ret=%d, status=%s):\n",
+				       "[CRTC:%d:%s] invalid mode (%s, %pe): " DRM_MODE_FMT "\n",
 				       crtc->base.id, crtc->name,
-				       ret, drm_get_mode_status_name(state->mode.status));
-			drm_mode_debug_printmodeline(&state->mode);
+				       drm_get_mode_status_name(state->mode.status),
+				       ERR_PTR(ret), DRM_MODE_ARG(&state->mode));
 			return -EINVAL;
 		}
 
@@ -776,6 +776,8 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		state->max_requested_bpc = val;
 	} else if (property == connector->privacy_screen_sw_state_property) {
 		state->privacy_screen_sw_state = val;
+	} else if (property == connector->broadcast_rgb_property) {
+		state->hdmi.broadcast_rgb = val;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
@@ -859,6 +861,8 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->max_requested_bpc;
 	} else if (property == connector->privacy_screen_sw_state_property) {
 		*val = state->privacy_screen_sw_state;
+	} else if (property == connector->broadcast_rgb_property) {
+		*val = state->hdmi.broadcast_rgb;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);

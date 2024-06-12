@@ -167,25 +167,20 @@ static void xe_gt_ccs_mode_sysfs_fini(struct drm_device *drm, void *arg)
  * and it is expected that there are no open drm clients while doing so.
  * The number of available compute slices is exposed to user through a per-gt
  * 'num_cslices' sysfs interface.
+ *
+ * Returns: Returns error value for failure and 0 for success.
  */
-void xe_gt_ccs_mode_sysfs_init(struct xe_gt *gt)
+int xe_gt_ccs_mode_sysfs_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
 	if (!xe_gt_ccs_mode_enabled(gt))
-		return;
+		return 0;
 
 	err = sysfs_create_files(gt->sysfs, gt_ccs_mode_attrs);
-	if (err) {
-		drm_warn(&xe->drm, "Sysfs creation for ccs_mode failed err: %d\n", err);
-		return;
-	}
+	if (err)
+		return err;
 
-	err = drmm_add_action_or_reset(&xe->drm, xe_gt_ccs_mode_sysfs_fini, gt);
-	if (err) {
-		sysfs_remove_files(gt->sysfs, gt_ccs_mode_attrs);
-		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
-	}
+	return drmm_add_action_or_reset(&xe->drm, xe_gt_ccs_mode_sysfs_fini, gt);
 }

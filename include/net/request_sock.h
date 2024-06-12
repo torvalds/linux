@@ -18,6 +18,7 @@
 #include <linux/refcount.h>
 
 #include <net/sock.h>
+#include <net/rstreason.h>
 
 struct request_sock;
 struct sk_buff;
@@ -34,7 +35,8 @@ struct request_sock_ops {
 	void		(*send_ack)(const struct sock *sk, struct sk_buff *skb,
 				    struct request_sock *req);
 	void		(*send_reset)(const struct sock *sk,
-				      struct sk_buff *skb);
+				      struct sk_buff *skb,
+				      enum sk_rst_reason reason);
 	void		(*destructor)(struct request_sock *req);
 	void		(*syn_ack_timeout)(const struct request_sock *req);
 };
@@ -127,12 +129,12 @@ static inline struct sock *skb_steal_sock(struct sk_buff *skb,
 }
 
 static inline struct request_sock *
-reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
+reqsk_alloc_noprof(const struct request_sock_ops *ops, struct sock *sk_listener,
 	    bool attach_listener)
 {
 	struct request_sock *req;
 
-	req = kmem_cache_alloc(ops->slab, GFP_ATOMIC | __GFP_NOWARN);
+	req = kmem_cache_alloc_noprof(ops->slab, GFP_ATOMIC | __GFP_NOWARN);
 	if (!req)
 		return NULL;
 	req->rsk_listener = NULL;
@@ -157,6 +159,7 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 
 	return req;
 }
+#define reqsk_alloc(...)	alloc_hooks(reqsk_alloc_noprof(__VA_ARGS__))
 
 static inline void __reqsk_free(struct request_sock *req)
 {

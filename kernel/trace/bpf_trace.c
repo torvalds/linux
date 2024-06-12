@@ -1053,9 +1053,15 @@ static unsigned long get_entry_ip(unsigned long fentry_ip)
 {
 	u32 instr;
 
-	/* Being extra safe in here in case entry ip is on the page-edge. */
-	if (get_kernel_nofault(instr, (u32 *) fentry_ip - 1))
-		return fentry_ip;
+	/* We want to be extra safe in case entry ip is on the page edge,
+	 * but otherwise we need to avoid get_kernel_nofault()'s overhead.
+	 */
+	if ((fentry_ip & ~PAGE_MASK) < ENDBR_INSN_SIZE) {
+		if (get_kernel_nofault(instr, (u32 *)(fentry_ip - ENDBR_INSN_SIZE)))
+			return fentry_ip;
+	} else {
+		instr = *(u32 *)(fentry_ip - ENDBR_INSN_SIZE);
+	}
 	if (is_endbr(instr))
 		fentry_ip -= ENDBR_INSN_SIZE;
 	return fentry_ip;
@@ -1182,9 +1188,6 @@ static const struct bpf_func_proto bpf_get_attach_cookie_proto_tracing = {
 
 BPF_CALL_3(bpf_get_branch_snapshot, void *, buf, u32, size, u64, flags)
 {
-#ifndef CONFIG_X86
-	return -ENOENT;
-#else
 	static const u32 br_entry_size = sizeof(struct perf_branch_entry);
 	u32 entry_cnt = size / br_entry_size;
 
@@ -1197,7 +1200,6 @@ BPF_CALL_3(bpf_get_branch_snapshot, void *, buf, u32, size, u64, flags)
 		return -ENOENT;
 
 	return entry_cnt * br_entry_size;
-#endif
 }
 
 static const struct bpf_func_proto bpf_get_branch_snapshot_proto = {
@@ -1525,8 +1527,6 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_ktime_get_boot_ns_proto;
 	case BPF_FUNC_tail_call:
 		return &bpf_tail_call_proto;
-	case BPF_FUNC_get_current_pid_tgid:
-		return &bpf_get_current_pid_tgid_proto;
 	case BPF_FUNC_get_current_task:
 		return &bpf_get_current_task_proto;
 	case BPF_FUNC_get_current_task_btf:
@@ -1582,8 +1582,6 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_send_signal_thread_proto;
 	case BPF_FUNC_perf_event_read_value:
 		return &bpf_perf_event_read_value_proto;
-	case BPF_FUNC_get_ns_current_pid_tgid:
-		return &bpf_get_ns_current_pid_tgid_proto;
 	case BPF_FUNC_ringbuf_output:
 		return &bpf_ringbuf_output_proto;
 	case BPF_FUNC_ringbuf_reserve:
@@ -1633,6 +1631,17 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	}
 }
 
+static bool is_kprobe_multi(const struct bpf_prog *prog)
+{
+	return prog->expected_attach_type == BPF_TRACE_KPROBE_MULTI ||
+	       prog->expected_attach_type == BPF_TRACE_KPROBE_SESSION;
+}
+
+static inline bool is_kprobe_session(const struct bpf_prog *prog)
+{
+	return prog->expected_attach_type == BPF_TRACE_KPROBE_SESSION;
+}
+
 static const struct bpf_func_proto *
 kprobe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -1648,13 +1657,13 @@ kprobe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_override_return_proto;
 #endif
 	case BPF_FUNC_get_func_ip:
-		if (prog->expected_attach_type == BPF_TRACE_KPROBE_MULTI)
+		if (is_kprobe_multi(prog))
 			return &bpf_get_func_ip_proto_kprobe_multi;
 		if (prog->expected_attach_type == BPF_TRACE_UPROBE_MULTI)
 			return &bpf_get_func_ip_proto_uprobe_multi;
 		return &bpf_get_func_ip_proto_kprobe;
 	case BPF_FUNC_get_attach_cookie:
-		if (prog->expected_attach_type == BPF_TRACE_KPROBE_MULTI)
+		if (is_kprobe_multi(prog))
 			return &bpf_get_attach_cookie_proto_kmulti;
 		if (prog->expected_attach_type == BPF_TRACE_UPROBE_MULTI)
 			return &bpf_get_attach_cookie_proto_umulti;
@@ -2008,6 +2017,8 @@ raw_tp_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_get_stackid_proto_raw_tp;
 	case BPF_FUNC_get_stack:
 		return &bpf_get_stack_proto_raw_tp;
+	case BPF_FUNC_get_attach_cookie:
+		return &bpf_get_attach_cookie_proto_tracing;
 	default:
 		return bpf_tracing_func_proto(func_id, prog);
 	}
@@ -2070,6 +2081,9 @@ tracing_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_get_func_arg_cnt:
 		return bpf_prog_has_trampoline(prog) ? &bpf_get_func_arg_cnt_proto : NULL;
 	case BPF_FUNC_get_attach_cookie:
+		if (prog->type == BPF_PROG_TYPE_TRACING &&
+		    prog->expected_attach_type == BPF_TRACE_RAW_TP)
+			return &bpf_get_attach_cookie_proto_tracing;
 		return bpf_prog_has_trampoline(prog) ? &bpf_get_attach_cookie_proto_tracing : NULL;
 	default:
 		fn = raw_tp_prog_func_proto(func_id, prog);
@@ -2370,16 +2384,26 @@ void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp)
 }
 
 static __always_inline
-void __bpf_trace_run(struct bpf_prog *prog, u64 *args)
+void __bpf_trace_run(struct bpf_raw_tp_link *link, u64 *args)
 {
+	struct bpf_prog *prog = link->link.prog;
+	struct bpf_run_ctx *old_run_ctx;
+	struct bpf_trace_run_ctx run_ctx;
+
 	cant_sleep();
 	if (unlikely(this_cpu_inc_return(*(prog->active)) != 1)) {
 		bpf_prog_inc_misses_counter(prog);
 		goto out;
 	}
+
+	run_ctx.bpf_cookie = link->cookie;
+	old_run_ctx = bpf_set_run_ctx(&run_ctx.run_ctx);
+
 	rcu_read_lock();
 	(void) bpf_prog_run(prog, args);
 	rcu_read_unlock();
+
+	bpf_reset_run_ctx(old_run_ctx);
 out:
 	this_cpu_dec(*(prog->active));
 }
@@ -2408,12 +2432,12 @@ out:
 #define __SEQ_0_11	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 
 #define BPF_TRACE_DEFN_x(x)						\
-	void bpf_trace_run##x(struct bpf_prog *prog,			\
+	void bpf_trace_run##x(struct bpf_raw_tp_link *link,		\
 			      REPEAT(x, SARG, __DL_COM, __SEQ_0_11))	\
 	{								\
 		u64 args[x];						\
 		REPEAT(x, COPY, __DL_SEM, __SEQ_0_11);			\
-		__bpf_trace_run(prog, args);				\
+		__bpf_trace_run(link, args);				\
 	}								\
 	EXPORT_SYMBOL_GPL(bpf_trace_run##x)
 BPF_TRACE_DEFN_x(1);
@@ -2429,9 +2453,10 @@ BPF_TRACE_DEFN_x(10);
 BPF_TRACE_DEFN_x(11);
 BPF_TRACE_DEFN_x(12);
 
-static int __bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
+int bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_raw_tp_link *link)
 {
 	struct tracepoint *tp = btp->tp;
+	struct bpf_prog *prog = link->link.prog;
 
 	/*
 	 * check that program doesn't access arguments beyond what's
@@ -2443,18 +2468,12 @@ static int __bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *
 	if (prog->aux->max_tp_access > btp->writable_size)
 		return -EINVAL;
 
-	return tracepoint_probe_register_may_exist(tp, (void *)btp->bpf_func,
-						   prog);
+	return tracepoint_probe_register_may_exist(tp, (void *)btp->bpf_func, link);
 }
 
-int bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
+int bpf_probe_unregister(struct bpf_raw_event_map *btp, struct bpf_raw_tp_link *link)
 {
-	return __bpf_probe_register(btp, prog);
-}
-
-int bpf_probe_unregister(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
-{
-	return tracepoint_probe_unregister(btp->tp, (void *)btp->bpf_func, prog);
+	return tracepoint_probe_unregister(btp->tp, (void *)btp->bpf_func, link);
 }
 
 int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
@@ -2577,6 +2596,12 @@ static int __init bpf_event_init(void)
 fs_initcall(bpf_event_init);
 #endif /* CONFIG_MODULES */
 
+struct bpf_session_run_ctx {
+	struct bpf_run_ctx run_ctx;
+	bool is_return;
+	void *data;
+};
+
 #ifdef CONFIG_FPROBE
 struct bpf_kprobe_multi_link {
 	struct bpf_link link;
@@ -2590,7 +2615,7 @@ struct bpf_kprobe_multi_link {
 };
 
 struct bpf_kprobe_multi_run_ctx {
-	struct bpf_run_ctx run_ctx;
+	struct bpf_session_run_ctx session_ctx;
 	struct bpf_kprobe_multi_link *link;
 	unsigned long entry_ip;
 };
@@ -2728,7 +2753,7 @@ static int bpf_kprobe_multi_link_fill_link_info(const struct bpf_link *link,
 
 static const struct bpf_link_ops bpf_kprobe_multi_link_lops = {
 	.release = bpf_kprobe_multi_link_release,
-	.dealloc = bpf_kprobe_multi_link_dealloc,
+	.dealloc_deferred = bpf_kprobe_multi_link_dealloc,
 	.fill_link_info = bpf_kprobe_multi_link_fill_link_info,
 };
 
@@ -2769,7 +2794,8 @@ static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx)
 
 	if (WARN_ON_ONCE(!ctx))
 		return 0;
-	run_ctx = container_of(current->bpf_ctx, struct bpf_kprobe_multi_run_ctx, run_ctx);
+	run_ctx = container_of(current->bpf_ctx, struct bpf_kprobe_multi_run_ctx,
+			       session_ctx.run_ctx);
 	link = run_ctx->link;
 	if (!link->cookies)
 		return 0;
@@ -2786,15 +2812,21 @@ static u64 bpf_kprobe_multi_entry_ip(struct bpf_run_ctx *ctx)
 {
 	struct bpf_kprobe_multi_run_ctx *run_ctx;
 
-	run_ctx = container_of(current->bpf_ctx, struct bpf_kprobe_multi_run_ctx, run_ctx);
+	run_ctx = container_of(current->bpf_ctx, struct bpf_kprobe_multi_run_ctx,
+			       session_ctx.run_ctx);
 	return run_ctx->entry_ip;
 }
 
 static int
 kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
-			   unsigned long entry_ip, struct pt_regs *regs)
+			   unsigned long entry_ip, struct pt_regs *regs,
+			   bool is_return, void *data)
 {
 	struct bpf_kprobe_multi_run_ctx run_ctx = {
+		.session_ctx = {
+			.is_return = is_return,
+			.data = data,
+		},
 		.link = link,
 		.entry_ip = entry_ip,
 	};
@@ -2809,7 +2841,7 @@ kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
 
 	migrate_disable();
 	rcu_read_lock();
-	old_run_ctx = bpf_set_run_ctx(&run_ctx.run_ctx);
+	old_run_ctx = bpf_set_run_ctx(&run_ctx.session_ctx.run_ctx);
 	err = bpf_prog_run(link->link.prog, regs);
 	bpf_reset_run_ctx(old_run_ctx);
 	rcu_read_unlock();
@@ -2826,10 +2858,11 @@ kprobe_multi_link_handler(struct fprobe *fp, unsigned long fentry_ip,
 			  void *data)
 {
 	struct bpf_kprobe_multi_link *link;
+	int err;
 
 	link = container_of(fp, struct bpf_kprobe_multi_link, fp);
-	kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), regs);
-	return 0;
+	err = kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), regs, false, data);
+	return is_kprobe_session(link->link.prog) ? err : 0;
 }
 
 static void
@@ -2840,7 +2873,7 @@ kprobe_multi_link_exit_handler(struct fprobe *fp, unsigned long fentry_ip,
 	struct bpf_kprobe_multi_link *link;
 
 	link = container_of(fp, struct bpf_kprobe_multi_link, fp);
-	kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), regs);
+	kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), regs, true, data);
 }
 
 static int symbols_cmp_r(const void *a, const void *b, const void *priv)
@@ -2973,7 +3006,7 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	if (sizeof(u64) != sizeof(void *))
 		return -EOPNOTSUPP;
 
-	if (prog->expected_attach_type != BPF_TRACE_KPROBE_MULTI)
+	if (!is_kprobe_multi(prog))
 		return -EINVAL;
 
 	flags = attr->link_create.kprobe_multi.flags;
@@ -3054,10 +3087,12 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	if (err)
 		goto error;
 
-	if (flags & BPF_F_KPROBE_MULTI_RETURN)
-		link->fp.exit_handler = kprobe_multi_link_exit_handler;
-	else
+	if (!(flags & BPF_F_KPROBE_MULTI_RETURN))
 		link->fp.entry_handler = kprobe_multi_link_handler;
+	if ((flags & BPF_F_KPROBE_MULTI_RETURN) || is_kprobe_session(prog))
+		link->fp.exit_handler = kprobe_multi_link_exit_handler;
+	if (is_kprobe_session(prog))
+		link->fp.entry_data_size = sizeof(u64);
 
 	link->addrs = addrs;
 	link->cookies = cookies;
@@ -3157,6 +3192,9 @@ static void bpf_uprobe_multi_link_release(struct bpf_link *link)
 
 	umulti_link = container_of(link, struct bpf_uprobe_multi_link, link);
 	bpf_uprobe_unregister(&umulti_link->path, umulti_link->uprobes, umulti_link->cnt);
+	if (umulti_link->task)
+		put_task_struct(umulti_link->task);
+	path_put(&umulti_link->path);
 }
 
 static void bpf_uprobe_multi_link_dealloc(struct bpf_link *link)
@@ -3164,9 +3202,6 @@ static void bpf_uprobe_multi_link_dealloc(struct bpf_link *link)
 	struct bpf_uprobe_multi_link *umulti_link;
 
 	umulti_link = container_of(link, struct bpf_uprobe_multi_link, link);
-	if (umulti_link->task)
-		put_task_struct(umulti_link->task);
-	path_put(&umulti_link->path);
 	kvfree(umulti_link->uprobes);
 	kfree(umulti_link);
 }
@@ -3242,7 +3277,7 @@ static int bpf_uprobe_multi_link_fill_link_info(const struct bpf_link *link,
 
 static const struct bpf_link_ops bpf_uprobe_multi_link_lops = {
 	.release = bpf_uprobe_multi_link_release,
-	.dealloc = bpf_uprobe_multi_link_dealloc,
+	.dealloc_deferred = bpf_uprobe_multi_link_dealloc,
 	.fill_link_info = bpf_uprobe_multi_link_fill_link_info,
 };
 
@@ -3483,3 +3518,54 @@ static u64 bpf_uprobe_multi_entry_ip(struct bpf_run_ctx *ctx)
 	return 0;
 }
 #endif /* CONFIG_UPROBES */
+
+#ifdef CONFIG_FPROBE
+__bpf_kfunc_start_defs();
+
+__bpf_kfunc bool bpf_session_is_return(void)
+{
+	struct bpf_session_run_ctx *session_ctx;
+
+	session_ctx = container_of(current->bpf_ctx, struct bpf_session_run_ctx, run_ctx);
+	return session_ctx->is_return;
+}
+
+__bpf_kfunc __u64 *bpf_session_cookie(void)
+{
+	struct bpf_session_run_ctx *session_ctx;
+
+	session_ctx = container_of(current->bpf_ctx, struct bpf_session_run_ctx, run_ctx);
+	return session_ctx->data;
+}
+
+__bpf_kfunc_end_defs();
+
+BTF_KFUNCS_START(kprobe_multi_kfunc_set_ids)
+BTF_ID_FLAGS(func, bpf_session_is_return)
+BTF_ID_FLAGS(func, bpf_session_cookie)
+BTF_KFUNCS_END(kprobe_multi_kfunc_set_ids)
+
+static int bpf_kprobe_multi_filter(const struct bpf_prog *prog, u32 kfunc_id)
+{
+	if (!btf_id_set8_contains(&kprobe_multi_kfunc_set_ids, kfunc_id))
+		return 0;
+
+	if (!is_kprobe_session(prog))
+		return -EACCES;
+
+	return 0;
+}
+
+static const struct btf_kfunc_id_set bpf_kprobe_multi_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set = &kprobe_multi_kfunc_set_ids,
+	.filter = bpf_kprobe_multi_filter,
+};
+
+static int __init bpf_kprobe_multi_kfuncs_init(void)
+{
+	return register_btf_kfunc_id_set(BPF_PROG_TYPE_KPROBE, &bpf_kprobe_multi_kfunc_set);
+}
+
+late_initcall(bpf_kprobe_multi_kfuncs_init);
+#endif

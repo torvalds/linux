@@ -446,6 +446,12 @@ during mkdir.
 max_threshold_occupancy is a user configurable value to determine the
 occupancy at which an RMID can be freed.
 
+The mon_llc_occupancy_limbo tracepoint gives the precise occupancy in bytes
+for a subset of RMID that are not immediately available for allocation.
+This can't be relied on to produce output every second, it may be necessary
+to attempt to create an empty monitor group to force an update. Output may
+only be produced if creation of a control or monitor group fails.
+
 Schemata files - general concepts
 ---------------------------------
 Each line in the file describes one resource. The line starts with
@@ -574,7 +580,7 @@ Memory b/w domain is L3 cache.
 	MB:<cache_id0>=bandwidth0;<cache_id1>=bandwidth1;...
 
 Memory bandwidth Allocation specified in MiBps
----------------------------------------------
+----------------------------------------------
 
 Memory bandwidth domain is L3 cache.
 ::

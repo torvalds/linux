@@ -335,8 +335,11 @@ static int cs_etm__process_aux_output_hw_id(struct perf_session *session,
 	trace_chan_id = FIELD_GET(CS_AUX_HW_ID_TRACE_ID_MASK, hw_id);
 
 	/* check that we can handle this version */
-	if (version > CS_AUX_HW_ID_CURR_VERSION)
+	if (version > CS_AUX_HW_ID_CURR_VERSION) {
+		pr_err("CS ETM Trace: PERF_RECORD_AUX_OUTPUT_HW_ID version %d not supported. Please update Perf.\n",
+		       version);
 		return -EINVAL;
+	}
 
 	/* get access to the etm metadata */
 	etm = container_of(session->auxtrace, struct cs_etm_auxtrace, auxtrace);

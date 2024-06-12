@@ -8,6 +8,7 @@
 
 #include "xe_force_wake_types.h"
 #include "xe_gt_idle_types.h"
+#include "xe_gt_sriov_pf_types.h"
 #include "xe_hw_engine_types.h"
 #include "xe_hw_fence_types.h"
 #include "xe_reg_sr_types.h"
@@ -24,11 +25,15 @@ enum xe_gt_type {
 	XE_GT_TYPE_MEDIA,
 };
 
-#define XE_MAX_DSS_FUSE_REGS	3
-#define XE_MAX_EU_FUSE_REGS	1
+#define XE_MAX_DSS_FUSE_REGS		3
+#define XE_MAX_DSS_FUSE_BITS		(32 * XE_MAX_DSS_FUSE_REGS)
+#define XE_MAX_EU_FUSE_REGS		1
+#define XE_MAX_EU_FUSE_BITS		(32 * XE_MAX_EU_FUSE_REGS)
+#define XE_MAX_L3_BANK_MASK_BITS	64
 
-typedef unsigned long xe_dss_mask_t[BITS_TO_LONGS(32 * XE_MAX_DSS_FUSE_REGS)];
-typedef unsigned long xe_eu_mask_t[BITS_TO_LONGS(32 * XE_MAX_EU_FUSE_REGS)];
+typedef unsigned long xe_dss_mask_t[BITS_TO_LONGS(XE_MAX_DSS_FUSE_BITS)];
+typedef unsigned long xe_eu_mask_t[BITS_TO_LONGS(XE_MAX_EU_FUSE_BITS)];
+typedef unsigned long xe_l3_bank_mask_t[BITS_TO_LONGS(XE_MAX_L3_BANK_MASK_BITS)];
 
 struct xe_mmio_range {
 	u32 start;
@@ -138,6 +143,12 @@ struct xe_gt {
 		u32 adj_offset;
 	} mmio;
 
+	/** @sriov: virtualization data related to GT */
+	union {
+		/** @sriov.pf: PF data. Valid only if driver is running as PF */
+		struct xe_gt_sriov_pf pf;
+	} sriov;
+
 	/**
 	 * @reg_sr: table with registers to be restored on GT init/resume/reset
 	 */
@@ -177,13 +188,6 @@ struct xe_gt {
 		 * xe_gt_tlb_fence_timeout after the timeut interval is over.
 		 */
 		struct delayed_work fence_tdr;
-		/** @tlb_invalidation.fence_context: context for TLB invalidation fences */
-		u64 fence_context;
-		/**
-		 * @tlb_invalidation.fence_seqno: seqno to TLB invalidation fences, protected by
-		 * tlb_invalidation.lock
-		 */
-		u32 fence_seqno;
 		/** @tlb_invalidation.lock: protects TLB invalidation fences */
 		spinlock_t lock;
 	} tlb_invalidation;
@@ -332,6 +336,9 @@ struct xe_gt {
 
 		/** @fuse_topo.eu_mask_per_dss: EU mask per DSS*/
 		xe_eu_mask_t eu_mask_per_dss;
+
+		/** @fuse_topo.l3_bank_mask: L3 bank mask */
+		xe_l3_bank_mask_t l3_bank_mask;
 	} fuse_topo;
 
 	/** @steering: register steering for individual HW units */

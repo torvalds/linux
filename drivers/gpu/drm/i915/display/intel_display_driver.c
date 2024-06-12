@@ -11,6 +11,7 @@
 #include <acpi/video.h>
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client.h>
 #include <drm/drm_mode_config.h>
 #include <drm/drm_privacy_screen_consumer.h>
 #include <drm/drm_probe_helper.h>
@@ -98,7 +99,6 @@ void intel_display_driver_init_hw(struct drm_i915_private *i915)
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,
 	.get_format_info = intel_fb_get_format_info,
-	.output_poll_changed = intel_fbdev_output_poll_changed,
 	.mode_valid = intel_mode_valid,
 	.atomic_check = intel_atomic_check,
 	.atomic_commit = intel_atomic_commit,
@@ -198,11 +198,13 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 	intel_dpll_init_clock_hook(i915);
 	intel_init_display_hooks(i915);
 	intel_fdi_init_hook(i915);
+	intel_dmc_wl_init(&i915->display);
 }
 
 /* part #1: call before irq install */
 int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	int ret;
 
 	if (i915_inject_probe_failure(i915))
@@ -261,7 +263,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
-	intel_init_quirks(i915);
+	intel_init_quirks(display);
 
 	intel_fbc_init(i915);
 
@@ -514,10 +516,6 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 
 	intel_overlay_setup(i915);
 
-	ret = intel_fbdev_init(&i915->drm);
-	if (ret)
-		return ret;
-
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	intel_hpd_init(i915);
 
@@ -545,22 +543,14 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 	intel_display_debugfs_register(i915);
 
 	/*
-	 * Some ports require correctly set-up hpd registers for
-	 * detection to work properly (leading to ghost connected
-	 * connector status), e.g. VGA on gm45.  Hence we can only set
-	 * up the initial fbdev config after hpd irqs are fully
-	 * enabled. We do it last so that the async config cannot run
-	 * before the connectors are registered.
-	 */
-	intel_fbdev_initial_config_async(i915);
-
-	/*
 	 * We need to coordinate the hotplugs with the asynchronous
 	 * fbdev configuration, for which we use the
 	 * fbdev->async_cookie.
 	 */
 	drm_kms_helper_poll_init(&i915->drm);
 	intel_hpd_poll_disable(i915);
+
+	intel_fbdev_setup(i915);
 
 	intel_display_device_info_print(DISPLAY_INFO(i915),
 					DISPLAY_RUNTIME_INFO(i915), &p);
@@ -596,9 +586,6 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	 * poll handlers. Hence disable polling after hpd handling is shut down.
 	 */
 	intel_hpd_poll_fini(i915);
-
-	/* poll work can call into fbdev, hence clean that up afterwards */
-	intel_fbdev_fini(i915);
 
 	intel_unregister_dsm_handler();
 
@@ -638,7 +625,8 @@ void intel_display_driver_unregister(struct drm_i915_private *i915)
 	if (!HAS_DISPLAY(i915))
 		return;
 
-	intel_fbdev_unregister(i915);
+	drm_client_dev_unregister(&i915->drm);
+
 	/*
 	 * After flushing the fbdev (incl. a late async config which
 	 * will have delayed queuing of a hotplug event), then flush

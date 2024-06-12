@@ -47,6 +47,7 @@ static struct idxd_driver_data idxd_driver_data[] = {
 		.align = 32,
 		.dev_type = &dsa_device_type,
 		.evl_cr_off = offsetof(struct dsa_evl_entry, cr),
+		.user_submission_safe = false, /* See INTEL-SA-01084 security advisory */
 		.cr_status_off = offsetof(struct dsa_completion_record, status),
 		.cr_result_off = offsetof(struct dsa_completion_record, result),
 	},
@@ -57,6 +58,7 @@ static struct idxd_driver_data idxd_driver_data[] = {
 		.align = 64,
 		.dev_type = &iax_device_type,
 		.evl_cr_off = offsetof(struct iax_evl_entry, cr),
+		.user_submission_safe = false, /* See INTEL-SA-01084 security advisory */
 		.cr_status_off = offsetof(struct iax_completion_record, status),
 		.cr_result_off = offsetof(struct iax_completion_record, error_code),
 		.load_device_defaults = idxd_load_iaa_device_defaults,
@@ -354,7 +356,7 @@ static int idxd_init_evl(struct idxd_device *idxd)
 	if (!evl)
 		return -ENOMEM;
 
-	spin_lock_init(&evl->lock);
+	mutex_init(&evl->lock);
 	evl->size = IDXD_EVL_SIZE_MIN;
 
 	idxd_name = dev_name(idxd_confdev(idxd));
@@ -773,6 +775,8 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev_info(&pdev->dev, "Intel(R) Accelerator Device (v%x)\n",
 		 idxd->hw.version);
+
+	idxd->user_submission_safe = data->user_submission_safe;
 
 	return 0;
 

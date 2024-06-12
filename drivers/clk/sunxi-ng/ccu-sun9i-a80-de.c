@@ -254,6 +254,7 @@ static const struct of_device_id sun9i_a80_de_clk_ids[] = {
 	{ .compatible = "allwinner,sun9i-a80-de-clks" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun9i_a80_de_clk_ids);
 
 static struct platform_driver sun9i_a80_de_clk_driver = {
 	.probe	= sun9i_a80_de_clk_probe,

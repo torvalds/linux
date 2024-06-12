@@ -1215,6 +1215,13 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 		},
 	},
 	{
+		.ident = "Dell G5 5505",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "G5 5505"),
+		},
+	},
+	{
 		.ident = "Dell Inspiron",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer"),
@@ -1503,6 +1510,14 @@ static const struct dmi_system_id i8k_whitelist_fan_control[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Precision 7510"),
+		},
+		.driver_data = (void *)&i8k_fan_control_data[I8K_FAN_34A3_35A3],
+	},
+	{
+		.ident = "Dell Precision 7540",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Precision 7540"),
 		},
 		.driver_data = (void *)&i8k_fan_control_data[I8K_FAN_34A3_35A3],
 	},

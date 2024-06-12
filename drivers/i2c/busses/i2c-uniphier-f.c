@@ -358,7 +358,6 @@ static int uniphier_fi2c_master_xfer_one(struct i2c_adapter *adap,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (!time_left) {
-		dev_err(&adap->dev, "transaction timeout.\n");
 		uniphier_fi2c_recover(priv);
 		return -ETIMEDOUT;
 	}

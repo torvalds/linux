@@ -382,17 +382,6 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 
 	vectors_per_buffer = buffer_height * buffer_width / ISP_VEC_NELEMS;
 
-	if (config->mode == IA_CSS_INPUT_MODE_TPG &&
-	    ((binary && binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_VIDEO) ||
-	     (!binary))) {
-		/* !binary -> sp raw copy pipe */
-		/* workaround for TPG in video mode */
-		start_line = 0;
-		start_column = 0;
-		cropped_height -= start_line;
-		width_a -= start_column;
-	}
-
 	if_a_config.start_line = start_line;
 	if_a_config.start_column = start_column;
 	if_a_config.left_padding = left_padding / deinterleaving;

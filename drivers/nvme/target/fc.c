@@ -1115,16 +1115,21 @@ nvmet_fc_schedule_delete_assoc(struct nvmet_fc_tgt_assoc *assoc)
 }
 
 static bool
-nvmet_fc_assoc_exits(struct nvmet_fc_tgtport *tgtport, u64 association_id)
+nvmet_fc_assoc_exists(struct nvmet_fc_tgtport *tgtport, u64 association_id)
 {
 	struct nvmet_fc_tgt_assoc *a;
+	bool found = false;
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(a, &tgtport->assoc_list, a_list) {
-		if (association_id == a->association_id)
-			return true;
+		if (association_id == a->association_id) {
+			found = true;
+			break;
+		}
 	}
+	rcu_read_unlock();
 
-	return false;
+	return found;
 }
 
 static struct nvmet_fc_tgt_assoc *
@@ -1164,13 +1169,11 @@ nvmet_fc_alloc_target_assoc(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
 		ran = ran << BYTES_FOR_QID_SHIFT;
 
 		spin_lock_irqsave(&tgtport->lock, flags);
-		rcu_read_lock();
-		if (!nvmet_fc_assoc_exits(tgtport, ran)) {
+		if (!nvmet_fc_assoc_exists(tgtport, ran)) {
 			assoc->association_id = ran;
 			list_add_tail_rcu(&assoc->a_list, &tgtport->assoc_list);
 			done = true;
 		}
-		rcu_read_unlock();
 		spin_unlock_irqrestore(&tgtport->lock, flags);
 	} while (!done);
 

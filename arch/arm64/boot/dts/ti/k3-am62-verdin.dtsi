@@ -76,7 +76,7 @@
 
 	memory@80000000 {
 		device_type = "memory";
-		reg = <0x00000000 0x80000000 0x00000000 0x40000000>; /* 1G RAM */
+		reg = <0x00000000 0x80000000 0x00000000 0x80000000>; /* 2G RAM */
 	};
 
 	opp-table {
@@ -136,6 +136,22 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-name = "On-module +V1.8_ETH";
 		vin-supply = <&reg_1v8>;
+	};
+
+	/*
+	 * By default we enable CTRL_SLEEP_MOCI#, this is required to have
+	 * peripherals on the carrier board powered.
+	 * If more granularity or power saving is required this can be disabled
+	 * in the carrier board device tree files.
+	 */
+	reg_force_sleep_moci: regulator-force-sleep-moci {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
+		gpio = <&main_gpio0 31 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "CTRL_SLEEP_MOCI#";
 	};
 
 	/* Verdin SD_1 Power Supply */
@@ -457,6 +473,13 @@
 		>;
 	};
 
+	/* Verdin SD_1_CD# as GPIO */
+	pinctrl_sd1_cd_gpio: main-gpio1-48-default-pins {
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x240, PIN_INPUT_PULLUP, 7) /* (D17) MMC1_SDCD.GPIO1_48 */ /* SODIMM 84 */
+		>;
+	};
+
 	/* Verdin DSI_1_INT# (pulled-up as active-low) */
 	pinctrl_dsi1_int: main-gpio1-49-default-pins {
 		pinctrl-single,pins = <
@@ -571,7 +594,6 @@
 			AM62X_IOPAD(0x22c, PIN_INPUT,        0) /* (B21) MMC1_DAT1 */ /* SODIMM 82 */
 			AM62X_IOPAD(0x228, PIN_INPUT,        0) /* (C21) MMC1_DAT2 */ /* SODIMM 70 */
 			AM62X_IOPAD(0x224, PIN_INPUT,        0) /* (D22) MMC1_DAT3 */ /* SODIMM 72 */
-			AM62X_IOPAD(0x240, PIN_INPUT_PULLUP, 0) /* (D17) MMC1_SDCD */ /* SODIMM 84 */
 		>;
 	};
 
@@ -979,14 +1001,6 @@
 		"",
 		"",
 		"";
-
-	verdin_ctrl_sleep_moci: ctrl-sleep-moci-hog {
-		gpio-hog;
-		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
-		gpios = <31 GPIO_ACTIVE_HIGH>;
-		line-name = "CTRL_SLEEP_MOCI#";
-		output-high;
-	};
 };
 
 &main_gpio1 {
@@ -1407,6 +1421,15 @@
 		"",
 		"",
 		"";
+
+	verdin_pcie_1_reset_hog: pcie-1-reset-hog {
+		gpio-hog;
+		/* Verdin PCIE_1_RESET# (SODIMM 244) */
+		gpios = <0 GPIO_ACTIVE_LOW>;
+		line-name = "PCIE_1_RESET#";
+		output-low;
+		status = "disabled";
+	};
 };
 
 /* Verdin CAN_2 */
@@ -1441,10 +1464,12 @@
 /* Verdin SD_1 */
 &sdhci1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sdhci1>;
+	pinctrl-0 = <&pinctrl_sdhci1>, <&pinctrl_sd1_cd_gpio>;
+	cd-gpios = <&main_gpio1 48 GPIO_ACTIVE_LOW>;
 	disable-wp;
 	vmmc-supply = <&reg_sdhc1_vmmc>;
 	vqmmc-supply = <&reg_sdhc1_vqmmc>;
+	ti,fails-without-test-cd;
 	status = "disabled";
 };
 

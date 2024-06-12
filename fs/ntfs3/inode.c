@@ -37,7 +37,7 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 	bool is_dir;
 	unsigned long ino = inode->i_ino;
 	u32 rp_fa = 0, asize, t32;
-	u16 roff, rsize, names = 0;
+	u16 roff, rsize, names = 0, links = 0;
 	const struct ATTR_FILE_NAME *fname = NULL;
 	const struct INDEX_ROOT *root;
 	struct REPARSE_DATA_BUFFER rp; // 0x18 bytes
@@ -200,11 +200,12 @@ next_attr:
 		    rsize < SIZEOF_ATTRIBUTE_FILENAME)
 			goto out;
 
+		names += 1;
 		fname = Add2Ptr(attr, roff);
 		if (fname->type == FILE_NAME_DOS)
 			goto next_attr;
 
-		names += 1;
+		links += 1;
 		if (name && name->len == fname->name_len &&
 		    !ntfs_cmp_names_cpu(name, (struct le_str *)&fname->name_len,
 					NULL, false))
@@ -429,7 +430,7 @@ end_enum:
 		ni->mi.dirty = true;
 	}
 
-	set_nlink(inode, names);
+	set_nlink(inode, links);
 
 	if (S_ISDIR(mode)) {
 		ni->std_fa |= FILE_ATTRIBUTE_DIRECTORY;
@@ -440,7 +441,10 @@ end_enum:
 		 * Usually a hard links to directories are disabled.
 		 */
 		inode->i_op = &ntfs_dir_inode_operations;
-		inode->i_fop = &ntfs_dir_operations;
+		if (is_legacy_ntfs(inode->i_sb))
+			inode->i_fop = &ntfs_legacy_dir_operations;
+		else
+			inode->i_fop = &ntfs_dir_operations;
 		ni->i_valid = 0;
 	} else if (S_ISLNK(mode)) {
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
@@ -450,7 +454,10 @@ end_enum:
 	} else if (S_ISREG(mode)) {
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
 		inode->i_op = &ntfs_file_inode_operations;
-		inode->i_fop = &ntfs_file_operations;
+		if (is_legacy_ntfs(inode->i_sb))
+			inode->i_fop = &ntfs_legacy_file_operations;
+		else
+			inode->i_fop = &ntfs_file_operations;
 		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
 							      &ntfs_aops;
 		if (ino != MFT_REC_MFT)
@@ -570,13 +577,18 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 	clear_buffer_uptodate(bh);
 
 	if (is_resident(ni)) {
-		ni_lock(ni);
-		err = attr_data_read_resident(ni, &folio->page);
-		ni_unlock(ni);
-
-		if (!err)
-			set_buffer_uptodate(bh);
+		bh->b_blocknr = RESIDENT_LCN;
 		bh->b_size = block_size;
+		if (!folio) {
+			err = 0;
+		} else {
+			ni_lock(ni);
+			err = attr_data_read_resident(ni, &folio->page);
+			ni_unlock(ni);
+
+			if (!err)
+				set_buffer_uptodate(bh);
+		}
 		return err;
 	}
 
@@ -1210,11 +1222,10 @@ out:
  *
  * NOTE: if fnd != NULL (ntfs_atomic_open) then @dir is locked
  */
-struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
-				struct dentry *dentry,
-				const struct cpu_str *uni, umode_t mode,
-				dev_t dev, const char *symname, u32 size,
-				struct ntfs_fnd *fnd)
+int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
+		      struct dentry *dentry, const struct cpu_str *uni,
+		      umode_t mode, dev_t dev, const char *symname, u32 size,
+		      struct ntfs_fnd *fnd)
 {
 	int err;
 	struct super_block *sb = dir->i_sb;
@@ -1238,6 +1249,9 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	struct NTFS_DE *e, *new_de = NULL;
 	struct REPARSE_DATA_BUFFER *rp = NULL;
 	bool rp_inserted = false;
+
+	/* New file will be resident or non resident. */
+	const bool new_file_resident = 1;
 
 	if (!fnd)
 		ni_lock_dir(dir_ni);
@@ -1478,7 +1492,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		attr->size = cpu_to_le32(SIZEOF_RESIDENT);
 		attr->name_off = SIZEOF_RESIDENT_LE;
 		attr->res.data_off = SIZEOF_RESIDENT_LE;
-	} else if (S_ISREG(mode)) {
+	} else if (!new_file_resident && S_ISREG(mode)) {
 		/*
 		 * Regular file. Create empty non resident data attribute.
 		 */
@@ -1614,7 +1628,10 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 
 	if (S_ISDIR(mode)) {
 		inode->i_op = &ntfs_dir_inode_operations;
-		inode->i_fop = &ntfs_dir_operations;
+		if (is_legacy_ntfs(inode->i_sb))
+			inode->i_fop = &ntfs_legacy_dir_operations;
+		else
+			inode->i_fop = &ntfs_dir_operations;
 	} else if (S_ISLNK(mode)) {
 		inode->i_op = &ntfs_link_inode_operations;
 		inode->i_fop = NULL;
@@ -1623,7 +1640,10 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		inode_nohighmem(inode);
 	} else if (S_ISREG(mode)) {
 		inode->i_op = &ntfs_file_inode_operations;
-		inode->i_fop = &ntfs_file_operations;
+		if (is_legacy_ntfs(inode->i_sb))
+			inode->i_fop = &ntfs_legacy_file_operations;
+		else
+			inode->i_fop = &ntfs_file_operations;
 		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
 							      &ntfs_aops;
 		init_rwsem(&ni->file.run_lock);
@@ -1715,12 +1735,10 @@ out1:
 	if (!fnd)
 		ni_unlock(dir_ni);
 
-	if (err)
-		return ERR_PTR(err);
+	if (!err)
+		unlock_new_inode(inode);
 
-	unlock_new_inode(inode);
-
-	return inode;
+	return err;
 }
 
 int ntfs_link_inode(struct inode *inode, struct dentry *dentry)

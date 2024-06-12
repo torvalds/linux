@@ -361,7 +361,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_UNSOL_BCAST_PROBE_RESP: Unsolicited broadcast probe response
  *	status changed.
  * @BSS_CHANGED_MLD_VALID_LINKS: MLD valid links status changed.
- * @BSS_CHANGED_MLD_TTLM: TID to link mapping was changed
+ * @BSS_CHANGED_MLD_TTLM: negotiated TID to link mapping was changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -953,6 +953,8 @@ enum mac80211_tx_info_flags {
  *	of their QoS TID or other priority field values.
  * @IEEE80211_TX_CTRL_MCAST_MLO_FIRST_TX: first MLO TX, used mostly internally
  *	for sequence number assignment
+ * @IEEE80211_TX_CTRL_SCAN_TX: Indicates that this frame is transmitted
+ *	due to scanning, not in normal operation on the interface.
  * @IEEE80211_TX_CTRL_MLO_LINK: If not @IEEE80211_LINK_UNSPECIFIED, this
  *	frame should be transmitted on the specific link. This really is
  *	only relevant for frames that do not have data present, and is
@@ -973,6 +975,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTRL_NO_SEQNO		= BIT(7),
 	IEEE80211_TX_CTRL_DONT_REORDER		= BIT(8),
 	IEEE80211_TX_CTRL_MCAST_MLO_FIRST_TX	= BIT(9),
+	IEEE80211_TX_CTRL_SCAN_TX		= BIT(10),
 	IEEE80211_TX_CTRL_MLO_LINK		= 0xf0000000,
 };
 
@@ -1921,10 +1924,12 @@ enum ieee80211_neg_ttlm_res {
  * @active_links: The bitmap of active links, or 0 for non-MLO.
  *	The driver shouldn't change this directly, but use the
  *	API calls meant for that purpose.
- * @dormant_links: bitmap of valid but disabled links, or 0 for non-MLO.
- *	Must be a subset of valid_links.
+ * @dormant_links: subset of the valid links that are disabled/suspended
+ *	due to advertised or negotiated TTLM respectively.
+ *	0 for non-MLO.
  * @suspended_links: subset of dormant_links representing links that are
- *	suspended.
+ *	suspended due to negotiated TTLM, and could be activated in the
+ *	future by tearing down the TTLM negotiation.
  *	0 for non-MLO.
  * @neg_ttlm: negotiated TID to link mapping info.
  *	see &struct ieee80211_neg_ttlm.
@@ -2049,7 +2054,7 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  * This can be used by mac80211 drivers with direct cfg80211 APIs
  * (like the vendor commands) that get a wdev.
  *
- * Note that this function may return %NULL if the given wdev isn't
+ * Return: pointer to the wdev, or %NULL if the given wdev isn't
  * associated with a vif that the driver knows about (e.g. monitor
  * or AP_VLAN interfaces.)
  */
@@ -2062,6 +2067,8 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
  * This can be used by mac80211 drivers with direct cfg80211 APIs
  * (like the vendor commands) that needs to get the wdev for a vif.
  * This can also be useful to get the netdev associated to a vif.
+ *
+ * Return: pointer to the wdev
  */
 struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
 
@@ -2120,8 +2127,8 @@ static inline bool lockdep_vif_wiphy_mutex_held(struct ieee80211_vif *vif)
  *	@IEEE80211_KEY_FLAG_GENERATE_MMIC on the same key.
  * @IEEE80211_KEY_FLAG_NO_AUTO_TX: Key needs explicit Tx activation.
  * @IEEE80211_KEY_FLAG_GENERATE_MMIE: This flag should be set by the driver
- *	for a AES_CMAC key to indicate that it requires sequence number
- *	generation only
+ *	for a AES_CMAC or a AES_GMAC key to indicate that it requires sequence
+ *	number generation only
  * @IEEE80211_KEY_FLAG_SPP_AMSDU: SPP A-MSDUs can be used with this key
  *	(set by mac80211 from the sta->spp_amsdu flag)
  */
@@ -2777,6 +2784,8 @@ struct ieee80211_txq {
  *
  * @IEEE80211_HW_DISALLOW_PUNCTURING: HW requires disabling puncturing in EHT
  *	and connecting with a lower bandwidth instead
+ * @IEEE80211_HW_DISALLOW_PUNCTURING_5GHZ: HW requires disabling puncturing in
+ *	EHT in 5 GHz and connecting with a lower bandwidth instead
  *
  * @IEEE80211_HW_HANDLES_QUIET_CSA: HW/driver handles quieting for CSA, so
  *	no need to stop queues. This really should be set by a driver that
@@ -2841,6 +2850,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_DETECTS_COLOR_COLLISION,
 	IEEE80211_HW_MLO_MCAST_MULTI_LINK_TX,
 	IEEE80211_HW_DISALLOW_PUNCTURING,
+	IEEE80211_HW_DISALLOW_PUNCTURING_5GHZ,
 	IEEE80211_HW_HANDLES_QUIET_CSA,
 
 	/* keep last, obviously */
@@ -5597,7 +5607,7 @@ void ieee80211_csa_finish(struct ieee80211_vif *vif, unsigned int link_id);
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @link_id: valid link_id during MLO or 0 for non-MLO
  *
- * This function returns whether the countdown reached zero.
+ * Return: %true if the countdown reached 1, %false otherwise
  */
 bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif,
 					 unsigned int link_id);
@@ -5605,12 +5615,13 @@ bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif,
 /**
  * ieee80211_color_change_finish - notify mac80211 about color change
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @link_id: valid link_id during MLO or 0 for non-MLO
  *
  * After a color change announcement was scheduled and the counter in this
  * announcement hits 1, this function must be called by the driver to
  * notify mac80211 that the color can be changed
  */
-void ieee80211_color_change_finish(struct ieee80211_vif *vif);
+void ieee80211_color_change_finish(struct ieee80211_vif *vif, u8 link_id);
 
 /**
  * ieee80211_proberesp_get - retrieve a Probe Response template
@@ -5942,8 +5953,8 @@ void ieee80211_remove_key(struct ieee80211_key_conf *keyconf);
  * key(s) will be available. These will be needed by mac80211 for proper
  * RX processing, so this function allows setting them.
  *
- * The function returns the newly allocated key structure, which will
- * have similar contents to the passed key configuration but point to
+ * Return: the newly allocated key structure, which will have
+ * similar contents to the passed key configuration but point to
  * mac80211-owned memory. In case of errors, the function returns an
  * ERR_PTR(), use IS_ERR() etc.
  *
@@ -6342,6 +6353,8 @@ struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
  *	may be %NULL if the link ID is not needed
  *
  * Obtain the STA by link address, must use RCU protection.
+ *
+ * Return: pointer to STA if found, otherwise %NULL.
  */
 struct ieee80211_sta *
 ieee80211_find_sta_by_link_addrs(struct ieee80211_hw *hw,
@@ -6471,8 +6484,8 @@ void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
  * @hw: pointer obtained from ieee80211_alloc_hw()
  * @txq: pointer obtained from station or virtual interface
  *
- * Return true if the AQL's airtime limit has not been reached and the txq can
- * continue to send more packets to the device. Otherwise return false.
+ * Return: %true if the AQL's airtime limit has not been reached and the txq can
+ * continue to send more packets to the device. Otherwise return %false.
  */
 bool
 ieee80211_txq_airtime_check(struct ieee80211_hw *hw, struct ieee80211_txq *txq);
@@ -6975,6 +6988,8 @@ bool rate_usable_index_exists(struct ieee80211_supported_band *sband,
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @pubsta: &struct ieee80211_sta pointer to the target destination.
  * @rates: new tx rate set to be used for this station.
+ *
+ * Return: 0 on success. An error code otherwise.
  */
 int rate_control_set_rates(struct ieee80211_hw *hw,
 			   struct ieee80211_sta *pubsta,
@@ -7135,6 +7150,8 @@ void ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
  * @band: the band to transmit on
  * @sta: optional pointer to get the station to send the frame to
  *
+ * Return: %true if the skb was prepared, %false otherwise
+ *
  * Note: must be called under RCU lock
  */
 bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw,
@@ -7151,6 +7168,8 @@ bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw,
  *
  * @skb: packet injected by userspace
  * @dev: the &struct device of this 802.11 device
+ *
+ * Return: %true if the radiotap header was parsed, %false otherwise
  */
 bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
 				 struct net_device *dev);
@@ -7260,7 +7279,7 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
  * @txq: pointer obtained from station or virtual interface, or from
  *	ieee80211_next_txq()
  *
- * Returns the skb if successful, %NULL if no frame was available.
+ * Return: the skb if successful, %NULL if no frame was available.
  *
  * Note that this must be called in an rcu_read_lock() critical section,
  * which can only be released after the SKB was handled. Some pointers in
@@ -7286,6 +7305,8 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @txq: pointer obtained from station or virtual interface, or from
  *	ieee80211_next_txq()
+ *
+ * Return: the skb if successful, %NULL if no frame was available.
  */
 static inline struct sk_buff *ieee80211_tx_dequeue_ni(struct ieee80211_hw *hw,
 						      struct ieee80211_txq *txq)
@@ -7317,7 +7338,7 @@ void ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @ac: AC number to return packets from.
  *
- * Returns the next txq if successful, %NULL if no queue is eligible. If a txq
+ * Return: the next txq if successful, %NULL if no queue is eligible. If a txq
  * is returned, it should be returned with ieee80211_return_txq() after the
  * driver has finished scheduling it.
  */
@@ -7400,6 +7421,8 @@ ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq,
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @txq: pointer obtained from station or virtual interface
+ *
+ * Return: %true if transmission is allowed, %false otherwise
  */
 bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
 				struct ieee80211_txq *txq);
@@ -7460,6 +7483,8 @@ void ieee80211_nan_func_match(struct ieee80211_vif *vif,
  * @status: &struct ieee80211_rx_status containing the transmission rate
  *          information.
  * @len: frame length in bytes
+ *
+ * Return: the airtime estimate
  */
 u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
 			      struct ieee80211_rx_status *status,
@@ -7474,22 +7499,12 @@ u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @info: &struct ieee80211_tx_info of the frame.
  * @len: frame length in bytes
+ *
+ * Return: the airtime estimate
  */
 u32 ieee80211_calc_tx_airtime(struct ieee80211_hw *hw,
 			      struct ieee80211_tx_info *info,
 			      int len);
-/**
- * ieee80211_set_hw_80211_encap - enable hardware encapsulation offloading.
- *
- * This function is used to notify mac80211 that a vif can be passed raw 802.3
- * frames. The driver needs to then handle the 802.11 encapsulation inside the
- * hardware or firmware.
- *
- * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- * @enable: indicate if the feature should be turned on or off
- */
-bool ieee80211_set_hw_80211_encap(struct ieee80211_vif *vif, bool enable);
-
 /**
  * ieee80211_get_fils_discovery_tmpl - Get FILS discovery template.
  * @hw: pointer obtained from ieee80211_alloc_hw().
@@ -7519,6 +7534,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
 /**
  * ieee80211_obss_color_collision_notify - notify userland about a BSS color
  * collision.
+ * @link_id: valid link_id during MLO or 0 for non-MLO
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @color_bitmap: a 64 bit bitmap representing the colors that the local BSS is
@@ -7526,7 +7542,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
  */
 void
 ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
-				      u64 color_bitmap);
+				      u64 color_bitmap, u8 link_id);
 
 /**
  * ieee80211_is_tx_data - check if frame is a data frame
@@ -7535,6 +7551,8 @@ ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
  * hardware encapsulation enabled are data frames.
  *
  * @skb: the frame to be transmitted.
+ *
+ * Return: %true if @skb is a data frame, %false otherwise
  */
 static inline bool ieee80211_is_tx_data(struct sk_buff *skb)
 {
@@ -7570,6 +7588,8 @@ static inline bool ieee80211_is_tx_data(struct sk_buff *skb)
  *  - change_sta_links(0x10) for each affected STA (the AP)
  *  - assign_vif_chanctx(link_id=4)
  *  - change_vif_links(0x10)
+ *
+ * Return: 0 on success. An error code otherwise.
  */
 int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links);
 
@@ -7585,6 +7605,15 @@ int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links);
  */
 void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
 				      u16 active_links);
+
+/**
+ * ieee80211_send_teardown_neg_ttlm - tear down a negotiated TTLM request
+ * @vif: the interface on which the tear down request should be sent.
+ *
+ * This function can be used to tear down a previously accepted negotiated
+ * TTLM request.
+ */
+void ieee80211_send_teardown_neg_ttlm(struct ieee80211_vif *vif);
 
 /* for older drivers - let's not document these ... */
 int ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,

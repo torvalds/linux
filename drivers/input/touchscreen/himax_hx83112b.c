@@ -335,7 +335,7 @@ static int himax_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(himax_pm_ops, himax_suspend, himax_resume);
 
 static const struct i2c_device_id himax_ts_id[] = {
-	{ "hx83112b", 0 },
+	{ "hx83112b" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, himax_ts_id);

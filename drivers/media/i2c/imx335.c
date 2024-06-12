@@ -11,66 +11,114 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 
+#include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 /* Streaming Mode */
-#define IMX335_REG_MODE_SELECT	0x3000
-#define IMX335_MODE_STANDBY	0x01
-#define IMX335_MODE_STREAMING	0x00
-
-/* Lines per frame */
-#define IMX335_REG_LPFR		0x3030
-
-/* Chip ID */
-#define IMX335_REG_ID		0x3912
-#define IMX335_ID		0x00
-
-/* Exposure control */
-#define IMX335_REG_SHUTTER	0x3058
-#define IMX335_EXPOSURE_MIN	1
-#define IMX335_EXPOSURE_OFFSET	9
-#define IMX335_EXPOSURE_STEP	1
-#define IMX335_EXPOSURE_DEFAULT	0x0648
-
-/* Analog gain control */
-#define IMX335_REG_AGAIN	0x30e8
-#define IMX335_AGAIN_MIN	0
-#define IMX335_AGAIN_MAX	240
-#define IMX335_AGAIN_STEP	1
-#define IMX335_AGAIN_DEFAULT	0
+#define IMX335_REG_MODE_SELECT		CCI_REG8(0x3000)
+#define IMX335_MODE_STANDBY		0x01
+#define IMX335_MODE_STREAMING		0x00
 
 /* Group hold register */
-#define IMX335_REG_HOLD		0x3001
+#define IMX335_REG_HOLD			CCI_REG8(0x3001)
+
+#define IMX335_REG_MASTER_MODE		CCI_REG8(0x3002)
+#define IMX335_REG_BCWAIT_TIME		CCI_REG8(0x300c)
+#define IMX335_REG_CPWAIT_TIME		CCI_REG8(0x300d)
+#define IMX335_REG_WINMODE		CCI_REG8(0x3018)
+#define IMX335_REG_HTRIMMING_START	CCI_REG16_LE(0x302c)
+#define IMX335_REG_HNUM			CCI_REG8(0x302e)
+
+/* Lines per frame */
+#define IMX335_REG_VMAX			CCI_REG24_LE(0x3030)
+
+#define IMX335_REG_OPB_SIZE_V		CCI_REG8(0x304c)
+#define IMX335_REG_ADBIT		CCI_REG8(0x3050)
+#define IMX335_REG_Y_OUT_SIZE		CCI_REG16_LE(0x3056)
+
+#define IMX335_REG_SHUTTER		CCI_REG24_LE(0x3058)
+#define IMX335_EXPOSURE_MIN		1
+#define IMX335_EXPOSURE_OFFSET		9
+#define IMX335_EXPOSURE_STEP		1
+#define IMX335_EXPOSURE_DEFAULT		0x0648
+
+#define IMX335_REG_AREA3_ST_ADR_1	CCI_REG16_LE(0x3074)
+#define IMX335_REG_AREA3_WIDTH_1	CCI_REG16_LE(0x3076)
+
+/* Analog and Digital gain control */
+#define IMX335_REG_GAIN			CCI_REG8(0x30e8)
+#define IMX335_AGAIN_MIN		0
+#define IMX335_AGAIN_MAX		100
+#define IMX335_AGAIN_STEP		1
+#define IMX335_AGAIN_DEFAULT		0
+
+#define IMX335_REG_TPG_TESTCLKEN	CCI_REG8(0x3148)
+
+#define IMX335_REG_INCLKSEL1		CCI_REG16_LE(0x314c)
+#define IMX335_REG_INCLKSEL2		CCI_REG8(0x315a)
+#define IMX335_REG_INCLKSEL3		CCI_REG8(0x3168)
+#define IMX335_REG_INCLKSEL4		CCI_REG8(0x316a)
+
+#define IMX335_REG_MDBIT		CCI_REG8(0x319d)
+#define IMX335_REG_SYSMODE		CCI_REG8(0x319e)
+
+#define IMX335_REG_XVS_XHS_DRV		CCI_REG8(0x31a1)
 
 /* Test pattern generator */
-#define IMX335_REG_TPG		0x329e
-#define IMX335_TPG_ALL_000	0
-#define IMX335_TPG_ALL_FFF	1
-#define IMX335_TPG_ALL_555	2
-#define IMX335_TPG_ALL_AAA	3
-#define IMX335_TPG_TOG_555_AAA	4
-#define IMX335_TPG_TOG_AAA_555	5
-#define IMX335_TPG_TOG_000_555	6
-#define IMX335_TPG_TOG_555_000	7
-#define IMX335_TPG_TOG_000_FFF	8
-#define IMX335_TPG_TOG_FFF_000	9
-#define IMX335_TPG_H_COLOR_BARS 10
-#define IMX335_TPG_V_COLOR_BARS 11
+#define IMX335_REG_TPG_DIG_CLP_MODE	CCI_REG8(0x3280)
+#define IMX335_REG_TPG_EN_DUOUT		CCI_REG8(0x329c)
+#define IMX335_REG_TPG			CCI_REG8(0x329e)
+#define IMX335_TPG_ALL_000		0
+#define IMX335_TPG_ALL_FFF		1
+#define IMX335_TPG_ALL_555		2
+#define IMX335_TPG_ALL_AAA		3
+#define IMX335_TPG_TOG_555_AAA		4
+#define IMX335_TPG_TOG_AAA_555		5
+#define IMX335_TPG_TOG_000_555		6
+#define IMX335_TPG_TOG_555_000		7
+#define IMX335_TPG_TOG_000_FFF		8
+#define IMX335_TPG_TOG_FFF_000		9
+#define IMX335_TPG_H_COLOR_BARS		10
+#define IMX335_TPG_V_COLOR_BARS		11
+#define IMX335_REG_TPG_COLORWIDTH	CCI_REG8(0x32a0)
+
+#define IMX335_REG_BLKLEVEL		CCI_REG16_LE(0x3302)
+
+#define IMX335_REG_WRJ_OPEN		CCI_REG8(0x336c)
+
+#define IMX335_REG_ADBIT1		CCI_REG16_LE(0x341c)
+
+/* Chip ID */
+#define IMX335_REG_ID			CCI_REG8(0x3912)
+#define IMX335_ID			0x00
+
+/* Data Lanes */
+#define IMX335_REG_LANEMODE		CCI_REG8(0x3a01)
+#define IMX335_2LANE			1
+#define IMX335_4LANE			3
+
+#define IMX335_REG_TCLKPOST		CCI_REG16_LE(0x3a18)
+#define IMX335_REG_TCLKPREPARE		CCI_REG16_LE(0x3a1a)
+#define IMX335_REG_TCLK_TRAIL		CCI_REG16_LE(0x3a1c)
+#define IMX335_REG_TCLK_ZERO		CCI_REG16_LE(0x3a1e)
+#define IMX335_REG_THS_PREPARE		CCI_REG16_LE(0x3a20)
+#define IMX335_REG_THS_ZERO		CCI_REG16_LE(0x3a22)
+#define IMX335_REG_THS_TRAIL		CCI_REG16_LE(0x3a24)
+#define IMX335_REG_THS_EXIT		CCI_REG16_LE(0x3a26)
+#define IMX335_REG_TPLX			CCI_REG16_LE(0x3a28)
 
 /* Input clock rate */
-#define IMX335_INCLK_RATE	24000000
+#define IMX335_INCLK_RATE		24000000
 
 /* CSI2 HW configuration */
 #define IMX335_LINK_FREQ_594MHz		594000000LL
 #define IMX335_LINK_FREQ_445MHz		445500000LL
 
 #define IMX335_NUM_DATA_LANES	4
-
-#define IMX335_REG_MIN		0x00
-#define IMX335_REG_MAX		0xfffff
 
 /* IMX335 native and active pixel array size. */
 #define IMX335_NATIVE_WIDTH		2616U
@@ -81,23 +129,13 @@
 #define IMX335_PIXEL_ARRAY_HEIGHT	1944U
 
 /**
- * struct imx335_reg - imx335 sensor register
- * @address: Register address
- * @val: Register value
- */
-struct imx335_reg {
-	u16 address;
-	u8 val;
-};
-
-/**
  * struct imx335_reg_list - imx335 sensor register list
  * @num_of_regs: Number of registers in the list
  * @regs: Pointer to register list
  */
 struct imx335_reg_list {
 	u32 num_of_regs;
-	const struct imx335_reg *regs;
+	const struct cci_reg_sequence *regs;
 };
 
 static const char * const imx335_supply_name[] = {
@@ -138,6 +176,7 @@ struct imx335_mode {
  * @pad: Media pad. Only one pad supported
  * @reset_gpio: Sensor reset gpio
  * @supplies: Regulator supplies to handle power control
+ * @cci: CCI register map
  * @inclk: Sensor input clock
  * @ctrl_handler: V4L2 control handler
  * @link_freq_ctrl: Pointer to link frequency control
@@ -147,6 +186,7 @@ struct imx335_mode {
  * @exp_ctrl: Pointer to exposure control
  * @again_ctrl: Pointer to analog gain control
  * @vblank: Vertical blanking in lines
+ * @lane_mode: Mode for number of connected data lanes
  * @cur_mode: Pointer to current selected sensor mode
  * @mutex: Mutex for serializing sensor controls
  * @link_freq_bitmap: Menu bitmap for link_freq_ctrl
@@ -159,6 +199,7 @@ struct imx335 {
 	struct media_pad pad;
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(imx335_supply_name)];
+	struct regmap *cci;
 
 	struct clk *inclk;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -171,6 +212,7 @@ struct imx335 {
 		struct v4l2_ctrl *again_ctrl;
 	};
 	u32 vblank;
+	u32 lane_mode;
 	const struct imx335_mode *cur_mode;
 	struct mutex mutex;
 	unsigned long link_freq_bitmap;
@@ -210,140 +252,135 @@ static const int imx335_tpg_val[] = {
 };
 
 /* Sensor mode registers */
-static const struct imx335_reg mode_2592x1940_regs[] = {
-	{0x3000, 0x01},
-	{0x3002, 0x00},
-	{0x3018, 0x04},
-	{0x302c, 0x3c},
-	{0x302e, 0x20},
-	{0x3056, 0x94},
-	{0x3074, 0xc8},
-	{0x3076, 0x28},
-	{0x304c, 0x00},
-	{0x31a1, 0x00},
-	{0x3288, 0x21},
-	{0x328a, 0x02},
-	{0x3414, 0x05},
-	{0x3416, 0x18},
-	{0x3648, 0x01},
-	{0x364a, 0x04},
-	{0x364c, 0x04},
-	{0x3678, 0x01},
-	{0x367c, 0x31},
-	{0x367e, 0x31},
-	{0x3706, 0x10},
-	{0x3708, 0x03},
-	{0x3714, 0x02},
-	{0x3715, 0x02},
-	{0x3716, 0x01},
-	{0x3717, 0x03},
-	{0x371c, 0x3d},
-	{0x371d, 0x3f},
-	{0x372c, 0x00},
-	{0x372d, 0x00},
-	{0x372e, 0x46},
-	{0x372f, 0x00},
-	{0x3730, 0x89},
-	{0x3731, 0x00},
-	{0x3732, 0x08},
-	{0x3733, 0x01},
-	{0x3734, 0xfe},
-	{0x3735, 0x05},
-	{0x3740, 0x02},
-	{0x375d, 0x00},
-	{0x375e, 0x00},
-	{0x375f, 0x11},
-	{0x3760, 0x01},
-	{0x3768, 0x1b},
-	{0x3769, 0x1b},
-	{0x376a, 0x1b},
-	{0x376b, 0x1b},
-	{0x376c, 0x1a},
-	{0x376d, 0x17},
-	{0x376e, 0x0f},
-	{0x3776, 0x00},
-	{0x3777, 0x00},
-	{0x3778, 0x46},
-	{0x3779, 0x00},
-	{0x377a, 0x89},
-	{0x377b, 0x00},
-	{0x377c, 0x08},
-	{0x377d, 0x01},
-	{0x377e, 0x23},
-	{0x377f, 0x02},
-	{0x3780, 0xd9},
-	{0x3781, 0x03},
-	{0x3782, 0xf5},
-	{0x3783, 0x06},
-	{0x3784, 0xa5},
-	{0x3788, 0x0f},
-	{0x378a, 0xd9},
-	{0x378b, 0x03},
-	{0x378c, 0xeb},
-	{0x378d, 0x05},
-	{0x378e, 0x87},
-	{0x378f, 0x06},
-	{0x3790, 0xf5},
-	{0x3792, 0x43},
-	{0x3794, 0x7a},
-	{0x3796, 0xa1},
-	{0x37b0, 0x36},
-	{0x3a00, 0x00},
+static const struct cci_reg_sequence mode_2592x1940_regs[] = {
+	{ IMX335_REG_MODE_SELECT, IMX335_MODE_STANDBY },
+	{ IMX335_REG_MASTER_MODE, 0x00 },
+	{ IMX335_REG_WINMODE, 0x04 },
+	{ IMX335_REG_HTRIMMING_START, 48 },
+	{ IMX335_REG_HNUM, 2592 },
+	{ IMX335_REG_Y_OUT_SIZE, 1944 },
+	{ IMX335_REG_AREA3_ST_ADR_1, 176 },
+	{ IMX335_REG_AREA3_WIDTH_1, 3928 },
+	{ IMX335_REG_OPB_SIZE_V, 0 },
+	{ IMX335_REG_XVS_XHS_DRV, 0x00 },
+	{ CCI_REG8(0x3288), 0x21 },
+	{ CCI_REG8(0x328a), 0x02 },
+	{ CCI_REG8(0x3414), 0x05 },
+	{ CCI_REG8(0x3416), 0x18 },
+	{ CCI_REG8(0x3648), 0x01 },
+	{ CCI_REG8(0x364a), 0x04 },
+	{ CCI_REG8(0x364c), 0x04 },
+	{ CCI_REG8(0x3678), 0x01 },
+	{ CCI_REG8(0x367c), 0x31 },
+	{ CCI_REG8(0x367e), 0x31 },
+	{ CCI_REG8(0x3706), 0x10 },
+	{ CCI_REG8(0x3708), 0x03 },
+	{ CCI_REG8(0x3714), 0x02 },
+	{ CCI_REG8(0x3715), 0x02 },
+	{ CCI_REG8(0x3716), 0x01 },
+	{ CCI_REG8(0x3717), 0x03 },
+	{ CCI_REG8(0x371c), 0x3d },
+	{ CCI_REG8(0x371d), 0x3f },
+	{ CCI_REG8(0x372c), 0x00 },
+	{ CCI_REG8(0x372d), 0x00 },
+	{ CCI_REG8(0x372e), 0x46 },
+	{ CCI_REG8(0x372f), 0x00 },
+	{ CCI_REG8(0x3730), 0x89 },
+	{ CCI_REG8(0x3731), 0x00 },
+	{ CCI_REG8(0x3732), 0x08 },
+	{ CCI_REG8(0x3733), 0x01 },
+	{ CCI_REG8(0x3734), 0xfe },
+	{ CCI_REG8(0x3735), 0x05 },
+	{ CCI_REG8(0x3740), 0x02 },
+	{ CCI_REG8(0x375d), 0x00 },
+	{ CCI_REG8(0x375e), 0x00 },
+	{ CCI_REG8(0x375f), 0x11 },
+	{ CCI_REG8(0x3760), 0x01 },
+	{ CCI_REG8(0x3768), 0x1b },
+	{ CCI_REG8(0x3769), 0x1b },
+	{ CCI_REG8(0x376a), 0x1b },
+	{ CCI_REG8(0x376b), 0x1b },
+	{ CCI_REG8(0x376c), 0x1a },
+	{ CCI_REG8(0x376d), 0x17 },
+	{ CCI_REG8(0x376e), 0x0f },
+	{ CCI_REG8(0x3776), 0x00 },
+	{ CCI_REG8(0x3777), 0x00 },
+	{ CCI_REG8(0x3778), 0x46 },
+	{ CCI_REG8(0x3779), 0x00 },
+	{ CCI_REG8(0x377a), 0x89 },
+	{ CCI_REG8(0x377b), 0x00 },
+	{ CCI_REG8(0x377c), 0x08 },
+	{ CCI_REG8(0x377d), 0x01 },
+	{ CCI_REG8(0x377e), 0x23 },
+	{ CCI_REG8(0x377f), 0x02 },
+	{ CCI_REG8(0x3780), 0xd9 },
+	{ CCI_REG8(0x3781), 0x03 },
+	{ CCI_REG8(0x3782), 0xf5 },
+	{ CCI_REG8(0x3783), 0x06 },
+	{ CCI_REG8(0x3784), 0xa5 },
+	{ CCI_REG8(0x3788), 0x0f },
+	{ CCI_REG8(0x378a), 0xd9 },
+	{ CCI_REG8(0x378b), 0x03 },
+	{ CCI_REG8(0x378c), 0xeb },
+	{ CCI_REG8(0x378d), 0x05 },
+	{ CCI_REG8(0x378e), 0x87 },
+	{ CCI_REG8(0x378f), 0x06 },
+	{ CCI_REG8(0x3790), 0xf5 },
+	{ CCI_REG8(0x3792), 0x43 },
+	{ CCI_REG8(0x3794), 0x7a },
+	{ CCI_REG8(0x3796), 0xa1 },
+	{ CCI_REG8(0x37b0), 0x36 },
+	{ CCI_REG8(0x3a00), 0x00 },
 };
 
-static const struct imx335_reg raw10_framefmt_regs[] = {
-	{0x3050, 0x00},
-	{0x319d, 0x00},
-	{0x341c, 0xff},
-	{0x341d, 0x01},
+static const struct cci_reg_sequence raw10_framefmt_regs[] = {
+	{ IMX335_REG_ADBIT, 0x00 },
+	{ IMX335_REG_MDBIT, 0x00 },
+	{ IMX335_REG_ADBIT1, 0x1ff },
 };
 
-static const struct imx335_reg raw12_framefmt_regs[] = {
-	{0x3050, 0x01},
-	{0x319d, 0x01},
-	{0x341c, 0x47},
-	{0x341d, 0x00},
+static const struct cci_reg_sequence raw12_framefmt_regs[] = {
+	{ IMX335_REG_ADBIT, 0x01 },
+	{ IMX335_REG_MDBIT, 0x01 },
+	{ IMX335_REG_ADBIT1, 0x47 },
 };
 
-static const struct imx335_reg mipi_data_rate_1188Mbps[] = {
-	{0x300c, 0x3b},
-	{0x300d, 0x2a},
-	{0x314c, 0xc6},
-	{0x314d, 0x00},
-	{0x315a, 0x02},
-	{0x3168, 0xa0},
-	{0x316a, 0x7e},
-	{0x319e, 0x01},
-	{0x3a18, 0x8f},
-	{0x3a1a, 0x4f},
-	{0x3a1c, 0x47},
-	{0x3a1e, 0x37},
-	{0x3a1f, 0x01},
-	{0x3a20, 0x4f},
-	{0x3a22, 0x87},
-	{0x3a24, 0x4f},
-	{0x3a26, 0x7f},
-	{0x3a28, 0x3f},
+static const struct cci_reg_sequence mipi_data_rate_1188Mbps[] = {
+	{ IMX335_REG_BCWAIT_TIME, 0x3b },
+	{ IMX335_REG_CPWAIT_TIME, 0x2a },
+	{ IMX335_REG_INCLKSEL1, 0x00c6 },
+	{ IMX335_REG_INCLKSEL2, 0x02 },
+	{ IMX335_REG_INCLKSEL3, 0xa0 },
+	{ IMX335_REG_INCLKSEL4, 0x7e },
+	{ IMX335_REG_SYSMODE, 0x01 },
+	{ IMX335_REG_TCLKPOST, 0x8f },
+	{ IMX335_REG_TCLKPREPARE, 0x4f },
+	{ IMX335_REG_TCLK_TRAIL, 0x47 },
+	{ IMX335_REG_TCLK_ZERO, 0x0137 },
+	{ IMX335_REG_THS_PREPARE, 0x4f },
+	{ IMX335_REG_THS_ZERO,  0x87 },
+	{ IMX335_REG_THS_TRAIL, 0x4f },
+	{ IMX335_REG_THS_EXIT, 0x7f },
+	{ IMX335_REG_TPLX, 0x3f },
 };
 
-static const struct imx335_reg mipi_data_rate_891Mbps[] = {
-	{0x300c, 0x3b},
-	{0x300d, 0x2a},
-	{0x314c, 0x29},
-	{0x314d, 0x01},
-	{0x315a, 0x06},
-	{0x3168, 0xa0},
-	{0x316a, 0x7e},
-	{0x319e, 0x02},
-	{0x3a18, 0x7f},
-	{0x3a1a, 0x37},
-	{0x3a1c, 0x37},
-	{0x3a1e, 0xf7},
-	{0x3a20, 0x3f},
-	{0x3a22, 0x6f},
-	{0x3a24, 0x3f},
-	{0x3a26, 0x5f},
-	{0x3a28, 0x2f},
+static const struct cci_reg_sequence mipi_data_rate_891Mbps[] = {
+	{ IMX335_REG_BCWAIT_TIME, 0x3b },
+	{ IMX335_REG_CPWAIT_TIME, 0x2a },
+	{ IMX335_REG_INCLKSEL1, 0x0129 },
+	{ IMX335_REG_INCLKSEL2, 0x06 },
+	{ IMX335_REG_INCLKSEL3, 0xa0 },
+	{ IMX335_REG_INCLKSEL4, 0x7e },
+	{ IMX335_REG_SYSMODE, 0x02 },
+	{ IMX335_REG_TCLKPOST, 0x7f },
+	{ IMX335_REG_TCLKPREPARE, 0x37 },
+	{ IMX335_REG_TCLK_TRAIL, 0x37 },
+	{ IMX335_REG_TCLK_ZERO, 0xf7 },
+	{ IMX335_REG_THS_PREPARE, 0x3f },
+	{ IMX335_REG_THS_ZERO, 0x6f },
+	{ IMX335_REG_THS_TRAIL, 0x3f },
+	{ IMX335_REG_THS_EXIT, 0x5f },
+	{ IMX335_REG_TPLX, 0x2f },
 };
 
 static const s64 link_freq[] = {
@@ -372,10 +409,10 @@ static const u32 imx335_mbus_codes[] = {
 /* Supported sensor mode configurations */
 static const struct imx335_mode supported_mode = {
 	.width = 2592,
-	.height = 1940,
+	.height = 1944,
 	.hblank = 342,
-	.vblank = 2560,
-	.vblank_min = 2560,
+	.vblank = 2556,
+	.vblank_min = 2556,
 	.vblank_max = 133060,
 	.pclk = 396000000,
 	.reg_list = {
@@ -393,101 +430,6 @@ static const struct imx335_mode supported_mode = {
 static inline struct imx335 *to_imx335(struct v4l2_subdev *subdev)
 {
 	return container_of(subdev, struct imx335, sd);
-}
-
-/**
- * imx335_read_reg() - Read registers.
- * @imx335: pointer to imx335 device
- * @reg: register address
- * @len: length of bytes to read. Max supported bytes is 4
- * @val: pointer to register value to be filled.
- *
- * Big endian register addresses with little endian values.
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int imx335_read_reg(struct imx335 *imx335, u16 reg, u32 len, u32 *val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&imx335->sd);
-	struct i2c_msg msgs[2] = {0};
-	u8 addr_buf[2] = {0};
-	u8 data_buf[4] = {0};
-	int ret;
-
-	if (WARN_ON(len > 4))
-		return -EINVAL;
-
-	put_unaligned_be16(reg, addr_buf);
-
-	/* Write register address */
-	msgs[0].addr = client->addr;
-	msgs[0].flags = 0;
-	msgs[0].len = ARRAY_SIZE(addr_buf);
-	msgs[0].buf = addr_buf;
-
-	/* Read data from register */
-	msgs[1].addr = client->addr;
-	msgs[1].flags = I2C_M_RD;
-	msgs[1].len = len;
-	msgs[1].buf = data_buf;
-
-	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret != ARRAY_SIZE(msgs))
-		return -EIO;
-
-	*val = get_unaligned_le32(data_buf);
-
-	return 0;
-}
-
-/**
- * imx335_write_reg() - Write register
- * @imx335: pointer to imx335 device
- * @reg: register address
- * @len: length of bytes. Max supported bytes is 4
- * @val: register value
- *
- * Big endian register addresses with little endian values.
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int imx335_write_reg(struct imx335 *imx335, u16 reg, u32 len, u32 val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&imx335->sd);
-	u8 buf[6] = {0};
-
-	if (WARN_ON(len > 4))
-		return -EINVAL;
-
-	put_unaligned_be16(reg, buf);
-	put_unaligned_le32(val, buf + 2);
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
-		return -EIO;
-
-	return 0;
-}
-
-/**
- * imx335_write_regs() - Write a list of registers
- * @imx335: pointer to imx335 device
- * @regs: list of registers to be written
- * @len: length of registers array
- *
- * Return: 0 if successful. error code otherwise.
- */
-static int imx335_write_regs(struct imx335 *imx335,
-			     const struct imx335_reg *regs, u32 len)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < len; i++) {
-		ret = imx335_write_reg(imx335, regs[i].address, 1, regs[i].val);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 /**
@@ -526,7 +468,8 @@ static int imx335_update_controls(struct imx335 *imx335,
 static int imx335_update_exp_gain(struct imx335 *imx335, u32 exposure, u32 gain)
 {
 	u32 lpfr, shutter;
-	int ret;
+	int ret_hold;
+	int ret = 0;
 
 	lpfr = imx335->vblank + imx335->cur_mode->height;
 	shutter = lpfr - exposure;
@@ -534,64 +477,55 @@ static int imx335_update_exp_gain(struct imx335 *imx335, u32 exposure, u32 gain)
 	dev_dbg(imx335->dev, "Set exp %u, analog gain %u, shutter %u, lpfr %u\n",
 		exposure, gain, shutter, lpfr);
 
-	ret = imx335_write_reg(imx335, IMX335_REG_HOLD, 1, 1);
-	if (ret)
-		return ret;
-
-	ret = imx335_write_reg(imx335, IMX335_REG_LPFR, 3, lpfr);
-	if (ret)
-		goto error_release_group_hold;
-
-	ret = imx335_write_reg(imx335, IMX335_REG_SHUTTER, 3, shutter);
-	if (ret)
-		goto error_release_group_hold;
-
-	ret = imx335_write_reg(imx335, IMX335_REG_AGAIN, 2, gain);
-
-error_release_group_hold:
-	imx335_write_reg(imx335, IMX335_REG_HOLD, 1, 0);
+	cci_write(imx335->cci, IMX335_REG_HOLD, 1, &ret);
+	cci_write(imx335->cci, IMX335_REG_VMAX, lpfr, &ret);
+	cci_write(imx335->cci, IMX335_REG_SHUTTER, shutter, &ret);
+	cci_write(imx335->cci, IMX335_REG_GAIN, gain, &ret);
+	/*
+	 * Unconditionally attempt to release the hold, but track the
+	 * error if the unhold itself fails.
+	 */
+	ret_hold = cci_write(imx335->cci, IMX335_REG_HOLD, 0, NULL);
+	if (ret_hold)
+		ret = ret_hold;
 
 	return ret;
 }
 
 static int imx335_update_test_pattern(struct imx335 *imx335, u32 pattern_index)
 {
-	int ret;
+	int ret = 0;
 
 	if (pattern_index >= ARRAY_SIZE(imx335_tpg_val))
 		return -EINVAL;
 
 	if (pattern_index) {
-		const struct imx335_reg tpg_enable_regs[] = {
-			{ 0x3148, 0x10 },
-			{ 0x3280, 0x00 },
-			{ 0x329c, 0x01 },
-			{ 0x32a0, 0x11 },
-			{ 0x3302, 0x00 },
-			{ 0x3303, 0x00 },
-			{ 0x336c, 0x00 },
+		const struct cci_reg_sequence tpg_enable_regs[] = {
+			{ IMX335_REG_TPG_TESTCLKEN, 0x10 },
+			{ IMX335_REG_TPG_DIG_CLP_MODE, 0x00 },
+			{ IMX335_REG_TPG_EN_DUOUT, 0x01 },
+			{ IMX335_REG_TPG_COLORWIDTH, 0x11 },
+			{ IMX335_REG_BLKLEVEL, 0x00 },
+			{ IMX335_REG_WRJ_OPEN, 0x00 },
 		};
 
-		ret = imx335_write_reg(imx335, IMX335_REG_TPG, 1,
-				       imx335_tpg_val[pattern_index]);
-		if (ret)
-			return ret;
+		cci_write(imx335->cci, IMX335_REG_TPG,
+			  imx335_tpg_val[pattern_index], &ret);
 
-		ret = imx335_write_regs(imx335, tpg_enable_regs,
-					ARRAY_SIZE(tpg_enable_regs));
+		cci_multi_reg_write(imx335->cci, tpg_enable_regs,
+				    ARRAY_SIZE(tpg_enable_regs), &ret);
 	} else {
-		const struct imx335_reg tpg_disable_regs[] = {
-			{ 0x3148, 0x00 },
-			{ 0x3280, 0x01 },
-			{ 0x329c, 0x00 },
-			{ 0x32a0, 0x10 },
-			{ 0x3302, 0x32 },
-			{ 0x3303, 0x00 },
-			{ 0x336c, 0x01 },
+		const struct cci_reg_sequence tpg_disable_regs[] = {
+			{ IMX335_REG_TPG_TESTCLKEN, 0x00 },
+			{ IMX335_REG_TPG_DIG_CLP_MODE, 0x01 },
+			{ IMX335_REG_TPG_EN_DUOUT, 0x00 },
+			{ IMX335_REG_TPG_COLORWIDTH, 0x10 },
+			{ IMX335_REG_BLKLEVEL, 0x32 },
+			{ IMX335_REG_WRJ_OPEN, 0x01 },
 		};
 
-		ret = imx335_write_regs(imx335, tpg_disable_regs,
-					ARRAY_SIZE(tpg_disable_regs));
+		cci_multi_reg_write(imx335->cci, tpg_disable_regs,
+				    ARRAY_SIZE(tpg_disable_regs), &ret);
 	}
 
 	return ret;
@@ -890,12 +824,14 @@ static int imx335_set_framefmt(struct imx335 *imx335)
 {
 	switch (imx335->cur_mbus_code) {
 	case MEDIA_BUS_FMT_SRGGB10_1X10:
-		return imx335_write_regs(imx335, raw10_framefmt_regs,
-					 ARRAY_SIZE(raw10_framefmt_regs));
+		return cci_multi_reg_write(imx335->cci, raw10_framefmt_regs,
+					   ARRAY_SIZE(raw10_framefmt_regs),
+					   NULL);
 
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
-		return imx335_write_regs(imx335, raw12_framefmt_regs,
-					 ARRAY_SIZE(raw12_framefmt_regs));
+		return cci_multi_reg_write(imx335->cci, raw12_framefmt_regs,
+					   ARRAY_SIZE(raw12_framefmt_regs),
+					   NULL);
 	}
 
 	return -EINVAL;
@@ -914,7 +850,8 @@ static int imx335_start_streaming(struct imx335 *imx335)
 
 	/* Setup PLL */
 	reg_list = &link_freq_reglist[__ffs(imx335->link_freq_bitmap)];
-	ret = imx335_write_regs(imx335, reg_list->regs, reg_list->num_of_regs);
+	ret = cci_multi_reg_write(imx335->cci, reg_list->regs,
+				  reg_list->num_of_regs, NULL);
 	if (ret) {
 		dev_err(imx335->dev, "%s failed to set plls\n", __func__);
 		return ret;
@@ -922,8 +859,8 @@ static int imx335_start_streaming(struct imx335 *imx335)
 
 	/* Write sensor mode registers */
 	reg_list = &imx335->cur_mode->reg_list;
-	ret = imx335_write_regs(imx335, reg_list->regs,
-				reg_list->num_of_regs);
+	ret = cci_multi_reg_write(imx335->cci, reg_list->regs,
+				  reg_list->num_of_regs, NULL);
 	if (ret) {
 		dev_err(imx335->dev, "fail to write initial registers\n");
 		return ret;
@@ -936,6 +873,12 @@ static int imx335_start_streaming(struct imx335 *imx335)
 		return ret;
 	}
 
+	/* Configure lanes */
+	ret = cci_write(imx335->cci, IMX335_REG_LANEMODE,
+			imx335->lane_mode, NULL);
+	if (ret)
+		return ret;
+
 	/* Setup handler will write actual exposure and gain */
 	ret =  __v4l2_ctrl_handler_setup(imx335->sd.ctrl_handler);
 	if (ret) {
@@ -944,8 +887,8 @@ static int imx335_start_streaming(struct imx335 *imx335)
 	}
 
 	/* Start streaming */
-	ret = imx335_write_reg(imx335, IMX335_REG_MODE_SELECT,
-			       1, IMX335_MODE_STREAMING);
+	ret = cci_write(imx335->cci, IMX335_REG_MODE_SELECT,
+			IMX335_MODE_STREAMING, NULL);
 	if (ret) {
 		dev_err(imx335->dev, "fail to start streaming\n");
 		return ret;
@@ -965,8 +908,8 @@ static int imx335_start_streaming(struct imx335 *imx335)
  */
 static int imx335_stop_streaming(struct imx335 *imx335)
 {
-	return imx335_write_reg(imx335, IMX335_REG_MODE_SELECT,
-				1, IMX335_MODE_STANDBY);
+	return cci_write(imx335->cci, IMX335_REG_MODE_SELECT,
+			 IMX335_MODE_STANDBY, NULL);
 }
 
 /**
@@ -1017,14 +960,14 @@ error_unlock:
 static int imx335_detect(struct imx335 *imx335)
 {
 	int ret;
-	u32 val;
+	u64 val;
 
-	ret = imx335_read_reg(imx335, IMX335_REG_ID, 2, &val);
+	ret = cci_read(imx335->cci, IMX335_REG_ID, &val, NULL);
 	if (ret)
 		return ret;
 
 	if (val != IMX335_ID) {
-		dev_err(imx335->dev, "chip id mismatch: %x!=%x\n",
+		dev_err(imx335->dev, "chip id mismatch: %x!=%llx\n",
 			IMX335_ID, val);
 		return -ENXIO;
 	}
@@ -1096,7 +1039,14 @@ static int imx335_parse_hw_config(struct imx335 *imx335)
 	if (ret)
 		return ret;
 
-	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX335_NUM_DATA_LANES) {
+	switch (bus_cfg.bus.mipi_csi2.num_data_lanes) {
+	case 2:
+		imx335->lane_mode = IMX335_2LANE;
+		break;
+	case 4:
+		imx335->lane_mode = IMX335_4LANE;
+		break;
+	default:
 		dev_err(imx335->dev,
 			"number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
@@ -1208,10 +1158,16 @@ static int imx335_init_controls(struct imx335 *imx335)
 {
 	struct v4l2_ctrl_handler *ctrl_hdlr = &imx335->ctrl_handler;
 	const struct imx335_mode *mode = imx335->cur_mode;
+	struct v4l2_fwnode_device_properties props;
 	u32 lpfr;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 7);
+	ret = v4l2_fwnode_device_parse(imx335->dev, &props);
+	if (ret)
+		return ret;
+
+	/* v4l2_fwnode_device_properties can add two more controls */
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 9);
 	if (ret)
 		return ret;
 
@@ -1228,6 +1184,14 @@ static int imx335_init_controls(struct imx335 *imx335)
 					     IMX335_EXPOSURE_STEP,
 					     IMX335_EXPOSURE_DEFAULT);
 
+	/*
+	 * The sensor has an analog gain and a digital gain, both controlled
+	 * through a single gain value, expressed in 0.3dB increments. Values
+	 * from 0.0dB (0) to 30.0dB (100) apply analog gain only, higher values
+	 * up to 72.0dB (240) add further digital gain. Limit the range to
+	 * analog gain only, support for digital gain can be added separately
+	 * if needed.
+	 */
 	imx335->again_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
 					       &imx335_ctrl_ops,
 					       V4L2_CID_ANALOGUE_GAIN,
@@ -1276,6 +1240,8 @@ static int imx335_init_controls(struct imx335 *imx335)
 	if (imx335->hblank_ctrl)
 		imx335->hblank_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
+	v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &imx335_ctrl_ops, &props);
+
 	if (ctrl_hdlr->error) {
 		dev_err(imx335->dev, "control init failed: %d\n",
 			ctrl_hdlr->error);
@@ -1304,6 +1270,11 @@ static int imx335_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	imx335->dev = &client->dev;
+	imx335->cci = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(imx335->cci)) {
+		dev_err(imx335->dev, "Unable to initialize I2C\n");
+		return -ENODEV;
+	}
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx335->sd, client, &imx335_subdev_ops);

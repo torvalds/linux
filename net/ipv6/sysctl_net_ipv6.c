@@ -213,7 +213,6 @@ static struct ctl_table ipv6_table_template[] = {
 		.proc_handler	= proc_doulongvec_minmax,
 		.extra2		= &ioam6_id_wide_max,
 	},
-	{ }
 };
 
 static struct ctl_table ipv6_rotable[] = {
@@ -248,11 +247,11 @@ static struct ctl_table ipv6_rotable[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif /* CONFIG_NETLABEL */
-	{ }
 };
 
 static int __net_init ipv6_sysctl_net_init(struct net *net)
 {
+	size_t table_size = ARRAY_SIZE(ipv6_table_template);
 	struct ctl_table *ipv6_table;
 	struct ctl_table *ipv6_route_table;
 	struct ctl_table *ipv6_icmp_table;
@@ -264,7 +263,7 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	if (!ipv6_table)
 		goto out;
 	/* Update the variables to point into the current struct net */
-	for (i = 0; i < ARRAY_SIZE(ipv6_table_template) - 1; i++)
+	for (i = 0; i < table_size; i++)
 		ipv6_table[i].data += (void *)net - (void *)&init_net;
 
 	ipv6_route_table = ipv6_route_sysctl_init(net);
@@ -276,8 +275,7 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 		goto out_ipv6_route_table;
 
 	net->ipv6.sysctl.hdr = register_net_sysctl_sz(net, "net/ipv6",
-						      ipv6_table,
-						      ARRAY_SIZE(ipv6_table_template));
+						      ipv6_table, table_size);
 	if (!net->ipv6.sysctl.hdr)
 		goto out_ipv6_icmp_table;
 
@@ -313,9 +311,9 @@ out_ipv6_table:
 
 static void __net_exit ipv6_sysctl_net_exit(struct net *net)
 {
-	struct ctl_table *ipv6_table;
-	struct ctl_table *ipv6_route_table;
-	struct ctl_table *ipv6_icmp_table;
+	const struct ctl_table *ipv6_table;
+	const struct ctl_table *ipv6_route_table;
+	const struct ctl_table *ipv6_icmp_table;
 
 	ipv6_table = net->ipv6.sysctl.hdr->ctl_table_arg;
 	ipv6_route_table = net->ipv6.sysctl.route_hdr->ctl_table_arg;

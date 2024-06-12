@@ -7,7 +7,7 @@
 
 #ifdef CONFIG_PRINTK
 
-#define STATE_STRING_PREFACE	": state "
+#define STATE_STRING_PREFACE	" state "
 #define STATE_STRING_BUF_LEN	(sizeof(STATE_STRING_PREFACE) + BTRFS_FS_STATE_COUNT + 1)
 
 /*

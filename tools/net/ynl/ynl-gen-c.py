@@ -228,8 +228,11 @@ class Type(SpecAttr):
         presence = ''
         for i in range(0, len(ref)):
             presence = f"{var}->{'.'.join(ref[:i] + [''])}_present.{ref[i]}"
-            if self.presence_type() == 'bit':
-                code.append(presence + ' = 1;')
+            # Every layer below last is a nest, so we know it uses bit presence
+            # last layer is "self" and may be a complex type
+            if i == len(ref) - 1 and self.presence_type() != 'bit':
+                continue
+            code.append(presence + ' = 1;')
         code += self._setter_lines(ri, member, presence)
 
         func_name = f"{op_prefix(ri, direction, deref=deref)}_set_{'_'.join(ref)}"
@@ -410,7 +413,7 @@ class TypeString(Type):
 
     def _attr_policy(self, policy):
         if 'exact-len' in self.checks:
-            mem = 'NLA_POLICY_EXACT_LEN(' + str(self.checks['exact-len']) + ')'
+            mem = 'NLA_POLICY_EXACT_LEN(' + str(self.get_limit('exact-len')) + ')'
         else:
             mem = '{ .type = ' + policy
             if 'max-len' in self.checks:
@@ -462,7 +465,7 @@ class TypeBinary(Type):
 
     def _attr_policy(self, policy):
         if 'exact-len' in self.checks:
-            mem = 'NLA_POLICY_EXACT_LEN(' + str(self.checks['exact-len']) + ')'
+            mem = 'NLA_POLICY_EXACT_LEN(' + str(self.get_limit('exact-len')) + ')'
         else:
             mem = '{ '
             if len(self.checks) == 1 and 'min-len' in self.checks:
@@ -838,8 +841,11 @@ class AttrSet(SpecAttrSet):
             t = TypeBitfield32(self.family, self, elem, value)
         elif elem['type'] == 'nest':
             t = TypeNest(self.family, self, elem, value)
-        elif elem['type'] == 'array-nest':
-            t = TypeArrayNest(self.family, self, elem, value)
+        elif elem['type'] == 'indexed-array' and 'sub-type' in elem:
+            if elem["sub-type"] == 'nest':
+                t = TypeArrayNest(self.family, self, elem, value)
+            else:
+                raise Exception(f'new_attr: unsupported sub-type {elem["sub-type"]}')
         elif elem['type'] == 'nest-type-value':
             t = TypeNestTypeValue(self.family, self, elem, value)
         else:
@@ -1052,7 +1058,7 @@ class Family(SpecFamily):
                     if nested in self.root_sets:
                         raise Exception("Inheriting members to a space used as root not supported")
                     inherit.update(set(spec['type-value']))
-                elif spec['type'] == 'array-nest':
+                elif spec['type'] == 'indexed-array':
                     inherit.add('idx')
                 self.pure_nested_structs[nested].set_inherited(inherit)
 
@@ -1616,9 +1622,12 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     multi_attrs = set()
     needs_parg = False
     for arg, aspec in struct.member_list():
-        if aspec['type'] == 'array-nest':
-            local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
-            array_nests.add(arg)
+        if aspec['type'] == 'indexed-array' and 'sub-type' in aspec:
+            if aspec["sub-type"] == 'nest':
+                local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
+                array_nests.add(arg)
+            else:
+                raise Exception(f'Not supported sub-type {aspec["sub-type"]}')
         if 'multi-attr' in aspec:
             multi_attrs.add(arg)
         needs_parg |= 'nested-attributes' in aspec

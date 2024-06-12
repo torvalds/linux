@@ -2,8 +2,6 @@
 /*
  * Copyright (C) 2023, Google LLC.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <sys/ioctl.h>
 
 #include "test_util.h"

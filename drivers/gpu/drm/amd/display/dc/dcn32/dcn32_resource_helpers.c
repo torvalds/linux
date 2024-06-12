@@ -35,25 +35,6 @@ static bool is_dual_plane(enum surface_pixel_format format)
 	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
 }
 
-
-uint32_t dcn32_helper_mall_bytes_to_ways(
-		struct dc *dc,
-		uint32_t total_size_in_mall_bytes)
-{
-	uint32_t cache_lines_used, lines_per_way, total_cache_lines, num_ways;
-
-	/* add 2 lines for worst case alignment */
-	cache_lines_used = total_size_in_mall_bytes / dc->caps.cache_line_size + 2;
-
-	total_cache_lines = dc->caps.max_cab_allocation_bytes / dc->caps.cache_line_size;
-	lines_per_way = total_cache_lines / dc->caps.cache_num_ways;
-	num_ways = cache_lines_used / lines_per_way;
-	if (cache_lines_used % lines_per_way > 0)
-		num_ways++;
-
-	return num_ways;
-}
-
 uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
@@ -112,8 +93,10 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(
 	if (context->bw_ctx.bw.dcn.mall_subvp_size_bytes > 0) {
 		if (dc->debug.force_subvp_num_ways) {
 			return dc->debug.force_subvp_num_ways;
+		} else if (dc->res_pool->funcs->calculate_mall_ways_from_bytes) {
+			return dc->res_pool->funcs->calculate_mall_ways_from_bytes(dc, context->bw_ctx.bw.dcn.mall_subvp_size_bytes);
 		} else {
-			return dcn32_helper_mall_bytes_to_ways(dc, context->bw_ctx.bw.dcn.mall_subvp_size_bytes);
+			return 0;
 		}
 	} else {
 		return 0;
@@ -399,7 +382,7 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = 0;
 	bool disable_unbounded_requesting = dc->debug.disable_z9_mpc || dc->debug.disable_unbounded_requesting;
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {

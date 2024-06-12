@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Runtime test cases for CONFIG_FORTIFY_SOURCE. For testing memcpy(),
- * see FORTIFY_MEM_* tests in LKDTM (drivers/misc/lkdtm/fortify.c).
+ * Runtime test cases for CONFIG_FORTIFY_SOURCE. For additional memcpy()
+ * testing see FORTIFY_MEM_* tests in LKDTM (drivers/misc/lkdtm/fortify.c).
  *
  * For corner cases with UBSAN, try testing with:
  *
@@ -15,12 +15,29 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+/* We don't need to fill dmesg with the fortify WARNs during testing. */
+#ifdef DEBUG
+# define FORTIFY_REPORT_KUNIT(x...) __fortify_report(x)
+# define FORTIFY_WARN_KUNIT(x...)   WARN_ONCE(x)
+#else
+# define FORTIFY_REPORT_KUNIT(x...) do { } while (0)
+# define FORTIFY_WARN_KUNIT(x...)   do { } while (0)
+#endif
+
 /* Redefine fortify_panic() to track failures. */
 void fortify_add_kunit_error(int write);
 #define fortify_panic(func, write, avail, size, retfail) do {		\
-	__fortify_report(FORTIFY_REASON(func, write), avail, size);	\
+	FORTIFY_REPORT_KUNIT(FORTIFY_REASON(func, write), avail, size);	\
 	fortify_add_kunit_error(write);					\
 	return (retfail);						\
+} while (0)
+
+/* Redefine fortify_warn_once() to track memcpy() failures. */
+#define fortify_warn_once(chk_func, x...) do {				\
+	bool __result = chk_func;					\
+	FORTIFY_WARN_KUNIT(__result, x);				\
+	if (__result)							\
+		fortify_add_kunit_error(1);				\
 } while (0)
 
 #include <kunit/device.h>
@@ -64,7 +81,7 @@ void fortify_add_kunit_error(int write)
 	kunit_put_resource(resource);
 }
 
-static void known_sizes_test(struct kunit *test)
+static void fortify_test_known_sizes(struct kunit *test)
 {
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen("88888888"), 8);
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(array_of_10), 10);
@@ -97,7 +114,7 @@ static noinline size_t want_minus_one(int pick)
 	return __compiletime_strlen(str);
 }
 
-static void control_flow_split_test(struct kunit *test)
+static void fortify_test_control_flow_split(struct kunit *test)
 {
 	KUNIT_EXPECT_EQ(test, want_minus_one(pick), SIZE_MAX);
 }
@@ -173,11 +190,11 @@ static volatile size_t unknown_size = 50;
 #endif
 
 #define DEFINE_ALLOC_SIZE_TEST_PAIR(allocator)				\
-static void alloc_size_##allocator##_const_test(struct kunit *test)	\
+static void fortify_test_alloc_size_##allocator##_const(struct kunit *test) \
 {									\
 	CONST_TEST_BODY(TEST_##allocator);				\
 }									\
-static void alloc_size_##allocator##_dynamic_test(struct kunit *test)	\
+static void fortify_test_alloc_size_##allocator##_dynamic(struct kunit *test) \
 {									\
 	DYNAMIC_TEST_BODY(TEST_##allocator);				\
 }
@@ -267,28 +284,28 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(vmalloc)
 									\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvmalloc((alloc_pages) * PAGE_SIZE, gfp),		\
-		vfree(p));						\
+		kvfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvmalloc_node((alloc_pages) * PAGE_SIZE, gfp, NUMA_NO_NODE), \
-		vfree(p));						\
+		kvfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvzalloc((alloc_pages) * PAGE_SIZE, gfp),		\
-		vfree(p));						\
+		kvfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvzalloc_node((alloc_pages) * PAGE_SIZE, gfp, NUMA_NO_NODE), \
-		vfree(p));						\
+		kvfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvcalloc(1, (alloc_pages) * PAGE_SIZE, gfp),		\
-		vfree(p));						\
+		kvfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvcalloc((alloc_pages) * PAGE_SIZE, 1, gfp),		\
-		vfree(p));						\
+		kvfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvmalloc_array(1, (alloc_pages) * PAGE_SIZE, gfp),	\
-		vfree(p));						\
+		kvfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvmalloc_array((alloc_pages) * PAGE_SIZE, 1, gfp),	\
-		vfree(p));						\
+		kvfree(p));						\
 									\
 	prev_size = (expected_pages) * PAGE_SIZE;			\
 	orig = kvmalloc(prev_size, gfp);				\
@@ -346,6 +363,31 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(kvmalloc)
 } while (0)
 DEFINE_ALLOC_SIZE_TEST_PAIR(devm_kmalloc)
 
+static const char * const test_strs[] = {
+	"",
+	"Hello there",
+	"A longer string, just for variety",
+};
+
+#define TEST_realloc(checker)	do {					\
+	gfp_t gfp = GFP_KERNEL;						\
+	size_t len;							\
+	int i;								\
+									\
+	for (i = 0; i < ARRAY_SIZE(test_strs); i++) {			\
+		len = strlen(test_strs[i]);				\
+		KUNIT_EXPECT_EQ(test, __builtin_constant_p(len), 0);	\
+		checker(len, kmemdup_array(test_strs[i], len, 1, gfp),	\
+			kfree(p));					\
+		checker(len, kmemdup(test_strs[i], len, gfp),		\
+			kfree(p));					\
+	}								\
+} while (0)
+static void fortify_test_realloc_size(struct kunit *test)
+{
+	TEST_realloc(check_dynamic);
+}
+
 /*
  * We can't have an array at the end of a structure or else
  * builds without -fstrict-flex-arrays=3 will report them as
@@ -361,7 +403,7 @@ struct fortify_padding {
 /* Force compiler into not being able to resolve size at compile-time. */
 static volatile int unconst;
 
-static void strlen_test(struct kunit *test)
+static void fortify_test_strlen(struct kunit *test)
 {
 	struct fortify_padding pad = { };
 	int i, end = sizeof(pad.buf) - 1;
@@ -384,7 +426,7 @@ static void strlen_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 1);
 }
 
-static void strnlen_test(struct kunit *test)
+static void fortify_test_strnlen(struct kunit *test)
 {
 	struct fortify_padding pad = { };
 	int i, end = sizeof(pad.buf) - 1;
@@ -422,7 +464,7 @@ static void strnlen_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 2);
 }
 
-static void strcpy_test(struct kunit *test)
+static void fortify_test_strcpy(struct kunit *test)
 {
 	struct fortify_padding pad = { };
 	char src[sizeof(pad.buf) + 1] = { };
@@ -480,7 +522,7 @@ static void strcpy_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);
 }
 
-static void strncpy_test(struct kunit *test)
+static void fortify_test_strncpy(struct kunit *test)
 {
 	struct fortify_padding pad = { };
 	char src[] = "Copy me fully into a small buffer and I will overflow!";
@@ -539,7 +581,7 @@ static void strncpy_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);
 }
 
-static void strscpy_test(struct kunit *test)
+static void fortify_test_strscpy(struct kunit *test)
 {
 	struct fortify_padding pad = { };
 	char src[] = "Copy me fully into a small buffer and I will overflow!";
@@ -596,7 +638,7 @@ static void strscpy_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);
 }
 
-static void strcat_test(struct kunit *test)
+static void fortify_test_strcat(struct kunit *test)
 {
 	struct fortify_padding pad = { };
 	char src[sizeof(pad.buf) / 2] = { };
@@ -653,7 +695,7 @@ static void strcat_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);
 }
 
-static void strncat_test(struct kunit *test)
+static void fortify_test_strncat(struct kunit *test)
 {
 	struct fortify_padding pad = { };
 	char src[sizeof(pad.buf)] = { };
@@ -726,7 +768,7 @@ static void strncat_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);
 }
 
-static void strlcat_test(struct kunit *test)
+static void fortify_test_strlcat(struct kunit *test)
 {
 	struct fortify_padding pad = { };
 	char src[sizeof(pad.buf)] = { };
@@ -811,7 +853,75 @@ static void strlcat_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);
 }
 
-static void memscan_test(struct kunit *test)
+/* Check for 0-sized arrays... */
+struct fortify_zero_sized {
+	unsigned long bytes_before;
+	char buf[0];
+	unsigned long bytes_after;
+};
+
+#define __fortify_test(memfunc)					\
+static void fortify_test_##memfunc(struct kunit *test)		\
+{								\
+	struct fortify_zero_sized zero = { };			\
+	struct fortify_padding pad = { };			\
+	char srcA[sizeof(pad.buf) + 2];				\
+	char srcB[sizeof(pad.buf) + 2];				\
+	size_t len = sizeof(pad.buf) + unconst;			\
+								\
+	memset(srcA, 'A', sizeof(srcA));			\
+	KUNIT_ASSERT_EQ(test, srcA[0], 'A');			\
+	memset(srcB, 'B', sizeof(srcB));			\
+	KUNIT_ASSERT_EQ(test, srcB[0], 'B');			\
+								\
+	memfunc(pad.buf, srcA, 0 + unconst);			\
+	KUNIT_EXPECT_EQ(test, pad.buf[0], '\0');		\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf + 1, srcB, 1 + unconst);		\
+	KUNIT_EXPECT_EQ(test, pad.buf[0], '\0');		\
+	KUNIT_EXPECT_EQ(test, pad.buf[1], 'B');			\
+	KUNIT_EXPECT_EQ(test, pad.buf[2], '\0');		\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf, srcA, 1 + unconst);			\
+	KUNIT_EXPECT_EQ(test, pad.buf[0], 'A');			\
+	KUNIT_EXPECT_EQ(test, pad.buf[1], 'B');			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf, srcA, len - 1);			\
+	KUNIT_EXPECT_EQ(test, pad.buf[1], 'A');			\
+	KUNIT_EXPECT_EQ(test, pad.buf[len - 1], '\0');		\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf, srcA, len);				\
+	KUNIT_EXPECT_EQ(test, pad.buf[1], 'A');			\
+	KUNIT_EXPECT_EQ(test, pad.buf[len - 1], 'A');		\
+	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);		\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf, srcA, len + 1);			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 1);	\
+	memfunc(pad.buf + 1, srcB, len);			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 2);	\
+								\
+	/* Reset error counter. */				\
+	fortify_write_overflows = 0;				\
+	/* Copy nothing into nothing: no errors. */		\
+	memfunc(zero.buf, srcB, 0 + unconst);			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	/* We currently explicitly ignore zero-sized dests. */	\
+	memfunc(zero.buf, srcB, 1 + unconst);			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+}
+__fortify_test(memcpy)
+__fortify_test(memmove)
+
+static void fortify_test_memscan(struct kunit *test)
 {
 	char haystack[] = "Where oh where is my memory range?";
 	char *mem = haystack + strlen("Where oh where is ");
@@ -830,7 +940,7 @@ static void memscan_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 2);
 }
 
-static void memchr_test(struct kunit *test)
+static void fortify_test_memchr(struct kunit *test)
 {
 	char haystack[] = "Where oh where is my memory range?";
 	char *mem = haystack + strlen("Where oh where is ");
@@ -849,7 +959,7 @@ static void memchr_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 2);
 }
 
-static void memchr_inv_test(struct kunit *test)
+static void fortify_test_memchr_inv(struct kunit *test)
 {
 	char haystack[] = "Where oh where is my memory range?";
 	char *mem = haystack + 1;
@@ -869,7 +979,7 @@ static void memchr_inv_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 2);
 }
 
-static void memcmp_test(struct kunit *test)
+static void fortify_test_memcmp(struct kunit *test)
 {
 	char one[] = "My mind is going ...";
 	char two[] = "My mind is going ... I can feel it.";
@@ -880,7 +990,7 @@ static void memcmp_test(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, memcmp(one, two, one_len), 0);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);
 	/* Still in bounds, but no longer matching. */
-	KUNIT_ASSERT_EQ(test, memcmp(one, two, one_len + 1), -32);
+	KUNIT_ASSERT_LT(test, memcmp(one, two, one_len + 1), 0);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);
 
 	/* Catch too-large ranges. */
@@ -891,7 +1001,7 @@ static void memcmp_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 2);
 }
 
-static void kmemdup_test(struct kunit *test)
+static void fortify_test_kmemdup(struct kunit *test)
 {
 	char src[] = "I got Doom running on it!";
 	char *copy;
@@ -917,19 +1027,19 @@ static void kmemdup_test(struct kunit *test)
 
 	/* Out of bounds by 1 byte. */
 	copy = kmemdup(src, len + 1, GFP_KERNEL);
-	KUNIT_EXPECT_NULL(test, copy);
+	KUNIT_EXPECT_PTR_EQ(test, copy, ZERO_SIZE_PTR);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 1);
 	kfree(copy);
 
 	/* Way out of bounds. */
 	copy = kmemdup(src, len * 2, GFP_KERNEL);
-	KUNIT_EXPECT_NULL(test, copy);
+	KUNIT_EXPECT_PTR_EQ(test, copy, ZERO_SIZE_PTR);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 2);
 	kfree(copy);
 
 	/* Starting offset causing out of bounds. */
 	copy = kmemdup(src + 1, len, GFP_KERNEL);
-	KUNIT_EXPECT_NULL(test, copy);
+	KUNIT_EXPECT_PTR_EQ(test, copy, ZERO_SIZE_PTR);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 3);
 	kfree(copy);
 }
@@ -951,31 +1061,33 @@ static int fortify_test_init(struct kunit *test)
 }
 
 static struct kunit_case fortify_test_cases[] = {
-	KUNIT_CASE(known_sizes_test),
-	KUNIT_CASE(control_flow_split_test),
-	KUNIT_CASE(alloc_size_kmalloc_const_test),
-	KUNIT_CASE(alloc_size_kmalloc_dynamic_test),
-	KUNIT_CASE(alloc_size_vmalloc_const_test),
-	KUNIT_CASE(alloc_size_vmalloc_dynamic_test),
-	KUNIT_CASE(alloc_size_kvmalloc_const_test),
-	KUNIT_CASE(alloc_size_kvmalloc_dynamic_test),
-	KUNIT_CASE(alloc_size_devm_kmalloc_const_test),
-	KUNIT_CASE(alloc_size_devm_kmalloc_dynamic_test),
-	KUNIT_CASE(strlen_test),
-	KUNIT_CASE(strnlen_test),
-	KUNIT_CASE(strcpy_test),
-	KUNIT_CASE(strncpy_test),
-	KUNIT_CASE(strscpy_test),
-	KUNIT_CASE(strcat_test),
-	KUNIT_CASE(strncat_test),
-	KUNIT_CASE(strlcat_test),
+	KUNIT_CASE(fortify_test_known_sizes),
+	KUNIT_CASE(fortify_test_control_flow_split),
+	KUNIT_CASE(fortify_test_alloc_size_kmalloc_const),
+	KUNIT_CASE(fortify_test_alloc_size_kmalloc_dynamic),
+	KUNIT_CASE(fortify_test_alloc_size_vmalloc_const),
+	KUNIT_CASE(fortify_test_alloc_size_vmalloc_dynamic),
+	KUNIT_CASE(fortify_test_alloc_size_kvmalloc_const),
+	KUNIT_CASE(fortify_test_alloc_size_kvmalloc_dynamic),
+	KUNIT_CASE(fortify_test_alloc_size_devm_kmalloc_const),
+	KUNIT_CASE(fortify_test_alloc_size_devm_kmalloc_dynamic),
+	KUNIT_CASE(fortify_test_realloc_size),
+	KUNIT_CASE(fortify_test_strlen),
+	KUNIT_CASE(fortify_test_strnlen),
+	KUNIT_CASE(fortify_test_strcpy),
+	KUNIT_CASE(fortify_test_strncpy),
+	KUNIT_CASE(fortify_test_strscpy),
+	KUNIT_CASE(fortify_test_strcat),
+	KUNIT_CASE(fortify_test_strncat),
+	KUNIT_CASE(fortify_test_strlcat),
 	/* skip memset: performs bounds checking on whole structs */
-	/* skip memcpy: still using warn-and-overwrite instead of hard-fail */
-	KUNIT_CASE(memscan_test),
-	KUNIT_CASE(memchr_test),
-	KUNIT_CASE(memchr_inv_test),
-	KUNIT_CASE(memcmp_test),
-	KUNIT_CASE(kmemdup_test),
+	KUNIT_CASE(fortify_test_memcpy),
+	KUNIT_CASE(fortify_test_memmove),
+	KUNIT_CASE(fortify_test_memscan),
+	KUNIT_CASE(fortify_test_memchr),
+	KUNIT_CASE(fortify_test_memchr_inv),
+	KUNIT_CASE(fortify_test_memcmp),
+	KUNIT_CASE(fortify_test_kmemdup),
 	{}
 };
 

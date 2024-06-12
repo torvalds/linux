@@ -108,6 +108,8 @@ __perf__ltrim_colon_completions()
 
 __perfcomp ()
 {
+	# Expansion of spaces to array is deliberate.
+	# shellcheck disable=SC2207
 	COMPREPLY=( $( compgen -W "$1" -- "$2" ) )
 }
 
@@ -127,13 +129,13 @@ __perf_prev_skip_opts ()
 
 	let i=cword-1
 	cmds_=$($cmd $1 --list-cmds)
-	prev_skip_opts=()
+	prev_skip_opts=""
 	while [ $i -ge 0 ]; do
-		if [[ ${words[i]} == $1 ]]; then
+		if [[ ${words[i]} == "$1" ]]; then
 			return
 		fi
 		for cmd_ in $cmds_; do
-			if [[ ${words[i]} == $cmd_ ]]; then
+			if [[ ${words[i]} == "$cmd_" ]]; then
 				prev_skip_opts=${words[i]}
 				return
 			fi
@@ -164,9 +166,10 @@ __perf_main ()
 		$prev_skip_opts == @(record|stat|top) ]]; then
 
 		local cur1=${COMP_WORDS[COMP_CWORD]}
-		local raw_evts=$($cmd list --raw-dump hw sw cache tracepoint pmu sdt)
+		local raw_evts
 		local arr s tmp result cpu_evts
 
+		raw_evts=$($cmd list --raw-dump hw sw cache tracepoint pmu sdt)
 		# aarch64 doesn't have /sys/bus/event_source/devices/cpu/events
 		if [[ `uname -m` != aarch64 ]]; then
 			cpu_evts=$(ls /sys/bus/event_source/devices/cpu/events)
@@ -175,10 +178,12 @@ __perf_main ()
 		if [[ "$cur1" == */* && ${cur1#*/} =~ ^[A-Z] ]]; then
 			OLD_IFS="$IFS"
 			IFS=" "
+			# Expansion of spaces to array is deliberate.
+			# shellcheck disable=SC2206
 			arr=($raw_evts)
 			IFS="$OLD_IFS"
 
-			for s in ${arr[@]}
+			for s in "${arr[@]}"
 			do
 				if [[ "$s" == *cpu/* ]]; then
 					tmp=${s#*cpu/}
@@ -200,11 +205,13 @@ __perf_main ()
 		fi
 	elif [[ $prev == @("--pfm-events") &&
 		$prev_skip_opts == @(record|stat|top) ]]; then
-	        local evts=$($cmd list --raw-dump pfm)
+		local evts
+		evts=$($cmd list --raw-dump pfm)
 		__perfcomp "$evts" "$cur"
 	elif [[ $prev == @("-M"|"--metrics") &&
 		$prev_skip_opts == @(stat) ]]; then
-	        local metrics=$($cmd list --raw-dump metric metricgroup)
+		local metrics
+		metrics=$($cmd list --raw-dump metric metricgroup)
 		__perfcomp "$metrics" "$cur"
 	else
 		# List subcommands for perf commands
@@ -278,6 +285,8 @@ if [[ -n ${ZSH_VERSION-} ]]; then
 		let cword=CURRENT-1
 		emulate ksh -c __perf_main
 		let _ret && _default && _ret=0
+		# _ret is only assigned 0 or 1, disable inaccurate analysis.
+		# shellcheck disable=SC2152
 		return _ret
 	}
 

@@ -1409,9 +1409,9 @@ static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
 	return r;
 }
 
-static bool si_asic_supports_baco(struct amdgpu_device *adev)
+static int si_asic_supports_baco(struct amdgpu_device *adev)
 {
-	return false;
+	return 0;
 }
 
 static enum amd_reset_method
@@ -2706,6 +2706,8 @@ static const struct amd_ip_funcs si_common_ip_funcs = {
 	.soft_reset = si_common_soft_reset,
 	.set_clockgating_state = si_common_set_clockgating_state,
 	.set_powergating_state = si_common_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ip_block_version si_common_ip_block =

@@ -328,6 +328,7 @@ struct ufs_pwr_mode_info {
  * @op_runtime_config: called to config Operation and runtime regs Pointers
  * @get_outstanding_cqs: called to get outstanding completion queues
  * @config_esi: called to config Event Specific Interrupt
+ * @config_scsi_dev: called to configure SCSI device parameters
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -373,7 +374,6 @@ struct ufs_hba_variant_ops {
 	int	(*get_outstanding_cqs)(struct ufs_hba *hba,
 				       unsigned long *ocqs);
 	int	(*config_esi)(struct ufs_hba *hba);
-	void	(*config_scsi_dev)(struct scsi_device *sdev);
 };
 
 /* clock gating state  */
@@ -1388,8 +1388,6 @@ void ufshcd_hold(struct ufs_hba *hba);
 void ufshcd_release(struct ufs_hba *hba);
 
 void ufshcd_clkgate_delay_set(struct device *dev, unsigned long value);
-
-u32 ufshcd_get_local_unipro_ver(struct ufs_hba *hba);
 
 int ufshcd_get_vreg(struct device *dev, struct ufs_vreg *vreg);
 

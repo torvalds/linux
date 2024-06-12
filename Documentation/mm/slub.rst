@@ -80,7 +80,7 @@ to the dentry cache with::
 
 Debugging options may require the minimum possible slab order to increase as
 a result of storing the metadata (for example, caches with PAGE_SIZE object
-sizes).  This has a higher liklihood of resulting in slab allocation errors
+sizes).  This has a higher likelihood of resulting in slab allocation errors
 in low memory situations or if there's high fragmentation of memory.  To
 switch off debugging for such caches by default, use::
 

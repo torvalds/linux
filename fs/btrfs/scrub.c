@@ -1012,6 +1012,7 @@ static void scrub_stripe_read_repair_worker(struct work_struct *work)
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	int num_copies = btrfs_num_copies(fs_info, stripe->bg->start,
 					  stripe->bg->length);
+	unsigned long repaired;
 	int mirror;
 	int i;
 
@@ -1078,16 +1079,15 @@ out:
 	 * Submit the repaired sectors.  For zoned case, we cannot do repair
 	 * in-place, but queue the bg to be relocated.
 	 */
-	if (btrfs_is_zoned(fs_info)) {
-		if (!bitmap_empty(&stripe->error_bitmap, stripe->nr_sectors))
+	bitmap_andnot(&repaired, &stripe->init_error_bitmap, &stripe->error_bitmap,
+		      stripe->nr_sectors);
+	if (!sctx->readonly && !bitmap_empty(&repaired, stripe->nr_sectors)) {
+		if (btrfs_is_zoned(fs_info)) {
 			btrfs_repair_one_zone(fs_info, sctx->stripes[0].bg->start);
-	} else if (!sctx->readonly) {
-		unsigned long repaired;
-
-		bitmap_andnot(&repaired, &stripe->init_error_bitmap,
-			      &stripe->error_bitmap, stripe->nr_sectors);
-		scrub_write_sectors(sctx, stripe, repaired, false);
-		wait_scrub_stripe_io(stripe);
+		} else {
+			scrub_write_sectors(sctx, stripe, repaired, false);
+			wait_scrub_stripe_io(stripe);
+		}
 	}
 
 	scrub_stripe_report_errors(sctx, stripe);
@@ -2100,7 +2100,7 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	const u64 logical_end = logical_start + logical_length;
 	u64 cur_logical = logical_start;
-	int ret;
+	int ret = 0;
 
 	/* The range must be inside the bg */
 	ASSERT(logical_start >= bg->start && logical_end <= bg->start + bg->length);
@@ -2812,7 +2812,17 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 		gen = btrfs_get_last_trans_committed(fs_info);
 
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
-		bytenr = btrfs_sb_offset(i);
+		ret = btrfs_sb_log_location(scrub_dev, i, 0, &bytenr);
+		if (ret == -ENOENT)
+			break;
+
+		if (ret) {
+			spin_lock(&sctx->stat_lock);
+			sctx->stat.super_errors++;
+			spin_unlock(&sctx->stat_lock);
+			continue;
+		}
+
 		if (bytenr + BTRFS_SUPER_INFO_SIZE >
 		    scrub_dev->commit_total_bytes)
 			break;

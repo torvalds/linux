@@ -236,19 +236,11 @@ static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
 static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct napi_struct *napi,
 					    struct sk_buff *skb, int queue,
-					    struct ieee80211_sta *sta,
-					    struct ieee80211_link_sta *link_sta)
+					    struct ieee80211_sta *sta)
 {
 	if (unlikely(iwl_mvm_check_pn(mvm, skb, queue, sta))) {
 		kfree_skb(skb);
 		return;
-	}
-
-	if (sta && sta->valid_links && link_sta) {
-		struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-
-		rx_status->link_valid = 1;
-		rx_status->link_id = link_sta->link_id;
 	}
 
 	ieee80211_rx_napi(mvm->hw, sta, skb, napi);
@@ -588,7 +580,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 		while ((skb = __skb_dequeue(skb_list))) {
 			iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb,
 							reorder_buf->queue,
-							sta, NULL /* FIXME */);
+							sta);
 			reorder_buf->num_stored--;
 		}
 	}
@@ -1898,21 +1890,6 @@ static void iwl_mvm_decode_lsig(struct sk_buff *skb,
 	}
 }
 
-static inline u8 iwl_mvm_nl80211_band_from_rx_msdu(u8 phy_band)
-{
-	switch (phy_band) {
-	case PHY_BAND_24:
-		return NL80211_BAND_2GHZ;
-	case PHY_BAND_5:
-		return NL80211_BAND_5GHZ;
-	case PHY_BAND_6:
-		return NL80211_BAND_6GHZ;
-	default:
-		WARN_ONCE(1, "Unsupported phy band (%u)\n", phy_band);
-		return NL80211_BAND_5GHZ;
-	}
-}
-
 struct iwl_rx_sta_csa {
 	bool all_sta_unblocked;
 	struct ieee80211_vif *vif;
@@ -2058,6 +2035,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_link_sta *link_sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0;
+	u8 sta_id = le32_get_bits(desc->status, IWL_RX_MPDU_STATUS_STA_ID);
 	size_t desc_size;
 	struct iwl_mvm_rx_phy_data phy_data = {};
 	u32 format;
@@ -2176,7 +2154,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (iwl_mvm_is_band_in_rx_supported(mvm)) {
 		u8 band = BAND_IN_RX_STATUS(desc->mac_phy_idx);
 
-		rx_status->band = iwl_mvm_nl80211_band_from_rx_msdu(band);
+		rx_status->band = iwl_mvm_nl80211_band_from_phy(band);
 	} else {
 		rx_status->band = phy_data.channel > 14 ? NL80211_BAND_5GHZ :
 			NL80211_BAND_2GHZ;
@@ -2206,13 +2184,16 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rcu_read_lock();
 
 	if (desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_SRC_STA_FOUND)) {
-		u8 id = le32_get_bits(desc->status, IWL_RX_MPDU_STATUS_STA_ID);
-
-		if (!WARN_ON_ONCE(id >= mvm->fw->ucode_capa.num_stations)) {
-			sta = rcu_dereference(mvm->fw_id_to_mac_id[id]);
+		if (!WARN_ON_ONCE(sta_id >= mvm->fw->ucode_capa.num_stations)) {
+			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 			if (IS_ERR(sta))
 				sta = NULL;
-			link_sta = rcu_dereference(mvm->fw_id_to_link_sta[id]);
+			link_sta = rcu_dereference(mvm->fw_id_to_link_sta[sta_id]);
+
+			if (sta && sta->valid_links && link_sta) {
+				rx_status->link_valid = 1;
+				rx_status->link_id = link_sta->link_id;
+			}
 		}
 	} else if (!is_multicast_ether_addr(hdr->addr2)) {
 		/*
@@ -2328,6 +2309,16 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 			iwl_mvm_agg_rx_received(mvm, reorder_data, baid);
 		}
+
+		if (ieee80211_is_data(hdr->frame_control)) {
+			u8 sub_frame_idx = desc->amsdu_info &
+				IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
+
+			/* 0 means not an A-MSDU, and 1 means a new A-MSDU */
+			if (!sub_frame_idx || sub_frame_idx == 1)
+				iwl_mvm_count_mpdu(mvmsta, sta_id, 1, false,
+						   queue);
+		}
 	}
 
 	/* management stuff on default queue */
@@ -2356,8 +2347,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		    !(desc->amsdu_info & IWL_RX_MPDU_AMSDU_LAST_SUBFRAME))
 			rx_status->flag |= RX_FLAG_AMSDU_MORE;
 
-		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta,
-						link_sta);
+		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
 	}
 out:
 	rcu_read_unlock();

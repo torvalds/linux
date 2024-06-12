@@ -32,6 +32,7 @@
 #include "dcn31/dcn31_hwseq.h"
 #include "dcn32/dcn32_hwseq.h"
 #include "dcn35/dcn35_hwseq.h"
+#include "dcn351/dcn351_hwseq.h"
 
 #include "dcn351_init.h"
 
@@ -67,7 +68,7 @@ static const struct hw_sequencer_funcs dcn351_funcs = {
 	.prepare_bandwidth = dcn35_prepare_bandwidth,
 	.optimize_bandwidth = dcn35_optimize_bandwidth,
 	.update_bandwidth = dcn20_update_bandwidth,
-	.set_drr = dcn10_set_drr,
+	.set_drr = dcn35_set_drr,
 	.get_position = dcn10_get_position,
 	.set_static_screen_control = dcn35_set_static_screen_control,
 	.setup_stereo = dcn10_setup_stereo,
@@ -120,8 +121,6 @@ static const struct hw_sequencer_funcs dcn351_funcs = {
 	.hw_block_power_up = dcn35_hw_block_power_up,
 	.hw_block_power_down = dcn35_hw_block_power_down,
 	.root_clock_control = dcn35_root_clock_control,
-	.set_idle_state = dcn35_set_idle_state,
-	.get_idle_state = dcn35_get_idle_state
 };
 
 static const struct hwseq_private_funcs dcn351_private_funcs = {
@@ -147,6 +146,7 @@ static const struct hwseq_private_funcs dcn351_private_funcs = {
 	//.hubp_pg_control = dcn35_hubp_pg_control,
 	.enable_power_gating_plane = dcn35_enable_power_gating_plane,
 	.dpp_root_clock_control = dcn35_dpp_root_clock_control,
+	.dpstream_root_clock_control = dcn35_dpstream_root_clock_control,
 	.program_all_writeback_pipes_in_tree = dcn30_program_all_writeback_pipes_in_tree,
 	.update_odm = dcn35_update_odm,
 	.set_hdr_multiplier = dcn10_set_hdr_multiplier,

@@ -90,7 +90,7 @@ retry:
 	bch2_trans_begin(trans);
 
 	ret   = bch2_inode_peek(trans, &iter, &inode_u, inode_inum(inode),
-				BTREE_ITER_INTENT) ?:
+				BTREE_ITER_intent) ?:
 		(set ? set(trans, inode, &inode_u, p) : 0) ?:
 		bch2_inode_write(trans, &iter, &inode_u) ?:
 		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
@@ -212,21 +212,47 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 	_ret;									\
 })
 
+static struct inode *bch2_alloc_inode(struct super_block *sb)
+{
+	BUG();
+}
+
+static struct bch_inode_info *__bch2_new_inode(struct bch_fs *c)
+{
+	struct bch_inode_info *inode = kmem_cache_alloc(bch2_inode_cache, GFP_NOFS);
+	if (!inode)
+		return NULL;
+
+	inode_init_once(&inode->v);
+	mutex_init(&inode->ei_update_lock);
+	two_state_lock_init(&inode->ei_pagecache_lock);
+	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
+	mutex_init(&inode->ei_quota_lock);
+	inode->v.i_state = 0;
+
+	if (unlikely(inode_init_always(c->vfs_sb, &inode->v))) {
+		kmem_cache_free(bch2_inode_cache, inode);
+		return NULL;
+	}
+
+	return inode;
+}
+
 /*
  * Allocate a new inode, dropping/retaking btree locks if necessary:
  */
 static struct bch_inode_info *bch2_new_inode(struct btree_trans *trans)
 {
-	struct bch_fs *c = trans->c;
-
 	struct bch_inode_info *inode =
 		memalloc_flags_do(PF_MEMALLOC_NORECLAIM|PF_MEMALLOC_NOWARN,
-				  to_bch_ei(new_inode(c->vfs_sb)));
+				  __bch2_new_inode(trans->c));
 
 	if (unlikely(!inode)) {
-		int ret = drop_locks_do(trans, (inode = to_bch_ei(new_inode(c->vfs_sb))) ? 0 : -ENOMEM);
-		if (ret && inode)
-			discard_new_inode(&inode->v);
+		int ret = drop_locks_do(trans, (inode = __bch2_new_inode(trans->c)) ? 0 : -ENOMEM);
+		if (ret && inode) {
+			__destroy_inode(&inode->v);
+			kmem_cache_free(bch2_inode_cache, inode);
+		}
 		if (ret)
 			return ERR_PTR(ret);
 	}
@@ -287,7 +313,7 @@ __bch2_create(struct mnt_idmap *idmap,
 	if (ret)
 		return ERR_PTR(ret);
 #endif
-	inode = to_bch_ei(new_inode(c->vfs_sb));
+	inode = __bch2_new_inode(c);
 	if (unlikely(!inode)) {
 		inode = ERR_PTR(-ENOMEM);
 		goto err;
@@ -320,7 +346,7 @@ retry:
 	inum.inum = inode_u.bi_inum;
 
 	ret   = bch2_subvolume_get(trans, inum.subvol, true,
-				   BTREE_ITER_WITH_UPDATES, &subvol) ?:
+				   BTREE_ITER_with_updates, &subvol) ?:
 		bch2_trans_commit(trans, NULL, &journal_seq, 0);
 	if (unlikely(ret)) {
 		bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, -1,
@@ -373,16 +399,13 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter dirent_iter = {};
 	subvol_inum inum = {};
+	struct printbuf buf = PRINTBUF;
 
-	int ret = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
-				   dir_hash_info, dir, name, 0);
+	struct bkey_s_c k = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
+					     dir_hash_info, dir, name, 0);
+	int ret = bkey_err(k);
 	if (ret)
 		return ERR_PTR(ret);
-
-	struct bkey_s_c k = bch2_btree_iter_peek_slot(&dirent_iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
 
 	ret = bch2_dirent_read_target(trans, dir, bkey_s_c_to_dirent(k), &inum);
 	if (ret > 0)
@@ -403,20 +426,31 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	ret =   bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
 		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
 		PTR_ERR_OR_ZERO(inode = bch2_new_inode(trans));
-	if (bch2_err_matches(ret, ENOENT)) {
-		struct printbuf buf = PRINTBUF;
 
-		bch2_bkey_val_to_text(&buf, c, k);
-		bch_err(c, "%s points to missing inode", buf.buf);
-		printbuf_exit(&buf);
-	}
+	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
+				c, "dirent to missing inode:\n  %s",
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
 	if (ret)
 		goto err;
+
+	/* regular files may have hardlinks: */
+	if (bch2_fs_inconsistent_on(bch2_inode_should_have_bp(&inode_u) &&
+				    !bkey_eq(k.k->p, POS(inode_u.bi_dir, inode_u.bi_dir_offset)),
+				    c,
+				    "dirent points to inode that does not point back:\n  %s",
+				    (bch2_bkey_val_to_text(&buf, c, k),
+				     prt_printf(&buf, "\n  "),
+				     bch2_inode_unpacked_to_text(&buf, &inode_u),
+				     buf.buf))) {
+		ret = -ENOENT;
+		goto err;
+	}
 
 	bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
 	inode = bch2_inode_insert(c, inode);
 out:
 	bch2_trans_iter_exit(trans, &dirent_iter);
+	printbuf_exit(&buf);
 	return inode;
 err:
 	inode = ERR_PTR(ret);
@@ -784,7 +818,7 @@ retry:
 	acl = NULL;
 
 	ret = bch2_inode_peek(trans, &inode_iter, &inode_u, inode_inum(inode),
-			      BTREE_ITER_INTENT);
+			      BTREE_ITER_intent);
 	if (ret)
 		goto btree_err;
 
@@ -840,6 +874,9 @@ static int bch2_getattr(struct mnt_idmap *idmap,
 	stat->ctime	= inode_get_ctime(&inode->v);
 	stat->blksize	= block_bytes(c);
 	stat->blocks	= inode->v.i_blocks;
+
+	stat->subvol	= inode->ei_subvol;
+	stat->result_mask |= STATX_SUBVOL;
 
 	if (request_mask & STATX_BTIME) {
 		stat->result_mask |= STATX_BTIME;
@@ -961,7 +998,6 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf cur, prev;
-	struct bpos end = POS(ei->v.i_ino, (start + len) >> 9);
 	unsigned offset_into_extent, sectors;
 	bool have_extent = false;
 	u32 snapshot;
@@ -971,6 +1007,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	if (ret)
 		return ret;
 
+	struct bpos end = POS(ei->v.i_ino, (start + len) >> 9);
 	if (start + len < start)
 		return -EINVAL;
 
@@ -1037,6 +1074,10 @@ retry:
 
 		bch2_btree_iter_set_pos(&iter,
 			POS(iter.pos.inode, iter.pos.offset + sectors));
+
+		ret = bch2_trans_relock(trans);
+		if (ret)
+			break;
 	}
 	start = iter.pos.offset;
 	bch2_trans_iter_exit(trans, &iter);
@@ -1102,6 +1143,8 @@ static int bch2_open(struct inode *vinode, struct file *file)
 		if (ret)
 			return ret;
 	}
+
+	file->f_mode |= FMODE_CAN_ODIRECT;
 
 	return generic_file_open(vinode, file);
 }
@@ -1195,7 +1238,6 @@ static const struct address_space_operations bch_address_space_operations = {
 	.write_end	= bch2_write_end,
 	.invalidate_folio = bch2_invalidate_folio,
 	.release_folio	= bch2_release_folio,
-	.direct_IO	= noop_direct_IO,
 #ifdef CONFIG_MIGRATION
 	.migrate_folio	= filemap_migrate_folio,
 #endif
@@ -1484,34 +1526,9 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	mapping_set_large_folios(inode->v.i_mapping);
 }
 
-static struct inode *bch2_alloc_inode(struct super_block *sb)
+static void bch2_free_inode(struct inode *vinode)
 {
-	struct bch_inode_info *inode;
-
-	inode = kmem_cache_alloc(bch2_inode_cache, GFP_NOFS);
-	if (!inode)
-		return NULL;
-
-	inode_init_once(&inode->v);
-	mutex_init(&inode->ei_update_lock);
-	two_state_lock_init(&inode->ei_pagecache_lock);
-	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
-	mutex_init(&inode->ei_quota_lock);
-
-	return &inode->v;
-}
-
-static void bch2_i_callback(struct rcu_head *head)
-{
-	struct inode *vinode = container_of(head, struct inode, i_rcu);
-	struct bch_inode_info *inode = to_bch_ei(vinode);
-
-	kmem_cache_free(bch2_inode_cache, inode);
-}
-
-static void bch2_destroy_inode(struct inode *vinode)
-{
-	call_rcu(&vinode->i_rcu, bch2_i_callback);
+	kmem_cache_free(bch2_inode_cache, to_bch_ei(vinode));
 }
 
 static int inode_update_times_fn(struct btree_trans *trans,
@@ -1819,7 +1836,7 @@ static int bch2_unfreeze(struct super_block *sb)
 
 static const struct super_operations bch_super_operations = {
 	.alloc_inode	= bch2_alloc_inode,
-	.destroy_inode	= bch2_destroy_inode,
+	.free_inode	= bch2_free_inode,
 	.write_inode	= bch2_vfs_write_inode,
 	.evict_inode	= bch2_evict_inode,
 	.sync_fs	= bch2_sync_fs,
@@ -1997,6 +2014,7 @@ out:
 	return dget(sb->s_root);
 
 err_put_super:
+	__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
 	return ERR_PTR(bch2_err_class(ret));
 }

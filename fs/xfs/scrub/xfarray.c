@@ -7,9 +7,9 @@
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
+#include "scrub/scrub.h"
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"
-#include "scrub/scrub.h"
 #include "scrub/trace.h"
 
 /*
@@ -486,6 +486,9 @@ xfarray_sortinfo_alloc(
 
 	xfarray_sortinfo_lo(si)[0] = 0;
 	xfarray_sortinfo_hi(si)[0] = array->nr - 1;
+	si->relax = INIT_XCHK_RELAX;
+	if (flags & XFARRAY_SORT_KILLABLE)
+		si->relax.interruptible = false;
 
 	trace_xfarray_sort(si, nr_bytes);
 	*infop = si;
@@ -503,10 +506,7 @@ xfarray_sort_terminated(
 	 * few seconds so that we don't run afoul of the soft lockup watchdog
 	 * or RCU stall detector.
 	 */
-	cond_resched();
-
-	if ((si->flags & XFARRAY_SORT_KILLABLE) &&
-	    fatal_signal_pending(current)) {
+	if (xchk_maybe_relax(&si->relax)) {
 		if (*error == 0)
 			*error = -EINTR;
 		return true;
@@ -1050,4 +1050,21 @@ out_free:
 	trace_xfarray_sort_stats(si, error);
 	kvfree(si);
 	return error;
+}
+
+/* How many bytes is this array consuming? */
+unsigned long long
+xfarray_bytes(
+	struct xfarray		*array)
+{
+	return xfile_bytes(array->xfile);
+}
+
+/* Empty the entire array. */
+void
+xfarray_truncate(
+	struct xfarray	*array)
+{
+	xfile_discard(array->xfile, 0, MAX_LFS_FILESIZE);
+	array->nr = 0;
 }

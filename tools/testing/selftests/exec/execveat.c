@@ -98,10 +98,9 @@ static int check_execveat_invoked_rc(int fd, const char *path, int flags,
 	if (child == 0) {
 		/* Child: do execveat(). */
 		rc = execveat_(fd, path, argv, envp, flags);
-		ksft_print_msg("execveat() failed, rc=%d errno=%d (%s)\n",
+		ksft_print_msg("child execveat() failed, rc=%d errno=%d (%s)\n",
 			       rc, errno, strerror(errno));
-		ksft_test_result_fail("%s\n", test_name);
-		exit(1);  /* should not reach here */
+		exit(errno);
 	}
 	/* Parent: wait for & check child's exit status. */
 	rc = waitpid(child, &status, 0);
@@ -226,11 +225,14 @@ static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 	 * "If the command name is found, but it is not an executable utility,
 	 * the exit status shall be 126."), so allow either.
 	 */
-	if (is_script)
+	if (is_script) {
+		ksft_print_msg("Invoke script via root_dfd and relative filename\n");
 		fail += check_execveat_invoked_rc(root_dfd, longpath + 1, 0,
 						  127, 126);
-	else
+	} else {
+		ksft_print_msg("Invoke exec via root_dfd and relative filename\n");
 		fail += check_execveat(root_dfd, longpath + 1, 0);
+	}
 
 	return fail;
 }

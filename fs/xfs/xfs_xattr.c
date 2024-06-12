@@ -17,15 +17,13 @@
 #include "xfs_acl.h"
 #include "xfs_log.h"
 #include "xfs_xattr.h"
+#include "xfs_quota.h"
 
 #include <linux/posix_acl_xattr.h>
 
 /*
  * Get permission to use log-assisted atomic exchange of file extents.
- *
- * Callers must not be running any transactions or hold any inode locks, and
- * they must release the permission by calling xlog_drop_incompat_feat
- * when they're done.
+ * Callers must not be running any transactions or hold any ILOCKs.
  */
 static inline int
 xfs_attr_grab_log_assist(
@@ -33,17 +31,8 @@ xfs_attr_grab_log_assist(
 {
 	int			error = 0;
 
-	/*
-	 * Protect ourselves from an idle log clearing the logged xattrs log
-	 * incompat feature bit.
-	 */
-	xlog_use_incompat_feat(mp->m_log);
-
-	/*
-	 * If log-assisted xattrs are already enabled, the caller can use the
-	 * log assisted swap functions with the log-incompat reference we got.
-	 */
-	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
+	/* xattr update log intent items are already enabled */
+	if (xfs_is_using_logged_xattrs(mp))
 		return 0;
 
 	/*
@@ -52,31 +41,20 @@ xfs_attr_grab_log_assist(
 	 * a V5 filesystem for the superblock field, but we'll require rmap
 	 * or reflink to avoid having to deal with really old kernels.
 	 */
-	if (!xfs_has_reflink(mp) && !xfs_has_rmapbt(mp)) {
-		error = -EOPNOTSUPP;
-		goto drop_incompat;
-	}
+	if (!xfs_has_reflink(mp) && !xfs_has_rmapbt(mp))
+		return -EOPNOTSUPP;
 
 	/* Enable log-assisted xattrs. */
 	error = xfs_add_incompat_log_feature(mp,
 			XFS_SB_FEAT_INCOMPAT_LOG_XATTRS);
 	if (error)
-		goto drop_incompat;
+		return error;
+	xfs_set_using_logged_xattrs(mp);
 
 	xfs_warn_mount(mp, XFS_OPSTATE_WARNED_LARP,
  "EXPERIMENTAL logged extended attributes feature in use. Use at your own risk!");
 
 	return 0;
-drop_incompat:
-	xlog_drop_incompat_feat(mp->m_log);
-	return error;
-}
-
-static inline void
-xfs_attr_rele_log_assist(
-	struct xfs_mount	*mp)
-{
-	xlog_drop_incompat_feat(mp->m_log);
 }
 
 static inline bool
@@ -93,17 +71,31 @@ xfs_attr_want_log_assist(
 
 /*
  * Set or remove an xattr, having grabbed the appropriate logging resources
- * prior to calling libxfs.
+ * prior to calling libxfs.  Callers of this function are only required to
+ * initialize the inode, attr_filter, name, namelen, value, and valuelen fields
+ * of @args.
  */
 int
 xfs_attr_change(
-	struct xfs_da_args	*args)
+	struct xfs_da_args	*args,
+	enum xfs_attr_update	op)
 {
 	struct xfs_mount	*mp = args->dp->i_mount;
-	bool			use_logging = false;
 	int			error;
 
-	ASSERT(!(args->op_flags & XFS_DA_OP_LOGGED));
+	if (xfs_is_shutdown(mp))
+		return -EIO;
+
+	error = xfs_qm_dqattach(args->dp);
+	if (error)
+		return error;
+
+	/*
+	 * We have no control over the attribute names that userspace passes us
+	 * to remove, so we have to allow the name lookup prior to attribute
+	 * removal to fail as well.
+	 */
+	args->op_flags = XFS_DA_OP_OKNOENT;
 
 	if (xfs_attr_want_log_assist(mp)) {
 		error = xfs_attr_grab_log_assist(mp);
@@ -111,14 +103,14 @@ xfs_attr_change(
 			return error;
 
 		args->op_flags |= XFS_DA_OP_LOGGED;
-		use_logging = true;
 	}
 
-	error = xfs_attr_set(args);
+	args->owner = args->dp->i_ino;
+	args->geo = mp->m_attr_geo;
+	args->whichfork = XFS_ATTR_FORK;
+	xfs_attr_sethash(args);
 
-	if (use_logging)
-		xfs_attr_rele_log_assist(mp);
-	return error;
+	return xfs_attr_set(args, op, args->attr_filter & XFS_ATTR_ROOT);
 }
 
 
@@ -145,6 +137,20 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 	return args.valuelen;
 }
 
+static inline enum xfs_attr_update
+xfs_xattr_flags_to_op(
+	int		flags,
+	const void	*value)
+{
+	if (!value)
+		return XFS_ATTRUPDATE_REMOVE;
+	if (flags & XATTR_CREATE)
+		return XFS_ATTRUPDATE_CREATE;
+	if (flags & XATTR_REPLACE)
+		return XFS_ATTRUPDATE_REPLACE;
+	return XFS_ATTRUPDATE_UPSERT;
+}
+
 static int
 xfs_xattr_set(const struct xattr_handler *handler,
 	      struct mnt_idmap *idmap, struct dentry *unused,
@@ -154,7 +160,6 @@ xfs_xattr_set(const struct xattr_handler *handler,
 	struct xfs_da_args	args = {
 		.dp		= XFS_I(inode),
 		.attr_filter	= handler->flags,
-		.attr_flags	= flags,
 		.name		= name,
 		.namelen	= strlen(name),
 		.value		= (void *)value,
@@ -162,7 +167,7 @@ xfs_xattr_set(const struct xattr_handler *handler,
 	};
 	int			error;
 
-	error = xfs_attr_change(&args);
+	error = xfs_attr_change(&args, xfs_xattr_flags_to_op(flags, value));
 	if (!error && (handler->flags & XFS_ATTR_ROOT))
 		xfs_forget_acl(inode, name);
 	return error;
@@ -237,12 +242,17 @@ xfs_xattr_put_listent(
 	int		flags,
 	unsigned char	*name,
 	int		namelen,
+	void		*value,
 	int		valuelen)
 {
 	char *prefix;
 	int prefix_len;
 
 	ASSERT(context->count >= 0);
+
+	/* Don't expose private xattr namespaces. */
+	if (flags & XFS_ATTR_PRIVATE_NSP_MASK)
+		return;
 
 	if (flags & XFS_ATTR_ROOT) {
 #ifdef CONFIG_XFS_POSIX_ACL

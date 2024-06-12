@@ -366,8 +366,7 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 	dev_info->edac_idx = edac_device_alloc_index();
 	dev_info->edac_dev =
 		edac_device_alloc_ctl_info(0, dev_info->ctl_name, 1,
-					   NULL, 0, 0,
-					   NULL, 0, dev_info->edac_idx);
+					   NULL, 0, 0, dev_info->edac_idx);
 	if (!dev_info->edac_dev) {
 		ret = -ENOMEM;
 		goto err_dev_put;

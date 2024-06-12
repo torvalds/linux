@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  *
  * Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
  */
@@ -262,13 +262,25 @@ struct snd_sof_dsp_ops {
 	int (*pcm_ack)(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream); /* optional */
 
 	/*
-	 * optional callback to retrieve the link DMA position for the substream
-	 * when the position is not reported in the shared SRAM windows but
-	 * instead from a host-accessible hardware counter.
+	 * optional callback to retrieve the number of frames left/arrived from/to
+	 * the DSP on the DAI side (link/codec/DMIC/etc).
+	 *
+	 * The callback is used when the firmware does not provide this information
+	 * via the shared SRAM window and it can be retrieved by host.
 	 */
-	u64 (*get_stream_position)(struct snd_sof_dev *sdev,
-				   struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream); /* optional */
+	u64 (*get_dai_frame_counter)(struct snd_sof_dev *sdev,
+				     struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream); /* optional */
+
+	/*
+	 * Optional callback to retrieve the number of bytes left/arrived from/to
+	 * the DSP on the host side (bytes between host ALSA buffer and DSP).
+	 *
+	 * The callback is needed for ALSA delay reporting.
+	 */
+	u64 (*get_host_byte_counter)(struct snd_sof_dev *sdev,
+				     struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream); /* optional */
 
 	/* host read DSP stream data */
 	int (*ipc_msg_data)(struct snd_sof_dev *sdev,

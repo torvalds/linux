@@ -59,16 +59,6 @@
 		};
 	};
 
-	reg_usb_h1_vbus: regulator-usb-h1-vbus {
-		compatible = "regulator-fixed";
-		regulator-name = "usb_h1_vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		startup-delay-us = <2>; /* USB2415 requires a POR of 1 us minimum */
-		gpio = <&gpio7 12 0>;
-	};
-
 	reg_panel: regulator-panel {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd_panel";
@@ -285,9 +275,18 @@
 &usbh1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh>;
-	vbus-supply = <&reg_usb_h1_vbus>;
-	clocks = <&clks IMX6QDL_CLK_CKO>;
-	status = "disabled";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	usb-port@1 {
+		compatible = "usb424,2514";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
+		reset-gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &usbotg {

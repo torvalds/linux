@@ -106,9 +106,6 @@
 
 #include "fib_lookup.h"
 
-#define RT_FL_TOS(oldflp4) \
-	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
-
 #define RT_GC_TIMEOUT (300*HZ)
 
 #define DEFAULT_MIN_PMTU (512 + 20 + 20)
@@ -498,15 +495,6 @@ void __ip_select_ident(struct net *net, struct iphdr *iph, int segs)
 }
 EXPORT_SYMBOL(__ip_select_ident);
 
-static void ip_rt_fix_tos(struct flowi4 *fl4)
-{
-	__u8 tos = RT_FL_TOS(fl4);
-
-	fl4->flowi4_tos = tos & IPTOS_RT_MASK;
-	if (tos & RTO_ONLINK)
-		fl4->flowi4_scope = RT_SCOPE_LINK;
-}
-
 static void __build_flow_key(const struct net *net, struct flowi4 *fl4,
 			     const struct sock *sk, const struct iphdr *iph,
 			     int oif, __u8 tos, u8 prot, u32 mark,
@@ -831,7 +819,7 @@ static void ip_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_buf
 	u32 mark = skb->mark;
 	__u8 tos = iph->tos;
 
-	rt = (struct rtable *) dst;
+	rt = dst_rtable(dst);
 
 	__build_flow_key(net, &fl4, sk, iph, oif, tos, prot, mark, 0);
 	__ip_do_redirect(rt, skb, &fl4, true);
@@ -839,7 +827,7 @@ static void ip_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_buf
 
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 {
-	struct rtable *rt = (struct rtable *)dst;
+	struct rtable *rt = dst_rtable(dst);
 	struct dst_entry *ret = dst;
 
 	if (rt) {
@@ -926,13 +914,11 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, gw);
 		peer->rate_last = jiffies;
 		++peer->n_redirects;
-#ifdef CONFIG_IP_ROUTE_VERBOSE
-		if (log_martians &&
+		if (IS_ENABLED(CONFIG_IP_ROUTE_VERBOSE) && log_martians &&
 		    peer->n_redirects == ip_rt_redirect_number)
 			net_warn_ratelimited("host %pI4/if%d ignores redirects for %pI4 to %pI4\n",
 					     &ip_hdr(skb)->saddr, inet_iif(skb),
 					     &ip_hdr(skb)->daddr, &gw);
-#endif
 	}
 out_put_peer:
 	inet_putpeer(peer);
@@ -1058,7 +1044,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 			      struct sk_buff *skb, u32 mtu,
 			      bool confirm_neigh)
 {
-	struct rtable *rt = (struct rtable *) dst;
+	struct rtable *rt = dst_rtable(dst);
 	struct flowi4 fl4;
 
 	ip_rt_build_flow_key(&fl4, sk, skb);
@@ -1129,7 +1115,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 
 	__build_flow_key(net, &fl4, sk, iph, 0, 0, 0, 0, 0);
 
-	rt = (struct rtable *)odst;
+	rt = dst_rtable(odst);
 	if (odst->obsolete && !odst->ops->check(odst, 0)) {
 		rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
 		if (IS_ERR(rt))
@@ -1138,7 +1124,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 		new = true;
 	}
 
-	__ip_rt_update_pmtu((struct rtable *)xfrm_dst_path(&rt->dst), &fl4, mtu);
+	__ip_rt_update_pmtu(dst_rtable(xfrm_dst_path(&rt->dst)), &fl4, mtu);
 
 	if (!dst_check(&rt->dst, 0)) {
 		if (new)
@@ -1195,7 +1181,7 @@ EXPORT_SYMBOL_GPL(ipv4_sk_redirect);
 INDIRECT_CALLABLE_SCOPE struct dst_entry *ipv4_dst_check(struct dst_entry *dst,
 							 u32 cookie)
 {
-	struct rtable *rt = (struct rtable *) dst;
+	struct rtable *rt = dst_rtable(dst);
 
 	/* All IPV4 dsts are created with ->obsolete set to the value
 	 * DST_OBSOLETE_FORCE_CHK which forces validation calls down
@@ -1530,10 +1516,8 @@ void rt_del_uncached_list(struct rtable *rt)
 
 static void ipv4_dst_destroy(struct dst_entry *dst)
 {
-	struct rtable *rt = (struct rtable *)dst;
-
 	ip_dst_metrics_put(dst);
-	rt_del_uncached_list(rt);
+	rt_del_uncached_list(dst_rtable(dst));
 }
 
 void rt_flush_dev(struct net_device *dev)
@@ -2168,6 +2152,9 @@ int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	int err = -EINVAL;
 	u32 tag = 0;
 
+	if (!in_dev)
+		return -EINVAL;
+
 	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr))
 		goto martian_source;
 
@@ -2638,7 +2625,7 @@ struct rtable *ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 	struct rtable *rth;
 
 	fl4->flowi4_iif = LOOPBACK_IFINDEX;
-	ip_rt_fix_tos(fl4);
+	fl4->flowi4_tos &= IPTOS_RT_MASK;
 
 	rcu_read_lock();
 	rth = ip_route_output_key_hash_rcu(net, fl4, &res, skb);
@@ -2831,7 +2818,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 
 struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_orig)
 {
-	struct rtable *ort = (struct rtable *) dst_orig;
+	struct rtable *ort = dst_rtable(dst_orig);
 	struct rtable *rt;
 
 	rt = dst_alloc(&ipv4_dst_blackhole_ops, NULL, DST_OBSOLETE_DEAD, 0);
@@ -2876,9 +2863,9 @@ struct rtable *ip_route_output_flow(struct net *net, struct flowi4 *flp4,
 
 	if (flp4->flowi4_proto) {
 		flp4->flowi4_oif = rt->dst.dev->ifindex;
-		rt = (struct rtable *)xfrm_lookup_route(net, &rt->dst,
-							flowi4_to_flowi(flp4),
-							sk, 0);
+		rt = dst_rtable(xfrm_lookup_route(net, &rt->dst,
+						  flowi4_to_flowi(flp4),
+						  sk, 0));
 	}
 
 	return rt;
@@ -3509,7 +3496,6 @@ static struct ctl_table ipv4_route_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ }
 };
 
 static const char ipv4_route_flush_procname[] = "flush";
@@ -3543,7 +3529,6 @@ static struct ctl_table ipv4_route_netns_table[] = {
 		.mode       = 0644,
 		.proc_handler   = proc_dointvec,
 	},
-	{ },
 };
 
 static __net_init int sysctl_route_net_init(struct net *net)
@@ -3561,16 +3546,14 @@ static __net_init int sysctl_route_net_init(struct net *net)
 
 		/* Don't export non-whitelisted sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns) {
-			if (tbl[0].procname != ipv4_route_flush_procname) {
-				tbl[0].procname = NULL;
+			if (tbl[0].procname != ipv4_route_flush_procname)
 				table_size = 0;
-			}
 		}
 
 		/* Update the variables to point into the current struct net
 		 * except for the first element flush
 		 */
-		for (i = 1; i < ARRAY_SIZE(ipv4_route_netns_table) - 1; i++)
+		for (i = 1; i < table_size; i++)
 			tbl[i].data += (void *)net - (void *)&init_net;
 	}
 	tbl[0].extra1 = net;
@@ -3590,7 +3573,7 @@ err_dup:
 
 static __net_exit void sysctl_route_net_exit(struct net *net)
 {
-	struct ctl_table *tbl;
+	const struct ctl_table *tbl;
 
 	tbl = net->ipv4.route_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.route_hdr);

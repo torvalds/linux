@@ -25,35 +25,31 @@ quiet_cmd_extract_ex = DTEX    $@
 $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
 	$(call if_changed,extract_ex)
 
-find_all_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
+find_all_cmd = find $(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' \)
 
 find_cmd = $(find_all_cmd) | \
 		sed 's|^$(srctree)/||' | \
 		grep -F -e "$(subst :," -e ",$(DT_SCHEMA_FILES))" | \
 		sed 's|^|$(srctree)/|'
-CHK_DT_DOCS := $(shell $(find_cmd))
+CHK_DT_EXAMPLES := $(patsubst $(srctree)/%.yaml,%.example.dtb, $(shell $(find_cmd)))
 
 quiet_cmd_yamllint = LINT    $(src)
       cmd_yamllint = ($(find_cmd) | \
                      xargs -n200 -P$$(nproc) \
-		     $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint >&2) || true
+		     $(DT_SCHEMA_LINT) -f parsable -c $(src)/.yamllint >&2) \
+		     && touch $@ || true
 
-quiet_cmd_chk_bindings = CHKDT   $@
+quiet_cmd_chk_bindings = CHKDT   $(src)
       cmd_chk_bindings = ($(find_cmd) | \
-                         xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(srctree)/$(src)) || true
+			  xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(src)) \
+			  && touch $@ || true
 
 quiet_cmd_mk_schema = SCHEMA  $@
       cmd_mk_schema = f=$$(mktemp) ; \
                       $(find_all_cmd) > $$f ; \
                       $(DT_MK_SCHEMA) -j $(DT_MK_SCHEMA_FLAGS) @$$f > $@ ; \
 		      rm -f $$f
-
-define rule_chkdt
-	$(if $(DT_SCHEMA_LINT),$(call cmd,yamllint),)
-	$(call cmd,chk_bindings)
-	$(call cmd,mk_schema)
-endef
 
 DT_DOCS = $(patsubst $(srctree)/%,%,$(shell $(find_all_cmd)))
 
@@ -64,12 +60,19 @@ override DTC_FLAGS := \
 	-Wno-unique_unit_address \
 	-Wunique_unit_address_if_enabled
 
-$(obj)/processed-schema.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
-	$(call if_changed_rule,chkdt)
+$(obj)/processed-schema.json: $(DT_DOCS) check_dtschema_version FORCE
+	$(call if_changed,mk_schema)
+
+targets += .dt-binding.checked .yamllint.checked
+$(obj)/.yamllint.checked: $(DT_DOCS) $(src)/.yamllint FORCE
+	$(if $(DT_SCHEMA_LINT),$(call if_changed,yamllint),)
+
+$(obj)/.dt-binding.checked: $(DT_DOCS) FORCE
+	$(call if_changed,chk_bindings)
 
 always-y += processed-schema.json
-always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dts, $(CHK_DT_DOCS))
-always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dtb, $(CHK_DT_DOCS))
+targets += $(patsubst $(obj)/%,%, $(CHK_DT_EXAMPLES))
+targets += $(patsubst $(obj)/%.dtb,%.dts, $(CHK_DT_EXAMPLES))
 
 # Hack: avoid 'Argument list too long' error for 'make clean'. Remove most of
 # build artifacts here before they are processed by scripts/Makefile.clean
@@ -78,3 +81,6 @@ clean-files = $(shell find $(obj) \( -name '*.example.dts' -o \
 
 dt_compatible_check: $(obj)/processed-schema.json
 	$(Q)$(srctree)/scripts/dtc/dt-extract-compatibles $(srctree) | xargs dt-check-compatible -v -s $<
+
+PHONY += dt_binding_check
+dt_binding_check: $(obj)/.dt-binding.checked $(obj)/.yamllint.checked $(CHK_DT_EXAMPLES)

@@ -22,6 +22,7 @@ struct serial_ctrl_device {
 struct serial_port_device {
 	struct device dev;
 	struct uart_port *port;
+	unsigned int tx_enabled:1;
 };
 
 int serial_base_ctrl_init(void);
@@ -29,6 +30,9 @@ void serial_base_ctrl_exit(void);
 
 int serial_base_port_init(void);
 void serial_base_port_exit(void);
+
+void serial_base_port_startup(struct uart_port *port);
+void serial_base_port_shutdown(struct uart_port *port);
 
 int serial_base_driver_register(struct device_driver *driver);
 void serial_base_driver_unregister(struct device_driver *driver);
@@ -45,3 +49,33 @@ void serial_ctrl_unregister_port(struct uart_driver *drv, struct uart_port *port
 
 int serial_core_register_port(struct uart_driver *drv, struct uart_port *port);
 void serial_core_unregister_port(struct uart_driver *drv, struct uart_port *port);
+
+#ifdef CONFIG_SERIAL_CORE_CONSOLE
+
+int serial_base_add_preferred_console(struct uart_driver *drv,
+				      struct uart_port *port);
+
+#else
+
+static inline
+int serial_base_add_preferred_console(struct uart_driver *drv,
+				      struct uart_port *port)
+{
+	return 0;
+}
+
+#endif
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+
+int serial_base_add_isa_preferred_console(const char *name, int idx);
+
+#else
+
+static inline
+int serial_base_add_isa_preferred_console(const char *name, int idx)
+{
+	return 0;
+}
+
+#endif

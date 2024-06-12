@@ -54,18 +54,6 @@ struct etnaviv_chip_identity {
 	/* Number of Neural Network cores. */
 	u32 nn_core_count;
 
-	/* Number of MAD units per Neural Network core. */
-	u32 nn_mad_per_core;
-
-	/* Number of Tensor Processing cores. */
-	u32 tp_core_count;
-
-	/* Size in bytes of the SRAM inside the NPU. */
-	u32 on_chip_sram_size;
-
-	/* Size in bytes of the SRAM across the AXI bus. */
-	u32 axi_sram_size;
-
 	/* Size of the vertex cache. */
 	u32 vertex_cache_size;
 

@@ -623,23 +623,22 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	struct rt6_rtnl_dump_arg arg = {
 		.filter.dump_exceptions = true,
 		.filter.dump_routes = true,
-		.filter.rtnl_held = true,
+		.filter.rtnl_held = false,
 	};
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
-	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
+	struct hlist_head *head;
 	struct fib6_walker *w;
 	struct fib6_table *tb;
-	struct hlist_head *head;
-	int res = 0;
+	unsigned int h, s_h;
+	int err = 0;
 
+	rcu_read_lock();
 	if (cb->strict_check) {
-		int err;
-
 		err = ip_valid_fib_dump_req(net, nlh, &arg.filter, cb);
 		if (err < 0)
-			return err;
+			goto unlock;
 	} else if (nlmsg_len(nlh) >= sizeof(struct rtmsg)) {
 		struct rtmsg *rtm = nlmsg_data(nlh);
 
@@ -651,19 +650,21 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!w) {
 		/* New dump:
 		 *
-		 * 1. hook callback destructor.
+		 * 1. allocate and initialize walker.
+		 */
+		w = kzalloc(sizeof(*w), GFP_ATOMIC);
+		if (!w) {
+			err = -ENOMEM;
+			goto unlock;
+		}
+		w->func = fib6_dump_node;
+		cb->args[2] = (long)w;
+
+		/* 2. hook callback destructor.
 		 */
 		cb->args[3] = (long)cb->done;
 		cb->done = fib6_dump_done;
 
-		/*
-		 * 2. allocate and initialize walker.
-		 */
-		w = kzalloc(sizeof(*w), GFP_ATOMIC);
-		if (!w)
-			return -ENOMEM;
-		w->func = fib6_dump_node;
-		cb->args[2] = (long)w;
 	}
 
 	arg.skb = skb;
@@ -675,46 +676,46 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 		tb = fib6_get_table(net, arg.filter.table_id);
 		if (!tb) {
 			if (rtnl_msg_family(cb->nlh) != PF_INET6)
-				goto out;
+				goto unlock;
 
 			NL_SET_ERR_MSG_MOD(cb->extack, "FIB table does not exist");
-			return -ENOENT;
+			err = -ENOENT;
+			goto unlock;
 		}
 
 		if (!cb->args[0]) {
-			res = fib6_dump_table(tb, skb, cb);
-			if (!res)
+			err = fib6_dump_table(tb, skb, cb);
+			if (!err)
 				cb->args[0] = 1;
 		}
-		goto out;
+		goto unlock;
 	}
 
 	s_h = cb->args[0];
 	s_e = cb->args[1];
 
-	rcu_read_lock();
 	for (h = s_h; h < FIB6_TABLE_HASHSZ; h++, s_e = 0) {
 		e = 0;
 		head = &net->ipv6.fib_table_hash[h];
 		hlist_for_each_entry_rcu(tb, head, tb6_hlist) {
 			if (e < s_e)
 				goto next;
-			res = fib6_dump_table(tb, skb, cb);
-			if (res != 0)
-				goto out_unlock;
+			err = fib6_dump_table(tb, skb, cb);
+			if (err != 0)
+				goto out;
 next:
 			e++;
 		}
 	}
-out_unlock:
-	rcu_read_unlock();
+out:
 	cb->args[1] = e;
 	cb->args[0] = h;
-out:
-	res = res < 0 ? res : skb->len;
-	if (res <= 0)
+
+unlock:
+	rcu_read_unlock();
+	if (err <= 0)
 		fib6_dump_end(cb);
-	return res;
+	return err;
 }
 
 void fib6_metric_set(struct fib6_info *f6i, int metric, u32 val)
@@ -1385,7 +1386,10 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 	     struct nl_info *info, struct netlink_ext_ack *extack)
 {
 	struct fib6_table *table = rt->fib6_table;
-	struct fib6_node *fn, *pn = NULL;
+	struct fib6_node *fn;
+#ifdef CONFIG_IPV6_SUBTREES
+	struct fib6_node *pn = NULL;
+#endif
 	int err = -ENOMEM;
 	int allow_create = 1;
 	int replace_required = 0;
@@ -1409,9 +1413,9 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 		goto out;
 	}
 
+#ifdef CONFIG_IPV6_SUBTREES
 	pn = fn;
 
-#ifdef CONFIG_IPV6_SUBTREES
 	if (rt->fib6_src.plen) {
 		struct fib6_node *sn;
 
@@ -2506,7 +2510,7 @@ int __init fib6_init(void)
 		goto out_kmem_cache_create;
 
 	ret = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETROUTE, NULL,
-				   inet6_dump_fib, 0);
+				   inet6_dump_fib, RTNL_FLAG_DUMP_UNLOCKED);
 	if (ret)
 		goto out_unregister_subsys;
 

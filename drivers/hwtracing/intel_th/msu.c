@@ -61,6 +61,7 @@ enum lockout_state {
  * @lo_lock:	lockout state serialization
  * @nr_blocks:	number of blocks (pages) in this window
  * @nr_segs:	number of segments in this window (<= @nr_blocks)
+ * @msc:	pointer to the MSC device
  * @_sgt:	array of block descriptors
  * @sgt:	array of block descriptors
  */
@@ -119,7 +120,6 @@ struct msc_iter {
  * @user_count:		number of users of the buffer
  * @mmap_count:		number of mappings
  * @buf_mutex:		mutex to serialize access to buffer-related bits
-
  * @enabled:		MSC is enabled
  * @wrap:		wrapping is enabled
  * @mode:		MSC operating mode
@@ -755,6 +755,8 @@ unlock:
  * Program storage mode, wrapping, burst length and trace buffer address
  * into a given MSC. Then, enable tracing and set msc::enabled.
  * The latter is serialized on msc::buf_mutex, so make sure to hold it.
+ *
+ * Return:	%0 for success or a negative error code otherwise.
  */
 static int msc_configure(struct msc *msc)
 {
@@ -1291,7 +1293,8 @@ static void msc_buffer_free(struct msc *msc)
 /**
  * msc_buffer_alloc() - allocate a buffer for MSC
  * @msc:	MSC device
- * @size:	allocation size in bytes
+ * @nr_pages:	number of pages for each window
+ * @nr_wins:	number of windows
  *
  * Allocate a storage buffer for MSC, depending on the msc::mode, it will be
  * either done via msc_buffer_contig_alloc() for SINGLE operation mode or
@@ -1370,6 +1373,9 @@ static int msc_buffer_unlocked_free_unless_used(struct msc *msc)
  * @msc:	MSC device
  *
  * This is a locked version of msc_buffer_unlocked_free_unless_used().
+ *
+ * Return:	0 on successful deallocation or if there was no buffer to
+ *		deallocate, -EBUSY if there are active users.
  */
 static int msc_buffer_free_unless_used(struct msc *msc)
 {
@@ -1438,6 +1444,8 @@ struct msc_win_to_user_struct {
  * @data:	callback's private data
  * @src:	source buffer
  * @len:	amount of data to copy from the source buffer
+ *
+ * Return:	>= %0 for success or -errno for error.
  */
 static unsigned long msc_win_to_user(void *data, void *src, size_t len)
 {

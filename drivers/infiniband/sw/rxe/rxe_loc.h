@@ -164,7 +164,8 @@ void rxe_dealloc(struct ib_device *ib_dev);
 
 int rxe_completer(struct rxe_qp *qp);
 int rxe_requester(struct rxe_qp *qp);
-int rxe_responder(struct rxe_qp *qp);
+int rxe_sender(struct rxe_qp *qp);
+int rxe_receiver(struct rxe_qp *qp);
 
 /* rxe_icrc.c */
 int rxe_icrc_init(struct rxe_dev *rxe);

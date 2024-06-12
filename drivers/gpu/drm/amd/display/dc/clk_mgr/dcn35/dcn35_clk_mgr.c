@@ -73,6 +73,14 @@
 #define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_SEL_MASK		0x00000007L
 #define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_DIV_MASK		0x000F0000L
 
+#define regCLK5_0_CLK5_spll_field_8				0x464b
+#define regCLK5_0_CLK5_spll_field_8_BASE_IDX	0
+
+#define CLK5_0_CLK5_spll_field_8__spll_ssc_en__SHIFT	0xd
+#define CLK5_0_CLK5_spll_field_8__spll_ssc_en_MASK		0x00002000L
+
+#define SMU_VER_THRESHOLD 0x5D4A00 //93.74.0
+
 #define REG(reg_name) \
 	(ctx->clk_reg_offsets[reg ## reg_name ## _BASE_IDX] + reg ## reg_name)
 
@@ -244,7 +252,8 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 
 		if (clk_mgr_base->clks.dtbclk_en && !new_clocks->dtbclk_en) {
-			dcn35_smu_set_dtbclk(clk_mgr, false);
+			if (clk_mgr->base.ctx->dc->config.allow_0_dtb_clk)
+				dcn35_smu_set_dtbclk(clk_mgr, false);
 			clk_mgr_base->clks.dtbclk_en = new_clocks->dtbclk_en;
 		}
 		/* check that we're not already in lower */
@@ -409,11 +418,25 @@ static void dcn35_dump_clk_registers(struct clk_state_registers_and_bypass *regs
 {
 }
 
+static bool dcn35_is_spll_ssc_enabled(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct dc_context *ctx = clk_mgr->base.ctx;
+	uint32_t ssc_enable;
+
+	REG_GET(CLK5_0_CLK5_spll_field_8, spll_ssc_en, &ssc_enable);
+
+	return ssc_enable == 1;
+}
+
 static void init_clk_states(struct clk_mgr *clk_mgr)
 {
+	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr);
 	uint32_t ref_dtbclk = clk_mgr->clks.ref_dtbclk_khz;
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 
+	if (clk_mgr_int->smu_ver >= SMU_VER_THRESHOLD)
+		clk_mgr->clks.dtbclk_en = true; // request DTBCLK disable on first commit
 	clk_mgr->clks.ref_dtbclk_khz = ref_dtbclk;	// restore ref_dtbclk
 	clk_mgr->clks.p_state_change_support = true;
 	clk_mgr->clks.prev_p_state_change_support = true;
@@ -423,7 +446,16 @@ static void init_clk_states(struct clk_mgr *clk_mgr)
 
 void dcn35_init_clocks(struct clk_mgr *clk_mgr)
 {
+	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr);
 	init_clk_states(clk_mgr);
+
+	// to adjust dp_dto reference clock if ssc is enable otherwise to apply dprefclk
+	if (dcn35_is_spll_ssc_enabled(clk_mgr))
+		clk_mgr->dp_dto_source_clock_in_khz =
+			dce_adjust_dp_ref_freq_for_ss(clk_mgr_int, clk_mgr->dprefclk_khz);
+	else
+		clk_mgr->dp_dto_source_clock_in_khz = clk_mgr->dprefclk_khz;
+
 }
 static struct clk_bw_params dcn35_bw_params = {
 	.vram_type = Ddr4MemType,
@@ -511,6 +543,28 @@ static struct wm_table lpddr5_wm_table = {
 static DpmClocks_t_dcn35 dummy_clocks;
 
 static struct dcn35_watermarks dummy_wms = { 0 };
+
+static struct dcn35_ss_info_table ss_info_table = {
+	.ss_divider = 1000,
+	.ss_percentage = {0, 0, 375, 375, 375}
+};
+
+static void dcn35_read_ss_info_from_lut(struct clk_mgr_internal *clk_mgr)
+{
+	struct dc_context *ctx = clk_mgr->base.ctx;
+	uint32_t clock_source;
+
+	REG_GET(CLK1_CLK2_BYPASS_CNTL, CLK2_BYPASS_SEL, &clock_source);
+	// If it's DFS mode, clock_source is 0.
+	if (dcn35_is_spll_ssc_enabled(&clk_mgr->base) && (clock_source < ARRAY_SIZE(ss_info_table.ss_percentage))) {
+		clk_mgr->dprefclk_ss_percentage = ss_info_table.ss_percentage[clock_source];
+
+		if (clk_mgr->dprefclk_ss_percentage != 0) {
+			clk_mgr->ss_on_dprefclk = true;
+			clk_mgr->dprefclk_ss_divider = ss_info_table.ss_divider;
+		}
+	}
+}
 
 static void dcn35_build_watermark_ranges(struct clk_bw_params *bw_params, struct dcn35_watermarks *table)
 {
@@ -709,7 +763,7 @@ static void dcn35_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *clk
 		clock_table->NumFclkLevelsEnabled;
 	max_fclk = find_max_clk_value(clock_table->FclkClocks_Freq, num_fclk);
 
-	num_dcfclk = (clock_table->NumFclkLevelsEnabled > NUM_DCFCLK_DPM_LEVELS) ? NUM_DCFCLK_DPM_LEVELS :
+	num_dcfclk = (clock_table->NumDcfClkLevelsEnabled > NUM_DCFCLK_DPM_LEVELS) ? NUM_DCFCLK_DPM_LEVELS :
 		clock_table->NumDcfClkLevelsEnabled;
 	for (i = 0; i < num_dcfclk; i++) {
 		int j;
@@ -836,35 +890,6 @@ static void dcn35_set_low_power_state(struct clk_mgr *clk_mgr_base)
 	}
 }
 
-static void dcn35_set_ips_idle_state(struct clk_mgr *clk_mgr_base, bool allow_idle)
-{
-	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
-	struct dc *dc = clk_mgr_base->ctx->dc;
-	uint32_t val = dcn35_smu_read_ips_scratch(clk_mgr);
-
-	if (dc->config.disable_ips == DMUB_IPS_ENABLE ||
-		dc->config.disable_ips == DMUB_IPS_DISABLE_DYNAMIC) {
-		val = val & ~DMUB_IPS1_ALLOW_MASK;
-		val = val & ~DMUB_IPS2_ALLOW_MASK;
-	} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS1) {
-		val |= DMUB_IPS1_ALLOW_MASK;
-		val |= DMUB_IPS2_ALLOW_MASK;
-	} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2) {
-		val = val & ~DMUB_IPS1_ALLOW_MASK;
-		val |= DMUB_IPS2_ALLOW_MASK;
-	} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2_Z10) {
-		val = val & ~DMUB_IPS1_ALLOW_MASK;
-		val = val & ~DMUB_IPS2_ALLOW_MASK;
-	}
-
-	if (!allow_idle) {
-		val |= DMUB_IPS1_ALLOW_MASK;
-		val |= DMUB_IPS2_ALLOW_MASK;
-	}
-
-	dcn35_smu_write_ips_scratch(clk_mgr, val);
-}
-
 static void dcn35_exit_low_power_state(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
@@ -882,13 +907,6 @@ static bool dcn35_is_ips_supported(struct clk_mgr *clk_mgr_base)
 	ips_supported = dcn35_smu_get_ips_supported(clk_mgr) ? true : false;
 
 	return ips_supported;
-}
-
-static uint32_t dcn35_get_ips_idle_state(struct clk_mgr *clk_mgr_base)
-{
-	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
-
-	return dcn35_smu_read_ips_scratch(clk_mgr);
 }
 
 static void dcn35_init_clocks_fpga(struct clk_mgr *clk_mgr)
@@ -978,8 +996,6 @@ static struct clk_mgr_funcs dcn35_funcs = {
 	.set_low_power_state = dcn35_set_low_power_state,
 	.exit_low_power_state = dcn35_exit_low_power_state,
 	.is_ips_supported = dcn35_is_ips_supported,
-	.set_idle_state = dcn35_set_ips_idle_state,
-	.get_idle_state = dcn35_get_ips_idle_state
 };
 
 struct clk_mgr_funcs dcn35_fpga_funcs = {
@@ -1055,6 +1071,8 @@ void dcn35_clk_mgr_construct(
 
 	dce_clock_read_ss_info(&clk_mgr->base);
 	/*when clk src is from FCH, it could have ss, same clock src as DPREF clk*/
+
+	dcn35_read_ss_info_from_lut(&clk_mgr->base);
 
 	clk_mgr->base.base.bw_params = &dcn35_bw_params;
 

@@ -108,8 +108,8 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 
-int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
-				struct v4l2_subdev *sd)
+int __v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
+				  struct v4l2_subdev *sd, struct module *module)
 {
 	int err;
 
@@ -125,9 +125,9 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	 * try_module_get() such sub-device owners.
 	 */
 	sd->owner_v4l2_dev = v4l2_dev->dev && v4l2_dev->dev->driver &&
-		sd->owner == v4l2_dev->dev->driver->owner;
+		module == v4l2_dev->dev->driver->owner;
 
-	if (!sd->owner_v4l2_dev && !try_module_get(sd->owner))
+	if (!sd->owner_v4l2_dev && !try_module_get(module))
 		return -ENODEV;
 
 	sd->v4l2_dev = v4l2_dev;
@@ -152,6 +152,8 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 			goto error_unregister;
 	}
 
+	sd->owner = module;
+
 	spin_lock(&v4l2_dev->lock);
 	list_add_tail(&sd->list, &v4l2_dev->subdevs);
 	spin_unlock(&v4l2_dev->lock);
@@ -168,7 +170,7 @@ error_module:
 	sd->v4l2_dev = NULL;
 	return err;
 }
-EXPORT_SYMBOL_GPL(v4l2_device_register_subdev);
+EXPORT_SYMBOL_GPL(__v4l2_device_register_subdev);
 
 static void v4l2_subdev_release(struct v4l2_subdev *sd)
 {

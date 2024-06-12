@@ -4902,7 +4902,7 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	 * because the actual alloc size is
 	 * only updated as part of load
 	 */
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	if (!bnx2x_mtu_allows_gro(new_mtu))
 		dev->features &= ~NETIF_F_GRO_HW;

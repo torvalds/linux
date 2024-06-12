@@ -1847,6 +1847,18 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_toggle_tx_ant(mvm, &mvm_sta->tx_ant);
 
+	/* MPDUs are counted only when EMLSR is possible */
+	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
+	    !sta->tdls && ieee80211_vif_is_mld(vif)) {
+		mvm_sta->mpdu_counters =
+			kcalloc(mvm->trans->num_rx_queues,
+				sizeof(*mvm_sta->mpdu_counters),
+				GFP_KERNEL);
+		if (mvm_sta->mpdu_counters)
+			for (int q = 0; q < mvm->trans->num_rx_queues; q++)
+				spin_lock_init(&mvm_sta->mpdu_counters[q].lock);
+	}
+
 	return 0;
 }
 
@@ -4391,4 +4403,78 @@ void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
 				   &cancel_channel_switch_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to cancel the channel switch\n");
+}
+
+static int iwl_mvm_fw_sta_id_to_fw_link_id(struct iwl_mvm_vif *mvmvif,
+					   u8 fw_sta_id)
+{
+	struct ieee80211_link_sta *link_sta =
+		rcu_dereference(mvmvif->mvm->fw_id_to_link_sta[fw_sta_id]);
+	struct iwl_mvm_vif_link_info *link;
+
+	if (WARN_ON_ONCE(!link_sta))
+		return -EINVAL;
+
+	link = mvmvif->link[link_sta->link_id];
+
+	if (WARN_ON_ONCE(!link))
+		return -EINVAL;
+
+	return link->fw_link_id;
+}
+
+#define IWL_MVM_TPT_COUNT_WINDOW (IWL_MVM_TPT_COUNT_WINDOW_SEC * HZ)
+
+void iwl_mvm_count_mpdu(struct iwl_mvm_sta *mvm_sta, u8 fw_sta_id, u32 count,
+			bool tx, int queue)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvm_sta->vif);
+	struct iwl_mvm_tpt_counter *queue_counter;
+	struct iwl_mvm_mpdu_counter *link_counter;
+	u32 total_mpdus = 0;
+	int fw_link_id;
+
+	/* Count only for a BSS sta, and only when EMLSR is possible */
+	if (!mvm_sta->mpdu_counters)
+		return;
+
+	/* Map sta id to link id */
+	fw_link_id = iwl_mvm_fw_sta_id_to_fw_link_id(mvmvif, fw_sta_id);
+	if (fw_link_id < 0)
+		return;
+
+	queue_counter = &mvm_sta->mpdu_counters[queue];
+	link_counter = &queue_counter->per_link[fw_link_id];
+
+	spin_lock_bh(&queue_counter->lock);
+
+	if (tx)
+		link_counter->tx += count;
+	else
+		link_counter->rx += count;
+
+	/*
+	 * When not in EMLSR, the window and the decision to enter EMLSR are
+	 * handled during counting, when in EMLSR - in the statistics flow
+	 */
+	if (mvmvif->esr_active)
+		goto out;
+
+	if (time_is_before_jiffies(queue_counter->window_start +
+					IWL_MVM_TPT_COUNT_WINDOW)) {
+		memset(queue_counter->per_link, 0,
+		       sizeof(queue_counter->per_link));
+		queue_counter->window_start = jiffies;
+	}
+
+	for (int i = 0; i < IWL_MVM_FW_MAX_LINK_ID; i++)
+		total_mpdus += tx ? queue_counter->per_link[i].tx :
+				    queue_counter->per_link[i].rx;
+
+	if (total_mpdus > IWL_MVM_ENTER_ESR_TPT_THRESH)
+		wiphy_work_queue(mvmvif->mvm->hw->wiphy,
+				 &mvmvif->unblock_esr_tpt_wk);
+
+out:
+	spin_unlock_bh(&queue_counter->lock);
 }

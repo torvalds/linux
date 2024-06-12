@@ -81,8 +81,6 @@ static inline bool should_compact_bset_lazy(struct btree *b,
 
 static inline bool bch2_maybe_compact_whiteouts(struct bch_fs *c, struct btree *b)
 {
-	struct bset_tree *t;
-
 	for_each_bset(b, t)
 		if (should_compact_bset_lazy(b, t))
 			return bch2_compact_whiteouts(c, b, COMPACT_LAZY);

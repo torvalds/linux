@@ -268,7 +268,7 @@ static void inode_prop_iterator(void *ctx,
 		btrfs_warn(root->fs_info,
 			   "error applying prop %s to ino %llu (root %llu): %d",
 			   handler->xattr_name, btrfs_ino(BTRFS_I(inode)),
-			   root->root_key.objectid, ret);
+			   btrfs_root_id(root), ret);
 	else
 		set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
 }

@@ -122,6 +122,8 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 
 #define MAX_UMC_POISON_POLLING_TIME_ASYNC  100  //ms
 
+#define AMDGPU_RAS_RETIRE_PAGE_INTERVAL 100  //ms
+
 enum amdgpu_ras_retire_page_reservation {
 	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 	AMDGPU_RAS_RETIRE_PAGE_PENDING,
@@ -1045,6 +1047,7 @@ static void amdgpu_ras_get_ecc_info(struct amdgpu_device *adev, struct ras_err_d
 static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 					      struct ras_manager *ras_mgr,
 					      struct ras_err_data *err_data,
+					      struct ras_query_context *qctx,
 					      const char *blk_name,
 					      bool is_ue,
 					      bool is_de)
@@ -1052,27 +1055,28 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 	struct amdgpu_smuio_mcm_config_info *mcm_info;
 	struct ras_err_node *err_node;
 	struct ras_err_info *err_info;
+	u64 event_id = qctx->event_id;
 
 	if (is_ue) {
 		for_each_ras_error(err_node, err_data) {
 			err_info = &err_node->err_info;
 			mcm_info = &err_info->mcm_info;
 			if (err_info->ue_count) {
-				dev_info(adev->dev, "socket: %d, die: %d, "
-					 "%lld new uncorrectable hardware errors detected in %s block\n",
-					 mcm_info->socket_id,
-					 mcm_info->die_id,
-					 err_info->ue_count,
-					 blk_name);
+				RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d, "
+					      "%lld new uncorrectable hardware errors detected in %s block\n",
+					      mcm_info->socket_id,
+					      mcm_info->die_id,
+					      err_info->ue_count,
+					      blk_name);
 			}
 		}
 
 		for_each_ras_error(err_node, &ras_mgr->err_data) {
 			err_info = &err_node->err_info;
 			mcm_info = &err_info->mcm_info;
-			dev_info(adev->dev, "socket: %d, die: %d, "
-				 "%lld uncorrectable hardware errors detected in total in %s block\n",
-				 mcm_info->socket_id, mcm_info->die_id, err_info->ue_count, blk_name);
+			RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d, "
+				      "%lld uncorrectable hardware errors detected in total in %s block\n",
+				      mcm_info->socket_id, mcm_info->die_id, err_info->ue_count, blk_name);
 		}
 
 	} else {
@@ -1081,44 +1085,44 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 				err_info = &err_node->err_info;
 				mcm_info = &err_info->mcm_info;
 				if (err_info->de_count) {
-					dev_info(adev->dev, "socket: %d, die: %d, "
-						"%lld new deferred hardware errors detected in %s block\n",
-						mcm_info->socket_id,
-						mcm_info->die_id,
-						err_info->de_count,
-						blk_name);
+					RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d, "
+						      "%lld new deferred hardware errors detected in %s block\n",
+						      mcm_info->socket_id,
+						      mcm_info->die_id,
+						      err_info->de_count,
+						      blk_name);
 				}
 			}
 
 			for_each_ras_error(err_node, &ras_mgr->err_data) {
 				err_info = &err_node->err_info;
 				mcm_info = &err_info->mcm_info;
-				dev_info(adev->dev, "socket: %d, die: %d, "
-					"%lld deferred hardware errors detected in total in %s block\n",
-					mcm_info->socket_id, mcm_info->die_id,
-					err_info->de_count, blk_name);
+				RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d, "
+					      "%lld deferred hardware errors detected in total in %s block\n",
+					      mcm_info->socket_id, mcm_info->die_id,
+					      err_info->de_count, blk_name);
 			}
 		} else {
 			for_each_ras_error(err_node, err_data) {
 				err_info = &err_node->err_info;
 				mcm_info = &err_info->mcm_info;
 				if (err_info->ce_count) {
-					dev_info(adev->dev, "socket: %d, die: %d, "
-						"%lld new correctable hardware errors detected in %s block\n",
-						mcm_info->socket_id,
-						mcm_info->die_id,
-						err_info->ce_count,
-						blk_name);
+					RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d, "
+						      "%lld new correctable hardware errors detected in %s block\n",
+						      mcm_info->socket_id,
+						      mcm_info->die_id,
+						      err_info->ce_count,
+						      blk_name);
 				}
 			}
 
 			for_each_ras_error(err_node, &ras_mgr->err_data) {
 				err_info = &err_node->err_info;
 				mcm_info = &err_info->mcm_info;
-				dev_info(adev->dev, "socket: %d, die: %d, "
-					"%lld correctable hardware errors detected in total in %s block\n",
-					mcm_info->socket_id, mcm_info->die_id,
-					err_info->ce_count, blk_name);
+				RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d, "
+					      "%lld correctable hardware errors detected in total in %s block\n",
+					      mcm_info->socket_id, mcm_info->die_id,
+					      err_info->ce_count, blk_name);
 			}
 		}
 	}
@@ -1131,77 +1135,79 @@ static inline bool err_data_has_source_info(struct ras_err_data *data)
 
 static void amdgpu_ras_error_generate_report(struct amdgpu_device *adev,
 					     struct ras_query_if *query_if,
-					     struct ras_err_data *err_data)
+					     struct ras_err_data *err_data,
+					     struct ras_query_context *qctx)
 {
 	struct ras_manager *ras_mgr = amdgpu_ras_find_obj(adev, &query_if->head);
 	const char *blk_name = get_ras_block_str(&query_if->head);
+	u64 event_id = qctx->event_id;
 
 	if (err_data->ce_count) {
 		if (err_data_has_source_info(err_data)) {
-			amdgpu_ras_error_print_error_data(adev, ras_mgr, err_data,
+			amdgpu_ras_error_print_error_data(adev, ras_mgr, err_data, qctx,
 							  blk_name, false, false);
 		} else if (!adev->aid_mask &&
 			   adev->smuio.funcs &&
 			   adev->smuio.funcs->get_socket_id &&
 			   adev->smuio.funcs->get_die_id) {
-			dev_info(adev->dev, "socket: %d, die: %d "
-				 "%ld correctable hardware errors "
-				 "detected in %s block\n",
-				 adev->smuio.funcs->get_socket_id(adev),
-				 adev->smuio.funcs->get_die_id(adev),
-				 ras_mgr->err_data.ce_count,
-				 blk_name);
+			RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d "
+				      "%ld correctable hardware errors "
+				      "detected in %s block\n",
+				      adev->smuio.funcs->get_socket_id(adev),
+				      adev->smuio.funcs->get_die_id(adev),
+				      ras_mgr->err_data.ce_count,
+				      blk_name);
 		} else {
-			dev_info(adev->dev, "%ld correctable hardware errors "
-				 "detected in %s block\n",
-				 ras_mgr->err_data.ce_count,
-				 blk_name);
+			RAS_EVENT_LOG(adev, event_id, "%ld correctable hardware errors "
+				      "detected in %s block\n",
+				      ras_mgr->err_data.ce_count,
+				      blk_name);
 		}
 	}
 
 	if (err_data->ue_count) {
 		if (err_data_has_source_info(err_data)) {
-			amdgpu_ras_error_print_error_data(adev, ras_mgr, err_data,
+			amdgpu_ras_error_print_error_data(adev, ras_mgr, err_data, qctx,
 							  blk_name, true, false);
 		} else if (!adev->aid_mask &&
 			   adev->smuio.funcs &&
 			   adev->smuio.funcs->get_socket_id &&
 			   adev->smuio.funcs->get_die_id) {
-			dev_info(adev->dev, "socket: %d, die: %d "
-				 "%ld uncorrectable hardware errors "
-				 "detected in %s block\n",
-				 adev->smuio.funcs->get_socket_id(adev),
-				 adev->smuio.funcs->get_die_id(adev),
-				 ras_mgr->err_data.ue_count,
-				 blk_name);
+			RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d "
+				      "%ld uncorrectable hardware errors "
+				      "detected in %s block\n",
+				      adev->smuio.funcs->get_socket_id(adev),
+				      adev->smuio.funcs->get_die_id(adev),
+				      ras_mgr->err_data.ue_count,
+				      blk_name);
 		} else {
-			dev_info(adev->dev, "%ld uncorrectable hardware errors "
-				 "detected in %s block\n",
-				 ras_mgr->err_data.ue_count,
-				 blk_name);
+			RAS_EVENT_LOG(adev, event_id, "%ld uncorrectable hardware errors "
+				      "detected in %s block\n",
+				      ras_mgr->err_data.ue_count,
+				      blk_name);
 		}
 	}
 
 	if (err_data->de_count) {
 		if (err_data_has_source_info(err_data)) {
-			amdgpu_ras_error_print_error_data(adev, ras_mgr, err_data,
+			amdgpu_ras_error_print_error_data(adev, ras_mgr, err_data, qctx,
 							  blk_name, false, true);
 		} else if (!adev->aid_mask &&
 			   adev->smuio.funcs &&
 			   adev->smuio.funcs->get_socket_id &&
 			   adev->smuio.funcs->get_die_id) {
-			dev_info(adev->dev, "socket: %d, die: %d "
-				 "%ld deferred hardware errors "
-				 "detected in %s block\n",
-				 adev->smuio.funcs->get_socket_id(adev),
-				 adev->smuio.funcs->get_die_id(adev),
-				 ras_mgr->err_data.de_count,
-				 blk_name);
+			RAS_EVENT_LOG(adev, event_id, "socket: %d, die: %d "
+				      "%ld deferred hardware errors "
+				      "detected in %s block\n",
+				      adev->smuio.funcs->get_socket_id(adev),
+				      adev->smuio.funcs->get_die_id(adev),
+				      ras_mgr->err_data.de_count,
+				      blk_name);
 		} else {
-			dev_info(adev->dev, "%ld deferred hardware errors "
-				 "detected in %s block\n",
-				 ras_mgr->err_data.de_count,
-				 blk_name);
+			RAS_EVENT_LOG(adev, event_id, "%ld deferred hardware errors "
+				      "detected in %s block\n",
+				      ras_mgr->err_data.de_count,
+				      blk_name);
 		}
 	}
 }
@@ -1244,6 +1250,10 @@ int amdgpu_ras_bind_aca(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
 {
 	struct ras_manager *obj;
 
+	/* in resume phase, no need to create aca fs node */
+	if (adev->in_suspend || amdgpu_in_reset(adev))
+		return 0;
+
 	obj = get_ras_manager(adev, blk);
 	if (!obj)
 		return -EINVAL;
@@ -1265,7 +1275,8 @@ int amdgpu_ras_unbind_aca(struct amdgpu_device *adev, enum amdgpu_ras_block blk)
 }
 
 static int amdgpu_aca_log_ras_error_data(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
-					 enum aca_error_type type, struct ras_err_data *err_data)
+					 enum aca_error_type type, struct ras_err_data *err_data,
+					 struct ras_query_context *qctx)
 {
 	struct ras_manager *obj;
 
@@ -1273,7 +1284,7 @@ static int amdgpu_aca_log_ras_error_data(struct amdgpu_device *adev, enum amdgpu
 	if (!obj)
 		return -EINVAL;
 
-	return amdgpu_aca_get_error_data(adev, &obj->aca_handle, type, err_data);
+	return amdgpu_aca_get_error_data(adev, &obj->aca_handle, type, err_data, qctx);
 }
 
 ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *attr,
@@ -1287,13 +1298,14 @@ ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *a
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
 
-	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
-			  "ce", info.ce_count);
+	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n%s: %lu\n", "ue", info.ue_count,
+			  "ce", info.ce_count, "de", info.ue_count);
 }
 
 static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 						struct ras_query_if *info,
 						struct ras_err_data *err_data,
+						struct ras_query_context *qctx,
 						unsigned int error_query_mode)
 {
 	enum amdgpu_ras_block blk = info ? info->head.block : AMDGPU_RAS_BLOCK_COUNT;
@@ -1329,17 +1341,21 @@ static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 		}
 	} else {
 		if (amdgpu_aca_is_enabled(adev)) {
-			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_UE, err_data);
+			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_UE, err_data, qctx);
 			if (ret)
 				return ret;
 
-			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_CE, err_data);
+			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_CE, err_data, qctx);
+			if (ret)
+				return ret;
+
+			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_DEFERRED, err_data, qctx);
 			if (ret)
 				return ret;
 		} else {
 			/* FIXME: add code to check return value later */
-			amdgpu_mca_smu_log_ras_error(adev, blk, AMDGPU_MCA_ERROR_TYPE_UE, err_data);
-			amdgpu_mca_smu_log_ras_error(adev, blk, AMDGPU_MCA_ERROR_TYPE_CE, err_data);
+			amdgpu_mca_smu_log_ras_error(adev, blk, AMDGPU_MCA_ERROR_TYPE_UE, err_data, qctx);
+			amdgpu_mca_smu_log_ras_error(adev, blk, AMDGPU_MCA_ERROR_TYPE_CE, err_data, qctx);
 		}
 	}
 
@@ -1351,6 +1367,7 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev, struct ras_query_i
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &info->head);
 	struct ras_err_data err_data;
+	struct ras_query_context qctx;
 	unsigned int error_query_mode;
 	int ret;
 
@@ -1364,8 +1381,12 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev, struct ras_query_i
 	if (!amdgpu_ras_get_error_query_mode(adev, &error_query_mode))
 		return -EINVAL;
 
+	memset(&qctx, 0, sizeof(qctx));
+	qctx.event_id = amdgpu_ras_acquire_event_id(adev, amdgpu_ras_intr_triggered() ?
+						   RAS_EVENT_TYPE_ISR : RAS_EVENT_TYPE_INVALID);
 	ret = amdgpu_ras_query_error_status_helper(adev, info,
 						   &err_data,
+						   &qctx,
 						   error_query_mode);
 	if (ret)
 		goto out_fini_err_data;
@@ -1376,7 +1397,7 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev, struct ras_query_i
 	info->ce_count = obj->err_data.ce_count;
 	info->de_count = obj->err_data.de_count;
 
-	amdgpu_ras_error_generate_report(adev, info, &err_data);
+	amdgpu_ras_error_generate_report(adev, info, &err_data, &qctx);
 
 out_fini_err_data:
 	amdgpu_ras_error_data_fini(&err_data);
@@ -2041,7 +2062,7 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 		}
 	}
 
-	amdgpu_umc_poison_handler(adev, obj->head.block, false);
+	amdgpu_umc_poison_handler(adev, obj->head.block, 0);
 
 	if (block_obj->hw_ops && block_obj->hw_ops->handle_poison_consumption)
 		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
@@ -2061,6 +2082,17 @@ static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj
 {
 	dev_info(obj->adev->dev,
 		"Poison is created\n");
+
+	if (amdgpu_ip_version(obj->adev, UMC_HWIP, 0) >= IP_VERSION(12, 0, 0)) {
+		struct amdgpu_ras *con = amdgpu_ras_get_context(obj->adev);
+
+		amdgpu_ras_put_poison_req(obj->adev,
+			AMDGPU_RAS_BLOCK__UMC, 0, NULL, NULL, false);
+
+		atomic_inc(&con->page_retirement_req_cnt);
+
+		wake_up(&con->page_retirement_wq);
+	}
 }
 
 static void amdgpu_ras_interrupt_umc_handler(struct ras_manager *obj,
@@ -2371,7 +2403,7 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 		};
 		status = amdgpu_vram_mgr_query_page_status(&adev->mman.vram_mgr,
-				data->bps[i].retired_page);
+				data->bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT);
 		if (status == -EBUSY)
 			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
 		else if (status == -ENOENT)
@@ -2384,6 +2416,19 @@ out:
 	return ret;
 }
 
+static void amdgpu_ras_set_fed_all(struct amdgpu_device *adev,
+				   struct amdgpu_hive_info *hive, bool status)
+{
+	struct amdgpu_device *tmp_adev;
+
+	if (hive) {
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head)
+			amdgpu_ras_set_fed(tmp_adev, status);
+	} else {
+		amdgpu_ras_set_fed(adev, status);
+	}
+}
+
 static void amdgpu_ras_do_recovery(struct work_struct *work)
 {
 	struct amdgpu_ras *ras =
@@ -2393,8 +2438,21 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	struct list_head device_list, *device_list_handle =  NULL;
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
 
-	if (hive)
+	if (hive) {
 		atomic_set(&hive->ras_recovery, 1);
+
+		/* If any device which is part of the hive received RAS fatal
+		 * error interrupt, set fatal error status on all. This
+		 * condition will need a recovery, and flag will be cleared
+		 * as part of recovery.
+		 */
+		list_for_each_entry(remote_adev, &hive->device_list,
+				    gmc.xgmi.head)
+			if (amdgpu_ras_get_fed_status(remote_adev)) {
+				amdgpu_ras_set_fed_all(adev, hive, true);
+				break;
+			}
+	}
 	if (!ras->disable_ras_err_cnt_harvest) {
 
 		/* Build list of devices to query RAS related errors */
@@ -2439,18 +2497,6 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 				ras->gpu_reset_flags &= ~AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 				set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 
-				/* For any RAS error that needs a full reset to
-				 * recover, set the fatal error status
-				 */
-				if (hive) {
-					list_for_each_entry(remote_adev,
-							    &hive->device_list,
-							    gmc.xgmi.head)
-						amdgpu_ras_set_fed(remote_adev,
-								   true);
-				} else {
-					amdgpu_ras_set_fed(adev, true);
-				}
 				psp_fatal_error_recovery_quirk(&adev->psp);
 			}
 		}
@@ -2516,9 +2562,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 			goto out;
 		}
 
-		amdgpu_vram_mgr_reserve_range(&adev->mman.vram_mgr,
-			bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT,
-			AMDGPU_GPU_PAGE_SIZE);
+		amdgpu_ras_reserve_page(adev, bps[i].retired_page);
 
 		memcpy(&data->bps[data->count], &bps[i], sizeof(*data->bps));
 		data->count++;
@@ -2674,10 +2718,167 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 	}
 }
 
+int amdgpu_ras_put_poison_req(struct amdgpu_device *adev,
+		enum amdgpu_ras_block block, uint16_t pasid,
+		pasid_notify pasid_fn, void *data, uint32_t reset)
+{
+	int ret = 0;
+	struct ras_poison_msg poison_msg;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	memset(&poison_msg, 0, sizeof(poison_msg));
+	poison_msg.block = block;
+	poison_msg.pasid = pasid;
+	poison_msg.reset = reset;
+	poison_msg.pasid_fn = pasid_fn;
+	poison_msg.data = data;
+
+	ret = kfifo_put(&con->poison_fifo, poison_msg);
+	if (!ret) {
+		dev_err(adev->dev, "Poison message fifo is full!\n");
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
+static int amdgpu_ras_get_poison_req(struct amdgpu_device *adev,
+		struct ras_poison_msg *poison_msg)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	return kfifo_get(&con->poison_fifo, poison_msg);
+}
+
+static void amdgpu_ras_ecc_log_init(struct ras_ecc_log_info *ecc_log)
+{
+	mutex_init(&ecc_log->lock);
+
+	/* Set any value as siphash key */
+	memset(&ecc_log->ecc_key, 0xad, sizeof(ecc_log->ecc_key));
+
+	INIT_RADIX_TREE(&ecc_log->de_page_tree, GFP_KERNEL);
+	ecc_log->de_updated = false;
+}
+
+static void amdgpu_ras_ecc_log_fini(struct ras_ecc_log_info *ecc_log)
+{
+	struct radix_tree_iter iter;
+	void __rcu **slot;
+	struct ras_ecc_err *ecc_err;
+
+	mutex_lock(&ecc_log->lock);
+	radix_tree_for_each_slot(slot, &ecc_log->de_page_tree, &iter, 0) {
+		ecc_err = radix_tree_deref_slot(slot);
+		kfree(ecc_err->err_pages.pfn);
+		kfree(ecc_err);
+		radix_tree_iter_delete(&ecc_log->de_page_tree, &iter, slot);
+	}
+	mutex_unlock(&ecc_log->lock);
+
+	mutex_destroy(&ecc_log->lock);
+	ecc_log->de_updated = false;
+}
+
+static void amdgpu_ras_do_page_retirement(struct work_struct *work)
+{
+	struct amdgpu_ras *con = container_of(work, struct amdgpu_ras,
+					      page_retirement_dwork.work);
+	struct amdgpu_device *adev = con->adev;
+	struct ras_err_data err_data;
+
+	if (amdgpu_in_reset(adev) || atomic_read(&con->in_recovery))
+		return;
+
+	amdgpu_ras_error_data_init(&err_data);
+
+	amdgpu_umc_handle_bad_pages(adev, &err_data);
+
+	amdgpu_ras_error_data_fini(&err_data);
+
+	mutex_lock(&con->umc_ecc_log.lock);
+	if (radix_tree_tagged(&con->umc_ecc_log.de_page_tree,
+				UMC_ECC_NEW_DETECTED_TAG))
+		schedule_delayed_work(&con->page_retirement_dwork,
+			msecs_to_jiffies(AMDGPU_RAS_RETIRE_PAGE_INTERVAL));
+	mutex_unlock(&con->umc_ecc_log.lock);
+}
+
+static int amdgpu_ras_query_ecc_status(struct amdgpu_device *adev,
+			enum amdgpu_ras_block ras_block, uint32_t timeout_ms)
+{
+	int ret = 0;
+	struct ras_ecc_log_info *ecc_log;
+	struct ras_query_if info;
+	uint32_t timeout = timeout_ms;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	memset(&info, 0, sizeof(info));
+	info.head.block = ras_block;
+
+	ecc_log = &ras->umc_ecc_log;
+	ecc_log->de_updated = false;
+	do {
+		ret = amdgpu_ras_query_error_status(adev, &info);
+		if (ret) {
+			dev_err(adev->dev, "Failed to query ras error! ret:%d\n", ret);
+			return ret;
+		}
+
+		if (timeout && !ecc_log->de_updated) {
+			msleep(1);
+			timeout--;
+		}
+	} while (timeout && !ecc_log->de_updated);
+
+	if (timeout_ms && !timeout) {
+		dev_warn(adev->dev, "Can't find deferred error\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static void amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
+					uint32_t timeout)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	int ret;
+
+	ret = amdgpu_ras_query_ecc_status(adev, AMDGPU_RAS_BLOCK__UMC, timeout);
+	if (!ret)
+		schedule_delayed_work(&con->page_retirement_dwork, 0);
+}
+
+static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
+			struct ras_poison_msg *poison_msg)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint32_t reset = poison_msg->reset;
+	uint16_t pasid = poison_msg->pasid;
+
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+
+	if (poison_msg->pasid_fn)
+		poison_msg->pasid_fn(adev, pasid, poison_msg->data);
+
+	if (reset) {
+		flush_delayed_work(&con->page_retirement_dwork);
+
+		con->gpu_reset_flags |= reset;
+		amdgpu_ras_reset_gpu(adev);
+	}
+
+	return 0;
+}
+
 static int amdgpu_ras_page_retirement_thread(void *param)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)param;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_poison_msg poison_msg;
+	enum amdgpu_ras_block ras_block;
+	bool poison_creation_is_handled = false;
 
 	while (!kthread_should_stop()) {
 
@@ -2688,13 +2889,34 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 		if (kthread_should_stop())
 			break;
 
-		dev_info(adev->dev, "Start processing page retirement. request:%d\n",
-			atomic_read(&con->page_retirement_req_cnt));
-
 		atomic_dec(&con->page_retirement_req_cnt);
 
-		amdgpu_umc_bad_page_polling_timeout(adev,
-				false, MAX_UMC_POISON_POLLING_TIME_ASYNC);
+		if (!amdgpu_ras_get_poison_req(adev, &poison_msg))
+			continue;
+
+		ras_block = poison_msg.block;
+
+		dev_info(adev->dev, "Start processing ras block %s(%d)\n",
+				ras_block_str(ras_block), ras_block);
+
+		if (ras_block == AMDGPU_RAS_BLOCK__UMC) {
+			amdgpu_ras_poison_creation_handler(adev,
+				MAX_UMC_POISON_POLLING_TIME_ASYNC);
+			poison_creation_is_handled = true;
+		} else {
+			/* poison_creation_is_handled:
+			 *   false: no poison creation interrupt, but it has poison
+			 *          consumption interrupt.
+			 *   true: It has poison creation interrupt at the beginning,
+			 *         but it has no poison creation interrupt later.
+			 */
+			amdgpu_ras_poison_creation_handler(adev,
+					poison_creation_is_handled ?
+					0 : MAX_UMC_POISON_POLLING_TIME_ASYNC);
+
+			amdgpu_ras_poison_consumption_handler(adev, &poison_msg);
+			poison_creation_is_handled = false;
+		}
 	}
 
 	return 0;
@@ -2763,6 +2985,8 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 		}
 	}
 
+	mutex_init(&con->page_rsv_lock);
+	INIT_KFIFO(con->poison_fifo);
 	mutex_init(&con->page_retirement_lock);
 	init_waitqueue_head(&con->page_retirement_wq);
 	atomic_set(&con->page_retirement_req_cnt, 0);
@@ -2773,6 +2997,8 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "Failed to create umc_page_retirement thread!!!\n");
 	}
 
+	INIT_DELAYED_WORK(&con->page_retirement_dwork, amdgpu_ras_do_page_retirement);
+	amdgpu_ras_ecc_log_init(&con->umc_ecc_log);
 #ifdef CONFIG_X86_MCE_AMD
 	if ((adev->asic_type == CHIP_ALDEBARAN) &&
 	    (adev->gmc.xgmi.connected_to_cpu))
@@ -2813,7 +3039,13 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 
 	atomic_set(&con->page_retirement_req_cnt, 0);
 
+	mutex_destroy(&con->page_rsv_lock);
+
 	cancel_work_sync(&con->recovery_work);
+
+	cancel_delayed_work_sync(&con->page_retirement_dwork);
+
+	amdgpu_ras_ecc_log_fini(&con->umc_ecc_log);
 
 	mutex_lock(&con->recovery_lock);
 	con->eh_data = NULL;
@@ -3034,6 +3266,35 @@ static int amdgpu_get_ras_schema(struct amdgpu_device *adev)
 			AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE |
 			AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE |
 			AMDGPU_RAS_ERROR__PARITY;
+}
+
+static void ras_event_mgr_init(struct ras_event_manager *mgr)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mgr->seqnos); i++)
+		atomic64_set(&mgr->seqnos[i], 0);
+}
+
+static void amdgpu_ras_event_mgr_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	struct amdgpu_hive_info *hive;
+
+	if (!ras)
+		return;
+
+	hive = amdgpu_get_xgmi_hive(adev);
+	ras->event_mgr = hive ? &hive->event_mgr : &ras->__event_mgr;
+
+	/* init event manager with node 0 on xgmi system */
+	if (!amdgpu_in_reset(adev)) {
+		if (!hive || adev->gmc.xgmi.node_id == 0)
+			ras_event_mgr_init(ras->event_mgr);
+	}
+
+	if (hive)
+		amdgpu_put_xgmi_hive(hive);
 }
 
 int amdgpu_ras_init(struct amdgpu_device *adev)
@@ -3356,6 +3617,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	amdgpu_ras_event_mgr_init(adev);
+
 	if (amdgpu_aca_is_enabled(adev)) {
 		if (amdgpu_in_reset(adev))
 			r = amdgpu_aca_reset(adev);
@@ -3472,14 +3735,39 @@ void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status)
 		atomic_set(&ras->fed, !!status);
 }
 
+bool amdgpu_ras_event_id_is_valid(struct amdgpu_device *adev, u64 id)
+{
+	return !(id & BIT_ULL(63));
+}
+
+u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type type)
+{
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	u64 id;
+
+	switch (type) {
+	case RAS_EVENT_TYPE_ISR:
+		id = (u64)atomic64_read(&ras->event_mgr->seqnos[type]);
+		break;
+	case RAS_EVENT_TYPE_INVALID:
+	default:
+		id = BIT_ULL(63) | 0ULL;
+		break;
+	}
+
+	return id;
+}
+
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {
 		struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+		u64 event_id = (u64)atomic64_inc_return(&ras->event_mgr->seqnos[RAS_EVENT_TYPE_ISR]);
 
-		dev_info(adev->dev, "uncorrectable hardware error"
-			"(ERREVENT_ATHUB_INTERRUPT) detected!\n");
+		RAS_EVENT_LOG(adev, event_id, "uncorrectable hardware error"
+			      "(ERREVENT_ATHUB_INTERRUPT) detected!\n");
 
+		amdgpu_ras_set_fed(adev, true);
 		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 		amdgpu_ras_reset_gpu(adev);
 	}
@@ -3998,6 +4286,8 @@ void amdgpu_ras_add_mca_err_addr(struct ras_err_info *err_info, struct ras_err_a
 {
 	struct ras_err_addr *mca_err_addr;
 
+	/* This function will be retired. */
+	return;
 	mca_err_addr = kzalloc(sizeof(*mca_err_addr), GFP_KERNEL);
 	if (!mca_err_addr)
 		return;
@@ -4194,4 +4484,20 @@ void amdgpu_ras_query_boot_status(struct amdgpu_device *adev, u32 num_instances)
 		if (amdgpu_ras_wait_for_boot_complete(adev, i, &boot_error))
 			amdgpu_ras_boot_time_error_reporting(adev, i, boot_error);
 	}
+}
+
+int amdgpu_ras_reserve_page(struct amdgpu_device *adev, uint64_t pfn)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct amdgpu_vram_mgr *mgr = &adev->mman.vram_mgr;
+	uint64_t start = pfn << AMDGPU_GPU_PAGE_SHIFT;
+	int ret = 0;
+
+	mutex_lock(&con->page_rsv_lock);
+	ret = amdgpu_vram_mgr_query_page_status(mgr, start);
+	if (ret == -ENOENT)
+		ret = amdgpu_vram_mgr_reserve_range(mgr, start, AMDGPU_GPU_PAGE_SIZE);
+	mutex_unlock(&con->page_rsv_lock);
+
+	return ret;
 }

@@ -222,7 +222,6 @@ MODULE_DEVICE_TABLE(spi, ksz_spi_ids);
 static struct spi_driver ksz_spi_driver = {
 	.driver = {
 		.name	= "ksz-switch",
-		.owner	= THIS_MODULE,
 		.of_match_table = ksz_dt_ids,
 	},
 	.id_table = ksz_spi_ids,
@@ -233,13 +232,6 @@ static struct spi_driver ksz_spi_driver = {
 
 module_spi_driver(ksz_spi_driver);
 
-MODULE_ALIAS("spi:ksz9477");
-MODULE_ALIAS("spi:ksz9896");
-MODULE_ALIAS("spi:ksz9897");
-MODULE_ALIAS("spi:ksz9893");
-MODULE_ALIAS("spi:ksz9563");
-MODULE_ALIAS("spi:ksz8563");
-MODULE_ALIAS("spi:ksz9567");
 MODULE_ALIAS("spi:lan937x");
 MODULE_AUTHOR("Tristram Ha <Tristram.Ha@microchip.com>");
 MODULE_DESCRIPTION("Microchip ksz Series Switch SPI Driver");

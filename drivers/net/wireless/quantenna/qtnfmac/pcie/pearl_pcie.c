@@ -761,12 +761,12 @@ static int qtnf_pcie_pearl_rx_poll(struct napi_struct *napi, int budget)
 				napi_gro_receive(napi, skb);
 			} else {
 				pr_debug("drop untagged skb\n");
-				bus->mux_dev.stats.rx_dropped++;
+				bus->mux_dev->stats.rx_dropped++;
 				dev_kfree_skb_any(skb);
 			}
 		} else {
 			if (skb) {
-				bus->mux_dev.stats.rx_dropped++;
+				bus->mux_dev->stats.rx_dropped++;
 				dev_kfree_skb_any(skb);
 			}
 		}
@@ -1146,7 +1146,7 @@ static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size,
 	}
 
 	tasklet_setup(&ps->base.reclaim_tq, qtnf_pearl_reclaim_tasklet_fn);
-	netif_napi_add_weight(&bus->mux_dev, &bus->mux_napi,
+	netif_napi_add_weight(bus->mux_dev, &bus->mux_napi,
 			      qtnf_pcie_pearl_rx_poll, 10);
 
 	ipc_int.fn = qtnf_pcie_pearl_ipc_gen_ep_int;

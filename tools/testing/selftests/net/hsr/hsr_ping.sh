@@ -1,9 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ret=0
-ksft_skip=4
 ipv6=true
+
+source ./hsr_common.sh
 
 optstring="h4"
 usage() {
@@ -26,88 +26,6 @@ while getopts "$optstring" option;do
 		;;
 esac
 done
-
-sec=$(date +%s)
-rndh=$(printf %x $sec)-$(mktemp -u XXXXXX)
-ns1="ns1-$rndh"
-ns2="ns2-$rndh"
-ns3="ns3-$rndh"
-
-cleanup()
-{
-	local netns
-	for netns in "$ns1" "$ns2" "$ns3" ;do
-		ip netns del $netns
-	done
-}
-
-# $1: IP address
-is_v6()
-{
-	[ -z "${1##*:*}" ]
-}
-
-do_ping()
-{
-	local netns="$1"
-	local connect_addr="$2"
-	local ping_args="-q -c 2"
-
-	if is_v6 "${connect_addr}"; then
-		$ipv6 || return 0
-		ping_args="${ping_args} -6"
-	fi
-
-	ip netns exec ${netns} ping ${ping_args} $connect_addr >/dev/null
-	if [ $? -ne 0 ] ; then
-		echo "$netns -> $connect_addr connectivity [ FAIL ]" 1>&2
-		ret=1
-		return 1
-	fi
-
-	return 0
-}
-
-do_ping_long()
-{
-	local netns="$1"
-	local connect_addr="$2"
-	local ping_args="-q -c 10"
-
-	if is_v6 "${connect_addr}"; then
-		$ipv6 || return 0
-		ping_args="${ping_args} -6"
-	fi
-
-	OUT="$(LANG=C ip netns exec ${netns} ping ${ping_args} $connect_addr | grep received)"
-	if [ $? -ne 0 ] ; then
-		echo "$netns -> $connect_addr ping [ FAIL ]" 1>&2
-		ret=1
-		return 1
-	fi
-
-	VAL="$(echo $OUT | cut -d' ' -f1-8)"
-	if [ "$VAL" != "10 packets transmitted, 10 received, 0% packet loss," ]
-	then
-		echo "$netns -> $connect_addr ping TEST [ FAIL ]"
-		echo "Expect to send and receive 10 packets and no duplicates."
-		echo "Full message: ${OUT}."
-		ret=1
-		return 1
-	fi
-
-	return 0
-}
-
-stop_if_error()
-{
-	local msg="$1"
-
-	if [ ${ret} -ne 0 ]; then
-		echo "FAIL: ${msg}" 1>&2
-		exit ${ret}
-	fi
-}
 
 do_complete_ping_test()
 {
@@ -248,27 +166,13 @@ setup_hsr_interfaces()
 	ip -net "$ns3" link set hsr3 up
 }
 
-ip -Version > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
-	exit $ksft_skip
-fi
+check_prerequisites
+setup_ns ns1 ns2 ns3
 
-trap cleanup EXIT
-
-for i in "$ns1" "$ns2" "$ns3" ;do
-	ip netns add $i || exit $ksft_skip
-	ip -net $i link set lo up
-done
+trap cleanup_all_ns EXIT
 
 setup_hsr_interfaces 0
 do_complete_ping_test
-cleanup
-
-for i in "$ns1" "$ns2" "$ns3" ;do
-	ip netns add $i || exit $ksft_skip
-	ip -net $i link set lo up
-done
 
 setup_hsr_interfaces 1
 do_complete_ping_test

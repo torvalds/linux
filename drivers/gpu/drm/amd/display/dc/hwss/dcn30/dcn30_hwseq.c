@@ -166,7 +166,7 @@ void dcn30_log_color_state(struct dc *dc,
 		 "C21        C22        C23        C24        "
 		 "C31        C32        C33        C34        \n");
 
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
@@ -223,16 +223,14 @@ bool dcn30_set_blend_lut(
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	bool result = true;
-	struct pwl_params *blend_lut = NULL;
+	const struct pwl_params *blend_lut = NULL;
 
-	if (plane_state->blend_tf) {
-		if (plane_state->blend_tf->type == TF_TYPE_HWPWL)
-			blend_lut = &plane_state->blend_tf->pwl;
-		else if (plane_state->blend_tf->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm3_helper_translate_curve_to_hw_format(
-					plane_state->blend_tf, &dpp_base->regamma_params, false);
-			blend_lut = &dpp_base->regamma_params;
-		}
+	if (plane_state->blend_tf.type == TF_TYPE_HWPWL)
+		blend_lut = &plane_state->blend_tf.pwl;
+	else if (plane_state->blend_tf.type == TF_TYPE_DISTRIBUTED_POINTS) {
+		cm3_helper_translate_curve_to_hw_format(
+				&plane_state->blend_tf, &dpp_base->regamma_params, false);
+		blend_lut = &dpp_base->regamma_params;
 	}
 	result = dpp_base->funcs->dpp_program_blnd_lut(dpp_base, blend_lut);
 
@@ -300,27 +298,24 @@ bool dcn30_set_input_transfer_func(struct dc *dc,
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	enum dc_transfer_func_predefined tf;
 	bool result = true;
-	struct pwl_params *params = NULL;
+	const struct pwl_params *params = NULL;
 
 	if (dpp_base == NULL || plane_state == NULL)
 		return false;
 
 	tf = TRANSFER_FUNCTION_UNITY;
 
-	if (plane_state->in_transfer_func &&
-		plane_state->in_transfer_func->type == TF_TYPE_PREDEFINED)
-		tf = plane_state->in_transfer_func->tf;
+	if (plane_state->in_transfer_func.type == TF_TYPE_PREDEFINED)
+		tf = plane_state->in_transfer_func.tf;
 
 	dpp_base->funcs->dpp_set_pre_degam(dpp_base, tf);
 
-	if (plane_state->in_transfer_func) {
-		if (plane_state->in_transfer_func->type == TF_TYPE_HWPWL)
-			params = &plane_state->in_transfer_func->pwl;
-		else if (plane_state->in_transfer_func->type == TF_TYPE_DISTRIBUTED_POINTS &&
-			cm3_helper_translate_curve_to_hw_format(plane_state->in_transfer_func,
-					&dpp_base->degamma_params, false))
-			params = &dpp_base->degamma_params;
-	}
+	if (plane_state->in_transfer_func.type == TF_TYPE_HWPWL)
+		params = &plane_state->in_transfer_func.pwl;
+	else if (plane_state->in_transfer_func.type == TF_TYPE_DISTRIBUTED_POINTS &&
+		cm3_helper_translate_curve_to_hw_format(&plane_state->in_transfer_func,
+				&dpp_base->degamma_params, false))
+		params = &dpp_base->degamma_params;
 
 	result = dpp_base->funcs->dpp_program_gamcor_lut(dpp_base, params);
 
@@ -378,24 +373,24 @@ bool dcn30_set_output_transfer_func(struct dc *dc,
 {
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
 	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
-	struct pwl_params *params = NULL;
+	const struct pwl_params *params = NULL;
 	bool ret = false;
 
 	/* program OGAM or 3DLUT only for the top pipe*/
 	if (pipe_ctx->top_pipe == NULL) {
 		/*program rmu shaper and 3dlut in MPC*/
 		ret = dcn30_set_mpc_shaper_3dlut(pipe_ctx, stream);
-		if (ret == false && mpc->funcs->set_output_gamma && stream->out_transfer_func) {
-			if (stream->out_transfer_func->type == TF_TYPE_HWPWL)
-				params = &stream->out_transfer_func->pwl;
-			else if (pipe_ctx->stream->out_transfer_func->type ==
+		if (ret == false && mpc->funcs->set_output_gamma) {
+			if (stream->out_transfer_func.type == TF_TYPE_HWPWL)
+				params = &stream->out_transfer_func.pwl;
+			else if (pipe_ctx->stream->out_transfer_func.type ==
 					TF_TYPE_DISTRIBUTED_POINTS &&
 					cm3_helper_translate_curve_to_hw_format(
-					stream->out_transfer_func,
+					&stream->out_transfer_func,
 					&mpc->blender_params, false))
 				params = &mpc->blender_params;
 			 /* there are no ROM LUTs in OUTGAM */
-			if (stream->out_transfer_func->type == TF_TYPE_PREDEFINED)
+			if (stream->out_transfer_func.type == TF_TYPE_PREDEFINED)
 				BREAK_TO_DEBUGGER();
 		}
 	}
@@ -804,7 +799,7 @@ void dcn30_init_hw(struct dc *dc)
 	// Get DMCUB capabilities
 	dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv);
 	dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
-	dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch;
+	dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver;
 }
 
 void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
@@ -818,7 +813,7 @@ void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 				enable);
 
 		/* Wait for two frame to make sure AV mute is sent out */
-		if (enable) {
+		if (enable && pipe_ctx->stream_res.tg->funcs->is_tg_enabled(pipe_ctx->stream_res.tg)) {
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VBLANK);
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
@@ -890,7 +885,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
 	union dmub_rb_cmd cmd;
 	uint32_t tmr_delay = 0, tmr_scale = 0;
-	struct dc_cursor_attributes cursor_attr;
+	struct dc_cursor_attributes cursor_attr = {0};
 	bool cursor_cache_enable = false;
 	struct dc_stream_state *stream = NULL;
 	struct dc_plane_state *plane = NULL;
@@ -946,7 +941,8 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 					plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888 &&
 					plane->address.page_table_base.quad_part == 0 &&
 					dc->hwss.does_plane_fit_in_mall &&
-					dc->hwss.does_plane_fit_in_mall(dc, plane,
+					dc->hwss.does_plane_fit_in_mall(dc, plane->plane_size.surface_pitch,
+							plane->plane_size.surface_size.height, plane->format,
 							cursor_cache_enable ? &cursor_attr : NULL)) {
 				unsigned int v_total = stream->adjust.v_total_max ?
 						stream->adjust.v_total_max : stream->timing.v_total;
@@ -1076,11 +1072,15 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	return true;
 }
 
-bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane, struct dc_cursor_attributes *cursor_attr)
+bool dcn30_does_plane_fit_in_mall(struct dc *dc,
+		unsigned int pitch,
+		unsigned int height,
+		enum surface_pixel_format format,
+		struct dc_cursor_attributes *cursor_attr)
 {
 	// add meta size?
-	unsigned int surface_size = plane->plane_size.surface_pitch * plane->plane_size.surface_size.height *
-			(plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
+	unsigned int surface_size = pitch * height *
+			(format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
 	unsigned int mall_size = dc->caps.mall_size_total;
 	unsigned int cursor_size = 0;
 

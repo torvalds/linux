@@ -346,6 +346,21 @@ static int ih_v6_0_irq_init(struct amdgpu_device *adev)
 			    DELAY, 3);
 	WREG32_SOC15(OSSSYS, 0, regIH_MSI_STORM_CTRL, tmp);
 
+	/* Redirect the interrupts to IH RB1 for dGPU */
+	if (adev->irq.ih1.ring_size) {
+		tmp = RREG32_SOC15(OSSSYS, 0, regIH_RING1_CLIENT_CFG_INDEX);
+		tmp = REG_SET_FIELD(tmp, IH_RING1_CLIENT_CFG_INDEX, INDEX, 0);
+		WREG32_SOC15(OSSSYS, 0, regIH_RING1_CLIENT_CFG_INDEX, tmp);
+
+		tmp = RREG32_SOC15(OSSSYS, 0, regIH_RING1_CLIENT_CFG_DATA);
+		tmp = REG_SET_FIELD(tmp, IH_RING1_CLIENT_CFG_DATA, CLIENT_ID, 0xa);
+		tmp = REG_SET_FIELD(tmp, IH_RING1_CLIENT_CFG_DATA, SOURCE_ID, 0x0);
+		tmp = REG_SET_FIELD(tmp, IH_RING1_CLIENT_CFG_DATA,
+				    SOURCE_ID_MATCH_ENABLE, 0x1);
+
+		WREG32_SOC15(OSSSYS, 0, regIH_RING1_CLIENT_CFG_DATA, tmp);
+	}
+
 	pci_set_master(adev->pdev);
 
 	/* enable interrupts */
@@ -549,8 +564,15 @@ static int ih_v6_0_sw_init(void *handle)
 	adev->irq.ih.use_doorbell = true;
 	adev->irq.ih.doorbell_index = adev->doorbell_index.ih << 1;
 
-	adev->irq.ih1.ring_size = 0;
-	adev->irq.ih2.ring_size = 0;
+	if (!(adev->flags & AMD_IS_APU)) {
+		r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, IH_RING_SIZE,
+					use_bus_addr);
+		if (r)
+			return r;
+
+		adev->irq.ih1.use_doorbell = true;
+		adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
+	}
 
 	/* initialize ih control register offset */
 	ih_v6_0_init_register_offset(adev);
@@ -748,6 +770,8 @@ static const struct amd_ip_funcs ih_v6_0_ip_funcs = {
 	.set_clockgating_state = ih_v6_0_set_clockgating_state,
 	.set_powergating_state = ih_v6_0_set_powergating_state,
 	.get_clockgating_state = ih_v6_0_get_clockgating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ih_funcs ih_v6_0_funcs = {

@@ -4,7 +4,8 @@
 #include "otx2_cpt_devlink.h"
 
 static int otx2_cpt_dl_egrp_create(struct devlink *dl, u32 id,
-				   struct devlink_param_gset_ctx *ctx)
+				   struct devlink_param_gset_ctx *ctx,
+				   struct netlink_ext_ack *extack)
 {
 	struct otx2_cpt_devlink *cpt_dl = devlink_priv(dl);
 	struct otx2_cptpf_dev *cptpf = cpt_dl->cptpf;
@@ -13,7 +14,8 @@ static int otx2_cpt_dl_egrp_create(struct devlink *dl, u32 id,
 }
 
 static int otx2_cpt_dl_egrp_delete(struct devlink *dl, u32 id,
-				   struct devlink_param_gset_ctx *ctx)
+				   struct devlink_param_gset_ctx *ctx,
+				   struct netlink_ext_ack *extack)
 {
 	struct otx2_cpt_devlink *cpt_dl = devlink_priv(dl);
 	struct otx2_cptpf_dev *cptpf = cpt_dl->cptpf;
@@ -45,7 +47,8 @@ static int otx2_cpt_dl_t106_mode_get(struct devlink *dl, u32 id,
 }
 
 static int otx2_cpt_dl_t106_mode_set(struct devlink *dl, u32 id,
-				     struct devlink_param_gset_ctx *ctx)
+				     struct devlink_param_gset_ctx *ctx,
+				     struct netlink_ext_ack *extack)
 {
 	struct otx2_cpt_devlink *cpt_dl = devlink_priv(dl);
 	struct otx2_cptpf_dev *cptpf = cpt_dl->cptpf;

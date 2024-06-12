@@ -156,7 +156,7 @@ static const struct mtk_gate infra_clks[] = {
 	GATE_INFRA0(CLK_INFRA_PCIE_PERI_26M_CK_P1, "infra_pcie_peri_ck_26m_ck_p1",
 		    "csw_infra_f26m_sel", 8),
 	GATE_INFRA0(CLK_INFRA_PCIE_PERI_26M_CK_P2, "infra_pcie_peri_ck_26m_ck_p2",
-		    "csw_infra_f26m_sel", 9),
+		    "infra_pcie_peri_ck_26m_ck_p3", 9),
 	GATE_INFRA0(CLK_INFRA_PCIE_PERI_26M_CK_P3, "infra_pcie_peri_ck_26m_ck_p3",
 		    "csw_infra_f26m_sel", 10),
 	/* INFRA1 */

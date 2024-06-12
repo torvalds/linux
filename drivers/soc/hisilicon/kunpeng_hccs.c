@@ -556,6 +556,12 @@ static int hccs_get_all_port_attr(struct hccs_dev *hdev,
 		start_id = rsp_head.next_id;
 	}
 
+	if (left_buf_len != 0) {
+		dev_err(hdev->dev, "failed to get the expected port number(%u) attribute.\n",
+			size);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

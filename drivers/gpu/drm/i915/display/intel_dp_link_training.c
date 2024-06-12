@@ -334,7 +334,7 @@ static bool has_per_lane_signal_levels(struct intel_dp *intel_dp,
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	return !intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy) ||
-		DISPLAY_VER(i915) >= 11;
+		DISPLAY_VER(i915) >= 10 || IS_BROXTON(i915);
 }
 
 /* 128b/132b */

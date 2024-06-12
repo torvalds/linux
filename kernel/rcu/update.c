@@ -408,7 +408,7 @@ void wakeme_after_rcu(struct rcu_head *head)
 }
 EXPORT_SYMBOL_GPL(wakeme_after_rcu);
 
-void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
+void __wait_rcu_gp(bool checktiny, unsigned int state, int n, call_rcu_func_t *crcu_array,
 		   struct rcu_synchronize *rs_array)
 {
 	int i;
@@ -440,7 +440,7 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 			if (crcu_array[j] == crcu_array[i])
 				break;
 		if (j == i) {
-			wait_for_completion(&rs_array[i].completion);
+			wait_for_completion_state(&rs_array[i].completion, state);
 			destroy_rcu_head_on_stack(&rs_array[i].head);
 		}
 	}

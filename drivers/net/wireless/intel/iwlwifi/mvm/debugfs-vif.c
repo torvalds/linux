@@ -407,7 +407,7 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 	};
 
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
-	if (mvmvif->bf_data.bf_enabled)
+	if (mvmvif->bf_enabled)
 		cmd.bf_enable_beacon_filter = cpu_to_le32(1);
 	else
 		cmd.bf_enable_beacon_filter = 0;
@@ -692,6 +692,96 @@ static ssize_t iwl_dbgfs_quota_min_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
+static ssize_t iwl_dbgfs_int_mlo_scan_write(struct ieee80211_vif *vif,
+					    char *buf, size_t count,
+					    loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	u32 action;
+	int ret;
+
+	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+		return -EINVAL;
+
+	if (kstrtou32(buf, 0, &action))
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+
+	if (!action) {
+		ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_INT_MLO, false);
+	} else if (action == 1) {
+		ret = iwl_mvm_int_mlo_scan(mvm, vif);
+	} else {
+		ret = -EINVAL;
+	}
+
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
+static ssize_t iwl_dbgfs_esr_disable_reason_read(struct file *file,
+						 char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	struct ieee80211_vif *vif = file->private_data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	unsigned long esr_mask;
+	char *buf;
+	int bufsz, pos, i;
+	ssize_t rv;
+
+	mutex_lock(&mvm->mutex);
+	esr_mask = mvmvif->esr_disable_reason;
+	mutex_unlock(&mvm->mutex);
+
+	bufsz = hweight32(esr_mask) * 32 + 40;
+	buf = kmalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	pos = scnprintf(buf, bufsz, "EMLSR state: '0x%lx'\nreasons:\n",
+			esr_mask);
+	for_each_set_bit(i, &esr_mask, BITS_PER_LONG)
+		pos += scnprintf(buf + pos, bufsz - pos, " - %s\n",
+				 iwl_get_esr_state_string(BIT(i)));
+
+	rv = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return rv;
+}
+
+static ssize_t iwl_dbgfs_esr_disable_reason_write(struct ieee80211_vif *vif,
+						  char *buf, size_t count,
+						  loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	u32 reason;
+	u8 block;
+	int ret;
+
+	ret = sscanf(buf, "%u %hhu", &reason, &block);
+	if (ret < 0)
+		return ret;
+
+	if (hweight16(reason) != 1 || !(reason & IWL_MVM_BLOCK_ESR_REASONS))
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	if (block)
+		iwl_mvm_block_esr(mvm, vif, reason,
+				  iwl_mvm_get_primary_link(vif));
+	else
+		iwl_mvm_unblock_esr(mvm, vif, reason);
+	mutex_unlock(&mvm->mutex);
+
+	return count;
+}
+
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -711,6 +801,8 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(quota_min, 32);
 MVM_DEBUGFS_READ_FILE_OPS(os_device_timediff);
+MVM_DEBUGFS_WRITE_FILE_OPS(int_mlo_scan, 32);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(esr_disable_reason, 32);
 
 void iwl_mvm_vif_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
@@ -738,6 +830,10 @@ void iwl_mvm_vif_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	MVM_DEBUGFS_ADD_FILE_VIF(rx_phyinfo, mvmvif->dbgfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE_VIF(quota_min, mvmvif->dbgfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE_VIF(os_device_timediff, mvmvif->dbgfs_dir, 0400);
+	debugfs_create_bool("ftm_unprotected", 0200, mvmvif->dbgfs_dir,
+			    &mvmvif->ftm_unprotected);
+	MVM_DEBUGFS_ADD_FILE_VIF(int_mlo_scan, mvmvif->dbgfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE_VIF(esr_disable_reason, mvmvif->dbgfs_dir, 0600);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvmvif == mvm->bf_allowed_vif)
@@ -748,7 +844,9 @@ void iwl_mvm_vif_dbgfs_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct dentry *dbgfs_dir = vif->debugfs_dir;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	char buf[100];
+	char buf[3 * 3 + 11 + (NL80211_WIPHY_NAME_MAXLEN + 1) +
+		 (7 + IFNAMSIZ + 1) + 6 + 1];
+	char name[7 + IFNAMSIZ + 1];
 
 	/* this will happen in monitor mode */
 	if (!dbgfs_dir)
@@ -761,10 +859,11 @@ void iwl_mvm_vif_dbgfs_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * find
 	 * netdev:wlan0 -> ../../../ieee80211/phy0/netdev:wlan0/iwlmvm/
 	 */
-	snprintf(buf, 100, "../../../%pd3/iwlmvm", dbgfs_dir);
+	snprintf(name, sizeof(name), "%pd", dbgfs_dir);
+	snprintf(buf, sizeof(buf), "../../../%pd3/iwlmvm", dbgfs_dir);
 
-	mvmvif->dbgfs_slink = debugfs_create_symlink(dbgfs_dir->d_name.name,
-						     mvm->debugfs_dir, buf);
+	mvmvif->dbgfs_slink =
+		debugfs_create_symlink(name, mvm->debugfs_dir, buf);
 }
 
 void iwl_mvm_vif_dbgfs_rm_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)

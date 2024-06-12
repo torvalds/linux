@@ -557,6 +557,20 @@ void analogix_dp_get_lane_count(struct analogix_dp_device *dp, u32 *count)
 	*count = reg;
 }
 
+void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp)
+{
+	u8 lane;
+
+	for (lane = 0; lane < dp->link_train.lane_count; lane++)
+		writel(dp->link_train.training_lane[lane],
+		       dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL + 4 * lane);
+}
+
+u32 analogix_dp_get_lane_link_training(struct analogix_dp_device *dp, u8 lane)
+{
+	return readl(dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL + 4 * lane);
+}
+
 void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp,
 				      bool enable)
 {
@@ -604,106 +618,6 @@ void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 	default:
 		break;
 	}
-}
-
-void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level)
-{
-	u32 reg;
-
-	reg = readl(dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
-	reg &= ~PRE_EMPHASIS_SET_MASK;
-	reg |= level << PRE_EMPHASIS_SET_SHIFT;
-	writel(reg, dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
-}
-
-void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level)
-{
-	u32 reg;
-
-	reg = readl(dp->reg_base + ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
-	reg &= ~PRE_EMPHASIS_SET_MASK;
-	reg |= level << PRE_EMPHASIS_SET_SHIFT;
-	writel(reg, dp->reg_base + ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
-}
-
-void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level)
-{
-	u32 reg;
-
-	reg = readl(dp->reg_base + ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
-	reg &= ~PRE_EMPHASIS_SET_MASK;
-	reg |= level << PRE_EMPHASIS_SET_SHIFT;
-	writel(reg, dp->reg_base + ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
-}
-
-void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level)
-{
-	u32 reg;
-
-	reg = readl(dp->reg_base + ANALOGIX_DP_LN3_LINK_TRAINING_CTL);
-	reg &= ~PRE_EMPHASIS_SET_MASK;
-	reg |= level << PRE_EMPHASIS_SET_SHIFT;
-	writel(reg, dp->reg_base + ANALOGIX_DP_LN3_LINK_TRAINING_CTL);
-}
-
-void analogix_dp_set_lane0_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane)
-{
-	u32 reg;
-
-	reg = training_lane;
-	writel(reg, dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
-}
-
-void analogix_dp_set_lane1_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane)
-{
-	u32 reg;
-
-	reg = training_lane;
-	writel(reg, dp->reg_base + ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
-}
-
-void analogix_dp_set_lane2_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane)
-{
-	u32 reg;
-
-	reg = training_lane;
-	writel(reg, dp->reg_base + ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
-}
-
-void analogix_dp_set_lane3_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane)
-{
-	u32 reg;
-
-	reg = training_lane;
-	writel(reg, dp->reg_base + ANALOGIX_DP_LN3_LINK_TRAINING_CTL);
-}
-
-u32 analogix_dp_get_lane0_link_training(struct analogix_dp_device *dp)
-{
-	return readl(dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
-}
-
-u32 analogix_dp_get_lane1_link_training(struct analogix_dp_device *dp)
-{
-	return readl(dp->reg_base + ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
-}
-
-u32 analogix_dp_get_lane2_link_training(struct analogix_dp_device *dp)
-{
-	return readl(dp->reg_base + ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
-}
-
-u32 analogix_dp_get_lane3_link_training(struct analogix_dp_device *dp)
-{
-	return readl(dp->reg_base + ANALOGIX_DP_LN3_LINK_TRAINING_CTL);
 }
 
 void analogix_dp_reset_macro(struct analogix_dp_device *dp)
@@ -1027,7 +941,6 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 	u32 status_reg;
 	u8 *buffer = msg->buffer;
 	unsigned int i;
-	int num_transferred = 0;
 	int ret;
 
 	/* Buffer size of AUX CH is 16 bytes */
@@ -1079,7 +992,6 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			reg = buffer[i];
 			writel(reg, dp->reg_base + ANALOGIX_DP_BUF_DATA_0 +
 			       4 * i);
-			num_transferred++;
 		}
 	}
 
@@ -1127,7 +1039,6 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			reg = readl(dp->reg_base + ANALOGIX_DP_BUF_DATA_0 +
 				    4 * i);
 			buffer[i] = (unsigned char)reg;
-			num_transferred++;
 		}
 	}
 
@@ -1144,7 +1055,7 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 		 (msg->request & ~DP_AUX_I2C_MOT) == DP_AUX_NATIVE_READ)
 		msg->reply = DP_AUX_NATIVE_REPLY_ACK;
 
-	return num_transferred > 0 ? num_transferred : -EBUSY;
+	return msg->size;
 
 aux_error:
 	/* if aux err happen, reset aux */

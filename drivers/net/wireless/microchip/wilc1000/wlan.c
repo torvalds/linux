@@ -712,7 +712,6 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	u32 *vmm_table = wilc->vmm_table;
 	u8 ac_pkt_num_to_chip[NQUEUES] = {0, 0, 0, 0};
 	const struct wilc_hif_func *func;
-	int srcu_idx;
 	u8 *txb = wilc->tx_buffer;
 	struct wilc_vif *vif;
 
@@ -724,10 +723,10 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 
 	mutex_lock(&wilc->txq_add_to_head_cs);
 
-	srcu_idx = srcu_read_lock(&wilc->srcu);
+	rcu_read_lock();
 	wilc_for_each_vif(wilc, vif)
 		wilc_wlan_txq_filter_dup_tcp_ack(vif->ndev);
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
+	rcu_read_unlock();
 
 	for (ac = 0; ac < NQUEUES; ac++)
 		tqe_q[ac] = wilc_wlan_txq_get_first(wilc, ac);

@@ -111,6 +111,7 @@ static bool rt715_readable_register(struct device *dev, unsigned int reg)
 	case 0x839d:
 	case 0x83a7:
 	case 0x83a9:
+	case 0x752001:
 	case 0x752039:
 		return true;
 	default:
@@ -482,7 +483,7 @@ static int rt715_bus_config(struct sdw_slave *slave,
 
 	ret = rt715_clock_config(&slave->dev);
 	if (ret < 0)
-		dev_err(&slave->dev, "Invalid clk config");
+		dev_err(&slave->dev, "%s: Invalid clk config", __func__);
 
 	return 0;
 }
@@ -554,7 +555,7 @@ static int __maybe_unused rt715_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 					   msecs_to_jiffies(RT715_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n", __func__);
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;
@@ -577,7 +578,6 @@ static const struct dev_pm_ops rt715_pm = {
 static struct sdw_driver rt715_sdw_driver = {
 	.driver = {
 		   .name = "rt715",
-		   .owner = THIS_MODULE,
 		   .pm = &rt715_pm,
 		   },
 	.probe = rt715_sdw_probe,

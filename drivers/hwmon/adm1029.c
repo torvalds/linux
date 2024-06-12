@@ -379,7 +379,7 @@ static int adm1029_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adm1029_id[] = {
-	{ "adm1029", 0 },
+	{ "adm1029" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adm1029_id);

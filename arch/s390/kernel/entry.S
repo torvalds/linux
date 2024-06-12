@@ -340,7 +340,8 @@ SYM_CODE_START(pgm_check_handler)
 	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK
 	stctg	%c1,%c1,__PT_CR1(%r11)
 #if IS_ENABLED(CONFIG_KVM)
-	lg	%r12,__LC_GMAP
+	ltg	%r12,__LC_GMAP
+	jz	5f
 	clc	__GMAP_ASCE(8,%r12), __PT_CR1(%r11)
 	jne	5f
 	BPENTER	__SF_SIE_FLAGS(%r10),_TIF_ISOLATE_BP_GUEST
@@ -438,29 +439,6 @@ SYM_CODE_END(\name)
 
 INT_HANDLER ext_int_handler,__LC_EXT_OLD_PSW,do_ext_irq
 INT_HANDLER io_int_handler,__LC_IO_OLD_PSW,do_io_irq
-
-/*
- * Load idle PSW.
- */
-SYM_FUNC_START(psw_idle)
-	stg	%r14,(__SF_GPRS+8*8)(%r15)
-	stg	%r3,__SF_EMPTY(%r15)
-	larl	%r1,psw_idle_exit
-	stg	%r1,__SF_EMPTY+8(%r15)
-	larl	%r1,smp_cpu_mtid
-	llgf	%r1,0(%r1)
-	ltgr	%r1,%r1
-	jz	.Lpsw_idle_stcctm
-	.insn	rsy,0xeb0000000017,%r1,5,__MT_CYCLES_ENTER(%r2)
-.Lpsw_idle_stcctm:
-	oi	__LC_CPU_FLAGS+7,_CIF_ENABLED_WAIT
-	BPON
-	stckf	__CLOCK_IDLE_ENTER(%r2)
-	stpt	__TIMER_IDLE_ENTER(%r2)
-	lpswe	__SF_EMPTY(%r15)
-SYM_INNER_LABEL(psw_idle_exit, SYM_L_GLOBAL)
-	BR_EX	%r14
-SYM_FUNC_END(psw_idle)
 
 /*
  * Machine check handler routines
@@ -635,6 +613,7 @@ SYM_DATA_START_LOCAL(daton_psw)
 SYM_DATA_END(daton_psw)
 
 	.section .rodata, "a"
+	.balign	8
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame
 SYM_DATA_START(sys_call_table)
 #include "asm/syscall_table.h"

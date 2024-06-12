@@ -93,7 +93,7 @@ int smu_v13_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	char fw_name[30];
-	char ucode_prefix[30];
+	char ucode_prefix[15];
 	int err = 0;
 	const struct smc_firmware_header_v1_0 *hdr;
 	const struct common_firmware_header *header;
@@ -2247,7 +2247,7 @@ static int smu_v13_0_baco_set_state(struct smu_context *smu,
 	if (state == SMU_BACO_STATE_ENTER) {
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						      SMU_MSG_EnterBaco,
-						      (smu_baco->maco_support && amdgpu_runtime_pm != 1) ?
+						      (adev->pm.rpm_mode == AMDGPU_RUNPM_BAMACO) ?
 						      BACO_SEQ_BAMACO : BACO_SEQ_BACO,
 						      NULL);
 	} else {
@@ -2268,33 +2268,36 @@ static int smu_v13_0_baco_set_state(struct smu_context *smu,
 	return ret;
 }
 
-bool smu_v13_0_baco_is_support(struct smu_context *smu)
+int smu_v13_0_get_bamaco_support(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	int bamaco_support = 0;
 
 	if (amdgpu_sriov_vf(smu->adev) || !smu_baco->platform_support)
-		return false;
+		return 0;
+
+	if (smu_baco->maco_support)
+		bamaco_support |= MACO_SUPPORT;
 
 	/* return true if ASIC is in BACO state already */
 	if (smu_v13_0_baco_get_state(smu) == SMU_BACO_STATE_ENTER)
-		return true;
+		return bamaco_support |= BACO_SUPPORT;
 
 	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
 	    !smu_cmn_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
-		return false;
+		return 0;
 
-	return true;
+	return (bamaco_support |= BACO_SUPPORT);
 }
 
 int smu_v13_0_baco_enter(struct smu_context *smu)
 {
-	struct smu_baco_context *smu_baco = &smu->smu_baco;
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
 
 	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev)) {
 		return smu_v13_0_baco_set_armd3_sequence(smu,
-				(smu_baco->maco_support && amdgpu_runtime_pm != 1) ?
+				(adev->pm.rpm_mode == AMDGPU_RUNPM_BAMACO) ?
 					BACO_SEQ_BAMACO : BACO_SEQ_BACO);
 	} else {
 		ret = smu_v13_0_baco_set_state(smu, SMU_BACO_STATE_ENTER);

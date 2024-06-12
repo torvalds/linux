@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/pnp.h>
 #include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/spinlock.h>
@@ -23,7 +24,7 @@
 static int __serial_port_busy(struct uart_port *port)
 {
 	return !uart_tx_stopped(port) &&
-		uart_circ_chars_pending(&port->state->xmit);
+		!kfifo_is_empty(&port->state->port.xmit_fifo);
 }
 
 static int serial_port_runtime_resume(struct device *dev)
@@ -39,8 +40,12 @@ static int serial_port_runtime_resume(struct device *dev)
 
 	/* Flush any pending TX for the port */
 	uart_port_lock_irqsave(port, &flags);
+	if (!port_dev->tx_enabled)
+		goto unlock;
 	if (__serial_port_busy(port))
 		port->ops->start_tx(port);
+
+unlock:
 	uart_port_unlock_irqrestore(port, flags);
 
 out:
@@ -60,6 +65,11 @@ static int serial_port_runtime_suspend(struct device *dev)
 		return 0;
 
 	uart_port_lock_irqsave(port, &flags);
+	if (!port_dev->tx_enabled) {
+		uart_port_unlock_irqrestore(port, flags);
+		return 0;
+	}
+
 	busy = __serial_port_busy(port);
 	if (busy)
 		port->ops->start_tx(port);
@@ -69,6 +79,31 @@ static int serial_port_runtime_suspend(struct device *dev)
 		pm_runtime_mark_last_busy(dev);
 
 	return busy ? -EBUSY : 0;
+}
+
+static void serial_base_port_set_tx(struct uart_port *port,
+				    struct serial_port_device *port_dev,
+				    bool enabled)
+{
+	unsigned long flags;
+
+	uart_port_lock_irqsave(port, &flags);
+	port_dev->tx_enabled = enabled;
+	uart_port_unlock_irqrestore(port, flags);
+}
+
+void serial_base_port_startup(struct uart_port *port)
+{
+	struct serial_port_device *port_dev = port->port_dev;
+
+	serial_base_port_set_tx(port, port_dev, true);
+}
+
+void serial_base_port_shutdown(struct uart_port *port)
+{
+	struct serial_port_device *port_dev = port->port_dev;
+
+	serial_base_port_set_tx(port, port_dev, false);
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(serial_port_pm,
@@ -221,7 +256,11 @@ static int __uart_read_properties(struct uart_port *port, bool use_defaults)
 
 	if (dev_is_platform(dev))
 		ret = platform_get_irq(to_platform_device(dev), 0);
-	else
+	else if (dev_is_pnp(dev)) {
+		ret = pnp_irq(to_pnp_dev(dev), 0);
+		if (ret < 0)
+			ret = -ENXIO;
+	} else
 		ret = fwnode_irq_get(dev_fwnode(dev), 0);
 	if (ret == -EPROBE_DEFER)
 		return ret;

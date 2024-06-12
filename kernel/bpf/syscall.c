@@ -559,6 +559,7 @@ void btf_record_free(struct btf_record *rec)
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
 		case BPF_REFCOUNT:
+		case BPF_WORKQUEUE:
 			/* Nothing to release */
 			break;
 		default:
@@ -608,6 +609,7 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
 		case BPF_REFCOUNT:
+		case BPF_WORKQUEUE:
 			/* Nothing to acquire */
 			break;
 		default:
@@ -659,6 +661,13 @@ void bpf_obj_free_timer(const struct btf_record *rec, void *obj)
 	bpf_timer_cancel_and_free(obj + rec->timer_off);
 }
 
+void bpf_obj_free_workqueue(const struct btf_record *rec, void *obj)
+{
+	if (WARN_ON_ONCE(!btf_record_has_field(rec, BPF_WORKQUEUE)))
+		return;
+	bpf_wq_cancel_and_free(obj + rec->wq_off);
+}
+
 void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 {
 	const struct btf_field *fields;
@@ -678,6 +687,9 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 			break;
 		case BPF_TIMER:
 			bpf_timer_cancel_and_free(field_ptr);
+			break;
+		case BPF_WORKQUEUE:
+			bpf_wq_cancel_and_free(field_ptr);
 			break;
 		case BPF_KPTR_UNREF:
 			WRITE_ONCE(*(u64 *)field_ptr, 0);
@@ -980,7 +992,7 @@ static unsigned long bpf_get_unmapped_area(struct file *filp, unsigned long addr
 	if (map->ops->map_get_unmapped_area)
 		return map->ops->map_get_unmapped_area(filp, addr, len, pgoff, flags);
 #ifdef CONFIG_MMU
-	return current->mm->get_unmapped_area(filp, addr, len, pgoff, flags);
+	return mm_get_unmapped_area(current->mm, filp, addr, len, pgoff, flags);
 #else
 	return addr;
 #endif
@@ -1085,7 +1097,7 @@ static int map_check_btf(struct bpf_map *map, struct bpf_token *token,
 
 	map->record = btf_parse_fields(btf, value_type,
 				       BPF_SPIN_LOCK | BPF_TIMER | BPF_KPTR | BPF_LIST_HEAD |
-				       BPF_RB_ROOT | BPF_REFCOUNT,
+				       BPF_RB_ROOT | BPF_REFCOUNT | BPF_WORKQUEUE,
 				       map->value_size);
 	if (!IS_ERR_OR_NULL(map->record)) {
 		int i;
@@ -1115,6 +1127,7 @@ static int map_check_btf(struct bpf_map *map, struct bpf_token *token,
 				}
 				break;
 			case BPF_TIMER:
+			case BPF_WORKQUEUE:
 				if (map->map_type != BPF_MAP_TYPE_HASH &&
 				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_ARRAY) {
@@ -3024,17 +3037,46 @@ void bpf_link_inc(struct bpf_link *link)
 	atomic64_inc(&link->refcnt);
 }
 
+static void bpf_link_defer_dealloc_rcu_gp(struct rcu_head *rcu)
+{
+	struct bpf_link *link = container_of(rcu, struct bpf_link, rcu);
+
+	/* free bpf_link and its containing memory */
+	link->ops->dealloc_deferred(link);
+}
+
+static void bpf_link_defer_dealloc_mult_rcu_gp(struct rcu_head *rcu)
+{
+	if (rcu_trace_implies_rcu_gp())
+		bpf_link_defer_dealloc_rcu_gp(rcu);
+	else
+		call_rcu(rcu, bpf_link_defer_dealloc_rcu_gp);
+}
+
 /* bpf_link_free is guaranteed to be called from process context */
 static void bpf_link_free(struct bpf_link *link)
 {
+	bool sleepable = false;
+
 	bpf_link_free_id(link->id);
 	if (link->prog) {
+		sleepable = link->prog->sleepable;
 		/* detach BPF program, clean up used resources */
 		link->ops->release(link);
 		bpf_prog_put(link->prog);
 	}
-	/* free bpf_link and its containing memory */
-	link->ops->dealloc(link);
+	if (link->ops->dealloc_deferred) {
+		/* schedule BPF link deallocation; if underlying BPF program
+		 * is sleepable, we need to first wait for RCU tasks trace
+		 * sync, then go through "classic" RCU grace period
+		 */
+		if (sleepable)
+			call_rcu_tasks_trace(&link->rcu, bpf_link_defer_dealloc_mult_rcu_gp);
+		else
+			call_rcu(&link->rcu, bpf_link_defer_dealloc_rcu_gp);
+	}
+	if (link->ops->dealloc)
+		link->ops->dealloc(link);
 }
 
 static void bpf_link_put_deferred(struct work_struct *work)
@@ -3469,17 +3511,12 @@ out_put_prog:
 	return err;
 }
 
-struct bpf_raw_tp_link {
-	struct bpf_link link;
-	struct bpf_raw_event_map *btp;
-};
-
 static void bpf_raw_tp_link_release(struct bpf_link *link)
 {
 	struct bpf_raw_tp_link *raw_tp =
 		container_of(link, struct bpf_raw_tp_link, link);
 
-	bpf_probe_unregister(raw_tp->btp, raw_tp->link.prog);
+	bpf_probe_unregister(raw_tp->btp, raw_tp);
 	bpf_put_raw_tracepoint(raw_tp->btp);
 }
 
@@ -3544,7 +3581,7 @@ static int bpf_raw_tp_link_fill_link_info(const struct bpf_link *link,
 
 static const struct bpf_link_ops bpf_raw_tp_link_lops = {
 	.release = bpf_raw_tp_link_release,
-	.dealloc = bpf_raw_tp_link_dealloc,
+	.dealloc_deferred = bpf_raw_tp_link_dealloc,
 	.show_fdinfo = bpf_raw_tp_link_show_fdinfo,
 	.fill_link_info = bpf_raw_tp_link_fill_link_info,
 };
@@ -3779,7 +3816,7 @@ static int bpf_perf_link_attach(const union bpf_attr *attr, struct bpf_prog *pro
 #endif /* CONFIG_PERF_EVENTS */
 
 static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
-				  const char __user *user_tp_name)
+				  const char __user *user_tp_name, u64 cookie)
 {
 	struct bpf_link_primer link_primer;
 	struct bpf_raw_tp_link *link;
@@ -3826,6 +3863,7 @@ static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
 	bpf_link_init(&link->link, BPF_LINK_TYPE_RAW_TRACEPOINT,
 		      &bpf_raw_tp_link_lops, prog);
 	link->btp = btp;
+	link->cookie = cookie;
 
 	err = bpf_link_prime(&link->link, &link_primer);
 	if (err) {
@@ -3833,7 +3871,7 @@ static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
 		goto out_put_btp;
 	}
 
-	err = bpf_probe_register(link->btp, prog);
+	err = bpf_probe_register(link->btp, link);
 	if (err) {
 		bpf_link_cleanup(&link_primer);
 		goto out_put_btp;
@@ -3846,11 +3884,13 @@ out_put_btp:
 	return err;
 }
 
-#define BPF_RAW_TRACEPOINT_OPEN_LAST_FIELD raw_tracepoint.prog_fd
+#define BPF_RAW_TRACEPOINT_OPEN_LAST_FIELD raw_tracepoint.cookie
 
 static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 {
 	struct bpf_prog *prog;
+	void __user *tp_name;
+	__u64 cookie;
 	int fd;
 
 	if (CHECK_ATTR(BPF_RAW_TRACEPOINT_OPEN))
@@ -3860,7 +3900,9 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 
-	fd = bpf_raw_tp_link_attach(prog, u64_to_user_ptr(attr->raw_tracepoint.name));
+	tp_name = u64_to_user_ptr(attr->raw_tracepoint.name);
+	cookie = attr->raw_tracepoint.cookie;
+	fd = bpf_raw_tp_link_attach(prog, tp_name, cookie);
 	if (fd < 0)
 		bpf_prog_put(prog);
 	return fd;
@@ -3956,6 +3998,11 @@ static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
 			 * check permissions at attach time.
 			 */
 			return -EPERM;
+
+		ptype = attach_type_to_prog_type(attach_type);
+		if (prog->type != ptype)
+			return -EINVAL;
+
 		return prog->enforce_expected_attach_type &&
 			prog->expected_attach_type != attach_type ?
 			-EINVAL : 0;
@@ -3974,11 +4021,15 @@ static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
 		if (prog->expected_attach_type == BPF_TRACE_KPROBE_MULTI &&
 		    attach_type != BPF_TRACE_KPROBE_MULTI)
 			return -EINVAL;
+		if (prog->expected_attach_type == BPF_TRACE_KPROBE_SESSION &&
+		    attach_type != BPF_TRACE_KPROBE_SESSION)
+			return -EINVAL;
 		if (prog->expected_attach_type == BPF_TRACE_UPROBE_MULTI &&
 		    attach_type != BPF_TRACE_UPROBE_MULTI)
 			return -EINVAL;
 		if (attach_type != BPF_PERF_EVENT &&
 		    attach_type != BPF_TRACE_KPROBE_MULTI &&
+		    attach_type != BPF_TRACE_KPROBE_SESSION &&
 		    attach_type != BPF_TRACE_UPROBE_MULTI)
 			return -EINVAL;
 		return 0;
@@ -5198,7 +5249,7 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 			goto out;
 		}
 		if (prog->expected_attach_type == BPF_TRACE_RAW_TP)
-			ret = bpf_raw_tp_link_attach(prog, NULL);
+			ret = bpf_raw_tp_link_attach(prog, NULL, attr->link_create.tracing.cookie);
 		else if (prog->expected_attach_type == BPF_TRACE_ITER)
 			ret = bpf_iter_link_attach(attr, uattr, prog);
 		else if (prog->expected_attach_type == BPF_LSM_CGROUP)
@@ -5212,6 +5263,10 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 	case BPF_PROG_TYPE_SK_LOOKUP:
 		ret = netns_bpf_link_create(attr, prog);
+		break;
+	case BPF_PROG_TYPE_SK_MSG:
+	case BPF_PROG_TYPE_SK_SKB:
+		ret = sock_map_link_create(attr, prog);
 		break;
 #ifdef CONFIG_NET
 	case BPF_PROG_TYPE_XDP:
@@ -5235,7 +5290,8 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 	case BPF_PROG_TYPE_KPROBE:
 		if (attr->link_create.attach_type == BPF_PERF_EVENT)
 			ret = bpf_perf_link_attach(attr, prog);
-		else if (attr->link_create.attach_type == BPF_TRACE_KPROBE_MULTI)
+		else if (attr->link_create.attach_type == BPF_TRACE_KPROBE_MULTI ||
+			 attr->link_create.attach_type == BPF_TRACE_KPROBE_SESSION)
 			ret = bpf_kprobe_multi_link_attach(attr, prog);
 		else if (attr->link_create.attach_type == BPF_TRACE_UPROBE_MULTI)
 			ret = bpf_uprobe_multi_link_attach(attr, prog);
@@ -5979,7 +6035,6 @@ static struct ctl_table bpf_syscall_table[] = {
 		.mode		= 0644,
 		.proc_handler	= bpf_stats_handler,
 	},
-	{ }
 };
 
 static int __init bpf_syscall_sysctl_init(void)

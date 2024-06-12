@@ -137,8 +137,13 @@ enum dp_link_encoding {
 
 enum dp_test_link_rate {
 	DP_TEST_LINK_RATE_RBR		= 0x06,
+	DP_TEST_LINK_RATE_RATE_2    = 0x08,	// Rate_2        - 2.16 Gbps/Lane
+	DP_TEST_LINK_RATE_RATE_3    = 0x09,	// Rate_3        - 2.43 Gbps/Lane
 	DP_TEST_LINK_RATE_HBR		= 0x0A,
+	DP_TEST_LINK_RATE_RBR2      = 0x0C,	// Rate_5 (RBR2) - 3.24 Gbps/Lane
+	DP_TEST_LINK_RATE_RATE_6    = 0x10,	// Rate_6        - 4.32 Gbps/Lane
 	DP_TEST_LINK_RATE_HBR2		= 0x14,
+	DP_TEST_LINK_RATE_RATE_8    = 0x19,	// Rate_8        - 6.75 Gbps/Lane
 	DP_TEST_LINK_RATE_HBR3		= 0x1E,
 	DP_TEST_LINK_RATE_UHBR10	= 0x01,
 	DP_TEST_LINK_RATE_UHBR20	= 0x02,
@@ -917,16 +922,6 @@ struct dpcd_usb4_dp_tunneling_info {
 	uint8_t usb4_topology_id[DPCD_USB4_TOPOLOGY_ID_LEN];
 };
 
-#ifndef DP_DFP_CAPABILITY_EXTENSION_SUPPORT
-#define DP_DFP_CAPABILITY_EXTENSION_SUPPORT		0x0A3
-#endif
-#ifndef DP_TEST_264BIT_CUSTOM_PATTERN_7_0
-#define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0X2230
-#endif
-#ifndef DP_TEST_264BIT_CUSTOM_PATTERN_263_256
-#define DP_TEST_264BIT_CUSTOM_PATTERN_263_256		0X2250
-#endif
-
 union dp_main_line_channel_coding_cap {
 	struct {
 		uint8_t DP_8b_10b_SUPPORTED	:1;
@@ -1232,8 +1227,7 @@ union replay_enable_and_configuration {
 		unsigned char FREESYNC_PANEL_REPLAY_MODE              :1;
 		unsigned char TIMING_DESYNC_ERROR_VERIFICATION        :1;
 		unsigned char STATE_TRANSITION_ERROR_DETECTION        :1;
-		unsigned char RESERVED0                               :1;
-		unsigned char RESERVED1                               :4;
+		unsigned char RESERVED                                :5;
 	} bits;
 	unsigned char raw;
 };

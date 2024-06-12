@@ -163,7 +163,7 @@ config TRACING
 	select BINARY_PRINTF
 	select EVENT_TRACING
 	select TRACE_CLOCK
-	select TASKS_RCU if PREEMPTION
+	select NEED_TASKS_RCU
 
 config GENERIC_TRACER
 	bool
@@ -204,7 +204,7 @@ config FUNCTION_TRACER
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	select GLOB
-	select TASKS_RCU if PREEMPTION
+	select NEED_TASKS_RCU
 	select TASKS_RUDE_RCU
 	help
 	  Enable the kernel to trace every kernel function. This is done
@@ -965,7 +965,7 @@ config FTRACE_RECORD_RECURSION
 
 config FTRACE_RECORD_RECURSION_SIZE
 	int "Max number of recursed functions to record"
-	default	128
+	default 128
 	depends on FTRACE_RECORD_RECURSION
 	help
 	  This defines the limit of number of functions that can be
@@ -973,6 +973,19 @@ config FTRACE_RECORD_RECURSION_SIZE
 	  the functions that caused a recursion to happen.
 	  This file can be reset, but the limit can not change in
 	  size at runtime.
+
+config FTRACE_VALIDATE_RCU_IS_WATCHING
+	bool "Validate RCU is on during ftrace execution"
+	depends on FUNCTION_TRACER
+	depends on ARCH_WANTS_NO_INSTR
+	help
+	  All callbacks that attach to the function tracing have some sort of
+	  protection against recursion. This option is only to verify that
+	  ftrace (and other users of ftrace_test_recursion_trylock()) are not
+	  called outside of RCU, as if they are, it can cause a race. But it
+	  also has a noticeable overhead when enabled.
+
+	  If unsure, say N
 
 config RING_BUFFER_RECORD_RECURSION
 	bool "Record functions that recurse in the ring buffer"

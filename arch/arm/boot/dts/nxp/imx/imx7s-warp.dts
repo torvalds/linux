@@ -210,6 +210,7 @@
 				remote-endpoint = <&mipi_from_sensor>;
 				clock-lanes = <0>;
 				data-lanes = <1>;
+				link-frequencies = /bits/ 64 <330000000>;
 			};
 		};
 	};

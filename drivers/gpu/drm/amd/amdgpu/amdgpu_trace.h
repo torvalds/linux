@@ -178,10 +178,10 @@ TRACE_EVENT(amdgpu_cs_ioctl,
 
 	    TP_fast_assign(
 			   __entry->sched_job_id = job->base.id;
-			   __assign_str(timeline, AMDGPU_JOB_GET_TIMELINE_NAME(job));
+			   __assign_str(timeline);
 			   __entry->context = job->base.s_fence->finished.context;
 			   __entry->seqno = job->base.s_fence->finished.seqno;
-			   __assign_str(ring, to_amdgpu_ring(job->base.sched)->name);
+			   __assign_str(ring);
 			   __entry->num_ibs = job->num_ibs;
 			   ),
 	    TP_printk("sched_job=%llu, timeline=%s, context=%u, seqno=%u, ring_name=%s, num_ibs=%u",
@@ -203,10 +203,10 @@ TRACE_EVENT(amdgpu_sched_run_job,
 
 	    TP_fast_assign(
 			   __entry->sched_job_id = job->base.id;
-			   __assign_str(timeline, AMDGPU_JOB_GET_TIMELINE_NAME(job));
+			   __assign_str(timeline);
 			   __entry->context = job->base.s_fence->finished.context;
 			   __entry->seqno = job->base.s_fence->finished.seqno;
-			   __assign_str(ring, to_amdgpu_ring(job->base.sched)->name);
+			   __assign_str(ring);
 			   __entry->num_ibs = job->num_ibs;
 			   ),
 	    TP_printk("sched_job=%llu, timeline=%s, context=%u, seqno=%u, ring_name=%s, num_ibs=%u",
@@ -231,7 +231,7 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 
 	    TP_fast_assign(
 			   __entry->pasid = vm->pasid;
-			   __assign_str(ring, ring->name);
+			   __assign_str(ring);
 			   __entry->vmid = job->vmid;
 			   __entry->vm_hub = ring->vm_hub,
 			   __entry->pd_addr = job->vm_pd_addr;
@@ -425,7 +425,7 @@ TRACE_EVENT(amdgpu_vm_flush,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(ring, ring->name);
+			   __assign_str(ring);
 			   __entry->vmid = vmid;
 			   __entry->vm_hub = ring->vm_hub;
 			   __entry->pd_addr = pd_addr;
@@ -526,7 +526,7 @@ TRACE_EVENT(amdgpu_ib_pipe_sync,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(ring, sched_job->base.sched->name);
+			   __assign_str(ring);
 			   __entry->id = sched_job->base.id;
 			   __entry->fence = fence;
 			   __entry->ctx = fence->context;
@@ -563,7 +563,7 @@ TRACE_EVENT(amdgpu_runpm_reference_dumps,
 			     ),
 	    TP_fast_assign(
 			   __entry->index = index;
-			   __assign_str(func, func);
+			   __assign_str(func);
 			   ),
 	    TP_printk("amdgpu runpm reference dump 0x%x: 0x%s\n",
 		      __entry->index,

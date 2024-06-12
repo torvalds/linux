@@ -482,10 +482,12 @@ btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 
 	if (flush)
 		sync_blockdev(bdev);
-	ret = set_blocksize(bdev, BTRFS_BDEV_BLOCKSIZE);
-	if (ret) {
-		fput(*bdev_file);
-		goto error;
+	if (holder) {
+		ret = set_blocksize(*bdev_file, BTRFS_BDEV_BLOCKSIZE);
+		if (ret) {
+			fput(*bdev_file);
+			goto error;
+		}
 	}
 	invalidate_bdev(bdev);
 	*disk_super = btrfs_read_dev_super(bdev);
@@ -498,6 +500,7 @@ btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 	return 0;
 
 error:
+	*disk_super = NULL;
 	*bdev_file = NULL;
 	return ret;
 }
@@ -691,6 +694,16 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 	device->bdev_file = bdev_file;
 	device->bdev = file_bdev(bdev_file);
 	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
+
+	if (device->devt != device->bdev->bd_dev) {
+		btrfs_warn(NULL,
+			   "device %s maj:min changed from %d:%d to %d:%d",
+			   device->name->str, MAJOR(device->devt),
+			   MINOR(device->devt), MAJOR(device->bdev->bd_dev),
+			   MINOR(device->bdev->bd_dev));
+
+		device->devt = device->bdev->bd_dev;
+	}
 
 	fs_devices->open_devices++;
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state) &&
@@ -1174,23 +1187,30 @@ static int open_fs_devices(struct btrfs_fs_devices *fs_devices,
 	struct btrfs_device *device;
 	struct btrfs_device *latest_dev = NULL;
 	struct btrfs_device *tmp_device;
+	int ret = 0;
 
 	list_for_each_entry_safe(device, tmp_device, &fs_devices->devices,
 				 dev_list) {
-		int ret;
+		int ret2;
 
-		ret = btrfs_open_one_device(fs_devices, device, flags, holder);
-		if (ret == 0 &&
+		ret2 = btrfs_open_one_device(fs_devices, device, flags, holder);
+		if (ret2 == 0 &&
 		    (!latest_dev || device->generation > latest_dev->generation)) {
 			latest_dev = device;
-		} else if (ret == -ENODATA) {
+		} else if (ret2 == -ENODATA) {
 			fs_devices->num_devices--;
 			list_del(&device->dev_list);
 			btrfs_free_device(device);
 		}
+		if (ret == 0 && ret2 != 0)
+			ret = ret2;
 	}
-	if (fs_devices->open_devices == 0)
+
+	if (fs_devices->open_devices == 0) {
+		if (ret)
+			return ret;
 		return -EINVAL;
+	}
 
 	fs_devices->opened = 1;
 	fs_devices->latest_dev = latest_dev;
@@ -1270,7 +1290,7 @@ static struct btrfs_super_block *btrfs_read_disk_super(struct block_device *bdev
 		return ERR_PTR(-EINVAL);
 
 	/* pull in the page with our super */
-	page = read_cache_page_gfp(bdev->bd_inode->i_mapping, index, GFP_KERNEL);
+	page = read_cache_page_gfp(bdev->bd_mapping, index, GFP_KERNEL);
 
 	if (IS_ERR(page))
 		return ERR_CAST(page);
@@ -2697,7 +2717,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	clear_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state);
 	device->dev_stats_valid = 1;
-	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
+	set_blocksize(device->bdev_file, BTRFS_BDEV_BLOCKSIZE);
 
 	if (seeding_dev) {
 		btrfs_clear_sb_rdonly(sb);
@@ -3438,6 +3458,7 @@ again:
 			 * alignment and size).
 			 */
 			ret = -EUCLEAN;
+			mutex_unlock(&fs_info->reclaim_bgs_lock);
 			goto error;
 		}
 
@@ -5595,21 +5616,6 @@ struct btrfs_chunk_map *btrfs_alloc_chunk_map(int num_stripes, gfp_t gfp)
 	RB_CLEAR_NODE(&map->rb_node);
 
 	return map;
-}
-
-struct btrfs_chunk_map *btrfs_clone_chunk_map(struct btrfs_chunk_map *map, gfp_t gfp)
-{
-	const int size = btrfs_chunk_map_size(map->num_stripes);
-	struct btrfs_chunk_map *clone;
-
-	clone = kmemdup(map, size, gfp);
-	if (!clone)
-		return NULL;
-
-	refcount_set(&clone->refs, 1);
-	RB_CLEAR_NODE(&clone->rb_node);
-
-	return clone;
 }
 
 static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,

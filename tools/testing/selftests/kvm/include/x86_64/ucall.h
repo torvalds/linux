@@ -2,7 +2,7 @@
 #ifndef SELFTEST_KVM_UCALL_H
 #define SELFTEST_KVM_UCALL_H
 
-#include "kvm_util_base.h"
+#include "kvm_util.h"
 
 #define UCALL_EXIT_REASON       KVM_EXIT_IO
 

@@ -868,7 +868,7 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 {
 	struct fsl_ep *ep = container_of(_ep, struct fsl_ep, ep);
 	struct fsl_req *req = container_of(_req, struct fsl_req, req);
-	struct fsl_udc *udc;
+	struct fsl_udc *udc = ep->udc;
 	unsigned long flags;
 	int ret;
 
@@ -878,7 +878,7 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		dev_vdbg(&udc->gadget.dev, "%s, bad params\n", __func__);
 		return -EINVAL;
 	}
-	if (unlikely(!_ep || !ep->ep.desc)) {
+	if (unlikely(!ep->ep.desc)) {
 		dev_vdbg(&udc->gadget.dev, "%s, bad ep\n", __func__);
 		return -EINVAL;
 	}
@@ -887,7 +887,6 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			return -EMSGSIZE;
 	}
 
-	udc = ep->udc;
 	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
 

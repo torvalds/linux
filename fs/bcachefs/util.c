@@ -348,15 +348,12 @@ static void bch2_pr_time_units_aligned(struct printbuf *out, u64 ns)
 {
 	const struct time_unit *u = bch2_pick_time_units(ns);
 
-	prt_printf(out, "%llu ", div64_u64(ns, u->nsecs));
-	prt_tab_rjust(out);
-	prt_printf(out, "%s", u->name);
+	prt_printf(out, "%llu \r%s", div64_u64(ns, u->nsecs), u->name);
 }
 
 static inline void pr_name_and_units(struct printbuf *out, const char *name, u64 ns)
 {
-	prt_str(out, name);
-	prt_tab(out);
+	prt_printf(out, "%s\t", name);
 	bch2_pr_time_units_aligned(out, ns);
 	prt_newline(out);
 }
@@ -389,12 +386,8 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	}
 
 	printbuf_tabstop_push(out, out->indent + TABSTOP_SIZE);
-	prt_printf(out, "count:");
-	prt_tab(out);
-	prt_printf(out, "%llu ",
-			 stats->duration_stats.n);
+	prt_printf(out, "count:\t%llu\n", stats->duration_stats.n);
 	printbuf_tabstop_pop(out);
-	prt_newline(out);
 
 	printbuf_tabstops_reset(out);
 
@@ -403,13 +396,8 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	printbuf_tabstop_push(out, 0);
 	printbuf_tabstop_push(out, TABSTOP_SIZE + 2);
 
-	prt_tab(out);
-	prt_printf(out, "since mount");
-	prt_tab_rjust(out);
-	prt_tab(out);
+	prt_printf(out, "\tsince mount\r\trecent\r\n");
 	prt_printf(out, "recent");
-	prt_tab_rjust(out);
-	prt_newline(out);
 
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, out->indent + 20);
@@ -417,23 +405,20 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	printbuf_tabstop_push(out, 2);
 	printbuf_tabstop_push(out, TABSTOP_SIZE);
 
-	prt_printf(out, "duration of events");
-	prt_newline(out);
+	prt_printf(out, "duration of events\n");
 	printbuf_indent_add(out, 2);
 
 	pr_name_and_units(out, "min:", stats->min_duration);
 	pr_name_and_units(out, "max:", stats->max_duration);
 	pr_name_and_units(out, "total:", stats->total_duration);
 
-	prt_printf(out, "mean:");
-	prt_tab(out);
+	prt_printf(out, "mean:\t");
 	bch2_pr_time_units_aligned(out, d_mean);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_mean(stats->duration_stats_weighted, TIME_STATS_MV_WEIGHT));
 	prt_newline(out);
 
-	prt_printf(out, "stddev:");
-	prt_tab(out);
+	prt_printf(out, "stddev:\t");
 	bch2_pr_time_units_aligned(out, d_stddev);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_stddev(stats->duration_stats_weighted, TIME_STATS_MV_WEIGHT));
@@ -441,22 +426,19 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	printbuf_indent_sub(out, 2);
 	prt_newline(out);
 
-	prt_printf(out, "time between events");
-	prt_newline(out);
+	prt_printf(out, "time between events\n");
 	printbuf_indent_add(out, 2);
 
 	pr_name_and_units(out, "min:", stats->min_freq);
 	pr_name_and_units(out, "max:", stats->max_freq);
 
-	prt_printf(out, "mean:");
-	prt_tab(out);
+	prt_printf(out, "mean:\t");
 	bch2_pr_time_units_aligned(out, f_mean);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_mean(stats->freq_stats_weighted, TIME_STATS_MV_WEIGHT));
 	prt_newline(out);
 
-	prt_printf(out, "stddev:");
-	prt_tab(out);
+	prt_printf(out, "stddev:\t");
 	bch2_pr_time_units_aligned(out, f_stddev);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_stddev(stats->freq_stats_weighted, TIME_STATS_MV_WEIGHT));
@@ -589,40 +571,31 @@ void bch2_pd_controller_debug_to_text(struct printbuf *out, struct bch_pd_contro
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 20);
 
-	prt_printf(out, "rate:");
-	prt_tab(out);
+	prt_printf(out, "rate:\t");
 	prt_human_readable_s64(out, pd->rate.rate);
 	prt_newline(out);
 
-	prt_printf(out, "target:");
-	prt_tab(out);
+	prt_printf(out, "target:\t");
 	prt_human_readable_u64(out, pd->last_target);
 	prt_newline(out);
 
-	prt_printf(out, "actual:");
-	prt_tab(out);
+	prt_printf(out, "actual:\t");
 	prt_human_readable_u64(out, pd->last_actual);
 	prt_newline(out);
 
-	prt_printf(out, "proportional:");
-	prt_tab(out);
+	prt_printf(out, "proportional:\t");
 	prt_human_readable_s64(out, pd->last_proportional);
 	prt_newline(out);
 
-	prt_printf(out, "derivative:");
-	prt_tab(out);
+	prt_printf(out, "derivative:\t");
 	prt_human_readable_s64(out, pd->last_derivative);
 	prt_newline(out);
 
-	prt_printf(out, "change:");
-	prt_tab(out);
+	prt_printf(out, "change:\t");
 	prt_human_readable_s64(out, pd->last_change);
 	prt_newline(out);
 
-	prt_printf(out, "next io:");
-	prt_tab(out);
-	prt_printf(out, "%llims", div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC));
-	prt_newline(out);
+	prt_printf(out, "next io:\t%llims\n", div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC));
 }
 
 /* misc: */
@@ -704,149 +677,6 @@ void memcpy_from_bio(void *dst, struct bio *src, struct bvec_iter src_iter)
 		kunmap_local(srcp);
 
 		dst += bv.bv_len;
-	}
-}
-
-static int alignment_ok(const void *base, size_t align)
-{
-	return IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
-		((unsigned long)base & (align - 1)) == 0;
-}
-
-static void u32_swap(void *a, void *b, size_t size)
-{
-	u32 t = *(u32 *)a;
-	*(u32 *)a = *(u32 *)b;
-	*(u32 *)b = t;
-}
-
-static void u64_swap(void *a, void *b, size_t size)
-{
-	u64 t = *(u64 *)a;
-	*(u64 *)a = *(u64 *)b;
-	*(u64 *)b = t;
-}
-
-static void generic_swap(void *a, void *b, size_t size)
-{
-	char t;
-
-	do {
-		t = *(char *)a;
-		*(char *)a++ = *(char *)b;
-		*(char *)b++ = t;
-	} while (--size > 0);
-}
-
-static inline int do_cmp(void *base, size_t n, size_t size,
-			 int (*cmp_func)(const void *, const void *, size_t),
-			 size_t l, size_t r)
-{
-	return cmp_func(base + inorder_to_eytzinger0(l, n) * size,
-			base + inorder_to_eytzinger0(r, n) * size,
-			size);
-}
-
-static inline void do_swap(void *base, size_t n, size_t size,
-			   void (*swap_func)(void *, void *, size_t),
-			   size_t l, size_t r)
-{
-	swap_func(base + inorder_to_eytzinger0(l, n) * size,
-		  base + inorder_to_eytzinger0(r, n) * size,
-		  size);
-}
-
-void eytzinger0_sort(void *base, size_t n, size_t size,
-		     int (*cmp_func)(const void *, const void *, size_t),
-		     void (*swap_func)(void *, void *, size_t))
-{
-	int i, c, r;
-
-	if (!swap_func) {
-		if (size == 4 && alignment_ok(base, 4))
-			swap_func = u32_swap;
-		else if (size == 8 && alignment_ok(base, 8))
-			swap_func = u64_swap;
-		else
-			swap_func = generic_swap;
-	}
-
-	/* heapify */
-	for (i = n / 2 - 1; i >= 0; --i) {
-		for (r = i; r * 2 + 1 < n; r = c) {
-			c = r * 2 + 1;
-
-			if (c + 1 < n &&
-			    do_cmp(base, n, size, cmp_func, c, c + 1) < 0)
-				c++;
-
-			if (do_cmp(base, n, size, cmp_func, r, c) >= 0)
-				break;
-
-			do_swap(base, n, size, swap_func, r, c);
-		}
-	}
-
-	/* sort */
-	for (i = n - 1; i > 0; --i) {
-		do_swap(base, n, size, swap_func, 0, i);
-
-		for (r = 0; r * 2 + 1 < i; r = c) {
-			c = r * 2 + 1;
-
-			if (c + 1 < i &&
-			    do_cmp(base, n, size, cmp_func, c, c + 1) < 0)
-				c++;
-
-			if (do_cmp(base, n, size, cmp_func, r, c) >= 0)
-				break;
-
-			do_swap(base, n, size, swap_func, r, c);
-		}
-	}
-}
-
-void sort_cmp_size(void *base, size_t num, size_t size,
-	  int (*cmp_func)(const void *, const void *, size_t),
-	  void (*swap_func)(void *, void *, size_t size))
-{
-	/* pre-scale counters for performance */
-	int i = (num/2 - 1) * size, n = num * size, c, r;
-
-	if (!swap_func) {
-		if (size == 4 && alignment_ok(base, 4))
-			swap_func = u32_swap;
-		else if (size == 8 && alignment_ok(base, 8))
-			swap_func = u64_swap;
-		else
-			swap_func = generic_swap;
-	}
-
-	/* heapify */
-	for ( ; i >= 0; i -= size) {
-		for (r = i; r * 2 + size < n; r  = c) {
-			c = r * 2 + size;
-			if (c < n - size &&
-			    cmp_func(base + c, base + c + size, size) < 0)
-				c += size;
-			if (cmp_func(base + r, base + c, size) >= 0)
-				break;
-			swap_func(base + r, base + c, size);
-		}
-	}
-
-	/* sort */
-	for (i = n - size; i > 0; i -= size) {
-		swap_func(base, base + i, size);
-		for (r = 0; r * 2 + size < i; r = c) {
-			c = r * 2 + size;
-			if (c < i - size &&
-			    cmp_func(base + c, base + c + size, size) < 0)
-				c += size;
-			if (cmp_func(base + r, base + c, size) >= 0)
-				break;
-			swap_func(base + r, base + c, size);
-		}
 	}
 }
 

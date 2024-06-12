@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -641,5 +641,26 @@ struct iwl_mvm_sta_disable_tx_cmd {
 	__le32 sta_id;
 	__le32 disable;
 } __packed; /* STA_DISABLE_TX_API_S_VER_1 */
+
+/**
+ * enum iwl_mvm_fw_esr_recommendation - FW recommendation code
+ * @ESR_RECOMMEND_LEAVE: recommendation to leave esr
+ * @ESR_FORCE_LEAVE: force exiting esr
+ * @ESR_RECOMMEND_ENTER: recommendation to enter esr
+ */
+enum iwl_mvm_fw_esr_recommendation {
+	ESR_RECOMMEND_LEAVE,
+	ESR_FORCE_LEAVE,
+	ESR_RECOMMEND_ENTER,
+}; /* ESR_MODE_RECOMMENDATION_CODE_API_E_VER_1 */
+
+/**
+ * struct iwl_mvm_esr_mode_notif - FWs recommendation/force for esr mode
+ *
+ * @action: the action to apply on esr state. See &iwl_mvm_fw_esr_recommendation
+ */
+struct iwl_mvm_esr_mode_notif {
+	__le32 action;
+} __packed; /* ESR_MODE_RECOMMENDATION_NTFY_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */

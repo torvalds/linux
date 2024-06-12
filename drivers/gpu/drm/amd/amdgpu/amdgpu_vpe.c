@@ -205,7 +205,7 @@ disable_dpm:
 	dpm_ctl &= 0xfffffffe; /* Disable DPM */
 	WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_enable), dpm_ctl);
 	dev_dbg(adev->dev, "%s: disable vpe dpm\n", __func__);
-	return 0;
+	return -EINVAL;
 }
 
 int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev)
@@ -395,6 +395,12 @@ static int vpe_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
+
+	/* Power on VPE */
+	ret = amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE,
+						     AMD_PG_STATE_UNGATE);
+	if (ret)
+		return ret;
 
 	ret = vpe_load_microcode(vpe);
 	if (ret)

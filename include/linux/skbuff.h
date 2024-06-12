@@ -353,8 +353,6 @@ struct sk_buff;
 
 #define MAX_SKB_FRAGS CONFIG_MAX_SKB_FRAGS
 
-extern int sysctl_max_skb_frags;
-
 /* Set skb_shinfo(skb)->gso_size to this in case you want skb_segment to
  * segment using its current segmentation instead.
  */
@@ -527,6 +525,13 @@ enum {
 #define SKBFL_ALL_ZEROCOPY	(SKBFL_ZEROCOPY_FRAG | SKBFL_PURE_ZEROCOPY | \
 				 SKBFL_DONT_ORPHAN | SKBFL_MANAGED_FRAG_REFS)
 
+struct ubuf_info_ops {
+	void (*complete)(struct sk_buff *, struct ubuf_info *,
+			 bool zerocopy_success);
+	/* has to be compatible with skb_zcopy_set() */
+	int (*link_skb)(struct sk_buff *skb, struct ubuf_info *uarg);
+};
+
 /*
  * The callback notifies userspace to release buffers when skb DMA is done in
  * lower device, the skb last reference should be 0 when calling this.
@@ -536,8 +541,7 @@ enum {
  * The desc field is used to track userspace buffer index.
  */
 struct ubuf_info {
-	void (*callback)(struct sk_buff *, struct ubuf_info *,
-			 bool zerocopy_success);
+	const struct ubuf_info_ops *ops;
 	refcount_t refcnt;
 	u8 flags;
 };
@@ -753,8 +757,6 @@ typedef unsigned char *sk_buff_data_t;
  *	@list: queue head
  *	@ll_node: anchor in an llist (eg socket defer_list)
  *	@sk: Socket we are owned by
- *	@ip_defrag_offset: (aka @sk) alternate use of @sk, used in
- *		fragmentation management
  *	@dev: Device we arrived on/are leaving by
  *	@dev_scratch: (aka @dev) alternate use of @dev when @dev would be %NULL
  *	@cb: Control buffer. Free for use by every layer. Put private vars here
@@ -875,10 +877,7 @@ struct sk_buff {
 		struct llist_node	ll_node;
 	};
 
-	union {
-		struct sock		*sk;
-		int			ip_defrag_offset;
-	};
+	struct sock		*sk;
 
 	union {
 		ktime_t		tstamp;
@@ -997,7 +996,7 @@ struct sk_buff {
 #ifdef CONFIG_NETFILTER_SKIP_EGRESS
 	__u8			nf_skip_egress:1;
 #endif
-#ifdef CONFIG_TLS_DEVICE
+#ifdef CONFIG_SKB_DECRYPTED
 	__u8			decrypted:1;
 #endif
 	__u8			slow_gro:1;
@@ -1177,15 +1176,6 @@ static inline void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst)
 static inline bool skb_dst_is_noref(const struct sk_buff *skb)
 {
 	return (skb->_skb_refdst & SKB_DST_NOREF) && skb_dst(skb);
-}
-
-/**
- * skb_rtable - Returns the skb &rtable
- * @skb: buffer
- */
-static inline struct rtable *skb_rtable(const struct sk_buff *skb)
-{
-	return (struct rtable *)skb_dst(skb);
 }
 
 /* For mangling skb->pkt_type from user space side from applications
@@ -1620,17 +1610,26 @@ static inline void skb_copy_hash(struct sk_buff *to, const struct sk_buff *from)
 static inline int skb_cmp_decrypted(const struct sk_buff *skb1,
 				    const struct sk_buff *skb2)
 {
-#ifdef CONFIG_TLS_DEVICE
+#ifdef CONFIG_SKB_DECRYPTED
 	return skb2->decrypted - skb1->decrypted;
 #else
 	return 0;
 #endif
 }
 
+static inline bool skb_is_decrypted(const struct sk_buff *skb)
+{
+#ifdef CONFIG_SKB_DECRYPTED
+	return skb->decrypted;
+#else
+	return false;
+#endif
+}
+
 static inline void skb_copy_decrypted(struct sk_buff *to,
 				      const struct sk_buff *from)
 {
-#ifdef CONFIG_TLS_DEVICE
+#ifdef CONFIG_SKB_DECRYPTED
 	to->decrypted = from->decrypted;
 #endif
 }
@@ -1667,13 +1666,12 @@ static inline void skb_set_end_offset(struct sk_buff *skb, unsigned int offset)
 }
 #endif
 
+extern const struct ubuf_info_ops msg_zerocopy_ubuf_ops;
+
 struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
 				       struct ubuf_info *uarg);
 
 void msg_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref);
-
-void msg_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *uarg,
-			   bool success);
 
 int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 			    struct sk_buff *skb, struct iov_iter *from,
@@ -1762,13 +1760,13 @@ static inline void *skb_zcopy_get_nouarg(struct sk_buff *skb)
 static inline void net_zcopy_put(struct ubuf_info *uarg)
 {
 	if (uarg)
-		uarg->callback(NULL, uarg, true);
+		uarg->ops->complete(NULL, uarg, true);
 }
 
 static inline void net_zcopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 {
 	if (uarg) {
-		if (uarg->callback == msg_zerocopy_callback)
+		if (uarg->ops == &msg_zerocopy_ubuf_ops)
 			msg_zerocopy_put_abort(uarg, have_uref);
 		else if (have_uref)
 			net_zcopy_put(uarg);
@@ -1782,7 +1780,7 @@ static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy_success)
 
 	if (uarg) {
 		if (!skb_zcopy_is_nouarg(skb))
-			uarg->callback(skb, uarg, zerocopy_success);
+			uarg->ops->complete(skb, uarg, zerocopy_success);
 
 		skb_shinfo(skb)->flags &= ~SKBFL_ALL_ZEROCOPY;
 	}
@@ -3036,6 +3034,21 @@ static inline void skb_mac_header_rebuild(struct sk_buff *skb)
 	}
 }
 
+/* Move the full mac header up to current network_header.
+ * Leaves skb->data pointing at offset skb->mac_len into the mac_header.
+ * Must be provided the complete mac header length.
+ */
+static inline void skb_mac_header_rebuild_full(struct sk_buff *skb, u32 full_mac_len)
+{
+	if (skb_mac_header_was_set(skb)) {
+		const unsigned char *old_mac = skb_mac_header(skb);
+
+		skb_set_mac_header(skb, -full_mac_len);
+		memmove(skb_mac_header(skb), old_mac, full_mac_len);
+		__skb_push(skb, full_mac_len - skb->mac_len);
+	}
+}
+
 static inline int skb_checksum_start_offset(const struct sk_buff *skb)
 {
 	return skb->csum_start - skb_headroom(skb);
@@ -3355,13 +3368,7 @@ static inline void *napi_alloc_frag_align(unsigned int fragsz,
 	return __napi_alloc_frag_align(fragsz, -align);
 }
 
-struct sk_buff *__napi_alloc_skb(struct napi_struct *napi,
-				 unsigned int length, gfp_t gfp_mask);
-static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
-					     unsigned int length)
-{
-	return __napi_alloc_skb(napi, length, GFP_ATOMIC);
-}
+struct sk_buff *napi_alloc_skb(struct napi_struct *napi, unsigned int length);
 void napi_consume_skb(struct sk_buff *skb, int budget);
 
 void napi_skb_free_stolen_head(struct sk_buff *skb);
@@ -3376,7 +3383,7 @@ void __napi_kfree_skb(struct sk_buff *skb, enum skb_drop_reason reason);
  *
  * %NULL is returned if there is no free memory.
 */
-static inline struct page *__dev_alloc_pages(gfp_t gfp_mask,
+static inline struct page *__dev_alloc_pages_noprof(gfp_t gfp_mask,
 					     unsigned int order)
 {
 	/* This piece of code contains several assumptions.
@@ -3389,13 +3396,11 @@ static inline struct page *__dev_alloc_pages(gfp_t gfp_mask,
 	 */
 	gfp_mask |= __GFP_COMP | __GFP_MEMALLOC;
 
-	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
+	return alloc_pages_node_noprof(NUMA_NO_NODE, gfp_mask, order);
 }
+#define __dev_alloc_pages(...)	alloc_hooks(__dev_alloc_pages_noprof(__VA_ARGS__))
 
-static inline struct page *dev_alloc_pages(unsigned int order)
-{
-	return __dev_alloc_pages(GFP_ATOMIC | __GFP_NOWARN, order);
-}
+#define dev_alloc_pages(_order) __dev_alloc_pages(GFP_ATOMIC | __GFP_NOWARN, _order)
 
 /**
  * __dev_alloc_page - allocate a page for network Rx
@@ -3405,15 +3410,13 @@ static inline struct page *dev_alloc_pages(unsigned int order)
  *
  * %NULL is returned if there is no free memory.
  */
-static inline struct page *__dev_alloc_page(gfp_t gfp_mask)
+static inline struct page *__dev_alloc_page_noprof(gfp_t gfp_mask)
 {
-	return __dev_alloc_pages(gfp_mask, 0);
+	return __dev_alloc_pages_noprof(gfp_mask, 0);
 }
+#define __dev_alloc_page(...)	alloc_hooks(__dev_alloc_page_noprof(__VA_ARGS__))
 
-static inline struct page *dev_alloc_page(void)
-{
-	return dev_alloc_pages(0);
-}
+#define dev_alloc_page()	dev_alloc_pages(0)
 
 /**
  * dev_page_is_reusable - check whether a page can be reused for network Rx
@@ -3494,85 +3497,10 @@ static inline struct page *skb_frag_page(const skb_frag_t *frag)
 	return netmem_to_page(frag->netmem);
 }
 
-/**
- * __skb_frag_ref - take an addition reference on a paged fragment.
- * @frag: the paged fragment
- *
- * Takes an additional reference on the paged fragment @frag.
- */
-static inline void __skb_frag_ref(skb_frag_t *frag)
-{
-	get_page(skb_frag_page(frag));
-}
-
-/**
- * skb_frag_ref - take an addition reference on a paged fragment of an skb.
- * @skb: the buffer
- * @f: the fragment offset.
- *
- * Takes an additional reference on the @f'th paged fragment of @skb.
- */
-static inline void skb_frag_ref(struct sk_buff *skb, int f)
-{
-	__skb_frag_ref(&skb_shinfo(skb)->frags[f]);
-}
-
 int skb_pp_cow_data(struct page_pool *pool, struct sk_buff **pskb,
 		    unsigned int headroom);
 int skb_cow_data_for_xdp(struct page_pool *pool, struct sk_buff **pskb,
 			 struct bpf_prog *prog);
-bool napi_pp_put_page(struct page *page, bool napi_safe);
-
-static inline void
-skb_page_unref(const struct sk_buff *skb, struct page *page, bool napi_safe)
-{
-#ifdef CONFIG_PAGE_POOL
-	if (skb->pp_recycle && napi_pp_put_page(page, napi_safe))
-		return;
-#endif
-	put_page(page);
-}
-
-static inline void
-napi_frag_unref(skb_frag_t *frag, bool recycle, bool napi_safe)
-{
-	struct page *page = skb_frag_page(frag);
-
-#ifdef CONFIG_PAGE_POOL
-	if (recycle && napi_pp_put_page(page, napi_safe))
-		return;
-#endif
-	put_page(page);
-}
-
-/**
- * __skb_frag_unref - release a reference on a paged fragment.
- * @frag: the paged fragment
- * @recycle: recycle the page if allocated via page_pool
- *
- * Releases a reference on the paged fragment @frag
- * or recycles the page via the page_pool API.
- */
-static inline void __skb_frag_unref(skb_frag_t *frag, bool recycle)
-{
-	napi_frag_unref(frag, recycle, false);
-}
-
-/**
- * skb_frag_unref - release a reference on a paged fragment of an skb.
- * @skb: the buffer
- * @f: the fragment offset
- *
- * Releases a reference on the @f'th paged fragment of @skb.
- */
-static inline void skb_frag_unref(struct sk_buff *skb, int f)
-{
-	struct skb_shared_info *shinfo = skb_shinfo(skb);
-
-	if (!skb_zcopy_managed(skb))
-		__skb_frag_unref(&shinfo->frags[f], skb->pp_recycle);
-}
-
 /**
  * skb_frag_address - gets the address of the data contained in a paged fragment
  * @frag: the paged fragment buffer
@@ -4063,12 +3991,6 @@ int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 				 struct iov_iter *from, int len);
 int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *frm);
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb);
-void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len);
-static inline void skb_free_datagram_locked(struct sock *sk,
-					    struct sk_buff *skb)
-{
-	__skb_free_datagram_locked(sk, skb, 0);
-}
 int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags);
 int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len);
 int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len);

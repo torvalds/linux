@@ -1050,6 +1050,11 @@ next:
 			e++;
 		}
 	}
+
+	/* Don't let NLM_DONE coalesce into a message, even if it could.
+	 * Some user space expects NLM_DONE in a separate recv().
+	 */
+	err = skb->len;
 out:
 
 	cb->args[1] = e;

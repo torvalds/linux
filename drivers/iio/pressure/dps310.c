@@ -171,7 +171,7 @@ static int dps310_temp_workaround(struct dps310_data *data)
 	int reg;
 
 	rc = regmap_read(data->regmap, 0x32, &reg);
-	if (rc)
+	if (rc < 0)
 		return rc;
 
 	/*
@@ -256,24 +256,24 @@ static int dps310_startup(struct dps310_data *data)
 	return dps310_temp_workaround(data);
 }
 
-static int dps310_get_pres_precision(struct dps310_data *data)
+static int dps310_get_pres_precision(struct dps310_data *data, int *val)
 {
-	int rc;
-	int val;
+	int reg_val, rc;
 
-	rc = regmap_read(data->regmap, DPS310_PRS_CFG, &val);
+	rc = regmap_read(data->regmap, DPS310_PRS_CFG, &reg_val);
 	if (rc < 0)
 		return rc;
 
-	return BIT(val & GENMASK(2, 0));
+	*val = BIT(reg_val & GENMASK(2, 0));
+
+	return 0;
 }
 
-static int dps310_get_temp_precision(struct dps310_data *data)
+static int dps310_get_temp_precision(struct dps310_data *data, int *val)
 {
-	int rc;
-	int val;
+	int reg_val, rc;
 
-	rc = regmap_read(data->regmap, DPS310_TMP_CFG, &val);
+	rc = regmap_read(data->regmap, DPS310_TMP_CFG, &reg_val);
 	if (rc < 0)
 		return rc;
 
@@ -281,7 +281,9 @@ static int dps310_get_temp_precision(struct dps310_data *data)
 	 * Scale factor is bottom 4 bits of the register, but 1111 is
 	 * reserved so just grab bottom three
 	 */
-	return BIT(val & GENMASK(2, 0));
+	*val = BIT(reg_val & GENMASK(2, 0));
+
+	return 0;
 }
 
 /* Called with lock held */
@@ -350,48 +352,56 @@ static int dps310_set_temp_samp_freq(struct dps310_data *data, int freq)
 				  DPS310_TMP_RATE_BITS, val);
 }
 
-static int dps310_get_pres_samp_freq(struct dps310_data *data)
+static int dps310_get_pres_samp_freq(struct dps310_data *data, int *val)
 {
-	int rc;
-	int val;
+	int reg_val, rc;
 
-	rc = regmap_read(data->regmap, DPS310_PRS_CFG, &val);
+	rc = regmap_read(data->regmap, DPS310_PRS_CFG, &reg_val);
 	if (rc < 0)
 		return rc;
 
-	return BIT((val & DPS310_PRS_RATE_BITS) >> 4);
+	*val = BIT((reg_val & DPS310_PRS_RATE_BITS) >> 4);
+
+	return 0;
 }
 
-static int dps310_get_temp_samp_freq(struct dps310_data *data)
+static int dps310_get_temp_samp_freq(struct dps310_data *data, int *val)
 {
-	int rc;
-	int val;
+	int reg_val, rc;
 
-	rc = regmap_read(data->regmap, DPS310_TMP_CFG, &val);
+	rc = regmap_read(data->regmap, DPS310_TMP_CFG, &reg_val);
 	if (rc < 0)
 		return rc;
 
-	return BIT((val & DPS310_TMP_RATE_BITS) >> 4);
+	*val = BIT((reg_val & DPS310_TMP_RATE_BITS) >> 4);
+
+	return 0;
 }
 
-static int dps310_get_pres_k(struct dps310_data *data)
+static int dps310_get_pres_k(struct dps310_data *data, int *val)
 {
-	int rc = dps310_get_pres_precision(data);
+	int reg_val, rc;
 
+	rc = regmap_read(data->regmap, DPS310_PRS_CFG, &reg_val);
 	if (rc < 0)
 		return rc;
 
-	return scale_factors[ilog2(rc)];
+	*val = scale_factors[reg_val & GENMASK(2, 0)];
+
+	return 0;
 }
 
-static int dps310_get_temp_k(struct dps310_data *data)
+static int dps310_get_temp_k(struct dps310_data *data, int *val)
 {
-	int rc = dps310_get_temp_precision(data);
+	int reg_val, rc;
 
+	rc = regmap_read(data->regmap, DPS310_TMP_CFG, &reg_val);
 	if (rc < 0)
 		return rc;
 
-	return scale_factors[ilog2(rc)];
+	*val = scale_factors[reg_val & GENMASK(2, 0)];
+
+	return 0;
 }
 
 static int dps310_reset_wait(struct dps310_data *data)
@@ -464,7 +474,10 @@ static int dps310_read_pres_raw(struct dps310_data *data)
 	if (mutex_lock_interruptible(&data->lock))
 		return -EINTR;
 
-	rate = dps310_get_pres_samp_freq(data);
+	rc = dps310_get_pres_samp_freq(data, &rate);
+	if (rc)
+		goto done;
+
 	timeout = DPS310_POLL_TIMEOUT_US(rate);
 
 	/* Poll for sensor readiness; base the timeout upon the sample rate. */
@@ -510,7 +523,10 @@ static int dps310_read_temp_raw(struct dps310_data *data)
 	if (mutex_lock_interruptible(&data->lock))
 		return -EINTR;
 
-	rate = dps310_get_temp_samp_freq(data);
+	rc = dps310_get_temp_samp_freq(data, &rate);
+	if (rc)
+		goto done;
+
 	timeout = DPS310_POLL_TIMEOUT_US(rate);
 
 	/* Poll for sensor readiness; base the timeout upon the sample rate. */
@@ -612,13 +628,13 @@ static int dps310_write_raw(struct iio_dev *iio,
 	return rc;
 }
 
-static int dps310_calculate_pressure(struct dps310_data *data)
+static int dps310_calculate_pressure(struct dps310_data *data, int *val)
 {
 	int i;
 	int rc;
 	int t_ready;
-	int kpi = dps310_get_pres_k(data);
-	int kti = dps310_get_temp_k(data);
+	int kpi;
+	int kti;
 	s64 rem = 0ULL;
 	s64 pressure = 0ULL;
 	s64 p;
@@ -629,11 +645,13 @@ static int dps310_calculate_pressure(struct dps310_data *data)
 	s64 kp;
 	s64 kt;
 
-	if (kpi < 0)
-		return kpi;
+	rc = dps310_get_pres_k(data, &kpi);
+	if (rc)
+		return rc;
 
-	if (kti < 0)
-		return kti;
+	rc = dps310_get_temp_k(data, &kti);
+	if (rc)
+		return rc;
 
 	kp = (s64)kpi;
 	kt = (s64)kti;
@@ -687,7 +705,9 @@ static int dps310_calculate_pressure(struct dps310_data *data)
 	if (pressure < 0LL)
 		return -ERANGE;
 
-	return (int)min_t(s64, pressure, INT_MAX);
+	*val = (int)min_t(s64, pressure, INT_MAX);
+
+	return 0;
 }
 
 static int dps310_read_pressure(struct dps310_data *data, int *val, int *val2,
@@ -697,11 +717,10 @@ static int dps310_read_pressure(struct dps310_data *data, int *val, int *val2,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		rc = dps310_get_pres_samp_freq(data);
-		if (rc < 0)
+		rc = dps310_get_pres_samp_freq(data, val);
+		if (rc)
 			return rc;
 
-		*val = rc;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_PROCESSED:
@@ -709,20 +728,17 @@ static int dps310_read_pressure(struct dps310_data *data, int *val, int *val2,
 		if (rc)
 			return rc;
 
-		rc = dps310_calculate_pressure(data);
-		if (rc < 0)
+		rc = dps310_calculate_pressure(data, val);
+		if (rc)
 			return rc;
 
-		*val = rc;
 		*val2 = 1000; /* Convert Pa to KPa per IIO ABI */
 		return IIO_VAL_FRACTIONAL;
 
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		rc = dps310_get_pres_precision(data);
-		if (rc < 0)
+		rc = dps310_get_pres_precision(data, val);
+		if (rc)
 			return rc;
-
-		*val = rc;
 		return IIO_VAL_INT;
 
 	default:
@@ -730,14 +746,15 @@ static int dps310_read_pressure(struct dps310_data *data, int *val, int *val2,
 	}
 }
 
-static int dps310_calculate_temp(struct dps310_data *data)
+static int dps310_calculate_temp(struct dps310_data *data, int *val)
 {
 	s64 c0;
 	s64 t;
-	int kt = dps310_get_temp_k(data);
+	int kt, rc;
 
-	if (kt < 0)
-		return kt;
+	rc = dps310_get_temp_k(data, &kt);
+	if (rc)
+		return rc;
 
 	/* Obtain inverse-scaled offset */
 	c0 = div_s64((s64)kt * (s64)data->c0, 2);
@@ -746,7 +763,9 @@ static int dps310_calculate_temp(struct dps310_data *data)
 	t = c0 + ((s64)data->temp_raw * (s64)data->c1);
 
 	/* Convert to milliCelsius and scale the temperature */
-	return (int)div_s64(t * 1000LL, kt);
+	*val = (int)div_s64(t * 1000LL, kt);
+
+	return 0;
 }
 
 static int dps310_read_temp(struct dps310_data *data, int *val, int *val2,
@@ -756,11 +775,10 @@ static int dps310_read_temp(struct dps310_data *data, int *val, int *val2,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		rc = dps310_get_temp_samp_freq(data);
-		if (rc < 0)
+		rc = dps310_get_temp_samp_freq(data, val);
+		if (rc)
 			return rc;
 
-		*val = rc;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_PROCESSED:
@@ -768,19 +786,17 @@ static int dps310_read_temp(struct dps310_data *data, int *val, int *val2,
 		if (rc)
 			return rc;
 
-		rc = dps310_calculate_temp(data);
-		if (rc < 0)
+		rc = dps310_calculate_temp(data, val);
+		if (rc)
 			return rc;
 
-		*val = rc;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		rc = dps310_get_temp_precision(data);
-		if (rc < 0)
+		rc = dps310_get_temp_precision(data, val);
+		if (rc)
 			return rc;
 
-		*val = rc;
 		return IIO_VAL_INT;
 
 	default:

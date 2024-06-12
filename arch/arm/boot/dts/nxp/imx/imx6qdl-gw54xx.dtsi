@@ -26,7 +26,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm4 0 5000000>;
+		pwms = <&pwm4 0 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <7>;
 	};
@@ -570,7 +570,6 @@
 };
 
 &pwm4 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default", "state_dio";
 	pinctrl-0 = <&pinctrl_pwm4_backlight>;
 	pinctrl-1 = <&pinctrl_pwm4_dio>;

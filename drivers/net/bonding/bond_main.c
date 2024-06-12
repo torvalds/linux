@@ -3014,8 +3014,8 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		tags = NULL;
 
 		/* Find out through which dev should the packet go */
-		rt = ip_route_output(dev_net(bond->dev), targets[i], 0,
-				     RTO_ONLINK, 0);
+		rt = ip_route_output(dev_net(bond->dev), targets[i], 0, 0, 0,
+				     RT_SCOPE_LINK);
 		if (IS_ERR(rt)) {
 			/* there's no route to target - try to send arp
 			 * probe to generate any traffic (arp_validate=0)
@@ -4710,7 +4710,7 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 		}
 	}
 
-	bond_dev->mtu = new_mtu;
+	WRITE_ONCE(bond_dev->mtu, new_mtu);
 
 	return 0;
 
@@ -5245,7 +5245,7 @@ static inline int bond_slave_override(struct bonding *bond,
 
 	/* Find out if any slaves have the same mapping as this skb. */
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		if (slave->queue_id == skb_get_queue_mapping(skb)) {
+		if (READ_ONCE(slave->queue_id) == skb_get_queue_mapping(skb)) {
 			if (bond_slave_is_up(slave) &&
 			    slave->link == BOND_LINK_UP) {
 				bond_dev_queue_xmit(bond, skb, slave->dev);
@@ -5933,7 +5933,7 @@ static void bond_uninit(struct net_device *bond_dev)
 
 	bond_set_slave_arr(bond, NULL, NULL);
 
-	list_del(&bond->bond_list);
+	list_del_rcu(&bond->bond_list);
 
 	bond_debug_unregister(bond);
 }
@@ -6347,7 +6347,7 @@ static int bond_init(struct net_device *bond_dev)
 	spin_lock_init(&bond->stats_lock);
 	netdev_lockdep_set_classes(bond_dev);
 
-	list_add_tail(&bond->bond_list, &bn->dev_list);
+	list_add_tail_rcu(&bond->bond_list, &bn->dev_list);
 
 	bond_prepare_sysfs_group(bond);
 
@@ -6477,15 +6477,15 @@ static int __init bonding_init(void)
 	if (res)
 		goto out;
 
+	bond_create_debugfs();
+
 	res = register_pernet_subsys(&bond_net_ops);
 	if (res)
-		goto out;
+		goto err_net_ops;
 
 	res = bond_netlink_init();
 	if (res)
 		goto err_link;
-
-	bond_create_debugfs();
 
 	for (i = 0; i < max_bonds; i++) {
 		res = bond_create(&init_net, NULL);
@@ -6501,10 +6501,11 @@ static int __init bonding_init(void)
 out:
 	return res;
 err:
-	bond_destroy_debugfs();
 	bond_netlink_fini();
 err_link:
 	unregister_pernet_subsys(&bond_net_ops);
+err_net_ops:
+	bond_destroy_debugfs();
 	goto out;
 
 }
@@ -6513,10 +6514,10 @@ static void __exit bonding_exit(void)
 {
 	unregister_netdevice_notifier(&bond_netdev_notifier);
 
-	bond_destroy_debugfs();
-
 	bond_netlink_fini();
 	unregister_pernet_subsys(&bond_net_ops);
+
+	bond_destroy_debugfs();
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	/* Make sure we don't have an imbalance on our netpoll blocking */

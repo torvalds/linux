@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2013-2014, 2018-2020, 2022-2023 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2020, 2022-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  */
 #include <linux/ieee80211.h>
@@ -219,15 +219,13 @@ struct iwl_bt_iterator_data {
 
 static inline
 void iwl_mvm_bt_coex_enable_rssi_event(struct iwl_mvm *mvm,
-				       struct ieee80211_vif *vif,
+				       struct iwl_mvm_vif_link_info *link_info,
 				       bool enable, int rssi)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	mvmvif->bf_data.last_bt_coex_event = rssi;
-	mvmvif->bf_data.bt_coex_max_thold =
+	link_info->bf_data.last_bt_coex_event = rssi;
+	link_info->bf_data.bt_coex_max_thold =
 		enable ? -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH : 0;
-	mvmvif->bf_data.bt_coex_min_thold =
+	link_info->bf_data.bt_coex_min_thold =
 		enable ? -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH : 0;
 }
 
@@ -255,44 +253,6 @@ static void iwl_mvm_bt_coex_tcm_based_ci(struct iwl_mvm *mvm,
 	swap(data->primary, data->secondary);
 }
 
-static void iwl_mvm_bt_coex_enable_esr(struct iwl_mvm *mvm,
-				       struct ieee80211_vif *vif, bool enable)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int link_id;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
-		return;
-
-	/* Done already */
-	if (mvmvif->bt_coex_esr_disabled == !enable)
-		return;
-
-	mvmvif->bt_coex_esr_disabled = !enable;
-
-	/* Nothing to do */
-	if (mvmvif->esr_active == enable)
-		return;
-
-	if (enable) {
-		/* Try to re-enable eSR*/
-		iwl_mvm_mld_select_links(mvm, vif, false);
-		return;
-	}
-
-	/*
-	 * Find the primary link, as we want to switch to it and drop the
-	 * secondary one.
-	 */
-	link_id = iwl_mvm_mld_get_primary_link(mvm, vif, vif->active_links);
-	WARN_ON(link_id < 0);
-
-	ieee80211_set_active_links_async(vif,
-					 vif->active_links & BIT(link_id));
-}
-
 /*
  * This function receives the LB link id and checks if eSR should be
  * enabled or disabled (due to BT coex)
@@ -300,35 +260,25 @@ static void iwl_mvm_bt_coex_enable_esr(struct iwl_mvm *mvm,
 bool
 iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
-				   int link_id, int primary_link)
+				   s32 link_rssi,
+				   bool primary)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 	bool have_wifi_loss_rate =
 		iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 					BT_PROFILE_NOTIFICATION, 0) > 4;
-	s8 link_rssi = 0;
 	u8 wifi_loss_rate;
-
-	lockdep_assert_held(&mvm->mutex);
 
 	if (mvm->last_bt_notif.wifi_loss_low_rssi == BT_OFF)
 		return true;
 
-	 /* If LB link is the primary one we should always disable eSR */
-	if (link_id == primary_link)
+	if (primary)
 		return false;
 
 	/* The feature is not supported */
 	if (!have_wifi_loss_rate)
 		return true;
 
-	/*
-	 * We might not have a link_info when checking whether we can
-	 * (re)enable eSR - the LB link might not exist yet
-	 */
-	if (link_info)
-		link_rssi = (s8)link_info->beacon_stats.avg_signal;
 
 	/*
 	 * In case we don't know the RSSI - take the lower wifi loss,
@@ -338,7 +288,7 @@ iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 	if (!link_rssi)
 		wifi_loss_rate = mvm->last_bt_notif.wifi_loss_mid_high_rssi;
 
-	else if (!mvmvif->bt_coex_esr_disabled)
+	else if (mvmvif->esr_active)
 		 /* RSSI needs to get really low to disable eSR... */
 		wifi_loss_rate =
 			link_rssi <= -IWL_MVM_BT_COEX_DISABLE_ESR_THRESH ?
@@ -354,23 +304,24 @@ iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 	return wifi_loss_rate <= IWL_MVM_BT_COEX_WIFI_LOSS_THRESH;
 }
 
-void iwl_mvm_bt_coex_update_vif_esr(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    int link_id)
+void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     int link_id)
 {
-	unsigned long usable_links = ieee80211_vif_usable_links(vif);
-	int primary_link = iwl_mvm_mld_get_primary_link(mvm, vif,
-							usable_links);
-	bool enable;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *link = mvmvif->link[link_id];
 
-	/* Not assoc, not MLD vif or only one usable link */
-	if (primary_link < 0)
+	if (!ieee80211_vif_is_mld(vif) ||
+	    !iwl_mvm_vif_from_mac80211(vif)->authorized ||
+	    WARN_ON(!link))
 		return;
 
-	enable = iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif, link_id,
-						    primary_link);
-
-	iwl_mvm_bt_coex_enable_esr(mvm, vif, enable);
+	if (!iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif,
+						(s8)link->beacon_stats.avg_signal,
+						link_id == iwl_mvm_get_primary_link(vif)))
+		/* In case we decided to exit eSR - stay with the primary */
+		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_COEX,
+				 iwl_mvm_get_primary_link(vif));
 }
 
 static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
@@ -412,13 +363,13 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 					    smps_mode, link_id);
 			iwl_mvm_bt_coex_reduced_txp(mvm, link_info->ap_sta_id,
 						    false);
-			/* FIXME: should this be per link? */
-			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
+			iwl_mvm_bt_coex_enable_rssi_event(mvm, link_info, false,
+							  0);
 		}
 		return;
 	}
 
-	iwl_mvm_bt_coex_update_vif_esr(mvm, vif, link_id);
+	iwl_mvm_bt_coex_update_link_esr(mvm, vif, link_id);
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_COEX_SCHEMA_2))
 		min_ag_for_static_smps = BT_VERY_HIGH_TRAFFIC;
@@ -508,13 +459,12 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 	    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF ||
 	    !vif->cfg.assoc) {
 		iwl_mvm_bt_coex_reduced_txp(mvm, link_info->ap_sta_id, false);
-		/* FIXME: should this be per link? */
-		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
+		iwl_mvm_bt_coex_enable_rssi_event(mvm, link_info, false, 0);
 		return;
 	}
 
 	/* try to get the avg rssi from fw */
-	ave_rssi = mvmvif->bf_data.ave_beacon_signal;
+	ave_rssi = link_info->bf_data.ave_beacon_signal;
 
 	/* if the RSSI isn't valid, fake it is very low */
 	if (!ave_rssi)
@@ -530,7 +480,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 	}
 
 	/* Begin to monitor the RSSI: it may influence the reduced Tx power */
-	iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, true, ave_rssi);
+	iwl_mvm_bt_coex_enable_rssi_event(mvm, link_info, true, ave_rssi);
 }
 
 /* must be called under rcu_read_lock */
@@ -554,10 +504,6 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	default:
 		return;
 	}
-
-	/* When BT is off this will be 0 */
-	if (data->notif->wifi_loss_low_rssi == BT_OFF)
-		iwl_mvm_bt_coex_enable_esr(mvm, vif, true);
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++)
 		iwl_mvm_bt_notif_per_link(mvm, vif, data, link_id);

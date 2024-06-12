@@ -73,7 +73,10 @@ static void xe_ttm_sys_mgr_del(struct ttm_resource_manager *man,
 static void xe_ttm_sys_mgr_debug(struct ttm_resource_manager *man,
 				 struct drm_printer *printer)
 {
-
+	/*
+	 * This function is called by debugfs entry and would require
+	 * pm_runtime_{get,put} wrappers around any operation.
+	 */
 }
 
 static const struct ttm_resource_manager_func xe_ttm_sys_mgr_func = {

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-y := -I $(srctree)/$(src)
+ccflags-y := -I $(src)
 ccflags-y += -I $(obj)/generated
-ccflags-y += -I $(srctree)/$(src)/disp/dpu1
-ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(srctree)/$(src)/dsi
-ccflags-$(CONFIG_DRM_MSM_DP) += -I $(srctree)/$(src)/dp
+ccflags-y += -I $(src)/disp/dpu1
+ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(src)/dsi
+ccflags-$(CONFIG_DRM_MSM_DP) += -I $(src)/dp
 
 adreno-y := \
 	adreno/adreno_device.o \
@@ -163,8 +163,8 @@ else
 endif
 
 quiet_cmd_headergen = GENHDR  $@
-      cmd_headergen = mkdir -p $(obj)/generated && $(PYTHON3) $(srctree)/$(src)/registers/gen_header.py \
-		      $(headergen-opts) --rnn $(srctree)/$(src)/registers --xml $< c-defines > $@
+      cmd_headergen = mkdir -p $(obj)/generated && $(PYTHON3) $(src)/registers/gen_header.py \
+		      $(headergen-opts) --rnn $(src)/registers --xml $< c-defines > $@
 
 $(obj)/generated/%.xml.h: $(src)/registers/adreno/%.xml \
 		$(src)/registers/adreno/adreno_common.xml \

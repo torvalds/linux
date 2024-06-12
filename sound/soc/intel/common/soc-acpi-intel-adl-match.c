@@ -7,6 +7,7 @@
 
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
+#include <sound/soc-acpi-intel-ssp-common.h>
 
 static const struct snd_soc_acpi_codecs essx_83x6 = {
 	.num_codecs = 3,
@@ -447,29 +448,14 @@ static const struct snd_soc_acpi_link_adr adl_chromebook_base[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_codecs adl_max98373_amp = {
-	.num_codecs = 1,
-	.codecs = {"MX98373"}
-};
-
 static const struct snd_soc_acpi_codecs adl_max98357a_amp = {
 	.num_codecs = 1,
 	.codecs = {"MX98357A"}
 };
 
-static const struct snd_soc_acpi_codecs adl_max98360a_amp = {
-	.num_codecs = 1,
-	.codecs = {"MX98360A"}
-};
-
 static const struct snd_soc_acpi_codecs adl_rt5682_rt5682s_hp = {
 	.num_codecs = 2,
-	.codecs = {"10EC5682", "RTL5682"},
-};
-
-static const struct snd_soc_acpi_codecs adl_rt1015p_amp = {
-	.num_codecs = 1,
-	.codecs = {"RTL1015"}
+	.codecs = {RT5682_ACPI_HID, RT5682S_ACPI_HID},
 };
 
 static const struct snd_soc_acpi_codecs adl_rt1019p_amp = {
@@ -477,47 +463,18 @@ static const struct snd_soc_acpi_codecs adl_rt1019p_amp = {
 	.codecs = {"RTL1019"}
 };
 
-static const struct snd_soc_acpi_codecs adl_max98390_amp = {
-	.num_codecs = 1,
-	.codecs = {"MX98390"}
-};
-
 static const struct snd_soc_acpi_codecs adl_lt6911_hdmi = {
 	.num_codecs = 1,
 	.codecs = {"INTC10B0"}
 };
 
-static const struct snd_soc_acpi_codecs adl_nau8318_amp = {
-	.num_codecs = 1,
-	.codecs = {"NVTN2012"}
-};
-
-static struct snd_soc_acpi_codecs adl_rt5650_amp = {
-	.num_codecs = 1,
-	.codecs = {"10EC5650"}
-};
-
 struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
-	{
-		.comp_ids = &adl_rt5682_rt5682s_hp,
-		.drv_name = "adl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98373_amp,
-		.sof_tplg_filename = "sof-adl-max98373-rt5682.tplg",
-	},
 	{
 		.comp_ids = &adl_rt5682_rt5682s_hp,
 		.drv_name = "adl_mx98357_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98357a_amp,
 		.sof_tplg_filename = "sof-adl-max98357a-rt5682.tplg",
-	},
-	{
-		.comp_ids = &adl_rt5682_rt5682s_hp,
-		.drv_name = "adl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98360a_amp,
-		.sof_tplg_filename = "sof-adl-max98360a-rt5682.tplg",
 	},
 	{
 		.id = "10508825",
@@ -527,70 +484,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.sof_tplg_filename = "sof-adl-rt1019-nau8825.tplg",
 	},
 	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98373_amp,
-		.sof_tplg_filename = "sof-adl-max98373-nau8825.tplg",
-	},
-	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98360a_amp,
-		.sof_tplg_filename = "sof-adl-max98360a-nau8825.tplg",
-	},
-	{
-		.comp_ids = &adl_rt5682_rt5682s_hp,
-		.drv_name = "adl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_rt1019p_amp,
-		.sof_tplg_filename = "sof-adl-rt1019-rt5682.tplg",
-	},
-	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_rt1015p_amp,
-		.sof_tplg_filename = "sof-adl-rt1015-nau8825.tplg",
-	},
-	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_nau8318_amp,
-		.sof_tplg_filename = "sof-adl-nau8318-nau8825.tplg",
-	},
-	{
-		.id = "10508825",
-		.drv_name = "sof_nau8825",
-		.sof_tplg_filename = "sof-adl-nau8825.tplg",
-	},
-	{
-		.comp_ids = &adl_rt5682_rt5682s_hp,
-		.drv_name = "adl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98390_amp,
-		.sof_tplg_filename = "sof-adl-max98390-rt5682.tplg",
-	},
-	{
 		.comp_ids = &adl_rt5682_rt5682s_hp,
 		.drv_name = "adl_rt5682_c1_h02",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_lt6911_hdmi,
 		.sof_tplg_filename = "sof-adl-rt5682-ssp1-hdmi-ssp02.tplg",
-	},
-	{
-		.comp_ids = &adl_rt5682_rt5682s_hp,
-		.drv_name = "adl_rt5682_def",
-		.sof_tplg_filename = "sof-adl-rt5682.tplg",
-	},
-	{
-		.id = "10134242",
-		.drv_name = "adl_mx98360a_cs4242",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98360a_amp,
-		.sof_tplg_filename = "sof-adl-max98360a-cs42l42.tplg",
 	},
 	{
 		.comp_ids = &essx_83x6,
@@ -607,19 +505,43 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
 	},
+	/* place boards for each headphone codec: sof driver will complete the
+	 * tplg name and machine driver will detect the amp type
+	 */
 	{
-		.id = "10EC5650",
-		.drv_name = "adl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_rt5650_amp,
-		.sof_tplg_filename = "sof-adl-rt5650.tplg",
+		.id = CS42L42_ACPI_HID,
+		.drv_name = "adl_cs42l42_def",
+		.sof_tplg_filename = "sof-adl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
 	},
 	{
-		.id = "DLGS7219",
-		.drv_name = "adl_mx98360_da7219",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98360a_amp,
-		.sof_tplg_filename = "sof-adl-max98360a-da7219.tplg",
+		.id = DA7219_ACPI_HID,
+		.drv_name = "adl_da7219_def",
+		.sof_tplg_filename = "sof-adl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
+	},
+	{
+		.id = NAU8825_ACPI_HID,
+		.drv_name = "adl_nau8825_def",
+		.sof_tplg_filename = "sof-adl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
+	},
+	{
+		.id = RT5650_ACPI_HID,
+		.drv_name = "adl_rt5682_def",
+		.sof_tplg_filename = "sof-adl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
+	},
+	{
+		.comp_ids = &adl_rt5682_rt5682s_hp,
+		.drv_name = "adl_rt5682_def",
+		.sof_tplg_filename = "sof-adl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
 	},
 	/* place amp-only boards in the end of table */
 	{

@@ -20,6 +20,7 @@ config TLS
 config TLS_DEVICE
 	bool "Transport Layer Security HW offload"
 	depends on TLS
+	select SKB_DECRYPTED
 	select SOCK_VALIDATE_XMIT
 	select SOCK_RX_QUEUE_MAPPING
 	default n

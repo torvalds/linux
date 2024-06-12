@@ -45,13 +45,6 @@ enum iavf_status iavf_aq_set_rss_lut(struct iavf_hw *hw, u16 seid,
 enum iavf_status iavf_aq_set_rss_key(struct iavf_hw *hw, u16 seid,
 				     struct iavf_aqc_get_set_rss_key_data *key);
 
-extern struct iavf_rx_ptype_decoded iavf_ptype_lookup[];
-
-static inline struct iavf_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
-{
-	return iavf_ptype_lookup[ptype];
-}
-
 void iavf_vf_parse_hw_config(struct iavf_hw *hw,
 			     struct virtchnl_vf_resource *msg);
 enum iavf_status iavf_aq_send_msg_to_pf(struct iavf_hw *hw,

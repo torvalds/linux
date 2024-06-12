@@ -1,0 +1,7 @@
+# Board Name: hp-x360-12b-ca0010nr-n4020-octopus
+# Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+# Failure Rate: 50
+core_hotunplug@unplug-rescan
+kms_fb_coherency@memset-crc

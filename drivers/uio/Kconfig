@@ -125,24 +125,6 @@ config UIO_FSL_ELBC_GPCM_NETX5152
 	  Information about this hardware can be found at:
 	  http://www.hilscher.com/netx
 
-config UIO_PRUSS
-	tristate "Texas Instruments PRUSS driver"
-	select GENERIC_ALLOCATOR
-	depends on HAS_IOMEM && HAS_DMA
-	help
-	  PRUSS driver for OMAPL138/DA850/AM18XX devices
-	  PRUSS driver requires user space components, examples and user space
-	  driver is available from below SVN repo - you may use anonymous login
-
-	  https://gforge.ti.com/gf/project/pru_sw/
-
-	  More info on API is available at below wiki
-
-	  http://processors.wiki.ti.com/index.php/PRU_Linux_Application_Loader
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called uio_pruss.
-
 config UIO_MF624
 	tristate "Humusoft MF624 DAQ PCI card driver"
 	depends on PCI

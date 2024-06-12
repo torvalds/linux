@@ -128,7 +128,7 @@ static int check_results(struct resctrl_val_param *param, const char *cache_type
 	return fail;
 }
 
-void cat_test_cleanup(void)
+static void cat_test_cleanup(void)
 {
 	remove(RESULT_FILE_NAME);
 }
@@ -284,13 +284,10 @@ static int cat_run_test(const struct resctrl_test *test, const struct user_param
 
 	ret = cat_test(test, uparams, &param, span, start_mask);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = check_results(&param, test->resource,
 			    cache_total_size, full_cache_mask, start_mask);
-out:
-	cat_test_cleanup();
-
 	return ret;
 }
 
@@ -373,6 +370,7 @@ struct resctrl_test l3_cat_test = {
 	.resource = "L3",
 	.feature_check = test_resource_feature_check,
 	.run_test = cat_run_test,
+	.cleanup = cat_test_cleanup,
 };
 
 struct resctrl_test l3_noncont_cat_test = {
