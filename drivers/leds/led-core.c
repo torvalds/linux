@@ -122,15 +122,22 @@ static void led_timer_function(struct timer_list *t)
 static void set_brightness_delayed_set_brightness(struct led_classdev *led_cdev,
 						  unsigned int value)
 {
-	int ret = 0;
+	int ret;
 
 	ret = __led_set_brightness(led_cdev, value);
-	if (ret == -ENOTSUPP)
+	if (ret == -ENOTSUPP) {
 		ret = __led_set_brightness_blocking(led_cdev, value);
-	if (ret < 0 &&
-	    /* LED HW might have been unplugged, therefore don't warn */
-	    !(ret == -ENODEV && (led_cdev->flags & LED_UNREGISTERING) &&
-	    (led_cdev->flags & LED_HW_PLUGGABLE)))
+		if (ret == -ENOTSUPP)
+			/* No back-end support to set a fixed brightness value */
+			return;
+	}
+
+	/* LED HW might have been unplugged, therefore don't warn */
+	if (ret == -ENODEV && led_cdev->flags & LED_UNREGISTERING &&
+	    led_cdev->flags & LED_HW_PLUGGABLE)
+		return;
+
+	if (ret < 0)
 		dev_err(led_cdev->dev,
 			"Setting an LED's brightness failed (%d)\n", ret);
 }
