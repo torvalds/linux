@@ -496,7 +496,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 	ieee->HTHighestOperaRate = ht_get_highest_mcs_rate(ieee,
 						       ieee->dot11ht_oper_rate_set,
 						       pMcsFilter);
-	ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
+	ieee->ht_curr_op_rate = ieee->HTHighestOperaRate;
 
 	ht_info->current_op_mode = pPeerHTInfo->opt_mode;
 }

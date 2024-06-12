@@ -1198,7 +1198,7 @@ struct rtllib_device {
 	u8	reg_dot11tx_ht_oper_rate_set[16];
 	u8	dot11ht_oper_rate_set[16];
 	u8	reg_ht_supp_rate_set[16];
-	u8	HTCurrentOperaRate;
+	u8	ht_curr_op_rate;
 	u8	HTHighestOperaRate;
 	u8	tx_dis_rate_fallback;
 	u8	tx_use_drv_assinged_rate;

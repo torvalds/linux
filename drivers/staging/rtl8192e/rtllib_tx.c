@@ -510,8 +510,8 @@ static u8 rtllib_current_rate(struct rtllib_device *ieee)
 	if (ieee->mode & IEEE_MODE_MASK)
 		return ieee->rate;
 
-	if (ieee->HTCurrentOperaRate)
-		return ieee->HTCurrentOperaRate;
+	if (ieee->ht_curr_op_rate)
+		return ieee->ht_curr_op_rate;
 	else
 		return ieee->rate & 0x7F;
 }
