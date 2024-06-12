@@ -282,10 +282,10 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		struct cb_desc *tcb_desc = (struct cb_desc *)
 						(skb->cb + MAX_DEV_ADDR_SIZE);
 
-		tcb_desc->bHwSec = 1;
+		tcb_desc->hw_sec = 1;
 
 		if (ieee->need_sw_enc)
-			tcb_desc->bHwSec = 0;
+			tcb_desc->hw_sec = 0;
 	}
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -321,10 +321,10 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
 		struct cb_desc *tcb_desc = (struct cb_desc *)
 						(skb->cb + MAX_DEV_ADDR_SIZE);
 
-		tcb_desc->bHwSec = 1;
+		tcb_desc->hw_sec = 1;
 
 		if (ieee->need_sw_enc)
-			tcb_desc->bHwSec = 0;
+			tcb_desc->hw_sec = 0;
 	}
 
 	hdr = (struct ieee80211_hdr *)skb->data;

@@ -934,7 +934,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 
 	pdesc->NoEnc = 1;
 	pdesc->SecType = 0x0;
-	if (cb_desc->bHwSec) {
+	if (cb_desc->hw_sec) {
 		static u8 tmp;
 
 		if (!tmp)

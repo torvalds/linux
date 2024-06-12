@@ -105,7 +105,7 @@ struct cb_desc {
 	u8 bCmdOrInit:1;
 	u8 tx_dis_rate_fallback:1;
 	u8 tx_use_drv_assinged_rate:1;
-	u8 bHwSec:1;
+	u8 hw_sec:1;
 
 	u8 nStuckCount;
 

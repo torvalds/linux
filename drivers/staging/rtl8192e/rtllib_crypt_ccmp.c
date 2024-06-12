@@ -182,7 +182,7 @@ static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[0];
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	if (!tcb_desc->bHwSec) {
+	if (!tcb_desc->hw_sec) {
 		struct aead_request *req;
 		struct scatterlist sg[2];
 		u8 *aad = key->tx_aad;
@@ -265,7 +265,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		key->dot11rsna_stats_ccmp_replays++;
 		return -4;
 	}
-	if (!tcb_desc->bHwSec) {
+	if (!tcb_desc->hw_sec) {
 		size_t data_len = skb->len - hdr_len - CCMP_HDR_LEN;
 		struct aead_request *req;
 		struct scatterlist sg[2];

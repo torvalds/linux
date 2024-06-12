@@ -751,14 +751,14 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 		if (encrypt) {
 			if (ieee->hwsec_active)
-				tcb_desc->bHwSec = 1;
+				tcb_desc->hw_sec = 1;
 			else
-				tcb_desc->bHwSec = 0;
+				tcb_desc->hw_sec = 0;
 			skb_reserve(skb_frag,
 				    crypt->ops->extra_mpdu_prefix_len +
 				    crypt->ops->extra_msdu_prefix_len);
 		} else {
-			tcb_desc->bHwSec = 0;
+			tcb_desc->hw_sec = 0;
 		}
 		frag_hdr = skb_put_data(skb_frag, &header, hdr_len);
 
