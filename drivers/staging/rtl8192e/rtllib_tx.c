@@ -228,7 +228,7 @@ err_free:
 	return NULL;
 }
 
-static int rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
+static int rtllib_classify(struct sk_buff *skb)
 {
 	struct ethhdr *eth;
 	struct iphdr *ip;
@@ -607,7 +607,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	skb->priority = rtllib_classify(skb, IsAmsdu);
+	skb->priority = rtllib_classify(skb);
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) && crypt && crypt->ops;
 	if (!encrypt && ieee->ieee802_1x &&
