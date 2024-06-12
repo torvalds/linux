@@ -22,13 +22,19 @@ static void ttm_tt_simple_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 	kfree(ttm);
 }
 
-static void dummy_ttm_bo_destroy(struct ttm_buffer_object *bo)
+static int mock_move(struct ttm_buffer_object *bo, bool evict,
+		     struct ttm_operation_ctx *ctx,
+		     struct ttm_resource *new_mem,
+		     struct ttm_place *hop)
 {
+	bo->resource = new_mem;
+	return 0;
 }
 
 struct ttm_device_funcs ttm_dev_funcs = {
 	.ttm_tt_create = ttm_tt_simple_create,
 	.ttm_tt_destroy = ttm_tt_simple_destroy,
+	.move = mock_move,
 };
 EXPORT_SYMBOL_GPL(ttm_dev_funcs);
 
@@ -92,6 +98,12 @@ struct ttm_place *ttm_place_kunit_init(struct kunit *test,
 	return place;
 }
 EXPORT_SYMBOL_GPL(ttm_place_kunit_init);
+
+void dummy_ttm_bo_destroy(struct ttm_buffer_object *bo)
+{
+	drm_gem_object_release(&bo->base);
+}
+EXPORT_SYMBOL_GPL(dummy_ttm_bo_destroy);
 
 struct ttm_test_devices *ttm_test_devices_basic(struct kunit *test)
 {
