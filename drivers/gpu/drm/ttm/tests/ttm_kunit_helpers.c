@@ -6,6 +6,42 @@
 
 #include "ttm_kunit_helpers.h"
 
+static const struct ttm_place sys_place = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.mem_type = TTM_PL_SYSTEM,
+	.flags = TTM_PL_FLAG_FALLBACK,
+};
+
+static const struct ttm_place mock1_place = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.mem_type = TTM_PL_MOCK1,
+	.flags = TTM_PL_FLAG_FALLBACK,
+};
+
+static const struct ttm_place mock2_place = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.mem_type = TTM_PL_MOCK2,
+	.flags = TTM_PL_FLAG_FALLBACK,
+};
+
+static struct ttm_placement sys_placement = {
+	.num_placement = 1,
+	.placement = &sys_place,
+};
+
+static struct ttm_placement bad_placement = {
+	.num_placement = 1,
+	.placement = &mock1_place,
+};
+
+static struct ttm_placement mock_placement = {
+	.num_placement = 1,
+	.placement = &mock2_place,
+};
+
 static struct ttm_tt *ttm_tt_simple_create(struct ttm_buffer_object *bo,
 					   uint32_t page_flags)
 {
@@ -54,10 +90,52 @@ static int mock_move(struct ttm_buffer_object *bo, bool evict,
 	return ttm_bo_move_memcpy(bo, ctx, new_mem);
 }
 
+static void mock_evict_flags(struct ttm_buffer_object *bo,
+			     struct ttm_placement *placement)
+{
+	switch (bo->resource->mem_type) {
+	case TTM_PL_VRAM:
+	case TTM_PL_SYSTEM:
+		*placement = sys_placement;
+		break;
+	case TTM_PL_TT:
+		*placement = mock_placement;
+		break;
+	case TTM_PL_MOCK1:
+		/* Purge objects coming from this domain */
+		break;
+	}
+}
+
+static void bad_evict_flags(struct ttm_buffer_object *bo,
+			    struct ttm_placement *placement)
+{
+	*placement = bad_placement;
+}
+
+static int ttm_device_kunit_init_with_funcs(struct ttm_test_devices *priv,
+					    struct ttm_device *ttm,
+					    bool use_dma_alloc,
+					    bool use_dma32,
+					    struct ttm_device_funcs *funcs)
+{
+	struct drm_device *drm = priv->drm;
+	int err;
+
+	err = ttm_device_init(ttm, funcs, drm->dev,
+			      drm->anon_inode->i_mapping,
+			      drm->vma_offset_manager,
+			      use_dma_alloc, use_dma32);
+
+	return err;
+}
+
 struct ttm_device_funcs ttm_dev_funcs = {
 	.ttm_tt_create = ttm_tt_simple_create,
 	.ttm_tt_destroy = ttm_tt_simple_destroy,
 	.move = mock_move,
+	.eviction_valuable = ttm_bo_eviction_valuable,
+	.evict_flags = mock_evict_flags,
 };
 EXPORT_SYMBOL_GPL(ttm_dev_funcs);
 
@@ -66,17 +144,29 @@ int ttm_device_kunit_init(struct ttm_test_devices *priv,
 			  bool use_dma_alloc,
 			  bool use_dma32)
 {
-	struct drm_device *drm = priv->drm;
-	int err;
-
-	err = ttm_device_init(ttm, &ttm_dev_funcs, drm->dev,
-			      drm->anon_inode->i_mapping,
-			      drm->vma_offset_manager,
-			      use_dma_alloc, use_dma32);
-
-	return err;
+	return ttm_device_kunit_init_with_funcs(priv, ttm, use_dma_alloc,
+						use_dma32, &ttm_dev_funcs);
 }
 EXPORT_SYMBOL_GPL(ttm_device_kunit_init);
+
+struct ttm_device_funcs ttm_dev_funcs_bad_evict = {
+	.ttm_tt_create = ttm_tt_simple_create,
+	.ttm_tt_destroy = ttm_tt_simple_destroy,
+	.move = mock_move,
+	.eviction_valuable = ttm_bo_eviction_valuable,
+	.evict_flags = bad_evict_flags,
+};
+EXPORT_SYMBOL_GPL(ttm_dev_funcs_bad_evict);
+
+int ttm_device_kunit_init_bad_evict(struct ttm_test_devices *priv,
+				    struct ttm_device *ttm,
+				    bool use_dma_alloc,
+				    bool use_dma32)
+{
+	return ttm_device_kunit_init_with_funcs(priv, ttm, use_dma_alloc,
+						use_dma32, &ttm_dev_funcs_bad_evict);
+}
+EXPORT_SYMBOL_GPL(ttm_device_kunit_init_bad_evict);
 
 struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 					    struct ttm_test_devices *devs,

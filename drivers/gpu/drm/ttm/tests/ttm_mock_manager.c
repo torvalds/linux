@@ -153,6 +153,14 @@ static int ttm_bad_manager_alloc(struct ttm_resource_manager *man,
 	return -ENOSPC;
 }
 
+static int ttm_busy_manager_alloc(struct ttm_resource_manager *man,
+				  struct ttm_buffer_object *bo,
+				  const struct ttm_place *place,
+				  struct ttm_resource **res)
+{
+	return -EBUSY;
+}
+
 static void ttm_bad_manager_free(struct ttm_resource_manager *man,
 				 struct ttm_resource *res)
 {
@@ -168,6 +176,12 @@ static bool ttm_bad_manager_compatible(struct ttm_resource_manager *man,
 
 static const struct ttm_resource_manager_func ttm_bad_manager_funcs = {
 	.alloc = ttm_bad_manager_alloc,
+	.free = ttm_bad_manager_free,
+	.compatible = ttm_bad_manager_compatible
+};
+
+static const struct ttm_resource_manager_func ttm_bad_busy_manager_funcs = {
+	.alloc = ttm_busy_manager_alloc,
 	.free = ttm_bad_manager_free,
 	.compatible = ttm_bad_manager_compatible
 };
@@ -190,7 +204,20 @@ int ttm_bad_manager_init(struct ttm_device *bdev, u32 mem_type, u32 size)
 }
 EXPORT_SYMBOL_GPL(ttm_bad_manager_init);
 
-void ttm_bad_manager_fini(struct ttm_device *bdev, u32 mem_type)
+int ttm_busy_manager_init(struct ttm_device *bdev, u32 mem_type, u32 size)
+{
+	struct ttm_resource_manager *man;
+
+	ttm_bad_manager_init(bdev, mem_type, size);
+	man = ttm_manager_type(bdev, mem_type);
+
+	man->func = &ttm_bad_busy_manager_funcs;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ttm_busy_manager_init);
+
+void ttm_bad_manager_fini(struct ttm_device *bdev, uint32_t mem_type)
 {
 	struct ttm_resource_manager *man;
 

@@ -23,6 +23,7 @@ struct ttm_mock_resource {
 
 int ttm_mock_manager_init(struct ttm_device *bdev, u32 mem_type, u32 size);
 int ttm_bad_manager_init(struct ttm_device *bdev, u32 mem_type, u32 size);
+int ttm_busy_manager_init(struct ttm_device *bdev, u32 mem_type, u32 size);
 void ttm_mock_manager_fini(struct ttm_device *bdev, u32 mem_type);
 void ttm_bad_manager_fini(struct ttm_device *bdev, u32 mem_type);
 
