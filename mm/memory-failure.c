@@ -294,14 +294,13 @@ int hwpoison_filter(struct page *p)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hwpoison_filter);
 #else
 int hwpoison_filter(struct page *p)
 {
 	return 0;
 }
 #endif
-
-EXPORT_SYMBOL_GPL(hwpoison_filter);
 
 /*
  * Kill all processes that have a poisoned page mapped and then isolate
