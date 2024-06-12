@@ -912,7 +912,6 @@ struct wcd939x_sdw_priv {
 	const struct wcd939x_sdw_ch_info *ch_info;
 	bool port_enable[WCD939X_MAX_SWR_CH_IDS];
 	int active_ports;
-	int num_ports;
 	bool is_tx;
 	struct wcd939x_priv *wcd939x;
 	struct irq_domain *slave_irq;
