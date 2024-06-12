@@ -14,6 +14,7 @@
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 
+MODULE_DESCRIPTION("Airplane mode button for AMD, HP & Xiaomi laptops");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
 MODULE_ALIAS("acpi*:HPQ6001:*");
