@@ -3617,6 +3617,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		break;
 	case WLAN_CATEGORY_PUBLIC:
+	case WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION:
 		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 			goto invalid;
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)

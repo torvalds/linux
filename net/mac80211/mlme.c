@@ -7429,6 +7429,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_link_data *link = &sdata->deflink;
 	struct ieee80211_rx_status *rx_status;
+	struct ieee802_11_elems *elems;
 	struct ieee80211_mgmt *mgmt;
 	u16 fc;
 	int ies_len;
@@ -7472,9 +7473,8 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		    !ether_addr_equal(mgmt->bssid, sdata->vif.cfg.ap_addr))
 			break;
 
-		if (mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT) {
-			struct ieee802_11_elems *elems;
-
+		switch (mgmt->u.action.category) {
+		case WLAN_CATEGORY_SPECTRUM_MGMT:
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
 					   u.action.u.chan_switch.variable);
@@ -7498,9 +7498,9 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 								 src);
 			}
 			kfree(elems);
-		} else if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC) {
-			struct ieee802_11_elems *elems;
-
+			break;
+		case WLAN_CATEGORY_PUBLIC:
+		case WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION:
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
 					   u.action.u.ext_chan_switch.variable);
@@ -7517,8 +7517,13 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 					ies_len, true, NULL);
 
 			if (elems && !elems->parse_error) {
-				enum ieee80211_csa_source src =
-					IEEE80211_CSA_SOURCE_UNPROT_ACTION;
+				enum ieee80211_csa_source src;
+
+				if (mgmt->u.action.category ==
+						WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION)
+					src = IEEE80211_CSA_SOURCE_PROT_ACTION;
+				else
+					src = IEEE80211_CSA_SOURCE_UNPROT_ACTION;
 
 				/* for the handling code pretend it was an IE */
 				elems->ext_chansw_ie =
@@ -7532,6 +7537,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			}
 
 			kfree(elems);
+			break;
 		}
 		break;
 	}
