@@ -777,22 +777,6 @@ bool intel_fb_uses_dpt(const struct drm_framebuffer *fb)
 		intel_fb_modifier_uses_dpt(to_i915(fb->dev), fb->modifier);
 }
 
-unsigned int intel_cursor_alignment(struct intel_plane *plane,
-				    const struct drm_framebuffer *fb,
-				    int color_plane)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-
-	if (IS_I830(i915))
-		return 16 * 1024;
-	else if (IS_I85X(i915))
-		return 256;
-	else if (IS_I845G(i915) || IS_I865G(i915))
-		return 32;
-	else
-		return 4 * 1024;
-}
-
 static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_priv)
 {
 	if (DISPLAY_VER(dev_priv) >= 9)

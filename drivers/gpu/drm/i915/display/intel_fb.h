@@ -60,9 +60,6 @@ unsigned int intel_tile_height(const struct drm_framebuffer *fb, int color_plane
 unsigned int intel_tile_row_size(const struct drm_framebuffer *fb, int color_plane);
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int color_plane, unsigned int height);
-unsigned int intel_cursor_alignment(struct intel_plane *plane,
-				    const struct drm_framebuffer *fb,
-				    int color_plane);
 unsigned int intel_surf_alignment(struct intel_plane *plane,
 				  const struct drm_framebuffer *fb,
 				  int color_plane);

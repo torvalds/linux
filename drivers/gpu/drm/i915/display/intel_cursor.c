@@ -194,6 +194,13 @@ i845_cursor_max_stride(struct intel_plane *plane,
 	return 2048;
 }
 
+static unsigned int i845_cursor_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	return 32;
+}
+
 static u32 i845_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
 	u32 cntl = 0;
@@ -342,6 +349,28 @@ i9xx_cursor_max_stride(struct intel_plane *plane,
 		       unsigned int rotation)
 {
 	return plane->base.dev->mode_config.cursor_width * 4;
+}
+
+static unsigned int i830_cursor_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	/* "AlmadorM Errata – Requires 32-bpp cursor data to be 16KB aligned." */
+	return 16 * 1024; /* physical */
+}
+
+static unsigned int i85x_cursor_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	return 256; /* physical */
+}
+
+static unsigned int i9xx_cursor_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	return 4 * 1024; /* physical for i915/i945 */
 }
 
 static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
@@ -942,19 +971,26 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
 		cursor->max_stride = i845_cursor_max_stride;
+		cursor->min_alignment = i845_cursor_min_alignment;
 		cursor->update_arm = i845_cursor_update_arm;
 		cursor->disable_arm = i845_cursor_disable_arm;
 		cursor->get_hw_state = i845_cursor_get_hw_state;
 		cursor->check_plane = i845_check_cursor;
 	} else {
 		cursor->max_stride = i9xx_cursor_max_stride;
+
+		if (IS_I830(dev_priv))
+			cursor->min_alignment = i830_cursor_min_alignment;
+		else if (IS_I85X(dev_priv))
+			cursor->min_alignment = i85x_cursor_min_alignment;
+		else
+			cursor->min_alignment = i9xx_cursor_min_alignment;
+
 		cursor->update_arm = i9xx_cursor_update_arm;
 		cursor->disable_arm = i9xx_cursor_disable_arm;
 		cursor->get_hw_state = i9xx_cursor_get_hw_state;
 		cursor->check_plane = i9xx_check_cursor;
 	}
-
-	cursor->min_alignment = intel_cursor_alignment;
 
 	cursor->cursor.base = ~0;
 	cursor->cursor.cntl = ~0;
