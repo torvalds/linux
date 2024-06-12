@@ -1622,6 +1622,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		}
 	}
 
+	plane->min_alignment = intel_surf_alignment;
+
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
 		supported_rotations =
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |

@@ -776,8 +776,12 @@ bool intel_fb_uses_dpt(const struct drm_framebuffer *fb)
 		intel_fb_modifier_uses_dpt(to_i915(fb->dev), fb->modifier);
 }
 
-unsigned int intel_cursor_alignment(const struct drm_i915_private *i915)
+unsigned int intel_cursor_alignment(struct intel_plane *plane,
+				    const struct drm_framebuffer *fb,
+				    int color_plane)
 {
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
 	if (IS_I830(i915))
 		return 16 * 1024;
 	else if (IS_I85X(i915))
@@ -801,10 +805,11 @@ static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_pr
 		return 0;
 }
 
-unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
+unsigned int intel_surf_alignment(struct intel_plane *plane,
+				  const struct drm_framebuffer *fb,
 				  int color_plane)
 {
-	struct drm_i915_private *dev_priv = to_i915(fb->dev);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
 	if (intel_fb_uses_dpt(fb)) {
 		/* AUX_DIST needs only 4K alignment */
@@ -1099,17 +1104,12 @@ u32 intel_plane_compute_aligned_offset(int *x, int *y,
 				       const struct intel_plane_state *state,
 				       int color_plane)
 {
-	struct intel_plane *intel_plane = to_intel_plane(state->uapi.plane);
-	struct drm_i915_private *i915 = to_i915(intel_plane->base.dev);
+	struct intel_plane *plane = to_intel_plane(state->uapi.plane);
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = state->hw.fb;
 	unsigned int rotation = state->hw.rotation;
 	unsigned int pitch = state->view.color_plane[color_plane].mapping_stride;
-	unsigned int alignment;
-
-	if (intel_plane->id == PLANE_CURSOR)
-		alignment = intel_cursor_alignment(i915);
-	else
-		alignment = intel_surf_alignment(fb, color_plane);
+	unsigned int alignment = plane->min_alignment(plane, fb, color_plane);
 
 	return intel_compute_aligned_offset(i915, x, y, fb, color_plane,
 					    pitch, rotation, alignment);

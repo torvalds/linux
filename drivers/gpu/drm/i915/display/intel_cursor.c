@@ -954,6 +954,8 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 		cursor->check_plane = i9xx_check_cursor;
 	}
 
+	cursor->min_alignment = intel_cursor_alignment;
+
 	cursor->cursor.base = ~0;
 	cursor->cursor.cntl = ~0;
 

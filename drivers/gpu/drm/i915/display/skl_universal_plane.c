@@ -1680,11 +1680,12 @@ skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
 			       int main_x, int main_y, u32 main_offset,
 			       int ccs_plane)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int aux_x = plane_state->view.color_plane[ccs_plane].x;
 	int aux_y = plane_state->view.color_plane[ccs_plane].y;
 	u32 aux_offset = plane_state->view.color_plane[ccs_plane].offset;
-	unsigned int alignment = intel_surf_alignment(fb, ccs_plane);
+	unsigned int alignment = plane->min_alignment(plane, fb, ccs_plane);
 	int hsub;
 	int vsub;
 
@@ -1728,7 +1729,7 @@ int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int aux_plane = skl_main_to_aux_plane(fb, 0);
 	u32 aux_offset = plane_state->view.color_plane[aux_plane].offset;
-	unsigned int alignment = intel_surf_alignment(fb, 0);
+	unsigned int alignment = plane->min_alignment(plane, fb, 0);
 	int w = drm_rect_width(&plane_state->uapi.src) >> 16;
 
 	intel_add_fb_offsets(x, y, plane_state, 0);
@@ -1784,7 +1785,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	int min_width = intel_plane_min_width(plane, fb, 0, rotation);
 	int max_width = intel_plane_max_width(plane, fb, 0, rotation);
 	int max_height = intel_plane_max_height(plane, fb, 0, rotation);
-	unsigned int alignment = intel_surf_alignment(fb, 0);
+	unsigned int alignment = plane->min_alignment(plane, fb, 0);
 	int aux_plane = skl_main_to_aux_plane(fb, 0);
 	u32 offset;
 	int ret;
@@ -1873,7 +1874,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 	if (ccs_plane) {
 		u32 aux_offset = plane_state->view.color_plane[ccs_plane].offset;
-		unsigned int alignment = intel_surf_alignment(fb, uv_plane);
+		unsigned int alignment = plane->min_alignment(plane, fb, uv_plane);
 
 		if (offset > aux_offset)
 			offset = intel_plane_adjust_aligned_offset(&x, &y,
@@ -2429,6 +2430,8 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		plane->max_stride = adl_plane_max_stride;
 	else
 		plane->max_stride = skl_plane_max_stride;
+
+	plane->min_alignment = intel_surf_alignment;
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		plane->update_noarm = icl_plane_update_noarm;
