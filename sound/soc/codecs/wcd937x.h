@@ -488,23 +488,6 @@
 #define WCD937X_MAX_SWR_PORTS			5
 #define WCD937X_MAX_SWR_CH_IDS			15
 
-/* Convert from vout ctl to micbias voltage in mV */
-#define WCD_VOUT_CTL_TO_MICB(v)	(1000 + (v) * 50)
-#define MAX_PORT 8
-#define MAX_CH_PER_PORT 8
-#define MAX_TX_PWR_CH 2
-#define SWR_NUM_PORTS 4
-
-#define WCD937X_MAX_SLAVE_PORT_TYPES 10
-
-struct codec_port_info {
-	u32 slave_port_type;
-	u32 master_port_type;
-	u32 ch_mask;
-	u32 num_ch;
-	u32 ch_rate;
-};
-
 struct wcd937x_sdw_ch_info {
 	int port_num;
 	unsigned int ch_mask;
@@ -569,12 +552,6 @@ int wcd937x_sdw_hw_params(struct wcd937x_sdw_priv *wcd,
 	return -EOPNOTSUPP;
 }
 #endif
-
-enum {
-	WCD_RX1,
-	WCD_RX2,
-	WCD_RX3
-};
 
 enum {
 	/* INTR_CTRL_INT_MASK_0 */
@@ -643,11 +620,6 @@ enum wcd937x_rx_sdw_channels {
 	WCD937X_LO,
 	WCD937X_DSD_R,
 	WCD937X_DSD_L,
-};
-
-enum {
-	WCD937X_SDW_DIR_RX,
-	WCD937X_SDW_DIR_TX,
 };
 
 #endif
