@@ -2518,7 +2518,7 @@ static int __init memory_failure_init(void)
 core_initcall(memory_failure_init);
 
 #undef pr_fmt
-#define pr_fmt(fmt)	"" fmt
+#define pr_fmt(fmt)	fmt
 #define unpoison_pr_info(fmt, pfn, rs)			\
 ({							\
 	if (__ratelimit(rs))				\
