@@ -23,9 +23,10 @@
 
 #include <linux/platform_data/ad7266.h>
 
+#define AD7266_INTERNAL_REF_MV	2500
+
 struct ad7266_state {
 	struct spi_device	*spi;
-	struct regulator	*reg;
 	unsigned long		vref_mv;
 
 	struct spi_transfer	single_xfer[3];
@@ -377,11 +378,6 @@ static const char * const ad7266_gpio_labels[] = {
 	"ad0", "ad1", "ad2",
 };
 
-static void ad7266_reg_disable(void *reg)
-{
-	regulator_disable(reg);
-}
-
 static int ad7266_probe(struct spi_device *spi)
 {
 	struct ad7266_platform_data *pdata = spi->dev.platform_data;
@@ -396,28 +392,11 @@ static int ad7266_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
+	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
+	if (ret < 0 && ret != -ENODEV)
+		return ret;
 
-		ret = devm_add_action_or_reset(&spi->dev, ad7266_reg_disable, st->reg);
-		if (ret)
-			return ret;
-
-		ret = regulator_get_voltage(st->reg);
-		if (ret < 0)
-			return ret;
-
-		st->vref_mv = ret / 1000;
-	} else {
-		/* Any other error indicates that the regulator does exist */
-		if (PTR_ERR(st->reg) != -ENODEV)
-			return PTR_ERR(st->reg);
-		/* Use internal reference */
-		st->vref_mv = 2500;
-	}
+	st->vref_mv = ret == -ENODEV ? AD7266_INTERNAL_REF_MV : ret / 1000;
 
 	if (pdata) {
 		st->fixed_addr = pdata->fixed_addr;
