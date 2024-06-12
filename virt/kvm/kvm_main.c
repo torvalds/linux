@@ -651,7 +651,7 @@ static __always_inline kvm_mn_ret_t __kvm_handle_hva_range(struct kvm *kvm,
 					range->on_lock(kvm);
 
 				if (IS_KVM_NULL_FN(range->handler))
-					break;
+					goto mmu_unlock;
 			}
 			r.ret |= range->handler(kvm, &gfn_range);
 		}
@@ -660,6 +660,7 @@ static __always_inline kvm_mn_ret_t __kvm_handle_hva_range(struct kvm *kvm,
 	if (range->flush_on_ret && r.ret)
 		kvm_flush_remote_tlbs(kvm);
 
+mmu_unlock:
 	if (r.found_memslot)
 		KVM_MMU_UNLOCK(kvm);
 
