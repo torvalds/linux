@@ -1018,7 +1018,7 @@ struct tx_pending {
 struct bandwidth_autoswitch {
 	long threshold_20Mhzto40Mhz;
 	long	threshold_40Mhzto20Mhz;
-	bool bforced_tx20Mhz;
+	bool forced_tx_20MHz;
 	bool bautoswitch_enable;
 };
 

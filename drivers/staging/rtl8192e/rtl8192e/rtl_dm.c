@@ -377,7 +377,7 @@ static void _rtl92e_dm_init_bandwidth_autoswitch(struct net_device *dev)
 
 	priv->rtllib->bandwidth_auto_switch.threshold_20Mhzto40Mhz = BW_AUTO_SWITCH_LOW_HIGH;
 	priv->rtllib->bandwidth_auto_switch.threshold_40Mhzto20Mhz = BW_AUTO_SWITCH_HIGH_LOW;
-	priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz = false;
+	priv->rtllib->bandwidth_auto_switch.forced_tx_20MHz = false;
 	priv->rtllib->bandwidth_auto_switch.bautoswitch_enable = false;
 }
 
@@ -388,14 +388,14 @@ static void _rtl92e_dm_bandwidth_autoswitch(struct net_device *dev)
 	if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20 ||
 	    !priv->rtllib->bandwidth_auto_switch.bautoswitch_enable)
 		return;
-	if (!priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz) {
+	if (!priv->rtllib->bandwidth_auto_switch.forced_tx_20MHz) {
 		if (priv->undecorated_smoothed_pwdb <=
 		    priv->rtllib->bandwidth_auto_switch.threshold_40Mhzto20Mhz)
-			priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz = true;
+			priv->rtllib->bandwidth_auto_switch.forced_tx_20MHz = true;
 	} else {
 		if (priv->undecorated_smoothed_pwdb >=
 		    priv->rtllib->bandwidth_auto_switch.threshold_20Mhzto40Mhz)
-			priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz = false;
+			priv->rtllib->bandwidth_auto_switch.forced_tx_20MHz = false;
 	}
 }
 
