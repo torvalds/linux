@@ -120,7 +120,7 @@ struct cb_desc {
 	u8 RTSSC:1;
 
 	u8 rts_bw:1;
-	u8 bPacketBW:1;
+	u8 packet_bw:1;
 	u8 rts_use_short_preamble:1;
 	u8 rts_use_short_gi:1;
 	u8 multicast:1;
