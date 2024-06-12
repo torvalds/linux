@@ -233,10 +233,9 @@ void intel_fb_unpin_vma(struct i915_vma *vma, unsigned long flags)
 static unsigned int
 intel_plane_fb_min_alignment(const struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	const struct intel_framebuffer *fb = to_intel_framebuffer(plane_state->hw.fb);
 
-	return plane->min_alignment(plane, fb, 0);
+	return fb->min_alignment;
 }
 
 static unsigned int

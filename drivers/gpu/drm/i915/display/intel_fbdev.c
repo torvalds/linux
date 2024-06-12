@@ -47,7 +47,6 @@
 #include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
-#include "intel_crtc.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
@@ -173,21 +172,6 @@ static const struct fb_ops intelfb_ops = {
 
 __diag_pop();
 
-static unsigned int intel_fbdev_min_alignment(const struct drm_framebuffer *fb)
-{
-	struct drm_i915_private *i915 = to_i915(fb->dev);
-	struct intel_plane *plane;
-	struct intel_crtc *crtc;
-
-	crtc = intel_first_crtc(i915);
-	if (!crtc)
-		return 0;
-
-	plane = to_intel_plane(crtc->base.primary);
-
-	return plane->min_alignment(plane, fb, 0);
-}
-
 static int intelfb_create(struct drm_fb_helper *helper,
 			  struct drm_fb_helper_surface_size *sizes)
 {
@@ -245,7 +229,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * BIOS is suitable for own access.
 	 */
 	vma = intel_fb_pin_to_ggtt(&fb->base, &view,
-				   intel_fbdev_min_alignment(&fb->base), 0,
+				   fb->min_alignment, 0,
 				   false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
