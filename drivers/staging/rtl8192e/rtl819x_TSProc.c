@@ -431,7 +431,7 @@ void remove_all_ts(struct rtllib_device *ieee)
 	}
 }
 
-void TsStartAddBaProcess(struct rtllib_device *ieee, struct tx_ts_record *pTxTS)
+void rtllib_ts_start_add_ba_process(struct rtllib_device *ieee, struct tx_ts_record *pTxTS)
 {
 	if (pTxTS->add_ba_req_in_progress == false) {
 		pTxTS->add_ba_req_in_progress = true;

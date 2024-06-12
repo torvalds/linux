@@ -301,7 +301,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 			} else if (tcb_desc->bdhcp == 1) {
 				;
 			} else if (!ts->disable_add_ba) {
-				TsStartAddBaProcess(ieee, ts);
+				rtllib_ts_start_add_ba_process(ieee, ts);
 			}
 			return;
 		} else if (!ts->using_ba) {
