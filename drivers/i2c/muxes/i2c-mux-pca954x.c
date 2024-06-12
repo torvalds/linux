@@ -644,7 +644,7 @@ static int pca954x_probe(struct i2c_client *client)
 
 	/* Now create an adapter for each channel */
 	for (num = 0; num < data->chip->nchans; num++) {
-		ret = i2c_mux_add_adapter(muxc, 0, num, 0);
+		ret = i2c_mux_add_adapter(muxc, 0, num);
 		if (ret)
 			goto fail_cleanup;
 	}

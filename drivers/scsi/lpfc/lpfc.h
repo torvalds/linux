@@ -393,6 +393,37 @@ enum hba_state {
 	LPFC_HBA_ERROR       =  -1
 };
 
+enum lpfc_hba_flag { /* hba generic flags */
+	HBA_ERATT_HANDLED	= 0, /* This flag is set when eratt handled */
+	DEFER_ERATT		= 1, /* Deferred error attn in progress */
+	HBA_FCOE_MODE		= 2, /* HBA function in FCoE Mode */
+	HBA_SP_QUEUE_EVT	= 3, /* Slow-path qevt posted to worker thread*/
+	HBA_POST_RECEIVE_BUFFER = 4, /* Rcv buffers need to be posted */
+	HBA_PERSISTENT_TOPO	= 5, /* Persistent topology support in hba */
+	ELS_XRI_ABORT_EVENT	= 6, /* ELS_XRI abort event was queued */
+	ASYNC_EVENT		= 7,
+	LINK_DISABLED		= 8, /* Link disabled by user */
+	FCF_TS_INPROG           = 9, /* FCF table scan in progress */
+	FCF_RR_INPROG           = 10, /* FCF roundrobin flogi in progress */
+	HBA_FIP_SUPPORT		= 11, /* FIP support in HBA */
+	HBA_DEVLOSS_TMO         = 13, /* HBA in devloss timeout */
+	HBA_RRQ_ACTIVE		= 14, /* process the rrq active list */
+	HBA_IOQ_FLUSH		= 15, /* I/O queues being flushed */
+	HBA_RECOVERABLE_UE	= 17, /* FW supports recoverable UE */
+	HBA_FORCED_LINK_SPEED	= 18, /*
+				       * Firmware supports Forced Link
+				       * Speed capability
+				       */
+	HBA_FLOGI_ISSUED	= 20, /* FLOGI was issued */
+	HBA_DEFER_FLOGI		= 23, /* Defer FLOGI till read_sparm cmpl */
+	HBA_SETUP		= 24, /* HBA setup completed */
+	HBA_NEEDS_CFG_PORT	= 25, /* SLI3: CONFIG_PORT mbox needed */
+	HBA_HBEAT_INP		= 26, /* mbox HBEAT is in progress */
+	HBA_HBEAT_TMO		= 27, /* HBEAT initiated after timeout */
+	HBA_FLOGI_OUTSTANDING	= 28, /* FLOGI is outstanding */
+	HBA_RHBA_CMPL		= 29, /* RHBA FDMI cmd is successful */
+};
+
 struct lpfc_trunk_link_state {
 	enum hba_state state;
 	uint8_t fault;
@@ -1007,35 +1038,7 @@ struct lpfc_hba {
 #define LS_CT_VEN_RPA         0x20	/* Vendor RPA sent to switch */
 #define LS_EXTERNAL_LOOPBACK  0x40	/* External loopback plug inserted */
 
-	uint32_t hba_flag;	/* hba generic flags */
-#define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
-#define DEFER_ERATT		0x2 /* Deferred error attention in progress */
-#define HBA_FCOE_MODE		0x4 /* HBA function in FCoE Mode */
-#define HBA_SP_QUEUE_EVT	0x8 /* Slow-path qevt posted to worker thread*/
-#define HBA_POST_RECEIVE_BUFFER 0x10 /* Rcv buffers need to be posted */
-#define HBA_PERSISTENT_TOPO	0x20 /* Persistent topology support in hba */
-#define ELS_XRI_ABORT_EVENT	0x40 /* ELS_XRI abort event was queued */
-#define ASYNC_EVENT		0x80
-#define LINK_DISABLED		0x100 /* Link disabled by user */
-#define FCF_TS_INPROG           0x200 /* FCF table scan in progress */
-#define FCF_RR_INPROG           0x400 /* FCF roundrobin flogi in progress */
-#define HBA_FIP_SUPPORT		0x800 /* FIP support in HBA */
-#define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
-#define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
-#define HBA_IOQ_FLUSH		0x8000 /* FCP/NVME I/O queues being flushed */
-#define HBA_RECOVERABLE_UE	0x20000 /* Firmware supports recoverable UE */
-#define HBA_FORCED_LINK_SPEED	0x40000 /*
-					 * Firmware supports Forced Link Speed
-					 * capability
-					 */
-#define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
-#define HBA_DEFER_FLOGI		0x800000 /* Defer FLOGI till read_sparm cmpl */
-#define HBA_SETUP		0x1000000 /* Signifies HBA setup is completed */
-#define HBA_NEEDS_CFG_PORT	0x2000000 /* SLI3 - needs a CONFIG_PORT mbox */
-#define HBA_HBEAT_INP		0x4000000 /* mbox HBEAT is in progress */
-#define HBA_HBEAT_TMO		0x8000000 /* HBEAT initiated after timeout */
-#define HBA_FLOGI_OUTSTANDING	0x10000000 /* FLOGI is outstanding */
-#define HBA_RHBA_CMPL		0x20000000 /* RHBA FDMI command is successful */
+	unsigned long hba_flag;	/* hba generic flags */
 
 	struct completion *fw_dump_cmpl; /* cmpl event tracker for fw_dump */
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
@@ -1284,6 +1287,7 @@ struct lpfc_hba {
 	uint32_t total_scsi_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
+	spinlock_t rrq_list_lock;       /* lock for active_rrq_list */
 	struct list_head active_rrq_list;
 	spinlock_t hbalock;
 	struct work_struct  unblock_request_work; /* SCSI layer unblock IOs */

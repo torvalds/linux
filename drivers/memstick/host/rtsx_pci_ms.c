@@ -574,15 +574,12 @@ static int rtsx_pci_ms_drv_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rtsx_pci_ms_drv_remove(struct platform_device *pdev)
+static void rtsx_pci_ms_drv_remove(struct platform_device *pdev)
 {
 	struct realtek_pci_ms *host = platform_get_drvdata(pdev);
 	struct rtsx_pcr *pcr;
 	struct memstick_host *msh;
 	int rc;
-
-	if (!host)
-		return 0;
 
 	pcr = host->pcr;
 	pcr->slots[RTSX_MS_CARD].p_dev = NULL;
@@ -613,8 +610,6 @@ static int rtsx_pci_ms_drv_remove(struct platform_device *pdev)
 
 	dev_dbg(&(pdev->dev),
 		": Realtek PCI-E Memstick controller has been removed\n");
-
-	return 0;
 }
 
 static struct platform_device_id rtsx_pci_ms_ids[] = {
@@ -628,7 +623,7 @@ MODULE_DEVICE_TABLE(platform, rtsx_pci_ms_ids);
 
 static struct platform_driver rtsx_pci_ms_driver = {
 	.probe		= rtsx_pci_ms_drv_probe,
-	.remove		= rtsx_pci_ms_drv_remove,
+	.remove_new	= rtsx_pci_ms_drv_remove,
 	.id_table       = rtsx_pci_ms_ids,
 	.suspend	= rtsx_pci_ms_suspend,
 	.resume		= rtsx_pci_ms_resume,

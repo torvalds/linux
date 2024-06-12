@@ -43,13 +43,11 @@ static u64 set_pd_power_limit(struct dtpm *dtpm, u64 power_limit)
 	struct dtpm_cpu *dtpm_cpu = to_dtpm_cpu(dtpm);
 	struct em_perf_domain *pd = em_cpu_get(dtpm_cpu->cpu);
 	struct em_perf_state *table;
-	struct cpumask cpus;
 	unsigned long freq;
 	u64 power;
 	int i, nr_cpus;
 
-	cpumask_and(&cpus, cpu_online_mask, to_cpumask(pd->cpus));
-	nr_cpus = cpumask_weight(&cpus);
+	nr_cpus = cpumask_weight_and(cpu_online_mask, to_cpumask(pd->cpus));
 
 	rcu_read_lock();
 	table = em_perf_state_from_pd(pd);
@@ -123,11 +121,9 @@ static int update_pd_power_uw(struct dtpm *dtpm)
 	struct dtpm_cpu *dtpm_cpu = to_dtpm_cpu(dtpm);
 	struct em_perf_domain *em = em_cpu_get(dtpm_cpu->cpu);
 	struct em_perf_state *table;
-	struct cpumask cpus;
 	int nr_cpus;
 
-	cpumask_and(&cpus, cpu_online_mask, to_cpumask(em->cpus));
-	nr_cpus = cpumask_weight(&cpus);
+	nr_cpus = cpumask_weight_and(cpu_online_mask, to_cpumask(em->cpus));
 
 	rcu_read_lock();
 	table = em_perf_state_from_pd(em);

@@ -25,6 +25,7 @@
 #define __AMDGPU_ACA_H__
 
 #include <linux/list.h>
+#include <linux/spinlock.h>
 
 struct ras_err_data;
 struct ras_query_context;
@@ -133,7 +134,7 @@ struct aca_bank_error {
 
 struct aca_error {
 	struct list_head list;
-	struct mutex lock;
+	spinlock_t lock;
 	enum aca_error_type type;
 	int nr_errors;
 };
@@ -191,7 +192,6 @@ struct aca_info {
 
 int amdgpu_aca_init(struct amdgpu_device *adev);
 void amdgpu_aca_fini(struct amdgpu_device *adev);
-int amdgpu_aca_reset(struct amdgpu_device *adev);
 void amdgpu_aca_set_smu_funcs(struct amdgpu_device *adev, const struct aca_smu_funcs *smu_funcs);
 bool amdgpu_aca_is_enabled(struct amdgpu_device *adev);
 

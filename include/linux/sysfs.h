@@ -371,6 +371,17 @@ struct bin_attribute bin_attr_##_name = __BIN_ATTR_ADMIN_RO(_name, _size)
 #define BIN_ATTR_ADMIN_RW(_name, _size)					\
 struct bin_attribute bin_attr_##_name = __BIN_ATTR_ADMIN_RW(_name, _size)
 
+#define __BIN_ATTR_SIMPLE_RO(_name, _mode) {				\
+	.attr	= { .name = __stringify(_name), .mode = _mode },	\
+	.read	= sysfs_bin_attr_simple_read,				\
+}
+
+#define BIN_ATTR_SIMPLE_RO(_name)					\
+struct bin_attribute bin_attr_##_name = __BIN_ATTR_SIMPLE_RO(_name, 0444)
+
+#define BIN_ATTR_SIMPLE_ADMIN_RO(_name)					\
+struct bin_attribute bin_attr_##_name = __BIN_ATTR_SIMPLE_RO(_name, 0400)
+
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *, char *);
 	ssize_t	(*store)(struct kobject *, struct attribute *, const char *, size_t);
@@ -477,6 +488,10 @@ __printf(2, 3)
 int sysfs_emit(char *buf, const char *fmt, ...);
 __printf(3, 4)
 int sysfs_emit_at(char *buf, int at, const char *fmt, ...);
+
+ssize_t sysfs_bin_attr_simple_read(struct file *file, struct kobject *kobj,
+				   struct bin_attribute *attr, char *buf,
+				   loff_t off, size_t count);
 
 #else /* CONFIG_SYSFS */
 

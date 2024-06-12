@@ -426,11 +426,6 @@ enum fsck_err_opts {
 	  BCH_SB_VERSION_UPGRADE,	BCH_VERSION_UPGRADE_compatible,	\
 	  NULL,		"Set superblock to latest version,\n"		\
 			"allowing any new features to be used")		\
-	x(buckets_nouse,		u8,				\
-	  0,								\
-	  OPT_BOOL(),							\
-	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Allocate the buckets_nouse bitmap")		\
 	x(stdio,			u64,				\
 	  0,								\
 	  OPT_UINT(0, S64_MAX),						\
@@ -480,7 +475,7 @@ enum fsck_err_opts {
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
-	  NULL,		"BTREE_ITER_PREFETCH casuse btree nodes to be\n"\
+	  NULL,		"BTREE_ITER_prefetch casuse btree nodes to be\n"\
 	  " prefetched sequentially")
 
 struct bch_opts {

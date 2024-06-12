@@ -7,7 +7,7 @@ This document serves as a guide for writers of GPIO chip drivers.
 Each GPIO controller driver needs to include the following header, which defines
 the structures used to define a GPIO driver::
 
-	#include <linux/gpio/driver.h>
+  #include <linux/gpio/driver.h>
 
 
 Internal Representation of GPIOs
@@ -144,7 +144,7 @@ is not open, it will present a high-impedance (tristate) to the external rail::
      in ----||                   |/
             ||--+         in ----|
                 |                |\
-               GND	           GND
+               GND                 GND
 
 This configuration is normally used as a way to achieve one of two things:
 
@@ -550,10 +550,10 @@ the interrupt separately and go with it:
   struct my_gpio *g;
   struct gpio_irq_chip *girq;
 
-  ret = devm_request_threaded_irq(dev, irq, NULL,
-		irq_thread_fn, IRQF_ONESHOT, "my-chip", g);
+  ret = devm_request_threaded_irq(dev, irq, NULL, irq_thread_fn,
+                                  IRQF_ONESHOT, "my-chip", g);
   if (ret < 0)
-	return ret;
+      return ret;
 
   /* Get a pointer to the gpio_irq_chip */
   girq = &g->gc.irq;
@@ -681,12 +681,12 @@ certain operations and keep track of usage inside of the gpiolib subsystem.
 Input GPIOs can be used as IRQ signals. When this happens, a driver is requested
 to mark the GPIO as being used as an IRQ::
 
-	int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
+  int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 
 This will prevent the use of non-irq related GPIO APIs until the GPIO IRQ lock
 is released::
 
-	void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
+  void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
 
 When implementing an irqchip inside a GPIO driver, these two functions should
 typically be called in the .startup() and .shutdown() callbacks from the
@@ -708,12 +708,12 @@ When a GPIO is used as an IRQ signal, then gpiolib also needs to know if
 the IRQ is enabled or disabled. In order to inform gpiolib about this,
 the irqchip driver should call::
 
-	void gpiochip_disable_irq(struct gpio_chip *chip, unsigned int offset)
+  void gpiochip_disable_irq(struct gpio_chip *chip, unsigned int offset)
 
 This allows drivers to drive the GPIO as an output while the IRQ is
 disabled. When the IRQ is enabled again, a driver should call::
 
-	void gpiochip_enable_irq(struct gpio_chip *chip, unsigned int offset)
+  void gpiochip_enable_irq(struct gpio_chip *chip, unsigned int offset)
 
 When implementing an irqchip inside a GPIO driver, these two functions should
 typically be called in the .irq_disable() and .irq_enable() callbacks from the
@@ -763,12 +763,12 @@ Sometimes it is useful to allow a GPIO chip driver to request its own GPIO
 descriptors through the gpiolib API. A GPIO driver can use the following
 functions to request and free descriptors::
 
-	struct gpio_desc *gpiochip_request_own_desc(struct gpio_desc *desc,
-						    u16 hwnum,
-						    const char *label,
-						    enum gpiod_flags flags)
+  struct gpio_desc *gpiochip_request_own_desc(struct gpio_desc *desc,
+                                              u16 hwnum,
+                                              const char *label,
+                                              enum gpiod_flags flags)
 
-	void gpiochip_free_own_desc(struct gpio_desc *desc)
+  void gpiochip_free_own_desc(struct gpio_desc *desc)
 
 Descriptors requested with gpiochip_request_own_desc() must be released with
 gpiochip_free_own_desc().

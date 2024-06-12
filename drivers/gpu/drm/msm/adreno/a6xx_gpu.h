@@ -69,12 +69,12 @@ static inline void a6xx_llc_rmw(struct a6xx_gpu *a6xx_gpu, u32 reg, u32 mask, u3
 
 static inline u32 a6xx_llc_read(struct a6xx_gpu *a6xx_gpu, u32 reg)
 {
-	return msm_readl(a6xx_gpu->llc_mmio + (reg << 2));
+	return readl(a6xx_gpu->llc_mmio + (reg << 2));
 }
 
 static inline void a6xx_llc_write(struct a6xx_gpu *a6xx_gpu, u32 reg, u32 value)
 {
-	msm_writel(value, a6xx_gpu->llc_mmio + (reg << 2));
+	writel(value, a6xx_gpu->llc_mmio + (reg << 2));
 }
 
 #define shadowptr(_a6xx_gpu, _ring) ((_a6xx_gpu)->shadow_iova + \

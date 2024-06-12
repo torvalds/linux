@@ -1877,7 +1877,7 @@ static void rtllib_parse_mfie_ht_cap(struct rtllib_info_element *info_element,
 
 		ht->bd_bandwidth = (enum ht_channel_width)
 					     (((struct ht_capab_ele *)
-					     (ht->bd_ht_cap_buf))->ChlWidth);
+					     (ht->bd_ht_cap_buf))->chl_width);
 	} else {
 		ht->bd_support_ht = false;
 		ht->bd_ht_1r = false;

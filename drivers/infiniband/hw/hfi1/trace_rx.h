@@ -90,7 +90,7 @@ TRACE_EVENT(hfi1_mmu_invalidate,
 	    TP_fast_assign(
 			__entry->ctxt = ctxt;
 			__entry->subctxt = subctxt;
-			__assign_str(type, type);
+			__assign_str(type);
 			__entry->start = start;
 			__entry->end = end;
 	    ),

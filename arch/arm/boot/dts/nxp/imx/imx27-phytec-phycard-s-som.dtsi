@@ -15,6 +15,22 @@
 		device_type = "memory";
 		reg = <0xa0000000 0x08000000>; /* 128MB */
 	};
+
+	usbotgphy: usbotgphy {
+		compatible = "usb-nop-xceiv";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbotgphy>;
+		reset-gpios = <&gpio2 25 GPIO_ACTIVE_LOW>;
+		#phy-cells = <0>;
+	};
+
+	usbh2phy: usbh2phy {
+		compatible = "usb-nop-xceiv";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbh2phy>;
+		reset-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>;
+		#phy-cells = <0>;
+	};
 };
 
 &cspi1 {
@@ -84,6 +100,52 @@
 				MX27_PAD_NFWE_B__NFWE_B 0x0
 			>;
 		};
+
+		pinctrl_usbotgphy: usbotgphygrp {
+			fsl,pins = <
+				MX27_PAD_USBH1_RCV__GPIO2_25		0x1 /* reset gpio */
+			>;
+		};
+
+		pinctrl_usbotg: usbotggrp {
+			fsl,pins = <
+				MX27_PAD_USBOTG_CLK__USBOTG_CLK		0x0
+				MX27_PAD_USBOTG_DIR__USBOTG_DIR		0x0
+				MX27_PAD_USBOTG_NXT__USBOTG_NXT		0x0
+				MX27_PAD_USBOTG_STP__USBOTG_STP		0x0
+				MX27_PAD_USBOTG_DATA0__USBOTG_DATA0	0x0
+				MX27_PAD_USBOTG_DATA1__USBOTG_DATA1	0x0
+				MX27_PAD_USBOTG_DATA2__USBOTG_DATA2	0x0
+				MX27_PAD_USBOTG_DATA3__USBOTG_DATA3	0x0
+				MX27_PAD_USBOTG_DATA4__USBOTG_DATA4	0x0
+				MX27_PAD_USBOTG_DATA5__USBOTG_DATA5	0x0
+				MX27_PAD_USBOTG_DATA6__USBOTG_DATA6	0x0
+				MX27_PAD_USBOTG_DATA7__USBOTG_DATA7	0x0
+			>;
+		};
+
+		pinctrl_usbh2phy: usbh2phygrp {
+			fsl,pins = <
+				MX27_PAD_USBH1_SUSP__GPIO2_22		0x0 /* reset gpio */
+			>;
+		};
+
+		pinctrl_usbh2: usbh2grp {
+			fsl,pins = <
+				MX27_PAD_USBH2_CLK__USBH2_CLK		0x0
+				MX27_PAD_USBH2_DIR__USBH2_DIR		0x0
+				MX27_PAD_USBH2_NXT__USBH2_NXT		0x0
+				MX27_PAD_USBH2_STP__USBH2_STP		0x0
+				MX27_PAD_CSPI2_SCLK__USBH2_DATA0	0x0
+				MX27_PAD_CSPI2_MOSI__USBH2_DATA1	0x0
+				MX27_PAD_CSPI2_MISO__USBH2_DATA2	0x0
+				MX27_PAD_CSPI2_SS1__USBH2_DATA3		0x0
+				MX27_PAD_CSPI2_SS2__USBH2_DATA4		0x0
+				MX27_PAD_CSPI1_SS2__USBH2_DATA5		0x0
+				MX27_PAD_CSPI2_SS0__USBH2_DATA6		0x0
+				MX27_PAD_USBH2_DATA7__USBH2_DATA7	0x0
+			>;
+		};
 	};
 };
 
@@ -93,5 +155,21 @@
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
 	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&usbotg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
+	phy_type = "ulpi";
+	phys = <&usbotgphy>;
+	status = "okay";
+};
+
+&usbh2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh2>;
+	phy_type = "ulpi";
+	phys = <&usbh2phy>;
 	status = "okay";
 };

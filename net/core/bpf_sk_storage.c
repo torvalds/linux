@@ -496,27 +496,22 @@ bpf_sk_storage_diag_alloc(const struct nlattr *nla_stgs)
 	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
 
-	nla_for_each_nested(nla, nla_stgs, rem) {
-		if (nla_type(nla) == SK_DIAG_BPF_STORAGE_REQ_MAP_FD) {
-			if (nla_len(nla) != sizeof(u32))
-				return ERR_PTR(-EINVAL);
-			nr_maps++;
-		}
+	nla_for_each_nested_type(nla, SK_DIAG_BPF_STORAGE_REQ_MAP_FD,
+				 nla_stgs, rem) {
+		if (nla_len(nla) != sizeof(u32))
+			return ERR_PTR(-EINVAL);
+		nr_maps++;
 	}
 
 	diag = kzalloc(struct_size(diag, maps, nr_maps), GFP_KERNEL);
 	if (!diag)
 		return ERR_PTR(-ENOMEM);
 
-	nla_for_each_nested(nla, nla_stgs, rem) {
-		struct bpf_map *map;
-		int map_fd;
+	nla_for_each_nested_type(nla, SK_DIAG_BPF_STORAGE_REQ_MAP_FD,
+				 nla_stgs, rem) {
+		int map_fd = nla_get_u32(nla);
+		struct bpf_map *map = bpf_map_get(map_fd);
 
-		if (nla_type(nla) != SK_DIAG_BPF_STORAGE_REQ_MAP_FD)
-			continue;
-
-		map_fd = nla_get_u32(nla);
-		map = bpf_map_get(map_fd);
 		if (IS_ERR(map)) {
 			err = PTR_ERR(map);
 			goto err_free;

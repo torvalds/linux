@@ -100,7 +100,7 @@
 }
 
 #define ASM_CALL_ARG0							\
-	"call %P[__func]				\n"		\
+	"call %c[__func]				\n"		\
 	ASM_REACHABLE
 
 #define ASM_CALL_ARG1							\

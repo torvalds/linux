@@ -11,8 +11,7 @@
 # Makefile for DCN35.
 
 DCN35 = dcn35_dio_stream_encoder.o \
-	dcn35_dio_link_encoder.o dcn35_dccg.o \
-	dcn35_hubp.o dcn35_hubbub.o \
+	dcn35_dio_link_encoder.o \
 	dcn35_mmhubbub.o dcn35_opp.o dcn35_pg_cntl.o dcn35_dwb.o
 
 AMD_DAL_DCN35 = $(addprefix $(AMDDALPATH)/dc/dcn35/,$(DCN35))

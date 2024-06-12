@@ -135,7 +135,6 @@ static struct snd_soc_dai_driver fsl_rpmsg_dai = {
 
 static const struct snd_soc_component_driver fsl_component = {
 	.name			= "fsl-rpmsg",
-	.legacy_dai_naming	= 1,
 };
 
 static const struct fsl_rpmsg_soc_data imx7ulp_data = {
@@ -190,8 +189,15 @@ MODULE_DEVICE_TABLE(of, fsl_rpmsg_ids);
 static int fsl_rpmsg_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct snd_soc_dai_driver *dai_drv;
+	const char *dai_name;
 	struct fsl_rpmsg *rpmsg;
 	int ret;
+
+	dai_drv = devm_kzalloc(&pdev->dev, sizeof(struct snd_soc_dai_driver), GFP_KERNEL);
+	if (!dai_drv)
+		return -ENOMEM;
+	memcpy(dai_drv, &fsl_rpmsg_dai, sizeof(fsl_rpmsg_dai));
 
 	rpmsg = devm_kzalloc(&pdev->dev, sizeof(struct fsl_rpmsg), GFP_KERNEL);
 	if (!rpmsg)
@@ -199,10 +205,24 @@ static int fsl_rpmsg_probe(struct platform_device *pdev)
 
 	rpmsg->soc_data = of_device_get_match_data(&pdev->dev);
 
-	fsl_rpmsg_dai.playback.rates = rpmsg->soc_data->rates;
-	fsl_rpmsg_dai.capture.rates = rpmsg->soc_data->rates;
-	fsl_rpmsg_dai.playback.formats = rpmsg->soc_data->formats;
-	fsl_rpmsg_dai.capture.formats = rpmsg->soc_data->formats;
+	if (rpmsg->soc_data) {
+		dai_drv->playback.rates = rpmsg->soc_data->rates;
+		dai_drv->capture.rates = rpmsg->soc_data->rates;
+		dai_drv->playback.formats = rpmsg->soc_data->formats;
+		dai_drv->capture.formats = rpmsg->soc_data->formats;
+	}
+
+	/* Use rpmsg channel name as cpu dai name */
+	ret = of_property_read_string(np, "fsl,rpmsg-channel-name", &dai_name);
+	if (ret) {
+		if (ret == -EINVAL) {
+			dai_name = "rpmsg-audio-channel";
+		} else {
+			dev_err(&pdev->dev, "Failed to get rpmsg channel name: %d!\n", ret);
+			return ret;
+		}
+	}
+	dai_drv->name = dai_name;
 
 	if (of_property_read_bool(np, "fsl,enable-lpa")) {
 		rpmsg->enable_lpa = 1;
@@ -236,20 +256,9 @@ static int fsl_rpmsg_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &fsl_component,
-					      &fsl_rpmsg_dai, 1);
+					      dai_drv, 1);
 	if (ret)
 		goto err_pm_disable;
-
-	rpmsg->card_pdev = platform_device_register_data(&pdev->dev,
-							 "imx-audio-rpmsg",
-							 PLATFORM_DEVID_AUTO,
-							 NULL,
-							 0);
-	if (IS_ERR(rpmsg->card_pdev)) {
-		dev_err(&pdev->dev, "failed to register rpmsg card\n");
-		ret = PTR_ERR(rpmsg->card_pdev);
-		goto err_pm_disable;
-	}
 
 	return 0;
 

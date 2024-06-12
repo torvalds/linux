@@ -315,6 +315,7 @@ static u32 nbif_v6_3_1_get_rom_offset(struct amdgpu_device *adev)
 static void nbif_v6_3_1_program_ltr(struct amdgpu_device *adev)
 {
 	uint32_t def, data;
+	u16 devctl2;
 
 	def = RREG32_SOC15(NBIO, 0, regRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL);
 	data = 0x35EB;
@@ -328,13 +329,15 @@ static void nbif_v6_3_1_program_ltr(struct amdgpu_device *adev)
 	if (def != data)
 		WREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_BIF_STRAP2, data);
 
-	def = data = RREG32_SOC15(NBIO, 0, regBIF_CFG_DEV0_EPF0_DEVICE_CNTL2);
+	pcie_capability_read_word(adev->pdev, PCI_EXP_DEVCTL2, &devctl2);
+
+	if (adev->pdev->ltr_path == (devctl2 & PCI_EXP_DEVCTL2_LTR_EN))
+		return;
+
 	if (adev->pdev->ltr_path)
-		data |= BIF_CFG_DEV0_EPF0_DEVICE_CNTL2__LTR_EN_MASK;
+		pcie_capability_set_word(adev->pdev, PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_LTR_EN);
 	else
-		data &= ~BIF_CFG_DEV0_EPF0_DEVICE_CNTL2__LTR_EN_MASK;
-	if (def != data)
-		WREG32_SOC15(NBIO, 0, regBIF_CFG_DEV0_EPF0_DEVICE_CNTL2, data);
+		pcie_capability_clear_word(adev->pdev, PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_LTR_EN);
 }
 #endif
 
@@ -424,6 +427,20 @@ static void nbif_v6_3_1_program_aspm(struct amdgpu_device *adev)
 #endif
 }
 
+#define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
+
+static void nbif_v6_3_1_set_reg_remap(struct amdgpu_device *adev)
+{
+	if (!amdgpu_sriov_vf(adev) && (PAGE_SIZE <= 4096)) {
+		adev->rmmio_remap.reg_offset = MMIO_REG_HOLE_OFFSET;
+		adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
+	} else {
+		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
+			regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
+		adev->rmmio_remap.bus_addr = 0;
+	}
+}
+
 const struct amdgpu_nbio_funcs nbif_v6_3_1_funcs = {
 	.get_hdp_flush_req_offset = nbif_v6_3_1_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbif_v6_3_1_get_hdp_flush_done_offset,
@@ -446,6 +463,7 @@ const struct amdgpu_nbio_funcs nbif_v6_3_1_funcs = {
 	.remap_hdp_registers = nbif_v6_3_1_remap_hdp_registers,
 	.get_rom_offset = nbif_v6_3_1_get_rom_offset,
 	.program_aspm = nbif_v6_3_1_program_aspm,
+	.set_reg_remap = nbif_v6_3_1_set_reg_remap,
 };
 
 
@@ -492,4 +510,5 @@ const struct amdgpu_nbio_funcs nbif_v6_3_1_sriov_funcs = {
 	.init_registers = nbif_v6_3_1_init_registers,
 	.remap_hdp_registers = nbif_v6_3_1_remap_hdp_registers,
 	.get_rom_offset = nbif_v6_3_1_get_rom_offset,
+	.set_reg_remap = nbif_v6_3_1_set_reg_remap,
 };

@@ -337,7 +337,7 @@ static int lm77_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm77_id[] = {
-	{ "lm77", 0 },
+	{ "lm77" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm77_id);

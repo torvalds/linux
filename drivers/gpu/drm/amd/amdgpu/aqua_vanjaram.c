@@ -422,7 +422,7 @@ __aqua_vanjaram_get_auto_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 
 	if (adev->gmc.num_mem_partitions == num_xcc / 2)
 		return (adev->flags & AMD_IS_APU) ? AMDGPU_TPX_PARTITION_MODE :
-						    AMDGPU_QPX_PARTITION_MODE;
+						    AMDGPU_CPX_PARTITION_MODE;
 
 	if (adev->gmc.num_mem_partitions == 2 && !(adev->flags & AMD_IS_APU))
 		return AMDGPU_DPX_PARTITION_MODE;
@@ -501,6 +501,12 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 
 	if (mode == AMDGPU_AUTO_COMPUTE_PARTITION_MODE) {
 		mode = __aqua_vanjaram_get_auto_mode(xcp_mgr);
+		if (mode == AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE) {
+			dev_err(adev->dev,
+				"Invalid config, no compatible compute partition mode found, available memory partitions: %d",
+				adev->gmc.num_mem_partitions);
+			return -EINVAL;
+		}
 	} else if (!__aqua_vanjaram_is_valid_mode(xcp_mgr, mode)) {
 		dev_err(adev->dev,
 			"Invalid compute partition mode requested, requested: %s, available memory partitions: %d",

@@ -580,7 +580,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	/* we'll do more on status of this frame */
 	info = IEEE80211_SKB_CB(skb);
 	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
-	/* we have 12 bits, and need 6: link_id 4, smps 2 */
+	/* we have 13 bits, and need 6: link_id 4, smps 2 */
 	info->status_data = IEEE80211_STATUS_TYPE_SMPS |
 			    u16_encode_bits(status_link_id << 2 | smps,
 					    IEEE80211_STATUS_SUBDATA_MASK);

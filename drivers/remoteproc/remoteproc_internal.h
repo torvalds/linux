@@ -72,7 +72,7 @@ void rproc_init_debugfs(void);
 void rproc_exit_debugfs(void);
 
 /* from remoteproc_sysfs.c */
-extern struct class rproc_class;
+extern const struct class rproc_class;
 int rproc_init_sysfs(void);
 void rproc_exit_sysfs(void);
 

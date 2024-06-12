@@ -318,7 +318,7 @@ static bool check_storage_bpf_ma(struct bpf_local_storage *local_storage,
 	 *
 	 * If the local_storage->list is already empty, the caller will not
 	 * care about the bpf_ma value also because the caller is not
-	 * responsibile to free the local_storage.
+	 * responsible to free the local_storage.
 	 */
 
 	if (storage_smap)

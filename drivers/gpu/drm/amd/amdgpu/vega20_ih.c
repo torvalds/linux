@@ -306,7 +306,8 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 		 * driver needs to program it properly according to
 		 * MC_SPACE type in IH_RB_CNTL */
 		if ((amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 0)) ||
-		    (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2))) {
+		    (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2)) ||
+		    (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 5))) {
 			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN);
 			if (adev->irq.ih.use_bus_addr) {
 				ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
@@ -337,7 +338,8 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 
 	/* Enable IH Retry CAM */
 	if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 0) ||
-	    amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2))
+	    amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2) ||
+	    amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 5))
 		WREG32_FIELD15(OSSSYS, 0, IH_RETRY_INT_CAM_CNTL_ALDEBARAN,
 			       ENABLE, 1);
 	else
@@ -562,7 +564,8 @@ static int vega20_ih_sw_init(void *handle)
 	adev->irq.ih1.use_doorbell = true;
 	adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
 
-	if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) != IP_VERSION(4, 4, 2)) {
+	if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) != IP_VERSION(4, 4, 2) &&
+	    amdgpu_ip_version(adev, OSSSYS_HWIP, 0) != IP_VERSION(4, 4, 5)) {
 		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
 		if (r)
 			return r;

@@ -27,7 +27,7 @@ static int ltc2947_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ltc2947_id[] = {
-	{"ltc2947", 0},
+	{"ltc2947"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ltc2947_id);

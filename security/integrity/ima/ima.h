@@ -49,11 +49,19 @@ extern int ima_policy_flag;
 /* bitset of digests algorithms allowed in the setxattr hook */
 extern atomic_t ima_setxattr_allowed_hash_algorithms;
 
+/* IMA hash algorithm description */
+struct ima_algo_desc {
+	struct crypto_shash *tfm;
+	enum hash_algo algo;
+};
+
 /* set during initialization */
 extern int ima_hash_algo __ro_after_init;
 extern int ima_sha1_idx __ro_after_init;
 extern int ima_hash_algo_idx __ro_after_init;
 extern int ima_extra_slots __ro_after_init;
+extern struct ima_algo_desc *ima_algo_array __ro_after_init;
+
 extern int ima_appraise;
 extern struct tpm_chip *ima_tpm_chip;
 extern const char boot_aggregate_name[];
@@ -175,12 +183,10 @@ struct ima_kexec_hdr {
 /* IMA integrity metadata associated with an inode */
 struct ima_iint_cache {
 	struct mutex mutex;	/* protects: version, flags, digest */
-	u64 version;		/* track inode changes */
+	struct integrity_inode_attributes real_inode;
 	unsigned long flags;
 	unsigned long measured_pcrs;
 	unsigned long atomic_flags;
-	unsigned long real_ino;
-	dev_t real_dev;
 	enum integrity_status ima_file_status:4;
 	enum integrity_status ima_mmap_status:4;
 	enum integrity_status ima_bprm_status:4;

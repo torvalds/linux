@@ -28,6 +28,7 @@
 #include "display/intel_de.h"
 #include "display/intel_display.h"
 #include "display/intel_display_trace.h"
+#include "display/intel_fbc_regs.h"
 #include "display/skl_watermark.h"
 
 #include "gt/intel_engine_regs.h"

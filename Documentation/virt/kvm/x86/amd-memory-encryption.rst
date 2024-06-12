@@ -76,14 +76,55 @@ are defined in ``<linux/psp-dev.h>``.
 KVM implements the following commands to support common lifecycle events of SEV
 guests, such as launching, running, snapshotting, migrating and decommissioning.
 
-1. KVM_SEV_INIT
----------------
+1. KVM_SEV_INIT2
+----------------
 
-The KVM_SEV_INIT command is used by the hypervisor to initialize the SEV platform
+The KVM_SEV_INIT2 command is used by the hypervisor to initialize the SEV platform
 context. In a typical workflow, this command should be the first command issued.
 
+For this command to be accepted, either KVM_X86_SEV_VM or KVM_X86_SEV_ES_VM
+must have been passed to the KVM_CREATE_VM ioctl.  A virtual machine created
+with those machine types in turn cannot be run until KVM_SEV_INIT2 is invoked.
+
+Parameters: struct kvm_sev_init (in)
 
 Returns: 0 on success, -negative on error
+
+::
+
+        struct kvm_sev_init {
+                __u64 vmsa_features;  /* initial value of features field in VMSA */
+                __u32 flags;          /* must be 0 */
+                __u16 ghcb_version;   /* maximum guest GHCB version allowed */
+                __u16 pad1;
+                __u32 pad2[8];
+        };
+
+It is an error if the hypervisor does not support any of the bits that
+are set in ``flags`` or ``vmsa_features``.  ``vmsa_features`` must be
+0 for SEV virtual machines, as they do not have a VMSA.
+
+``ghcb_version`` must be 0 for SEV virtual machines, as they do not issue GHCB
+requests. If ``ghcb_version`` is 0 for any other guest type, then the maximum
+allowed guest GHCB protocol will default to version 2.
+
+This command replaces the deprecated KVM_SEV_INIT and KVM_SEV_ES_INIT commands.
+The commands did not have any parameters (the ```data``` field was unused) and
+only work for the KVM_X86_DEFAULT_VM machine type (0).
+
+They behave as if:
+
+* the VM type is KVM_X86_SEV_VM for KVM_SEV_INIT, or KVM_X86_SEV_ES_VM for
+  KVM_SEV_ES_INIT
+
+* the ``flags`` and ``vmsa_features`` fields of ``struct kvm_sev_init`` are
+  set to zero, and ``ghcb_version`` is set to 0 for KVM_SEV_INIT and 1 for
+  KVM_SEV_ES_INIT.
+
+If the ``KVM_X86_SEV_VMSA_FEATURES`` attribute does not exist, the hypervisor only
+supports KVM_SEV_INIT and KVM_SEV_ES_INIT.  In that case, note that KVM_SEV_ES_INIT
+might set the debug swap VMSA feature (bit 5) depending on the value of the
+``debug_swap`` parameter of ``kvm-amd.ko``.
 
 2. KVM_SEV_LAUNCH_START
 -----------------------
@@ -424,6 +465,18 @@ After completion of the migration flow, the KVM_SEV_RECEIVE_FINISH command can b
 issued by the hypervisor to make the guest ready for execution.
 
 Returns: 0 on success, -negative on error
+
+Device attribute API
+====================
+
+Attributes of the SEV implementation can be retrieved through the
+``KVM_HAS_DEVICE_ATTR`` and ``KVM_GET_DEVICE_ATTR`` ioctls on the ``/dev/kvm``
+device node, using group ``KVM_X86_GRP_SEV``.
+
+Currently only one attribute is implemented:
+
+* ``KVM_X86_SEV_VMSA_FEATURES``: return the set of all bits that
+  are accepted in the ``vmsa_features`` of ``KVM_SEV_INIT2``.
 
 Firmware Management
 ===================

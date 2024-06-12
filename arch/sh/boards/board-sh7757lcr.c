@@ -569,7 +569,7 @@ static int __init sh7757lcr_devices_setup(void)
 arch_initcall(sh7757lcr_devices_setup);
 
 /* Initialize IRQ setting */
-void __init init_sh7757lcr_IRQ(void)
+static void __init init_sh7757lcr_IRQ(void)
 {
 	plat_irq_setup_pins(IRQ_MODE_IRQ7654);
 	plat_irq_setup_pins(IRQ_MODE_IRQ3210);

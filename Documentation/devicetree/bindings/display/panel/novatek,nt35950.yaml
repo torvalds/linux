@@ -33,6 +33,9 @@ properties:
       to work with the indicated panel. The novatek,nt35950 compatible shall
       always be provided as a fallback.
 
+  reg:
+    maxItems: 1
+
   reset-gpios:
     maxItems: 1
     description: phandle of gpio for reset line - This should be 8mA, gpio
@@ -49,7 +52,6 @@ properties:
 
   backlight: true
   ports: true
-  reg: true
 
 required:
   - compatible

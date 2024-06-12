@@ -123,15 +123,6 @@ struct mmu_notifier_ops {
 			  unsigned long address);
 
 	/*
-	 * change_pte is called in cases that pte mapping to page is changed:
-	 * for example, when ksm remaps pte to point to a new shared page.
-	 */
-	void (*change_pte)(struct mmu_notifier *subscription,
-			   struct mm_struct *mm,
-			   unsigned long address,
-			   pte_t pte);
-
-	/*
 	 * invalidate_range_start() and invalidate_range_end() must be
 	 * paired and are called only when the mmap_lock and/or the
 	 * locks protecting the reverse maps are held. If the subsystem
@@ -392,8 +383,6 @@ extern int __mmu_notifier_clear_young(struct mm_struct *mm,
 				      unsigned long end);
 extern int __mmu_notifier_test_young(struct mm_struct *mm,
 				     unsigned long address);
-extern void __mmu_notifier_change_pte(struct mm_struct *mm,
-				      unsigned long address, pte_t pte);
 extern int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *r);
 extern void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *r);
 extern void __mmu_notifier_arch_invalidate_secondary_tlbs(struct mm_struct *mm,
@@ -437,13 +426,6 @@ static inline int mmu_notifier_test_young(struct mm_struct *mm,
 	if (mm_has_notifiers(mm))
 		return __mmu_notifier_test_young(mm, address);
 	return 0;
-}
-
-static inline void mmu_notifier_change_pte(struct mm_struct *mm,
-					   unsigned long address, pte_t pte)
-{
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_change_pte(mm, address, pte);
 }
 
 static inline void
@@ -581,26 +563,6 @@ static inline void mmu_notifier_range_init_owner(
 	__young;							\
 })
 
-/*
- * set_pte_at_notify() sets the pte _after_ running the notifier.
- * This is safe to start by updating the secondary MMUs, because the primary MMU
- * pte invalidate must have already happened with a ptep_clear_flush() before
- * set_pte_at_notify() has been invoked.  Updating the secondary MMUs first is
- * required when we change both the protection of the mapping from read-only to
- * read-write and the pfn (like during copy on write page faults). Otherwise the
- * old page would remain mapped readonly in the secondary MMUs after the new
- * page is already writable by some CPU through the primary MMU.
- */
-#define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
-({									\
-	struct mm_struct *___mm = __mm;					\
-	unsigned long ___address = __address;				\
-	pte_t ___pte = __pte;						\
-									\
-	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
-	set_pte_at(___mm, ___address, __ptep, ___pte);			\
-})
-
 #else /* CONFIG_MMU_NOTIFIER */
 
 struct mmu_notifier_range {
@@ -650,11 +612,6 @@ static inline int mmu_notifier_test_young(struct mm_struct *mm,
 	return 0;
 }
 
-static inline void mmu_notifier_change_pte(struct mm_struct *mm,
-					   unsigned long address, pte_t pte)
-{
-}
-
 static inline void
 mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 {
@@ -693,7 +650,6 @@ static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 #define	ptep_clear_flush_notify ptep_clear_flush
 #define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
 #define pudp_huge_clear_flush_notify pudp_huge_clear_flush
-#define set_pte_at_notify set_pte_at
 
 static inline void mmu_notifier_synchronize(void)
 {

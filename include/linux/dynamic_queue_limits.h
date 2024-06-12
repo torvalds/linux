@@ -50,6 +50,9 @@ struct dql {
 	unsigned int	adj_limit;		/* limit + num_completed */
 	unsigned int	last_obj_cnt;		/* Count at last queuing */
 
+	/* Stall threshold (in jiffies), defined by user */
+	unsigned short	stall_thrs;
+
 	unsigned long	history_head;		/* top 58 bits of jiffies */
 	/* stall entries, a bit per entry */
 	unsigned long	history[DQL_HIST_LEN];
@@ -71,8 +74,6 @@ struct dql {
 	unsigned int	min_limit;		/* Minimum limit */
 	unsigned int	slack_hold_time;	/* Time to measure slack */
 
-	/* Stall threshold (in jiffies), defined by user */
-	unsigned short	stall_thrs;
 	/* Longest stall detected, reported to user */
 	unsigned short	stall_max;
 	unsigned long	last_reap;		/* Last reap (in jiffies) */
@@ -83,26 +84,10 @@ struct dql {
 #define DQL_MAX_OBJECT (UINT_MAX / 16)
 #define DQL_MAX_LIMIT ((UINT_MAX / 2) - DQL_MAX_OBJECT)
 
-/*
- * Record number of objects queued. Assumes that caller has already checked
- * availability in the queue with dql_avail.
- */
-static inline void dql_queued(struct dql *dql, unsigned int count)
+/* Populate the bitmap to be processed later in dql_check_stall() */
+static inline void dql_queue_stall(struct dql *dql)
 {
 	unsigned long map, now, now_hi, i;
-
-	BUG_ON(count > DQL_MAX_OBJECT);
-
-	dql->last_obj_cnt = count;
-
-	/* We want to force a write first, so that cpu do not attempt
-	 * to get cache line containing last_obj_cnt, num_queued, adj_limit
-	 * in Shared state, but directly does a Request For Ownership
-	 * It is only a hint, we use barrier() only.
-	 */
-	barrier();
-
-	dql->num_queued += count;
 
 	now = jiffies;
 	now_hi = now / BITS_PER_LONG;
@@ -131,6 +116,31 @@ static inline void dql_queued(struct dql *dql, unsigned int count)
 	/* Populate the history with an entry (bit) per queued */
 	if (!(map & BIT_MASK(now)))
 		WRITE_ONCE(DQL_HIST_ENT(dql, now_hi), map | BIT_MASK(now));
+}
+
+/*
+ * Record number of objects queued. Assumes that caller has already checked
+ * availability in the queue with dql_avail.
+ */
+static inline void dql_queued(struct dql *dql, unsigned int count)
+{
+	if (WARN_ON_ONCE(count > DQL_MAX_OBJECT))
+		return;
+
+	dql->last_obj_cnt = count;
+
+	/* We want to force a write first, so that cpu do not attempt
+	 * to get cache line containing last_obj_cnt, num_queued, adj_limit
+	 * in Shared state, but directly does a Request For Ownership
+	 * It is only a hint, we use barrier() only.
+	 */
+	barrier();
+
+	dql->num_queued += count;
+
+	/* Only populate stall information if the threshold is set */
+	if (READ_ONCE(dql->stall_thrs))
+		dql_queue_stall(dql);
 }
 
 /* Returns how many objects can be queued, < 0 indicates over limit. */

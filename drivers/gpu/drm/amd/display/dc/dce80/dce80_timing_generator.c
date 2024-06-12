@@ -220,6 +220,7 @@ static const struct timing_generator_funcs dce80_tg_funcs = {
 				dce80_timing_generator_enable_advanced_request,
 		.configure_crc = dce110_configure_crc,
 		.get_crc = dce110_get_crc,
+		.is_two_pixels_per_container = dce110_is_two_pixels_per_container,
 };
 
 void dce80_timing_generator_construct(

@@ -2361,7 +2361,6 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bcm4377->hdev = hdev;
 
 	hdev->bus = HCI_PCI;
-	hdev->dev_type = HCI_PRIMARY;
 	hdev->open = bcm4377_hci_open;
 	hdev->close = bcm4377_hci_close;
 	hdev->send = bcm4377_hci_send_frame;

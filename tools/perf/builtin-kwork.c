@@ -2230,7 +2230,7 @@ static int perf_kwork__top(struct perf_kwork *kwork)
 	perf_kwork__top_report(kwork);
 
 out:
-	free(kwork->top_stat.cpus_runtime);
+	zfree(&kwork->top_stat.cpus_runtime);
 	return ret;
 }
 

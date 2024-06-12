@@ -11,17 +11,20 @@ Supported devices:
 * NZXT Kraken Z53
 * NZXT Kraken Z63
 * NZXT Kraken Z73
+* NZXT Kraken 2023
+* NZXT Kraken 2023 Elite
 
 Author: Jonas Malaco, Aleksa Savic
 
 Description
 -----------
 
-This driver enables hardware monitoring support for NZXT Kraken X53/X63/X73 and
-Z53/Z63/Z73 all-in-one CPU liquid coolers. All models expose liquid temperature
-and pump speed (in RPM), as well as PWM control (either as a fixed value
-or through a temp-PWM curve). The Z-series models additionally expose the speed
-and duty of an optionally connected fan, with the same PWM control capabilities.
+This driver enables hardware monitoring support for NZXT Kraken X53/X63/X73,
+Z53/Z63/Z73 and Kraken 2023 (standard and Elite) all-in-one CPU liquid coolers.
+All models expose liquid temperature and pump speed (in RPM), as well as PWM
+control (either as a fixed value or through a temp-PWM curve). The Z-series and
+Kraken 2023 models additionally expose the speed and duty of an optionally connected
+fan, with the same PWM control capabilities.
 
 Pump and fan duty control mode can be set through pwm[1-2]_enable, where 1 is
 for the manual control mode and 2 is for the liquid temp to PWM curve mode.
@@ -39,9 +42,9 @@ The devices can report if they are faulty. The driver supports that situation
 and will issue a warning. This can also happen when the USB cable is connected,
 but SATA power is not.
 
-The addressable RGB LEDs and LCD screen (only on Z-series models) are not
-supported in this driver, but can be controlled through existing userspace tools,
-such as `liquidctl`_.
+The addressable RGB LEDs and LCD screen (only on Z-series and Kraken 2023 models)
+are not supported in this driver, but can be controlled through existing userspace
+tools, such as `liquidctl`_.
 
 .. _liquidctl: https://github.com/liquidctl/liquidctl
 

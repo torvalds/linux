@@ -67,10 +67,6 @@
 #include "inc/dmub_cmd.h"
 #include "dc/dc_types.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #define DMUB_PC_SNAPSHOT_COUNT 10
 
 /* Forward declarations */
@@ -115,6 +111,7 @@ enum dmub_asic {
 	DMUB_ASIC_DCN321,
 	DMUB_ASIC_DCN35,
 	DMUB_ASIC_DCN351,
+	DMUB_ASIC_DCN401,
 	DMUB_ASIC_MAX,
 };
 
@@ -300,6 +297,7 @@ struct dmub_srv_hw_params {
 	bool ips_sequential_ono;
 	enum dmub_memory_access_type mem_access_type;
 	enum dmub_ips_disable_type disable_ips;
+	bool disallow_phy_access;
 };
 
 /**
@@ -453,6 +451,19 @@ struct dmub_srv_hw_funcs {
 	void (*init_reg_offsets)(struct dmub_srv *dmub, struct dc_context *ctx);
 
 	void (*subvp_save_surf_addr)(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index);
+	void (*send_reg_inbox0_cmd_msg)(struct dmub_srv *dmub,
+			union dmub_rb_cmd *cmd);
+	uint32_t (*read_reg_inbox0_rsp_int_status)(struct dmub_srv *dmub);
+	void (*read_reg_inbox0_cmd_rsp)(struct dmub_srv *dmub,
+			union dmub_rb_cmd *cmd);
+	void (*write_reg_inbox0_rsp_int_ack)(struct dmub_srv *dmub);
+	uint32_t (*read_reg_outbox0_rdy_int_status)(struct dmub_srv *dmub);
+	void (*write_reg_outbox0_rdy_int_ack)(struct dmub_srv *dmub);
+	void (*read_reg_outbox0_msg)(struct dmub_srv *dmub, uint32_t *msg);
+	void (*write_reg_outbox0_rsp)(struct dmub_srv *dmub, uint32_t *rsp);
+	uint32_t (*read_reg_outbox0_rsp_int_status)(struct dmub_srv *dmub);
+	void (*enable_reg_inbox0_rsp_int)(struct dmub_srv *dmub, bool enable);
+	void (*enable_reg_outbox0_rdy_int)(struct dmub_srv *dmub, bool enable);
 };
 
 /**
@@ -496,6 +507,7 @@ struct dmub_srv {
 	const struct dmub_srv_dcn31_regs *regs_dcn31;
 	struct dmub_srv_dcn32_regs *regs_dcn32;
 	struct dmub_srv_dcn35_regs *regs_dcn35;
+	const struct dmub_srv_dcn401_regs *regs_dcn401;
 
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
@@ -517,6 +529,7 @@ struct dmub_srv {
 	uint32_t psp_version;
 
 	/* Feature capabilities reported by fw */
+	struct dmub_fw_meta_info meta_info;
 	struct dmub_feature_caps feature_caps;
 	struct dmub_visual_confirm_color visual_confirm_color;
 
@@ -927,6 +940,26 @@ enum dmub_status dmub_srv_clear_inbox0_ack(struct dmub_srv *dmub);
 void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index);
 
 /**
+ * dmub_srv_send_reg_inbox0_cmd() - send a dmub command and wait for the command
+ * being processed by DMUB.
+ * @dmub: The dmub service
+ * @cmd: The dmub command being sent. If with_replay is true, the function will
+ * update cmd with replied data.
+ * @with_reply: true if DMUB reply needs to be copied back to cmd. false if the
+ * cmd doesn't need to be replied.
+ * @timeout_us: timeout in microseconds.
+ *
+ * Return:
+ * DMUB_STATUS_OK - success
+ * DMUB_STATUS_TIMEOUT - DMUB fails to process the command within the timeout
+ * interval.
+ */
+enum dmub_status dmub_srv_send_reg_inbox0_cmd(
+		struct dmub_srv *dmub,
+		union dmub_rb_cmd *cmd,
+		bool with_reply, uint32_t timeout_us);
+
+/**
  * dmub_srv_set_power_state() - Track DC power state in dmub_srv
  * @dmub: The dmub service
  * @power_state: DC power state setting
@@ -937,9 +970,5 @@ void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_
  *   void
  */
 void dmub_srv_set_power_state(struct dmub_srv *dmub, enum dmub_srv_power_state_type dmub_srv_power_state);
-
-#if defined(__cplusplus)
-}
-#endif
 
 #endif /* _DMUB_SRV_H_ */

@@ -57,9 +57,13 @@ void noinstr arch_cpu_idle(void)
 	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT |
 		   PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	clear_cpu_flag(CIF_NOHZ_DELAY);
-
-	/* psw_idle() returns with interrupts disabled. */
-	psw_idle(idle, psw_mask);
+	set_cpu_flag(CIF_ENABLED_WAIT);
+	if (smp_cpu_mtid)
+		stcctm(MT_DIAG, smp_cpu_mtid, (u64 *)&idle->mt_cycles_enter);
+	idle->clock_idle_enter = get_tod_clock_fast();
+	idle->timer_idle_enter = get_cpu_timer();
+	bpon();
+	__load_psw_mask(psw_mask);
 }
 
 static ssize_t show_idle_count(struct device *dev,

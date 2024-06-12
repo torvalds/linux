@@ -685,7 +685,7 @@ static void s3c24xx_i2c_wait_idle(struct s3c24xx_i2c *i2c)
 static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 			      struct i2c_msg *msgs, int num)
 {
-	unsigned long timeout = 0;
+	long time_left = 0;
 	int ret;
 
 	ret = s3c24xx_i2c_set_master(i2c);
@@ -715,7 +715,7 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 				dev_err(i2c->dev, "deal with arbitration loss\n");
 		}
 	} else {
-		timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, HZ * 5);
+		time_left = wait_event_timeout(i2c->wait, i2c->msg_num == 0, HZ * 5);
 	}
 
 	ret = i2c->msg_idx;
@@ -724,7 +724,7 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	 * Having these next two as dev_err() makes life very
 	 * noisy when doing an i2cdetect
 	 */
-	if (timeout == 0)
+	if (time_left == 0)
 		dev_dbg(i2c->dev, "timeout\n");
 	else if (ret != num)
 		dev_dbg(i2c->dev, "incomplete xfer (%d)\n", ret);

@@ -300,6 +300,11 @@ the software port.
        in the beginning of the queue. This is a normal condition.
      - Informative
 
+   * - `tx[i]_timestamps`
+     - Transmitted packets that were hardware timestamped at the device's DMA
+       layer.
+     - Informative
+
    * - `tx[i]_added_vlan_packets`
      - The number of packets sent where vlan tag insertion was offloaded to the
        hardware.
@@ -700,6 +705,12 @@ the software port.
      - Number of times a CQE has been delivered on the PTP timestamping CQ when
        the CQE was not expected since a certain amount of time had elapsed where
        the device typically ensures not posting the CQE.
+     - Error
+
+   * - `ptp_cq[i]_lost_cqe`
+     - Number of times a CQE is expected to not be delivered on the PTP
+       timestamping CQE by the device due to a time delta elapsing. If such a
+       CQE is somehow delivered, `ptp_cq[i]_late_cqe` is incremented.
      - Error
 
 .. [#ring_global] The corresponding ring and global counters do not share the

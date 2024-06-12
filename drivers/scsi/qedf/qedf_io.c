@@ -2324,9 +2324,6 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, u64 tm_lun,
 	io_req->fcport = fcport;
 	io_req->cmd_type = QEDF_TASK_MGMT_CMD;
 
-	/* Record which cpu this request is associated with */
-	io_req->cpu = smp_processor_id();
-
 	/* Set TM flags */
 	io_req->io_req_flags = QEDF_READ;
 	io_req->data_xfer_len = 0;
@@ -2348,6 +2345,9 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, u64 tm_lun,
 	init_completion(&io_req->tm_done);
 
 	spin_lock_irqsave(&fcport->rport_lock, flags);
+
+	/* Record which cpu this request is associated with */
+	io_req->cpu = smp_processor_id();
 
 	sqe_idx = qedf_get_sqe_idx(fcport);
 	sqe = &fcport->sq[sqe_idx];

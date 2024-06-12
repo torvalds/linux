@@ -255,7 +255,7 @@ lookup_voices(struct snd_emux *emu, struct snd_emu10k1 *hw,
 		/* check if sample is finished playing (non-looping only) */
 		if (bp != best + V_OFF && bp != best + V_FREE &&
 		    (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_SINGLESHOT)) {
-			val = snd_emu10k1_ptr_read(hw, CCCA_CURRADDR, vp->ch);
+			val = snd_emu10k1_ptr_read(hw, CCCA_CURRADDR, vp->ch) - 64 + 3;
 			if (val >= vp->reg.loopstart)
 				bp = best + V_OFF;
 		}
@@ -310,6 +310,7 @@ start_voice(struct snd_emux_voice *vp)
 {
 	unsigned int temp;
 	int ch;
+	bool w_16;
 	u32 psst, dsl, map, ccca, vtarget;
 	unsigned int addr, mapped_offset;
 	struct snd_midi_channel *chan;
@@ -321,6 +322,7 @@ start_voice(struct snd_emux_voice *vp)
 	if (snd_BUG_ON(ch < 0))
 		return -EINVAL;
 	chan = vp->chan;
+	w_16 = !(vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_8BITS);
 
 	emem = (struct snd_emu10k1_memblk *)vp->block;
 	if (emem == NULL)
@@ -330,7 +332,7 @@ start_voice(struct snd_emux_voice *vp)
 		/* dev_err(hw->card->devK, "emu: cannot map!\n"); */
 		return -ENOMEM;
 	}
-	mapped_offset = snd_emu10k1_memblk_offset(emem) >> 1;
+	mapped_offset = snd_emu10k1_memblk_offset(emem) >> w_16;
 	vp->reg.start += mapped_offset;
 	vp->reg.end += mapped_offset;
 	vp->reg.loopstart += mapped_offset;
@@ -362,7 +364,7 @@ start_voice(struct snd_emux_voice *vp)
 
 	map = (hw->silent_page.addr << hw->address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 
-	addr = vp->reg.start;
+	addr = vp->reg.start + 64 - 3;
 	temp = vp->reg.parm.filterQ;
 	ccca = (temp << 28) | addr;
 	if (vp->apitch < 0xe400)
@@ -371,7 +373,7 @@ start_voice(struct snd_emux_voice *vp)
 		unsigned int shift = (vp->apitch - 0xe000) >> 10;
 		ccca |= shift << 25;
 	}
-	if (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_8BITS)
+	if (!w_16)
 		ccca |= CCCA_8BITSELECT;
 
 	vtarget = (unsigned int)vp->vtarget << 16;
@@ -429,6 +431,9 @@ start_voice(struct snd_emux_voice *vp)
 
 		/* Q & current address (Q 4bit value, MSB) */
 		CCCA, ccca,
+
+		/* cache */
+		CCR, REG_VAL_PUT(CCR_CACHEINVALIDSIZE, 64),
 
 		/* reset volume */
 		VTFT, vtarget | vp->ftarget,

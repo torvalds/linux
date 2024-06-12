@@ -725,26 +725,24 @@ static void scan_core_topology(int *map, struct topology *t, int nr_cpus)
 
 static int str_to_bitmap(char *s, cpumask_t *b, int nr_cpus)
 {
-	int i;
-	int ret = 0;
-	struct perf_cpu_map *m;
-	struct perf_cpu c;
+	int idx, ret = 0;
+	struct perf_cpu_map *map;
+	struct perf_cpu cpu;
 
-	m = perf_cpu_map__new(s);
-	if (!m)
+	map = perf_cpu_map__new(s);
+	if (!map)
 		return -1;
 
-	for (i = 0; i < perf_cpu_map__nr(m); i++) {
-		c = perf_cpu_map__cpu(m, i);
-		if (c.cpu >= nr_cpus) {
+	perf_cpu_map__for_each_cpu(cpu, idx, map) {
+		if (cpu.cpu >= nr_cpus) {
 			ret = -1;
 			break;
 		}
 
-		__set_bit(c.cpu, cpumask_bits(b));
+		__set_bit(cpu.cpu, cpumask_bits(b));
 	}
 
-	perf_cpu_map__put(m);
+	perf_cpu_map__put(map);
 
 	return ret;
 }

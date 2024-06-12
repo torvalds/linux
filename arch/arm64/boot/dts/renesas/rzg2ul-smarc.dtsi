@@ -5,6 +5,7 @@
  * Copyright (C) 2022 Renesas Electronics Corp.
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "rzg2ul-smarc-pinfunction.dtsi"
 #include "rz-smarc-common.dtsi"
 
@@ -22,6 +23,63 @@
 
 &i2c0 {
 	clock-frequency = <400000>;
+
+	da9062: pmic@58 {
+		compatible = "dlg,da9062";
+		reg = <0x58>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio {
+			compatible = "dlg,da9062-gpio";
+		};
+
+		onkey {
+			compatible = "dlg,da9062-onkey";
+		};
+
+		pmic-good-hog {
+			gpio-hog;
+			gpios = <4 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "PMIC_PGOOD";
+		};
+
+		rtc {
+			compatible = "dlg,da9062-rtc";
+		};
+
+		sd0-pwr-sel-hog {
+			gpio-hog;
+			gpios = <1 GPIO_ACTIVE_HIGH>;
+			input;
+			line-name = "SD0_PWR_SEL";
+		};
+
+		sd1-pwr-sel-hog {
+			gpio-hog;
+			gpios = <2 GPIO_ACTIVE_HIGH>;
+			input;
+			line-name = "SD1_PWR_SEL";
+		};
+
+		sw-et0-en-hog {
+			gpio-hog;
+			gpios = <3 GPIO_ACTIVE_HIGH>;
+			input;
+			line-name = "SW_ET0_EN#";
+		};
+
+		thermal {
+			compatible = "dlg,da9062-thermal";
+			status = "disabled";
+		};
+
+		watchdog {
+			compatible = "dlg,da9062-watchdog";
+			status = "disabled";
+		};
+	};
 
 	versa3: clock-generator@68 {
 		compatible = "renesas,5p35023";

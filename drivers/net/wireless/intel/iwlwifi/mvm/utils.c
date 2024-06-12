@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -344,6 +344,26 @@ static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
+#define PERIODIC_STAT_RATE 5
+
+int iwl_mvm_request_periodic_system_statistics(struct iwl_mvm *mvm, bool enable)
+{
+	u32 flags = enable ? 0 : IWL_STATS_CFG_FLG_DISABLE_NTFY_MSK;
+	u32 type = enable ? (IWL_STATS_NTFY_TYPE_ID_OPER |
+			     IWL_STATS_NTFY_TYPE_ID_OPER_PART1) : 0;
+	struct iwl_system_statistics_cmd system_cmd = {
+		.cfg_mask = cpu_to_le32(flags),
+		.config_time_sec = cpu_to_le32(enable ?
+					       PERIODIC_STAT_RATE : 0),
+		.type_id_mask = cpu_to_le32(type),
+	};
+
+	return iwl_mvm_send_cmd_pdu(mvm,
+				    WIDE_ID(SYSTEM_GROUP,
+					    SYSTEM_STATISTICS_CMD),
+				    0, sizeof(system_cmd), &system_cmd);
+}
+
 static int iwl_mvm_request_system_statistics(struct iwl_mvm *mvm, bool clear,
 					     u8 cmd_ver)
 {
@@ -414,6 +434,13 @@ int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 						   SYSTEM_STATISTICS_CMD),
 					   IWL_FW_CMD_VER_UNKNOWN);
 	int ret;
+
+	/*
+	 * Don't request statistics during restart, they'll not have any useful
+	 * information right after restart, nor is clearing needed
+	 */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return 0;
 
 	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
 		return iwl_mvm_request_system_statistics(mvm, clear, cmd_ver);

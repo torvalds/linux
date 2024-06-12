@@ -14,6 +14,7 @@
 
 #include "protocol.h"
 #include "mib.h"
+#include "mptcp_pm_gen.h"
 
 static int pm_nl_pernet_id;
 

@@ -168,13 +168,8 @@ static void add_stack_record_to_list(struct stack_record *stack_record,
 	unsigned long flags;
 	struct stack *stack;
 
-	/* Filter gfp_mask the same way stackdepot does, for consistency */
-	gfp_mask &= ~GFP_ZONEMASK;
-	gfp_mask &= (GFP_ATOMIC | GFP_KERNEL);
-	gfp_mask |= __GFP_NOWARN;
-
 	set_current_in_page_owner();
-	stack = kmalloc(sizeof(*stack), gfp_mask);
+	stack = kmalloc(sizeof(*stack), gfp_nested_mask(gfp_mask));
 	if (!stack) {
 		unset_current_in_page_owner();
 		return;
@@ -328,7 +323,7 @@ noinline void __set_page_owner(struct page *page, unsigned short order,
 	if (unlikely(!page_ext))
 		return;
 	__update_page_owner_handle(page_ext, handle, order, gfp_mask, -1,
-				   current->pid, current->tgid, ts_nsec,
+				   ts_nsec, current->pid, current->tgid,
 				   current->comm);
 	page_ext_put(page_ext);
 	inc_stack_record_count(handle, gfp_mask, 1 << order);
@@ -515,7 +510,7 @@ static inline int print_page_owner_memcg(char *kbuf, size_t count, int ret,
 	if (!memcg_data)
 		goto out_unlock;
 
-	if (memcg_data & MEMCG_DATA_OBJCGS)
+	if (memcg_data & MEMCG_DATA_OBJEXTS)
 		ret += scnprintf(kbuf + ret, count - ret,
 				"Slab cache page\n");
 

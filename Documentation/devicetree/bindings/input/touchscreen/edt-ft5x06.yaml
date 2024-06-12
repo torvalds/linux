@@ -39,7 +39,9 @@ properties:
       - edt,edt-ft5406
       - edt,edt-ft5506
       - evervision,ev-ft5726
+      - focaltech,ft5452
       - focaltech,ft6236
+      - focaltech,ft8719
 
   reg:
     maxItems: 1

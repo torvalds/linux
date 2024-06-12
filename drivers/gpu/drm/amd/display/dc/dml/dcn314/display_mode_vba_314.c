@@ -24,10 +24,7 @@
  *
  */
 
-#define UNIT_TEST 0
-#if !UNIT_TEST
 #include "dc.h"
-#endif
 #include "../display_mode_lib.h"
 #include "display_mode_vba_314.h"
 #include "../dml_inline_defs.h"

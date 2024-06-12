@@ -16,6 +16,7 @@ struct cred;
 struct socket;
 struct sock;
 struct sk_buff;
+struct proto_accept_arg;
 
 #define __sockaddr_check_size(size)	\
 	BUILD_BUG_ON(((size) > sizeof(struct __kernel_sockaddr_storage)))
@@ -433,7 +434,7 @@ extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
 extern int __sys_sendto(int fd, void __user *buff, size_t len,
 			unsigned int flags, struct sockaddr __user *addr,
 			int addr_len);
-extern struct file *do_accept(struct file *file, unsigned file_flags,
+extern struct file *do_accept(struct file *file, struct proto_accept_arg *arg,
 			      struct sockaddr __user *upeer_sockaddr,
 			      int __user *upeer_addrlen, int flags);
 extern int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,

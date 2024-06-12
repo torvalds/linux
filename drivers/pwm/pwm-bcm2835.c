@@ -124,20 +124,14 @@ static const struct pwm_ops bcm2835_pwm_ops = {
 	.apply = bcm2835_pwm_apply,
 };
 
-static void devm_clk_rate_exclusive_put(void *data)
-{
-	struct clk *clk = data;
-
-	clk_rate_exclusive_put(clk);
-}
-
 static int bcm2835_pwm_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct pwm_chip *chip;
 	struct bcm2835_pwm *pc;
 	int ret;
 
-	chip = devm_pwmchip_alloc(&pdev->dev, 2, sizeof(*pc));
+	chip = devm_pwmchip_alloc(dev, 2, sizeof(*pc));
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	pc = to_bcm2835_pwm(chip);
@@ -146,24 +140,19 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
-	pc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	pc->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(pc->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(pc->clk),
+		return dev_err_probe(dev, PTR_ERR(pc->clk),
 				     "clock not found\n");
 
-	ret = clk_rate_exclusive_get(pc->clk);
+	ret = devm_clk_rate_exclusive_get(dev, pc->clk);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "fail to get exclusive rate\n");
-
-	ret = devm_add_action_or_reset(&pdev->dev, devm_clk_rate_exclusive_put,
-				       pc->clk);
-	if (ret)
-		return ret;
 
 	pc->rate = clk_get_rate(pc->clk);
 	if (!pc->rate)
-		return dev_err_probe(&pdev->dev, -EINVAL,
+		return dev_err_probe(dev, -EINVAL,
 				     "failed to get clock rate\n");
 
 	chip->ops = &bcm2835_pwm_ops;
@@ -171,10 +160,9 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pc);
 
-	ret = devm_pwmchip_add(&pdev->dev, chip);
+	ret = devm_pwmchip_add(dev, chip);
 	if (ret < 0)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to add pwmchip\n");
+		return dev_err_probe(dev, ret, "failed to add pwmchip\n");
 
 	return 0;
 }

@@ -494,38 +494,6 @@ bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 			range->end << PAGE_SHIFT, &ctx);
 }
 
-bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
-{
-	unsigned long prot_bits;
-	kvm_pte_t *ptep;
-	kvm_pfn_t pfn = pte_pfn(range->arg.pte);
-	gpa_t gpa = range->start << PAGE_SHIFT;
-
-	ptep = kvm_populate_gpa(kvm, NULL, gpa, 0);
-	if (!ptep)
-		return false;
-
-	/* Replacing an absent or old page doesn't need flushes */
-	if (!kvm_pte_present(NULL, ptep) || !kvm_pte_young(*ptep)) {
-		kvm_set_pte(ptep, 0);
-		return false;
-	}
-
-	/* Fill new pte if write protected or page migrated */
-	prot_bits = _PAGE_PRESENT | __READABLE;
-	prot_bits |= _CACHE_MASK & pte_val(range->arg.pte);
-
-	/*
-	 * Set _PAGE_WRITE or _PAGE_DIRTY iff old and new pte both support
-	 * _PAGE_WRITE for map_page_fast if next page write fault
-	 * _PAGE_DIRTY since gpa has already recorded as dirty page
-	 */
-	prot_bits |= __WRITEABLE & *ptep & pte_val(range->arg.pte);
-	kvm_set_pte(ptep, kvm_pfn_pte(pfn, __pgprot(prot_bits)));
-
-	return true;
-}
-
 bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
 	kvm_ptw_ctx ctx;

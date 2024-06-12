@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 if [ $# -ne 1 ] ; then
-	linux_header_dir=tools/include/uapi/linux
+	beauty_uapi_linux_dir=tools/perf/trace/beauty/include/uapi/linux/
 else
-	linux_header_dir=$1
+	beauty_uapi_linux_dir=$1
 fi
 
-linux_mount=${linux_header_dir}/mount.h
+linux_mount=${beauty_uapi_linux_dir}/mount.h
 
 # Remove MOUNT_ATTR_RELATIME as it is zeros, handle it a special way in the beautifier
 # Only handle MOUNT_ATTR_ followed by a capital letter/num as __ is special case

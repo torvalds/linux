@@ -1098,7 +1098,7 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 		/* This is to prevent starting RX channel in emac_rx_enable() */
 		set_bit(MAL_COMMAC_RX_STOPPED, &dev->commac.flags);
 
-		dev->ndev->mtu = new_mtu;
+		WRITE_ONCE(dev->ndev->mtu, new_mtu);
 		emac_full_tx_reset(dev);
 	}
 
@@ -1130,7 +1130,7 @@ static int emac_change_mtu(struct net_device *ndev, int new_mtu)
 	}
 
 	if (!ret) {
-		ndev->mtu = new_mtu;
+		WRITE_ONCE(ndev->mtu, new_mtu);
 		dev->rx_skb_size = emac_rx_skb_size(new_mtu);
 		dev->rx_sync_size = emac_rx_sync_size(new_mtu);
 	}

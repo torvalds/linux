@@ -81,10 +81,10 @@
 &main_gpio0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>,
-		    <&pinctrl_gpio_1>,
-		    <&pinctrl_gpio_2>,
-		    <&pinctrl_gpio_3>,
-		    <&pinctrl_gpio_4>;
+		    <&pinctrl_gpio_5>,
+		    <&pinctrl_gpio_6>,
+		    <&pinctrl_gpio_7>,
+		    <&pinctrl_gpio_8>;
 };
 
 /* Verdin I2C_1 */
@@ -149,6 +149,15 @@
 	status = "okay";
 };
 
+&mcu_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio_1>,
+		    <&pinctrl_gpio_2>,
+		    <&pinctrl_gpio_3>,
+		    <&pinctrl_gpio_4>,
+		    <&pinctrl_pcie_1_reset>;
+};
+
 /* Verdin I2C_3_HDMI */
 &mcu_i2c0 {
 	status = "okay";
@@ -189,6 +198,11 @@
 
 /* Verdin CTRL_WAKE1_MICO# */
 &verdin_gpio_keys {
+	status = "okay";
+};
+
+/* Verdin PCIE_1_RESET# */
+&verdin_pcie_1_reset_hog {
 	status = "okay";
 };
 

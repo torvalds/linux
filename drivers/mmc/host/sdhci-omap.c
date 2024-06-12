@@ -925,7 +925,7 @@ static void sdhci_omap_set_timeout(struct sdhci_host *host,
 	__sdhci_set_timeout(host, cmd);
 }
 
-static struct sdhci_ops sdhci_omap_ops = {
+static const struct sdhci_ops sdhci_omap_ops = {
 	.set_clock = sdhci_omap_set_clock,
 	.set_power = sdhci_omap_set_power,
 	.enable_dma = sdhci_omap_enable_dma,

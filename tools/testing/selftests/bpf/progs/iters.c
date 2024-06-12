@@ -673,7 +673,7 @@ static __noinline void fill(struct bpf_iter_num *it, int *arr, __u32 n, int mul)
 
 static __noinline int sum(struct bpf_iter_num *it, int *arr, __u32 n)
 {
-	int *t, i, sum = 0;;
+	int *t, i, sum = 0;
 
 	while ((t = bpf_iter_num_next(it))) {
 		i = *t;

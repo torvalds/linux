@@ -64,7 +64,6 @@ enum ssbi_controller_type {
 };
 
 struct ssbi {
-	struct device		*slave;
 	void __iomem		*base;
 	spinlock_t		lock;
 	enum ssbi_controller_type controller_type;

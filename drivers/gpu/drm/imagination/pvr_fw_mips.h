@@ -7,13 +7,14 @@
 #include "pvr_rogue_mips.h"
 
 #include <asm/page.h>
+#include <linux/math.h>
 #include <linux/types.h>
 
 /* Forward declaration from pvr_gem.h. */
 struct pvr_gem_object;
 
-#define PVR_MIPS_PT_PAGE_COUNT ((ROGUE_MIPSFW_MAX_NUM_PAGETABLE_PAGES * ROGUE_MIPSFW_PAGE_SIZE_4K) \
-				>> PAGE_SHIFT)
+#define PVR_MIPS_PT_PAGE_COUNT DIV_ROUND_UP(ROGUE_MIPSFW_MAX_NUM_PAGETABLE_PAGES * ROGUE_MIPSFW_PAGE_SIZE_4K, PAGE_SIZE)
+
 /**
  * struct pvr_fw_mips_data - MIPS-specific data
  */

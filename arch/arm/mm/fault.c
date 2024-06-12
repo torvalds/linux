@@ -226,9 +226,6 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_MMU
-#define VM_FAULT_BADMAP		((__force vm_fault_t)0x010000)
-#define VM_FAULT_BADACCESS	((__force vm_fault_t)0x020000)
-
 static inline bool is_permission_fault(unsigned int fsr)
 {
 	int fs = fsr_fs(fsr);
@@ -241,6 +238,27 @@ static inline bool is_permission_fault(unsigned int fsr)
 #endif
 	return false;
 }
+
+#ifdef CONFIG_CPU_TTBR0_PAN
+static inline bool ttbr0_usermode_access_allowed(struct pt_regs *regs)
+{
+	struct svc_pt_regs *svcregs;
+
+	/* If we are in user mode: permission granted */
+	if (user_mode(regs))
+		return true;
+
+	/* uaccess state saved above pt_regs on SVC exception entry */
+	svcregs = to_svc_pt_regs(regs);
+
+	return !(svcregs->ttbcr & TTBCR_EPD0);
+}
+#else
+static inline bool ttbr0_usermode_access_allowed(struct pt_regs *regs)
+{
+	return true;
+}
+#endif
 
 static int __kprobes
 do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
@@ -285,6 +303,14 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 
+	/*
+	 * Privileged access aborts with CONFIG_CPU_TTBR0_PAN enabled are
+	 * routed via the translation fault mechanism. Check whether uaccess
+	 * is disabled while in kernel mode.
+	 */
+	if (!ttbr0_usermode_access_allowed(regs))
+		goto no_context;
+
 	if (!(flags & FAULT_FLAG_USER))
 		goto lock_mmap;
 
@@ -294,7 +320,10 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	if (!(vma->vm_flags & vm_flags)) {
 		vma_end_read(vma);
-		goto lock_mmap;
+		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
+		fault = 0;
+		code = SEGV_ACCERR;
+		goto bad_area;
 	}
 	fault = handle_mm_fault(vma, addr, flags | FAULT_FLAG_VMA_LOCK, regs);
 	if (!(fault & (VM_FAULT_RETRY | VM_FAULT_COMPLETED)))
@@ -319,7 +348,8 @@ lock_mmap:
 retry:
 	vma = lock_mm_and_find_vma(mm, addr, regs);
 	if (unlikely(!vma)) {
-		fault = VM_FAULT_BADMAP;
+		fault = 0;
+		code = SEGV_MAPERR;
 		goto bad_area;
 	}
 
@@ -327,10 +357,14 @@ retry:
 	 * ok, we have a good vm_area for this memory access, check the
 	 * permissions on the VMA allow for the fault which occurred.
 	 */
-	if (!(vma->vm_flags & vm_flags))
-		fault = VM_FAULT_BADACCESS;
-	else
-		fault = handle_mm_fault(vma, addr & PAGE_MASK, flags, regs);
+	if (!(vma->vm_flags & vm_flags)) {
+		mmap_read_unlock(mm);
+		fault = 0;
+		code = SEGV_ACCERR;
+		goto bad_area;
+	}
+
+	fault = handle_mm_fault(vma, addr & PAGE_MASK, flags, regs);
 
 	/* If we need to retry but a fatal signal is pending, handle the
 	 * signal first. We do not need to release the mmap_lock because
@@ -356,12 +390,11 @@ retry:
 	mmap_read_unlock(mm);
 done:
 
-	/*
-	 * Handle the "normal" case first - VM_FAULT_MAJOR
-	 */
-	if (likely(!(fault & (VM_FAULT_ERROR | VM_FAULT_BADMAP | VM_FAULT_BADACCESS))))
+	/* Handle the "normal" case first */
+	if (likely(!(fault & VM_FAULT_ERROR)))
 		return 0;
 
+	code = SEGV_MAPERR;
 bad_area:
 	/*
 	 * If we are in kernel mode at this point, we
@@ -393,8 +426,6 @@ bad_area:
 		 * isn't in our memory map..
 		 */
 		sig = SIGSEGV;
-		code = fault == VM_FAULT_BADACCESS ?
-			SEGV_ACCERR : SEGV_MAPERR;
 	}
 
 	__do_user_fault(addr, fsr, sig, code, regs);

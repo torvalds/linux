@@ -77,7 +77,8 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 	m->compute_static_thread_mgmt_se1 = se_mask[1];
 	m->compute_static_thread_mgmt_se2 = se_mask[2];
 	m->compute_static_thread_mgmt_se3 = se_mask[3];
-	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3)) {
+	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3) &&
+	    KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 4)) {
 		m->compute_static_thread_mgmt_se4 = se_mask[4];
 		m->compute_static_thread_mgmt_se5 = se_mask[5];
 		m->compute_static_thread_mgmt_se6 = se_mask[6];
@@ -299,7 +300,8 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address)
 		m->cp_hqd_ctx_save_control = 0;
 
-	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3))
+	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3) &&
+	    KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 4))
 		update_cu_mask(mm, mqd, minfo, 0);
 	set_priority(m, q);
 
@@ -713,7 +715,7 @@ static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 		m = get_mqd(mqd + size * xcc);
 		update_mqd(mm, m, q, minfo);
 
-		update_cu_mask(mm, mqd, minfo, xcc);
+		update_cu_mask(mm, m, minfo, xcc);
 
 		if (q->format == KFD_QUEUE_FORMAT_AQL) {
 			switch (xcc) {
@@ -875,7 +877,8 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
-		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) {
+		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) {
 			mqd->init_mqd = init_mqd_v9_4_3;
 			mqd->load_mqd = load_mqd_v9_4_3;
 			mqd->update_mqd = update_mqd_v9_4_3;
@@ -899,7 +902,8 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
-		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) {
+		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) {
 			mqd->init_mqd = init_mqd_hiq_v9_4_3;
 			mqd->load_mqd = hiq_load_mqd_kiq_v9_4_3;
 			mqd->destroy_mqd = destroy_hiq_mqd_v9_4_3;

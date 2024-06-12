@@ -341,10 +341,12 @@ static int ssb_bus_match(struct device *dev, struct device_driver *drv)
 
 static int ssb_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	const struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
+	const struct ssb_device *ssb_dev;
 
 	if (!dev)
 		return -ENODEV;
+
+	ssb_dev = dev_to_ssb_dev(dev);
 
 	return add_uevent_var(env,
 			     "MODALIAS=ssb:v%04Xid%04Xrev%02X",
@@ -1144,7 +1146,7 @@ u32 ssb_dma_translation(struct ssb_device *dev)
 				return SSB_PCI_DMA;
 		}
 	default:
-		__ssb_dma_not_implemented(dev);
+		break;
 	}
 	return 0;
 }

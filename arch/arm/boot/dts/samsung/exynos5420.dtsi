@@ -658,6 +658,7 @@
 			pinctrl-0 = <&spi0_bus>;
 			clocks = <&clock CLK_SPI0>, <&clock CLK_SCLK_SPI0>;
 			clock-names = "spi", "spi_busclk0";
+			fifo-depth = <256>;
 			status = "disabled";
 		};
 
@@ -674,6 +675,7 @@
 			pinctrl-0 = <&spi1_bus>;
 			clocks = <&clock CLK_SPI1>, <&clock CLK_SCLK_SPI1>;
 			clock-names = "spi", "spi_busclk0";
+			fifo-depth = <64>;
 			status = "disabled";
 		};
 
@@ -690,6 +692,7 @@
 			pinctrl-0 = <&spi2_bus>;
 			clocks = <&clock CLK_SPI2>, <&clock CLK_SCLK_SPI2>;
 			clock-names = "spi", "spi_busclk0";
+			fifo-depth = <64>;
 			status = "disabled";
 		};
 

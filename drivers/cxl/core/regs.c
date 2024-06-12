@@ -314,7 +314,7 @@ int cxl_find_regblock_instance(struct pci_dev *pdev, enum cxl_regloc_type type,
 		.resource = CXL_RESOURCE_NONE,
 	};
 
-	regloc = pci_find_dvsec_capability(pdev, PCI_DVSEC_VENDOR_ID_CXL,
+	regloc = pci_find_dvsec_capability(pdev, PCI_VENDOR_ID_CXL,
 					   CXL_DVSEC_REG_LOCATOR);
 	if (!regloc)
 		return -ENXIO;

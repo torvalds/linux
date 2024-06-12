@@ -280,7 +280,7 @@ static int do_reloc(struct section *sec, Elf_Rel *rel)
 	case R_390_GOTOFF64:
 		break;
 	case R_390_64:
-		add_reloc(&relocs64, offset);
+		add_reloc(&relocs64, offset - ehdr.e_entry);
 		break;
 	default:
 		die("Unsupported relocation type: %d\n", r_type);

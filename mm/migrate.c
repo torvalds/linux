@@ -113,7 +113,7 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 	if (!mops->isolate_page(&folio->page, mode))
 		goto out_no_isolated;
 
-	/* Driver shouldn't use PG_isolated bit of page->flags */
+	/* Driver shouldn't use the isolated flag */
 	WARN_ON_ONCE(folio_test_isolated(folio));
 	folio_set_isolated(folio);
 	folio_unlock(folio);
@@ -616,7 +616,7 @@ void folio_migrate_flags(struct folio *newfolio, struct folio *folio)
 	folio_migrate_ksm(newfolio, folio);
 	/*
 	 * Please do not reorder this without considering how mm/ksm.c's
-	 * get_ksm_page() depends upon ksm_migrate_page() and PageSwapCache().
+	 * ksm_get_folio() depends upon ksm_migrate_page() and PageSwapCache().
 	 */
 	if (folio_test_swapcache(folio))
 		folio_clear_swapcache(folio);
@@ -1425,7 +1425,7 @@ static int unmap_and_move_huge_page(new_folio_t get_new_folio,
 			 * semaphore in write mode here and set TTU_RMAP_LOCKED
 			 * to let lower levels know we have taken the lock.
 			 */
-			mapping = hugetlb_page_mapping_lock_write(&src->page);
+			mapping = hugetlb_folio_mapping_lock_write(src);
 			if (unlikely(!mapping))
 				goto unlock_put_anon;
 
@@ -1651,6 +1651,29 @@ static int migrate_pages_batch(struct list_head *from,
 			nr_pages = folio_nr_pages(folio);
 
 			cond_resched();
+
+			/*
+			 * The rare folio on the deferred split list should
+			 * be split now. It should not count as a failure.
+			 * Only check it without removing it from the list.
+			 * Since the folio can be on deferred_split_scan()
+			 * local list and removing it can cause the local list
+			 * corruption. Folio split process below can handle it
+			 * with the help of folio_ref_freeze().
+			 *
+			 * nr_pages > 2 is needed to avoid checking order-1
+			 * page cache folios. They exist, in contrast to
+			 * non-existent order-1 anonymous folios, and do not
+			 * use _deferred_list.
+			 */
+			if (nr_pages > 2 &&
+			   !list_empty(&folio->_deferred_list)) {
+				if (try_split_folio(folio, split_folios) == 0) {
+					stats->nr_thp_split += is_thp;
+					stats->nr_split++;
+					continue;
+				}
+			}
 
 			/*
 			 * Large folio migration might be unsupported or
@@ -2022,7 +2045,8 @@ struct folio *alloc_migration_target(struct folio *src, unsigned long private)
 
 		gfp_mask = htlb_modify_alloc_mask(h, gfp_mask);
 		return alloc_hugetlb_folio_nodemask(h, nid,
-						mtc->nmask, gfp_mask);
+						mtc->nmask, gfp_mask,
+						htlb_allow_alloc_fallback(mtc->reason));
 	}
 
 	if (folio_test_large(src)) {
@@ -2060,6 +2084,7 @@ static int do_move_pages_to_node(struct list_head *pagelist, int node)
 	struct migration_target_control mtc = {
 		.nid = node,
 		.gfp_mask = GFP_HIGHUSER_MOVABLE | __GFP_THISNODE,
+		.reason = MR_SYSCALL,
 	};
 
 	err = migrate_pages(pagelist, alloc_migration_target, NULL,
@@ -2115,7 +2140,7 @@ static int add_page_for_migration(struct mm_struct *mm, const void __user *p,
 		goto out_putfolio;
 
 	err = -EACCES;
-	if (page_mapcount(page) > 1 && !migrate_all)
+	if (folio_likely_mapped_shared(folio) && !migrate_all)
 		goto out_putfolio;
 
 	err = -EBUSY;
@@ -2568,11 +2593,11 @@ int migrate_misplaced_folio(struct folio *folio, struct vm_area_struct *vma,
 	/*
 	 * Don't migrate file folios that are mapped in multiple processes
 	 * with execute permissions as they are probably shared libraries.
-	 * To check if the folio is shared, ideally we want to make sure
-	 * every page is mapped to the same process. Doing that is very
-	 * expensive, so check the estimated mapcount of the folio instead.
+	 *
+	 * See folio_likely_mapped_shared() on possible imprecision when we
+	 * cannot easily detect if a folio is shared.
 	 */
-	if (folio_estimated_sharers(folio) != 1 && folio_is_file_lru(folio) &&
+	if (folio_likely_mapped_shared(folio) && folio_is_file_lru(folio) &&
 	    (vma->vm_flags & VM_EXEC))
 		goto out;
 

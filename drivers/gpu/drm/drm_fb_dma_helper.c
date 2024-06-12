@@ -167,6 +167,9 @@ int drm_fb_dma_get_scanout_buffer(struct drm_plane *plane,
 	struct drm_gem_dma_object *dma_obj;
 	struct drm_framebuffer *fb;
 
+	if (!plane->state || !plane->state->fb)
+		return -EINVAL;
+
 	fb = plane->state->fb;
 	/* Only support linear modifier */
 	if (fb->modifier != DRM_FORMAT_MOD_LINEAR)

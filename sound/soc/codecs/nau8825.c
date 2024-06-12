@@ -2934,7 +2934,7 @@ static void nau8825_i2c_remove(struct i2c_client *client)
 {}
 
 static const struct i2c_device_id nau8825_i2c_ids[] = {
-	{ "nau8825", 0 },
+	{ "nau8825" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nau8825_i2c_ids);

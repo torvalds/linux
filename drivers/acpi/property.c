@@ -31,9 +31,14 @@ static int acpi_data_get_property_array(const struct acpi_device_data *data,
  * not defined without a warning. For instance if any of the properties
  * from different GUID appear in a property list of another, it will be
  * accepted by the kernel. Firmware validation tools should catch these.
+ *
+ * References:
+ *
+ * [1] UEFI DSD Guide.
+ *     https://github.com/UEFI/DSD-Guide/blob/main/src/dsd-guide.adoc
  */
 static const guid_t prp_guids[] = {
-	/* ACPI _DSD device properties GUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301 */
+	/* ACPI _DSD device properties GUID [1]: daffd814-6eba-4d8c-8a91-bc9bbf4aa301 */
 	GUID_INIT(0xdaffd814, 0x6eba, 0x4d8c,
 		  0x8a, 0x91, 0xbc, 0x9b, 0xbf, 0x4a, 0xa3, 0x01),
 	/* Hotplug in D3 GUID: 6211e2c0-58a3-4af3-90e1-927a4e0c55a4 */
@@ -53,12 +58,12 @@ static const guid_t prp_guids[] = {
 		  0xa5, 0x61, 0x99, 0xa5, 0x18, 0x97, 0x62, 0xd0),
 };
 
-/* ACPI _DSD data subnodes GUID: dbb8e3e6-5886-4ba6-8795-1319f52a966b */
+/* ACPI _DSD data subnodes GUID [1]: dbb8e3e6-5886-4ba6-8795-1319f52a966b */
 static const guid_t ads_guid =
 	GUID_INIT(0xdbb8e3e6, 0x5886, 0x4ba6,
 		  0x87, 0x95, 0x13, 0x19, 0xf5, 0x2a, 0x96, 0x6b);
 
-/* ACPI _DSD data buffer GUID: edb12dd0-363d-4085-a3d2-49522ca160c4 */
+/* ACPI _DSD data buffer GUID [1]: edb12dd0-363d-4085-a3d2-49522ca160c4 */
 static const guid_t buffer_prop_guid =
 	GUID_INIT(0xedb12dd0, 0x363d, 0x4085,
 		  0xa3, 0xd2, 0x49, 0x52, 0x2c, 0xa1, 0x60, 0xc4);

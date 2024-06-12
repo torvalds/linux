@@ -92,19 +92,6 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 	return ret;
 }
 
-static struct snd_soc_card hda_soc_card = {
-	.name = "hda-dsp",
-	.owner = THIS_MODULE,
-	.dai_link = skl_hda_be_dai_links,
-	.dapm_widgets = skl_hda_widgets,
-	.dapm_routes = skl_hda_map,
-	.add_dai_link = skl_hda_add_dai_link,
-	.fully_routed = true,
-	.late_probe = skl_hda_card_late_probe,
-};
-
-static char hda_soc_components[30];
-
 #define IDISP_DAI_COUNT		3
 #define HDAC_DAI_COUNT		2
 #define DMIC_DAI_COUNT		2
@@ -115,9 +102,9 @@ static char hda_soc_components[30];
 
 #define HDA_CODEC_AUTOSUSPEND_DELAY_MS 1000
 
-static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
+static int skl_hda_fill_card_info(struct snd_soc_card *card,
+				  struct snd_soc_acpi_mach_params *mach_params)
 {
-	struct snd_soc_card *card = &hda_soc_card;
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link *dai_link;
 	u32 codec_count, codec_mask;
@@ -199,6 +186,7 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach;
 	struct skl_hda_private *ctx;
+	struct snd_soc_card *card;
 	int ret;
 
 	dev_dbg(&pdev->dev, "entry\n");
@@ -213,30 +201,44 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 	if (!mach)
 		return -EINVAL;
 
-	snd_soc_card_set_drvdata(&hda_soc_card, ctx);
+	card = &ctx->card;
+	card->name = "hda-dsp",
+	card->owner = THIS_MODULE,
+	card->dai_link = skl_hda_be_dai_links,
+	card->dapm_widgets = skl_hda_widgets,
+	card->dapm_routes = skl_hda_map,
+	card->add_dai_link = skl_hda_add_dai_link,
+	card->fully_routed = true,
+	card->late_probe = skl_hda_card_late_probe,
 
-	ret = skl_hda_fill_card_info(&mach->mach_params);
+	snd_soc_card_set_drvdata(card, ctx);
+
+	ret = skl_hda_fill_card_info(card, &mach->mach_params);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unsupported HDAudio/iDisp configuration found\n");
 		return ret;
 	}
 
-	ctx->pcm_count = hda_soc_card.num_links;
+	ctx->pcm_count = card->num_links;
 	ctx->dai_index = 1; /* hdmi codec dai name starts from index 1 */
 	ctx->platform_name = mach->mach_params.platform;
 	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
-	hda_soc_card.dev = &pdev->dev;
+	card->dev = &pdev->dev;
+	if (!snd_soc_acpi_sof_parent(&pdev->dev))
+		card->disable_route_checks = true;
 
 	if (mach->mach_params.dmic_num > 0) {
-		snprintf(hda_soc_components, sizeof(hda_soc_components),
-				"cfg-dmics:%d", mach->mach_params.dmic_num);
-		hda_soc_card.components = hda_soc_components;
+		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+						  "cfg-dmics:%d",
+						  mach->mach_params.dmic_num);
+		if (!card->components)
+			return -ENOMEM;
 	}
 
-	ret = devm_snd_soc_register_card(&pdev->dev, &hda_soc_card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (!ret)
-		skl_set_hda_codec_autosuspend_delay(&hda_soc_card);
+		skl_set_hda_codec_autosuspend_delay(card);
 
 	return ret;
 }

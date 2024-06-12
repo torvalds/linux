@@ -420,6 +420,7 @@ static void exfat_set_entry_type(struct exfat_dentry *ep, unsigned int type)
 static void exfat_init_stream_entry(struct exfat_dentry *ep,
 		unsigned int start_clu, unsigned long long size)
 {
+	memset(ep, 0, sizeof(*ep));
 	exfat_set_entry_type(ep, TYPE_STREAM);
 	if (size == 0)
 		ep->dentry.stream.flags = ALLOC_FAT_CHAIN;
@@ -457,6 +458,7 @@ void exfat_init_dir_entry(struct exfat_entry_set_cache *es,
 	struct exfat_dentry *ep;
 
 	ep = exfat_get_dentry_cached(es, ES_IDX_FILE);
+	memset(ep, 0, sizeof(*ep));
 	exfat_set_entry_type(ep, type);
 	exfat_set_entry_time(sbi, ts,
 			&ep->dentry.file.create_tz,

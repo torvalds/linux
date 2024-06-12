@@ -34,6 +34,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/hid.h>
+#include <linux/idr.h>
 #include <linux/input.h>
 #include <linux/jiffies.h>
 #include <linux/leds.h>
@@ -569,6 +570,7 @@ static const enum led_brightness joycon_player_led_patterns[JC_NUM_LED_PATTERNS]
 struct joycon_ctlr {
 	struct hid_device *hdev;
 	struct input_dev *input;
+	u32 player_id;
 	struct led_classdev leds[JC_NUM_LEDS]; /* player leds */
 	struct led_classdev home_led;
 	enum joycon_ctlr_state ctlr_state;
@@ -690,15 +692,6 @@ static inline bool joycon_device_is_gencon(struct joycon_ctlr *ctlr)
 static inline bool joycon_device_is_n64con(struct joycon_ctlr *ctlr)
 {
 	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_N64CON;
-}
-
-static inline bool joycon_device_has_usb(struct joycon_ctlr *ctlr)
-{
-	return joycon_device_is_procon(ctlr) ||
-	       joycon_device_is_chrggrip(ctlr) ||
-	       joycon_device_is_snescon(ctlr) ||
-	       joycon_device_is_gencon(ctlr) ||
-	       joycon_device_is_n64con(ctlr);
 }
 
 /*
@@ -2261,7 +2254,8 @@ static int joycon_home_led_brightness_set(struct led_classdev *led,
 	return ret;
 }
 
-static DEFINE_SPINLOCK(joycon_input_num_spinlock);
+static DEFINE_IDA(nintendo_player_id_allocator);
+
 static int joycon_leds_create(struct joycon_ctlr *ctlr)
 {
 	struct hid_device *hdev = ctlr->hdev;
@@ -2272,20 +2266,19 @@ static int joycon_leds_create(struct joycon_ctlr *ctlr)
 	char *name;
 	int ret;
 	int i;
-	unsigned long flags;
 	int player_led_pattern;
-	static int input_num;
-
-	/*
-	 * Set the player leds based on controller number
-	 * Because there is no standard concept of "player number", the pattern
-	 * number will simply increase by 1 every time a controller is connected.
-	 */
-	spin_lock_irqsave(&joycon_input_num_spinlock, flags);
-	player_led_pattern = input_num++ % JC_NUM_LED_PATTERNS;
-	spin_unlock_irqrestore(&joycon_input_num_spinlock, flags);
 
 	/* configure the player LEDs */
+	ctlr->player_id = U32_MAX;
+	ret = ida_alloc(&nintendo_player_id_allocator, GFP_KERNEL);
+	if (ret < 0) {
+		hid_warn(hdev, "Failed to allocate player ID, skipping; ret=%d\n", ret);
+		goto home_led;
+	}
+	ctlr->player_id = ret;
+	player_led_pattern = ret % JC_NUM_LED_PATTERNS;
+	hid_info(ctlr->hdev, "assigned player %d led pattern", player_led_pattern + 1);
+
 	for (i = 0; i < JC_NUM_LEDS; i++) {
 		name = devm_kasprintf(dev, GFP_KERNEL, "%s:%s:%s",
 				      d_name,
@@ -2501,8 +2494,11 @@ static int joycon_init(struct hid_device *hdev)
 		/* set baudrate for improved latency */
 		ret = joycon_send_usb(ctlr, JC_USB_CMD_BAUDRATE_3M, HZ);
 		if (ret) {
-			hid_err(hdev, "Failed to set baudrate; ret=%d\n", ret);
-			goto out_unlock;
+			/*
+			 * We can function with the default baudrate.
+			 * Provide a warning, and continue on.
+			 */
+			hid_warn(hdev, "Failed to set baudrate (ret=%d), continuing anyway\n", ret);
 		}
 		/* handshake */
 		ret = joycon_send_usb(ctlr, JC_USB_CMD_HANDSHAKE, HZ);
@@ -2729,13 +2725,13 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	ret = joycon_power_supply_create(ctlr);
 	if (ret) {
 		hid_err(hdev, "Failed to create power_supply; ret=%d\n", ret);
-		goto err_close;
+		goto err_ida;
 	}
 
 	ret = joycon_input_create(ctlr);
 	if (ret) {
 		hid_err(hdev, "Failed to create input device; ret=%d\n", ret);
-		goto err_close;
+		goto err_ida;
 	}
 
 	ctlr->ctlr_state = JOYCON_CTLR_STATE_READ;
@@ -2743,6 +2739,8 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	hid_dbg(hdev, "probe - success\n");
 	return 0;
 
+err_ida:
+	ida_free(&nintendo_player_id_allocator, ctlr->player_id);
 err_close:
 	hid_hw_close(hdev);
 err_stop:
@@ -2767,6 +2765,7 @@ static void nintendo_hid_remove(struct hid_device *hdev)
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 
 	destroy_workqueue(ctlr->rumble_queue);
+	ida_free(&nintendo_player_id_allocator, ctlr->player_id);
 
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
@@ -2824,7 +2823,19 @@ static struct hid_driver nintendo_hid_driver = {
 	.resume		= nintendo_hid_resume,
 #endif
 };
-module_hid_driver(nintendo_hid_driver);
+static int __init nintendo_init(void)
+{
+	return hid_register_driver(&nintendo_hid_driver);
+}
+
+static void __exit nintendo_exit(void)
+{
+	hid_unregister_driver(&nintendo_hid_driver);
+	ida_destroy(&nintendo_player_id_allocator);
+}
+
+module_init(nintendo_init);
+module_exit(nintendo_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ryan McClelland <rymcclel@gmail.com>");

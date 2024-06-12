@@ -915,7 +915,7 @@ nv50_msto_cleanup(struct drm_atomic_state *state,
 		msto->disabled = false;
 		drm_dp_remove_payload_part2(mgr, new_mst_state, old_payload, new_payload);
 	} else if (msto->enabled) {
-		drm_dp_add_payload_part2(mgr, state, new_payload);
+		drm_dp_add_payload_part2(mgr, new_payload);
 		msto->enabled = false;
 	}
 }

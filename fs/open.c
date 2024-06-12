@@ -902,10 +902,10 @@ cleanup_inode:
 }
 
 static int do_dentry_open(struct file *f,
-			  struct inode *inode,
 			  int (*open)(struct inode *, struct file *))
 {
 	static const struct file_operations empty_fops = {};
+	struct inode *inode = f->f_path.dentry->d_inode;
 	int error;
 
 	path_get(&f->f_path);
@@ -1047,7 +1047,7 @@ int finish_open(struct file *file, struct dentry *dentry,
 	BUG_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
 
 	file->f_path.dentry = dentry;
-	return do_dentry_open(file, d_backing_inode(dentry), open);
+	return do_dentry_open(file, open);
 }
 EXPORT_SYMBOL(finish_open);
 
@@ -1086,7 +1086,7 @@ EXPORT_SYMBOL(file_path);
 int vfs_open(const struct path *path, struct file *file)
 {
 	file->f_path = *path;
-	return do_dentry_open(file, d_backing_inode(path->dentry), NULL);
+	return do_dentry_open(file, NULL);
 }
 
 struct file *dentry_open(const struct path *path, int flags,
@@ -1155,7 +1155,6 @@ EXPORT_SYMBOL(dentry_create);
  * kernel_file_open - open a file for kernel internal use
  * @path:	path of the file to open
  * @flags:	open flags
- * @inode:	the inode
  * @cred:	credentials for open
  *
  * Open a file for use by in-kernel consumers. The file is not accounted
@@ -1165,7 +1164,7 @@ EXPORT_SYMBOL(dentry_create);
  * Return: Opened file on success, an error pointer on failure.
  */
 struct file *kernel_file_open(const struct path *path, int flags,
-				struct inode *inode, const struct cred *cred)
+				const struct cred *cred)
 {
 	struct file *f;
 	int error;
@@ -1175,7 +1174,7 @@ struct file *kernel_file_open(const struct path *path, int flags,
 		return f;
 
 	f->f_path = *path;
-	error = do_dentry_open(f, inode, NULL);
+	error = do_dentry_open(f, NULL);
 	if (error) {
 		fput(f);
 		f = ERR_PTR(error);

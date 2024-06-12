@@ -808,7 +808,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 static unsigned int handle_tx(struct eg20t_port *priv)
 {
 	struct uart_port *port = &priv->port;
-	struct circ_buf *xmit = &port->state->xmit;
+	unsigned char ch;
 	int fifo_size;
 	int tx_empty;
 
@@ -830,9 +830,9 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 		fifo_size--;
 	}
 
-	while (!uart_tx_stopped(port) && !uart_circ_empty(xmit) && fifo_size) {
-		iowrite8(xmit->buf[xmit->tail], priv->membase + PCH_UART_THR);
-		uart_xmit_advance(port, 1);
+	while (!uart_tx_stopped(port) && fifo_size &&
+			uart_fifo_get(port, &ch)) {
+		iowrite8(ch, priv->membase + PCH_UART_THR);
 		fifo_size--;
 		tx_empty = 0;
 	}
@@ -850,14 +850,14 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 static unsigned int dma_handle_tx(struct eg20t_port *priv)
 {
 	struct uart_port *port = &priv->port;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	struct scatterlist *sg;
 	int nent;
 	int fifo_size;
 	struct dma_async_tx_descriptor *desc;
+	unsigned int bytes, tail;
 	int num;
 	int i;
-	int bytes;
 	int size;
 	int rem;
 
@@ -886,7 +886,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 		fifo_size--;
 	}
 
-	bytes = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	bytes = kfifo_out_linear(&tport->xmit_fifo, &tail, UART_XMIT_SIZE);
 	if (!bytes) {
 		dev_dbg(priv->port.dev, "%s 0 bytes return\n", __func__);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
@@ -920,10 +920,10 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 
 	for (i = 0; i < num; i++, sg++) {
 		if (i == (num - 1))
-			sg_set_page(sg, virt_to_page(xmit->buf),
+			sg_set_page(sg, virt_to_page(tport->xmit_buf),
 				    rem, fifo_size * i);
 		else
-			sg_set_page(sg, virt_to_page(xmit->buf),
+			sg_set_page(sg, virt_to_page(tport->xmit_buf),
 				    size, fifo_size * i);
 	}
 
@@ -937,8 +937,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 	priv->nent = nent;
 
 	for (i = 0; i < nent; i++, sg++) {
-		sg->offset = (xmit->tail & (UART_XMIT_SIZE - 1)) +
-			      fifo_size * i;
+		sg->offset = tail + fifo_size * i;
 		sg_dma_address(sg) = (sg_dma_address(sg) &
 				    ~(UART_XMIT_SIZE - 1)) + sg->offset;
 		if (i == (nent - 1))

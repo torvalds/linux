@@ -47,6 +47,7 @@
 #include "intel_fb.h"
 #include "intel_frontbuffer.h"
 #include "intel_sprite.h"
+#include "intel_sprite_regs.h"
 
 static char sprite_name(struct drm_i915_private *i915, enum pipe pipe, int sprite)
 {

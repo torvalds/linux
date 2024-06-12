@@ -1,0 +1,44 @@
+// Check connection re-use, i.e. peer that receives the SYN answers with
+// a challenge-ACK.
+// Check that conntrack lets all packets pass, including the challenge ack,
+// and that a new connection is established.
+
+`packetdrill/common.sh`
+
+// S  >
+//  . < (challnge-ack)
+// R. >
+// S  >
+// S. <
+// Expected outcome: established connection.
+
++0 `$xtables -A INPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
++0 `$xtables -A OUTPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
+
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+0.1 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+0.1 > S 0:0(0) win 65535 <mss 1460,sackOK,TS val 1 ecr 0,nop,wscale 8>
+
+// Challenge ACK, old incarnation.
+0.1 < . 145824453:145824453(0) ack 643160523 win 240 <mss 1460,nop,nop,TS val 1 ecr 1,nop,wscale 0>
+
++0.01 > R 643160523:643160523(0) win 0
+
++0.01 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null | grep UNREPLIED | grep -q SYN_SENT`
+
+// Must go through.
++0.01 > S 0:0(0) win 65535 <mss 1460,sackOK,TS val 1 ecr 0,nop,wscale 8>
+
+// correct synack
++0.1 < S. 0:0(0) ack 1 win 250 <mss 1460,nop,nop,TS val 1 ecr 1,nop,wscale 0>
+
+// 3whs completes.
++0.01 > . 1:1(0) ack 1 win 256 <nop,nop,TS val 1 ecr 1>
+
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null | grep ESTABLISHED | grep -q ASSURED`
+
+// No packets should have been marked INVALID
++0 `$xtables -v -S INPUT  | grep INVALID | grep -q -- "-c 0 0"`
++0 `$xtables -v -S OUTPUT | grep INVALID | grep -q -- "-c 0 0"`

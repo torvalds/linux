@@ -885,7 +885,7 @@ static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 	ib->ptr[ib->length_dw++] = handle;
 	ib->ptr[ib->length_dw++] = upper_32_bits(addr);
 	ib->ptr[ib->length_dw++] = addr;
-	ib->ptr[ib->length_dw++] = 0x0000000b;
+	ib->ptr[ib->length_dw++] = 0x00000000;
 
 	ib->ptr[ib->length_dw++] = 0x00000014;
 	ib->ptr[ib->length_dw++] = 0x00000002; /* task info */
@@ -952,7 +952,7 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 	ib->ptr[ib->length_dw++] = handle;
 	ib->ptr[ib->length_dw++] = upper_32_bits(addr);
 	ib->ptr[ib->length_dw++] = addr;
-	ib->ptr[ib->length_dw++] = 0x0000000b;
+	ib->ptr[ib->length_dw++] = 0x00000000;
 
 	ib->ptr[ib->length_dw++] = 0x00000014;
 	ib->ptr[ib->length_dw++] = 0x00000002;
@@ -1078,7 +1078,6 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev)
 			    IP_VERSION(4, 0, 3))
 				break;
 		}
-		dev_info(adev->dev, "Will use PSP to load VCN firmware\n");
 	}
 }
 

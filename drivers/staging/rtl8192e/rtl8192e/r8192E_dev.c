@@ -130,7 +130,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 			 &priv->rtllib->current_network.qos_data.parameters;
 
 		u1bAIFS = qop->aifs[pAcParam] *
-			  ((mode & (WIRELESS_MODE_G | WIRELESS_MODE_N_24G)) ? 9 : 20) + aSifsTime;
+			  ((mode & (WIRELESS_MODE_G | WIRELESS_MODE_N_24G)) ? 9 : 20) + asifs_time;
 
 		rtl92e_dm_init_edca_turbo(dev);
 
@@ -702,17 +702,17 @@ void rtl92e_link_change(struct net_device *dev)
 	}
 }
 
-void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,
-			     bool WriteIntoReg)
+void rtl92e_set_monitor_mode(struct net_device *dev, bool allow_all_da,
+			     bool write_into_reg)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (bAllowAllDA)
+	if (allow_all_da)
 		priv->receive_config |= RCR_AAP;
 	else
 		priv->receive_config &= ~RCR_AAP;
 
-	if (WriteIntoReg)
+	if (write_into_reg)
 		rtl92e_writel(dev, RCR, priv->receive_config);
 }
 
@@ -900,7 +900,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo->RtsBandwidth = 0;
 	pTxFwInfo->RtsSubcarrier = cb_desc->RTSSC;
 	pTxFwInfo->RtsShort = (pTxFwInfo->RtsHT == 0) ?
-			  (cb_desc->bRTSUseShortPreamble ? 1 : 0) :
+			  (cb_desc->rts_use_short_preamble ? 1 : 0) :
 			  (cb_desc->bRTSUseShortGI ? 1 : 0);
 	if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20_40) {
 		if (cb_desc->bPacketBW) {
@@ -1659,8 +1659,8 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	stats->bFirstMPDU = (pDrvInfo->PartAggr == 1) &&
 			    (pDrvInfo->FirstAGGR == 1);
 
-	stats->TimeStampLow = pDrvInfo->TSFL;
-	stats->TimeStampHigh = rtl92e_readl(dev, TSFR + 4);
+	stats->time_stamp_low = pDrvInfo->TSFL;
+	stats->time_stamp_high = rtl92e_readl(dev, TSFR + 4);
 
 	_rtl92e_translate_rx_signal_stats(dev, skb, stats, pdesc, pDrvInfo);
 	skb_trim(skb, skb->len - S_CRC_LEN);

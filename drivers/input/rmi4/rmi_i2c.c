@@ -365,7 +365,7 @@ static const struct dev_pm_ops rmi_i2c_pm = {
 };
 
 static const struct i2c_device_id rmi_id[] = {
-	{ "rmi4_i2c", 0 },
+	{ "rmi4_i2c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rmi_id);

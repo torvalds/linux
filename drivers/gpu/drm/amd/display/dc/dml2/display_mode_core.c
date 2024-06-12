@@ -5538,7 +5538,7 @@ static void CalculateODMMode(
 			*TotalAvailablePipesSupport = false;
 		else if (HActive > 2 * DML2_MAX_FMT_420_BUFFER_WIDTH)
 			ODMUse = dml_odm_use_policy_combine_4to1;
-		else if (HActive > DML2_MAX_FMT_420_BUFFER_WIDTH)
+		else if (HActive > DML2_MAX_FMT_420_BUFFER_WIDTH && ODMUse != dml_odm_use_policy_combine_4to1)
 			ODMUse = dml_odm_use_policy_combine_2to1;
 		if (Output == dml_hdmi && ODMUse == dml_odm_use_policy_combine_2to1)
 			*TotalAvailablePipesSupport = false;
@@ -10226,9 +10226,11 @@ dml_get_var_func(stutter_efficiency_z8_bestcase, dml_float_t, mode_lib->mp.Z8Stu
 dml_get_var_func(stutter_num_bursts_z8_bestcase, dml_float_t, mode_lib->mp.Z8NumberOfStutterBurstsPerFrameBestCase);
 dml_get_var_func(stutter_period_bestcase, dml_float_t, mode_lib->mp.StutterPeriodBestCase);
 dml_get_var_func(urgent_extra_latency, dml_float_t, mode_lib->mp.UrgentExtraLatency);
+dml_get_var_func(fclk_change_latency, dml_float_t, mode_lib->mp.MaxActiveFCLKChangeLatencySupported);
 dml_get_var_func(dispclk_calculated, dml_float_t, mode_lib->mp.Dispclk_calculated);
 dml_get_var_func(total_data_read_bw, dml_float_t, mode_lib->mp.TotalDataReadBandwidth);
 dml_get_var_func(return_bw, dml_float_t, mode_lib->ms.ReturnBW);
+dml_get_var_func(return_dram_bw, dml_float_t, mode_lib->ms.ReturnDRAMBW);
 dml_get_var_func(tcalc, dml_float_t, mode_lib->mp.TCalc);
 dml_get_var_func(comp_buffer_size_kbytes, dml_uint_t, mode_lib->mp.CompressedBufferSizeInkByte);
 dml_get_var_func(pixel_chunk_size_in_kbyte, dml_uint_t, mode_lib->ms.ip.pixel_chunk_size_kbytes);

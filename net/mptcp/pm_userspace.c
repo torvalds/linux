@@ -6,6 +6,7 @@
 
 #include "protocol.h"
 #include "mib.h"
+#include "mptcp_pm_gen.h"
 
 void mptcp_free_local_addr_list(struct mptcp_sock *msk)
 {

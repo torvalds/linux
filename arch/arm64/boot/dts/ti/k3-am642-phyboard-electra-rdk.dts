@@ -42,7 +42,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&can_tc1_pins_default>;
 		#phy-cells = <0>;
-		max-bitrate = <5000000>;
+		max-bitrate = <8000000>;
 		standby-gpios = <&main_gpio0 32 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -51,7 +51,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&can_tc2_pins_default>;
 		#phy-cells = <0>;
-		max-bitrate = <5000000>;
+		max-bitrate = <8000000>;
 		standby-gpios = <&main_gpio0 35 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -275,7 +275,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
-	current-speed = <115200>;
 };
 
 &main_uart1 {
@@ -283,7 +282,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart1_pins_default>;
 	uart-has-rtscts;
-	current-speed = <115200>;
 };
 
 &sdhci1 {

@@ -3276,7 +3276,7 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 	mutex_lock(&bnad->conf_mutex);
 
 	mtu = netdev->mtu;
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	frame = BNAD_FRAME_SIZE(mtu);
 	new_frame = BNAD_FRAME_SIZE(new_mtu);

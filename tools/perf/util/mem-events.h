@@ -3,13 +3,7 @@
 #define __PERF_MEM_EVENTS_H
 
 #include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <linux/types.h>
-#include <linux/refcount.h>
-#include <linux/perf_event.h>
-#include "stat.h"
-#include "evsel.h"
 
 struct perf_mem_event {
 	bool		record;
@@ -21,19 +15,16 @@ struct perf_mem_event {
 	const char	*event_name;
 };
 
-struct mem_info {
-	struct addr_map_symbol	iaddr;
-	struct addr_map_symbol	daddr;
-	union perf_mem_data_src	data_src;
-	refcount_t		refcnt;
-};
-
 enum {
 	PERF_MEM_EVENTS__LOAD,
 	PERF_MEM_EVENTS__STORE,
 	PERF_MEM_EVENTS__LOAD_STORE,
 	PERF_MEM_EVENTS__MAX,
 };
+
+struct evsel;
+struct mem_info;
+struct perf_pmu;
 
 extern unsigned int perf_mem_events__loads_ldlat;
 extern struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX];
@@ -49,13 +40,13 @@ bool is_mem_loads_aux_event(struct evsel *leader);
 void perf_pmu__mem_events_list(struct perf_pmu *pmu);
 int perf_mem_events__record_args(const char **rec_argv, int *argv_nr);
 
-int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
-int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
-int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
-int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
-int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
+int perf_mem__tlb_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);
+int perf_mem__lvl_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);
+int perf_mem__snp_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);
+int perf_mem__lck_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);
+int perf_mem__blk_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);
 
-int perf_script__meminfo_scnprintf(char *bf, size_t size, struct mem_info *mem_info);
+int perf_script__meminfo_scnprintf(char *bf, size_t size, const struct mem_info *mem_info);
 
 struct c2c_stats {
 	u32	nr_entries;

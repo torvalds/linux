@@ -54,6 +54,7 @@
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_fbc.h"
+#include "intel_fbc_regs.h"
 #include "intel_frontbuffer.h"
 
 #define for_each_fbc_id(__dev_priv, __fbc_id) \

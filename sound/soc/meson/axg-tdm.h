@@ -58,12 +58,17 @@ struct axg_tdm_stream {
 	unsigned int physical_width;
 	u32 *mask;
 	bool ready;
+
+	/* For continuous clock tracking */
+	bool clk_enabled;
 };
 
 struct axg_tdm_stream *axg_tdm_stream_alloc(struct axg_tdm_iface *iface);
 void axg_tdm_stream_free(struct axg_tdm_stream *ts);
 int axg_tdm_stream_start(struct axg_tdm_stream *ts);
 void axg_tdm_stream_stop(struct axg_tdm_stream *ts);
+int axg_tdm_stream_set_cont_clocks(struct axg_tdm_stream *ts,
+				   unsigned int fmt);
 
 static inline int axg_tdm_stream_reset(struct axg_tdm_stream *ts)
 {

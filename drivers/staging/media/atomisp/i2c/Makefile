@@ -9,8 +9,3 @@ obj-$(CONFIG_VIDEO_ATOMISP_OV2722)     += atomisp-ov2722.o
 obj-$(CONFIG_VIDEO_ATOMISP_GC0310)     += atomisp-gc0310.o
 
 obj-$(CONFIG_VIDEO_ATOMISP_MSRLIST_HELPER) += atomisp-libmsrlisthelper.o
-
-# Makefile for flash drivers
-#
-
-obj-$(CONFIG_VIDEO_ATOMISP_LM3554) += atomisp-lm3554.o

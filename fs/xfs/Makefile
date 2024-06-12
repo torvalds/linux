@@ -4,8 +4,8 @@
 # All Rights Reserved.
 #
 
-ccflags-y += -I $(srctree)/$(src)		# needed for trace events
-ccflags-y += -I $(srctree)/$(src)/libxfs
+ccflags-y += -I $(src)		# needed for trace events
+ccflags-y += -I $(src)/libxfs
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
 
@@ -34,6 +34,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_dir2_node.o \
 				   xfs_dir2_sf.o \
 				   xfs_dquot_buf.o \
+				   xfs_exchmaps.o \
 				   xfs_ialloc.o \
 				   xfs_ialloc_btree.o \
 				   xfs_iext_tree.o \
@@ -41,6 +42,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_inode_buf.o \
 				   xfs_log_rlimit.o \
 				   xfs_ag_resv.o \
+				   xfs_parent.o \
 				   xfs_rmap.o \
 				   xfs_rmap_btree.o \
 				   xfs_refcount.o \
@@ -49,6 +51,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_symlink_remote.o \
 				   xfs_trans_inode.o \
 				   xfs_trans_resv.o \
+				   xfs_trans_space.o \
 				   xfs_types.o \
 				   )
 # xfs_rtbitmap is shared with libxfs
@@ -67,6 +70,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_dir2_readdir.o \
 				   xfs_discard.o \
 				   xfs_error.o \
+				   xfs_exchrange.o \
 				   xfs_export.o \
 				   xfs_extent_busy.o \
 				   xfs_file.o \
@@ -74,6 +78,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_fsmap.o \
 				   xfs_fsops.o \
 				   xfs_globals.o \
+				   xfs_handle.o \
 				   xfs_health.o \
 				   xfs_icache.o \
 				   xfs_ioctl.o \
@@ -101,6 +106,7 @@ xfs-y				+= xfs_log.o \
 				   xfs_buf_item.o \
 				   xfs_buf_item_recover.o \
 				   xfs_dquot_item_recover.o \
+				   xfs_exchmaps_item.o \
 				   xfs_extfree_item.o \
 				   xfs_attr_item.o \
 				   xfs_icreate_item.o \
@@ -157,11 +163,13 @@ xfs-y				+= $(addprefix scrub/, \
 				   common.o \
 				   dabtree.o \
 				   dir.o \
+				   dirtree.o \
 				   fscounters.o \
 				   health.o \
 				   ialloc.o \
 				   inode.o \
 				   iscan.o \
+				   listxattr.o \
 				   nlinks.o \
 				   parent.o \
 				   readdir.o \
@@ -170,6 +178,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   scrub.o \
 				   symlink.o \
 				   xfarray.o \
+				   xfblob.o \
 				   xfile.o \
 				   )
 
@@ -191,23 +200,32 @@ ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
 xfs-y				+= $(addprefix scrub/, \
 				   agheader_repair.o \
 				   alloc_repair.o \
+				   attr_repair.o \
 				   bmap_repair.o \
 				   cow_repair.o \
+				   dir_repair.o \
+				   dirtree_repair.o \
+				   findparent.o \
 				   fscounters_repair.o \
 				   ialloc_repair.o \
 				   inode_repair.o \
 				   newbt.o \
 				   nlinks_repair.o \
+				   orphanage.o \
+				   parent_repair.o \
 				   rcbag_btree.o \
 				   rcbag.o \
 				   reap.o \
 				   refcount_repair.o \
 				   repair.o \
 				   rmap_repair.o \
+				   symlink_repair.o \
+				   tempfile.o \
 				   )
 
 xfs-$(CONFIG_XFS_RT)		+= $(addprefix scrub/, \
 				   rtbitmap_repair.o \
+				   rtsummary_repair.o \
 				   )
 
 xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix scrub/, \

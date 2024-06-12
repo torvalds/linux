@@ -15,7 +15,10 @@ allOf:
 properties:
   compatible:
     const: samsung,s6e88a0-ams452ef01
-  reg: true
+
+  reg:
+    maxItems: 1
+
   port: true
   reset-gpios: true
   vdd3-supply:
