@@ -11,8 +11,8 @@
 
 struct ttm_tt_test_case {
 	const char *description;
-	uint32_t size;
-	uint32_t extra_pages_num;
+	u32 size;
+	u32 extra_pages_num;
 };
 
 static const struct ttm_tt_test_case ttm_tt_init_basic_cases[] = {
@@ -41,9 +41,9 @@ static void ttm_tt_init_basic(struct kunit *test)
 	const struct ttm_tt_test_case *params = test->param_value;
 	struct ttm_buffer_object *bo;
 	struct ttm_tt *tt;
-	uint32_t page_flags = TTM_TT_FLAG_ZERO_ALLOC;
+	u32 page_flags = TTM_TT_FLAG_ZERO_ALLOC;
 	enum ttm_caching caching = ttm_cached;
-	uint32_t extra_pages = params->extra_pages_num;
+	u32 extra_pages = params->extra_pages_num;
 	int num_pages = params->size >> PAGE_SHIFT;
 	int err;
 
@@ -69,7 +69,7 @@ static void ttm_tt_init_misaligned(struct kunit *test)
 	struct ttm_buffer_object *bo;
 	struct ttm_tt *tt;
 	enum ttm_caching caching = ttm_cached;
-	uint32_t size = SZ_8K;
+	u32 size = SZ_8K;
 	int num_pages = (size + SZ_4K) >> PAGE_SHIFT;
 	int err;
 
@@ -211,7 +211,7 @@ static void ttm_tt_create_ttm_exists(struct kunit *test)
 }
 
 static struct ttm_tt *ttm_tt_null_create(struct ttm_buffer_object *bo,
-					 uint32_t page_flags)
+					 u32 page_flags)
 {
 	return NULL;
 }

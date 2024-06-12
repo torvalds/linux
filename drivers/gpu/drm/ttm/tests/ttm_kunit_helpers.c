@@ -42,8 +42,7 @@ static struct ttm_placement mock_placement = {
 	.placement = &mock2_place,
 };
 
-static struct ttm_tt *ttm_tt_simple_create(struct ttm_buffer_object *bo,
-					   uint32_t page_flags)
+static struct ttm_tt *ttm_tt_simple_create(struct ttm_buffer_object *bo, u32 page_flags)
 {
 	struct ttm_tt *tt;
 
@@ -197,8 +196,7 @@ struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 }
 EXPORT_SYMBOL_GPL(ttm_bo_kunit_init);
 
-struct ttm_place *ttm_place_kunit_init(struct kunit *test,
-				       uint32_t mem_type, uint32_t flags)
+struct ttm_place *ttm_place_kunit_init(struct kunit *test, u32 mem_type, u32 flags)
 {
 	struct ttm_place *place;
 
