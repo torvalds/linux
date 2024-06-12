@@ -226,6 +226,7 @@ static void __exit neon_poly1305_mod_exit(void)
 module_init(neon_poly1305_mod_init);
 module_exit(neon_poly1305_mod_exit);
 
+MODULE_DESCRIPTION("Poly1305 transform using NEON instructions");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("poly1305");
 MODULE_ALIAS_CRYPTO("poly1305-neon");
