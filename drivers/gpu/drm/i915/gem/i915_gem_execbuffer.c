@@ -340,7 +340,7 @@ static int eb_create(struct i915_execbuffer *eb)
 		 * Without a 1:1 association between relocation handles and
 		 * the execobject[] index, we instead create a hashtable.
 		 * We size it dynamically based on available memory, starting
-		 * first with 1:1 assocative hash and scaling back until
+		 * first with 1:1 associative hash and scaling back until
 		 * the allocation succeeds.
 		 *
 		 * Later on we use a positive lut_size to indicate we are

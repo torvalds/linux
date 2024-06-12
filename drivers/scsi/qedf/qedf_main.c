@@ -2286,7 +2286,7 @@ static bool qedf_process_completions(struct qedf_fastpath *fp)
 		 * on.
 		 */
 		if (!io_req)
-			/* If there is not io_req assocated with this CQE
+			/* If there is not io_req associated with this CQE
 			 * just queue it on CPU 0
 			 */
 			cpu = 0;
