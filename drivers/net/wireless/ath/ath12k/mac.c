@@ -2257,9 +2257,6 @@ static int ath12k_get_smps_from_capa(const struct ieee80211_sta_ht_cap *ht_cap,
 				     const struct ieee80211_he_6ghz_capa *he_6ghz_capa,
 				     int *smps)
 {
-	if (!ht_cap->ht_supported && !he_6ghz_capa->capa)
-		return -EOPNOTSUPP;
-
 	if (ht_cap->ht_supported)
 		*smps = u16_get_bits(ht_cap->cap, IEEE80211_HT_CAP_SM_PS);
 	else
@@ -2278,6 +2275,9 @@ static void ath12k_peer_assoc_h_smps(struct ieee80211_sta *sta,
 	const struct ieee80211_he_6ghz_capa *he_6ghz_capa = &sta->deflink.he_6ghz_capa;
 	const struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	int smps;
+
+	if (!ht_cap->ht_supported && !he_6ghz_capa->capa)
+		return;
 
 	if (ath12k_get_smps_from_capa(ht_cap, he_6ghz_capa, &smps))
 		return;
@@ -2757,6 +2757,9 @@ static int ath12k_setup_peer_smps(struct ath12k *ar, struct ath12k_vif *arvif,
 				  const struct ieee80211_he_6ghz_capa *he_6ghz_capa)
 {
 	int smps, ret = 0;
+
+	if (!ht_cap->ht_supported && !he_6ghz_capa)
+		return 0;
 
 	ret = ath12k_get_smps_from_capa(ht_cap, he_6ghz_capa, &smps);
 	if (ret < 0)
