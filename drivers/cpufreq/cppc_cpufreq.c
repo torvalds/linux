@@ -291,15 +291,10 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 	struct cppc_cpudata *cpu_data = policy->driver_data;
 	unsigned int cpu = policy->cpu;
 	struct cpufreq_freqs freqs;
-	u32 desired_perf;
 	int ret = 0;
 
-	desired_perf = cppc_khz_to_perf(&cpu_data->perf_caps, target_freq);
-	/* Return if it is exactly the same perf */
-	if (desired_perf == cpu_data->perf_ctrls.desired_perf)
-		return ret;
-
-	cpu_data->perf_ctrls.desired_perf = desired_perf;
+	cpu_data->perf_ctrls.desired_perf =
+			cppc_khz_to_perf(&cpu_data->perf_caps, target_freq);
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
 
