@@ -417,11 +417,11 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 			break;
 		}
 		if (ht_info->current_ht_support && ht_info->enable_ht) {
-			u8 HTOpMode = ht_info->current_op_mode;
+			u8 ht_op_mode = ht_info->current_op_mode;
 
-			if ((ht_info->cur_bw_40mhz && (HTOpMode == 2 ||
-						      HTOpMode == 3)) ||
-			     (!ht_info->cur_bw_40mhz && HTOpMode == 3)) {
+			if ((ht_info->cur_bw_40mhz && (ht_op_mode == 2 ||
+						      ht_op_mode == 3)) ||
+			     (!ht_info->cur_bw_40mhz && ht_op_mode == 3)) {
 				tcb_desc->rts_rate = MGN_24M;
 				tcb_desc->bRTSEnable = true;
 				break;
