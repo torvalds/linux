@@ -1878,7 +1878,7 @@ static const struct dev_pm_ops vgxy61_pm_ops = {
 
 static struct i2c_driver vgxy61_i2c_driver = {
 	.driver = {
-		.name  = "st-vgxy61",
+		.name  = "vgxy61",
 		.of_match_table = vgxy61_dt_ids,
 		.pm = &vgxy61_pm_ops,
 	},
