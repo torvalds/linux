@@ -91,6 +91,7 @@ config CAN_KVASER_USB
 	    - Kvaser Leaf Light R v2
 	    - Kvaser Mini PCI Express HS
 	    - Kvaser Mini PCI Express 2xHS
+	    - Kvaser Mini PCIe 1xCAN
 	    - Kvaser USBcan Light 2xHS
 	    - Kvaser USBcan II HS/HS
 	    - Kvaser USBcan II HS/LS
