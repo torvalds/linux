@@ -1196,7 +1196,7 @@ static int spi_geni_map_buf(struct spi_geni_master *mas,
 						xfer->len, DMA_FROM_DEVICE);
 			if (ret) {
 				SPI_LOG_ERR(mas->ipc, true, mas->dev,
-				"%s: Mapping Rx buffer %d\n", __func__, ret);
+					    "%s: Mapping Rx buffer %d\n", __func__, ret);
 				return ret;
 			}
 		}
@@ -1208,7 +1208,7 @@ static int spi_geni_map_buf(struct spi_geni_master *mas,
 						xfer->len, DMA_TO_DEVICE);
 			if (ret) {
 				SPI_LOG_ERR(mas->ipc, true, mas->dev,
-				"%s: Mapping Tx buffer %d\n", __func__, ret);
+					    "%s: Mapping Tx buffer %d\n", __func__, ret);
 				return ret;
 			}
 		}
@@ -1352,8 +1352,8 @@ static int spi_geni_unprepare_message(struct spi_master *spi_mas,
 			pm_runtime_put_sync(mas->dev);
 			count = atomic_read(&mas->dev->power.usage_count);
 			if (count < 0)
-				SPI_LOG_ERR(mas->ipc, false, mas->dev,
-					"suspend usage count mismatch:%d",
+				SPI_LOG_DBG(mas->ipc, false, mas->dev,
+					    "suspend usage count mismatch:%d",
 								count);
 		} else if (!pm_runtime_status_suspended(mas->dev) &&
 				pm_runtime_enabled(mas->dev)) {
@@ -1616,8 +1616,8 @@ static int spi_geni_prepare_transfer_hardware(struct spi_master *spi)
 		}
 
 		if (ret)
-			SPI_LOG_ERR(mas->ipc, false, mas->dev,
-			"%s: Error %d pinctrl_select_state\n", __func__, ret);
+			SPI_LOG_DBG(mas->ipc, false, mas->dev,
+				    "%s: Error %d pinctrl_select_state\n", __func__, ret);
 	}
 
 	if (!mas->setup || !mas->shared_ee) {
@@ -1648,8 +1648,8 @@ static int spi_geni_prepare_transfer_hardware(struct spi_master *spi)
 		if (mas->dis_autosuspend) {
 			count = atomic_read(&mas->dev->power.usage_count);
 			if (count <= 0)
-				SPI_LOG_ERR(mas->ipc, false, mas->dev,
-				"resume usage count mismatch:%d", count);
+				SPI_LOG_DBG(mas->ipc, false, mas->dev,
+					    "resume usage count mismatch:%d", count);
 		}
 	}
 
@@ -1682,16 +1682,16 @@ static int spi_geni_unprepare_transfer_hardware(struct spi_master *spi)
 		}
 
 		if (ret)
-			SPI_LOG_ERR(mas->ipc, false, mas->dev,
-			"%s: Error %d pinctrl_select_state\n", __func__, ret);
+			SPI_LOG_DBG(mas->ipc, false, mas->dev,
+				    "%s: Error %d pinctrl_select_state\n", __func__, ret);
 	}
 
 	if (mas->dis_autosuspend) {
 		pm_runtime_put_sync(mas->dev);
 		count = atomic_read(&mas->dev->power.usage_count);
 		if (count < 0)
-			SPI_LOG_ERR(mas->ipc, false, mas->dev,
-				"suspend usage count mismatch:%d", count);
+			SPI_LOG_DBG(mas->ipc, false, mas->dev,
+				    "suspend usage count mismatch:%d", count);
 	} else if (!pm_runtime_status_suspended(mas->dev) &&
 			pm_runtime_enabled(mas->dev)) {
 		pm_runtime_mark_last_busy(mas->dev);
@@ -1910,8 +1910,9 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 				struct spi_transfer *xfer)
 {
 	int ret = 0;
+	unsigned int xfer_timeout;
 	struct spi_geni_master *mas = spi_master_get_devdata(spi);
-	unsigned long timeout, xfer_timeout;
+	unsigned long timeout, xfer_timeout_jiffies;
 	unsigned long long start_time;
 
 	start_time = geni_capture_start_time(&mas->spi_rsc, mas->ipc_log_kpi, __func__,
@@ -1950,9 +1951,9 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 			xfer_timeout += SPI_XFER_TIMEOUT_OFFSET;
 	}
 
-	SPI_LOG_ERR(mas->ipc, false, mas->dev,
+	SPI_LOG_DBG(mas->ipc, false, mas->dev,
 		    "current xfer_timeout:%lu ms.\n", xfer_timeout);
-	xfer_timeout = msecs_to_jiffies(xfer_timeout);
+	xfer_timeout_jiffies = msecs_to_jiffies(xfer_timeout);
 
 	if (mas->cur_xfer_mode != GENI_GPI_DMA) {
 		reinit_completion(&mas->xfer_done);
@@ -1966,7 +1967,7 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 
 		if (spi->slave)
 			mas->slave_state = true;
-		timeout = wait_for_completion_timeout(&mas->xfer_done, xfer_timeout);
+		timeout = wait_for_completion_timeout(&mas->xfer_done, xfer_timeout_jiffies);
 		if (spi->slave)
 			mas->slave_state = false;
 
@@ -2012,7 +2013,7 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 			for (i = 0 ; i < mas->num_tx_eot; i++) {
 				timeout =
 				wait_for_completion_timeout(
-					&mas->tx_cb, xfer_timeout);
+					&mas->tx_cb, xfer_timeout_jiffies);
 				if (timeout <= 0) {
 					SPI_LOG_ERR(mas->ipc, true, mas->dev,
 					"Tx[%d] timeout%lu\n", i, timeout);
@@ -2023,7 +2024,7 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 			for (i = 0 ; i < mas->num_rx_eot; i++) {
 				timeout =
 				wait_for_completion_timeout(
-					&mas->rx_cb, xfer_timeout);
+					&mas->rx_cb, xfer_timeout_jiffies);
 				if (timeout <= 0) {
 					SPI_LOG_ERR(mas->ipc, true, mas->dev,
 					 "Rx[%d] timeout%lu\n", i, timeout);
