@@ -503,22 +503,29 @@ ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 
 /* FIXME: rename/move - this deals with everything not just VHT */
 enum ieee80211_sta_rx_bandwidth
-ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta)
+_ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta,
+			  struct cfg80211_chan_def *chandef)
 {
 	struct sta_info *sta = link_sta->sta;
-	struct ieee80211_bss_conf *link_conf;
 	enum nl80211_chan_width bss_width;
 	enum ieee80211_sta_rx_bandwidth bw;
 
-	rcu_read_lock();
-	link_conf = rcu_dereference(sta->sdata->vif.link_conf[link_sta->link_id]);
-	if (WARN_ON(!link_conf))
-		bss_width = NL80211_CHAN_WIDTH_20_NOHT;
-	else
-		bss_width = link_conf->chanreq.oper.width;
-	rcu_read_unlock();
+	if (chandef) {
+		bss_width = chandef->width;
+	} else {
+		struct ieee80211_bss_conf *link_conf;
 
-	bw = ieee80211_sta_cap_rx_bw(link_sta);
+		rcu_read_lock();
+		link_conf = rcu_dereference(sta->sdata->vif.link_conf[link_sta->link_id]);
+		if (WARN_ON_ONCE(!link_conf)) {
+			rcu_read_unlock();
+			return IEEE80211_STA_RX_BW_20;
+		}
+		bss_width = link_conf->chanreq.oper.width;
+		rcu_read_unlock();
+	}
+
+	bw = _ieee80211_sta_cap_rx_bw(link_sta, chandef);
 	bw = min(bw, link_sta->cur_max_bandwidth);
 
 	/* Don't consider AP's bandwidth for TDLS peers, section 11.23.1 of

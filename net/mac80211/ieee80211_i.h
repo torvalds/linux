@@ -2166,7 +2166,13 @@ ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
 	return _ieee80211_sta_cap_rx_bw(link_sta, NULL);
 }
 enum ieee80211_sta_rx_bandwidth
-ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta);
+_ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta,
+			  struct cfg80211_chan_def *chandef);
+static inline enum ieee80211_sta_rx_bandwidth
+ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta)
+{
+	return _ieee80211_sta_cur_vht_bw(link_sta, NULL);
+}
 void ieee80211_sta_init_nss(struct link_sta_info *link_sta);
 enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width);
