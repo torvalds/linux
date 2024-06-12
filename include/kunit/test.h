@@ -480,6 +480,23 @@ static inline void *kunit_kcalloc(struct kunit *test, size_t n, size_t size, gfp
 	return kunit_kmalloc_array(test, n, size, gfp | __GFP_ZERO);
 }
 
+/**
+ * kunit_vm_mmap() - Allocate KUnit-tracked vm_mmap() area
+ * @test: The test context object.
+ * @file: struct file pointer to map from, if any
+ * @addr: desired address, if any
+ * @len: how many bytes to allocate
+ * @prot: mmap PROT_* bits
+ * @flag: mmap flags
+ * @offset: offset into @file to start mapping from.
+ *
+ * See vm_mmap() for more information.
+ */
+unsigned long kunit_vm_mmap(struct kunit *test, struct file *file,
+			    unsigned long addr, unsigned long len,
+			    unsigned long prot, unsigned long flag,
+			    unsigned long offset);
+
 void kunit_cleanup(struct kunit *test);
 
 void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt, ...);

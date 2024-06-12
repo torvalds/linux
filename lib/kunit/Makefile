@@ -2,6 +2,7 @@ obj-$(CONFIG_KUNIT) +=			kunit.o
 
 kunit-objs +=				test.o \
 					resource.o \
+					user_alloc.o \
 					static_stub.o \
 					string-stream.o \
 					assert.o \
