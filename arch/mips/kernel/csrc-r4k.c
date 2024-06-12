@@ -21,7 +21,9 @@ static struct clocksource clocksource_mips = {
 	.name		= "MIPS",
 	.read		= c0_hpt_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS |
+				  CLOCK_SOURCE_MUST_VERIFY |
+				  CLOCK_SOURCE_VERIFY_PERCPU,
 };
 
 static u64 __maybe_unused notrace r4k_read_sched_clock(void)
