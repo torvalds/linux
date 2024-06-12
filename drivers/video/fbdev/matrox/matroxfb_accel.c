@@ -517,4 +517,5 @@ static void matroxfb_imageblit(struct fb_info* info, const struct fb_image* imag
 	}
 }
 
+MODULE_DESCRIPTION("Accelerated fbops for Matrox Millennium/Mystique/G100/G200/G400/G450/G550");
 MODULE_LICENSE("GPL");
