@@ -290,7 +290,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 		return;
 	if (ht_info->current_ampdu_enable) {
 		if (!rtllib_get_ts(ieee, (struct ts_common_info **)(&ts), hdr->addr1,
-			   skb->priority, TX_DIR, true)) {
+				   skb->priority, TX_DIR, true)) {
 			netdev_info(ieee->dev, "%s: can't get TS\n", __func__);
 			return;
 		}
@@ -420,7 +420,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 			u8 ht_op_mode = ht_info->current_op_mode;
 
 			if ((ht_info->cur_bw_40mhz && (ht_op_mode == 2 ||
-						      ht_op_mode == 3)) ||
+						       ht_op_mode == 3)) ||
 			     (!ht_info->cur_bw_40mhz && ht_op_mode == 3)) {
 				tcb_desc->rts_rate = MGN_24M;
 				tcb_desc->rts_enable = true;
@@ -476,7 +476,7 @@ static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 		struct tx_ts_record *ts = NULL;
 
 		if (!rtllib_get_ts(ieee, (struct ts_common_info **)(&ts), dst,
-			   skb->priority, TX_DIR, true))
+				   skb->priority, TX_DIR, true))
 			return 0;
 		seqnum = ts->tx_cur_seq;
 		ts->tx_cur_seq = (ts->tx_cur_seq + 1) % 4096;
@@ -548,8 +548,8 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	 * creating it...
 	 */
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE) ||
-	   ((!ieee->softmac_data_hard_start_xmit &&
-	   (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
+	    ((!ieee->softmac_data_hard_start_xmit &&
+	     (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
 		netdev_warn(ieee->dev, "No xmit handler.\n");
 		goto success;
 	}
