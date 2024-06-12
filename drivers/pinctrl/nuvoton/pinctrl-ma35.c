@@ -571,8 +571,8 @@ static int ma35_gpiolib_register(struct platform_device *pdev, struct ma35_pinct
 static int ma35_get_bank_data(struct ma35_pin_bank *bank)
 {
 	bank->reg_base = fwnode_iomap(bank->fwnode, 0);
-	if (IS_ERR(bank->reg_base))
-		return PTR_ERR(bank->reg_base);
+	if (!bank->reg_base)
+		return -ENOMEM;
 
 	bank->irq = fwnode_irq_get(bank->fwnode, 0);
 
