@@ -235,7 +235,7 @@ static void ieee80211_parse_tpe(struct ieee80211_parsed_tpe *tpe,
 		*cnt_out = count + 1;
 		/* separately take 320 MHz if present */
 		if (count == 3 && len > sizeof(*env) + count + 1) {
-			out[4] = env->variable[count + 2];
+			out[4] = env->variable[4];
 			*cnt_out = 5;
 		}
 		break;
