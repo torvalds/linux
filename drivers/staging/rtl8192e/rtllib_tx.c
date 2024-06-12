@@ -376,7 +376,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	tcb_desc->bRTSUseShortGI		= false;
 	tcb_desc->bCTSEnable			= false;
 	tcb_desc->RTSSC				= 0;
-	tcb_desc->bRTSBW			= false;
+	tcb_desc->rts_bw			= false;
 
 	if (tcb_desc->bBroadcast || tcb_desc->multicast)
 		return;
@@ -447,7 +447,7 @@ NO_PROTECTION:
 	tcb_desc->bCTSEnable	= false;
 	tcb_desc->rts_rate	= 0;
 	tcb_desc->RTSSC		= 0;
-	tcb_desc->bRTSBW	= false;
+	tcb_desc->rts_bw	= false;
 }
 
 static void rtllib_txrate_selectmode(struct rtllib_device *ieee,

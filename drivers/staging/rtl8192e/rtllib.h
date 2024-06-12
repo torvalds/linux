@@ -119,7 +119,7 @@ struct cb_desc {
 	u8 bRTSSTBC:1;
 	u8 RTSSC:1;
 
-	u8 bRTSBW:1;
+	u8 rts_bw:1;
 	u8 bPacketBW:1;
 	u8 rts_use_short_preamble:1;
 	u8 bRTSUseShortGI:1;
