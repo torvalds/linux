@@ -99,6 +99,7 @@ struct amd_cpudata {
 	u32	policy;
 	u64	cppc_cap1_cached;
 	bool	suspended;
+	s16	epp_default;
 };
 
 #endif /* _LINUX_AMD_PSTATE_H */
