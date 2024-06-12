@@ -10914,7 +10914,7 @@ enum {
 };
 
 BTF_ID_LIST(kf_arg_btf_ids)
-BTF_ID(struct, bpf_dynptr_kern)
+BTF_ID(struct, bpf_dynptr)
 BTF_ID(struct, bpf_list_head)
 BTF_ID(struct, bpf_list_node)
 BTF_ID(struct, bpf_rb_root)
@@ -11265,6 +11265,8 @@ static int process_kf_arg_ptr_to_btf_id(struct bpf_verifier_env *env,
 	bool strict_type_match = false;
 	const struct btf *reg_btf;
 	const char *reg_ref_tname;
+	bool taking_projection;
+	bool struct_same;
 	u32 reg_ref_id;
 
 	if (base_type(reg->type) == PTR_TO_BTF_ID) {
@@ -11308,7 +11310,13 @@ static int process_kf_arg_ptr_to_btf_id(struct bpf_verifier_env *env,
 
 	reg_ref_t = btf_type_skip_modifiers(reg_btf, reg_ref_id, &reg_ref_id);
 	reg_ref_tname = btf_name_by_offset(reg_btf, reg_ref_t->name_off);
-	if (!btf_struct_ids_match(&env->log, reg_btf, reg_ref_id, reg->off, meta->btf, ref_id, strict_type_match)) {
+	struct_same = btf_struct_ids_match(&env->log, reg_btf, reg_ref_id, reg->off, meta->btf, ref_id, strict_type_match);
+	/* If kfunc is accepting a projection type (ie. __sk_buff), it cannot
+	 * actually use it -- it must cast to the underlying type. So we allow
+	 * caller to pass in the underlying type.
+	 */
+	taking_projection = btf_is_projection_of(ref_tname, reg_ref_tname);
+	if (!taking_projection && !struct_same) {
 		verbose(env, "kernel function %s args#%d expected pointer to %s %s but R%d has a pointer to %s %s\n",
 			meta->func_name, argno, btf_type_str(ref_t), ref_tname, argno + 1,
 			btf_type_str(reg_ref_t), reg_ref_tname);

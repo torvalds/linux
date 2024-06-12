@@ -5820,6 +5820,15 @@ static int find_kern_ctx_type_id(enum bpf_prog_type prog_type)
 	return ctx_type->type;
 }
 
+bool btf_is_projection_of(const char *pname, const char *tname)
+{
+	if (strcmp(pname, "__sk_buff") == 0 && strcmp(tname, "sk_buff") == 0)
+		return true;
+	if (strcmp(pname, "xdp_md") == 0 && strcmp(tname, "xdp_buff") == 0)
+		return true;
+	return false;
+}
+
 bool btf_is_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 			  const struct btf_type *t, enum bpf_prog_type prog_type,
 			  int arg)
@@ -5882,9 +5891,7 @@ again:
 	 * int socket_filter_bpf_prog(struct __sk_buff *skb)
 	 * { // no fields of skb are ever used }
 	 */
-	if (strcmp(ctx_tname, "__sk_buff") == 0 && strcmp(tname, "sk_buff") == 0)
-		return true;
-	if (strcmp(ctx_tname, "xdp_md") == 0 && strcmp(tname, "xdp_buff") == 0)
+	if (btf_is_projection_of(ctx_tname, tname))
 		return true;
 	if (strcmp(ctx_tname, tname)) {
 		/* bpf_user_pt_regs_t is a typedef, so resolve it to
