@@ -70,6 +70,7 @@ TEST_PROGS = bridge_fdb_learning_limit.sh \
 	router_broadcast.sh \
 	router_mpath_nh_res.sh \
 	router_mpath_nh.sh \
+	router_mpath_seed.sh \
 	router_multicast.sh \
 	router_multipath.sh \
 	router_nh.sh \
