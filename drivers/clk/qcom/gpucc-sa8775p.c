@@ -523,6 +523,9 @@ static struct clk_regmap *gpu_cc_sa8775p_clocks[] = {
 
 static struct gdsc cx_gdsc = {
 	.gdscr = 0x9108,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.gds_hw_ctrl = 0x953c,
 	.pd = {
 		.name = "cx_gdsc",
@@ -533,6 +536,9 @@ static struct gdsc cx_gdsc = {
 
 static struct gdsc gx_gdsc = {
 	.gdscr = 0x905c,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "gx_gdsc",
 		.power_on = gdsc_gx_do_nothing_enable,
