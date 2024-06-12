@@ -51,7 +51,8 @@ EXPORT_SYMBOL_GPL(ttm_device_kunit_init);
 
 struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 					    struct ttm_test_devices *devs,
-					    size_t size)
+					    size_t size,
+					    struct dma_resv *obj)
 {
 	struct drm_gem_object gem_obj = { };
 	struct ttm_buffer_object *bo;
@@ -61,6 +62,10 @@ struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 	KUNIT_ASSERT_NOT_NULL(test, bo);
 
 	bo->base = gem_obj;
+
+	if (obj)
+		bo->base.resv = obj;
+
 	err = drm_gem_object_init(devs->drm, &bo->base, size);
 	KUNIT_ASSERT_EQ(test, err, 0);
 

@@ -54,7 +54,7 @@ static void ttm_init_test_mocks(struct kunit *test,
 	/* Make sure we have what we need for a good BO mock */
 	KUNIT_ASSERT_NOT_NULL(test, priv->devs->ttm_dev);
 
-	priv->bo = ttm_bo_kunit_init(test, priv->devs, size);
+	priv->bo = ttm_bo_kunit_init(test, priv->devs, size, NULL);
 	priv->place = ttm_place_kunit_init(test, mem_type, flags);
 }
 

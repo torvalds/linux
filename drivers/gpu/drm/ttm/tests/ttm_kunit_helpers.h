@@ -28,7 +28,8 @@ int ttm_device_kunit_init(struct ttm_test_devices *priv,
 			  bool use_dma32);
 struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 					    struct ttm_test_devices *devs,
-					    size_t size);
+					    size_t size,
+					    struct dma_resv *obj);
 struct ttm_place *ttm_place_kunit_init(struct kunit *test,
 				       uint32_t mem_type, uint32_t flags);
 
