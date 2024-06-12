@@ -117,6 +117,7 @@ config CAN_KVASER_USB
 	    - Kvaser U100S
 	    - ATI Memorator Pro 2xHS v2
 	    - ATI USBcan Pro 2xHS v2
+	    - Vining 800
 
 	  If unsure, say N.
 
