@@ -1615,11 +1615,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	/* abort any running channel switch or color change */
 	link_conf->csa_active = false;
 	link_conf->color_change_active = false;
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	ieee80211_free_next_beacon(link);
 
@@ -3757,11 +3753,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 
 	ieee80211_link_info_change_notify(sdata, link_data, changed);
 
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	err = drv_post_channel_switch(link_data);
 	if (err)
@@ -4038,12 +4030,8 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	link_data->csa.chanreq = chanreq;
 	link_conf->csa_active = true;
 
-	if (params->block_tx &&
-	    !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA)) {
-		ieee80211_stop_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = true;
-	}
+	if (params->block_tx)
+		ieee80211_vif_block_queues_csa(sdata);
 
 	cfg80211_ch_switch_started_notify(sdata->dev,
 					  &link_data->csa.chanreq.oper, link_id,

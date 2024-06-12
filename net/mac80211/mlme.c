@@ -2166,7 +2166,6 @@ static void ieee80211_csa_switch_work(struct wiphy *wiphy,
 static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	int ret;
 
@@ -2174,11 +2173,7 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 
 	WARN_ON(!link->conf->csa_active);
 
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	link->conf->csa_active = false;
 	link->u.mgd.csa.blocked_tx = false;
@@ -2242,11 +2237,7 @@ ieee80211_sta_abort_chanswitch(struct ieee80211_link_data *link)
 
 	ieee80211_link_unreserve_chanctx(link);
 
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	link->conf->csa_active = false;
 	link->u.mgd.csa.blocked_tx = false;
@@ -2571,12 +2562,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	link->u.mgd.beacon_crc_valid = false;
 	link->u.mgd.csa.blocked_tx = csa_ie.mode;
 
-	if (csa_ie.mode &&
-	    !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA)) {
-		ieee80211_stop_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = true;
-	}
+	if (csa_ie.mode)
+		ieee80211_vif_block_queues_csa(sdata);
 
 	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chanreq.oper,
 					  link->link_id, csa_ie.count,
@@ -3670,11 +3657,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->deflink.u.mgd.csa.blocked_tx = false;
 	sdata->deflink.u.mgd.csa.waiting_bcn = false;
 	sdata->deflink.u.mgd.csa.ignored_same_chan = false;
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	/* existing TX TSPEC sessions no longer exist */
 	memset(ifmgd->tx_tspec, 0, sizeof(ifmgd->tx_tspec));
@@ -4045,11 +4028,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.csa_active = false;
 	sdata->deflink.u.mgd.csa.waiting_bcn = false;
 	sdata->deflink.u.mgd.csa.blocked_tx = false;
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	ieee80211_report_disconnect(sdata, frame_buf, sizeof(frame_buf), tx,
 				    WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,

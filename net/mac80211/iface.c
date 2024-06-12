@@ -544,11 +544,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	sdata->vif.bss_conf.csa_active = false;
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		sdata->deflink.u.mgd.csa.waiting_bcn = false;
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	wiphy_work_cancel(local->hw.wiphy, &sdata->deflink.csa.finalize_work);
 	wiphy_work_cancel(local->hw.wiphy,
@@ -2344,4 +2340,27 @@ void ieee80211_vif_dec_num_mcast(struct ieee80211_sub_if_data *sdata)
 		atomic_dec(&sdata->u.ap.num_mcast_sta);
 	else if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		atomic_dec(&sdata->u.vlan.num_mcast_sta);
+}
+
+void ieee80211_vif_block_queues_csa(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA))
+		return;
+
+	ieee80211_stop_vif_queues(local, sdata,
+				  IEEE80211_QUEUE_STOP_REASON_CSA);
+	sdata->csa_blocked_queues = true;
+}
+
+void ieee80211_vif_unblock_queues_csa(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (sdata->csa_blocked_queues) {
+		ieee80211_wake_vif_queues(local, sdata,
+					  IEEE80211_QUEUE_STOP_REASON_CSA);
+		sdata->csa_blocked_queues = false;
+	}
 }

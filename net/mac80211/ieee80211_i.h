@@ -1823,6 +1823,9 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_dec_num_mcast(struct ieee80211_sub_if_data *sdata);
 
+void ieee80211_vif_block_queues_csa(struct ieee80211_sub_if_data *sdata);
+void ieee80211_vif_unblock_queues_csa(struct ieee80211_sub_if_data *sdata);
+
 /* This function returns the number of multicast stations connected to this
  * interface. It returns -1 if that number is not tracked, that is for netdevs
  * not in AP or AP_VLAN mode or when using 4addr.
