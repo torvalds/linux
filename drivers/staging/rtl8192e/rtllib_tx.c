@@ -373,7 +373,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	struct rt_hi_throughput *ht_info;
 
 	tcb_desc->bRTSSTBC			= false;
-	tcb_desc->bRTSUseShortGI		= false;
+	tcb_desc->rts_use_short_gi		= false;
 	tcb_desc->cts_enable			= false;
 	tcb_desc->RTSSC				= 0;
 	tcb_desc->rts_bw			= false;
