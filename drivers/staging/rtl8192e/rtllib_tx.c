@@ -280,7 +280,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 
-	if (tcb_desc->bdhcp || ieee->CntAfterLink < 2)
+	if (tcb_desc->bdhcp || ieee->cnt_after_link < 2)
 		return;
 
 	if (ht_info->iot_action & HT_IOT_ACT_TX_NO_AGGREGATION)
