@@ -777,19 +777,6 @@ bool intel_fb_uses_dpt(const struct drm_framebuffer *fb)
 		intel_fb_modifier_uses_dpt(to_i915(fb->dev), fb->modifier);
 }
 
-static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_priv)
-{
-	if (DISPLAY_VER(dev_priv) >= 9)
-		return 256 * 1024;
-	else if (IS_I965G(dev_priv) || IS_I965GM(dev_priv) ||
-		 IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return 128 * 1024;
-	else if (DISPLAY_VER(dev_priv) >= 4)
-		return 4 * 1024;
-	else
-		return 0;
-}
-
 unsigned int intel_surf_alignment(struct intel_plane *plane,
 				  const struct drm_framebuffer *fb,
 				  int color_plane)
@@ -825,7 +812,7 @@ unsigned int intel_surf_alignment(struct intel_plane *plane,
 		 */
 		if (DISPLAY_VER(dev_priv) >= 12) {
 			if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
-				return intel_linear_alignment(dev_priv);
+				return 256 * 1024;
 
 			return intel_tile_row_size(fb, color_plane);
 		}
@@ -837,7 +824,7 @@ unsigned int intel_surf_alignment(struct intel_plane *plane,
 
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
-		return intel_linear_alignment(dev_priv);
+		return 256 * 1024;
 	case I915_FORMAT_MOD_X_TILED:
 		if (HAS_ASYNC_FLIPS(dev_priv))
 			return 256 * 1024;
