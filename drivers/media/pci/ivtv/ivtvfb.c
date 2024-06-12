@@ -104,6 +104,7 @@ MODULE_PARM_DESC(osd_xres,
 		 "\t\t\tdefault 640");
 
 MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil, John Harvey, Ian Armstrong");
+MODULE_DESCRIPTION("Conexant cx23415 framebuffer support");
 MODULE_LICENSE("GPL");
 
 /* --------------------------------------------------------------------- */

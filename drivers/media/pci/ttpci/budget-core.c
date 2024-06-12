@@ -602,4 +602,5 @@ void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port)
 }
 EXPORT_SYMBOL_GPL(ttpci_budget_set_video_port);
 
+MODULE_DESCRIPTION("base driver for the SAA7146 based Budget DVB cards");
 MODULE_LICENSE("GPL");

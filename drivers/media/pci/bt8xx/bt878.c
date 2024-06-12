@@ -563,4 +563,5 @@ static void __exit bt878_cleanup_module(void)
 module_init(bt878_init_module);
 module_exit(bt878_cleanup_module);
 
+MODULE_DESCRIPTION("DVB/ATSC Support for bt878 based TV cards");
 MODULE_LICENSE("GPL");
