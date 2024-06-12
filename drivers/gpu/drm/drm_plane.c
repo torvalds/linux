@@ -877,8 +877,8 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int drm_plane_check_pixel_format(struct drm_plane *plane,
-				 u32 format, u64 modifier)
+bool drm_plane_has_format(struct drm_plane *plane,
+			  u32 format, u64 modifier)
 {
 	unsigned int i;
 
@@ -887,24 +887,24 @@ int drm_plane_check_pixel_format(struct drm_plane *plane,
 			break;
 	}
 	if (i == plane->format_count)
-		return -EINVAL;
+		return false;
 
 	if (plane->funcs->format_mod_supported) {
 		if (!plane->funcs->format_mod_supported(plane, format, modifier))
-			return -EINVAL;
+			return false;
 	} else {
 		if (!plane->modifier_count)
-			return 0;
+			return true;
 
 		for (i = 0; i < plane->modifier_count; i++) {
 			if (modifier == plane->modifiers[i])
 				break;
 		}
 		if (i == plane->modifier_count)
-			return -EINVAL;
+			return false;
 	}
 
-	return 0;
+	return true;
 }
 
 static int __setplane_check(struct drm_plane *plane,
@@ -924,12 +924,10 @@ static int __setplane_check(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, fb->format->format,
-					   fb->modifier);
-	if (ret) {
+	if (!drm_plane_has_format(plane, fb->format->format, fb->modifier)) {
 		DRM_DEBUG_KMS("Invalid pixel format %p4cc, modifier 0x%llx\n",
 			      &fb->format->format, fb->modifier);
-		return ret;
+		return -EINVAL;
 	}
 
 	/* Give drivers some help against integer overflows */
@@ -964,7 +962,7 @@ bool drm_any_plane_has_format(struct drm_device *dev,
 	struct drm_plane *plane;
 
 	drm_for_each_plane(plane, dev) {
-		if (drm_plane_check_pixel_format(plane, format, modifier) == 0)
+		if (drm_plane_has_format(plane, format, modifier))
 			return true;
 	}
 
