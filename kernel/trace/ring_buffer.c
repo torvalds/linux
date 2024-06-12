@@ -2397,6 +2397,29 @@ struct trace_buffer *__ring_buffer_alloc_range(unsigned long size, unsigned flag
 }
 
 /**
+ * ring_buffer_last_boot_delta - return the delta offset from last boot
+ * @buffer: The buffer to return the delta from
+ * @text: Return text delta
+ * @data: Return data delta
+ *
+ * Returns: The true if the delta is non zero
+ */
+bool ring_buffer_last_boot_delta(struct trace_buffer *buffer, long *text,
+				 long *data)
+{
+	if (!buffer)
+		return false;
+
+	if (!buffer->last_text_delta)
+		return false;
+
+	*text = buffer->last_text_delta;
+	*data = buffer->last_data_delta;
+
+	return true;
+}
+
+/**
  * ring_buffer_free - free a ring buffer.
  * @buffer: the buffer to free.
  */
