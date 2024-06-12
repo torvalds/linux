@@ -585,12 +585,6 @@ static bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int color_pl
 	return intel_fb_rc_ccs_cc_plane(fb) == color_plane;
 }
 
-bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb, int color_plane)
-{
-	return intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier) &&
-		color_plane == 1;
-}
-
 bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane)
 {
 	return fb->modifier == DRM_FORMAT_MOD_LINEAR ||
@@ -1020,11 +1014,7 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	struct drm_i915_private *i915 = to_i915(fb->dev);
 	unsigned int height, alignment, unused;
 
-	if (DISPLAY_VER(i915) >= 12 &&
-	    !intel_fb_needs_pot_stride_remap(to_intel_framebuffer(fb)) &&
-	    is_semiplanar_uv_plane(fb, color_plane))
-		alignment = intel_tile_row_size(fb, color_plane);
-	else if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
+	if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
 		alignment = intel_tile_size(i915);
 	else
 		alignment = 0;

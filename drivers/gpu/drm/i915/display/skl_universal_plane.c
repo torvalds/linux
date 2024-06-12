@@ -515,20 +515,6 @@ static u32 tgl_plane_min_alignment(struct intel_plane *plane,
 	if (intel_fb_is_ccs_aux_plane(fb, color_plane))
 		return mult * 4 * 1024;
 
-	if (is_semiplanar_uv_plane(fb, color_plane)) {
-		if (intel_fb_uses_dpt(fb))
-			return 512 * 4 * 1024;
-
-		/*
-		 * TODO: cross-check wrt. the bspec stride in bytes * 64 bytes
-		 * alignment for linear UV planes on all platforms.
-		 */
-		if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
-			return 256 * 1024;
-
-		return intel_tile_row_size(fb, color_plane);
-	}
-
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
