@@ -293,7 +293,7 @@ ssize_t mipi_dsi_generic_read(struct mipi_dsi_device *dsi, const void *params,
 
 #define mipi_dsi_msleep(ctx, delay)	\
 	do {				\
-		if (!ctx.accum_err)	\
+		if (!(ctx)->accum_err)	\
 			msleep(delay);	\
 	} while (0)
 
