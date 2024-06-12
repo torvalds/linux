@@ -433,4 +433,4 @@ static struct kunit_suite ttm_pool_test_suite = {
 
 kunit_test_suites(&ttm_pool_test_suite);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL and additional rights");
