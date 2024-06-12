@@ -99,7 +99,6 @@ struct wcd937x_priv {
 	s32 pullup_ref[WCD937X_MAX_MICBIAS];
 	u32 hph_mode;
 	int ear_rx_path;
-	u32 chipid;
 	u32 micb1_mv;
 	u32 micb2_mv;
 	u32 micb3_mv;
@@ -2539,6 +2538,7 @@ static int wcd937x_soc_codec_probe(struct snd_soc_component *component)
 	struct device *dev = component->dev;
 	unsigned long time_left;
 	int i, ret;
+	u32 chipid;
 
 	time_left = wait_for_completion_timeout(&tx_sdw_dev->initialization_complete,
 						msecs_to_jiffies(5000));
@@ -2552,11 +2552,10 @@ static int wcd937x_soc_codec_probe(struct snd_soc_component *component)
 	if (ret < 0)
 		return ret;
 
-	wcd937x->chipid = (snd_soc_component_read(component,
-				WCD937X_DIGITAL_EFUSE_REG_0) & 0x1e) >> 1;
-	if (wcd937x->chipid != CHIPID_WCD9370 &&
-	    wcd937x->chipid != CHIPID_WCD9375) {
-		dev_err(dev, "Got unknown chip id: 0x%x\n", wcd937x->chipid);
+	chipid = (snd_soc_component_read(component,
+					 WCD937X_DIGITAL_EFUSE_REG_0) & 0x1e) >> 1;
+	if (chipid != CHIPID_WCD9370 && chipid != CHIPID_WCD9375) {
+		dev_err(dev, "Got unknown chip id: 0x%x\n", chipid);
 		pm_runtime_put(dev);
 		return -EINVAL;
 	}
@@ -2605,7 +2604,7 @@ static int wcd937x_soc_codec_probe(struct snd_soc_component *component)
 	disable_irq_nosync(wcd937x->hphl_pdm_wd_int);
 	disable_irq_nosync(wcd937x->aux_pdm_wd_int);
 
-	if (wcd937x->chipid == CHIPID_WCD9375) {
+	if (chipid == CHIPID_WCD9375) {
 		ret = snd_soc_dapm_new_controls(dapm, wcd9375_dapm_widgets,
 						ARRAY_SIZE(wcd9375_dapm_widgets));
 		if (ret < 0) {
