@@ -68,6 +68,18 @@ static bool rdhwr_count_usable(void)
 	return false;
 }
 
+static inline __init bool count_can_be_sched_clock(void)
+{
+	if (IS_ENABLED(CONFIG_CPU_FREQ))
+		return false;
+
+	if (num_possible_cpus() > 1 &&
+			!IS_ENABLED(CONFIG_HAVE_UNSTABLE_SCHED_CLOCK))
+		return false;
+
+	return true;
+}
+
 #ifdef CONFIG_CPU_FREQ
 
 static bool __read_mostly r4k_clock_unstable;
@@ -125,9 +137,8 @@ int __init init_r4k_clocksource(void)
 
 	clocksource_register_hz(&clocksource_mips, mips_hpt_frequency);
 
-#ifndef CONFIG_CPU_FREQ
-	sched_clock_register(r4k_read_sched_clock, 32, mips_hpt_frequency);
-#endif
+	if (count_can_be_sched_clock())
+		sched_clock_register(r4k_read_sched_clock, 32, mips_hpt_frequency);
 
 	return 0;
 }
