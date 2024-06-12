@@ -45,6 +45,7 @@
 static void update_pages_handler(struct work_struct *work);
 
 struct ring_buffer_meta {
+	unsigned long	first_buffer;
 	unsigned long	head_buffer;
 	unsigned long	commit_buffer;
 	__u32		subbuf_size;
@@ -1618,20 +1619,102 @@ static void *rb_range_buffer(struct ring_buffer_per_cpu *cpu_buffer, int idx)
 	return (void *)ptr;
 }
 
+/*
+ * See if the existing memory contains valid ring buffer data.
+ * As the previous kernel must be the same as this kernel, all
+ * the calculations (size of buffers and number of buffers)
+ * must be the same.
+ */
+static bool rb_meta_valid(struct ring_buffer_meta *meta, int cpu,
+			  struct trace_buffer *buffer, int nr_pages)
+{
+	int subbuf_size = PAGE_SIZE;
+	struct buffer_data_page *subbuf;
+	unsigned long buffers_start;
+	unsigned long buffers_end;
+	int i;
+
+	/* The subbuffer's size and number of subbuffers must match */
+	if (meta->subbuf_size != subbuf_size ||
+	    meta->nr_subbufs != nr_pages + 1) {
+		pr_info("Ring buffer boot meta [%d] mismatch of subbuf_size/nr_pages\n", cpu);
+		return false;
+	}
+
+	buffers_start = meta->first_buffer;
+	buffers_end = meta->first_buffer + (subbuf_size * meta->nr_subbufs);
+
+	/* Is the head and commit buffers within the range of buffers? */
+	if (meta->head_buffer < buffers_start ||
+	    meta->head_buffer >= buffers_end) {
+		pr_info("Ring buffer boot meta [%d] head buffer out of range\n", cpu);
+		return false;
+	}
+
+	if (meta->commit_buffer < buffers_start ||
+	    meta->commit_buffer >= buffers_end) {
+		pr_info("Ring buffer boot meta [%d] commit buffer out of range\n", cpu);
+		return false;
+	}
+
+	subbuf = rb_subbufs_from_meta(meta);
+
+	/* Is the meta buffers and the subbufs themselves have correct data? */
+	for (i = 0; i < meta->nr_subbufs; i++) {
+		if (meta->buffers[i] < 0 ||
+		    meta->buffers[i] >= meta->nr_subbufs) {
+			pr_info("Ring buffer boot meta [%d] array out of range\n", cpu);
+			return false;
+		}
+
+		if ((unsigned)local_read(&subbuf->commit) > subbuf_size) {
+			pr_info("Ring buffer boot meta [%d] buffer invalid commit\n", cpu);
+			return false;
+		}
+
+		subbuf = (void *)subbuf + subbuf_size;
+	}
+
+	pr_info("Ring buffer meta is from previous boot!\n");
+	return true;
+}
+
 static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages)
 {
 	struct ring_buffer_meta *meta;
+	unsigned long delta;
 	void *subbuf;
 	int cpu;
 	int i;
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+		void *next_meta;
+
 		meta = rb_range_meta(buffer, nr_pages, cpu);
+
+		if (rb_meta_valid(meta, cpu, buffer, nr_pages)) {
+			/* Make the mappings match the current address */
+			subbuf = rb_subbufs_from_meta(meta);
+			delta = (unsigned long)subbuf - meta->first_buffer;
+			meta->first_buffer += delta;
+			meta->head_buffer += delta;
+			meta->commit_buffer += delta;
+			continue;
+		}
+
+		if (cpu < nr_cpu_ids - 1)
+			next_meta = rb_range_meta(buffer, nr_pages, cpu + 1);
+		else
+			next_meta = (void *)buffer->range_addr_end;
+
+		memset(meta, 0, next_meta - (void *)meta);
 
 		meta->nr_subbufs = nr_pages + 1;
 		meta->subbuf_size = PAGE_SIZE;
 
 		subbuf = rb_subbufs_from_meta(meta);
+
+		meta->first_buffer = (unsigned long)subbuf;
 
 		/*
 		 * The buffers[] array holds the order of the sub-buffers
@@ -1724,10 +1807,26 @@ int ring_buffer_meta_seq_init(struct file *file, struct trace_buffer *buffer, in
 	return 0;
 }
 
+/* Map the buffer_pages to the previous head and commit pages */
+static void rb_meta_buffer_update(struct ring_buffer_per_cpu *cpu_buffer,
+				  struct buffer_page *bpage)
+{
+	struct ring_buffer_meta *meta = cpu_buffer->ring_meta;
+
+	if (meta->head_buffer == (unsigned long)bpage->page)
+		cpu_buffer->head_page = bpage;
+
+	if (meta->commit_buffer == (unsigned long)bpage->page) {
+		cpu_buffer->commit_page = bpage;
+		cpu_buffer->tail_page = bpage;
+	}
+}
+
 static int __rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 		long nr_pages, struct list_head *pages)
 {
 	struct trace_buffer *buffer = cpu_buffer->buffer;
+	struct ring_buffer_meta *meta = NULL;
 	struct buffer_page *bpage, *tmp;
 	bool user_thread = current->mm != NULL;
 	gfp_t mflags;
@@ -1762,6 +1861,10 @@ static int __rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 	 */
 	if (user_thread)
 		set_current_oom_origin();
+
+	if (buffer->range_addr_start)
+		meta = rb_range_meta(buffer, nr_pages, cpu_buffer->cpu);
+
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page;
 
@@ -1778,11 +1881,14 @@ static int __rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 		 */
 		list_add_tail(&bpage->list, pages);
 
-		if (buffer->range_addr_start) {
+		if (meta) {
 			/* A range was given. Use that for the buffer page */
 			bpage->page = rb_range_buffer(cpu_buffer, i + 1);
 			if (!bpage->page)
 				goto free_pages;
+			/* If this is valid from a previous boot */
+			if (meta->head_buffer)
+				rb_meta_buffer_update(cpu_buffer, bpage);
 			bpage->range = 1;
 			bpage->id = i + 1;
 		} else {
@@ -1844,6 +1950,7 @@ static struct ring_buffer_per_cpu *
 rb_allocate_cpu_buffer(struct trace_buffer *buffer, long nr_pages, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
+	struct ring_buffer_meta *meta;
 	struct buffer_page *bpage;
 	struct page *page;
 	int ret;
@@ -1884,6 +1991,8 @@ rb_allocate_cpu_buffer(struct trace_buffer *buffer, long nr_pages, int cpu)
 		bpage->page = rb_range_buffer(cpu_buffer, 0);
 		if (!bpage->page)
 			goto fail_free_reader;
+		if (cpu_buffer->ring_meta->head_buffer)
+			rb_meta_buffer_update(cpu_buffer, bpage);
 		bpage->range = 1;
 	} else {
 		page = alloc_pages_node(cpu_to_node(cpu),
@@ -1902,14 +2011,32 @@ rb_allocate_cpu_buffer(struct trace_buffer *buffer, long nr_pages, int cpu)
 	if (ret < 0)
 		goto fail_free_reader;
 
-	cpu_buffer->head_page
-		= list_entry(cpu_buffer->pages, struct buffer_page, list);
-	cpu_buffer->tail_page = cpu_buffer->commit_page = cpu_buffer->head_page;
+	/* If the boot meta was valid then this has already been updated */
+	meta = cpu_buffer->ring_meta;
+	if (!meta || !meta->head_buffer ||
+	    !cpu_buffer->head_page || !cpu_buffer->commit_page || !cpu_buffer->tail_page) {
+		if (meta && meta->head_buffer &&
+		    (cpu_buffer->head_page || cpu_buffer->commit_page || cpu_buffer->tail_page)) {
+			pr_warn("Ring buffer meta buffers not all mapped\n");
+			if (!cpu_buffer->head_page)
+				pr_warn("   Missing head_page\n");
+			if (!cpu_buffer->commit_page)
+				pr_warn("   Missing commit_page\n");
+			if (!cpu_buffer->tail_page)
+				pr_warn("   Missing tail_page\n");
+		}
 
-	rb_head_page_activate(cpu_buffer);
-	if (cpu_buffer->ring_meta) {
-		struct ring_buffer_meta *meta = cpu_buffer->ring_meta;
-		meta->commit_buffer = meta->head_buffer;
+		cpu_buffer->head_page
+			= list_entry(cpu_buffer->pages, struct buffer_page, list);
+		cpu_buffer->tail_page = cpu_buffer->commit_page = cpu_buffer->head_page;
+
+		rb_head_page_activate(cpu_buffer);
+
+		if (cpu_buffer->ring_meta)
+			meta->commit_buffer = meta->head_buffer;
+	} else {
+		/* The valid meta buffer still needs to activate the head page */
+		rb_head_page_activate(cpu_buffer);
 	}
 
 	return cpu_buffer;
