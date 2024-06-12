@@ -133,7 +133,7 @@ struct wcd937x_mbhc_zdet_param {
 	u16 btn7;
 };
 
-static struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
+static const struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
 	WCD_MBHC_FIELD(WCD_MBHC_L_DET_EN, WCD937X_ANA_MBHC_MECH, 0x80),
 	WCD_MBHC_FIELD(WCD_MBHC_GND_DET_EN, WCD937X_ANA_MBHC_MECH, 0x40),
 	WCD_MBHC_FIELD(WCD_MBHC_MECH_DETECTION_TYPE, WCD937X_ANA_MBHC_MECH, 0x20),
@@ -227,7 +227,7 @@ static const u32 wcd937x_config_regs[] = {
 	WCD937X_DIGITAL_INTR_LEVEL_0,
 };
 
-static struct regmap_irq_chip wcd937x_regmap_irq_chip = {
+static const struct regmap_irq_chip wcd937x_regmap_irq_chip = {
 	.name = "wcd937x",
 	.irqs = wcd937x_irqs,
 	.num_irqs = ARRAY_SIZE(wcd937x_irqs),
@@ -2503,7 +2503,7 @@ static irqreturn_t wcd937x_wd_handle_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct irq_chip wcd_irq_chip = {
+static const struct irq_chip wcd_irq_chip = {
 	.name = "WCD937x",
 };
 
