@@ -111,7 +111,8 @@ int __init init_r4k_clocksource(void)
 		return -ENXIO;
 
 	/* Calculate a somewhat reasonable rating value */
-	clocksource_mips.rating = 200 + mips_hpt_frequency / 10000000;
+	clocksource_mips.rating = 200;
+	clocksource_mips.rating += clamp(mips_hpt_frequency / 10000000, 0, 99);
 
 	/*
 	 * R2 onwards makes the count accessible to user mode so it can be used
