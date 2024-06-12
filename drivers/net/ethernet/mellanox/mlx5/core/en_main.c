@@ -3125,6 +3125,7 @@ static void mlx5e_build_txq_maps(struct mlx5e_priv *priv)
 			struct mlx5e_txqsq *sq = &c->sq[tc];
 
 			priv->txq2sq[sq->txq_ix] = sq;
+			priv->txq2sq_stats[sq->txq_ix] = sq->stats;
 		}
 	}
 
@@ -3139,6 +3140,7 @@ static void mlx5e_build_txq_maps(struct mlx5e_priv *priv)
 		struct mlx5e_txqsq *sq = &c->ptpsq[tc].txqsq;
 
 		priv->txq2sq[sq->txq_ix] = sq;
+		priv->txq2sq_stats[sq->txq_ix] = sq->stats;
 	}
 
 out:
@@ -5848,9 +5850,13 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	if (!priv->txq2sq)
 		goto err_destroy_workqueue;
 
+	priv->txq2sq_stats = kcalloc_node(num_txqs, sizeof(*priv->txq2sq_stats), GFP_KERNEL, node);
+	if (!priv->txq2sq_stats)
+		goto err_free_txq2sq;
+
 	priv->tx_rates = kcalloc_node(num_txqs, sizeof(*priv->tx_rates), GFP_KERNEL, node);
 	if (!priv->tx_rates)
-		goto err_free_txq2sq;
+		goto err_free_txq2sq_stats;
 
 	priv->channel_stats =
 		kcalloc_node(nch, sizeof(*priv->channel_stats), GFP_KERNEL, node);
@@ -5861,6 +5867,8 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 
 err_free_tx_rates:
 	kfree(priv->tx_rates);
+err_free_txq2sq_stats:
+	kfree(priv->txq2sq_stats);
 err_free_txq2sq:
 	kfree(priv->txq2sq);
 err_destroy_workqueue:
@@ -5884,6 +5892,7 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 		kvfree(priv->channel_stats[i]);
 	kfree(priv->channel_stats);
 	kfree(priv->tx_rates);
+	kfree(priv->txq2sq_stats);
 	kfree(priv->txq2sq);
 	destroy_workqueue(priv->wq);
 	mlx5e_selq_cleanup(&priv->selq);
