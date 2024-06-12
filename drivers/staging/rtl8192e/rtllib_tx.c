@@ -538,7 +538,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	u8 src[ETH_ALEN];
 	struct lib80211_crypt_data *crypt = NULL;
 	struct cb_desc *tcb_desc;
-	u8 bIsMulticast = false;
+	u8 is_multicast = false;
 	u8 IsAmsdu = false;
 	bool	bdhcp = false;
 
@@ -655,14 +655,14 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			ether_addr_copy(header.addr3, dest);
 	}
 
-	bIsMulticast = is_multicast_ether_addr(header.addr1);
+	is_multicast = is_multicast_ether_addr(header.addr1);
 
 	header.frame_control = cpu_to_le16(fc);
 
 	/* Determine fragmentation size based on destination (multicast
 	 * and broadcast are not fragmented)
 	 */
-	if (bIsMulticast) {
+	if (is_multicast) {
 		frag_size = MAX_FRAG_THRESHOLD;
 		qos_ctl |= QOS_CTL_NOTCONTAIN_ACK;
 	} else {
@@ -774,7 +774,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			/* The last fragment has the remaining length */
 			bytes = bytes_last_frag;
 		}
-		if ((qos_activated) && (!bIsMulticast)) {
+		if ((qos_activated) && (!is_multicast)) {
 			frag_hdr->seq_ctrl =
 				 cpu_to_le16(rtllib_query_seqnum(ieee, skb_frag,
 								 header.addr1));
@@ -809,7 +809,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			skb_put(skb_frag, 4);
 	}
 
-	if ((qos_activated) && (!bIsMulticast)) {
+	if ((qos_activated) && (!is_multicast)) {
 		if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
 			ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
 		else
