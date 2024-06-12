@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2023, Linaro Limited
  */
 
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/err.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -1727,26 +1725,6 @@ static struct clk_branch gcc_aggre_ufs_phy_axi_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data){
 			.name = "gcc_aggre_ufs_phy_axi_clk",
-			.parent_hws = (const struct clk_hw*[]){
-				&gcc_ufs_phy_axi_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gcc_aggre_ufs_phy_axi_hw_ctl_clk = {
-	.halt_reg = 0x830d4,
-	.halt_check = BRANCH_HALT_VOTED,
-	.hwcg_reg = 0x830d4,
-	.hwcg_bit = 1,
-	.clkr = {
-		.enable_reg = 0x830d4,
-		.enable_mask = BIT(1),
-		.hw.init = &(const struct clk_init_data){
-			.name = "gcc_aggre_ufs_phy_axi_hw_ctl_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&gcc_ufs_phy_axi_clk_src.clkr.hw,
 			},
@@ -3809,26 +3787,6 @@ static struct clk_branch gcc_ufs_phy_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_ufs_phy_axi_hw_ctl_clk = {
-	.halt_reg = 0x83018,
-	.halt_check = BRANCH_HALT_VOTED,
-	.hwcg_reg = 0x83018,
-	.hwcg_bit = 1,
-	.clkr = {
-		.enable_reg = 0x83018,
-		.enable_mask = BIT(1),
-		.hw.init = &(const struct clk_init_data){
-			.name = "gcc_ufs_phy_axi_hw_ctl_clk",
-			.parent_hws = (const struct clk_hw*[]){
-				&gcc_ufs_phy_axi_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch gcc_ufs_phy_ice_core_clk = {
 	.halt_reg = 0x8306c,
 	.halt_check = BRANCH_HALT_VOTED,
@@ -3849,26 +3807,6 @@ static struct clk_branch gcc_ufs_phy_ice_core_clk = {
 	},
 };
 
-static struct clk_branch gcc_ufs_phy_ice_core_hw_ctl_clk = {
-	.halt_reg = 0x8306c,
-	.halt_check = BRANCH_HALT_VOTED,
-	.hwcg_reg = 0x8306c,
-	.hwcg_bit = 1,
-	.clkr = {
-		.enable_reg = 0x8306c,
-		.enable_mask = BIT(1),
-		.hw.init = &(const struct clk_init_data){
-			.name = "gcc_ufs_phy_ice_core_hw_ctl_clk",
-			.parent_hws = (const struct clk_hw*[]){
-				&gcc_ufs_phy_ice_core_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch gcc_ufs_phy_phy_aux_clk = {
 	.halt_reg = 0x830a4,
 	.halt_check = BRANCH_HALT_VOTED,
@@ -3879,26 +3817,6 @@ static struct clk_branch gcc_ufs_phy_phy_aux_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data){
 			.name = "gcc_ufs_phy_phy_aux_clk",
-			.parent_hws = (const struct clk_hw*[]){
-				&gcc_ufs_phy_phy_aux_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gcc_ufs_phy_phy_aux_hw_ctl_clk = {
-	.halt_reg = 0x830a4,
-	.halt_check = BRANCH_HALT_VOTED,
-	.hwcg_reg = 0x830a4,
-	.hwcg_bit = 1,
-	.clkr = {
-		.enable_reg = 0x830a4,
-		.enable_mask = BIT(1),
-		.hw.init = &(const struct clk_init_data){
-			.name = "gcc_ufs_phy_phy_aux_hw_ctl_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&gcc_ufs_phy_phy_aux_clk_src.clkr.hw,
 			},
@@ -3973,26 +3891,6 @@ static struct clk_branch gcc_ufs_phy_unipro_core_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data){
 			.name = "gcc_ufs_phy_unipro_core_clk",
-			.parent_hws = (const struct clk_hw*[]){
-				&gcc_ufs_phy_unipro_core_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gcc_ufs_phy_unipro_core_hw_ctl_clk = {
-	.halt_reg = 0x83064,
-	.halt_check = BRANCH_HALT_VOTED,
-	.hwcg_reg = 0x83064,
-	.hwcg_bit = 1,
-	.clkr = {
-		.enable_reg = 0x83064,
-		.enable_mask = BIT(1),
-		.hw.init = &(const struct clk_init_data){
-			.name = "gcc_ufs_phy_unipro_core_hw_ctl_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&gcc_ufs_phy_unipro_core_clk_src.clkr.hw,
 			},
@@ -4379,7 +4277,6 @@ static struct clk_regmap *gcc_sa8775p_clocks[] = {
 	[GCC_AGGRE_NOC_QUPV3_AXI_CLK] = &gcc_aggre_noc_qupv3_axi_clk.clkr,
 	[GCC_AGGRE_UFS_CARD_AXI_CLK] = &gcc_aggre_ufs_card_axi_clk.clkr,
 	[GCC_AGGRE_UFS_PHY_AXI_CLK] = &gcc_aggre_ufs_phy_axi_clk.clkr,
-	[GCC_AGGRE_UFS_PHY_AXI_HW_CTL_CLK] = &gcc_aggre_ufs_phy_axi_hw_ctl_clk.clkr,
 	[GCC_AGGRE_USB2_PRIM_AXI_CLK] = &gcc_aggre_usb2_prim_axi_clk.clkr,
 	[GCC_AGGRE_USB3_PRIM_AXI_CLK] = &gcc_aggre_usb3_prim_axi_clk.clkr,
 	[GCC_AGGRE_USB3_SEC_AXI_CLK] = &gcc_aggre_usb3_sec_axi_clk.clkr,
@@ -4569,13 +4466,10 @@ static struct clk_regmap *gcc_sa8775p_clocks[] = {
 	[GCC_UFS_PHY_AHB_CLK] = &gcc_ufs_phy_ahb_clk.clkr,
 	[GCC_UFS_PHY_AXI_CLK] = &gcc_ufs_phy_axi_clk.clkr,
 	[GCC_UFS_PHY_AXI_CLK_SRC] = &gcc_ufs_phy_axi_clk_src.clkr,
-	[GCC_UFS_PHY_AXI_HW_CTL_CLK] = &gcc_ufs_phy_axi_hw_ctl_clk.clkr,
 	[GCC_UFS_PHY_ICE_CORE_CLK] = &gcc_ufs_phy_ice_core_clk.clkr,
 	[GCC_UFS_PHY_ICE_CORE_CLK_SRC] = &gcc_ufs_phy_ice_core_clk_src.clkr,
-	[GCC_UFS_PHY_ICE_CORE_HW_CTL_CLK] = &gcc_ufs_phy_ice_core_hw_ctl_clk.clkr,
 	[GCC_UFS_PHY_PHY_AUX_CLK] = &gcc_ufs_phy_phy_aux_clk.clkr,
 	[GCC_UFS_PHY_PHY_AUX_CLK_SRC] = &gcc_ufs_phy_phy_aux_clk_src.clkr,
-	[GCC_UFS_PHY_PHY_AUX_HW_CTL_CLK] = &gcc_ufs_phy_phy_aux_hw_ctl_clk.clkr,
 	[GCC_UFS_PHY_RX_SYMBOL_0_CLK] = &gcc_ufs_phy_rx_symbol_0_clk.clkr,
 	[GCC_UFS_PHY_RX_SYMBOL_0_CLK_SRC] = &gcc_ufs_phy_rx_symbol_0_clk_src.clkr,
 	[GCC_UFS_PHY_RX_SYMBOL_1_CLK] = &gcc_ufs_phy_rx_symbol_1_clk.clkr,
@@ -4584,7 +4478,6 @@ static struct clk_regmap *gcc_sa8775p_clocks[] = {
 	[GCC_UFS_PHY_TX_SYMBOL_0_CLK_SRC] = &gcc_ufs_phy_tx_symbol_0_clk_src.clkr,
 	[GCC_UFS_PHY_UNIPRO_CORE_CLK] = &gcc_ufs_phy_unipro_core_clk.clkr,
 	[GCC_UFS_PHY_UNIPRO_CORE_CLK_SRC] = &gcc_ufs_phy_unipro_core_clk_src.clkr,
-	[GCC_UFS_PHY_UNIPRO_CORE_HW_CTL_CLK] = &gcc_ufs_phy_unipro_core_hw_ctl_clk.clkr,
 	[GCC_USB20_MASTER_CLK] = &gcc_usb20_master_clk.clkr,
 	[GCC_USB20_MASTER_CLK_SRC] = &gcc_usb20_master_clk_src.clkr,
 	[GCC_USB20_MOCK_UTMI_CLK] = &gcc_usb20_mock_utmi_clk.clkr,
