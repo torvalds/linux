@@ -3265,8 +3265,8 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 				struct bpf_insn *insn_buf,
 				struct bpf_prog *prog,
 				u32 *target_size);
-int bpf_dynptr_from_skb_rdonly(struct sk_buff *skb, u64 flags,
-			       struct bpf_dynptr_kern *ptr);
+int bpf_dynptr_from_skb_rdonly(struct __sk_buff *skb, u64 flags,
+			       struct bpf_dynptr *ptr);
 #else
 static inline bool bpf_sock_common_is_valid_access(int off, int size,
 						   enum bpf_access_type type,
@@ -3288,8 +3288,8 @@ static inline u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 {
 	return 0;
 }
-static inline int bpf_dynptr_from_skb_rdonly(struct sk_buff *skb, u64 flags,
-					     struct bpf_dynptr_kern *ptr)
+static inline int bpf_dynptr_from_skb_rdonly(struct __sk_buff *skb, u64 flags,
+					     struct bpf_dynptr *ptr)
 {
 	return -EOPNOTSUPP;
 }

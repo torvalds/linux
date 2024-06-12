@@ -10914,7 +10914,7 @@ enum {
 };
 
 BTF_ID_LIST(kf_arg_btf_ids)
-BTF_ID(struct, bpf_dynptr_kern)
+BTF_ID(struct, bpf_dynptr)
 BTF_ID(struct, bpf_list_head)
 BTF_ID(struct, bpf_list_node)
 BTF_ID(struct, bpf_rb_root)
