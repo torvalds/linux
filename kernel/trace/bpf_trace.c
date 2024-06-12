@@ -3527,7 +3527,7 @@ __bpf_kfunc bool bpf_session_is_return(void)
 	return session_ctx->is_return;
 }
 
-__bpf_kfunc __u64 *bpf_session_cookie(void)
+__bpf_kfunc long *bpf_session_cookie(void)
 {
 	struct bpf_session_run_ctx *session_ctx;
 
