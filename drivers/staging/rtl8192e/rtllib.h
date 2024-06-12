@@ -111,7 +111,7 @@ struct cb_desc {
 
 	/* Tx Firmware Related flags (10-11)*/
 	u8 bCTSEnable:1;
-	u8 bRTSEnable:1;
+	u8 rts_enable:1;
 	u8 bUseShortGI:1;
 	u8 bUseShortPreamble:1;
 	u8 tx_enable_fw_calc_dur:1;

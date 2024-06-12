@@ -386,10 +386,10 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 
 	if (ieee->mode < WIRELESS_MODE_N_24G) {
 		if (skb->len > ieee->rts) {
-			tcb_desc->bRTSEnable = true;
+			tcb_desc->rts_enable = true;
 			tcb_desc->rts_rate = MGN_24M;
 		} else if (ieee->current_network.buseprotection) {
-			tcb_desc->bRTSEnable = true;
+			tcb_desc->rts_enable = true;
 			tcb_desc->bCTSEnable = true;
 			tcb_desc->rts_rate = MGN_24M;
 		}
@@ -402,16 +402,16 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 		if (ht_info->iot_action & HT_IOT_ACT_FORCED_CTS2SELF) {
 			tcb_desc->bCTSEnable	= true;
 			tcb_desc->rts_rate  =	MGN_24M;
-			tcb_desc->bRTSEnable = true;
+			tcb_desc->rts_enable = true;
 			break;
 		} else if (ht_info->iot_action & (HT_IOT_ACT_FORCED_RTS |
 			   HT_IOT_ACT_PURE_N_MODE)) {
-			tcb_desc->bRTSEnable = true;
+			tcb_desc->rts_enable = true;
 			tcb_desc->rts_rate  =	MGN_24M;
 			break;
 		}
 		if (ieee->current_network.buseprotection) {
-			tcb_desc->bRTSEnable = true;
+			tcb_desc->rts_enable = true;
 			tcb_desc->bCTSEnable = true;
 			tcb_desc->rts_rate = MGN_24M;
 			break;
@@ -423,18 +423,18 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 						      ht_op_mode == 3)) ||
 			     (!ht_info->cur_bw_40mhz && ht_op_mode == 3)) {
 				tcb_desc->rts_rate = MGN_24M;
-				tcb_desc->bRTSEnable = true;
+				tcb_desc->rts_enable = true;
 				break;
 			}
 		}
 		if (skb->len > ieee->rts) {
 			tcb_desc->rts_rate = MGN_24M;
-			tcb_desc->bRTSEnable = true;
+			tcb_desc->rts_enable = true;
 			break;
 		}
 		if (tcb_desc->ampdu_enable) {
 			tcb_desc->rts_rate = MGN_24M;
-			tcb_desc->bRTSEnable = false;
+			tcb_desc->rts_enable = false;
 			break;
 		}
 		goto NO_PROTECTION;
@@ -443,7 +443,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 		tcb_desc->bUseShortPreamble = true;
 	return;
 NO_PROTECTION:
-	tcb_desc->bRTSEnable	= false;
+	tcb_desc->rts_enable	= false;
 	tcb_desc->bCTSEnable	= false;
 	tcb_desc->rts_rate	= 0;
 	tcb_desc->RTSSC		= 0;
