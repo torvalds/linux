@@ -2334,7 +2334,7 @@ void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata,
 
 		chanctx = container_of(chanctx_conf, struct ieee80211_chanctx,
 				       conf);
-		ieee80211_recalc_chanctx_min_def(local, chanctx, NULL);
+		ieee80211_recalc_chanctx_min_def(local, chanctx, NULL, false);
 	}
 }
 
