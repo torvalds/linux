@@ -179,6 +179,21 @@ config LEDS_CR0014114
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-cr0014114.
 
+config LEDS_CROS_EC
+	tristate "LED Support for ChromeOS EC"
+	depends on MFD_CROS_EC_DEV
+	depends on LEDS_CLASS_MULTICOLOR
+	select LEDS_TRIGGERS
+	default MFD_CROS_EC_DEV
+	help
+	  This option enables support for LEDs managed by ChromeOS ECs.
+	  All LEDs exposed by the EC are supported in multicolor mode.
+	  A hardware trigger to switch back to the automatic behaviour is
+	  provided.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-cros_ec.
+
 config LEDS_EL15203000
 	tristate "LED Support for Crane EL15203000"
 	depends on LEDS_CLASS
