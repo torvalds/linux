@@ -305,8 +305,9 @@ int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
 	return afs_do_sync_operation(op);
 }
 
-static void afs_issue_read(struct netfs_io_subrequest *subreq)
+static void afs_read_worker(struct work_struct *work)
 {
+	struct netfs_io_subrequest *subreq = container_of(work, struct netfs_io_subrequest, work);
 	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
 	struct afs_read *fsreq;
 
@@ -323,6 +324,12 @@ static void afs_issue_read(struct netfs_io_subrequest *subreq)
 
 	afs_fetch_data(fsreq->vnode, fsreq);
 	afs_put_read(fsreq);
+}
+
+static void afs_issue_read(struct netfs_io_subrequest *subreq)
+{
+	INIT_WORK(&subreq->work, afs_read_worker);
+	queue_work(system_long_wq, &subreq->work);
 }
 
 static int afs_symlink_read_folio(struct file *file, struct folio *folio)
