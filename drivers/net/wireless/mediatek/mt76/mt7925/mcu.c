@@ -2315,11 +2315,11 @@ int mt7925_mcu_set_timing(struct mt792x_phy *phy,
 
 int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 			    struct ieee80211_chanctx_conf *ctx,
-			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf,
 			    struct ieee80211_sta *sta,
 			    int enable)
 {
-	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)link_conf->vif->drv_priv;
 	struct mt792x_dev *dev = phy->dev;
 	struct sk_buff *skb;
 	int err;
@@ -2330,18 +2330,18 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 		return PTR_ERR(skb);
 
 	/* bss_basic must be first */
-	mt7925_mcu_bss_basic_tlv(skb, vif, sta, ctx, phy->mt76,
+	mt7925_mcu_bss_basic_tlv(skb, link_conf->vif, sta, ctx, phy->mt76,
 				 mvif->sta.deflink.wcid.idx, enable);
-	mt7925_mcu_bss_sec_tlv(skb, vif);
+	mt7925_mcu_bss_sec_tlv(skb, link_conf->vif);
 
-	mt7925_mcu_bss_bmc_tlv(skb, phy, ctx, vif, sta);
-	mt7925_mcu_bss_qos_tlv(skb, vif);
-	mt7925_mcu_bss_mld_tlv(skb, vif, sta);
-	mt7925_mcu_bss_ifs_tlv(skb, vif);
+	mt7925_mcu_bss_bmc_tlv(skb, phy, ctx, link_conf->vif, sta);
+	mt7925_mcu_bss_qos_tlv(skb, link_conf->vif);
+	mt7925_mcu_bss_mld_tlv(skb, link_conf->vif, sta);
+	mt7925_mcu_bss_ifs_tlv(skb, link_conf->vif);
 
-	if (vif->bss_conf.he_support) {
-		mt7925_mcu_bss_he_tlv(skb, vif, phy);
-		mt7925_mcu_bss_color_tlv(skb, vif, enable);
+	if (link_conf->he_support) {
+		mt7925_mcu_bss_he_tlv(skb, link_conf->vif, phy);
+		mt7925_mcu_bss_color_tlv(skb, link_conf->vif, enable);
 	}
 
 	err = mt76_mcu_skb_send_msg(&dev->mt76, skb,
