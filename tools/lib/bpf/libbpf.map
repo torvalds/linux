@@ -419,6 +419,7 @@ LIBBPF_1.4.0 {
 
 LIBBPF_1.5.0 {
 	global:
+		btf__distill_base;
 		bpf_map__autoattach;
 		bpf_map__set_autoattach;
 		bpf_program__attach_sockmap;

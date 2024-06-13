@@ -1770,9 +1770,8 @@ static int btf_rewrite_str(struct btf_pipe *p, __u32 *str_off)
 	return 0;
 }
 
-int btf__add_type(struct btf *btf, const struct btf *src_btf, const struct btf_type *src_type)
+static int btf_add_type(struct btf_pipe *p, const struct btf_type *src_type)
 {
-	struct btf_pipe p = { .src = src_btf, .dst = btf };
 	struct btf_field_iter it;
 	struct btf_type *t;
 	__u32 *str_off;
@@ -1783,10 +1782,10 @@ int btf__add_type(struct btf *btf, const struct btf *src_btf, const struct btf_t
 		return libbpf_err(sz);
 
 	/* deconstruct BTF, if necessary, and invalidate raw_data */
-	if (btf_ensure_modifiable(btf))
+	if (btf_ensure_modifiable(p->dst))
 		return libbpf_err(-ENOMEM);
 
-	t = btf_add_type_mem(btf, sz);
+	t = btf_add_type_mem(p->dst, sz);
 	if (!t)
 		return libbpf_err(-ENOMEM);
 
@@ -1797,12 +1796,19 @@ int btf__add_type(struct btf *btf, const struct btf *src_btf, const struct btf_t
 		return libbpf_err(err);
 
 	while ((str_off = btf_field_iter_next(&it))) {
-		err = btf_rewrite_str(&p, str_off);
+		err = btf_rewrite_str(p, str_off);
 		if (err)
 			return libbpf_err(err);
 	}
 
-	return btf_commit_type(btf, sz);
+	return btf_commit_type(p->dst, sz);
+}
+
+int btf__add_type(struct btf *btf, const struct btf *src_btf, const struct btf_type *src_type)
+{
+	struct btf_pipe p = { .src = src_btf, .dst = btf };
+
+	return btf_add_type(&p, src_type);
 }
 
 static size_t btf_dedup_identity_hash_fn(long key, void *ctx);
@@ -5273,6 +5279,307 @@ int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void
 				return err;
 		}
 	}
+
+	return 0;
+}
+
+struct btf_distill {
+	struct btf_pipe pipe;
+	int *id_map;
+	unsigned int split_start_id;
+	unsigned int split_start_str;
+	int diff_id;
+};
+
+static int btf_add_distilled_type_ids(struct btf_distill *dist, __u32 i)
+{
+	struct btf_type *split_t = btf_type_by_id(dist->pipe.src, i);
+	struct btf_field_iter it;
+	__u32 *id;
+	int err;
+
+	err = btf_field_iter_init(&it, split_t, BTF_FIELD_ITER_IDS);
+	if (err)
+		return err;
+	while ((id = btf_field_iter_next(&it))) {
+		struct btf_type *base_t;
+
+		if (!*id)
+			continue;
+		/* split BTF id, not needed */
+		if (*id >= dist->split_start_id)
+			continue;
+		/* already added ? */
+		if (dist->id_map[*id] > 0)
+			continue;
+
+		/* only a subset of base BTF types should be referenced from
+		 * split BTF; ensure nothing unexpected is referenced.
+		 */
+		base_t = btf_type_by_id(dist->pipe.src, *id);
+		switch (btf_kind(base_t)) {
+		case BTF_KIND_INT:
+		case BTF_KIND_FLOAT:
+		case BTF_KIND_FWD:
+		case BTF_KIND_ARRAY:
+		case BTF_KIND_STRUCT:
+		case BTF_KIND_UNION:
+		case BTF_KIND_TYPEDEF:
+		case BTF_KIND_ENUM:
+		case BTF_KIND_ENUM64:
+		case BTF_KIND_PTR:
+		case BTF_KIND_CONST:
+		case BTF_KIND_RESTRICT:
+		case BTF_KIND_VOLATILE:
+		case BTF_KIND_FUNC_PROTO:
+		case BTF_KIND_TYPE_TAG:
+			dist->id_map[*id] = *id;
+			break;
+		default:
+			pr_warn("unexpected reference to base type[%u] of kind [%u] when creating distilled base BTF.\n",
+				*id, btf_kind(base_t));
+			return -EINVAL;
+		}
+		/* If a base type is used, ensure types it refers to are
+		 * marked as used also; so for example if we find a PTR to INT
+		 * we need both the PTR and INT.
+		 *
+		 * The only exception is named struct/unions, since distilled
+		 * base BTF composite types have no members.
+		 */
+		if (btf_is_composite(base_t) && base_t->name_off)
+			continue;
+		err = btf_add_distilled_type_ids(dist, *id);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int btf_add_distilled_types(struct btf_distill *dist)
+{
+	bool adding_to_base = dist->pipe.dst->start_id == 1;
+	int id = btf__type_cnt(dist->pipe.dst);
+	struct btf_type *t;
+	int i, err = 0;
+
+
+	/* Add types for each of the required references to either distilled
+	 * base or split BTF, depending on type characteristics.
+	 */
+	for (i = 1; i < dist->split_start_id; i++) {
+		const char *name;
+		int kind;
+
+		if (!dist->id_map[i])
+			continue;
+		t = btf_type_by_id(dist->pipe.src, i);
+		kind = btf_kind(t);
+		name = btf__name_by_offset(dist->pipe.src, t->name_off);
+
+		switch (kind) {
+		case BTF_KIND_INT:
+		case BTF_KIND_FLOAT:
+		case BTF_KIND_FWD:
+			/* Named int, float, fwd are added to base. */
+			if (!adding_to_base)
+				continue;
+			err = btf_add_type(&dist->pipe, t);
+			break;
+		case BTF_KIND_STRUCT:
+		case BTF_KIND_UNION:
+			/* Named struct/union are added to base as 0-vlen
+			 * struct/union of same size.  Anonymous struct/unions
+			 * are added to split BTF as-is.
+			 */
+			if (adding_to_base) {
+				if (!t->name_off)
+					continue;
+				err = btf_add_composite(dist->pipe.dst, kind, name, t->size);
+			} else {
+				if (t->name_off)
+					continue;
+				err = btf_add_type(&dist->pipe, t);
+			}
+			break;
+		case BTF_KIND_ENUM:
+		case BTF_KIND_ENUM64:
+			/* Named enum[64]s are added to base as a sized
+			 * enum; relocation will match with appropriately-named
+			 * and sized enum or enum64.
+			 *
+			 * Anonymous enums are added to split BTF as-is.
+			 */
+			if (adding_to_base) {
+				if (!t->name_off)
+					continue;
+				err = btf__add_enum(dist->pipe.dst, name, t->size);
+			} else {
+				if (t->name_off)
+					continue;
+				err = btf_add_type(&dist->pipe, t);
+			}
+			break;
+		case BTF_KIND_ARRAY:
+		case BTF_KIND_TYPEDEF:
+		case BTF_KIND_PTR:
+		case BTF_KIND_CONST:
+		case BTF_KIND_RESTRICT:
+		case BTF_KIND_VOLATILE:
+		case BTF_KIND_FUNC_PROTO:
+		case BTF_KIND_TYPE_TAG:
+			/* All other types are added to split BTF. */
+			if (adding_to_base)
+				continue;
+			err = btf_add_type(&dist->pipe, t);
+			break;
+		default:
+			pr_warn("unexpected kind when adding base type '%s'[%u] of kind [%u] to distilled base BTF.\n",
+				name, i, kind);
+			return -EINVAL;
+
+		}
+		if (err < 0)
+			break;
+		dist->id_map[i] = id++;
+	}
+	return err;
+}
+
+/* Split BTF ids without a mapping will be shifted downwards since distilled
+ * base BTF is smaller than the original base BTF.  For those that have a
+ * mapping (either to base or updated split BTF), update the id based on
+ * that mapping.
+ */
+static int btf_update_distilled_type_ids(struct btf_distill *dist, __u32 i)
+{
+	struct btf_type *t = btf_type_by_id(dist->pipe.dst, i);
+	struct btf_field_iter it;
+	__u32 *id;
+	int err;
+
+	err = btf_field_iter_init(&it, t, BTF_FIELD_ITER_IDS);
+	if (err)
+		return err;
+	while ((id = btf_field_iter_next(&it))) {
+		if (dist->id_map[*id])
+			*id = dist->id_map[*id];
+		else if (*id >= dist->split_start_id)
+			*id -= dist->diff_id;
+	}
+	return 0;
+}
+
+/* Create updated split BTF with distilled base BTF; distilled base BTF
+ * consists of BTF information required to clarify the types that split
+ * BTF refers to, omitting unneeded details.  Specifically it will contain
+ * base types and memberless definitions of named structs, unions and enumerated
+ * types. Associated reference types like pointers, arrays and anonymous
+ * structs, unions and enumerated types will be added to split BTF.
+ * Size is recorded for named struct/unions to help guide matching to the
+ * target base BTF during later relocation.
+ *
+ * The only case where structs, unions or enumerated types are fully represented
+ * is when they are anonymous; in such cases, the anonymous type is added to
+ * split BTF in full.
+ *
+ * We return newly-created split BTF where the split BTF refers to a newly-created
+ * distilled base BTF. Both must be freed separately by the caller.
+ */
+int btf__distill_base(const struct btf *src_btf, struct btf **new_base_btf,
+		      struct btf **new_split_btf)
+{
+	struct btf *new_base = NULL, *new_split = NULL;
+	const struct btf *old_base;
+	unsigned int n = btf__type_cnt(src_btf);
+	struct btf_distill dist = {};
+	struct btf_type *t;
+	int i, err = 0;
+
+	/* src BTF must be split BTF. */
+	old_base = btf__base_btf(src_btf);
+	if (!new_base_btf || !new_split_btf || !old_base)
+		return libbpf_err(-EINVAL);
+
+	new_base = btf__new_empty();
+	if (!new_base)
+		return libbpf_err(-ENOMEM);
+	dist.id_map = calloc(n, sizeof(*dist.id_map));
+	if (!dist.id_map) {
+		err = -ENOMEM;
+		goto done;
+	}
+	dist.pipe.src = src_btf;
+	dist.pipe.dst = new_base;
+	dist.pipe.str_off_map = hashmap__new(btf_dedup_identity_hash_fn, btf_dedup_equal_fn, NULL);
+	if (IS_ERR(dist.pipe.str_off_map)) {
+		err = -ENOMEM;
+		goto done;
+	}
+	dist.split_start_id = btf__type_cnt(old_base);
+	dist.split_start_str = old_base->hdr->str_len;
+
+	/* Pass over src split BTF; generate the list of base BTF type ids it
+	 * references; these will constitute our distilled BTF set to be
+	 * distributed over base and split BTF as appropriate.
+	 */
+	for (i = src_btf->start_id; i < n; i++) {
+		err = btf_add_distilled_type_ids(&dist, i);
+		if (err < 0)
+			goto done;
+	}
+	/* Next add types for each of the required references to base BTF and split BTF
+	 * in turn.
+	 */
+	err = btf_add_distilled_types(&dist);
+	if (err < 0)
+		goto done;
+
+	/* Create new split BTF with distilled base BTF as its base; the final
+	 * state is split BTF with distilled base BTF that represents enough
+	 * about its base references to allow it to be relocated with the base
+	 * BTF available.
+	 */
+	new_split = btf__new_empty_split(new_base);
+	if (!new_split_btf) {
+		err = -errno;
+		goto done;
+	}
+	dist.pipe.dst = new_split;
+	/* First add all split types */
+	for (i = src_btf->start_id; i < n; i++) {
+		t = btf_type_by_id(src_btf, i);
+		err = btf_add_type(&dist.pipe, t);
+		if (err < 0)
+			goto done;
+	}
+	/* Now add distilled types to split BTF that are not added to base. */
+	err = btf_add_distilled_types(&dist);
+	if (err < 0)
+		goto done;
+
+	/* All split BTF ids will be shifted downwards since there are less base
+	 * BTF ids in distilled base BTF.
+	 */
+	dist.diff_id = dist.split_start_id - btf__type_cnt(new_base);
+
+	n = btf__type_cnt(new_split);
+	/* Now update base/split BTF ids. */
+	for (i = 1; i < n; i++) {
+		err = btf_update_distilled_type_ids(&dist, i);
+		if (err < 0)
+			break;
+	}
+done:
+	free(dist.id_map);
+	hashmap__free(dist.pipe.str_off_map);
+	if (err) {
+		btf__free(new_split);
+		btf__free(new_base);
+		return libbpf_err(err);
+	}
+	*new_base_btf = new_base;
+	*new_split_btf = new_split;
 
 	return 0;
 }
