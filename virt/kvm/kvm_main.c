@@ -1143,8 +1143,7 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 {
 	struct kvm *kvm = kvm_arch_alloc_vm();
 	struct kvm_memslots *slots;
-	int r = -ENOMEM;
-	int i, j;
+	int r, i, j;
 
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
@@ -1181,6 +1180,7 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 	snprintf(kvm->stats_id, sizeof(kvm->stats_id), "kvm-%d",
 		 task_pid_nr(current));
 
+	r = -ENOMEM;
 	if (init_srcu_struct(&kvm->srcu))
 		goto out_err_no_srcu;
 	if (init_srcu_struct(&kvm->irq_srcu))
@@ -1209,6 +1209,7 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 		rcu_assign_pointer(kvm->memslots[i], &kvm->__memslots[i][0]);
 	}
 
+	r = -ENOMEM;
 	for (i = 0; i < KVM_NR_BUSES; i++) {
 		rcu_assign_pointer(kvm->buses[i],
 			kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL_ACCOUNT));
