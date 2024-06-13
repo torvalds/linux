@@ -582,7 +582,7 @@ static void draw_panic_dispatch(struct drm_scanout_buffer *sb)
 
 static void draw_panic_plane(struct drm_plane *plane)
 {
-	struct drm_scanout_buffer sb;
+	struct drm_scanout_buffer sb = { };
 	int ret;
 	unsigned long flags;
 
