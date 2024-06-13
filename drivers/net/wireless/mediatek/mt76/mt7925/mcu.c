@@ -2266,7 +2266,7 @@ mt7925_mcu_bss_he_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 }
 
 static void
-mt7925_mcu_bss_color_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
+mt7925_mcu_bss_color_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *link_conf,
 			 bool enable)
 {
 	struct bss_info_uni_bss_color *color;
@@ -2276,9 +2276,9 @@ mt7925_mcu_bss_color_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	color = (struct bss_info_uni_bss_color *)tlv;
 
 	color->enable = enable ?
-		vif->bss_conf.he_bss_color.enabled : 0;
+		link_conf->he_bss_color.enabled : 0;
 	color->bss_color = enable ?
-		vif->bss_conf.he_bss_color.color : 0;
+		link_conf->he_bss_color.color : 0;
 }
 
 static void
@@ -2342,7 +2342,7 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 
 	if (link_conf->he_support) {
 		mt7925_mcu_bss_he_tlv(skb, link_conf->vif, phy);
-		mt7925_mcu_bss_color_tlv(skb, link_conf->vif, enable);
+		mt7925_mcu_bss_color_tlv(skb, link_conf, enable);
 	}
 
 	err = mt76_mcu_skb_send_msg(&dev->mt76, skb,
