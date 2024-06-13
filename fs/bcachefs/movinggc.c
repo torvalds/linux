@@ -35,9 +35,10 @@ struct buckets_in_flight {
 };
 
 static const struct rhashtable_params bch_move_bucket_params = {
-	.head_offset	= offsetof(struct move_bucket_in_flight, hash),
-	.key_offset	= offsetof(struct move_bucket_in_flight, bucket.k),
-	.key_len	= sizeof(struct move_bucket_key),
+	.head_offset		= offsetof(struct move_bucket_in_flight, hash),
+	.key_offset		= offsetof(struct move_bucket_in_flight, bucket.k),
+	.key_len		= sizeof(struct move_bucket_key),
+	.automatic_shrinking	= true,
 };
 
 static struct move_bucket_in_flight *
