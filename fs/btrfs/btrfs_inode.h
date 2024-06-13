@@ -574,8 +574,8 @@ void btrfs_free_inode(struct inode *inode);
 int btrfs_drop_inode(struct inode *inode);
 int __init btrfs_init_cachep(void);
 void __cold btrfs_destroy_cachep(void);
-struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
-			      struct btrfs_root *root, struct btrfs_path *path);
+struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
+			      struct btrfs_path *path);
 struct inode *btrfs_iget(u64 ino, struct btrfs_root *root);
 struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 				    struct page *page, u64 start, u64 len);

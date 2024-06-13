@@ -5595,13 +5595,13 @@ static struct inode *btrfs_iget_locked(struct super_block *s, u64 ino,
  * allocator. NULL is also valid but may require an additional allocation
  * later.
  */
-struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
-			      struct btrfs_root *root, struct btrfs_path *path)
+struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
+			      struct btrfs_path *path)
 {
 	struct inode *inode;
 	int ret;
 
-	inode = btrfs_iget_locked(s, ino, root);
+	inode = btrfs_iget_locked(root->fs_info->sb, ino, root);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
@@ -5632,7 +5632,7 @@ error:
 
 struct inode *btrfs_iget(u64 ino, struct btrfs_root *root)
 {
-	return btrfs_iget_path(root->fs_info->sb, ino, root, NULL);
+	return btrfs_iget_path(ino, root, NULL);
 }
 
 static struct inode *new_simple_dir(struct inode *dir,
