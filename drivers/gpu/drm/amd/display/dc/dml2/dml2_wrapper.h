@@ -237,6 +237,8 @@ struct dml2_configuration_options {
 	bool use_clock_dc_limits;
 	bool gpuvm_enable;
 	struct dml2_soc_bb *bb_from_dmub;
+	int max_frac_urgent_for_min_fclk_x1000;
+	int min_fclk_for_urgent_workaround_khz;
 };
 
 /*
