@@ -1540,7 +1540,7 @@ mt7925_mcu_sta_phy_tlv(struct sk_buff *skb,
 
 static void
 mt7925_mcu_sta_state_v2_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
-			    struct ieee80211_sta *sta,
+			    struct ieee80211_link_sta *link_sta,
 			    struct ieee80211_vif *vif,
 			    u8 rcpi, u8 sta_state)
 {
@@ -1560,9 +1560,9 @@ mt7925_mcu_sta_state_v2_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 	state = (struct sta_rec_state_v2 *)tlv;
 	state->state = sta_state;
 
-	if (sta->deflink.vht_cap.vht_supported) {
-		state->vht_opmode = sta->deflink.bandwidth;
-		state->vht_opmode |= sta->deflink.rx_nss <<
+	if (link_sta->vht_cap.vht_supported) {
+		state->vht_opmode = link_sta->bandwidth;
+		state->vht_opmode |= link_sta->rx_nss <<
 			IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
 	}
 }
@@ -1643,7 +1643,7 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 		mt7925_mcu_sta_eht_tlv(skb, info->link_sta->sta);
 		mt7925_mcu_sta_rate_ctrl_tlv(skb, info->vif,
 					     info->link_sta->sta);
-		mt7925_mcu_sta_state_v2_tlv(phy, skb, info->link_sta->sta,
+		mt7925_mcu_sta_state_v2_tlv(phy, skb, info->link_sta,
 					    info->vif, info->rcpi,
 					    info->state);
 		mt7925_mcu_sta_mld_tlv(skb, info->vif, info->link_sta->sta);
