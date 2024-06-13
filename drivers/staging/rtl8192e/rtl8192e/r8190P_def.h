@@ -136,13 +136,6 @@ struct tx_fwinfo_8190pci {
 	u32			PacketID:13;
 };
 
-struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
-	u8			reserved:4;
-	u8			rxsc:2;
-	u8			sgi_en:1;
-	u8			ex_intf_flag:1;
-};
-
 struct phy_sts_ofdm_819xpci {
 	u8	trsw_gain_X[4];
 	u8	pwdb_all;
