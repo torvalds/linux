@@ -137,7 +137,7 @@ static void hwmon_dev_release(struct device *dev)
 	kfree(hwdev);
 }
 
-static struct class hwmon_class = {
+static const struct class hwmon_class = {
 	.name = "hwmon",
 	.dev_groups = hwmon_dev_attr_groups,
 	.dev_release = hwmon_dev_release,
