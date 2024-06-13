@@ -231,6 +231,13 @@
 			#clock-cells = <1>;
 		};
 
+		efuse@11f50000 {
+			compatible = "mediatek,mt7988-efuse", "mediatek,efuse";
+			reg = <0 0x11f50000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		clock-controller@15000000 {
 			compatible = "mediatek,mt7988-ethsys", "syscon";
 			reg = <0 0x15000000 0 0x1000>;
