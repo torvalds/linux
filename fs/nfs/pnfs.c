@@ -1171,6 +1171,26 @@ static void pnfs_clear_layoutcommit(struct inode *inode,
 	}
 }
 
+static void
+pnfs_layoutreturn_retry_later_locked(struct pnfs_layout_hdr *lo,
+				     const nfs4_stateid *arg_stateid,
+				     const struct pnfs_layout_range *range)
+{
+	const struct pnfs_layout_segment *lseg;
+	u32 seq = be32_to_cpu(arg_stateid->seqid);
+
+	if (pnfs_layout_is_valid(lo) &&
+	    nfs4_stateid_match_other(&lo->plh_stateid, arg_stateid)) {
+		list_for_each_entry(lseg, &lo->plh_return_segs, pls_list) {
+			if (pnfs_seqid_is_newer(lseg->pls_seq, seq) ||
+			    !pnfs_should_free_range(&lseg->pls_range, range))
+				continue;
+			pnfs_set_plh_return_info(lo, range->iomode, seq);
+			break;
+		}
+	}
+}
+
 void pnfs_layoutreturn_free_lsegs(struct pnfs_layout_hdr *lo,
 		const nfs4_stateid *arg_stateid,
 		const struct pnfs_layout_range *range,
@@ -1577,9 +1597,8 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	switch (ret) {
 	case -NFS4ERR_NOMATCHING_LAYOUT:
 		spin_lock(&inode->i_lock);
-		if (pnfs_layout_is_valid(lo) &&
-		    nfs4_stateid_match_other(&args->stateid, &lo->plh_stateid))
-			pnfs_set_plh_return_info(lo, args->range.iomode, 0);
+		pnfs_layoutreturn_retry_later_locked(lo, &args->stateid,
+						     &args->range);
 		pnfs_clear_layoutreturn_waitbit(lo);
 		spin_unlock(&inode->i_lock);
 		break;
