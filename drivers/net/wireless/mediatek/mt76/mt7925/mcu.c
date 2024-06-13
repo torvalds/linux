@@ -1507,34 +1507,43 @@ mt7925_mcu_sta_amsdu_tlv(struct sk_buff *skb,
 
 static void
 mt7925_mcu_sta_phy_tlv(struct sk_buff *skb,
-		       struct ieee80211_vif *vif, struct ieee80211_sta *sta)
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_link_sta *link_sta)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct cfg80211_chan_def *chandef = &mvif->bss_conf.mt76.ctx->def;
+	struct ieee80211_bss_conf *link_conf;
+	struct cfg80211_chan_def *chandef;
+	struct mt792x_bss_conf *mconf;
 	struct sta_rec_phy *phy;
 	struct tlv *tlv;
 	u8 af = 0, mm = 0;
 
+	link_conf = mt792x_vif_to_bss_conf(vif, link_sta->link_id);
+	mconf = mt792x_vif_to_link(mvif, link_sta->link_id);
+	chandef = &mconf->mt76.ctx->def;
+
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_PHY, sizeof(*phy));
 	phy = (struct sta_rec_phy *)tlv;
-	phy->phy_type = mt76_connac_get_phy_mode_v2(mvif->phy->mt76, vif, chandef->chan->band, sta);
-	phy->basic_rate = cpu_to_le16((u16)vif->bss_conf.basic_rates);
-	if (sta->deflink.ht_cap.ht_supported) {
-		af = sta->deflink.ht_cap.ampdu_factor;
-		mm = sta->deflink.ht_cap.ampdu_density;
+	phy->phy_type = mt76_connac_get_phy_mode_v2(mvif->phy->mt76, vif,
+						    chandef->chan->band,
+						    link_sta->sta);
+	phy->basic_rate = cpu_to_le16((u16)link_conf->basic_rates);
+	if (link_sta->ht_cap.ht_supported) {
+		af = link_sta->ht_cap.ampdu_factor;
+		mm = link_sta->ht_cap.ampdu_density;
 	}
 
-	if (sta->deflink.vht_cap.vht_supported) {
+	if (link_sta->vht_cap.vht_supported) {
 		u8 vht_af = FIELD_GET(IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK,
-				      sta->deflink.vht_cap.cap);
+				      link_sta->vht_cap.cap);
 
 		af = max_t(u8, af, vht_af);
 	}
 
-	if (sta->deflink.he_6ghz_capa.capa) {
-		af = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
+	if (link_sta->he_6ghz_capa.capa) {
+		af = le16_get_bits(link_sta->he_6ghz_capa.capa,
 				   IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
-		mm = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
+		mm = le16_get_bits(link_sta->he_6ghz_capa.capa,
 				   IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START);
 	}
 
@@ -1639,7 +1648,7 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 					      info->link_sta->sta,
 					      info->enable, info->newly);
 	if (info->link_sta && info->enable) {
-		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->link_sta->sta);
+		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->link_sta);
 		mt7925_mcu_sta_ht_tlv(skb, info->link_sta);
 		mt7925_mcu_sta_vht_tlv(skb, info->link_sta);
 		mt76_connac_mcu_sta_uapsd(skb, info->vif, info->link_sta->sta);
