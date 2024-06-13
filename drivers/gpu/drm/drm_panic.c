@@ -7,11 +7,15 @@
  */
 
 #include <linux/font.h>
+#include <linux/init.h>
 #include <linux/iosys-map.h>
 #include <linux/kdebug.h>
 #include <linux/kmsg_dump.h>
+#include <linux/linux_logo.h>
 #include <linux/list.h>
+#include <linux/math.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/printk.h>
 #include <linux/types.h>
 
@@ -87,6 +91,42 @@ static const struct drm_panic_line logo_ascii[] = {
 	PANIC_LINE(" /'\\_   _/`\\    (_)"),
 	PANIC_LINE(" \\___)=(___/"),
 };
+
+#ifdef CONFIG_LOGO
+static const struct linux_logo *logo_mono;
+
+static int drm_panic_setup_logo(void)
+{
+	const struct linux_logo *logo = fb_find_logo(1);
+	const unsigned char *logo_data;
+	struct linux_logo *logo_dup;
+
+	if (!logo || logo->type != LINUX_LOGO_MONO)
+		return 0;
+
+	/* The logo is __init, so we must make a copy for later use */
+	logo_data = kmemdup(logo->data,
+			    size_mul(DIV_ROUND_UP(logo->width, BITS_PER_BYTE), logo->height),
+			    GFP_KERNEL);
+	if (!logo_data)
+		return -ENOMEM;
+
+	logo_dup = kmemdup(logo, sizeof(*logo), GFP_KERNEL);
+	if (!logo_dup) {
+		kfree(logo_data);
+		return -ENOMEM;
+	}
+
+	logo_dup->data = logo_data;
+	logo_mono = logo_dup;
+
+	return 0;
+}
+
+device_initcall(drm_panic_setup_logo);
+#else
+#define logo_mono	((const struct linux_logo *)NULL)
+#endif
 
 /*
  * Color conversion
@@ -452,15 +492,22 @@ static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
 	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
 	struct drm_rect r_screen, r_logo, r_msg;
+	unsigned int logo_width, logo_height;
 
 	if (!font)
 		return;
 
 	r_screen = DRM_RECT_INIT(0, 0, sb->width, sb->height);
 
-	r_logo = DRM_RECT_INIT(0, 0,
-			       get_max_line_len(logo_ascii, logo_ascii_lines) * font->width,
-			       logo_ascii_lines * font->height);
+	if (logo_mono) {
+		logo_width = logo_mono->width;
+		logo_height = logo_mono->height;
+	} else {
+		logo_width = get_max_line_len(logo_ascii, logo_ascii_lines) * font->width;
+		logo_height = logo_ascii_lines * font->height;
+	}
+
+	r_logo = DRM_RECT_INIT(0, 0, logo_width, logo_height);
 	r_msg = DRM_RECT_INIT(0, 0,
 			      min(get_max_line_len(panic_msg, msg_lines) * font->width, sb->width),
 			      min(msg_lines * font->height, sb->height));
@@ -471,10 +518,14 @@ static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 	/* Fill with the background color, and draw text on top */
 	drm_panic_fill(sb, &r_screen, bg_color);
 
-	if ((r_msg.x1 >= drm_rect_width(&r_logo) || r_msg.y1 >= drm_rect_height(&r_logo)) &&
-	    drm_rect_width(&r_logo) <= sb->width && drm_rect_height(&r_logo) <= sb->height) {
-		draw_txt_rectangle(sb, font, logo_ascii, logo_ascii_lines, false, &r_logo,
-				   fg_color);
+	if ((r_msg.x1 >= logo_width || r_msg.y1 >= logo_height) &&
+	    logo_width <= sb->width && logo_height <= sb->height) {
+		if (logo_mono)
+			drm_panic_blit(sb, &r_logo, logo_mono->data, DIV_ROUND_UP(logo_width, 8),
+				       fg_color);
+		else
+			draw_txt_rectangle(sb, font, logo_ascii, logo_ascii_lines, false, &r_logo,
+					   fg_color);
 	}
 	draw_txt_rectangle(sb, font, panic_msg, msg_lines, true, &r_msg, fg_color);
 }
