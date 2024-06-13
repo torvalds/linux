@@ -1009,8 +1009,8 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 		return;
 	}
 
-	trace_async_request_inbound((uintptr_t)request, p->generation, p->speed, p->ack,
-				    p->timestamp, p->header, request->data,
+	trace_async_request_inbound((uintptr_t)request, card->index, p->generation, p->speed,
+				    p->ack, p->timestamp, p->header, request->data,
 				    tcode_is_read_request(tcode) ? 0 : request->length / 4);
 
 	offset = async_header_get_offset(p->header);
@@ -1080,8 +1080,8 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	trace_async_response_inbound((uintptr_t)t, p->generation, p->speed, p->ack, p->timestamp,
-				     p->header, data, data_length / 4);
+	trace_async_response_inbound((uintptr_t)t, card->index, p->generation, p->speed, p->ack,
+				     p->timestamp, p->header, data, data_length / 4);
 
 	if (!t) {
  timed_out:
