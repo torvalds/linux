@@ -980,8 +980,7 @@ static int wilc_sdio_suspend(struct device *dev)
 	if (!IS_ERR(wilc->rtc_clk))
 		clk_disable_unprepare(wilc->rtc_clk);
 
-	if (wilc->suspend_event)
-		host_sleep_notify(wilc);
+	host_sleep_notify(wilc);
 
 	ret = wilc_sdio_reset(wilc);
 	if (ret) {
@@ -1000,8 +999,7 @@ static int wilc_sdio_resume(struct device *dev)
 	dev_info(dev, "sdio resume\n");
 	wilc_sdio_init(wilc, true);
 
-	if (wilc->suspend_event)
-		host_wakeup_notify(wilc);
+	host_wakeup_notify(wilc);
 
 	return 0;
 }
