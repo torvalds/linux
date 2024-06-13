@@ -2206,20 +2206,20 @@ mt7925_mcu_bss_bmc_tlv(struct sk_buff *skb, struct mt792x_phy *phy,
 
 static void
 mt7925_mcu_bss_mld_tlv(struct sk_buff *skb,
-		       struct ieee80211_vif *vif,
+		       struct ieee80211_bss_conf *link_conf,
 		       struct ieee80211_sta *sta)
 {
-	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	bool is_mld = ieee80211_vif_is_mld(vif);
+	struct mt792x_bss_conf *mconf = mt792x_link_conf_to_mconf(link_conf);
+	bool is_mld = ieee80211_vif_is_mld(link_conf->vif);
 	struct bss_mld_tlv *mld;
 	struct tlv *tlv;
 
 	tlv = mt76_connac_mcu_add_tlv(skb, UNI_BSS_INFO_MLD, sizeof(*mld));
 	mld = (struct bss_mld_tlv *)tlv;
 
-	mld->link_id = sta ? (is_mld ? vif->bss_conf.link_id : 0) : 0xff;
-	mld->group_mld_id = is_mld ? mvif->bss_conf.mt76.idx : 0xff;
-	mld->own_mld_id = mvif->bss_conf.mt76.idx + 32;
+	mld->link_id = sta ? (is_mld ? link_conf->link_id : 0) : 0xff;
+	mld->group_mld_id = is_mld ? mconf->mt76.idx : 0xff;
+	mld->own_mld_id = mconf->mt76.idx + 32;
 	mld->remap_idx = 0xff;
 
 	if (sta)
@@ -2337,7 +2337,7 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 
 	mt7925_mcu_bss_bmc_tlv(skb, phy, ctx, link_conf->vif, sta);
 	mt7925_mcu_bss_qos_tlv(skb, link_conf);
-	mt7925_mcu_bss_mld_tlv(skb, link_conf->vif, sta);
+	mt7925_mcu_bss_mld_tlv(skb, link_conf, sta);
 	mt7925_mcu_bss_ifs_tlv(skb, link_conf);
 
 	if (link_conf->he_support) {
