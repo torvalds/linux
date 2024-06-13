@@ -1191,6 +1191,18 @@ pnfs_layoutreturn_retry_later_locked(struct pnfs_layout_hdr *lo,
 	}
 }
 
+void pnfs_layoutreturn_retry_later(struct pnfs_layout_hdr *lo,
+				   const nfs4_stateid *arg_stateid,
+				   const struct pnfs_layout_range *range)
+{
+	struct inode *inode = lo->plh_inode;
+
+	spin_lock(&inode->i_lock);
+	pnfs_layoutreturn_retry_later_locked(lo, arg_stateid, range);
+	pnfs_clear_layoutreturn_waitbit(lo);
+	spin_unlock(&inode->i_lock);
+}
+
 void pnfs_layoutreturn_free_lsegs(struct pnfs_layout_hdr *lo,
 		const nfs4_stateid *arg_stateid,
 		const struct pnfs_layout_range *range,
