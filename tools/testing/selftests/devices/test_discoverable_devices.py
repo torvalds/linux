@@ -64,6 +64,22 @@ def get_dt_mmio(sysfs_dev_dir):
         sysfs_dev_dir = os.path.dirname(sysfs_dev_dir)
 
 
+def get_of_fullname(sysfs_dev_dir):
+    re_of_fullname = re.compile("OF_FULLNAME=(.*)")
+    of_full_name = None
+
+    # PCI controllers' sysfs don't have an of_node, so have to read it from the
+    # parent
+    while not of_full_name:
+        try:
+            with open(os.path.join(sysfs_dev_dir, "uevent")) as f:
+                of_fullname = re_of_fullname.search(f.read()).group(1)
+                return of_fullname
+        except:
+            pass
+        sysfs_dev_dir = os.path.dirname(sysfs_dev_dir)
+
+
 def get_acpi_uid(sysfs_dev_dir):
     with open(os.path.join(sysfs_dev_dir, "firmware_node", "uid")) as f:
         return f.read()
@@ -95,6 +111,11 @@ def find_controller_in_sysfs(controller, parent_sysfs=None):
 
         if controller.get("dt-mmio"):
             if str(controller["dt-mmio"]) != get_dt_mmio(c):
+                continue
+
+        if controller.get("of-fullname-regex"):
+            re_of_fullname = re.compile(str(controller["of-fullname-regex"]))
+            if not re_of_fullname.match(get_of_fullname(c)):
                 continue
 
         if controller.get("usb-version"):
@@ -194,6 +215,9 @@ def generate_pathname(device):
 
     if device.get("dt-mmio"):
         pathname += "@" + str(device["dt-mmio"])
+
+    if device.get("of-fullname-regex"):
+        pathname += "-" + str(device["of-fullname-regex"])
 
     if device.get("name"):
         pathname = pathname + "/" + device["name"]
