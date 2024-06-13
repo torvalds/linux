@@ -4,7 +4,6 @@ device_reset@unbind-cold-reset-rebind,Fail
 device_reset@unbind-reset-rebind,Fail
 dumb_buffer@invalid-bpp,Fail
 kms_3d,Fail
-kms_addfb_basic@addfb25-bad-modifier,Fail
 kms_cursor_legacy@forked-move,Fail
 kms_cursor_legacy@single-bo,Fail
 kms_cursor_legacy@torture-bo,Fail
