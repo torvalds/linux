@@ -217,7 +217,277 @@ static void test_distilled_base(void)
 		"\t'p1' type_id=1",
 		"[25] ARRAY '(anon)' type_id=1 index_type_id=1 nr_elems=3");
 
+	if (!ASSERT_EQ(btf__relocate(btf4, btf1), 0, "relocate_split"))
+		goto cleanup;
+
+	VALIDATE_RAW_BTF(
+		btf4,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1",
+		"[3] STRUCT 's1' size=8 vlen=1\n"
+		"\t'f1' type_id=2 bits_offset=0",
+		"[4] STRUCT '(anon)' size=12 vlen=2\n"
+		"\t'f1' type_id=1 bits_offset=0\n"
+		"\t'f2' type_id=3 bits_offset=32",
+		"[5] INT 'unsigned int' size=4 bits_offset=0 nr_bits=32 encoding=(none)",
+		"[6] UNION 'u1' size=12 vlen=2\n"
+		"\t'f1' type_id=1 bits_offset=0\n"
+		"\t'f2' type_id=2 bits_offset=0",
+		"[7] UNION '(anon)' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[8] ENUM 'e1' encoding=UNSIGNED size=4 vlen=1\n"
+		"\t'v1' val=1",
+		"[9] ENUM '(anon)' encoding=UNSIGNED size=4 vlen=1\n"
+		"\t'av1' val=2",
+		"[10] ENUM64 'e641' encoding=SIGNED size=8 vlen=1\n"
+		"\t'v1' val=1024",
+		"[11] ENUM64 '(anon)' encoding=SIGNED size=8 vlen=1\n"
+		"\t'v1' val=1025",
+		"[12] STRUCT 'unneeded' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[13] STRUCT 'embedded' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[14] FUNC_PROTO '(anon)' ret_type_id=1 vlen=1\n"
+		"\t'p1' type_id=1",
+		"[15] ARRAY '(anon)' type_id=1 index_type_id=1 nr_elems=3",
+		"[16] STRUCT 'from_proto' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[17] UNION 'u1' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[18] PTR '(anon)' type_id=3",
+		"[19] PTR '(anon)' type_id=30",
+		"[20] CONST '(anon)' type_id=6",
+		"[21] RESTRICT '(anon)' type_id=31",
+		"[22] VOLATILE '(anon)' type_id=8",
+		"[23] TYPEDEF 'et' type_id=32",
+		"[24] CONST '(anon)' type_id=10",
+		"[25] PTR '(anon)' type_id=33",
+		"[26] STRUCT 'with_embedded' size=4 vlen=1\n"
+		"\t'f1' type_id=13 bits_offset=0",
+		"[27] FUNC 'fn' type_id=34 linkage=static",
+		"[28] TYPEDEF 'arraytype' type_id=35",
+		"[29] FUNC_PROTO '(anon)' ret_type_id=1 vlen=1\n"
+		"\t'p1' type_id=16",
+		/* below here are (duplicate) anon base types added by distill
+		 * process to split BTF.
+		 */
+		"[30] STRUCT '(anon)' size=12 vlen=2\n"
+		"\t'f1' type_id=1 bits_offset=0\n"
+		"\t'f2' type_id=3 bits_offset=32",
+		"[31] UNION '(anon)' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[32] ENUM '(anon)' encoding=UNSIGNED size=4 vlen=1\n"
+		"\t'av1' val=2",
+		"[33] ENUM64 '(anon)' encoding=SIGNED size=8 vlen=1\n"
+		"\t'v1' val=1025",
+		"[34] FUNC_PROTO '(anon)' ret_type_id=1 vlen=1\n"
+		"\t'p1' type_id=1",
+		"[35] ARRAY '(anon)' type_id=1 index_type_id=1 nr_elems=3");
+
 cleanup:
+	btf__free(btf4);
+	btf__free(btf3);
+	btf__free(btf2);
+	btf__free(btf1);
+}
+
+/* ensure we can cope with multiple types with the same name in
+ * distilled base BTF.  In this case because sizes are different,
+ * we can still disambiguate them.
+ */
+static void test_distilled_base_multi(void)
+{
+	struct btf *btf1 = NULL, *btf2 = NULL, *btf3 = NULL, *btf4 = NULL;
+
+	btf1 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf1, "empty_main_btf"))
+		return;
+	btf__add_int(btf1, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	btf__add_int(btf1, "int", 8, BTF_INT_SIGNED);	/* [2] int */
+	VALIDATE_RAW_BTF(
+		btf1,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED");
+	btf2 = btf__new_empty_split(btf1);
+	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
+		goto cleanup;
+	btf__add_ptr(btf2, 1);
+	btf__add_const(btf2, 2);
+	VALIDATE_RAW_BTF(
+		btf2,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED",
+		"[3] PTR '(anon)' type_id=1",
+		"[4] CONST '(anon)' type_id=2");
+	if (!ASSERT_EQ(0, btf__distill_base(btf2, &btf3, &btf4),
+		       "distilled_base") ||
+	    !ASSERT_OK_PTR(btf3, "distilled_base") ||
+	    !ASSERT_OK_PTR(btf4, "distilled_split") ||
+	    !ASSERT_EQ(3, btf__type_cnt(btf3), "distilled_base_type_cnt"))
+		goto cleanup;
+	VALIDATE_RAW_BTF(
+		btf3,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED");
+	if (!ASSERT_EQ(btf__relocate(btf4, btf1), 0, "relocate_split"))
+		goto cleanup;
+
+	VALIDATE_RAW_BTF(
+		btf4,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED",
+		"[3] PTR '(anon)' type_id=1",
+		"[4] CONST '(anon)' type_id=2");
+
+cleanup:
+	btf__free(btf4);
+	btf__free(btf3);
+	btf__free(btf2);
+	btf__free(btf1);
+}
+
+/* If a needed type is not present in the base BTF we wish to relocate
+ * with, btf__relocate() should error our.
+ */
+static void test_distilled_base_missing_err(void)
+{
+	struct btf *btf1 = NULL, *btf2 = NULL, *btf3 = NULL, *btf4 = NULL, *btf5 = NULL;
+
+	btf1 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf1, "empty_main_btf"))
+		return;
+	btf__add_int(btf1, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	btf__add_int(btf1, "int", 8, BTF_INT_SIGNED);   /* [2] int */
+	VALIDATE_RAW_BTF(
+		btf1,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED");
+	btf2 = btf__new_empty_split(btf1);
+	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
+		goto cleanup;
+	btf__add_ptr(btf2, 1);
+	btf__add_const(btf2, 2);
+	VALIDATE_RAW_BTF(
+		btf2,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED",
+		"[3] PTR '(anon)' type_id=1",
+		"[4] CONST '(anon)' type_id=2");
+	if (!ASSERT_EQ(0, btf__distill_base(btf2, &btf3, &btf4),
+		       "distilled_base") ||
+	    !ASSERT_OK_PTR(btf3, "distilled_base") ||
+	    !ASSERT_OK_PTR(btf4, "distilled_split") ||
+	    !ASSERT_EQ(3, btf__type_cnt(btf3), "distilled_base_type_cnt"))
+		goto cleanup;
+	VALIDATE_RAW_BTF(
+		btf3,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED");
+	btf5 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf5, "empty_reloc_btf"))
+		return;
+	btf__add_int(btf5, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	VALIDATE_RAW_BTF(
+		btf5,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
+	ASSERT_EQ(btf__relocate(btf4, btf5), -EINVAL, "relocate_split");
+
+cleanup:
+	btf__free(btf5);
+	btf__free(btf4);
+	btf__free(btf3);
+	btf__free(btf2);
+	btf__free(btf1);
+}
+
+/* With 2 types of same size in distilled base BTF, relocation should
+ * fail as we have no means to choose between them.
+ */
+static void test_distilled_base_multi_err(void)
+{
+	struct btf *btf1 = NULL, *btf2 = NULL, *btf3 = NULL, *btf4 = NULL;
+
+	btf1 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf1, "empty_main_btf"))
+		return;
+	btf__add_int(btf1, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	btf__add_int(btf1, "int", 4, BTF_INT_SIGNED);   /* [2] int */
+	VALIDATE_RAW_BTF(
+		btf1,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
+	btf2 = btf__new_empty_split(btf1);
+	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
+		goto cleanup;
+	btf__add_ptr(btf2, 1);
+	btf__add_const(btf2, 2);
+	VALIDATE_RAW_BTF(
+		btf2,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[3] PTR '(anon)' type_id=1",
+		"[4] CONST '(anon)' type_id=2");
+	if (!ASSERT_EQ(0, btf__distill_base(btf2, &btf3, &btf4),
+		       "distilled_base") ||
+	    !ASSERT_OK_PTR(btf3, "distilled_base") ||
+	    !ASSERT_OK_PTR(btf4, "distilled_split") ||
+	    !ASSERT_EQ(3, btf__type_cnt(btf3), "distilled_base_type_cnt"))
+		goto cleanup;
+	VALIDATE_RAW_BTF(
+		btf3,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
+	ASSERT_EQ(btf__relocate(btf4, btf1), -EINVAL, "relocate_split");
+cleanup:
+	btf__free(btf4);
+	btf__free(btf3);
+	btf__free(btf2);
+	btf__free(btf1);
+}
+
+/* With 2 types of same size in base BTF, relocation should
+ * fail as we have no means to choose between them.
+ */
+static void test_distilled_base_multi_err2(void)
+{
+	struct btf *btf1 = NULL, *btf2 = NULL, *btf3 = NULL, *btf4 = NULL, *btf5 = NULL;
+
+	btf1 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf1, "empty_main_btf"))
+		return;
+	btf__add_int(btf1, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	VALIDATE_RAW_BTF(
+		btf1,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
+	btf2 = btf__new_empty_split(btf1);
+	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
+		goto cleanup;
+	btf__add_ptr(btf2, 1);
+	VALIDATE_RAW_BTF(
+		btf2,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1");
+	if (!ASSERT_EQ(0, btf__distill_base(btf2, &btf3, &btf4),
+		       "distilled_base") ||
+	    !ASSERT_OK_PTR(btf3, "distilled_base") ||
+	    !ASSERT_OK_PTR(btf4, "distilled_split") ||
+	    !ASSERT_EQ(2, btf__type_cnt(btf3), "distilled_base_type_cnt"))
+		goto cleanup;
+	VALIDATE_RAW_BTF(
+		btf3,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
+	btf5 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf5, "empty_reloc_btf"))
+		return;
+	btf__add_int(btf5, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	btf__add_int(btf5, "int", 4, BTF_INT_SIGNED);   /* [2] int */
+	VALIDATE_RAW_BTF(
+		btf5,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
+	ASSERT_EQ(btf__relocate(btf4, btf5), -EINVAL, "relocate_split");
+cleanup:
+	btf__free(btf5);
 	btf__free(btf4);
 	btf__free(btf3);
 	btf__free(btf2);
@@ -269,6 +539,14 @@ void test_btf_distill(void)
 {
 	if (test__start_subtest("distilled_base"))
 		test_distilled_base();
+	if (test__start_subtest("distilled_base_multi"))
+		test_distilled_base_multi();
+	if (test__start_subtest("distilled_base_missing_err"))
+		test_distilled_base_missing_err();
+	if (test__start_subtest("distilled_base_multi_err"))
+		test_distilled_base_multi_err();
+	if (test__start_subtest("distilled_base_multi_err2"))
+		test_distilled_base_multi_err2();
 	if (test__start_subtest("distilled_base_vmlinux"))
 		test_distilled_base_vmlinux();
 }
