@@ -641,7 +641,7 @@ int function_graph_enter(unsigned long ret, unsigned long func,
 	{
 		for_each_set_bit(i, &fgraph_array_bitmask,
 					 sizeof(fgraph_array_bitmask) * BITS_PER_BYTE) {
-			struct fgraph_ops *gops = fgraph_array[i];
+			struct fgraph_ops *gops = READ_ONCE(fgraph_array[i]);
 			int save_curr_ret_stack;
 
 			if (gops == &fgraph_stub)
