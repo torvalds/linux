@@ -1569,7 +1569,8 @@ mt7925_mcu_sta_state_v2_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 
 static void
 mt7925_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb,
-			     struct ieee80211_vif *vif, struct ieee80211_sta *sta)
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_link_sta *link_sta)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct cfg80211_chan_def *chandef = &mvif->bss_conf.mt76.ctx->def;
@@ -1581,7 +1582,7 @@ mt7925_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb,
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_RA, sizeof(*ra_info));
 	ra_info = (struct sta_rec_ra_info *)tlv;
 
-	supp_rates = sta->deflink.supp_rates[band];
+	supp_rates = link_sta->supp_rates[band];
 	if (band == NL80211_BAND_2GHZ)
 		supp_rates = FIELD_PREP(RA_LEGACY_OFDM, supp_rates >> 4) |
 			     FIELD_PREP(RA_LEGACY_CCK, supp_rates & 0xf);
@@ -1590,9 +1591,9 @@ mt7925_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb,
 
 	ra_info->legacy = cpu_to_le16(supp_rates);
 
-	if (sta->deflink.ht_cap.ht_supported)
+	if (link_sta->ht_cap.ht_supported)
 		memcpy(ra_info->rx_mcs_bitmask,
-		       sta->deflink.ht_cap.mcs.rx_mask,
+		       link_sta->ht_cap.mcs.rx_mask,
 		       HT_MCS_MASK_NUM);
 }
 
@@ -1642,7 +1643,7 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 		mt7925_mcu_sta_he_6g_tlv(skb, info->link_sta->sta);
 		mt7925_mcu_sta_eht_tlv(skb, info->link_sta->sta);
 		mt7925_mcu_sta_rate_ctrl_tlv(skb, info->vif,
-					     info->link_sta->sta);
+					     info->link_sta);
 		mt7925_mcu_sta_state_v2_tlv(phy, skb, info->link_sta,
 					    info->vif, info->rcpi,
 					    info->state);
