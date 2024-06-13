@@ -395,7 +395,6 @@ struct bkey_cached {
 	u64			seq;
 
 	struct bkey_i		*k;
-
 	struct rcu_head		rcu;
 };
 

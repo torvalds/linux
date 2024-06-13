@@ -92,18 +92,18 @@ static bool bkey_cached_evict(struct btree_key_cache *c,
 	return ret;
 }
 
-static void __bkey_cached_free(struct rcu_head *rcu)
+static void __bkey_cached_free(struct rcu_pending *pending, struct rcu_head *rcu)
 {
+	struct bch_fs *c = container_of(pending->srcu, struct bch_fs, btree_trans_barrier);
 	struct bkey_cached *ck = container_of(rcu, struct bkey_cached, rcu);
 
+	this_cpu_dec(*c->btree_key_cache.nr_pending);
 	kmem_cache_free(bch2_key_cache, ck);
 }
 
 static void bkey_cached_free(struct btree_key_cache *bc,
 			     struct bkey_cached *ck)
 {
-	struct bch_fs *c = container_of(bc, struct bch_fs, btree_key_cache);
-
 	kfree(ck->k);
 	ck->k		= NULL;
 	ck->u64s	= 0;
@@ -111,7 +111,9 @@ static void bkey_cached_free(struct btree_key_cache *bc,
 	six_unlock_write(&ck->c.lock);
 	six_unlock_intent(&ck->c.lock);
 
-	call_srcu(&c->btree_trans_barrier, &ck->rcu, __bkey_cached_free);
+	bool pcpu_readers = ck->c.lock.readers != NULL;
+	rcu_pending_enqueue(&bc->pending[pcpu_readers], &ck->rcu);
+	this_cpu_inc(*bc->nr_pending);
 }
 
 static struct bkey_cached *__bkey_cached_alloc(unsigned key_u64s, gfp_t gfp)
@@ -131,10 +133,18 @@ static struct bkey_cached *__bkey_cached_alloc(unsigned key_u64s, gfp_t gfp)
 static struct bkey_cached *
 bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path, unsigned key_u64s)
 {
+	struct bch_fs *c = trans->c;
+	struct btree_key_cache *bc = &c->btree_key_cache;
 	bool pcpu_readers = btree_uses_pcpu_readers(path->btree_id);
 	int ret;
 
-	struct bkey_cached *ck = allocate_dropping_locks(trans, ret,
+	struct bkey_cached *ck = container_of_or_null(
+				rcu_pending_dequeue(&bc->pending[pcpu_readers]),
+				struct bkey_cached, rcu);
+	if (ck)
+		goto lock;
+
+	ck = allocate_dropping_locks(trans, ret,
 				     __bkey_cached_alloc(key_u64s, _gfp));
 	if (ret) {
 		if (ck)
@@ -143,14 +153,19 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path, unsigned k
 		return ERR_PTR(ret);
 	}
 
-	if (!ck)
-		return NULL;
+	if (ck) {
+		bch2_btree_lock_init(&ck->c, pcpu_readers ? SIX_LOCK_INIT_PCPU : 0);
+		ck->c.cached = true;
+		goto lock;
+	}
 
-	bch2_btree_lock_init(&ck->c, pcpu_readers ? SIX_LOCK_INIT_PCPU : 0);
-
-	ck->c.cached = true;
-	BUG_ON(!six_trylock_intent(&ck->c.lock));
-	BUG_ON(!six_trylock_write(&ck->c.lock));
+	ck = container_of_or_null(rcu_pending_dequeue_from_all(&bc->pending[pcpu_readers]),
+				  struct bkey_cached, rcu);
+	if (ck)
+		goto lock;
+lock:
+	six_lock_intent(&ck->c.lock, NULL, NULL);
+	six_lock_write(&ck->c.lock, NULL, NULL);
 	return ck;
 }
 
@@ -720,6 +735,11 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 
 	if (bc->table_init_done)
 		rhashtable_destroy(&bc->table);
+
+	rcu_pending_exit(&bc->pending[0]);
+	rcu_pending_exit(&bc->pending[1]);
+
+	free_percpu(bc->nr_pending);
 }
 
 void bch2_fs_btree_key_cache_init_early(struct btree_key_cache *c)
@@ -730,6 +750,14 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 {
 	struct bch_fs *c = container_of(bc, struct bch_fs, btree_key_cache);
 	struct shrinker *shrink;
+
+	bc->nr_pending = alloc_percpu(size_t);
+	if (!bc->nr_pending)
+		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
+
+	if (rcu_pending_init(&bc->pending[0], &c->btree_trans_barrier, __bkey_cached_free) ||
+	    rcu_pending_init(&bc->pending[1], &c->btree_trans_barrier, __bkey_cached_free))
+		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
 
 	if (rhashtable_init(&bc->table, &bch2_btree_key_cache_params))
 		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
@@ -757,13 +785,15 @@ void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *
 	prt_printf(out, "keys:\t%lu\r\n",		atomic_long_read(&bc->nr_keys));
 	prt_printf(out, "dirty:\t%lu\r\n",		atomic_long_read(&bc->nr_dirty));
 	prt_printf(out, "table size:\t%u\r\n",		bc->table.tbl->size);
-
-	prt_printf(out, "\nshrinker:\n");
+	prt_newline(out);
+	prt_printf(out, "shrinker:\n");
 	prt_printf(out, "requested_to_free:\t%lu\r\n",	bc->requested_to_free);
 	prt_printf(out, "freed:\t%lu\r\n",		bc->freed);
 	prt_printf(out, "skipped_dirty:\t%lu\r\n",	bc->skipped_dirty);
 	prt_printf(out, "skipped_accessed:\t%lu\r\n",	bc->skipped_accessed);
 	prt_printf(out, "skipped_lock_fail:\t%lu\r\n",	bc->skipped_lock_fail);
+	prt_newline(out);
+	prt_printf(out, "pending:\t%lu\r\n",		per_cpu_sum(bc->nr_pending));
 }
 
 void bch2_btree_key_cache_exit(void)

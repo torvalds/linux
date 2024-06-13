@@ -2,12 +2,18 @@
 #ifndef _BCACHEFS_BTREE_KEY_CACHE_TYPES_H
 #define _BCACHEFS_BTREE_KEY_CACHE_TYPES_H
 
+#include "rcu_pending.h"
+
 struct btree_key_cache {
 	struct rhashtable	table;
 	bool			table_init_done;
 
 	struct shrinker		*shrink;
 	unsigned		shrink_iter;
+
+	/* 0: non pcpu reader locks, 1: pcpu reader locks */
+	struct rcu_pending	pending[2];
+	size_t __percpu		*nr_pending;
 
 	atomic_long_t		nr_keys;
 	atomic_long_t		nr_dirty;
