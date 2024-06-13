@@ -534,6 +534,15 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 }
 EXPORT_SYMBOL_GPL(led_compose_name);
 
+const char *led_get_color_name(u8 color_id)
+{
+	if (color_id >= ARRAY_SIZE(led_colors))
+		return NULL;
+
+	return led_colors[color_id];
+}
+EXPORT_SYMBOL_GPL(led_get_color_name);
+
 enum led_default_state led_init_default_state_get(struct fwnode_handle *fwnode)
 {
 	const char *state = NULL;
