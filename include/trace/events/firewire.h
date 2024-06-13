@@ -303,36 +303,39 @@ TRACE_EVENT(async_phy_inbound,
 );
 
 DECLARE_EVENT_CLASS(bus_reset_arrange_template,
-	TP_PROTO(unsigned int generation, bool short_reset),
-	TP_ARGS(generation, short_reset),
+	TP_PROTO(unsigned int card_index, unsigned int generation, bool short_reset),
+	TP_ARGS(card_index, generation, short_reset),
 	TP_STRUCT__entry(
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(bool, short_reset)
 	),
 	TP_fast_assign(
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->short_reset = short_reset;
 	),
 	TP_printk(
-		"generation=%u short_reset=%s",
+		"card_index=%u generation=%u short_reset=%s",
+		__entry->card_index,
 		__entry->generation,
 		__entry->short_reset ? "true" : "false"
 	)
 );
 
 DEFINE_EVENT(bus_reset_arrange_template, bus_reset_initiate,
-	TP_PROTO(unsigned int generation, bool short_reset),
-	TP_ARGS(generation, short_reset)
+	TP_PROTO(unsigned int card_index, unsigned int generation, bool short_reset),
+	TP_ARGS(card_index, generation, short_reset)
 );
 
 DEFINE_EVENT(bus_reset_arrange_template, bus_reset_schedule,
-	TP_PROTO(unsigned int generation, bool short_reset),
-	TP_ARGS(generation, short_reset)
+	TP_PROTO(unsigned int card_index, unsigned int generation, bool short_reset),
+	TP_ARGS(card_index, generation, short_reset)
 );
 
 DEFINE_EVENT(bus_reset_arrange_template, bus_reset_postpone,
-	TP_PROTO(unsigned int generation, bool short_reset),
-	TP_ARGS(generation, short_reset)
+	TP_PROTO(unsigned int card_index, unsigned int generation, bool short_reset),
+	TP_ARGS(card_index, generation, short_reset)
 );
 
 TRACE_EVENT(bus_reset_handle,
