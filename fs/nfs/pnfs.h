@@ -121,6 +121,7 @@ enum layoutdriver_policy_flags {
 enum pnfs_layout_destroy_mode {
 	PNFS_LAYOUT_INVALIDATE = 0,
 	PNFS_LAYOUT_BULK_RETURN,
+	PNFS_LAYOUT_FILE_BULK_RETURN,
 };
 
 struct nfs4_deviceid_node;

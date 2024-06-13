@@ -476,6 +476,18 @@ pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
 	return !list_empty(&lo->plh_segs);
 }
 
+static int pnfs_mark_layout_stateid_return(struct pnfs_layout_hdr *lo,
+					   struct list_head *lseg_list,
+					   enum pnfs_iomode iomode, u32 seq)
+{
+	struct pnfs_layout_range range = {
+		.iomode = iomode,
+		.length = NFS4_MAX_UINT64,
+	};
+
+	return pnfs_mark_matching_lsegs_return(lo, lseg_list, &range, seq);
+}
+
 static int
 pnfs_iomode_to_fail_bit(u32 iomode)
 {
@@ -886,7 +898,10 @@ pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
 
 		spin_lock(&inode->i_lock);
 		list_del_init(&lo->plh_bulk_destroy);
-		if (pnfs_mark_layout_stateid_invalid(lo, &lseg_list)) {
+		if (mode == PNFS_LAYOUT_FILE_BULK_RETURN) {
+			pnfs_mark_layout_stateid_return(lo, &lseg_list,
+							IOMODE_ANY, 0);
+		} else if (pnfs_mark_layout_stateid_invalid(lo, &lseg_list)) {
 			if (mode == PNFS_LAYOUT_BULK_RETURN)
 				set_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
 			ret = -EAGAIN;
@@ -1265,27 +1280,15 @@ out:
 	return status;
 }
 
-static bool
-pnfs_layout_segments_returnable(struct pnfs_layout_hdr *lo,
-				enum pnfs_iomode iomode,
-				u32 seq)
-{
-	struct pnfs_layout_range recall_range = {
-		.length = NFS4_MAX_UINT64,
-		.iomode = iomode,
-	};
-	return pnfs_mark_matching_lsegs_return(lo, &lo->plh_return_segs,
-					       &recall_range, seq) != -EBUSY;
-}
-
 /* Return true if layoutreturn is needed */
 static bool
 pnfs_layout_need_return(struct pnfs_layout_hdr *lo)
 {
 	if (!test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags))
 		return false;
-	return pnfs_layout_segments_returnable(lo, lo->plh_return_iomode,
-					       lo->plh_return_seq);
+	return pnfs_mark_layout_stateid_return(lo, &lo->plh_return_segs,
+					       lo->plh_return_iomode,
+					       lo->plh_return_seq) != EBUSY;
 }
 
 static void pnfs_layoutreturn_before_put_layout_hdr(struct pnfs_layout_hdr *lo)
