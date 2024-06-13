@@ -107,63 +107,6 @@ new_segment:
 }
 EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 
-/**
- * blk_integrity_compare - Compare integrity profile of two disks
- * @gd1:	Disk to compare
- * @gd2:	Disk to compare
- *
- * Description: Meta-devices like DM and MD need to verify that all
- * sub-devices use the same integrity format before advertising to
- * upper layers that they can send/receive integrity metadata.  This
- * function can be used to check whether two gendisk devices have
- * compatible integrity formats.
- */
-int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
-{
-	struct blk_integrity *b1 = &gd1->queue->integrity;
-	struct blk_integrity *b2 = &gd2->queue->integrity;
-
-	if (!b1->tuple_size && !b2->tuple_size)
-		return 0;
-
-	if (!b1->tuple_size || !b2->tuple_size)
-		return -1;
-
-	if (b1->interval_exp != b2->interval_exp) {
-		pr_err("%s: %s/%s protection interval %u != %u\n",
-		       __func__, gd1->disk_name, gd2->disk_name,
-		       1 << b1->interval_exp, 1 << b2->interval_exp);
-		return -1;
-	}
-
-	if (b1->tuple_size != b2->tuple_size) {
-		pr_err("%s: %s/%s tuple sz %u != %u\n", __func__,
-		       gd1->disk_name, gd2->disk_name,
-		       b1->tuple_size, b2->tuple_size);
-		return -1;
-	}
-
-	if (b1->tag_size && b2->tag_size && (b1->tag_size != b2->tag_size)) {
-		pr_err("%s: %s/%s tag sz %u != %u\n", __func__,
-		       gd1->disk_name, gd2->disk_name,
-		       b1->tag_size, b2->tag_size);
-		return -1;
-	}
-
-	if (b1->csum_type != b2->csum_type ||
-	    (b1->flags & BLK_INTEGRITY_REF_TAG) !=
-	    (b2->flags & BLK_INTEGRITY_REF_TAG)) {
-		pr_err("%s: %s/%s type %s != %s\n", __func__,
-		       gd1->disk_name, gd2->disk_name,
-		       blk_integrity_profile_name(b1),
-		       blk_integrity_profile_name(b2));
-		return -1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(blk_integrity_compare);
-
 bool blk_integrity_merge_rq(struct request_queue *q, struct request *req,
 			    struct request *next)
 {
@@ -217,7 +160,7 @@ bool blk_integrity_merge_bio(struct request_queue *q, struct request *req,
 
 static inline struct blk_integrity *dev_to_bi(struct device *dev)
 {
-	return &dev_to_disk(dev)->queue->integrity;
+	return &dev_to_disk(dev)->queue->limits.integrity;
 }
 
 const char *blk_integrity_profile_name(struct blk_integrity *bi)
@@ -246,7 +189,8 @@ EXPORT_SYMBOL_GPL(blk_integrity_profile_name);
 static ssize_t flag_store(struct device *dev, struct device_attribute *attr,
 		const char *page, size_t count, unsigned char flag)
 {
-	struct blk_integrity *bi = dev_to_bi(dev);
+	struct request_queue *q = dev_to_disk(dev)->queue;
+	struct queue_limits lim;
 	unsigned long val;
 	int err;
 
@@ -254,11 +198,18 @@ static ssize_t flag_store(struct device *dev, struct device_attribute *attr,
 	if (err)
 		return err;
 
-	/* the flags are inverted vs the values in the sysfs files */
+	/* note that the flags are inverted vs the values in the sysfs files */
+	lim = queue_limits_start_update(q);
 	if (val)
-		bi->flags &= ~flag;
+		lim.integrity.flags &= ~flag;
 	else
-		bi->flags |= flag;
+		lim.integrity.flags |= flag;
+
+	blk_mq_freeze_queue(q);
+	err = queue_limits_commit_update(q, &lim);
+	blk_mq_unfreeze_queue(q);
+	if (err)
+		return err;
 	return count;
 }
 
@@ -355,52 +306,3 @@ const struct attribute_group blk_integrity_attr_group = {
 	.name = "integrity",
 	.attrs = integrity_attrs,
 };
-
-/**
- * blk_integrity_register - Register a gendisk as being integrity-capable
- * @disk:	struct gendisk pointer to make integrity-aware
- * @template:	block integrity profile to register
- *
- * Description: When a device needs to advertise itself as being able to
- * send/receive integrity metadata it must use this function to register
- * the capability with the block layer. The template is a blk_integrity
- * struct with values appropriate for the underlying hardware. See
- * Documentation/block/data-integrity.rst.
- */
-void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
-{
-	struct blk_integrity *bi = &disk->queue->integrity;
-
-	bi->csum_type = template->csum_type;
-	bi->flags = template->flags;
-	bi->interval_exp = template->interval_exp ? :
-		ilog2(queue_logical_block_size(disk->queue));
-	bi->tuple_size = template->tuple_size;
-	bi->tag_size = template->tag_size;
-	bi->pi_offset = template->pi_offset;
-
-#ifdef CONFIG_BLK_INLINE_ENCRYPTION
-	if (disk->queue->crypto_profile) {
-		pr_warn("blk-integrity: Integrity and hardware inline encryption are not supported together. Disabling hardware inline encryption.\n");
-		disk->queue->crypto_profile = NULL;
-	}
-#endif
-}
-EXPORT_SYMBOL(blk_integrity_register);
-
-/**
- * blk_integrity_unregister - Unregister block integrity profile
- * @disk:	disk whose integrity profile to unregister
- *
- * Description: This function unregisters the integrity capability from
- * a block device.
- */
-void blk_integrity_unregister(struct gendisk *disk)
-{
-	struct blk_integrity *bi = &disk->queue->integrity;
-
-	if (!bi->tuple_size)
-		return;
-	memset(bi, 0, sizeof(*bi));
-}
-EXPORT_SYMBOL(blk_integrity_unregister);

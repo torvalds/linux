@@ -2482,11 +2482,13 @@ static int sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer
 	return 0;
 }
 
-static void sd_config_protection(struct scsi_disk *sdkp)
+static void sd_config_protection(struct scsi_disk *sdkp,
+		struct queue_limits *lim)
 {
 	struct scsi_device *sdp = sdkp->device;
 
-	sd_dif_config_host(sdkp);
+	if (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY))
+		sd_dif_config_host(sdkp, lim);
 
 	if (!sdkp->protection_type)
 		return;
@@ -3677,7 +3679,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		sd_read_app_tag_own(sdkp, buffer);
 		sd_read_write_same(sdkp, buffer);
 		sd_read_security(sdkp, buffer);
-		sd_config_protection(sdkp);
+		sd_config_protection(sdkp, &lim);
 	}
 
 	/*

@@ -220,17 +220,7 @@ static inline sector_t sectors_to_logical(struct scsi_device *sdev, sector_t sec
 	return sector >> (ilog2(sdev->sector_size) - 9);
 }
 
-#ifdef CONFIG_BLK_DEV_INTEGRITY
-
-extern void sd_dif_config_host(struct scsi_disk *);
-
-#else /* CONFIG_BLK_DEV_INTEGRITY */
-
-static inline void sd_dif_config_host(struct scsi_disk *disk)
-{
-}
-
-#endif /* CONFIG_BLK_DEV_INTEGRITY */
+void sd_dif_config_host(struct scsi_disk *sdkp, struct queue_limits *lim);
 
 static inline int sd_is_zoned(struct scsi_disk *sdkp)
 {

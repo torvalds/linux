@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/bio.h>
-#include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/pagemap.h>
 #include <linux/backing-dev-defs.h>
 #include <linux/gcd.h>
@@ -97,6 +97,36 @@ static int blk_validate_zoned_limits(struct queue_limits *lim)
 	return 0;
 }
 
+static int blk_validate_integrity_limits(struct queue_limits *lim)
+{
+	struct blk_integrity *bi = &lim->integrity;
+
+	if (!bi->tuple_size) {
+		if (bi->csum_type != BLK_INTEGRITY_CSUM_NONE ||
+		    bi->tag_size || ((bi->flags & BLK_INTEGRITY_REF_TAG))) {
+			pr_warn("invalid PI settings.\n");
+			return -EINVAL;
+		}
+		return 0;
+	}
+
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
+		pr_warn("integrity support disabled.\n");
+		return -EINVAL;
+	}
+
+	if (bi->csum_type == BLK_INTEGRITY_CSUM_NONE &&
+	    (bi->flags & BLK_INTEGRITY_REF_TAG)) {
+		pr_warn("ref tag not support without checksum.\n");
+		return -EINVAL;
+	}
+
+	if (!bi->interval_exp)
+		bi->interval_exp = ilog2(lim->logical_block_size);
+
+	return 0;
+}
+
 /*
  * Check that the limits in lim are valid, initialize defaults for unset
  * values, and cap values based on others where needed.
@@ -105,6 +135,7 @@ static int blk_validate_limits(struct queue_limits *lim)
 {
 	unsigned int max_hw_sectors;
 	unsigned int logical_block_sectors;
+	int err;
 
 	/*
 	 * Unless otherwise specified, default to 512 byte logical blocks and a
@@ -230,6 +261,9 @@ static int blk_validate_limits(struct queue_limits *lim)
 		lim->misaligned = 0;
 	}
 
+	err = blk_validate_integrity_limits(lim);
+	if (err)
+		return err;
 	return blk_validate_zoned_limits(lim);
 }
 
@@ -263,13 +297,24 @@ int queue_limits_commit_update(struct request_queue *q,
 		struct queue_limits *lim)
 	__releases(q->limits_lock)
 {
-	int error = blk_validate_limits(lim);
+	int error;
 
-	if (!error) {
-		q->limits = *lim;
-		if (q->disk)
-			blk_apply_bdi_limits(q->disk->bdi, lim);
+	error = blk_validate_limits(lim);
+	if (error)
+		goto out_unlock;
+
+#ifdef CONFIG_BLK_INLINE_ENCRYPTION
+	if (q->crypto_profile && lim->integrity.tag_size) {
+		pr_warn("blk-integrity: Integrity and hardware inline encryption are not supported together.\n");
+		error = -EINVAL;
+		goto out_unlock;
 	}
+#endif
+
+	q->limits = *lim;
+	if (q->disk)
+		blk_apply_bdi_limits(q->disk->bdi, lim);
+out_unlock:
 	mutex_unlock(&q->limits_lock);
 	return error;
 }
@@ -574,6 +619,67 @@ void queue_limits_stack_bdev(struct queue_limits *t, struct block_device *bdev,
 			pfx, bdev);
 }
 EXPORT_SYMBOL_GPL(queue_limits_stack_bdev);
+
+/**
+ * queue_limits_stack_integrity - stack integrity profile
+ * @t: target queue limits
+ * @b: base queue limits
+ *
+ * Check if the integrity profile in the @b can be stacked into the
+ * target @t.  Stacking is possible if either:
+ *
+ *   a) does not have any integrity information stacked into it yet
+ *   b) the integrity profile in @b is identical to the one in @t
+ *
+ * If @b can be stacked into @t, return %true.  Else return %false and clear the
+ * integrity information in @t.
+ */
+bool queue_limits_stack_integrity(struct queue_limits *t,
+		struct queue_limits *b)
+{
+	struct blk_integrity *ti = &t->integrity;
+	struct blk_integrity *bi = &b->integrity;
+
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY))
+		return true;
+
+	if (!ti->tuple_size) {
+		/* inherit the settings from the first underlying device */
+		if (!(ti->flags & BLK_INTEGRITY_STACKED)) {
+			ti->flags = BLK_INTEGRITY_DEVICE_CAPABLE |
+				(bi->flags & BLK_INTEGRITY_REF_TAG);
+			ti->csum_type = bi->csum_type;
+			ti->tuple_size = bi->tuple_size;
+			ti->pi_offset = bi->pi_offset;
+			ti->interval_exp = bi->interval_exp;
+			ti->tag_size = bi->tag_size;
+			goto done;
+		}
+		if (!bi->tuple_size)
+			goto done;
+	}
+
+	if (ti->tuple_size != bi->tuple_size)
+		goto incompatible;
+	if (ti->interval_exp != bi->interval_exp)
+		goto incompatible;
+	if (ti->tag_size != bi->tag_size)
+		goto incompatible;
+	if (ti->csum_type != bi->csum_type)
+		goto incompatible;
+	if ((ti->flags & BLK_INTEGRITY_REF_TAG) !=
+	    (bi->flags & BLK_INTEGRITY_REF_TAG))
+		goto incompatible;
+
+done:
+	ti->flags |= BLK_INTEGRITY_STACKED;
+	return true;
+
+incompatible:
+	memset(ti, 0, sizeof(*ti));
+	return false;
+}
+EXPORT_SYMBOL_GPL(queue_limits_stack_integrity);
 
 /**
  * blk_queue_update_dma_pad - update pad mask

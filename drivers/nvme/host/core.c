@@ -1723,11 +1723,12 @@ int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
+static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head,
+		struct queue_limits *lim)
 {
-	struct blk_integrity integrity = { };
+	struct blk_integrity *bi = &lim->integrity;
 
-	blk_integrity_unregister(disk);
+	memset(bi, 0, sizeof(*bi));
 
 	if (!head->ms)
 		return true;
@@ -1744,14 +1745,14 @@ static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
 	case NVME_NS_DPS_PI_TYPE3:
 		switch (head->guard_type) {
 		case NVME_NVM_NS_16B_GUARD:
-			integrity.csum_type = BLK_INTEGRITY_CSUM_CRC;
-			integrity.tag_size = sizeof(u16) + sizeof(u32);
-			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
+			bi->csum_type = BLK_INTEGRITY_CSUM_CRC;
+			bi->tag_size = sizeof(u16) + sizeof(u32);
+			bi->flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
 			break;
 		case NVME_NVM_NS_64B_GUARD:
-			integrity.csum_type = BLK_INTEGRITY_CSUM_CRC64;
-			integrity.tag_size = sizeof(u16) + 6;
-			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
+			bi->csum_type = BLK_INTEGRITY_CSUM_CRC64;
+			bi->tag_size = sizeof(u16) + 6;
+			bi->flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
 			break;
 		default:
 			break;
@@ -1761,16 +1762,16 @@ static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
 	case NVME_NS_DPS_PI_TYPE2:
 		switch (head->guard_type) {
 		case NVME_NVM_NS_16B_GUARD:
-			integrity.csum_type = BLK_INTEGRITY_CSUM_CRC;
-			integrity.tag_size = sizeof(u16);
-			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE |
-					   BLK_INTEGRITY_REF_TAG;
+			bi->csum_type = BLK_INTEGRITY_CSUM_CRC;
+			bi->tag_size = sizeof(u16);
+			bi->flags |= BLK_INTEGRITY_DEVICE_CAPABLE |
+				     BLK_INTEGRITY_REF_TAG;
 			break;
 		case NVME_NVM_NS_64B_GUARD:
-			integrity.csum_type = BLK_INTEGRITY_CSUM_CRC64;
-			integrity.tag_size = sizeof(u16);
-			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE |
-					   BLK_INTEGRITY_REF_TAG;
+			bi->csum_type = BLK_INTEGRITY_CSUM_CRC64;
+			bi->tag_size = sizeof(u16);
+			bi->flags |= BLK_INTEGRITY_DEVICE_CAPABLE |
+				     BLK_INTEGRITY_REF_TAG;
 			break;
 		default:
 			break;
@@ -1780,9 +1781,8 @@ static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
 		break;
 	}
 
-	integrity.tuple_size = head->ms;
-	integrity.pi_offset = head->pi_offset;
-	blk_integrity_register(disk, &integrity);
+	bi->tuple_size = head->ms;
+	bi->pi_offset = head->pi_offset;
 	return true;
 }
 
@@ -2105,11 +2105,6 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) &&
 	    ns->head->ids.csi == NVME_CSI_ZNS)
 		nvme_update_zone_info(ns, &lim, &zi);
-	ret = queue_limits_commit_update(ns->disk->queue, &lim);
-	if (ret) {
-		blk_mq_unfreeze_queue(ns->disk->queue);
-		goto out;
-	}
 
 	/*
 	 * Register a metadata profile for PI, or the plain non-integrity NVMe
@@ -2117,8 +2112,14 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	 * I/O to namespaces with metadata except when the namespace supports
 	 * PI, as it can strip/insert in that case.
 	 */
-	if (!nvme_init_integrity(ns->disk, ns->head))
+	if (!nvme_init_integrity(ns->disk, ns->head, &lim))
 		capacity = 0;
+
+	ret = queue_limits_commit_update(ns->disk->queue, &lim);
+	if (ret) {
+		blk_mq_unfreeze_queue(ns->disk->queue);
+		goto out;
+	}
 
 	set_capacity_and_notify(ns->disk, capacity);
 
@@ -2191,14 +2192,6 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 		struct queue_limits lim;
 
 		blk_mq_freeze_queue(ns->head->disk->queue);
-		if (unsupported)
-			ns->head->disk->flags |= GENHD_FL_HIDDEN;
-		else
-			nvme_init_integrity(ns->head->disk, ns->head);
-		set_capacity_and_notify(ns->head->disk, get_capacity(ns->disk));
-		set_disk_ro(ns->head->disk, nvme_ns_is_readonly(ns, info));
-		nvme_mpath_revalidate_paths(ns);
-
 		/*
 		 * queue_limits mixes values that are the hardware limitations
 		 * for bio splitting with what is the device configuration.
@@ -2221,7 +2214,16 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 		lim.io_opt = ns_lim->io_opt;
 		queue_limits_stack_bdev(&lim, ns->disk->part0, 0,
 					ns->head->disk->disk_name);
+		if (unsupported)
+			ns->head->disk->flags |= GENHD_FL_HIDDEN;
+		else
+			nvme_init_integrity(ns->head->disk, ns->head, &lim);
 		ret = queue_limits_commit_update(ns->head->disk->queue, &lim);
+
+		set_capacity_and_notify(ns->head->disk, get_capacity(ns->disk));
+		set_disk_ro(ns->head->disk, nvme_ns_is_readonly(ns, info));
+		nvme_mpath_revalidate_paths(ns);
+
 		blk_mq_unfreeze_queue(ns->head->disk->queue);
 	}
 

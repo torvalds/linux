@@ -334,6 +334,8 @@ struct queue_limits {
 	 * due to possible offsets.
 	 */
 	unsigned int		dma_alignment;
+
+	struct blk_integrity	integrity;
 };
 
 typedef int (*report_zones_cb)(struct blk_zone *zone, unsigned int idx,
@@ -418,10 +420,6 @@ struct request_queue {
 	struct kobject *mq_kobj;
 
 	struct queue_limits	limits;
-
-#ifdef  CONFIG_BLK_DEV_INTEGRITY
-	struct blk_integrity integrity;
-#endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 #ifdef CONFIG_PM
 	struct device		*dev;
@@ -1300,11 +1298,9 @@ static inline bool bdev_stable_writes(struct block_device *bdev)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 
-#ifdef CONFIG_BLK_DEV_INTEGRITY
-	/* BLK_INTEGRITY_CSUM_NONE is not available in blkdev.h */
-	if (q->integrity.csum_type != 0)
+	if (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) &&
+	    q->limits.integrity.csum_type != BLK_INTEGRITY_CSUM_NONE)
 		return true;
-#endif
 	return test_bit(QUEUE_FLAG_STABLE_WRITES, &q->queue_flags);
 }
 

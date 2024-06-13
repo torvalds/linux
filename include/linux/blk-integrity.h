@@ -11,6 +11,7 @@ enum blk_integrity_flags {
 	BLK_INTEGRITY_NOGENERATE	= 1 << 1,
 	BLK_INTEGRITY_DEVICE_CAPABLE	= 1 << 2,
 	BLK_INTEGRITY_REF_TAG		= 1 << 3,
+	BLK_INTEGRITY_STACKED		= 1 << 4,
 };
 
 struct blk_integrity_iter {
@@ -23,11 +24,15 @@ struct blk_integrity_iter {
 };
 
 const char *blk_integrity_profile_name(struct blk_integrity *bi);
+bool queue_limits_stack_integrity(struct queue_limits *t,
+		struct queue_limits *b);
+static inline bool queue_limits_stack_integrity_bdev(struct queue_limits *t,
+		struct block_device *bdev)
+{
+	return queue_limits_stack_integrity(t, &bdev->bd_disk->queue->limits);
+}
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
-void blk_integrity_register(struct gendisk *, struct blk_integrity *);
-void blk_integrity_unregister(struct gendisk *);
-int blk_integrity_compare(struct gendisk *, struct gendisk *);
 int blk_rq_map_integrity_sg(struct request_queue *, struct bio *,
 				   struct scatterlist *);
 int blk_rq_count_integrity_sg(struct request_queue *, struct bio *);
@@ -35,14 +40,14 @@ int blk_rq_count_integrity_sg(struct request_queue *, struct bio *);
 static inline bool
 blk_integrity_queue_supports_integrity(struct request_queue *q)
 {
-	return q->integrity.tuple_size;
+	return q->limits.integrity.tuple_size;
 }
 
 static inline struct blk_integrity *blk_get_integrity(struct gendisk *disk)
 {
 	if (!blk_integrity_queue_supports_integrity(disk->queue))
 		return NULL;
-	return &disk->queue->integrity;
+	return &disk->queue->limits.integrity;
 }
 
 static inline struct blk_integrity *
@@ -119,17 +124,6 @@ blk_integrity_queue_supports_integrity(struct request_queue *q)
 {
 	return false;
 }
-static inline int blk_integrity_compare(struct gendisk *a, struct gendisk *b)
-{
-	return 0;
-}
-static inline void blk_integrity_register(struct gendisk *d,
-					 struct blk_integrity *b)
-{
-}
-static inline void blk_integrity_unregister(struct gendisk *d)
-{
-}
 static inline unsigned short
 queue_max_integrity_segments(const struct request_queue *q)
 {
@@ -157,4 +151,5 @@ static inline struct bio_vec *rq_integrity_vec(struct request *rq)
 	return NULL;
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
+
 #endif /* _LINUX_BLK_INTEGRITY_H */

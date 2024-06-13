@@ -116,7 +116,7 @@ next:
  */
 static void t10_pi_type1_prepare(struct request *rq)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 	const int tuple_sz = bi->tuple_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
 	u8 offset = bi->pi_offset;
@@ -167,7 +167,7 @@ static void t10_pi_type1_prepare(struct request *rq)
  */
 static void t10_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 	unsigned intervals = nr_bytes >> bi->interval_exp;
 	const int tuple_sz = bi->tuple_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
@@ -290,7 +290,7 @@ next:
 
 static void ext_pi_type1_prepare(struct request *rq)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 	const int tuple_sz = bi->tuple_size;
 	u64 ref_tag = ext_pi_ref_tag(rq);
 	u8 offset = bi->pi_offset;
@@ -330,7 +330,7 @@ static void ext_pi_type1_prepare(struct request *rq)
 
 static void ext_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 	unsigned intervals = nr_bytes >> bi->interval_exp;
 	const int tuple_sz = bi->tuple_size;
 	u64 ref_tag = ext_pi_ref_tag(rq);
@@ -396,7 +396,7 @@ blk_status_t blk_integrity_verify(struct blk_integrity_iter *iter,
 
 void blk_integrity_prepare(struct request *rq)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 
 	if (!(bi->flags & BLK_INTEGRITY_REF_TAG))
 		return;
@@ -409,7 +409,7 @@ void blk_integrity_prepare(struct request *rq)
 
 void blk_integrity_complete(struct request *rq, unsigned int nr_bytes)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 
 	if (!(bi->flags & BLK_INTEGRITY_REF_TAG))
 		return;

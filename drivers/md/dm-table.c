@@ -425,6 +425,13 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 		       q->limits.logical_block_size,
 		       q->limits.alignment_offset,
 		       (unsigned long long) start << SECTOR_SHIFT);
+
+	/*
+	 * Only stack the integrity profile if the target doesn't have native
+	 * integrity support.
+	 */
+	if (!dm_target_has_integrity(ti->type))
+		queue_limits_stack_integrity_bdev(limits, bdev);
 	return 0;
 }
 
@@ -701,9 +708,6 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		}
 		t->immutable_target_type = ti->type;
 	}
-
-	if (dm_target_has_integrity(ti->type))
-		t->integrity_added = 1;
 
 	ti->table = t;
 	ti->begin = start;
@@ -1119,99 +1123,6 @@ static int dm_table_build_index(struct dm_table *t)
 	return r;
 }
 
-static bool integrity_profile_exists(struct gendisk *disk)
-{
-	return !!blk_get_integrity(disk);
-}
-
-/*
- * Get a disk whose integrity profile reflects the table's profile.
- * Returns NULL if integrity support was inconsistent or unavailable.
- */
-static struct gendisk *dm_table_get_integrity_disk(struct dm_table *t)
-{
-	struct list_head *devices = dm_table_get_devices(t);
-	struct dm_dev_internal *dd = NULL;
-	struct gendisk *prev_disk = NULL, *template_disk = NULL;
-
-	for (unsigned int i = 0; i < t->num_targets; i++) {
-		struct dm_target *ti = dm_table_get_target(t, i);
-
-		if (!dm_target_passes_integrity(ti->type))
-			goto no_integrity;
-	}
-
-	list_for_each_entry(dd, devices, list) {
-		template_disk = dd->dm_dev->bdev->bd_disk;
-		if (!integrity_profile_exists(template_disk))
-			goto no_integrity;
-		else if (prev_disk &&
-			 blk_integrity_compare(prev_disk, template_disk) < 0)
-			goto no_integrity;
-		prev_disk = template_disk;
-	}
-
-	return template_disk;
-
-no_integrity:
-	if (prev_disk)
-		DMWARN("%s: integrity not set: %s and %s profile mismatch",
-		       dm_device_name(t->md),
-		       prev_disk->disk_name,
-		       template_disk->disk_name);
-	return NULL;
-}
-
-/*
- * Register the mapped device for blk_integrity support if the
- * underlying devices have an integrity profile.  But all devices may
- * not have matching profiles (checking all devices isn't reliable
- * during table load because this table may use other DM device(s) which
- * must be resumed before they will have an initialized integity
- * profile).  Consequently, stacked DM devices force a 2 stage integrity
- * profile validation: First pass during table load, final pass during
- * resume.
- */
-static int dm_table_register_integrity(struct dm_table *t)
-{
-	struct mapped_device *md = t->md;
-	struct gendisk *template_disk = NULL;
-
-	/* If target handles integrity itself do not register it here. */
-	if (t->integrity_added)
-		return 0;
-
-	template_disk = dm_table_get_integrity_disk(t);
-	if (!template_disk)
-		return 0;
-
-	if (!integrity_profile_exists(dm_disk(md))) {
-		t->integrity_supported = true;
-		/*
-		 * Register integrity profile during table load; we can do
-		 * this because the final profile must match during resume.
-		 */
-		blk_integrity_register(dm_disk(md),
-				       blk_get_integrity(template_disk));
-		return 0;
-	}
-
-	/*
-	 * If DM device already has an initialized integrity
-	 * profile the new profile should not conflict.
-	 */
-	if (blk_integrity_compare(dm_disk(md), template_disk) < 0) {
-		DMERR("%s: conflict with existing integrity profile: %s profile mismatch",
-		      dm_device_name(t->md),
-		      template_disk->disk_name);
-		return 1;
-	}
-
-	/* Preserve existing integrity profile */
-	t->integrity_supported = true;
-	return 0;
-}
-
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 
 struct dm_crypto_profile {
@@ -1420,12 +1331,6 @@ int dm_table_complete(struct dm_table *t)
 	r = dm_table_build_index(t);
 	if (r) {
 		DMERR("unable to build btrees");
-		return r;
-	}
-
-	r = dm_table_register_integrity(t);
-	if (r) {
-		DMERR("could not register integrity profile.");
 		return r;
 	}
 
@@ -1688,6 +1593,14 @@ int dm_calculate_queue_limits(struct dm_table *t,
 
 	blk_set_stacking_limits(limits);
 
+	t->integrity_supported = true;
+	for (unsigned int i = 0; i < t->num_targets; i++) {
+		struct dm_target *ti = dm_table_get_target(t, i);
+
+		if (!dm_target_passes_integrity(ti->type))
+			t->integrity_supported = false;
+	}
+
 	for (unsigned int i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(t, i);
 
@@ -1738,6 +1651,18 @@ combine_limits:
 			       dm_device_name(t->md),
 			       (unsigned long long) ti->begin,
 			       (unsigned long long) ti->len);
+
+		if (t->integrity_supported ||
+		    dm_target_has_integrity(ti->type)) {
+			if (!queue_limits_stack_integrity(limits, &ti_limits)) {
+				DMWARN("%s: adding target device (start sect %llu len %llu) "
+				       "disabled integrity support due to incompatibility",
+				       dm_device_name(t->md),
+				       (unsigned long long) ti->begin,
+				       (unsigned long long) ti->len);
+				t->integrity_supported = false;
+			}
+		}
 	}
 
 	/*
@@ -1759,36 +1684,6 @@ combine_limits:
 		return -EINVAL;
 
 	return validate_hardware_logical_block_alignment(t, limits);
-}
-
-/*
- * Verify that all devices have an integrity profile that matches the
- * DM device's registered integrity profile.  If the profiles don't
- * match then unregister the DM device's integrity profile.
- */
-static void dm_table_verify_integrity(struct dm_table *t)
-{
-	struct gendisk *template_disk = NULL;
-
-	if (t->integrity_added)
-		return;
-
-	if (t->integrity_supported) {
-		/*
-		 * Verify that the original integrity profile
-		 * matches all the devices in this table.
-		 */
-		template_disk = dm_table_get_integrity_disk(t);
-		if (template_disk &&
-		    blk_integrity_compare(dm_disk(t->md), template_disk) >= 0)
-			return;
-	}
-
-	if (integrity_profile_exists(dm_disk(t->md))) {
-		DMWARN("%s: unable to establish an integrity profile",
-		       dm_device_name(t->md));
-		blk_integrity_unregister(dm_disk(t->md));
-	}
 }
 
 static int device_flush_capable(struct dm_target *ti, struct dm_dev *dev,
@@ -2003,8 +1898,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
 	else
 		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
-
-	dm_table_verify_integrity(t);
 
 	/*
 	 * Some devices don't use blk_integrity but still want stable pages
