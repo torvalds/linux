@@ -949,7 +949,7 @@ static int btrfs_fill_super(struct super_block *sb,
 		return err;
 	}
 
-	inode = btrfs_iget(sb, BTRFS_FIRST_FREE_OBJECTID, fs_info->fs_root);
+	inode = btrfs_iget(BTRFS_FIRST_FREE_OBJECTID, fs_info->fs_root);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		btrfs_handle_fs_error(fs_info, err, NULL);

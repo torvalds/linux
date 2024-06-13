@@ -3376,7 +3376,7 @@ static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
 	if (inode)
 		goto truncate;
 
-	inode = btrfs_iget(fs_info->sb, ino, root);
+	inode = btrfs_iget(ino, root);
 	if (IS_ERR(inode))
 		return -ENOENT;
 
@@ -3913,7 +3913,7 @@ static noinline_for_stack struct inode *create_reloc_inode(
 	if (ret)
 		goto out;
 
-	inode = btrfs_iget(fs_info->sb, objectid, root);
+	inode = btrfs_iget(objectid, root);
 	if (IS_ERR(inode)) {
 		delete_orphan_inode(trans, root, objectid);
 		ret = PTR_ERR(inode);

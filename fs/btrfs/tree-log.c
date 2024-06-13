@@ -151,7 +151,7 @@ static struct inode *btrfs_iget_logging(u64 objectid, struct btrfs_root *root)
 	 * attempt a transaction commit, resulting in a deadlock.
 	 */
 	nofs_flag = memalloc_nofs_save();
-	inode = btrfs_iget(root->fs_info->sb, objectid, root);
+	inode = btrfs_iget(objectid, root);
 	memalloc_nofs_restore(nofs_flag);
 
 	return inode;

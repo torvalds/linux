@@ -5188,11 +5188,10 @@ out:
 static int process_verity(struct send_ctx *sctx)
 {
 	int ret = 0;
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	struct inode *inode;
 	struct fs_path *p;
 
-	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, sctx->send_root);
+	inode = btrfs_iget(sctx->cur_ino, sctx->send_root);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
@@ -5550,7 +5549,7 @@ static int send_encoded_inline_extent(struct send_ctx *sctx,
 	size_t inline_size;
 	int ret;
 
-	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, root);
+	inode = btrfs_iget(sctx->cur_ino, root);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
@@ -5617,7 +5616,7 @@ static int send_encoded_extent(struct send_ctx *sctx, struct btrfs_path *path,
 	u32 crc;
 	int ret;
 
-	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, root);
+	inode = btrfs_iget(sctx->cur_ino, root);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
@@ -5746,7 +5745,7 @@ static int send_extent_data(struct send_ctx *sctx, struct btrfs_path *path,
 	if (sctx->cur_inode == NULL) {
 		struct btrfs_root *root = sctx->send_root;
 
-		sctx->cur_inode = btrfs_iget(root->fs_info->sb, sctx->cur_ino, root);
+		sctx->cur_inode = btrfs_iget(sctx->cur_ino, root);
 		if (IS_ERR(sctx->cur_inode)) {
 			int err = PTR_ERR(sctx->cur_inode);
 

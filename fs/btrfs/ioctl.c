@@ -1914,7 +1914,6 @@ static int btrfs_search_path_in_tree_user(struct mnt_idmap *idmap,
 				struct btrfs_ioctl_ino_lookup_user_args *args)
 {
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
-	struct super_block *sb = inode->i_sb;
 	u64 upper_limit = btrfs_ino(BTRFS_I(inode));
 	u64 treeid = btrfs_root_id(BTRFS_I(inode)->root);
 	u64 dirid = args->dirid;
@@ -2003,7 +2002,7 @@ static int btrfs_search_path_in_tree_user(struct mnt_idmap *idmap,
 			 * btree and lock the same leaf.
 			 */
 			btrfs_release_path(path);
-			temp_inode = btrfs_iget(sb, key2.objectid, root);
+			temp_inode = btrfs_iget(key2.objectid, root);
 			if (IS_ERR(temp_inode)) {
 				ret = PTR_ERR(temp_inode);
 				goto out_put;

@@ -255,7 +255,7 @@ again:
 		goto cleanup;
 	}
 
-	inode = btrfs_iget(fs_info->sb, defrag->ino, inode_root);
+	inode = btrfs_iget(defrag->ino, inode_root);
 	btrfs_put_root(inode_root);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);

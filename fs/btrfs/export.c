@@ -84,7 +84,7 @@ struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	if (IS_ERR(root))
 		return ERR_CAST(root);
 
-	inode = btrfs_iget(sb, objectid, root);
+	inode = btrfs_iget(objectid, root);
 	btrfs_put_root(root);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
@@ -210,7 +210,7 @@ struct dentry *btrfs_get_parent(struct dentry *child)
 					found_key.offset, 0);
 	}
 
-	return d_obtain_alias(btrfs_iget(fs_info->sb, key.objectid, root));
+	return d_obtain_alias(btrfs_iget(key.objectid, root));
 fail:
 	btrfs_free_path(path);
 	return ERR_PTR(ret);
