@@ -162,33 +162,63 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 	}
 }
 
+bool amdgpu_dm_is_headless(struct amdgpu_device *adev)
+{
+	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
+	struct drm_device *dev;
+	bool is_headless = true;
+
+	if (adev == NULL)
+		return true;
+
+	dev = adev->dm.ddev;
+
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+			continue;
+
+		if (connector->status == connector_status_connected) {
+			is_headless = false;
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&iter);
+	return is_headless;
+}
+
 static void amdgpu_dm_idle_worker(struct work_struct *work)
 {
 	struct idle_workqueue *idle_work;
 
 	idle_work = container_of(work, struct idle_workqueue, work);
 	idle_work->dm->idle_workqueue->running = true;
-	fsleep(HPD_DETECTION_PERIOD_uS);
-	mutex_lock(&idle_work->dm->dc_lock);
-	while (idle_work->enable) {
-		if (!idle_work->dm->dc->idle_optimizations_allowed)
-			break;
 
+	while (idle_work->enable) {
+		fsleep(HPD_DETECTION_PERIOD_uS);
+		mutex_lock(&idle_work->dm->dc_lock);
+		if (!idle_work->dm->dc->idle_optimizations_allowed) {
+			mutex_unlock(&idle_work->dm->dc_lock);
+			break;
+		}
 		dc_allow_idle_optimizations(idle_work->dm->dc, false);
 
 		mutex_unlock(&idle_work->dm->dc_lock);
 		fsleep(HPD_DETECTION_TIME_uS);
 		mutex_lock(&idle_work->dm->dc_lock);
 
-		if (!amdgpu_dm_psr_is_active_allowed(idle_work->dm))
+		if (!amdgpu_dm_is_headless(idle_work->dm->adev) &&
+		    !amdgpu_dm_psr_is_active_allowed(idle_work->dm)) {
+			mutex_unlock(&idle_work->dm->dc_lock);
 			break;
+		}
 
-		dc_allow_idle_optimizations(idle_work->dm->dc, true);
+		if (idle_work->enable)
+			dc_allow_idle_optimizations(idle_work->dm->dc, true);
 		mutex_unlock(&idle_work->dm->dc_lock);
-		fsleep(HPD_DETECTION_PERIOD_uS);
-		mutex_lock(&idle_work->dm->dc_lock);
 	}
-	mutex_unlock(&idle_work->dm->dc_lock);
 	idle_work->dm->idle_workqueue->running = false;
 }
 
