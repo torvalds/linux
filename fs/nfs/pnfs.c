@@ -923,8 +923,6 @@ restart:
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
 
-	if (list_empty(&layout_list))
-		return 0;
 	return pnfs_layout_free_bulk_destroy_list(&layout_list, is_recall);
 }
 
@@ -947,8 +945,6 @@ restart:
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
 
-	if (list_empty(&layout_list))
-		return 0;
 	return pnfs_layout_free_bulk_destroy_list(&layout_list, is_recall);
 }
 
