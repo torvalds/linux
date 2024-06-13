@@ -769,8 +769,18 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
 					  &nn->nfsd_serv->sv_pools[i],
 					  nthreads[i]);
 		if (err)
-			break;
+			goto out;
 	}
+
+	/* Anything undefined in array is considered to be 0 */
+	for (i = n; i < nn->nfsd_serv->sv_nrpools; ++i) {
+		err = svc_set_num_threads(nn->nfsd_serv,
+					  &nn->nfsd_serv->sv_pools[i],
+					  0);
+		if (err)
+			goto out;
+	}
+out:
 	return err;
 }
 
