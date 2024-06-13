@@ -1,0 +1,413 @@
+// SPDX-License-Identifier: GPL-2.0 or MIT
+//
+// Device Tree Source for General Electric B1x5Pv2
+// patient monitor series
+//
+// Copyright 2018-2021 General Electric Company
+// Copyright 2018-2021 Collabora
+
+#include <dt-bindings/input/input.h>
+#include "imx6dl-qmx6.dtsi"
+
+/ {
+	chosen {
+		stdout-path = &uart3;
+	};
+
+	/* Do not allow frequencies above 800MHz */
+	cpus {
+		cpu@0 {
+			operating-points = <
+				/* kHz    uV */
+				792000  1175000
+				396000  1150000
+			>;
+			fsl,soc-operating-points = <
+				/* ARM kHz	SOC-PU uV */
+				792000	1175000
+				396000	1175000
+			>;
+		};
+
+		cpu@1 {
+			operating-points = <
+				/* kHz    uV */
+				792000  1175000
+				396000  1150000
+			>;
+			fsl,soc-operating-points = <
+				/* ARM kHz	SOC-PU uV */
+				792000	1175000
+				396000	1175000
+			>;
+		};
+	};
+
+	reg_syspwr: regulator-12v {
+		compatible = "regulator-fixed";
+		regulator-name = "SYS_PWR";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	reg_5v_pmc: regulator-5v-pmc {
+		compatible = "regulator-fixed";
+		regulator-name = "5V PMC";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&reg_syspwr>;
+	};
+
+	reg_5v: regulator-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&reg_syspwr>;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_syspwr>;
+	};
+
+	reg_5v0_audio: regulator-5v0-audio {
+		compatible = "regulator-fixed";
+		regulator-name = "5V0_AUDIO";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&reg_5v>;
+		gpio = <&tca6424a 16 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/*
+		 * This must be always-on for da7212, which has some not
+		 * properly documented dependencies for it's speaker supply
+		 * pin. The issue manifests as speaker volume being very low.
+		 */
+		regulator-always-on;
+	};
+
+
+	reg_3v3_audio: regulator-3v3-audio {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3_AUDIO";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_3v3>;
+		pinctrl-0 = <&pinctrl_q7_hda_reset>;
+		pinctrl-names = "default";
+		gpio = <&gpio6 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_2v5_audio: regulator-2v5-audio {
+		compatible = "regulator-fixed";
+		regulator-name = "2V5_AUDIO";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-always-on;
+		vin-supply = <&reg_3v3_audio>;
+
+	};
+
+	reg_wlan: regulator-wlan {
+		compatible = "regulator-fixed";
+		regulator-name = "WLAN";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_3v3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_q7_sdio_power>;
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <70000>;
+	};
+
+	reg_bl: regulator-backlight {
+		compatible = "regulator-fixed";
+		regulator-name = "LED_VCC";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		vin-supply = <&reg_syspwr>;
+		pinctrl-0 = <&pinctrl_q7_lcd_power>;
+		pinctrl-names = "default";
+		gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_lcd: regulator-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&reg_5v>;
+	};
+
+	usb_power: regulator-usb-power {
+		compatible = "regulator-fixed";
+		regulator-name = "USB POWER";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&reg_5v>;
+	};
+
+	charger: battery-charger {
+		compatible = "gpio-charger"; /* ti,bq24172 */
+		charger-type = "mains";
+		gpios = <&tca6424a 3 GPIO_ACTIVE_LOW>;
+		charge-current-limit-gpios = <&tca6424a 11 GPIO_ACTIVE_HIGH>,
+					     <&tca6424a 12 GPIO_ACTIVE_HIGH>;
+		charge-current-limit-mapping = <1300000 0x0>,
+					       <700000 0x1>,
+					       <0 0x2>;
+		charge-status-gpios = <&tca6424a 6 GPIO_ACTIVE_HIGH>;
+	};
+
+	poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_q7_spi_cs1>;
+		gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;
+	};
+
+	power-button-key {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_q7_sleep_button>;
+
+		power-button {
+			label = "power button";
+			gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+		};
+	};
+
+	rotary-encoder-key {
+		compatible = "gpio-keys";
+
+		rotary-encoder-event {
+			label = "rotary-encoder press";
+			gpios = <&tca6424a 0 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_ENTER>;
+			linux,can-disable;
+		};
+	};
+
+	rotary-encoder {
+		compatible = "rotary-encoder";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_q7_gpio2 &pinctrl_q7_gpio4>;
+		gpios = <&gpio4 26 GPIO_ACTIVE_LOW>, <&gpio1 0 GPIO_ACTIVE_LOW>;
+		rotary-encoder,relative-axis;
+		rotary-encoder,steps-per-period = <2>;
+		wakeup-source;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_q7_gpio1 &pinctrl_q7_gpio3 &pinctrl_q7_gpio5>;
+
+		led-alarm1 {
+			label = "alarm:red";
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-alarm2 {
+			label = "alarm:yellow";
+			gpios = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-alarm3 {
+			label = "alarm:blue";
+			gpios = <&gpio4 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_q7_backlight_enable>;
+		power-supply = <&reg_bl>;
+		pwms = <&pwm4 0 5000000 0>;
+		brightness-levels = <0 255>;
+		num-interpolated-steps = <255>;
+		default-brightness-level = <179>;
+		enable-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+	};
+
+	panel {
+		backlight = <&backlight>;
+		power-supply = <&reg_lcd>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&dailink_master>;
+		simple-audio-card,frame-master = <&dailink_master>;
+		simple-audio-card,widgets = "Speaker", "Ext Spk";
+		simple-audio-card,audio-routing = "Ext Spk", "LINE";
+
+		simple-audio-card,cpu {
+			sound-dai = <&ssi1>;
+		};
+
+		dailink_master: simple-audio-card,codec {
+			sound-dai = <&codec>;
+		};
+	};
+
+	clk_ext_audio_codec: clock-codec {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12288000>;
+	};
+};
+
+&audmux {
+	status = "okay";
+};
+
+&fec {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&i2c1 {
+	battery: battery@b {
+		compatible = "ti,bq20z65", "sbs,sbs-battery";
+		reg = <0x0b>;
+		sbs,battery-detect-gpios = <&tca6424a 5 GPIO_ACTIVE_LOW>;
+		sbs,i2c-retry-count = <5>;
+		power-supplies = <&charger>;
+	};
+
+	codec: audio-codec@1a {
+		compatible = "dlg,da7212";
+		reg = <0x1a>;
+		#sound-dai-cells = <0>;
+		VDDA-supply = <&reg_2v5_audio>;
+		VDDSP-supply = <&reg_5v0_audio>;
+		VDDMIC-supply = <&reg_3v3_audio>;
+		VDDIO-supply = <&reg_3v3_audio>;
+		clocks = <&clk_ext_audio_codec>;
+		clock-names = "mclk";
+	};
+};
+
+&i2c5 {
+	tca6424a: gpio-controller@22 {
+		compatible = "ti,tca6424";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		vcc-supply = <&reg_3v3>;
+		interrupt-parent = <&gpio7>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_q7_gpio6>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-line-names = "GPIO_ROTOR#", "ACM_IO_INT", "TMP_SENSOR_IRQ", "AC_IN",
+				  "TF_S", "BATT_T", "LED_INC_CHAR", "ACM1_OCF",
+				  "ACM2_OCF", "ACM_IO_RST", "USB1_POWER_EN", "EGPIO_CC_CTL0",
+				  "EGPIO_CC_CTL1", "12V_OEMNBP_EN", "CP2105_RST", "",
+				  "SPEAKER_PA_EN", "ARM7_UPI_RESET", "ARM7_PWR_RST", "NURSE_CALL",
+				  "MARKER_EN", "EGPIO_TOUCH_RST", "PRESSURE_INT1", "PRESSURE_INT2";
+
+	};
+
+	tmp75: temperature-sensor@48 {
+		compatible = "ti,tmp75";
+		reg = <0x48>;
+		vs-supply = <&reg_3v3>;
+		interrupt-parent = <&tca6424a>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+
+&ldb {
+	status = "okay";
+
+	lvds0: lvds-channel@0 {
+		status = "okay";
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <24>;
+
+		port@4 {
+			reg = <4>;
+
+			lvds0_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+&ssi1 {
+	fsl,mode = "i2s-slave";
+	status = "okay";
+};
+
+&usbotg {
+	vbus-supply = <&usb_power>;
+	disable-over-current;
+	dr_mode = "host";
+	status = "okay";
+
+	/*
+	 * TPS2051BDGN fault-gpio is connected to Q7[86] USB_0_1_OC_N.
+	 * On QMX6 this is not connceted to the i.MX6, but to the USB Hub
+	 * from &usbh1. This means, that we cannot easily detect and handle
+	 * over-current events. Fortunately the regulator limits the current
+	 * automatically, so the hardware is still protected.
+	 */
+};
+
+&usdhc4 {
+	/* WiFi module */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc4>;
+	bus-width = <4>;
+	no-1-8-v;
+	non-removable;
+	wakeup-source;
+	keep-power-in-suspend;
+	cap-power-off-card;
+	max-frequency = <25000000>;
+	vmmc-supply = <&reg_wlan>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1837";
+		reg = <2>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_q7_gpio7>;
+
+		interrupt-parent = <&gpio4>;
+		interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;
+
+		tcxo-clock-frequency = <26000000>;
+	};
+};

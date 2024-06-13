@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ *  linux/arch/arm/boot/nspire-classic.dts
+ *
+ *  Copyright (C) 2013 Daniel Tang <tangrs@tangrs.id.au>
+ */
+
+/include/ "nspire.dtsi"
+
+&lcd {
+	port {
+		clcd_pads: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
+};
+
+&fast_timer {
+	/* compatible = "lsi,zevio-timer"; */
+	reg = <0x90010000 0x1000>, <0x900a0010 0x8>;
+};
+
+&uart {
+	compatible = "ns16550";
+	reg-shift = <2>;
+	reg-io-width = <4>;
+	clocks = <&apb_pclk>;
+	no-loopback-test;
+};
+
+&timer0 {
+	/* compatible = "lsi,zevio-timer"; */
+	reg = <0x900c0000 0x1000>, <0x900a0018 0x8>;
+};
+
+&timer1 {
+	compatible = "lsi,zevio-timer";
+	reg = <0x900d0000 0x1000>, <0x900a0020 0x8>;
+};
+
+&keypad {
+	active-low;
+
+};
+
+&base_clk {
+	compatible = "lsi,nspire-classic-clock";
+};
+
+&ahb_clk {
+	compatible = "lsi,nspire-classic-ahb-divider";
+};
+
+
+&vbus_reg {
+	gpio = <&gpio 5 0>;
+};
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x10000000 0x2000000>; /* 32 MB */
+	};
+
+	ahb {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		intc: interrupt-controller@dc000000 {
+			compatible = "lsi,zevio-intc";
+			interrupt-controller;
+			reg = <0xdc000000 0x1000>;
+			#interrupt-cells = <1>;
+		};
+	};
+
+	panel {
+		compatible = "ti,nspire-classic-lcd-panel";
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&clcd_pads>;
+			};
+		};
+	};
+	chosen {
+		bootargs = "debug earlyprintk console=tty0 console=ttyS0,115200n8 root=/dev/ram0";
+	};
+};

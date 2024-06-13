@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/renesas,rza2-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/A2 combined Pin and GPIO controller
+
+maintainers:
+  - Chris Brandt <chris.brandt@renesas.com>
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+description:
+  The Renesas SoCs of the RZ/A2 series feature a combined Pin and GPIO
+  controller.
+  Pin multiplexing and GPIO configuration is performed on a per-pin basis.
+  Each port features up to 8 pins, each of them configurable for GPIO function
+  (port mode) or in alternate function mode.
+  Up to 8 different alternate function modes exist for each single pin.
+
+properties:
+  compatible:
+    const: "renesas,r7s9210-pinctrl" # RZ/A2M
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+    description:
+      The first cell contains the global GPIO port index, constructed using the
+      RZA2_PIN() helper macro in r7s9210-pinctrl.h.
+      E.g. "RZA2_PIN(PORT6, 0)" for P6_0.
+
+  gpio-ranges:
+    maxItems: 1
+
+patternProperties:
+  "^.*$":
+    if:
+      type: object
+    then:
+      allOf:
+        - $ref: pincfg-node.yaml#
+        - $ref: pinmux-node.yaml#
+      description:
+        The child nodes of the pin controller designate pins to be used for
+        specific peripheral functions or as GPIO.
+
+        A pin multiplexing sub-node describes how to configure a set of
+        (or a single) pin in some desired alternate function mode.
+        The values for the pinmux properties are a combination of port name,
+        pin number and the desired function index. Use the RZA2_PINMUX macro
+        located in include/dt-bindings/pinctrl/r7s9210-pinctrl.h to easily
+        define these.
+        For assigning GPIO pins, use the macro RZA2_PIN also in
+        to express the desired port pin.
+
+      properties:
+        phandle: true
+
+        pinmux:
+          description:
+            Values are constructed from GPIO port number, pin number, and
+            alternate function configuration number using the RZA2_PINMUX()
+            helper macro in r7s9210-pinctrl.h.
+
+      required:
+        - pinmux
+
+      additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - gpio-ranges
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/r7s9210-pinctrl.h>
+    pinctrl: pinctrl@fcffe000 {
+            compatible = "renesas,r7s9210-pinctrl";
+            reg = <0xfcffe000 0x1000>;
+
+            gpio-controller;
+            #gpio-cells = <2>;
+            gpio-ranges = <&pinctrl 0 0 176>;
+
+            /* Serial Console */
+            scif4_pins: serial4 {
+                    pinmux = <RZA2_PINMUX(PORT9, 0, 4)>, /* TxD4 */
+                             <RZA2_PINMUX(PORT9, 1, 4)>; /* RxD4 */
+            };
+    };

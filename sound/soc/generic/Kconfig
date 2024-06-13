@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SIMPLE_CARD_UTILS
+	tristate
+
+config SND_SIMPLE_CARD
+	tristate "ASoC Simple sound card support"
+	select SND_SIMPLE_CARD_UTILS
+	help
+	  This option enables generic simple sound card support
+	  It also support DPCM of multi CPU single Codec ststem.
+
+config SND_AUDIO_GRAPH_CARD
+	tristate "ASoC Audio Graph sound card support"
+	depends on OF
+	select SND_SIMPLE_CARD_UTILS
+	help
+	  This option enables generic simple sound card support
+	  with OF-graph DT bindings.
+	  It also support DPCM of multi CPU single Codec ststem.
+
+config SND_AUDIO_GRAPH_CARD2
+	tristate "ASoC Audio Graph sound card2 support"
+	depends on OF
+	select SND_SIMPLE_CARD_UTILS
+	help
+	  This option enables generic simple sound card2 support
+	  with OF-graph DT bindings.
+
+config SND_AUDIO_GRAPH_CARD2_CUSTOM_SAMPLE
+	tristate "ASoC Audio Graph Card2 base custom sample support"
+	depends on SND_AUDIO_GRAPH_CARD2
+	help
+	  This option enables Audio Graph Card2 base custom sample
+
+config SND_TEST_COMPONENT
+	tristate "ASoC Test component sound support"
+	depends on OF
+	help
+	  This option enables test component sound driver support.

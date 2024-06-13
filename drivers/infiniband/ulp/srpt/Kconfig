@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config INFINIBAND_SRPT
+	tristate "InfiniBand SCSI RDMA Protocol target support"
+	depends on INFINIBAND && INFINIBAND_ADDR_TRANS && TARGET_CORE
+	help
+
+	  Support for the SCSI RDMA Protocol (SRP) Target driver. The
+	  SRP protocol is a protocol that allows an initiator to access
+	  a block storage device on another host (target) over a network
+	  that supports the RDMA protocol. Currently the RDMA protocol is
+	  supported by InfiniBand and by iWarp network hardware. More
+	  information about the SRP protocol can be found on the website
+	  of the INCITS T10 technical committee (http://www.t10.org/).

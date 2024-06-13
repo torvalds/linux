@@ -1,0 +1,126 @@
+* Boot Bus
+
+The Octeon Boot Bus is a configurable parallel bus with 8 chip
+selects.  Each chip select is independently configurable.
+
+Properties:
+- compatible: "cavium,octeon-3860-bootbus"
+
+  Compatibility with all cn3XXX, cn5XXX and cn6XXX SOCs.
+
+- reg: The base address of the Boot Bus' register bank.
+
+- #address-cells: Must be <2>.  The first cell is the chip select
+   within the bootbus.  The second cell is the offset from the chip select.
+
+- #size-cells: Must be <1>.
+
+- ranges: There must be one one triplet of (child-bus-address,
+  parent-bus-address, length) for each active chip select.  If the
+  length element for any triplet is zero, the chip select is disabled,
+  making it inactive.
+
+The configuration parameters for each chip select are stored in child
+nodes.
+
+Configuration Properties:
+- compatible:  "cavium,octeon-3860-bootbus-config"
+
+- cavium,cs-index: A single cell indicating the chip select that
+  corresponds to this configuration.
+
+- cavium,t-adr: A cell specifying the ADR timing (in nS).
+
+- cavium,t-ce: A cell specifying the CE timing (in nS).
+
+- cavium,t-oe: A cell specifying the OE timing (in nS).
+
+- cavium,t-we: A cell specifying the WE timing (in nS).
+
+- cavium,t-rd-hld: A cell specifying the RD_HLD timing (in nS).
+
+- cavium,t-wr-hld: A cell specifying the WR_HLD timing (in nS).
+
+- cavium,t-pause: A cell specifying the PAUSE timing (in nS).
+
+- cavium,t-wait: A cell specifying the WAIT timing (in nS).
+
+- cavium,t-page: A cell specifying the PAGE timing (in nS).
+
+- cavium,t-rd-dly: A cell specifying the RD_DLY timing (in nS).
+
+- cavium,pages: A cell specifying the PAGES parameter (0 = 8 bytes, 1
+  = 2 bytes, 2 = 4 bytes, 3 = 8 bytes).
+
+- cavium,wait-mode: Optional.  If present, wait mode (WAITM) is selected.
+
+- cavium,page-mode: Optional.  If present, page mode (PAGEM) is selected.
+
+- cavium,bus-width: A cell specifying the WIDTH parameter (in bits) of
+  the bus for this chip select.
+
+- cavium,ale-mode: Optional.  If present, ALE mode is selected.
+
+- cavium,sam-mode: Optional.  If present, SAM mode is selected.
+
+- cavium,or-mode: Optional.  If present, OR mode is selected.
+
+Example:
+	bootbus: bootbus@1180000000000 {
+		compatible = "cavium,octeon-3860-bootbus";
+		reg = <0x11800 0x00000000 0x0 0x200>;
+		/* The chip select number and offset */
+		#address-cells = <2>;
+		/* The size of the chip select region */
+		#size-cells = <1>;
+		ranges = <0 0  0x0 0x1f400000  0xc00000>,
+			 <1 0  0x10000 0x30000000  0>,
+			 <2 0  0x10000 0x40000000  0>,
+			 <3 0  0x10000 0x50000000  0>,
+			 <4 0  0x0 0x1d020000  0x10000>,
+			 <5 0  0x0 0x1d040000  0x10000>,
+			 <6 0  0x0 0x1d050000  0x10000>,
+			 <7 0  0x10000 0x90000000  0>;
+
+			cavium,cs-config@0 {
+			compatible = "cavium,octeon-3860-bootbus-config";
+			cavium,cs-index = <0>;
+			cavium,t-adr  = <20>;
+			cavium,t-ce   = <60>;
+			cavium,t-oe   = <60>;
+			cavium,t-we   = <45>;
+			cavium,t-rd-hld = <35>;
+			cavium,t-wr-hld = <45>;
+			cavium,t-pause  = <0>;
+			cavium,t-wait   = <0>;
+			cavium,t-page   = <35>;
+			cavium,t-rd-dly = <0>;
+
+			cavium,pages     = <0>;
+			cavium,bus-width = <8>;
+		};
+		.
+		.
+		.
+		cavium,cs-config@6 {
+			compatible = "cavium,octeon-3860-bootbus-config";
+			cavium,cs-index = <6>;
+			cavium,t-adr  = <5>;
+			cavium,t-ce   = <300>;
+			cavium,t-oe   = <270>;
+			cavium,t-we   = <150>;
+			cavium,t-rd-hld = <100>;
+			cavium,t-wr-hld = <70>;
+			cavium,t-pause  = <0>;
+			cavium,t-wait   = <0>;
+			cavium,t-page   = <320>;
+			cavium,t-rd-dly = <0>;
+
+			cavium,pages     = <0>;
+			cavium,wait-mode;
+			cavium,bus-width = <16>;
+		};
+		.
+		.
+		.
+	};

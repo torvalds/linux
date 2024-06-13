@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
+ */
+/dts-v1/;
+
+#include "omap2430.dtsi"
+
+/ {
+	model = "TI OMAP2430 SDP";
+	compatible = "ti,omap2430-sdp", "ti,omap2430", "ti,omap2";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x8000000>; /* 128 MB */
+	};
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+	};
+};
+
+#include "twl4030.dtsi"
+
+&mmc1 {
+	vmmc-supply = <&vmmc1>;
+	bus-width = <4>;
+};
+
+&gpmc {
+	ranges = <5 0 0x08000000 0x01000000>;
+	ethernet@gpmc {
+		compatible = "smsc,lan91c94";
+		interrupt-parent = <&gpio5>;
+		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;	/* gpio149 */
+		reg = <5 0x300 0xf>;
+		bank-width = <2>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,mux-add-data = <2>;
+		gpmc,device-width = <1>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
+		gpmc,cs-on-ns = <6>;
+		gpmc,cs-rd-off-ns = <187>;
+		gpmc,cs-wr-off-ns = <187>;
+		gpmc,adv-on-ns = <18>;
+		gpmc,adv-rd-off-ns = <48>;
+		gpmc,adv-wr-off-ns = <48>;
+		gpmc,oe-on-ns = <60>;
+		gpmc,oe-off-ns = <169>;
+		gpmc,we-on-ns = <66>;
+		gpmc,we-off-ns = <169>;
+		gpmc,rd-cycle-ns = <187>;
+		gpmc,wr-cycle-ns = <187>;
+		gpmc,access-ns = <187>;
+		gpmc,page-burst-access-ns = <24>;
+		gpmc,bus-turnaround-ns = <24>;
+		gpmc,cycle2cycle-delay-ns = <24>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		gpmc,wr-access-ns = <0>;
+	};
+};
+

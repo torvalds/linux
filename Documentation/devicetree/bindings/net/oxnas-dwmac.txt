@@ -1,0 +1,41 @@
+* Oxford Semiconductor OXNAS DWMAC Ethernet controller
+
+The device inherits all the properties of the dwmac/stmmac devices
+described in the file stmmac.txt in the current directory with the
+following changes.
+
+Required properties on all platforms:
+
+- compatible:	For the OX820 SoC, it should be :
+		- "oxsemi,ox820-dwmac" to select glue
+		- "snps,dwmac-3.512" to select IP version.
+		For the OX810SE SoC, it should be :
+		- "oxsemi,ox810se-dwmac" to select glue
+		- "snps,dwmac-3.512" to select IP version.
+
+- clocks: Should contain phandles to the following clocks
+- clock-names:	Should contain the following:
+		- "stmmaceth" for the host clock - see stmmac.txt
+		- "gmac" for the peripheral gate clock
+
+- oxsemi,sys-ctrl: a phandle to the system controller syscon node
+
+Example :
+
+etha: ethernet@40400000 {
+	compatible = "oxsemi,ox820-dwmac", "snps,dwmac-3.512";
+	reg = <0x40400000 0x2000>;
+	interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "macirq", "eth_wake_irq";
+	mac-address = [000000000000]; /* Filled in by U-Boot */
+	phy-mode = "rgmii";
+
+	clocks = <&stdclk CLK_820_ETHA>, <&gmacclk>;
+	clock-names = "gmac", "stmmaceth";
+	resets = <&reset RESET_MAC>;
+
+	/* Regmap for sys registers */
+	oxsemi,sys-ctrl = <&sys>;
+
+};

@@ -1,0 +1,32 @@
+What:		/sys/kernel/reboot
+Date:		November 2020
+KernelVersion:	5.11
+Contact:	Matteo Croce <mcroce@microsoft.com>
+Description:	Interface to set the kernel reboot behavior, similarly to
+		what can be done via the reboot= cmdline option.
+		(see Documentation/admin-guide/kernel-parameters.txt)
+
+What:		/sys/kernel/reboot/mode
+Date:		November 2020
+KernelVersion:	5.11
+Contact:	Matteo Croce <mcroce@microsoft.com>
+Description:	Reboot mode. Valid values are: cold warm hard soft gpio
+
+What:		/sys/kernel/reboot/type
+Date:		November 2020
+KernelVersion:	5.11
+Contact:	Matteo Croce <mcroce@microsoft.com>
+Description:	Reboot type. Valid values are: bios acpi kbd triple efi pci
+
+What:		/sys/kernel/reboot/cpu
+Date:		November 2020
+KernelVersion:	5.11
+Contact:	Matteo Croce <mcroce@microsoft.com>
+Description:	CPU number to use to reboot.
+
+What:		/sys/kernel/reboot/force
+Date:		November 2020
+KernelVersion:	5.11
+Contact:	Matteo Croce <mcroce@microsoft.com>
+Description:	Don't wait for any other CPUs on reboot and
+		avoid anything that could hang.

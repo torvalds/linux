@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device tree source for D-Link DSR-500N.
+ *
+ * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
+ */
+
+/include/ "dlink_dsr-500n-1000n.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "dlink,dsr-500n";
+	compatible = "dlink,dsr-500n", "cavium,octeon-3860";
+
+	soc@0 {
+		uart0: serial@1180000000800 {
+			clock-frequency = <300000000>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		usb {
+			gpios = <&gpio 9 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
+		};
+
+		wireless {
+			label = "2.4g";
+			gpios = <&gpio 18 GPIO_ACTIVE_LOW>;
+		};
+	};
+};

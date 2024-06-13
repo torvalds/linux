@@ -1,0 +1,997 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "juno-clocks.dtsi"
+#include "juno-motherboard.dtsi"
+
+/ {
+	/*
+	 *  Devices shared by all Juno boards
+	 */
+
+	memtimer: timer@2a810000 {
+		compatible = "arm,armv7-timer-mem";
+		reg = <0x0 0x2a810000 0x0 0x10000>;
+		clock-frequency = <50000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x2a820000 0x20000>;
+		status = "disabled";
+		frame@2a830000 {
+			frame-number = <1>;
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x10000 0x10000>;
+		};
+	};
+
+	mailbox: mhu@2b1f0000 {
+		compatible = "arm,mhu", "arm,primecell";
+		reg = <0x0 0x2b1f0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <1>;
+		clocks = <&soc_refclk100mhz>;
+		clock-names = "apb_pclk";
+	};
+
+	smmu_gpu: iommu@2b400000 {
+		compatible = "arm,mmu-400", "arm,smmu-v1";
+		reg = <0x0 0x2b400000 0x0 0x10000>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+		#iommu-cells = <1>;
+		#global-interrupts = <1>;
+		power-domains = <&scpi_devpd 1>;
+		dma-coherent;
+		status = "disabled";
+	};
+
+	smmu_pcie: iommu@2b500000 {
+		compatible = "arm,mmu-401", "arm,smmu-v1";
+		reg = <0x0 0x2b500000 0x0 0x10000>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+		#iommu-cells = <1>;
+		#global-interrupts = <1>;
+		dma-coherent;
+		status = "disabled";
+	};
+
+	smmu_etr: iommu@2b600000 {
+		compatible = "arm,mmu-401", "arm,smmu-v1";
+		reg = <0x0 0x2b600000 0x0 0x10000>;
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+		#iommu-cells = <1>;
+		#global-interrupts = <1>;
+		dma-coherent;
+		power-domains = <&scpi_devpd 0>;
+	};
+
+	gic: interrupt-controller@2c010000 {
+		compatible = "arm,gic-400", "arm,cortex-a15-gic";
+		reg = <0x0 0x2c010000 0 0x1000>,
+		      <0x0 0x2c02f000 0 0x2000>,
+		      <0x0 0x2c04f000 0 0x2000>,
+		      <0x0 0x2c06f000 0 0x2000>;
+		#address-cells = <1>;
+		#interrupt-cells = <3>;
+		#size-cells = <1>;
+		interrupt-controller;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_HIGH)>;
+		ranges = <0 0 0x2c1c0000 0x40000>;
+
+		v2m_0: v2m@0 {
+			compatible = "arm,gic-v2m-frame";
+			msi-controller;
+			reg = <0 0x10000>;
+		};
+
+		v2m@10000 {
+			compatible = "arm,gic-v2m-frame";
+			msi-controller;
+			reg = <0x10000 0x10000>;
+		};
+
+		v2m@20000 {
+			compatible = "arm,gic-v2m-frame";
+			msi-controller;
+			reg = <0x20000 0x10000>;
+		};
+
+		v2m@30000 {
+			compatible = "arm,gic-v2m-frame";
+			msi-controller;
+			reg = <0x30000 0x10000>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	/*
+	 * Juno TRMs specify the size for these coresight components as 64K.
+	 * The actual size is just 4K though 64K is reserved. Access to the
+	 * unmapped reserved region results in a DECERR response.
+	 */
+	etf_sys0: etf@20010000 { /* etf0 */
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0 0x20010000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		in-ports {
+			port {
+				etf0_in_port: endpoint {
+					remote-endpoint = <&main_funnel_out_port>;
+				};
+			};
+		};
+
+		out-ports {
+			port {
+				etf0_out_port: endpoint {
+				};
+			};
+		};
+	};
+
+	tpiu_sys: tpiu@20030000 {
+		compatible = "arm,coresight-tpiu", "arm,primecell";
+		reg = <0 0x20030000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		in-ports {
+			port {
+				tpiu_in_port: endpoint {
+					remote-endpoint = <&replicator_out_port0>;
+				};
+			};
+		};
+	};
+
+	/* main funnel on Juno r0, cssys0 funnel on Juno r1/r2 as per TRM*/
+	main_funnel: funnel@20040000 {
+		compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
+		reg = <0 0x20040000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		out-ports {
+			port {
+				main_funnel_out_port: endpoint {
+					remote-endpoint = <&etf0_in_port>;
+				};
+			};
+		};
+
+		main_funnel_in_ports: in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				main_funnel_in_port0: endpoint {
+					remote-endpoint = <&cluster0_funnel_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				main_funnel_in_port1: endpoint {
+					remote-endpoint = <&cluster1_funnel_out_port>;
+				};
+			};
+		};
+	};
+
+	etr_sys: etr@20070000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0 0x20070000 0 0x1000>;
+		iommus = <&smmu_etr 0>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		arm,scatter-gather;
+		in-ports {
+			port {
+				etr_in_port: endpoint {
+					remote-endpoint = <&replicator_out_port1>;
+				};
+			};
+		};
+	};
+
+	stm_sys: stm@20100000 {
+		compatible = "arm,coresight-stm", "arm,primecell";
+		reg = <0 0x20100000 0 0x1000>,
+		      <0 0x28000000 0 0x1000000>;
+		reg-names = "stm-base", "stm-stimulus-base";
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				stm_out_port: endpoint {
+				};
+			};
+		};
+	};
+
+	replicator@20120000 {
+		compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
+		reg = <0 0x20120000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		out-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* replicator output ports */
+			port@0 {
+				reg = <0>;
+				replicator_out_port0: endpoint {
+					remote-endpoint = <&tpiu_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				replicator_out_port1: endpoint {
+					remote-endpoint = <&etr_in_port>;
+				};
+			};
+		};
+		in-ports {
+			port {
+				replicator_in_port0: endpoint {
+				};
+			};
+		};
+	};
+
+	cpu_debug0: cpu-debug@22010000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x22010000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
+	etm0: etm@22040000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x22040000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				cluster0_etm0_out_port: endpoint {
+					remote-endpoint = <&cluster0_funnel_in_port0>;
+				};
+			};
+		};
+	};
+
+	cti0: cti@22020000 {
+		compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
+			     "arm,primecell";
+		reg = <0 0x22020000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		arm,cs-dev-assoc = <&etm0>;
+	};
+
+	funnel@220c0000 { /* cluster0 funnel */
+		compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
+		reg = <0 0x220c0000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				cluster0_funnel_out_port: endpoint {
+					remote-endpoint = <&main_funnel_in_port0>;
+				};
+			};
+		};
+
+		in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				cluster0_funnel_in_port0: endpoint {
+					remote-endpoint = <&cluster0_etm0_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				cluster0_funnel_in_port1: endpoint {
+					remote-endpoint = <&cluster0_etm1_out_port>;
+				};
+			};
+		};
+	};
+
+	cpu_debug1: cpu-debug@22110000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x22110000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
+	etm1: etm@22140000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x22140000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				cluster0_etm1_out_port: endpoint {
+					remote-endpoint = <&cluster0_funnel_in_port1>;
+				};
+			};
+		};
+	};
+
+	cti1: cti@22120000 {
+		compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
+			     "arm,primecell";
+		reg = <0 0x22120000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		arm,cs-dev-assoc = <&etm1>;
+	};
+
+	cpu_debug2: cpu-debug@23010000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x23010000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
+	etm2: etm@23040000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23040000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				cluster1_etm0_out_port: endpoint {
+					remote-endpoint = <&cluster1_funnel_in_port0>;
+				};
+			};
+		};
+	};
+
+	cti2: cti@23020000 {
+		compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
+			     "arm,primecell";
+		reg = <0 0x23020000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		arm,cs-dev-assoc = <&etm2>;
+	};
+
+	funnel@230c0000 { /* cluster1 funnel */
+		compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
+		reg = <0 0x230c0000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				cluster1_funnel_out_port: endpoint {
+					remote-endpoint = <&main_funnel_in_port1>;
+				};
+			};
+		};
+
+		in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				cluster1_funnel_in_port0: endpoint {
+					remote-endpoint = <&cluster1_etm0_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				cluster1_funnel_in_port1: endpoint {
+					remote-endpoint = <&cluster1_etm1_out_port>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+				cluster1_funnel_in_port2: endpoint {
+					remote-endpoint = <&cluster1_etm2_out_port>;
+				};
+			};
+			port@3 {
+				reg = <3>;
+				cluster1_funnel_in_port3: endpoint {
+					remote-endpoint = <&cluster1_etm3_out_port>;
+				};
+			};
+		};
+	};
+
+	cpu_debug3: cpu-debug@23110000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x23110000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
+	etm3: etm@23140000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23140000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				cluster1_etm1_out_port: endpoint {
+					remote-endpoint = <&cluster1_funnel_in_port1>;
+				};
+			};
+		};
+	};
+
+	cti3: cti@23120000 {
+		compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
+			     "arm,primecell";
+		reg = <0 0x23120000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		arm,cs-dev-assoc = <&etm3>;
+	};
+
+	cpu_debug4: cpu-debug@23210000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x23210000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
+	etm4: etm@23240000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23240000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				cluster1_etm2_out_port: endpoint {
+					remote-endpoint = <&cluster1_funnel_in_port2>;
+				};
+			};
+		};
+	};
+
+	cti4: cti@23220000 {
+		compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
+			     "arm,primecell";
+		reg = <0 0x23220000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		arm,cs-dev-assoc = <&etm4>;
+	};
+
+	cpu_debug5: cpu-debug@23310000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x23310000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
+	etm5: etm@23340000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23340000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				cluster1_etm3_out_port: endpoint {
+					remote-endpoint = <&cluster1_funnel_in_port3>;
+				};
+			};
+		};
+	};
+
+	cti5: cti@23320000 {
+		compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
+			     "arm,primecell";
+		reg = <0 0x23320000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		arm,cs-dev-assoc = <&etm5>;
+	};
+
+	cti_sys0: cti@20020000 { /* sys_cti_0 */
+		compatible = "arm,coresight-cti", "arm,primecell";
+		reg = <0 0x20020000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		trig-conns@0 {
+			reg = <0>;
+			arm,trig-in-sigs = <2 3>;
+			arm,trig-in-types = <SNK_FULL SNK_ACQCOMP>;
+			arm,trig-out-sigs = <0 1>;
+			arm,trig-out-types = <SNK_FLUSHIN SNK_TRIGIN>;
+			arm,cs-dev-assoc = <&etr_sys>;
+		};
+
+		trig-conns@1 {
+			reg = <1>;
+			arm,trig-in-sigs = <0 1>;
+			arm,trig-in-types = <SNK_FULL SNK_ACQCOMP>;
+			arm,trig-out-sigs = <7 6>;
+			arm,trig-out-types = <SNK_FLUSHIN SNK_TRIGIN>;
+			arm,cs-dev-assoc = <&etf_sys0>;
+		};
+
+		trig-conns@2 {
+			reg = <2>;
+			arm,trig-in-sigs = <4 5 6 7>;
+			arm,trig-in-types = <STM_TOUT_SPTE STM_TOUT_SW
+					   STM_TOUT_HETE STM_ASYNCOUT>;
+			arm,trig-out-sigs = <4 5>;
+			arm,trig-out-types = <STM_HWEVENT STM_HWEVENT>;
+			arm,cs-dev-assoc = <&stm_sys>;
+		};
+
+		trig-conns@3 {
+			reg = <3>;
+			arm,trig-out-sigs = <2 3>;
+			arm,trig-out-types = <SNK_FLUSHIN SNK_TRIGIN>;
+			arm,cs-dev-assoc = <&tpiu_sys>;
+		};
+	};
+
+	cti_sys1: cti@20110000 { /* sys_cti_1 */
+		compatible = "arm,coresight-cti", "arm,primecell";
+		reg = <0 0x20110000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		trig-conns@0 {
+			reg = <0>;
+			arm,trig-in-sigs = <0>;
+			arm,trig-in-types = <GEN_INTREQ>;
+			arm,trig-out-sigs = <0>;
+			arm,trig-out-types = <GEN_HALTREQ>;
+			arm,trig-conn-name = "sys_profiler";
+		};
+
+		trig-conns@1 {
+			reg = <1>;
+			arm,trig-out-sigs = <2 3>;
+			arm,trig-out-types = <GEN_HALTREQ GEN_RESTARTREQ>;
+			arm,trig-conn-name = "watchdog";
+		};
+
+		trig-conns@2 {
+			reg = <2>;
+			arm,trig-out-sigs = <1 6>;
+			arm,trig-out-types = <GEN_HALTREQ GEN_RESTARTREQ>;
+			arm,trig-conn-name = "g_counter";
+		};
+	};
+
+	gpu: gpu@2d000000 {
+		compatible = "arm,juno-mali", "arm,mali-t624";
+		reg = <0 0x2d000000 0 0x10000>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "job", "mmu", "gpu";
+		clocks = <&scpi_dvfs 2>;
+		power-domains = <&scpi_devpd 1>;
+		dma-coherent;
+		/* The SMMU is only really of interest to bare-metal hypervisors */
+		/* iommus = <&smmu_gpu 0>; */
+		status = "disabled";
+	};
+
+	sram: sram@2e000000 {
+		compatible = "arm,juno-sram-ns", "mmio-sram";
+		reg = <0x0 0x2e000000 0x0 0x8000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x2e000000 0x8000>;
+
+		cpu_scp_lpri: scp-sram@0 {
+			compatible = "arm,juno-scp-shmem";
+			reg = <0x0 0x200>;
+		};
+
+		cpu_scp_hpri: scp-sram@200 {
+			compatible = "arm,juno-scp-shmem";
+			reg = <0x200 0x200>;
+		};
+	};
+
+	pcie_ctlr: pcie@40000000 {
+		compatible = "arm,juno-r1-pcie", "plda,xpressrich3-axi", "pci-host-ecam-generic";
+		device_type = "pci";
+		reg = <0 0x40000000 0 0x10000000>;	/* ECAM config space */
+		bus-range = <0 255>;
+		linux,pci-domain = <0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		dma-coherent;
+		ranges = <0x01000000 0x00 0x00000000 0x00 0x5f800000 0x0 0x00800000>,
+			 <0x02000000 0x00 0x50000000 0x00 0x50000000 0x0 0x08000000>,
+			 <0x42000000 0x40 0x00000000 0x40 0x00000000 0x1 0x00000000>;
+		/* Standard AXI Translation entries as programmed by EDK2 */
+		dma-ranges = <0x02000000 0x0 0x80000000 0x0 0x80000000 0x0 0x80000000>,
+			     <0x43000000 0x8 0x00000000 0x8 0x00000000 0x2 0x00000000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0 0 0 1 &gic 0 GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &gic 0 GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &gic 0 GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &gic 0 GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+		msi-parent = <&v2m_0>;
+		status = "disabled";
+		iommu-map-mask = <0x0>;	/* RC has no means to output PCI RID */
+		iommu-map = <0x0 &smmu_pcie 0x0 0x1>;
+	};
+
+	scpi {
+		compatible = "arm,scpi";
+		mboxes = <&mailbox 1>;
+		shmem = <&cpu_scp_hpri>;
+
+		clocks {
+			compatible = "arm,scpi-clocks";
+
+			scpi_dvfs: clocks-0 {
+				compatible = "arm,scpi-dvfs-clocks";
+				#clock-cells = <1>;
+				clock-indices = <0>, <1>, <2>;
+				clock-output-names = "atlclk", "aplclk","gpuclk";
+			};
+			scpi_clk: clocks-1 {
+				compatible = "arm,scpi-variable-clocks";
+				#clock-cells = <1>;
+				clock-indices = <3>;
+				clock-output-names = "pxlclk";
+			};
+		};
+
+		scpi_devpd: power-controller {
+			compatible = "arm,scpi-power-domains";
+			num-domains = <2>;
+			#power-domain-cells = <1>;
+		};
+
+		scpi_sensors0: sensors {
+			compatible = "arm,scpi-sensors";
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	thermal-zones {
+		pmic {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 0>;
+			trips {
+				pmic_crit0: trip0 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		soc {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 3>;
+			trips {
+				soc_crit0: trip0 {
+					temperature = <80000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		big_cluster_thermal_zone: big-cluster {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 21>;
+			status = "disabled";
+		};
+
+		little_cluster_thermal_zone: little-cluster {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 22>;
+			status = "disabled";
+		};
+
+		gpu0_thermal_zone: gpu0 {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 23>;
+			status = "disabled";
+		};
+
+		gpu1_thermal_zone: gpu1 {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 24>;
+			status = "disabled";
+		};
+	};
+
+	smmu_dma: iommu@7fb00000 {
+		compatible = "arm,mmu-401", "arm,smmu-v1";
+		reg = <0x0 0x7fb00000 0x0 0x10000>;
+		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+		#iommu-cells = <1>;
+		#global-interrupts = <1>;
+		dma-coherent;
+	};
+
+	smmu_hdlcd1: iommu@7fb10000 {
+		compatible = "arm,mmu-401", "arm,smmu-v1";
+		reg = <0x0 0x7fb10000 0x0 0x10000>;
+		interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+		#iommu-cells = <1>;
+		#global-interrupts = <1>;
+	};
+
+	smmu_hdlcd0: iommu@7fb20000 {
+		compatible = "arm,mmu-401", "arm,smmu-v1";
+		reg = <0x0 0x7fb20000 0x0 0x10000>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		#iommu-cells = <1>;
+		#global-interrupts = <1>;
+	};
+
+	smmu_usb: iommu@7fb30000 {
+		compatible = "arm,mmu-401", "arm,smmu-v1";
+		reg = <0x0 0x7fb30000 0x0 0x10000>;
+		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+		#iommu-cells = <1>;
+		#global-interrupts = <1>;
+		dma-coherent;
+	};
+
+	dma-controller@7ff00000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x0 0x7ff00000 0 0x1000>;
+		#dma-cells = <1>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		iommus = <&smmu_dma 0>,
+			 <&smmu_dma 1>,
+			 <&smmu_dma 2>,
+			 <&smmu_dma 3>,
+			 <&smmu_dma 4>,
+			 <&smmu_dma 5>,
+			 <&smmu_dma 6>,
+			 <&smmu_dma 7>,
+			 <&smmu_dma 8>;
+		clocks = <&soc_faxiclk>;
+		clock-names = "apb_pclk";
+	};
+
+	hdlcd@7ff50000 {
+		compatible = "arm,hdlcd";
+		reg = <0 0x7ff50000 0 0x1000>;
+		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+		iommus = <&smmu_hdlcd1 0>;
+		clocks = <&scpi_clk 3>;
+		clock-names = "pxlclk";
+
+		port {
+			hdlcd1_output: endpoint {
+				remote-endpoint = <&tda998x_1_input>;
+			};
+		};
+	};
+
+	hdlcd@7ff60000 {
+		compatible = "arm,hdlcd";
+		reg = <0 0x7ff60000 0 0x1000>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		iommus = <&smmu_hdlcd0 0>;
+		clocks = <&scpi_clk 3>;
+		clock-names = "pxlclk";
+
+		port {
+			hdlcd0_output: endpoint {
+				remote-endpoint = <&tda998x_0_input>;
+			};
+		};
+	};
+
+	soc_uart0: serial@7ff80000 {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <0x0 0x7ff80000 0x0 0x1000>;
+		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&soc_uartclk>, <&soc_refclk100mhz>;
+		clock-names = "uartclk", "apb_pclk";
+	};
+
+	i2c@7ffa0000 {
+		compatible = "snps,designware-i2c";
+		reg = <0x0 0x7ffa0000 0x0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <400000>;
+		i2c-sda-hold-time-ns = <500>;
+		clocks = <&soc_smc50mhz>;
+
+		hdmi-transmitter@70 {
+			compatible = "nxp,tda998x";
+			reg = <0x70>;
+			port {
+				tda998x_0_input: endpoint {
+					remote-endpoint = <&hdlcd0_output>;
+				};
+			};
+		};
+
+		hdmi-transmitter@71 {
+			compatible = "nxp,tda998x";
+			reg = <0x71>;
+			port {
+				tda998x_1_input: endpoint {
+					remote-endpoint = <&hdlcd1_output>;
+				};
+			};
+		};
+	};
+
+	usb@7ffb0000 {
+		compatible = "generic-ohci";
+		reg = <0x0 0x7ffb0000 0x0 0x10000>;
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+		iommus = <&smmu_usb 0>;
+		clocks = <&soc_usb48mhz>;
+	};
+
+	usb@7ffc0000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0x7ffc0000 0x0 0x10000>;
+		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		iommus = <&smmu_usb 0>;
+		clocks = <&soc_usb48mhz>;
+	};
+
+	memory-controller@7ffd0000 {
+		compatible = "arm,pl354", "arm,primecell";
+		reg = <0 0x7ffd0000 0 0x1000>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		/* last 16MB of the first memory area is reserved for secure world use by firmware */
+		reg = <0x00000000 0x80000000 0x0 0x7f000000>,
+		      <0x00000008 0x80000000 0x1 0x80000000>;
+	};
+
+	bus@8000000 {
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 15>;
+		interrupt-map = <0 0  0 &gic 0 GIC_SPI  68 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  1 &gic 0 GIC_SPI  69 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  2 &gic 0 GIC_SPI  70 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  3 &gic 0 GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  4 &gic 0 GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  5 &gic 0 GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  6 &gic 0 GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  7 &gic 0 GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  8 &gic 0 GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  9 &gic 0 GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 10 &gic 0 GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 11 &gic 0 GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 12 &gic 0 GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	site2: tlx-bus@60000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x60000000 0x10000000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0>;
+		interrupt-map = <0 0 &gic 0 GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+	};
+};

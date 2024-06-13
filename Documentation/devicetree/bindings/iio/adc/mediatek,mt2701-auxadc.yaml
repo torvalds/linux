@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/mediatek,mt2701-auxadc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Mediatek AUXADC - ADC on Mediatek mobile SoC (mt65xx/mt81xx/mt27xx)
+
+maintainers:
+  - Zhiyong Tao <zhiyong.tao@mediatek.com>
+  - Matthias Brugger <matthias.bgg@gmail.com>
+
+description: |
+  The Auxiliary Analog/Digital Converter (AUXADC) is an ADC found
+  in some Mediatek SoCs which among other things measures the temperatures
+  in the SoC. It can be used directly with register accesses, but it is also
+  used by thermal controller which reads the temperatures from the AUXADC
+  directly via its own bus interface. See mediatek-thermal bindings
+  for the Thermal Controller which holds a phandle to the AUXADC.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - mediatek,mt2701-auxadc
+          - mediatek,mt2712-auxadc
+          - mediatek,mt6765-auxadc
+          - mediatek,mt7622-auxadc
+          - mediatek,mt8173-auxadc
+      - items:
+          - enum:
+              - mediatek,mt7623-auxadc
+          - const: mediatek,mt2701-auxadc
+      - items:
+          - enum:
+              - mediatek,mt8183-auxadc
+              - mediatek,mt8186-auxadc
+              - mediatek,mt8188-auxadc
+              - mediatek,mt8195-auxadc
+              - mediatek,mt8516-auxadc
+          - const: mediatek,mt8173-auxadc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: main
+
+  "#io-channel-cells":
+    const: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - "#io-channel-cells"
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt8183-clk.h>
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        adc@11001000 {
+            compatible = "mediatek,mt8183-auxadc",
+                         "mediatek,mt8173-auxadc";
+            reg = <0 0x11001000 0 0x1000>;
+            clocks = <&infracfg CLK_INFRA_AUXADC>;
+            clock-names = "main";
+            #io-channel-cells = <1>;
+        };
+    };
+...

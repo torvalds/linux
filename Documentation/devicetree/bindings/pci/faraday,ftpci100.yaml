@@ -1,0 +1,174 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/faraday,ftpci100.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Faraday Technology FTPCI100 PCI Host Bridge
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+    This PCI bridge is found inside that Cortina Systems Gemini SoC platform and
+    is a generic IP block from Faraday Technology. It exists in two variants:
+    plain and dual PCI. The plain version embeds a cascading interrupt controller
+    into the host bridge. The dual version routes the interrupts to the host
+    chips interrupt controller.
+    The host controller appear on the PCI bus with vendor ID 0x159b (Faraday
+    Technology) and product ID 0x4321.
+    I/O space considerations:
+    The plain variant has 128MiB of non-prefetchable memory space, whereas the
+    "dual" variant has 64MiB. Take this into account when describing the ranges.
+
+    Interrupt map considerations:
+
+    The "dual" variant will get INT A, B, C, D from the system interrupt controller
+    and should point to respective interrupt in that controller in its interrupt-map.
+
+    The code which is the only documentation of how the Faraday PCI (the non-dual
+    variant) interrupts assigns the default interrupt mapping/swizzling has
+    typically been like this, doing the swizzling on the interrupt controller side
+    rather than in the interconnect:
+
+    interrupt-map-mask = <0xf800 0 0 7>;
+    interrupt-map =
+        <0x4800 0 0 1 &pci_intc 0>, /* Slot 9 */
+        <0x4800 0 0 2 &pci_intc 1>,
+        <0x4800 0 0 3 &pci_intc 2>,
+        <0x4800 0 0 4 &pci_intc 3>,
+        <0x5000 0 0 1 &pci_intc 1>, /* Slot 10 */
+        <0x5000 0 0 2 &pci_intc 2>,
+        <0x5000 0 0 3 &pci_intc 3>,
+        <0x5000 0 0 4 &pci_intc 0>,
+        <0x5800 0 0 1 &pci_intc 2>, /* Slot 11 */
+        <0x5800 0 0 2 &pci_intc 3>,
+        <0x5800 0 0 3 &pci_intc 0>,
+        <0x5800 0 0 4 &pci_intc 1>,
+        <0x6000 0 0 1 &pci_intc 3>, /* Slot 12 */
+        <0x6000 0 0 2 &pci_intc 0>,
+        <0x6000 0 0 3 &pci_intc 1>,
+        <0x6000 0 0 4 &pci_intc 2>;
+
+allOf:
+  - $ref: /schemas/pci/pci-bus.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: cortina,gemini-pci
+          - const: faraday,ftpci100
+      - items:
+          - const: cortina,gemini-pci-dual
+          - const: faraday,ftpci100-dual
+      - const: faraday,ftpci100
+      - const: faraday,ftpci100-dual
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 3
+
+  "#interrupt-cells":
+    const: 1
+
+  ranges:
+    minItems: 2
+
+  dma-ranges:
+    minItems: 3
+    description: |
+      three ranges for the inbound memory region. The ranges must
+      be aligned to a 1MB boundary, and may be 1MB, 2MB, 4MB, 8MB, 16MB, 32MB, 64MB,
+      128MB, 256MB, 512MB, 1GB or 2GB in size. The memory should be marked as
+      pre-fetchable.
+
+  clocks:
+    items:
+      - description: peripheral clock (PCLK)
+      - description: PCI clock (PCICLK).
+    description: |
+      If these are not present, they are assumed to be
+      hard-wired enabled and always on. The PCI clock will be 33 or 66 MHz.
+
+  clock-names:
+    items:
+      - const: PCLK
+      - const: PCICLK
+
+  interrupt-controller:
+    type: object
+
+required:
+  - reg
+  - compatible
+  - "#interrupt-cells"
+  - interrupt-map-mask
+  - interrupt-map
+  - dma-ranges
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: faraday,ftpci100
+then:
+  required:
+    - interrupt-controller
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    pci@50000000 {
+      compatible = "cortina,gemini-pci", "faraday,ftpci100";
+      reg = <0x50000000 0x100>;
+      device_type = "pci";
+      #address-cells = <3>;
+      #size-cells = <2>;
+      #interrupt-cells = <1>;
+
+      bus-range = <0x00 0xff>;
+      ranges = /* 1MiB I/O space 0x50000000-0x500fffff */
+        <0x01000000 0 0          0x50000000 0 0x00100000>,
+        /* 128MiB non-prefetchable memory 0x58000000-0x5fffffff */
+        <0x02000000 0 0x58000000 0x58000000 0 0x08000000>;
+
+      /* DMA ranges */
+      dma-ranges =
+        /* 128MiB at 0x00000000-0x07ffffff */
+        <0x02000000 0 0x00000000 0x00000000 0 0x08000000>,
+        /* 64MiB at 0x00000000-0x03ffffff */
+        <0x02000000 0 0x00000000 0x00000000 0 0x04000000>,
+        /* 64MiB at 0x00000000-0x03ffffff */
+        <0x02000000 0 0x00000000 0x00000000 0 0x04000000>;
+
+      interrupt-map-mask = <0xf800 0 0 7>;
+      interrupt-map =
+        <0x4800 0 0 1 &pci_intc 0>, /* Slot 9 */
+        <0x4800 0 0 2 &pci_intc 1>,
+        <0x4800 0 0 3 &pci_intc 2>,
+        <0x4800 0 0 4 &pci_intc 3>,
+        <0x5000 0 0 1 &pci_intc 1>, /* Slot 10 */
+        <0x5000 0 0 2 &pci_intc 2>,
+        <0x5000 0 0 3 &pci_intc 3>,
+        <0x5000 0 0 4 &pci_intc 0>,
+        <0x5800 0 0 1 &pci_intc 2>, /* Slot 11 */
+        <0x5800 0 0 2 &pci_intc 3>,
+        <0x5800 0 0 3 &pci_intc 0>,
+        <0x5800 0 0 4 &pci_intc 1>,
+        <0x6000 0 0 1 &pci_intc 3>, /* Slot 12 */
+        <0x6000 0 0 2 &pci_intc 0>,
+        <0x6000 0 0 3 &pci_intc 0>,
+        <0x6000 0 0 4 &pci_intc 0>;
+      pci_intc: interrupt-controller {
+        interrupt-parent = <&intcon>;
+        interrupt-controller;
+        interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+        #address-cells = <0>;
+        #interrupt-cells = <1>;
+      };
+    };

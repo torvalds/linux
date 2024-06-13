@@ -1,0 +1,73 @@
+==================
+C-SKY CPU Bindings
+==================
+
+The device tree allows to describe the layout of CPUs in a system through
+the "cpus" node, which in turn contains a number of subnodes (ie "cpu")
+defining properties for every cpu.
+
+Only SMP system need to care about the cpus node and single processor
+needn't define cpus node at all.
+
+=====================================
+cpus and cpu node bindings definition
+=====================================
+
+- cpus node
+
+	Description: Container of cpu nodes
+
+	The node name must be "cpus".
+
+	A cpus node must define the following properties:
+
+	- #address-cells
+		Usage: required
+		Value type: <u32>
+		Definition: must be set to 1
+	- #size-cells
+		Usage: required
+		Value type: <u32>
+		Definition: must be set to 0
+
+- cpu node
+
+	Description: Describes one of SMP cores
+
+	PROPERTIES
+
+	- device_type
+		Usage: required
+		Value type: <string>
+		Definition: must be "cpu"
+	- reg
+		Usage: required
+		Value type: <u32>
+		Definition: CPU index
+	- compatible:
+		Usage: required
+		Value type: <string>
+		Definition: must contain "csky", eg:
+			"csky,610"
+			"csky,807"
+			"csky,810"
+			"csky,860"
+
+Example:
+--------
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0>;
+			status = "ok";
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			reg = <1>;
+			status = "ok";
+		};
+	};

@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/microchip,sama7g5-otpc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip SAMA7G5 OTP Controller (OTPC)
+
+maintainers:
+  - Claudiu Beznea <claudiu.beznea@microchip.com>
+
+description: |
+  OTP controller drives a NVMEM memory where system specific data
+  (e.g. calibration data for analog cells, hardware configuration
+  settings, chip identifiers) or user specific data could be stored.
+
+allOf:
+  - $ref: "nvmem.yaml#"
+
+properties:
+  compatible:
+    items:
+      - const: microchip,sama7g5-otpc
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/nvmem/microchip,sama7g5-otpc.h>
+
+    otpc: efuse@e8c00000 {
+        compatible = "microchip,sama7g5-otpc", "syscon";
+        reg = <0xe8c00000 0xec>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        temperature_calib: calib@1 {
+            reg = <OTP_PKT(1) 76>;
+        };
+    };
+
+...

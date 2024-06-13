@@ -1,0 +1,161 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/rohm,bd71837-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ROHM BD71837 Power Management Integrated Circuit regulators
+
+maintainers:
+  - Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
+
+description: |
+  List of regulators provided by this controller. BD71837 regulators node
+  should be sub node of the BD71837 MFD node. See BD71837 MFD bindings at
+  Documentation/devicetree/bindings/mfd/rohm,bd71837-pmic.yaml
+  Regulator nodes should be named to BUCK_<number> and LDO_<number>. The
+  definition for each of these nodes is defined using the standard
+  binding for regulators at
+  Documentation/devicetree/bindings/regulator/regulator.txt.
+  Note that if BD71837 starts at RUN state you probably want to use
+  regulator-boot-on at least for BUCK6 and BUCK7 so that those are not
+  disabled by driver at startup. LDO5 and LDO6 are supplied by those and
+  if they are disabled at startup the voltage monitoring for LDO5/LDO6 will
+  cause PMIC to reset.
+
+#The valid names for BD71837 regulator nodes are:
+#BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, BUCK7, BUCK8
+#LDO1, LDO2, LDO3, LDO4, LDO5, LDO6, LDO7
+
+patternProperties:
+  "^LDO[1-7]$":
+    type: object
+    $ref: regulator.yaml#
+    description:
+      Properties for single LDO regulator.
+
+    properties:
+      regulator-name:
+        pattern: "^ldo[1-7]$"
+        description:
+          should be "ldo1", ..., "ldo7"
+
+    unevaluatedProperties: false
+
+  "^BUCK[1-8]$":
+    type: object
+    $ref: regulator.yaml#
+    description:
+      Properties for single BUCK regulator.
+
+    properties:
+      regulator-name:
+        pattern: "^buck[1-8]$"
+        description:
+          should be "buck1", ..., "buck8"
+
+      rohm,dvs-run-voltage:
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 1300000
+        description:
+          PMIC default "RUN" state voltage in uV. See below table for
+          bucks which support this. 0 means disabled.
+
+      rohm,dvs-idle-voltage:
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 1300000
+        description:
+          PMIC default "IDLE" state voltage in uV. See below table for
+          bucks which support this. 0 means disabled.
+
+      rohm,dvs-suspend-voltage:
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 1300000
+        description:
+          PMIC default "SUSPEND" state voltage in uV. See below table for
+          bucks which support this. 0 means disabled.
+
+        # Supported default DVS states:
+        #
+        # BD71837:
+        # buck | dvs-run-voltage | dvs-idle-voltage | dvs-suspend-voltage
+        # ----------------------------------------------------------------
+        # 1    | supported       | supported        | supported
+        # ----------------------------------------------------------------
+        # 2    | supported       | supported        | not supported
+        # ----------------------------------------------------------------
+        # 3    | supported       | not supported    | not supported
+        # ----------------------------------------------------------------
+        # 4    | supported       | not supported    | not supported
+        # ----------------------------------------------------------------
+        # rest | not supported   | not supported    | not supported
+
+      # BD71837 power outputs can either be controlled by the PMIC internal
+      # hardware state machine or by software. If you need regulators to be
+      # turned ON/OFF for example based on PMIC_STBY_REQ line (which toggles
+      # PMIC HW state machine) - then you should set this property.
+      # Tradeoff is that then SW can't control the ON/OFF state for this
+      # regulator (other than invoking a PMIC state change).
+      rohm,no-regulator-enable-control:
+        description: |
+          Enable/Disable control of this regulator must be left to the
+          PMIC hardware state machine.
+        type: boolean
+
+      # Setups where regulator (especially the buck8) output voltage is scaled
+      # by adding external connection where some other regulator output is
+      # connected to feedback-pin (over suitable resistors) is getting popular
+      # amongst users of BD71837. (This allows for example scaling down the
+      # buck8 voltages to suit lover GPU voltages for projects where buck8 is
+      # (ab)used to supply power for GPU.
+      #
+      # So we allow describing this external connection from DT and scale the
+      # voltages accordingly. This is what the connection should look like:
+      #
+      # |---------------|
+      # |       buck 8  |-------+----->Vout
+      # |               |       |
+      # |---------------|       |
+      #        |                |
+      #        |                |
+      #        +-------+--R2----+
+      #                |
+      #                R1
+      #                |
+      #        V FB-pull-up
+      #
+      # Here the buck output is sifted according to formula:
+      #
+      # Vout_o = Vo - (Vpu - Vo)*R2/R1
+      # Linear_step = step_orig*(R1+R2)/R1
+      #
+      # where:
+      # Vout_o is adjusted voltage output at vsel reg value 0
+      # Vo is original voltage output at vsel reg value 0
+      # Vpu is the pull-up voltage V FB-pull-up in the picture
+      # R1 and R2 are resistor values.
+
+      rohm,fb-pull-up-microvolt:
+        description:
+          Feedback-pin has pull-up connection to adjust voltage range. This is
+          the used pull-up voltage before R1.
+
+      rohm,feedback-pull-up-r1-ohms:
+        description:
+          Feedback-pin has pull-up connection to adjust voltage range. This is
+          the used R1 resistor.
+
+      rohm,feedback-pull-up-r2-ohms:
+        description:
+          Feedback-pin has pull-up connection to adjust voltage range. This is
+          the used R2 resistor.
+
+    required:
+      - regulator-name
+
+    unevaluatedProperties: false
+
+additionalProperties: false

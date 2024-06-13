@@ -1,0 +1,30 @@
+* Freescale Layerscape SCFG PCIe MSI controller
+
+Required properties:
+
+- compatible: should be "fsl,<soc-name>-msi" to identify
+	      Layerscape PCIe MSI controller block such as:
+              "fsl,ls1021a-msi"
+              "fsl,ls1043a-msi"
+              "fsl,ls1046a-msi"
+              "fsl,ls1043a-v1.1-msi"
+              "fsl,ls1012a-msi"
+- msi-controller: indicates that this is a PCIe MSI controller node
+- reg: physical base address of the controller and length of memory mapped.
+- interrupts: an interrupt to the parent interrupt controller.
+
+This interrupt controller hardware is a second level interrupt controller that
+is hooked to a parent interrupt controller: e.g: ARM GIC for ARM-based
+platforms. If interrupt-parent is not provided, the default parent interrupt
+controller will be used.
+Each PCIe node needs to have property msi-parent that points to
+MSI controller node
+
+Examples:
+
+	msi1: msi-controller@1571000 {
+		compatible = "fsl,ls1043a-msi";
+		reg = <0x0 0x1571000 0x0 0x8>,
+		msi-controller;
+		interrupts = <0 116 0x4>;
+	};

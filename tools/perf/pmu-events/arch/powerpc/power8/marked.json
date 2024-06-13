@@ -1,0 +1,794 @@
+[
+  {
+    "EventCode": "0x3515e",
+    "EventName": "PM_MRK_BACK_BR_CMPL",
+    "BriefDescription": "Marked branch instruction completed with a target address less than current instruction address",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2013a",
+    "EventName": "PM_MRK_BRU_FIN",
+    "BriefDescription": "bru marked instr finish",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1016e",
+    "EventName": "PM_MRK_BR_CMPL",
+    "BriefDescription": "Branch Instruction completed",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x301e4",
+    "EventName": "PM_MRK_BR_MPRED_CMPL",
+    "BriefDescription": "Marked Branch Mispredicted",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x101e2",
+    "EventName": "PM_MRK_BR_TAKEN_CMPL",
+    "BriefDescription": "Marked Branch Taken completed",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d148",
+    "EventName": "PM_MRK_DATA_FROM_DL2L3_MOD",
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d128",
+    "EventName": "PM_MRK_DATA_FROM_DL2L3_MOD_CYC",
+    "BriefDescription": "Duration in cycles to reload with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3d148",
+    "EventName": "PM_MRK_DATA_FROM_DL2L3_SHR",
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2c128",
+    "EventName": "PM_MRK_DATA_FROM_DL2L3_SHR_CYC",
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3d14c",
+    "EventName": "PM_MRK_DATA_FROM_DL4",
+    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2c12c",
+    "EventName": "PM_MRK_DATA_FROM_DL4_CYC",
+    "BriefDescription": "Duration in cycles to reload from another chip's L4 on a different Node or Group (Distant) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d14c",
+    "EventName": "PM_MRK_DATA_FROM_DMEM",
+    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group (Distant) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d12c",
+    "EventName": "PM_MRK_DATA_FROM_DMEM_CYC",
+    "BriefDescription": "Duration in cycles to reload from another chip's memory on the same Node or Group (Distant) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d142",
+    "EventName": "PM_MRK_DATA_FROM_L2",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L2 due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d14e",
+    "EventName": "PM_MRK_DATA_FROM_L2MISS",
+    "BriefDescription": "Data cache reload L2 miss",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4c12e",
+    "EventName": "PM_MRK_DATA_FROM_L2MISS_CYC",
+    "BriefDescription": "Duration in cycles to reload from a location other than the local core's L2 due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4c122",
+    "EventName": "PM_MRK_DATA_FROM_L2_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L2 due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3d140",
+    "EventName": "PM_MRK_DATA_FROM_L2_DISP_CONFLICT_LDHITST",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L2 with load hit store conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2c120",
+    "EventName": "PM_MRK_DATA_FROM_L2_DISP_CONFLICT_LDHITST_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L2 with load hit store conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d140",
+    "EventName": "PM_MRK_DATA_FROM_L2_DISP_CONFLICT_OTHER",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L2 with dispatch conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d120",
+    "EventName": "PM_MRK_DATA_FROM_L2_DISP_CONFLICT_OTHER_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L2 with dispatch conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d140",
+    "EventName": "PM_MRK_DATA_FROM_L2_MEPF",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state. due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d120",
+    "EventName": "PM_MRK_DATA_FROM_L2_MEPF_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L2 hit without dispatch conflicts on Mepf state. due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d140",
+    "EventName": "PM_MRK_DATA_FROM_L2_NO_CONFLICT",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L2 without conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4c120",
+    "EventName": "PM_MRK_DATA_FROM_L2_NO_CONFLICT_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L2 without conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d142",
+    "EventName": "PM_MRK_DATA_FROM_L3",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L3 due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x201e4",
+    "EventName": "PM_MRK_DATA_FROM_L3MISS",
+    "BriefDescription": "The processor's data cache was reloaded from a location other than the local core's L3 due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d12e",
+    "EventName": "PM_MRK_DATA_FROM_L3MISS_CYC",
+    "BriefDescription": "Duration in cycles to reload from a location other than the local core's L3 due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d122",
+    "EventName": "PM_MRK_DATA_FROM_L3_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L3 due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3d142",
+    "EventName": "PM_MRK_DATA_FROM_L3_DISP_CONFLICT",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L3 with dispatch conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2c122",
+    "EventName": "PM_MRK_DATA_FROM_L3_DISP_CONFLICT_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L3 with dispatch conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d142",
+    "EventName": "PM_MRK_DATA_FROM_L3_MEPF",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state. due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d122",
+    "EventName": "PM_MRK_DATA_FROM_L3_MEPF_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L3 without dispatch conflicts hit on Mepf state. due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d144",
+    "EventName": "PM_MRK_DATA_FROM_L3_NO_CONFLICT",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L3 without conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4c124",
+    "EventName": "PM_MRK_DATA_FROM_L3_NO_CONFLICT_CYC",
+    "BriefDescription": "Duration in cycles to reload from local core's L3 without conflict due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d14c",
+    "EventName": "PM_MRK_DATA_FROM_LL4",
+    "BriefDescription": "The processor's data cache was reloaded from the local chip's L4 cache due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4c12c",
+    "EventName": "PM_MRK_DATA_FROM_LL4_CYC",
+    "BriefDescription": "Duration in cycles to reload from the local chip's L4 cache due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d148",
+    "EventName": "PM_MRK_DATA_FROM_LMEM",
+    "BriefDescription": "The processor's data cache was reloaded from the local chip's Memory due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d128",
+    "EventName": "PM_MRK_DATA_FROM_LMEM_CYC",
+    "BriefDescription": "Duration in cycles to reload from the local chip's Memory due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d14c",
+    "EventName": "PM_MRK_DATA_FROM_MEMORY",
+    "BriefDescription": "The processor's data cache was reloaded from a memory location including L4 from local remote or distant due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d12c",
+    "EventName": "PM_MRK_DATA_FROM_MEMORY_CYC",
+    "BriefDescription": "Duration in cycles to reload from a memory location including L4 from local remote or distant due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d14a",
+    "EventName": "PM_MRK_DATA_FROM_OFF_CHIP_CACHE",
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d12a",
+    "EventName": "PM_MRK_DATA_FROM_OFF_CHIP_CACHE_CYC",
+    "BriefDescription": "Duration in cycles to reload either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d148",
+    "EventName": "PM_MRK_DATA_FROM_ON_CHIP_CACHE",
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4c128",
+    "EventName": "PM_MRK_DATA_FROM_ON_CHIP_CACHE_CYC",
+    "BriefDescription": "Duration in cycles to reload either shared or modified data from another core's L2/L3 on the same chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d146",
+    "EventName": "PM_MRK_DATA_FROM_RL2L3_MOD",
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d126",
+    "EventName": "PM_MRK_DATA_FROM_RL2L3_MOD_CYC",
+    "BriefDescription": "Duration in cycles to reload with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d14a",
+    "EventName": "PM_MRK_DATA_FROM_RL2L3_SHR",
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4c12a",
+    "EventName": "PM_MRK_DATA_FROM_RL2L3_SHR_CYC",
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d14a",
+    "EventName": "PM_MRK_DATA_FROM_RL4",
+    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d12a",
+    "EventName": "PM_MRK_DATA_FROM_RL4_CYC",
+    "BriefDescription": "Duration in cycles to reload from another chip's L4 on the same Node or Group ( Remote) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3d14a",
+    "EventName": "PM_MRK_DATA_FROM_RMEM",
+    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2c12a",
+    "EventName": "PM_MRK_DATA_FROM_RMEM_CYC",
+    "BriefDescription": "Duration in cycles to reload from another chip's memory on the same Node or Group ( Remote) due to a marked load",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x40118",
+    "EventName": "PM_MRK_DCACHE_RELOAD_INTV",
+    "BriefDescription": "Combined Intervention event",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x301e6",
+    "EventName": "PM_MRK_DERAT_MISS",
+    "BriefDescription": "Erat Miss (TLB Access) All page sizes",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d154",
+    "EventName": "PM_MRK_DERAT_MISS_16G",
+    "BriefDescription": "Marked Data ERAT Miss (Data TLB Access) page size 16G",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3d154",
+    "EventName": "PM_MRK_DERAT_MISS_16M",
+    "BriefDescription": "Marked Data ERAT Miss (Data TLB Access) page size 16M",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d156",
+    "EventName": "PM_MRK_DERAT_MISS_4K",
+    "BriefDescription": "Marked Data ERAT Miss (Data TLB Access) page size 4K",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d154",
+    "EventName": "PM_MRK_DERAT_MISS_64K",
+    "BriefDescription": "Marked Data ERAT Miss (Data TLB Access) page size 64K",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x20132",
+    "EventName": "PM_MRK_DFU_FIN",
+    "BriefDescription": "Decimal Unit marked Instruction Finish",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4f148",
+    "EventName": "PM_MRK_DPTEG_FROM_DL2L3_MOD",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3f148",
+    "EventName": "PM_MRK_DPTEG_FROM_DL2L3_SHR",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3f14c",
+    "EventName": "PM_MRK_DPTEG_FROM_DL4",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on a different Node or Group (Distant) due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4f14c",
+    "EventName": "PM_MRK_DPTEG_FROM_DMEM",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group (Distant) due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1f142",
+    "EventName": "PM_MRK_DPTEG_FROM_L2",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1f14e",
+    "EventName": "PM_MRK_DPTEG_FROM_L2MISS",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L2 due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2f140",
+    "EventName": "PM_MRK_DPTEG_FROM_L2_MEPF",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 hit without dispatch conflicts on Mepf state. due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1f140",
+    "EventName": "PM_MRK_DPTEG_FROM_L2_NO_CONFLICT",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 without conflict due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4f142",
+    "EventName": "PM_MRK_DPTEG_FROM_L3",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4f14e",
+    "EventName": "PM_MRK_DPTEG_FROM_L3MISS",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L3 due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3f142",
+    "EventName": "PM_MRK_DPTEG_FROM_L3_DISP_CONFLICT",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 with dispatch conflict due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2f142",
+    "EventName": "PM_MRK_DPTEG_FROM_L3_MEPF",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without dispatch conflicts hit on Mepf state. due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1f144",
+    "EventName": "PM_MRK_DPTEG_FROM_L3_NO_CONFLICT",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1f14c",
+    "EventName": "PM_MRK_DPTEG_FROM_LL4",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from the local chip's L4 cache due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2f148",
+    "EventName": "PM_MRK_DPTEG_FROM_LMEM",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from the local chip's Memory due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2f14c",
+    "EventName": "PM_MRK_DPTEG_FROM_MEMORY",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a memory location including L4 from local remote or distant due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4f14a",
+    "EventName": "PM_MRK_DPTEG_FROM_OFF_CHIP_CACHE",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1f148",
+    "EventName": "PM_MRK_DPTEG_FROM_ON_CHIP_CACHE",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2f146",
+    "EventName": "PM_MRK_DPTEG_FROM_RL2L3_MOD",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1f14a",
+    "EventName": "PM_MRK_DPTEG_FROM_RL2L3_SHR",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2f14a",
+    "EventName": "PM_MRK_DPTEG_FROM_RL4",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on the same Node or Group ( Remote) due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3f14a",
+    "EventName": "PM_MRK_DPTEG_FROM_RMEM",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a marked data side request",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x401e4",
+    "EventName": "PM_MRK_DTLB_MISS",
+    "BriefDescription": "Marked dtlb miss",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d158",
+    "EventName": "PM_MRK_DTLB_MISS_16G",
+    "BriefDescription": "Marked Data TLB Miss page size 16G",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4d156",
+    "EventName": "PM_MRK_DTLB_MISS_16M",
+    "BriefDescription": "Marked Data TLB Miss page size 16M",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2d156",
+    "EventName": "PM_MRK_DTLB_MISS_4K",
+    "BriefDescription": "Marked Data TLB Miss page size 4k",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3d156",
+    "EventName": "PM_MRK_DTLB_MISS_64K",
+    "BriefDescription": "Marked Data TLB Miss page size 64K",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x40154",
+    "EventName": "PM_MRK_FAB_RSP_BKILL",
+    "BriefDescription": "Marked store had to do a bkill",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2f150",
+    "EventName": "PM_MRK_FAB_RSP_BKILL_CYC",
+    "BriefDescription": "cycles L2 RC took for a bkill",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3015e",
+    "EventName": "PM_MRK_FAB_RSP_CLAIM_RTY",
+    "BriefDescription": "Sampled store did a rwitm and got a rty",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x30154",
+    "EventName": "PM_MRK_FAB_RSP_DCLAIM",
+    "BriefDescription": "Marked store had to do a dclaim",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2f152",
+    "EventName": "PM_MRK_FAB_RSP_DCLAIM_CYC",
+    "BriefDescription": "cycles L2 RC took for a dclaim",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4015e",
+    "EventName": "PM_MRK_FAB_RSP_RD_RTY",
+    "BriefDescription": "Sampled L2 reads retry count",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1015e",
+    "EventName": "PM_MRK_FAB_RSP_RD_T_INTV",
+    "BriefDescription": "Sampled Read got a T intervention",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4f150",
+    "EventName": "PM_MRK_FAB_RSP_RWITM_CYC",
+    "BriefDescription": "cycles L2 RC took for a rwitm",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x2015e",
+    "EventName": "PM_MRK_FAB_RSP_RWITM_RTY",
+    "BriefDescription": "Sampled store did a rwitm and got a rty",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x20134",
+    "EventName": "PM_MRK_FXU_FIN",
+    "BriefDescription": "fxu marked instr finish",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x401e0",
+    "EventName": "PM_MRK_INST_CMPL",
+    "BriefDescription": "marked instruction completed",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x20130",
+    "EventName": "PM_MRK_INST_DECODED",
+    "BriefDescription": "marked instruction decoded",
+    "PublicDescription": "marked instruction decoded. Name from ISU?"
+  },
+  {
+    "EventCode": "0x101e0",
+    "EventName": "PM_MRK_INST_DISP",
+    "BriefDescription": "The thread has dispatched a randomly sampled marked instruction",
+    "PublicDescription": "Marked Instruction dispatched"
+  },
+  {
+    "EventCode": "0x30130",
+    "EventName": "PM_MRK_INST_FIN",
+    "BriefDescription": "marked instruction finished",
+    "PublicDescription": "marked instr finish any unit"
+  },
+  {
+    "EventCode": "0x401e6",
+    "EventName": "PM_MRK_INST_FROM_L3MISS",
+    "BriefDescription": "Marked instruction was reloaded from a location beyond the local chiplet",
+    "PublicDescription": "n/a"
+  },
+  {
+    "EventCode": "0x10132",
+    "EventName": "PM_MRK_INST_ISSUED",
+    "BriefDescription": "Marked instruction issued",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x40134",
+    "EventName": "PM_MRK_INST_TIMEO",
+    "BriefDescription": "marked Instruction finish timeout (instruction lost)",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x101e4",
+    "EventName": "PM_MRK_L1_ICACHE_MISS",
+    "BriefDescription": "sampled Instruction suffered an icache Miss",
+    "PublicDescription": "Marked L1 Icache Miss"
+  },
+  {
+    "EventCode": "0x101ea",
+    "EventName": "PM_MRK_L1_RELOAD_VALID",
+    "BriefDescription": "Marked demand reload",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x20114",
+    "EventName": "PM_MRK_L2_RC_DISP",
+    "BriefDescription": "Marked Instruction RC dispatched in L2",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3012a",
+    "EventName": "PM_MRK_L2_RC_DONE",
+    "BriefDescription": "Marked RC done",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x40116",
+    "EventName": "PM_MRK_LARX_FIN",
+    "BriefDescription": "Larx finished",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1013e",
+    "EventName": "PM_MRK_LD_MISS_EXPOSED_CYC",
+    "BriefDescription": "Marked Load exposed Miss cycles",
+    "PublicDescription": "Marked Load exposed Miss (use edge detect to count #)"
+  },
+  {
+    "EventCode": "0x201e2",
+    "EventName": "PM_MRK_LD_MISS_L1",
+    "BriefDescription": "Marked DL1 Demand Miss counted at exec time",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x4013e",
+    "EventName": "PM_MRK_LD_MISS_L1_CYC",
+    "BriefDescription": "Marked ld latency",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x40132",
+    "EventName": "PM_MRK_LSU_FIN",
+    "BriefDescription": "lsu marked instr finish",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x20112",
+    "EventName": "PM_MRK_NTF_FIN",
+    "BriefDescription": "Marked next to finish instruction finished",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1d15e",
+    "EventName": "PM_MRK_RUN_CYC",
+    "BriefDescription": "Marked run cycles",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3013e",
+    "EventName": "PM_MRK_STALL_CMPLU_CYC",
+    "BriefDescription": "Marked Group completion Stall",
+    "PublicDescription": "Marked Group Completion Stall cycles (use edge detect to count #)"
+  },
+  {
+    "EventCode": "0x3e158",
+    "EventName": "PM_MRK_STCX_FAIL",
+    "BriefDescription": "marked stcx failed",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x10134",
+    "EventName": "PM_MRK_ST_CMPL",
+    "BriefDescription": "marked store completed and sent to nest",
+    "PublicDescription": "Marked store completed"
+  },
+  {
+    "EventCode": "0x30134",
+    "EventName": "PM_MRK_ST_CMPL_INT",
+    "BriefDescription": "marked store finished with intervention",
+    "PublicDescription": "marked store complete (data home) with intervention"
+  },
+  {
+    "EventCode": "0x3f150",
+    "EventName": "PM_MRK_ST_DRAIN_TO_L2DISP_CYC",
+    "BriefDescription": "cycles to drain st from core to L2",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x3012c",
+    "EventName": "PM_MRK_ST_FWD",
+    "BriefDescription": "Marked st forwards",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1f150",
+    "EventName": "PM_MRK_ST_L2DISP_TO_CMPL_CYC",
+    "BriefDescription": "cycles from L2 rc disp to l2 rc completion",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x20138",
+    "EventName": "PM_MRK_ST_NEST",
+    "BriefDescription": "Marked store sent to nest",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x30132",
+    "EventName": "PM_MRK_VSU_FIN",
+    "BriefDescription": "VSU marked instr finish",
+    "PublicDescription": "vsu (fpu) marked instr finish"
+  },
+  {
+    "EventCode": "0x3d15e",
+    "EventName": "PM_MULT_MRK",
+    "BriefDescription": "mult marked instr",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x15152",
+    "EventName": "PM_SYNC_MRK_BR_LINK",
+    "BriefDescription": "Marked Branch and link branch that can cause a synchronous interrupt",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1515c",
+    "EventName": "PM_SYNC_MRK_BR_MPRED",
+    "BriefDescription": "Marked Branch mispredict that can cause a synchronous interrupt",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x15156",
+    "EventName": "PM_SYNC_MRK_FX_DIVIDE",
+    "BriefDescription": "Marked fixed point divide that can cause a synchronous interrupt",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x15158",
+    "EventName": "PM_SYNC_MRK_L2HIT",
+    "BriefDescription": "Marked L2 Hits that can throw a synchronous interrupt",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x1515a",
+    "EventName": "PM_SYNC_MRK_L2MISS",
+    "BriefDescription": "Marked L2 Miss that can throw a synchronous interrupt",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x15154",
+    "EventName": "PM_SYNC_MRK_L3MISS",
+    "BriefDescription": "Marked L3 misses that can throw a synchronous interrupt",
+    "PublicDescription": ""
+  },
+  {
+    "EventCode": "0x15150",
+    "EventName": "PM_SYNC_MRK_PROBE_NOP",
+    "BriefDescription": "Marked probeNops which can cause synchronous interrupts",
+    "PublicDescription": ""
+  }
+]

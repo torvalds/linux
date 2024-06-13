@@ -1,0 +1,36 @@
+* ARM Nested Vector Interrupt Controller (NVIC)
+
+The NVIC provides an interrupt controller that is tightly coupled to
+Cortex-M based processor cores.  The NVIC implemented on different SoCs
+vary in the number of interrupts and priority bits per interrupt.
+
+Main node required properties:
+
+- compatible : should be one of:
+	"arm,v6m-nvic"
+	"arm,v7m-nvic"
+	"arm,v8m-nvic"
+- interrupt-controller : Identifies the node as an interrupt controller
+- #interrupt-cells : Specifies the number of cells needed to encode an
+  interrupt source.  The type shall be a <u32> and the value shall be 2.
+
+  The 1st cell contains the interrupt number for the interrupt type.
+
+  The 2nd cell is the priority of the interrupt.
+
+- reg : Specifies base physical address(s) and size of the NVIC registers.
+  This is at a fixed address (0xe000e100) and size (0xc00).
+
+- arm,num-irq-priority-bits: The number of priority bits implemented by the
+  given SoC
+
+Example:
+
+	intc: interrupt-controller@e000e100 {
+		compatible = "arm,v7m-nvic";
+		#interrupt-cells = <2>;
+		#address-cells = <1>;
+		interrupt-controller;
+		reg = <0xe000e100 0xc00>;
+		arm,num-irq-priority-bits = <4>;
+	};

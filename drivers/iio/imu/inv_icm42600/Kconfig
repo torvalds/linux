@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config INV_ICM42600
+	tristate
+	select IIO_BUFFER
+
+config INV_ICM42600_I2C
+	tristate "InvenSense ICM-426xx I2C driver"
+	depends on I2C
+	select INV_ICM42600
+	select REGMAP_I2C
+	help
+	  This driver supports the InvenSense ICM-426xx motion tracking
+	  devices over I2C.
+
+	  This driver can be built as a module. The module will be called
+	  inv-icm42600-i2c.
+
+config INV_ICM42600_SPI
+	tristate "InvenSense ICM-426xx SPI driver"
+	depends on SPI_MASTER
+	select INV_ICM42600
+	select REGMAP_SPI
+	help
+	  This driver supports the InvenSense ICM-426xx motion tracking
+	  devices over SPI.
+
+	  This driver can be built as a module. The module will be called
+	  inv-icm42600-spi.

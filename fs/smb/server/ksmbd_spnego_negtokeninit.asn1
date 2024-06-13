@@ -1,0 +1,31 @@
+GSSAPI ::=
+	[APPLICATION 0] IMPLICIT SEQUENCE {
+		thisMech
+			OBJECT IDENTIFIER ({ksmbd_gssapi_this_mech}),
+		negotiationToken
+			NegotiationToken
+	}
+
+MechType ::= OBJECT IDENTIFIER ({ksmbd_neg_token_init_mech_type})
+
+MechTypeList ::= SEQUENCE OF MechType
+
+NegTokenInit ::=
+	SEQUENCE {
+		mechTypes
+			[0] MechTypeList,
+		reqFlags
+			[1] BIT STRING OPTIONAL,
+		mechToken
+			[2] OCTET STRING OPTIONAL ({ksmbd_neg_token_init_mech_token}),
+		mechListMIC
+			[3] OCTET STRING OPTIONAL
+	}
+
+NegotiationToken ::=
+	CHOICE {
+		negTokenInit
+			[0] NegTokenInit,
+		negTokenTarg
+			[1] ANY
+	}

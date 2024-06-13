@@ -1,0 +1,62 @@
+* Nios II Processor Binding
+
+This binding specifies what properties available in the device tree
+representation of a Nios II Processor Core.
+
+Users can use sopc2dts tool for generating device tree sources (dts) from a
+Qsys system. See more detail in: http://www.alterawiki.com/wiki/Sopc2dts
+
+Required properties:
+
+- compatible: Compatible property value should be "altr,nios2-1.0".
+- reg: Contains CPU index.
+- interrupt-controller: Specifies that the node is an interrupt controller
+- #interrupt-cells: Specifies the number of cells needed to encode an
+		interrupt source, should be 1.
+- clock-frequency: Contains the clock frequency for CPU, in Hz.
+- dcache-line-size: Contains data cache line size.
+- icache-line-size: Contains instruction line size.
+- dcache-size: Contains data cache size.
+- icache-size: Contains instruction cache size.
+- altr,pid-num-bits: Specifies the number of bits to use to represent the process
+		identifier (PID).
+- altr,tlb-num-ways: Specifies the number of set-associativity ways in the TLB.
+- altr,tlb-num-entries: Specifies the number of entries in the TLB.
+- altr,tlb-ptr-sz: Specifies size of TLB pointer.
+- altr,has-mul: Specifies CPU hardware multipy support, should be 1.
+- altr,has-mmu: Specifies CPU support MMU support, should be 1.
+- altr,has-initda: Specifies CPU support initda instruction, should be 1.
+- altr,reset-addr: Specifies CPU reset address
+- altr,fast-tlb-miss-addr: Specifies CPU fast TLB miss exception address
+- altr,exception-addr: Specifies CPU exception address
+
+Optional properties:
+- altr,has-div: Specifies CPU hardware divide support
+- altr,implementation: Nios II core implementation, this should be "fast";
+
+Example:
+
+cpu@0 {
+	device_type = "cpu";
+	compatible = "altr,nios2-1.0";
+	reg = <0>;
+	interrupt-controller;
+	#interrupt-cells = <1>;
+	clock-frequency = <125000000>;
+	dcache-line-size = <32>;
+	icache-line-size = <32>;
+	dcache-size = <32768>;
+	icache-size = <32768>;
+	altr,implementation = "fast";
+	altr,pid-num-bits = <8>;
+	altr,tlb-num-ways = <16>;
+	altr,tlb-num-entries = <128>;
+	altr,tlb-ptr-sz = <7>;
+	altr,has-div = <1>;
+	altr,has-mul = <1>;
+	altr,reset-addr = <0xc2800000>;
+	altr,fast-tlb-miss-addr = <0xc7fff400>;
+	altr,exception-addr = <0xd0000020>;
+	altr,has-initda = <1>;
+	altr,has-mmu = <1>;
+};

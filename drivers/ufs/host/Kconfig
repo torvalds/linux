@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: GPL-2.0+
+#
+# Kernel configuration file for the UFS host controller drivers.
+#
+# Copyright (C) 2011-2013 Samsung India Software Operations
+#
+# Authors:
+#	Santosh Yaraganavi <santosh.sy@samsung.com>
+#	Vinayak Holikatti <h.vinayak@samsung.com>
+
+config SCSI_UFSHCD_PCI
+	tristate "PCI bus based UFS Controller support"
+	depends on PCI
+	help
+	  This selects the PCI UFS Host Controller Interface. Select this if
+	  you have UFS Host Controller with PCI Interface.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config SCSI_UFS_DWC_TC_PCI
+	tristate "DesignWare pci support using a G210 Test Chip"
+	depends on SCSI_UFSHCD_PCI
+	help
+	  Synopsys Test Chip is a PHY for prototyping purposes.
+
+	  If unsure, say N.
+
+config SCSI_UFSHCD_PLATFORM
+	tristate "Platform bus based UFS Controller support"
+	depends on HAS_IOMEM
+	help
+	  This selects the UFS host controller support. Select this if
+	  you have an UFS controller on Platform bus.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config SCSI_UFS_CDNS_PLATFORM
+	tristate "Cadence UFS Controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM
+	help
+	  This selects the Cadence-specific additions to UFSHCD platform driver.
+
+	  If unsure, say N.
+
+config SCSI_UFS_DWC_TC_PLATFORM
+	tristate "DesignWare platform support using a G210 Test Chip"
+	depends on OF && SCSI_UFSHCD_PLATFORM
+	help
+	  Synopsys Test Chip is a PHY for prototyping purposes.
+
+	  If unsure, say N.
+
+config SCSI_UFS_QCOM
+	tristate "QCOM specific hooks to UFS controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM && ARCH_QCOM
+	depends on GENERIC_MSI_IRQ
+	depends on RESET_CONTROLLER
+	select QCOM_SCM if SCSI_UFS_CRYPTO
+	help
+	  This selects the QCOM specific additions to UFSHCD platform driver.
+	  UFS host on QCOM needs some vendor specific configuration before
+	  accessing the hardware which includes PHY configuration and vendor
+	  specific registers.
+
+	  Select this if you have UFS controller on QCOM chipset.
+	  If unsure, say N.
+
+config SCSI_UFS_MEDIATEK
+	tristate "Mediatek specific hooks to UFS controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM && ARCH_MEDIATEK
+	depends on RESET_CONTROLLER
+	select PHY_MTK_UFS
+	select RESET_TI_SYSCON
+	help
+	  This selects the Mediatek specific additions to UFSHCD platform driver.
+	  UFS host on Mediatek needs some vendor specific configuration before
+	  accessing the hardware which includes PHY configuration and vendor
+	  specific registers.
+
+	  Select this if you have UFS controller on Mediatek chipset.
+
+	  If unsure, say N.
+
+config SCSI_UFS_HISI
+	tristate "Hisilicon specific hooks to UFS controller platform driver"
+	depends on (ARCH_HISI || COMPILE_TEST) && SCSI_UFSHCD_PLATFORM
+	help
+	  This selects the Hisilicon specific additions to UFSHCD platform driver.
+
+	  Select this if you have UFS controller on Hisilicon chipset.
+	  If unsure, say N.
+
+config SCSI_UFS_RENESAS
+	tristate "Renesas specific hooks to UFS controller platform driver"
+	depends on (ARCH_RENESAS || COMPILE_TEST) && SCSI_UFSHCD_PLATFORM
+	help
+	  This selects the Renesas specific additions to UFSHCD platform driver.
+	  UFS host on Renesas needs some vendor specific configuration before
+	  accessing the hardware.
+
+	  Select this if you have UFS controller on Renesas chipset.
+
+	  If unsure, say N.
+
+config SCSI_UFS_TI_J721E
+	tristate "TI glue layer for Cadence UFS Controller"
+	depends on OF && HAS_IOMEM && (ARCH_K3 || COMPILE_TEST)
+	help
+	  This selects driver for TI glue layer for Cadence UFS Host
+	  Controller IP.
+
+	  Selects this if you have TI platform with UFS controller.
+	  If unsure, say N.
+
+config SCSI_UFS_EXYNOS
+	tristate "Exynos specific hooks to UFS controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM && (ARCH_EXYNOS || COMPILE_TEST)
+	help
+	  This selects the Samsung Exynos SoC specific additions to UFSHCD
+	  platform driver.  UFS host on Samsung Exynos SoC includes HCI and
+	  UNIPRO layer, and associates with UFS-PHY driver.
+
+	  Select this if you have UFS host controller on Samsung Exynos SoC.
+	  If unsure, say N.
+
+config SCSI_UFS_VARIABLE_SG_ENTRY_SIZE
+	bool
+	default y if SCSI_UFS_CRYPTO
+
+config SCSI_UFS_SPRD
+	tristate "Unisoc specific hooks to UFS controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM && (ARCH_SPRD || COMPILE_TEST)
+	help
+	  This selects the Unisoc specific additions to UFSHCD platform driver.
+	  UFS host on Unisoc needs some vendor specific configuration before
+	  accessing the hardware which includes PHY configuration and vendor
+	  specific registers.
+
+	  Select this if you have UFS controller on Unisoc chipset.
+	  If unsure, say N.

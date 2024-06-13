@@ -1,0 +1,27 @@
+Texas Instruments - tpa6130a2 Codec module
+
+The tpa6130a2 serial control bus communicates through I2C protocols
+
+Required properties:
+
+- compatible - "string" - One of:
+    "ti,tpa6130a2" - TPA6130A2
+    "ti,tpa6140a2" - TPA6140A2
+
+
+- reg - <int> -  I2C slave address
+
+- Vdd-supply - <phandle> - power supply regulator
+
+Optional properties:
+
+- power-gpio - gpio pin to power the device
+
+Example:
+
+tpa6130a2: tpa6130a2@60 {
+	compatible = "ti,tpa6130a2";
+	reg = <0x60>;
+	Vdd-supply = <&vmmc2>;
+	power-gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>;
+};

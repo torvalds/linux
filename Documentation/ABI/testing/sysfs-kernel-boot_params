@@ -1,0 +1,39 @@
+What:		/sys/kernel/boot_params
+Date:		December 2013
+Contact:	Dave Young <dyoung@redhat.com>
+Description:	The /sys/kernel/boot_params directory contains two
+		files: "data" and "version" and one subdirectory "setup_data".
+		It is used to export the kernel boot parameters of an x86
+		platform to userspace for kexec and debugging purpose.
+
+		If there's no setup_data in boot_params the subdirectory will
+		not be created.
+
+		"data" file is the binary representation of struct boot_params.
+
+		"version" file is the string representation of boot
+		protocol version.
+
+		"setup_data" subdirectory contains the setup_data data
+		structure in boot_params. setup_data is maintained in kernel
+		as a link list. In "setup_data" subdirectory there's one
+		subdirectory for each link list node named with the number
+		of the list nodes. The list node subdirectory contains two
+		files "type" and "data". "type" file is the string
+		representation of setup_data type. "data" file is the binary
+		representation of setup_data payload.
+
+		The whole boot_params directory structure is like below::
+
+		  /sys/kernel/boot_params
+		  |__ data
+		  |__ setup_data
+		  |   |__ 0
+		  |   |   |__ data
+		  |   |   |__ type
+		  |   |__ 1
+		  |       |__ data
+		  |       |__ type
+		  |__ version
+
+Users:		Kexec

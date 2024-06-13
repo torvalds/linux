@@ -1,0 +1,68 @@
+Chinese translated version of Documentation/driver-api/io_ordering.rst
+
+If you have any comment or update to the content, please contact the
+original document maintainer directly.  However, if you have a problem
+communicating in English you can also ask the Chinese maintainer for
+help.  Contact the Chinese maintainer if this translation is outdated
+or if there is a problem with the translation.
+
+Traditional Chinese maintainer: Hu Haowen <src.res@email.cn>
+---------------------------------------------------------------------
+Documentation/driver-api/io_ordering.rst 的繁體中文翻譯
+
+如果想評論或更新本文的內容，請直接聯繫原文檔的維護者。如果你使用英文
+交流有困難的話，也可以向繁體中文版維護者求助。如果本翻譯更新不及時或
+者翻譯存在問題，請聯繫繁體中文版維護者。
+
+繁體中文版維護者： 胡皓文 Hu Haowen <src.res@email.cn>
+繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res@email.cn>
+繁體中文版校譯者： 胡皓文 Hu Haowen <src.res@email.cn>
+
+
+以下爲正文
+---------------------------------------------------------------------
+
+在某些平台上，所謂的內存映射I/O是弱順序。在這些平台上，驅動開發者有責任
+保證I/O內存映射地址的寫操作按程序圖意的順序達到設備。通常讀取一個「安全」
+設備寄存器或橋寄存器，觸發IO晶片清刷未處理的寫操作到達設備後才處理讀操作，
+而達到保證目的。驅動程序通常在spinlock保護的臨界區退出之前使用這種技術。
+這也可以保證後面的寫操作只在前面的寫操作之後到達設備（這非常類似於內存
+屏障操作，mb()，不過僅適用於I/O）。
+
+假設一個設備驅動程的具體例子：
+
+        ...
+CPU A:  spin_lock_irqsave(&dev_lock, flags)
+CPU A:  val = readl(my_status);
+CPU A:  ...
+CPU A:  writel(newval, ring_ptr);
+CPU A:  spin_unlock_irqrestore(&dev_lock, flags)
+        ...
+CPU B:  spin_lock_irqsave(&dev_lock, flags)
+CPU B:  val = readl(my_status);
+CPU B:  ...
+CPU B:  writel(newval2, ring_ptr);
+CPU B:  spin_unlock_irqrestore(&dev_lock, flags)
+        ...
+
+上述例子中，設備可能會先接收到newval2的值，然後接收到newval的值，問題就
+發生了。不過很容易通過下面方法來修復：
+
+        ...
+CPU A:  spin_lock_irqsave(&dev_lock, flags)
+CPU A:  val = readl(my_status);
+CPU A:  ...
+CPU A:  writel(newval, ring_ptr);
+CPU A:  (void)readl(safe_register); /* 配置寄存器？*/
+CPU A:  spin_unlock_irqrestore(&dev_lock, flags)
+        ...
+CPU B:  spin_lock_irqsave(&dev_lock, flags)
+CPU B:  val = readl(my_status);
+CPU B:  ...
+CPU B:  writel(newval2, ring_ptr);
+CPU B:  (void)readl(safe_register); /* 配置寄存器？*/
+CPU B:  spin_unlock_irqrestore(&dev_lock, flags)
+
+在解決方案中，讀取safe_register寄存器，觸發IO晶片清刷未處理的寫操作，
+再處理後面的讀操作，防止引發數據不一致問題。
+

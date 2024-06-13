@@ -1,0 +1,33 @@
+Amazon's Annapurna Labs Thermal Sensor
+
+Simple thermal device that allows temperature reading by a single MMIO
+transaction.
+
+Required properties:
+- compatible: "amazon,al-thermal".
+- reg: The physical base address and length of the sensor's registers.
+- #thermal-sensor-cells: Must be 1. See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml for a description.
+
+Example:
+	thermal: thermal {
+		compatible = "amazon,al-thermal";
+		reg = <0x0 0x05002860 0x0 0x1>;
+		#thermal-sensor-cells = <0x1>;
+	};
+
+	thermal-zones {
+		thermal-z0 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&thermal 0>;
+			trips {
+				critical {
+					temperature = <105000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+		};
+	};
+

@@ -1,0 +1,389 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# File system configuration
+#
+
+menu "File systems"
+
+# Use unaligned word dcache accesses
+config DCACHE_WORD_ACCESS
+       bool
+
+config VALIDATE_FS_PARSER
+	bool "Validate filesystem parameter description"
+	help
+	  Enable this to perform validation of the parameter description for a
+	  filesystem when it is registered.
+
+config FS_IOMAP
+	bool
+
+if BLOCK
+
+source "fs/ext2/Kconfig"
+source "fs/ext4/Kconfig"
+source "fs/jbd2/Kconfig"
+
+config FS_MBCACHE
+# Meta block cache for Extended Attributes (ext2/ext3/ext4)
+	tristate
+	default y if EXT2_FS=y && EXT2_FS_XATTR
+	default y if EXT4_FS=y
+	default m if EXT2_FS_XATTR || EXT4_FS
+
+source "fs/reiserfs/Kconfig"
+source "fs/jfs/Kconfig"
+
+source "fs/xfs/Kconfig"
+source "fs/gfs2/Kconfig"
+source "fs/ocfs2/Kconfig"
+source "fs/btrfs/Kconfig"
+source "fs/nilfs2/Kconfig"
+source "fs/f2fs/Kconfig"
+source "fs/zonefs/Kconfig"
+
+endif # BLOCK
+
+config FS_DAX
+	bool "File system based Direct Access (DAX) support"
+	depends on MMU
+	depends on !(ARM || MIPS || SPARC)
+	depends on ZONE_DEVICE || FS_DAX_LIMITED
+	select FS_IOMAP
+	select DAX
+	help
+	  Direct Access (DAX) can be used on memory-backed block devices.
+	  If the block device supports DAX and the filesystem supports DAX,
+	  then you can avoid using the pagecache to buffer I/Os.  Turning
+	  on this option will compile in support for DAX.
+
+	  For a DAX device to support file system access it needs to have
+	  struct pages.  For the nfit based NVDIMMs this can be enabled
+	  using the ndctl utility:
+
+		# ndctl create-namespace --force --reconfig=namespace0.0 \
+			--mode=fsdax --map=mem
+
+	  See the 'create-namespace' man page for details on the overhead of
+	  --map=mem:
+	  https://docs.pmem.io/ndctl-user-guide/ndctl-man-pages/ndctl-create-namespace
+
+          For ndctl to work CONFIG_DEV_DAX needs to be enabled as well. For most
+	  file systems DAX support needs to be manually enabled globally or
+	  per-inode using a mount option as well.  See the file documentation in
+	  Documentation/filesystems/dax.rst for details.
+
+	  If you do not have a block device that is capable of using this,
+	  or if unsure, say N.  Saying Y will increase the size of the kernel
+	  by about 5kB.
+
+config FS_DAX_PMD
+	bool
+	default FS_DAX
+	depends on FS_DAX
+	depends on ZONE_DEVICE
+	depends on TRANSPARENT_HUGEPAGE
+
+# Selected by DAX drivers that do not expect filesystem DAX to support
+# get_user_pages() of DAX mappings. I.e. "limited" indicates no support
+# for fork() of processes with MAP_SHARED mappings or support for
+# direct-I/O to a DAX mapping.
+config FS_DAX_LIMITED
+	bool
+
+# Posix ACL utility routines
+#
+# Note: Posix ACLs can be implemented without these helpers.  Never use
+# this symbol for ifdefs in core code.
+#
+config FS_POSIX_ACL
+	def_bool n
+
+config EXPORTFS
+	tristate
+
+config EXPORTFS_BLOCK_OPS
+	bool "Enable filesystem export operations for block IO"
+	help
+	  This option enables the export operations for a filesystem to support
+	  external block IO.
+
+config FILE_LOCKING
+	bool "Enable POSIX file locking API" if EXPERT
+	default y
+	help
+	  This option enables standard file locking support, required
+          for filesystems like NFS and for the flock() system
+          call. Disabling this option saves about 11k.
+
+source "fs/crypto/Kconfig"
+
+source "fs/verity/Kconfig"
+
+source "fs/notify/Kconfig"
+
+source "fs/quota/Kconfig"
+
+source "fs/autofs/Kconfig"
+source "fs/fuse/Kconfig"
+source "fs/overlayfs/Kconfig"
+source "fs/incfs/Kconfig"
+
+menu "Caches"
+
+source "fs/netfs/Kconfig"
+source "fs/fscache/Kconfig"
+source "fs/cachefiles/Kconfig"
+
+endmenu
+
+if BLOCK
+menu "CD-ROM/DVD Filesystems"
+
+source "fs/isofs/Kconfig"
+source "fs/udf/Kconfig"
+
+endmenu
+endif # BLOCK
+
+if BLOCK
+menu "DOS/FAT/EXFAT/NT Filesystems"
+
+source "fs/fat/Kconfig"
+source "fs/exfat/Kconfig"
+source "fs/ntfs/Kconfig"
+source "fs/ntfs3/Kconfig"
+
+endmenu
+endif # BLOCK
+
+menu "Pseudo filesystems"
+
+source "fs/proc/Kconfig"
+source "fs/kernfs/Kconfig"
+source "fs/sysfs/Kconfig"
+
+config TMPFS
+	bool "Tmpfs virtual memory file system support (former shm fs)"
+	depends on SHMEM
+	help
+	  Tmpfs is a file system which keeps all files in virtual memory.
+
+	  Everything in tmpfs is temporary in the sense that no files will be
+	  created on your hard drive. The files live in memory and swap
+	  space. If you unmount a tmpfs instance, everything stored therein is
+	  lost.
+
+	  See <file:Documentation/filesystems/tmpfs.rst> for details.
+
+config TMPFS_POSIX_ACL
+	bool "Tmpfs POSIX Access Control Lists"
+	depends on TMPFS
+	select TMPFS_XATTR
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support additional access rights
+	  for users and groups beyond the standard owner/group/world scheme,
+	  and this option selects support for ACLs specifically for tmpfs
+	  filesystems.
+
+	  If you've selected TMPFS, it's possible that you'll also need
+	  this option as there are a number of Linux distros that require
+	  POSIX ACL support under /dev for certain features to work properly.
+	  For example, some distros need this feature for ALSA-related /dev
+	  files for sound to work properly.  In short, if you're not sure,
+	  say Y.
+
+config TMPFS_XATTR
+	bool "Tmpfs extended attributes"
+	depends on TMPFS
+	default n
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page for details).
+
+	  Currently this enables support for the trusted.* and
+	  security.* namespaces.
+
+	  You need this for POSIX ACL support on tmpfs.
+
+	  If unsure, say N.
+
+config TMPFS_INODE64
+	bool "Use 64-bit ino_t by default in tmpfs"
+	depends on TMPFS && 64BIT
+	default n
+	help
+	  tmpfs has historically used only inode numbers as wide as an unsigned
+	  int. In some cases this can cause wraparound, potentially resulting
+	  in multiple files with the same inode number on a single device. This
+	  option makes tmpfs use the full width of ino_t by default, without
+	  needing to specify the inode64 option when mounting.
+
+	  But if a long-lived tmpfs is to be accessed by 32-bit applications so
+	  ancient that opening a file larger than 2GiB fails with EINVAL, then
+	  the INODE64 config option and inode64 mount option risk operations
+	  failing with EOVERFLOW once 33-bit inode numbers are reached.
+
+	  To override this configured default, use the inode32 or inode64
+	  option when mounting.
+
+	  If unsure, say N.
+
+config ARCH_SUPPORTS_HUGETLBFS
+	def_bool n
+
+config HUGETLBFS
+	bool "HugeTLB file system support"
+	depends on X86 || IA64 || SPARC64 || ARCH_SUPPORTS_HUGETLBFS || BROKEN
+	depends on (SYSFS || SYSCTL)
+	help
+	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
+	  ramfs. For architectures that support it, say Y here and read
+	  <file:Documentation/admin-guide/mm/hugetlbpage.rst> for details.
+
+	  If unsure, say N.
+
+config HUGETLB_PAGE
+	def_bool HUGETLBFS
+
+#
+# Select this config option from the architecture Kconfig, if it is preferred
+# to enable the feature of HugeTLB Vmemmap Optimization (HVO).
+#
+config ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+	bool
+
+config HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+	def_bool HUGETLB_PAGE
+	depends on ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+	depends on SPARSEMEM_VMEMMAP
+
+config HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON
+	bool "HugeTLB Vmemmap Optimization (HVO) defaults to on"
+	default n
+	depends on HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+	help
+	  The HugeTLB VmemmapvOptimization (HVO) defaults to off. Say Y here to
+	  enable HVO by default. It can be disabled via hugetlb_free_vmemmap=off
+	  (boot command line) or hugetlb_optimize_vmemmap (sysctl).
+
+config MEMFD_CREATE
+	def_bool TMPFS || HUGETLBFS
+
+config ARCH_HAS_GIGANTIC_PAGE
+	bool
+
+source "fs/configfs/Kconfig"
+source "fs/efivarfs/Kconfig"
+
+endmenu
+
+menuconfig MISC_FILESYSTEMS
+	bool "Miscellaneous filesystems"
+	default y
+	help
+	  Say Y here to get to see options for various miscellaneous
+	  filesystems, such as filesystems that came from other
+	  operating systems.
+
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled; if unsure, say Y here.
+
+if MISC_FILESYSTEMS
+
+source "fs/orangefs/Kconfig"
+source "fs/adfs/Kconfig"
+source "fs/affs/Kconfig"
+source "fs/ecryptfs/Kconfig"
+source "fs/hfs/Kconfig"
+source "fs/hfsplus/Kconfig"
+source "fs/befs/Kconfig"
+source "fs/bfs/Kconfig"
+source "fs/efs/Kconfig"
+source "fs/jffs2/Kconfig"
+# UBIFS File system configuration
+source "fs/ubifs/Kconfig"
+source "fs/cramfs/Kconfig"
+source "fs/squashfs/Kconfig"
+source "fs/freevxfs/Kconfig"
+source "fs/minix/Kconfig"
+source "fs/omfs/Kconfig"
+source "fs/hpfs/Kconfig"
+source "fs/qnx4/Kconfig"
+source "fs/qnx6/Kconfig"
+source "fs/romfs/Kconfig"
+source "fs/pstore/Kconfig"
+source "fs/sysv/Kconfig"
+source "fs/ufs/Kconfig"
+source "fs/erofs/Kconfig"
+source "fs/vboxsf/Kconfig"
+
+endif # MISC_FILESYSTEMS
+
+menuconfig NETWORK_FILESYSTEMS
+	bool "Network File Systems"
+	default y
+	depends on NET
+	help
+	  Say Y here to get to see options for network filesystems and
+	  filesystem-related networking code, such as NFS daemon and
+	  RPCSEC security modules.
+
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled; if unsure, say Y here.
+
+if NETWORK_FILESYSTEMS
+
+source "fs/nfs/Kconfig"
+source "fs/nfsd/Kconfig"
+
+config GRACE_PERIOD
+	tristate
+
+config LOCKD
+	tristate
+	depends on FILE_LOCKING
+	select GRACE_PERIOD
+
+config LOCKD_V4
+	bool
+	depends on NFSD || NFS_V3
+	depends on FILE_LOCKING
+	default y
+
+config NFS_ACL_SUPPORT
+	tristate
+	select FS_POSIX_ACL
+
+config NFS_COMMON
+	bool
+	depends on NFSD || NFS_FS || LOCKD
+	default y
+
+config NFS_V4_2_SSC_HELPER
+	bool
+	default y if NFS_V4_2
+
+source "net/sunrpc/Kconfig"
+source "fs/ceph/Kconfig"
+
+source "fs/smb/Kconfig"
+source "fs/coda/Kconfig"
+source "fs/afs/Kconfig"
+source "fs/9p/Kconfig"
+
+endif # NETWORK_FILESYSTEMS
+
+source "fs/nls/Kconfig"
+source "fs/dlm/Kconfig"
+source "fs/unicode/Kconfig"
+
+config IO_WQ
+	bool
+
+endmenu

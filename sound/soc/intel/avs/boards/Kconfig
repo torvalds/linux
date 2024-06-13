@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Intel AVS Machine drivers"
+	depends on SND_SOC_INTEL_AVS
+
+comment "Available DSP configurations"
+
+config SND_SOC_INTEL_AVS_MACH_DA7219
+	tristate "da7219 I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_DA7219
+	help
+	  This adds support for AVS with DA7219 I2S codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_DMIC
+	tristate "DMIC generic board"
+	select SND_SOC_DMIC
+	help
+	  This adds support for AVS with Digital Mic array configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_HDAUDIO
+	tristate "HD-Audio generic board"
+	select SND_SOC_HDA
+	help
+	  This adds support for AVS with HDAudio codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_I2S_TEST
+	tristate "I2S test board"
+	help
+	   This adds support for I2S test-board which can be used to verify
+	   transfer over I2S interface with SSP loopback scenarios.
+
+config SND_SOC_INTEL_AVS_MACH_MAX98357A
+	tristate "max98357A I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_MAX98357A
+	help
+	  This adds support for AVS with MAX98357A I2S codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_MAX98373
+	tristate "max98373 I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_MAX98373
+	help
+	  This adds support for AVS with MAX98373 I2S codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_NAU8825
+	tristate "nau8825 I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_NAU8825
+	help
+	   This adds support for ASoC machine driver with NAU8825 I2S audio codec.
+	   It is meant to be used with AVS driver.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_RT274
+	tristate "rt274 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT274
+	help
+	   This adds support for ASoC machine driver with RT274 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_RT286
+	tristate "rt286 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT286
+	help
+	   This adds support for ASoC machine driver with RT286 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_RT298
+	tristate "rt298 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT298
+	help
+	   This adds support for ASoC machine driver with RT298 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_RT5682
+	tristate "rt5682 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT5682_I2C
+	help
+	   This adds support for ASoC machine driver with RT5682 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_SSM4567
+	tristate "ssm4567 I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_SSM4567
+	help
+	   This adds support for ASoC machine driver with SSM4567 I2S audio codec.
+	   It is meant to be used with AVS driver.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+endmenu

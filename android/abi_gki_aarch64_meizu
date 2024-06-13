@@ -1,0 +1,14 @@
+[abi_symbol_list]
+  __traceiter_android_vh_tune_scan_type
+  __traceiter_android_vh_tune_swappiness
+  __tracepoint_android_vh_tune_swappiness
+  __tracepoint_android_vh_tune_scan_type
+  __traceiter_android_rvh_sk_alloc
+  __traceiter_android_rvh_sk_free
+  __tracepoint_android_rvh_sk_alloc
+  __tracepoint_android_rvh_sk_free
+  __traceiter_android_vh_alloc_pages_slowpath
+  __tracepoint_android_vh_tune_swappiness
+  __tracepoint_android_vh_tune_scan_type
+  __tracepoint_android_vh_alloc_pages_slowpath
+

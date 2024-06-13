@@ -1,0 +1,5 @@
+tests-y += main.o
+tests-y += test-evsel.o
+tests-y += test-evlist.o
+tests-y += test-cpumap.o
+tests-y += test-threadmap.o

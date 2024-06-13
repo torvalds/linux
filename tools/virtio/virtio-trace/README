@@ -1,0 +1,118 @@
+Trace Agent for virtio-trace
+============================
+
+Trace agent is a user tool for sending trace data of a guest to a Host in low
+overhead. Trace agent has the following functions:
+ - splice a page of ring-buffer to read_pipe without memory copying
+ - splice the page from write_pipe to virtio-console without memory copying
+ - write trace data to stdout by using -o option
+ - controlled by start/stop orders from a Host
+
+The trace agent operates as follows:
+ 1) Initialize all structures.
+ 2) Create a read/write thread per CPU. Each thread is bound to a CPU.
+    The read/write threads hold it.
+ 3) A controller thread does poll() for a start order of a host.
+ 4) After the controller of the trace agent receives a start order from a host,
+    the controller wake read/write threads.
+ 5) The read/write threads start to read trace data from ring-buffers and
+    write the data to virtio-serial.
+ 6) If the controller receives a stop order from a host, the read/write threads
+    stop to read trace data.
+
+
+Files
+=====
+
+README: this file
+Makefile: Makefile of trace agent for virtio-trace
+trace-agent.c: includes main function, sets up for operating trace agent
+trace-agent.h: includes all structures and some macros
+trace-agent-ctl.c: includes controller function for read/write threads
+trace-agent-rw.c: includes read/write threads function
+
+
+Setup
+=====
+
+To use this trace agent for virtio-trace, we need to prepare some virtio-serial
+I/Fs.
+
+1) Make FIFO in a host
+ virtio-trace uses virtio-serial pipe as trace data paths as to the number
+of CPUs and a control path, so FIFO (named pipe) should be created as follows:
+	# mkdir /tmp/virtio-trace/
+	# mkfifo /tmp/virtio-trace/trace-path-cpu{0,1,2,...,X}.{in,out}
+	# mkfifo /tmp/virtio-trace/agent-ctl-path.{in,out}
+
+For example, if a guest use three CPUs, the names are
+	trace-path-cpu{0,1,2}.{in.out}
+and
+	agent-ctl-path.{in,out}.
+
+2) Set up of virtio-serial pipe in a host
+ Add qemu option to use virtio-serial pipe.
+
+ ##virtio-serial device##
+     -device virtio-serial-pci,id=virtio-serial0\
+ ##control path##
+     -chardev pipe,id=charchannel0,path=/tmp/virtio-trace/agent-ctl-path\
+     -device virtserialport,bus=virtio-serial0.0,nr=1,chardev=charchannel0,\
+      id=channel0,name=agent-ctl-path\
+ ##data path##
+     -chardev pipe,id=charchannel1,path=/tmp/virtio-trace/trace-path-cpu0\
+     -device virtserialport,bus=virtio-serial0.0,nr=2,chardev=charchannel0,\
+      id=channel1,name=trace-path-cpu0\
+      ...
+
+If you manage guests with libvirt, add the following tags to domain XML files.
+Then, libvirt passes the same command option to qemu.
+
+	<channel type='pipe'>
+	   <source path='/tmp/virtio-trace/agent-ctl-path'/>
+	   <target type='virtio' name='agent-ctl-path'/>
+	   <address type='virtio-serial' controller='0' bus='0' port='0'/>
+	</channel>
+	<channel type='pipe'>
+	   <source path='/tmp/virtio-trace/trace-path-cpu0'/>
+	   <target type='virtio' name='trace-path-cpu0'/>
+	   <address type='virtio-serial' controller='0' bus='0' port='1'/>
+	</channel>
+	...
+Here, chardev names are restricted to trace-path-cpuX and agent-ctl-path. For
+example, if a guest use three CPUs, chardev names should be trace-path-cpu0,
+trace-path-cpu1, trace-path-cpu2, and agent-ctl-path.
+
+3) Boot the guest
+ You can find some chardev in /dev/virtio-ports/ in the guest.
+
+
+Run
+===
+
+0) Build trace agent in a guest
+	$ make
+
+1) Enable ftrace in the guest
+ <Example>
+	# echo 1 > /sys/kernel/debug/tracing/events/sched/enable
+
+2) Run trace agent in the guest
+ This agent must be operated as root.
+	# ./trace-agent
+read/write threads in the agent wait for start order from host. If you add -o
+option, trace data are output via stdout in the guest.
+
+3) Open FIFO in a host
+	# cat /tmp/virtio-trace/trace-path-cpu0.out
+If a host does not open these, trace data get stuck in buffers of virtio. Then,
+the guest will stop by specification of chardev in QEMU. This blocking mode may
+be solved in the future.
+
+4) Start to read trace data by ordering from a host
+ A host injects read start order to the guest via virtio-serial.
+	# echo 1 > /tmp/virtio-trace/agent-ctl-path.in
+
+5) Stop to read trace data by ordering from a host
+ A host injects read stop order to the guest via virtio-serial.
+	# echo 0 > /tmp/virtio-trace/agent-ctl-path.in

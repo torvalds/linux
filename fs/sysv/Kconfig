@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SYSV_FS
+	tristate "System V/Xenix/V7/Coherent file system support"
+	depends on BLOCK
+	help
+	  SCO, Xenix and Coherent are commercial Unix systems for Intel
+	  machines, and Version 7 was used on the DEC PDP-11. Saying Y
+	  here would allow you to read from their floppies and hard disk
+	  partitions.
+
+	  If you have floppies or hard disk partitions like that, it is likely
+	  that they contain binaries from those other Unix systems; in order
+	  to run these binaries, you will want to install linux-abi which is
+	  a set of kernel modules that lets you run SCO, Xenix, Wyse,
+	  UnixWare, Dell Unix and System V programs under Linux.  It is
+	  available via FTP (user: ftp) from
+	  <ftp://ftp.openlinux.org/pub/people/hch/linux-abi/>).
+	  NOTE: that will work only for binaries from Intel-based systems;
+	  PDP ones will have to wait until somebody ports Linux to -11 ;-)
+
+	  If you only intend to mount files from some other Unix over the
+	  network using NFS, you don't need the System V file system support
+	  (but you need NFS file system support obviously).
+
+	  Note that this option is generally not needed for floppies, since a
+	  good portable way to transport files and directories between unixes
+	  (and even other operating systems) is given by the tar program ("man
+	  tar" or preferably "info tar").  Note also that this option has
+	  nothing whatsoever to do with the option "System V IPC". Read about
+	  the System V file system in
+	  <file:Documentation/filesystems/sysv-fs.rst>.
+	  Saying Y here will enlarge your kernel by about 27 KB.
+
+	  To compile this as a module, choose M here: the module will be called
+	  sysv.
+
+	  If you haven't heard about all of this before, it's safe to say N.

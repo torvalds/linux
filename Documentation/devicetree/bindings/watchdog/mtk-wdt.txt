@@ -1,0 +1,42 @@
+Mediatek SoCs Watchdog timer
+
+The watchdog supports a pre-timeout interrupt that fires timeout-sec/2
+before the expiry.
+
+Required properties:
+
+- compatible should contain:
+	"mediatek,mt2701-wdt", "mediatek,mt6589-wdt": for MT2701
+	"mediatek,mt2712-wdt": for MT2712
+	"mediatek,mt6582-wdt", "mediatek,mt6589-wdt": for MT6582
+	"mediatek,mt6589-wdt": for MT6589
+	"mediatek,mt6797-wdt", "mediatek,mt6589-wdt": for MT6797
+	"mediatek,mt7622-wdt", "mediatek,mt6589-wdt": for MT7622
+	"mediatek,mt7623-wdt", "mediatek,mt6589-wdt": for MT7623
+	"mediatek,mt7629-wdt", "mediatek,mt6589-wdt": for MT7629
+	"mediatek,mt7986-wdt", "mediatek,mt6589-wdt": for MT7986
+	"mediatek,mt8183-wdt": for MT8183
+	"mediatek,mt8186-wdt", "mediatek,mt6589-wdt": for MT8186
+	"mediatek,mt8516-wdt", "mediatek,mt6589-wdt": for MT8516
+	"mediatek,mt8192-wdt": for MT8192
+	"mediatek,mt8195-wdt", "mediatek,mt6589-wdt": for MT8195
+
+- reg : Specifies base physical address and size of the registers.
+
+Optional properties:
+- mediatek,disable-extrst: disable send output reset signal
+- interrupts: Watchdog pre-timeout (bark) interrupt.
+- timeout-sec: contains the watchdog timeout in seconds.
+- #reset-cells: Should be 1.
+
+Example:
+
+watchdog: watchdog@10007000 {
+	compatible = "mediatek,mt8183-wdt",
+		     "mediatek,mt6589-wdt";
+	mediatek,disable-extrst;
+	reg = <0 0x10007000 0 0x100>;
+	interrupts = <GIC_SPI 139 IRQ_TYPE_NONE>;
+	timeout-sec = <10>;
+	#reset-cells = <1>;
+};

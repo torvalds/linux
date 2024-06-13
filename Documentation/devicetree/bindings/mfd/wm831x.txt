@@ -1,0 +1,81 @@
+Cirrus Logic/Wolfson Microelectronics wm831x PMICs
+
+System PMICs with a wide range of additional features.
+
+Required properties:
+
+  - compatible : One of the following chip-specific strings:
+        "wlf,wm8310"
+        "wlf,wm8311"
+        "wlf,wm8312"
+        "wlf,wm8320"
+        "wlf,wm8321"
+        "wlf,wm8325"
+        "wlf,wm8326"
+
+  - reg : I2C slave address when connected using I2C, chip select number
+    when using SPI.
+
+  - gpio-controller : Indicates this device is a GPIO controller.
+  - #gpio-cells : Must be 2. The first cell is the pin number and the
+    second cell is used to specify optional parameters (currently unused).
+
+  - interrupts : The interrupt line the IRQ signal for the device is
+    connected to.
+
+  - interrupt-controller : wm831x devices contain interrupt controllers and
+    may provide interrupt services to other devices.
+  - #interrupt-cells: Must be 2. The first cell is the IRQ number, and the
+    second cell is the flags, encoded as the trigger masks from
+    ../interrupt-controller/interrupts.txt
+
+Optional sub-nodes:
+  - phys : Contains a phandle to the USB PHY.
+  - regulators : Contains sub-nodes for each of the regulators supplied by
+    the device. The regulators are bound using their names listed below:
+
+    dcdc1 : DCDC1
+    dcdc2 : DCDC2
+    dcdc3 : DCDC3
+    dcdc4 : DCDC3
+    isink1 : ISINK1
+    isink2 : ISINK2
+    ldo1 : LDO1
+    ldo2 : LDO2
+    ldo3 : LDO3
+    ldo4 : LDO4
+    ldo5 : LDO5
+    ldo7 : LDO7
+    ldo11 : LDO11
+
+    The bindings details of each regulator can be found in:
+    ../regulator/regulator.txt
+
+Example:
+
+wm8310: pmic@36 {
+	compatible = "wlf,wm8310";
+	reg = <0x36>;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	interrupts = <347>;
+	interrupt-parent = <&gic>;
+
+	interrupt-controller;
+	#interrupt-cells = <2>;
+
+	regulators {
+		dcdc1: dcdc1 {
+			regulator-name = "DCDC1";
+			regulator-min-microvolt = <600000>;
+			regulator-max-microvolt = <600000>;
+		};
+		ldo1: ldo1 {
+			regulator-name = "LDO1";
+			regulator-min-microvolt = <1700000>;
+			regulator-max-microvolt = <1700000>;
+		};
+	};
+};

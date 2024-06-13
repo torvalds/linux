@@ -1,0 +1,19 @@
+Zodiac RAVE Watchdog Timer
+
+Required properties:
+- compatible: must be "zii,rave-wdt"
+- reg: i2c slave address of device, usually 0x38
+
+Optional Properties:
+- timeout-sec: Watchdog timeout value in seconds.
+- reset-duration-ms: Duration of the pulse generated when the watchdog times
+  out. Value in milliseconds.
+
+Example:
+
+	watchdog@38 {
+		compatible = "zii,rave-wdt";
+		reg = <0x38>;
+		timeout-sec = <30>;
+		reset-duration-ms = <30>;
+	};

@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+llvm-src-base.c
+llvm-src-kbuild.c
+llvm-src-prologue.c
+llvm-src-relocation.c

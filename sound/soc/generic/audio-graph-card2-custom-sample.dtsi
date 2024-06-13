@@ -1,0 +1,310 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * audio-graph-card2-custom-sample.dtsi
+ *
+ * Copyright (C) 2020 Renesas Electronics Corp.
+ * Copyright (C) 2020 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ *
+ * This sample indicates how to use audio-graph-card2 and its
+ * custom driver. "audio-graph-card2-custom-sample" is the custome driver
+ * which is using audio-graph-card2.
+ *
+ * You can easily use this sample by adding below line on your DT file,
+ * and add new CONFIG to your .config.
+ *
+ *	#include "../../../../../sound/soc/generic/audio-graph-card2-custom-sample.dtsi"
+ *
+ *	CONFIG_SND_AUDIO_GRAPH_CARD2
+ *	CONFIG_SND_AUDIO_GRAPH_CARD2_CUSTOM_SAMPLE
+ *	CONFIG_SND_TEST_COMPONENT
+ *
+ *
+ * You can indicate more detail each device behavior as debug if you modify
+ * "compatible" on each test-component. see below
+ *
+ *	test_cpu {
+ *	-	compatible = "test-cpu";
+ *	+	compatible = "test-cpu-verbose";
+ *		...
+ *	};
+ *
+ *	test_codec {
+ *	-	compatible = "test-codec";
+ *	+	compatible = "test-codec-verbose";
+ *		...
+ *	};
+ *
+ */
+/ {
+	/*
+	 * @ : used at links
+	 *
+	 * [Normal]
+	 *	cpu0 <-@-----------------> codec0
+	 *
+	 * [Multi-CPU/Codec]
+	 *		+-+		+-+
+	 *	cpu1 <--| |<-@--------->| |-> codec1
+	 *	cpu2 <--| |		| |-> codec2
+	 *		+-+		+-+
+	 *
+	 * [DPCM]
+	 *	FE		BE
+	 *		  ****
+	 *	cpu3 <-@--*  *--@-> codec3
+	 *	cpu4 <-@--*  *
+	 *		  ****
+	 *
+	 * [DPCM-Multi]
+	 *
+	 * --NOTE--
+	 * Multi-FE is not supported by ASoC.
+	 *
+	 *	FE		BE
+	 *		  ****	    +-+
+	 *	cpu5 <-@--*  *--@-> | | -> codec4
+	 *	cpu6 <-@--*  *	    | | -> codec5
+	 *		  ****	    +-+
+	 *
+	 * [Codec2Codec]
+	 *			   +-@-> codec6
+	 *			   |
+	 *			   +---> codec7
+	 *
+	 * [Codec2Codec-Multi]
+	 *
+	 * --NOTE--
+	 * Multi connect N:M is not supported by ASoC.
+	 *
+	 *				+-+
+	 *			   +-@->| |-> codec8
+	 *			   |	| |-> codec9
+	 *			   |	+-+
+	 *			   |	+-+
+	 *			   +--->| |-> codec10
+	 *				| |-> codec11
+	 *				+-+
+	 */
+	audio-graph-card2-custom-sample {
+		/*
+		 * You can use audio-graph-card2 directly by using
+		 *
+		 * compatible = "audio-graph-card2";
+		 */
+		compatible = "audio-graph-card2-custom-sample";
+
+			/* for [DPCM]		   */
+			/* BE			FE */
+		routing = "TC DAI3 Playback",	"DAI3 Playback",
+			  "TC DAI3 Playback",	"DAI4 Playback",
+			  "DAI3 Capture",	"TC DAI3 Capture",
+			  "DAI4 Capture",	"TC DAI3 Capture",
+			/* for [DPCM-Multi]	   */
+			/* BE			FE */
+			  "TC DAI4 Playback",	"DAI5 Playback",
+			  "TC DAI5 Playback",	"DAI5 Playback",
+			  "TC DAI4 Playback",	"DAI6 Playback",
+			  "TC DAI5 Playback",	"DAI6 Playback",
+			  "DAI5 Capture",	"TC DAI4 Capture",
+			  "DAI5 Capture",	"TC DAI5 Capture",
+			  "DAI6 Capture",	"TC DAI4 Capture",
+			  "DAI6 Capture",	"TC DAI5 Capture",
+			/* for [Codec2Codec] */
+			  "TC OUT",		"TC DAI7 Playback",
+			  "TC DAI6 Capture",	"TC IN",
+			/* for [Codec2Codec-Multi] */
+			  "TC OUT",		"TC DAI10 Playback",
+			  "TC DAI8 Capture",	"TC IN",
+			  "TC OUT",		"TC DAI11 Playback",
+			  "TC DAI9 Capture",	"TC IN";
+
+		links = <
+			/*
+			 * [Normal]: cpu side only
+			 * cpu0/codec0
+			 */
+			 &cpu0
+
+			/*
+			 * [Multi-CPU/Codec]: cpu side only
+			 * cpu1/cpu2/codec1/codec2
+			 */
+			 &mcpu0
+
+			/*
+			 * [DPCM]: both FE / BE
+			 * cpu3/cpu4/codec3
+			 */
+			 &fe00 &fe01 &be0
+
+			/*
+			 * [DPCM-Multi]: both FE / BE
+			 * cpu5/cpu6/codec4/codec5
+			 */
+			 &fe10 &fe11 &be1
+
+			/*
+			 * [Codec2Codec]: cpu side only
+			 * codec6/codec7
+			 */
+			 &c2c
+
+			/*
+			 * [Codec2Codec-Multi]: cpu side only
+			 * codec8/codec9/codec10/codec11
+			 */
+			 &c2c_m
+		>;
+
+		multi {
+			ports@0 {
+			/* [Multi-CPU] */
+			mcpu0:	port@0 { mcpu0_ep: endpoint { remote-endpoint = <&mcodec0_ep>; }; };
+				port@1 { mcpu1_ep: endpoint { remote-endpoint = <&cpu1_ep>;    }; };
+				port@2 { mcpu2_ep: endpoint { remote-endpoint = <&cpu2_ep>;    }; };
+			};
+
+			/* [Multi-Codec] */
+			ports@1 {
+				port@0 { mcodec0_ep: endpoint { remote-endpoint = <&mcpu0_ep>;  }; };
+				port@1 { mcodec1_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
+				port@2 { mcodec2_ep: endpoint { remote-endpoint = <&codec2_ep>; }; };
+			};
+
+			/* [DPCM-Multi]::BE */
+			ports@2 {
+				port@0 { mbe_ep:  endpoint { remote-endpoint = <&be10_ep>;  }; };
+				port@1 { mbe1_ep: endpoint { remote-endpoint = <&codec4_ep>; }; };
+				port@2 { mbe2_ep: endpoint { remote-endpoint = <&codec5_ep>; }; };
+			};
+
+			/* [Codec2Codec-Multi]::CPU */
+			ports@3 {
+				port@0 { mc2c0_ep:  endpoint { remote-endpoint = <&c2cmf_ep>;  }; };
+				port@1 { mc2c00_ep: endpoint { remote-endpoint = <&codec8_ep>; }; };
+				port@2 { mc2c01_ep: endpoint { remote-endpoint = <&codec9_ep>; }; };
+			};
+
+			/* [Codec2Codec-Multi]::Codec */
+			ports@4 {
+				port@0 { mc2c1_ep:  endpoint { remote-endpoint = <&c2cmb_ep>;  }; };
+				port@1 { mc2c10_ep: endpoint { remote-endpoint = <&codec10_ep>; }; };
+				port@2 { mc2c11_ep: endpoint { remote-endpoint = <&codec11_ep>; }; };
+			};
+		};
+
+		dpcm {
+			ports@0 {
+			/* [DPCM]::FE */
+			fe00:	port@0 { fe00_ep: endpoint { remote-endpoint = <&cpu3_ep>; }; };
+			fe01:	port@1 { fe01_ep: endpoint { remote-endpoint = <&cpu4_ep>; }; };
+
+			/* [DPCM-Multi]::FE */
+			fe10:	port@2 { fe10_ep: endpoint { remote-endpoint = <&cpu5_ep>; }; };
+			fe11:	port@3 { fe11_ep: endpoint { remote-endpoint = <&cpu6_ep>; }; };
+			};
+
+			ports@1 {
+			/* [DPCM]::BE */
+			be0:	port@0 { be00_ep: endpoint { remote-endpoint = <&codec3_ep>; }; };
+
+			/* [DPCM-Multi]::BE */
+			be1:	port@1 { be10_ep: endpoint { remote-endpoint = <&mbe_ep>; }; };
+			};
+		};
+
+		codec2codec {
+			/* [Codec2Codec] */
+			ports@0 {
+				/* use default settings */
+			c2c:	port@0 { c2cf_ep: endpoint { remote-endpoint = <&codec6_ep>; }; };
+				port@1 { c2cb_ep: endpoint { remote-endpoint = <&codec7_ep>; }; };
+			};
+
+			/* [Codec2Codec-Multi] */
+			ports@1 {
+				/* use original settings */
+				rate = <48000>;
+			c2c_m:	port@0 { c2cmf_ep: endpoint { remote-endpoint = <&mc2c0_ep>; }; };
+				port@1 { c2cmb_ep: endpoint { remote-endpoint = <&mc2c1_ep>; }; };
+			};
+		};
+	};
+
+	test_cpu {
+		/*
+		 * update compatible to indicate more detail behaviour
+		 * if you want. see test-compatible for more detail.
+		 *
+		 * ex)
+		 *	- compatible = "test-cpu";
+		 *	+ compatible = "test-cpu-verbose";
+		 */
+		compatible = "test-cpu";
+		ports {
+			bitclock-master;
+			frame-master;
+			/* [Normal] */
+			cpu0: port@0 { cpu0_ep: endpoint { remote-endpoint = <&codec0_ep>; }; };
+
+			/* [Multi-CPU] */
+			      port@1 { cpu1_ep: endpoint { remote-endpoint = <&mcpu1_ep>; }; };
+			      port@2 { cpu2_ep: endpoint { remote-endpoint = <&mcpu2_ep>; }; };
+
+			/* [DPCM]::FE */
+			      port@3 { cpu3_ep: endpoint { remote-endpoint = <&fe00_ep>; }; };
+			      port@4 { cpu4_ep: endpoint { remote-endpoint = <&fe01_ep>; }; };
+
+			/* [DPCM-Multi]::FE */
+			      port@5 { cpu5_ep: endpoint { remote-endpoint = <&fe10_ep>; }; };
+			      port@6 { cpu6_ep: endpoint { remote-endpoint = <&fe11_ep>; }; };
+		};
+	};
+
+	test_codec {
+		/*
+		 * update compatible to indicate more detail behaviour
+		 * if you want. see test-compatible for more detail.
+		 *
+		 * ex)
+		 *	- compatible = "test-codec";
+		 *	+ compatible = "test-codec-verbose";
+		 */
+		compatible = "test-codec";
+		ports {
+			/*
+			 * prefix can be added to *component*,
+			 * see audio-graph-card2::routing
+			 */
+			prefix = "TC";
+
+			/* [Normal] */
+			port@0  { codec0_ep:  endpoint { remote-endpoint = <&cpu0_ep>; }; };
+
+			/* [Multi-Codec] */
+			port@1  { codec1_ep:  endpoint { remote-endpoint = <&mcodec1_ep>; }; };
+			port@2  { codec2_ep:  endpoint { remote-endpoint = <&mcodec2_ep>; }; };
+
+			/* [DPCM]::BE */
+			port@3  { codec3_ep:  endpoint { remote-endpoint = <&be00_ep>; }; };
+
+			/* [DPCM-Multi]::BE */
+			port@4  { codec4_ep:  endpoint { remote-endpoint = <&mbe1_ep>; }; };
+			port@5  { codec5_ep:  endpoint { remote-endpoint = <&mbe2_ep>; }; };
+
+			/* [Codec2Codec] */
+			port@6  { bitclock-master;
+				  frame-master;
+				  codec6_ep:  endpoint { remote-endpoint = <&c2cf_ep>; }; };
+			port@7  { codec7_ep:  endpoint { remote-endpoint = <&c2cb_ep>; }; };
+
+			/* [Codec2Codec-Multi] */
+			port@8  { bitclock-master;
+				  frame-master;
+				  codec8_ep:  endpoint { remote-endpoint = <&mc2c00_ep>; }; };
+			port@9  { codec9_ep:  endpoint { remote-endpoint = <&mc2c01_ep>; }; };
+			port@10 { codec10_ep: endpoint { remote-endpoint = <&mc2c10_ep>; }; };
+			port@11 { codec11_ep: endpoint { remote-endpoint = <&mc2c11_ep>; }; };
+		};
+	};
+};

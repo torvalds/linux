@@ -1,0 +1,21 @@
+* STMP3xxx/i.MX28 Time Clock controller
+
+Required properties:
+- compatible: should be one of the following.
+    * "fsl,stmp3xxx-rtc"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: rtc alarm interrupt
+
+Optional properties:
+- stmp,crystal-freq: override crystal frequency as determined from fuse bits.
+  Only <32000> and <32768> are possible for the hardware.  Use <0> for
+  "no crystal".
+
+Example:
+
+rtc@80056000 {
+	compatible = "fsl,imx28-rtc", "fsl,stmp3xxx-rtc";
+	reg = <0x80056000 2000>;
+	interrupts = <29>;
+};

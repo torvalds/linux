@@ -1,0 +1,59 @@
+Qualcomm Technologies, Inc. SPMI PMIC clock divider (clkdiv)
+
+clkdiv configures the clock frequency of a set of outputs on the PMIC.
+These clocks are typically wired through alternate functions on
+gpio pins.
+
+=======================
+Properties
+=======================
+
+- compatible
+	Usage:      required
+	Value type: <string>
+	Definition: must be "qcom,spmi-clkdiv".
+
+- reg
+	Usage:      required
+	Value type: <prop-encoded-array>
+	Definition: base address of CLKDIV peripherals.
+
+- qcom,num-clkdivs
+	Usage:      required
+	Value type: <u32>
+	Definition: number of CLKDIV peripherals.
+
+- clocks:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: reference to the xo clock.
+
+- clock-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "xo".
+
+- #clock-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: shall contain 1.
+
+=======
+Example
+=======
+
+pm8998_clk_divs: clock-controller@5b00 {
+	compatible = "qcom,spmi-clkdiv";
+	reg = <0x5b00>;
+	#clock-cells = <1>;
+	qcom,num-clkdivs = <3>;
+	clocks = <&xo_board>;
+	clock-names = "xo";
+
+	assigned-clocks = <&pm8998_clk_divs 1>,
+			  <&pm8998_clk_divs 2>,
+			  <&pm8998_clk_divs 3>;
+	assigned-clock-rates = <9600000>,
+			       <9600000>,
+			       <9600000>;
+};

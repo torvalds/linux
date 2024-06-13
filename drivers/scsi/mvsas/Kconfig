@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Kernel configuration file for 88SE64XX/88SE94XX SAS/SATA driver.
+#
+# Copyright 2007 Red Hat, Inc.
+# Copyright 2008 Marvell. <kewei@marvell.com>
+# Copyright 2009-2011 Marvell. <yuxiangl@marvell.com>
+#
+
+config SCSI_MVSAS
+	tristate "Marvell 88SE64XX/88SE94XX SAS/SATA support"
+	depends on PCI
+	select SCSI_SAS_LIBSAS
+	select FW_LOADER
+	help
+		This driver supports Marvell's SAS/SATA 3Gb/s PCI-E 88SE64XX and 6Gb/s
+		PCI-E 88SE94XX chip based host adapters.
+
+config SCSI_MVSAS_DEBUG
+	bool "Compile in debug mode"
+	default y
+	depends on SCSI_MVSAS
+	help
+		Compiles the 88SE64XX/88SE94XX driver in debug mode.  In debug mode,
+		the driver prints some messages to the console.
+config SCSI_MVSAS_TASKLET
+	bool "Support for interrupt tasklet"
+	default n
+	depends on SCSI_MVSAS
+	help
+		Compiles the 88SE64xx/88SE94xx driver in interrupt tasklet mode.In this mode,
+		the interrupt will schedule a tasklet.

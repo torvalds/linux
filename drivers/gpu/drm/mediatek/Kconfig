@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_MEDIATEK
+	tristate "DRM Support for Mediatek SoCs"
+	depends on DRM
+	depends on ARCH_MEDIATEK || (ARM && COMPILE_TEST)
+	depends on COMMON_CLK
+	depends on HAVE_ARM_SMCCC
+	depends on OF
+	depends on MTK_MMSYS
+	select DRM_GEM_DMA_HELPER
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	select MEMORY
+	select MTK_SMI
+	select PHY_MTK_MIPI_DSI
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have a Mediatek SoCs.
+	  The module will be called mediatek-drm
+	  This driver provides kernel mode setting and
+	  buffer management to userspace.
+
+config DRM_MEDIATEK_DP
+	tristate "DRM DPTX Support for MediaTek SoCs"
+	depends on DRM_MEDIATEK
+	select PHY_MTK_DP
+	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	help
+	  DRM/KMS Display Port driver for MediaTek SoCs.
+
+config DRM_MEDIATEK_HDMI
+	tristate "DRM HDMI Support for Mediatek SoCs"
+	depends on DRM_MEDIATEK
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	select PHY_MTK_HDMI
+	help
+	  DRM/KMS HDMI driver for Mediatek SoCs

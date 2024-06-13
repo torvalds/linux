@@ -1,0 +1,19 @@
+What:		/sys/fs/fuse/features/fuse_bpf
+Date:		December 2022
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:
+		Read-only file that contains the word 'supported' if fuse-bpf is
+		supported, does not exist otherwise
+
+What:		/sys/fs/fuse/bpf_prog_type_fuse
+Date:		December 2022
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:
+		bpf_prog_type_fuse defines the program type of bpf programs that
+		may be passed to fuse-bpf. For upstream bpf program types, this
+		is a constant defined in a contiguous array of constants.
+		bpf_prog_type_fuse is appended to the end of the list, so it may
+		change and therefore its value must be read from this file.
+
+		Contents is ASCII decimal representation of bpf_prog_type_fuse
+

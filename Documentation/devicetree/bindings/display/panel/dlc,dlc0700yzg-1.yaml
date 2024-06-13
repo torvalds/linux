@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/dlc,dlc0700yzg-1.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: DLC Display Co. DLC0700YZG-1 7.0" WSVGA TFT LCD panel
+
+maintainers:
+  - Philipp Zabel <p.zabel@pengutronix.de>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    const: dlc,dlc0700yzg-1
+
+  reset-gpios: true
+  enable-gpios: true
+  backlight: true
+  port: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - power-supply
+
+...

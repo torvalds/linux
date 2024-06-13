@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/pse-pd/pse-controller.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Power Sourcing Equipment (PSE).
+
+description: Binding for the Power Sourcing Equipment (PSE) as defined in the
+  IEEE 802.3 specification. It is designed for hardware which is delivering
+  power over twisted pair/ethernet cable. The ethernet-pse nodes should be
+  used to describe PSE controller and referenced by the ethernet-phy node.
+
+maintainers:
+  - Oleksij Rempel <o.rempel@pengutronix.de>
+
+properties:
+  $nodename:
+    pattern: "^ethernet-pse(@.*)?$"
+
+  "#pse-cells":
+    description:
+      Used to uniquely identify a PSE instance within an IC. Will be
+      0 on PSE nodes with only a single output and at least 1 on nodes
+      controlling several outputs.
+    enum: [0, 1]
+
+required:
+  - "#pse-cells"
+
+additionalProperties: true
+
+...

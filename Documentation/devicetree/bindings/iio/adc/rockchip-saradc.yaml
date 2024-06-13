@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/rockchip-saradc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip Successive Approximation Register (SAR) A/D Converter
+
+maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
+
+properties:
+  compatible:
+    oneOf:
+      - const: rockchip,saradc
+      - const: rockchip,rk3066-tsadc
+      - const: rockchip,rk3399-saradc
+      - items:
+          - enum:
+              - rockchip,px30-saradc
+              - rockchip,rk3308-saradc
+              - rockchip,rk3328-saradc
+              - rockchip,rk3568-saradc
+              - rockchip,rv1108-saradc
+          - const: rockchip,rk3399-saradc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: converter clock
+      - description: peripheral clock
+
+  clock-names:
+    items:
+      - const: saradc
+      - const: apb_pclk
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: saradc-apb
+
+  vref-supply:
+    description:
+      The regulator supply for the ADC reference voltage.
+
+  "#io-channel-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - vref-supply
+  - "#io-channel-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/rk3288-cru.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    saradc: saradc@2006c000 {
+      compatible = "rockchip,saradc";
+      reg = <0x2006c000 0x100>;
+      interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&cru SCLK_SARADC>, <&cru PCLK_SARADC>;
+      clock-names = "saradc", "apb_pclk";
+      resets = <&cru SRST_SARADC>;
+      reset-names = "saradc-apb";
+      vref-supply = <&vcc18>;
+      #io-channel-cells = <1>;
+    };

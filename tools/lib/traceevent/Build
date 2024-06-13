@@ -1,0 +1,8 @@
+libtraceevent-y += event-parse.o
+libtraceevent-y += event-plugin.o
+libtraceevent-y += trace-seq.o
+libtraceevent-y += parse-filter.o
+libtraceevent-y += parse-utils.o
+libtraceevent-y += kbuffer-parse.o
+libtraceevent-y += tep_strerror.o
+libtraceevent-y += event-parse-api.o

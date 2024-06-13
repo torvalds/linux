@@ -1,0 +1,104 @@
+/*
+ * QorIQ FMan device tree stub [ controller @ offset 0x400000 ]
+ *
+ * Copyright 2011 - 2015 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *	 notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *	 notice, this list of conditions and the following disclaimer in the
+ *	 documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *	 names of its contributors may be used to endorse or promote products
+ *	 derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+fman0: fman@400000 {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	cell-index = <0>;
+	compatible = "fsl,fman";
+	ranges = <0 0x400000 0xfe000>;
+	reg = <0x400000 0xfe000>;
+	interrupts = <96 2 0 0>, <16 2 1 1>;
+	clocks = <&clockgen 3 0>;
+	clock-names = "fmanclk";
+	fsl,qman-channel-range = <0x40 0xc>;
+	ptimer-handle = <&ptp_timer0>;
+
+	muram@0 {
+		compatible = "fsl,fman-muram";
+		reg = <0x0 0x28000>;
+	};
+
+	fman0_oh_0x1: port@81000 {
+		cell-index = <0x1>;
+		compatible = "fsl,fman-v2-port-oh";
+		reg = <0x81000 0x1000>;
+	};
+
+	fman0_oh_0x2: port@82000 {
+		cell-index = <0x2>;
+		compatible = "fsl,fman-v2-port-oh";
+		reg = <0x82000 0x1000>;
+	};
+
+	fman0_oh_0x3: port@83000 {
+		cell-index = <0x3>;
+		compatible = "fsl,fman-v2-port-oh";
+		reg = <0x83000 0x1000>;
+	};
+
+	fman0_oh_0x4: port@84000 {
+		cell-index = <0x4>;
+		compatible = "fsl,fman-v2-port-oh";
+		reg = <0x84000 0x1000>;
+	};
+
+	fman0_oh_0x5: port@85000 {
+		cell-index = <0x5>;
+		compatible = "fsl,fman-v2-port-oh";
+		reg = <0x85000 0x1000>;
+		status = "disabled";
+	};
+
+	fman0_oh_0x6: port@86000 {
+		cell-index = <0x6>;
+		compatible = "fsl,fman-v2-port-oh";
+		reg = <0x86000 0x1000>;
+		status = "disabled";
+	};
+
+	fman0_oh_0x7: port@87000 {
+		cell-index = <0x7>;
+		compatible = "fsl,fman-v2-port-oh";
+		reg = <0x87000 0x1000>;
+		status = "disabled";
+	};
+};
+
+ptp_timer0: ptp-timer@4fe000 {
+	compatible = "fsl,fman-ptp-timer";
+	reg = <0x4fe000 0x1000>;
+	interrupts = <96 2 0 0>;
+	clocks = <&clockgen 3 0>;
+};
