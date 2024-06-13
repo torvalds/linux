@@ -489,6 +489,7 @@ static int mt7925_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_sta *msta = sta ? (struct mt792x_sta *)sta->drv_priv :
 				  &mvif->sta;
+	struct ieee80211_link_sta *link_sta = sta ? &sta->deflink : NULL;
 	struct mt76_wcid *wcid = &msta->deflink.wcid;
 	struct ieee80211_bss_conf *link_conf;
 	u8 *wcid_keyidx = &wcid->hw_key_idx;
@@ -535,7 +536,7 @@ static int mt7925_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 		mvif->bss_conf.mt76.cipher = mt7925_mcu_get_cipher(key->cipher);
 		mt7925_mcu_add_bss_info(phy, mvif->bss_conf.mt76.ctx, link_conf,
-					sta, true);
+					link_sta, true);
 	}
 
 	if (cmd == SET_KEY)
@@ -738,7 +739,7 @@ int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	/* should update bss info before STA add */
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 		mt7925_mcu_add_bss_info(&dev->phy, mvif->bss_conf.mt76.ctx,
-					link_conf, sta, false);
+					link_conf, &sta->deflink, false);
 
 	ret = mt7925_mcu_sta_update(dev, &sta->deflink, vif, true,
 				    MT76_STA_INFO_STATE_NONE);
@@ -765,7 +766,7 @@ void mt7925_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 		mt7925_mcu_add_bss_info(&dev->phy, mvif->bss_conf.mt76.ctx,
-					link_conf, sta, true);
+					link_conf, &sta->deflink, true);
 
 	ewma_avg_signal_init(&msta->deflink.avg_ack_signal);
 
@@ -802,7 +803,7 @@ void mt7925_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		ewma_rssi_init(&mvif->bss_conf.rssi);
 		if (!sta->tdls)
 			mt7925_mcu_add_bss_info(&dev->phy, mvif->bss_conf.mt76.ctx,
-						link_conf, sta, false);
+						link_conf, &sta->deflink, false);
 	}
 
 	spin_lock_bh(&mdev->sta_poll_lock);
