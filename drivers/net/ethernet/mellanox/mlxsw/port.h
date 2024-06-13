@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 
-#define MLXSW_PORT_MAX_MTU		10000
+#define MLXSW_PORT_MAX_MTU		(10 * 1024)
 
 #define MLXSW_PORT_DEFAULT_VID		1
 
