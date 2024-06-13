@@ -703,33 +703,34 @@ mt7925_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return mvif->basic_rates_idx;
 }
 
-int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta)
+static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_link_sta *link_sta)
 {
 	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
-	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct ieee80211_bss_conf *link_conf;
+	struct mt792x_link_sta *mlink;
+	struct mt792x_sta *msta;
 	int ret, idx;
+
+	msta = (struct mt792x_sta *)link_sta->sta->drv_priv;
+	mlink = mt792x_sta_to_link(msta, link_sta->link_id);
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT792x_WTBL_STA - 1);
 	if (idx < 0)
 		return -ENOSPC;
 
-	INIT_LIST_HEAD(&msta->deflink.wcid.poll_list);
-	msta->vif = mvif;
-	msta->deflink.wcid.sta = 1;
-	msta->deflink.wcid.idx = idx;
-	msta->deflink.wcid.phy_idx = mvif->bss_conf.mt76.band_idx;
-	msta->deflink.wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	msta->deflink.last_txs = jiffies;
+	INIT_LIST_HEAD(&mlink->wcid.poll_list);
+	mlink->wcid.sta = 1;
+	mlink->wcid.idx = idx;
+	mlink->wcid.phy_idx = mvif->bss_conf.mt76.band_idx;
+	mlink->wcid.tx_info |= MT_WCID_TX_INFO_SET;
+	mlink->last_txs = jiffies;
 
 	ret = mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 	if (ret)
 		return ret;
-
-	if (vif->type == NL80211_IFTYPE_STATION)
-		mvif->wep_sta = msta;
 
 	mt7925_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -737,11 +738,11 @@ int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	link_conf = mt792x_vif_to_bss_conf(vif, vif->bss_conf.link_id);
 
 	/* should update bss info before STA add */
-	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
+	if (vif->type == NL80211_IFTYPE_STATION && !link_sta->sta->tdls)
 		mt7925_mcu_add_bss_info(&dev->phy, mvif->bss_conf.mt76.ctx,
-					link_conf, &sta->deflink, false);
+					link_conf, link_sta, false);
 
-	ret = mt7925_mcu_sta_update(dev, &sta->deflink, vif, true,
+	ret = mt7925_mcu_sta_update(dev, link_sta, vif, true,
 				    MT76_STA_INFO_STATE_NONE);
 	if (ret)
 		return ret;
@@ -749,6 +750,20 @@ int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 
 	return 0;
+}
+
+int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta)
+{
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
+
+	msta->vif = mvif;
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		mvif->wep_sta = msta;
+
+	return mt7925_mac_link_sta_add(mdev, vif, &sta->deflink);
 }
 EXPORT_SYMBOL_GPL(mt7925_mac_sta_add);
 
