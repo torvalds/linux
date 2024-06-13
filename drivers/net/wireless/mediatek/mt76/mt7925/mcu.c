@@ -2062,15 +2062,16 @@ mt7925_get_phy_mode_ext(struct mt76_phy *phy, struct ieee80211_vif *vif,
 
 static void
 mt7925_mcu_bss_basic_tlv(struct sk_buff *skb,
-			 struct ieee80211_vif *vif,
+			 struct ieee80211_bss_conf *link_conf,
 			 struct ieee80211_sta *sta,
 			 struct ieee80211_chanctx_conf *ctx,
 			 struct mt76_phy *phy, u16 wlan_idx,
 			 bool enable)
 {
-	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct ieee80211_vif *vif = link_conf->vif;
+	struct mt792x_bss_conf *mconf = mt792x_link_conf_to_mconf(link_conf);
 	struct mt792x_sta *msta = sta ? (struct mt792x_sta *)sta->drv_priv :
-				  &mvif->sta;
+				  &mconf->vif->sta;
 	struct cfg80211_chan_def *chandef = ctx ? &ctx->def : &phy->chandef;
 	enum nl80211_band band = chandef->chan->band;
 	struct mt76_connac_bss_basic_tlv *basic_req;
@@ -2081,8 +2082,8 @@ mt7925_mcu_bss_basic_tlv(struct sk_buff *skb,
 	tlv = mt76_connac_mcu_add_tlv(skb, UNI_BSS_INFO_BASIC, sizeof(*basic_req));
 	basic_req = (struct mt76_connac_bss_basic_tlv *)tlv;
 
-	idx = mvif->bss_conf.mt76.omac_idx > EXT_BSSID_START ? HW_BSSID_0 :
-						      mvif->bss_conf.mt76.omac_idx;
+	idx = mconf->mt76.omac_idx > EXT_BSSID_START ? HW_BSSID_0 :
+						      mconf->mt76.omac_idx;
 	basic_req->hw_bss_idx = idx;
 
 	basic_req->phymode_ext = mt7925_get_phy_mode_ext(phy, vif, band, sta);
@@ -2092,15 +2093,15 @@ mt7925_mcu_bss_basic_tlv(struct sk_buff *skb,
 	else
 		basic_req->nonht_basic_phy = cpu_to_le16(PHY_TYPE_OFDM_INDEX);
 
-	memcpy(basic_req->bssid, vif->bss_conf.bssid, ETH_ALEN);
+	memcpy(basic_req->bssid, link_conf->bssid, ETH_ALEN);
 	basic_req->phymode = mt76_connac_get_phy_mode(phy, vif, band, sta);
-	basic_req->bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int);
-	basic_req->dtim_period = vif->bss_conf.dtim_period;
+	basic_req->bcn_interval = cpu_to_le16(link_conf->beacon_int);
+	basic_req->dtim_period = link_conf->dtim_period;
 	basic_req->bmc_tx_wlan_idx = cpu_to_le16(wlan_idx);
 	basic_req->sta_idx = cpu_to_le16(msta->deflink.wcid.idx);
-	basic_req->omac_idx = mvif->bss_conf.mt76.omac_idx;
-	basic_req->band_idx = mvif->bss_conf.mt76.band_idx;
-	basic_req->wmm_idx = mvif->bss_conf.mt76.wmm_idx;
+	basic_req->omac_idx = mconf->mt76.omac_idx;
+	basic_req->band_idx = mconf->mt76.band_idx;
+	basic_req->wmm_idx = mconf->mt76.wmm_idx;
 	basic_req->conn_state = !enable;
 
 	switch (vif->type) {
@@ -2333,7 +2334,7 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 		return PTR_ERR(skb);
 
 	/* bss_basic must be first */
-	mt7925_mcu_bss_basic_tlv(skb, link_conf->vif, sta, ctx, phy->mt76,
+	mt7925_mcu_bss_basic_tlv(skb, link_conf, sta, ctx, phy->mt76,
 				 mvif->sta.deflink.wcid.idx, enable);
 	mt7925_mcu_bss_sec_tlv(skb, link_conf);
 

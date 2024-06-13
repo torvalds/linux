@@ -108,6 +108,7 @@ struct mt792x_chanctx {
 
 struct mt792x_bss_conf {
 	struct mt76_vif mt76; /* must be first */
+	struct mt792x_vif *vif;
 	struct ewma_rssi rssi;
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 };
