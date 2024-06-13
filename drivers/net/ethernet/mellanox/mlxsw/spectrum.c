@@ -426,8 +426,6 @@ static int mlxsw_sp_port_mtu_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
 	char pmtu_pl[MLXSW_REG_PMTU_LEN];
 
 	mtu += MLXSW_PORT_ETH_FRAME_HDR;
-	if (mtu > mlxsw_sp_port->max_mtu)
-		return -EINVAL;
 
 	mlxsw_reg_pmtu_pack(pmtu_pl, mlxsw_sp_port->local_port, mtu);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pmtu), pmtu_pl);
@@ -1697,8 +1695,8 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 			 NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_TC;
 	dev->hw_features |= NETIF_F_HW_TC | NETIF_F_LOOPBACK;
 
-	dev->min_mtu = 0;
-	dev->max_mtu = ETH_MAX_MTU;
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = MLXSW_PORT_MAX_MTU - MLXSW_PORT_ETH_FRAME_HDR;
 
 	/* Each packet needs to have a Tx header (metadata) on top all other
 	 * headers.
