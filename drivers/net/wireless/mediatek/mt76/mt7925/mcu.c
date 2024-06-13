@@ -2132,9 +2132,11 @@ mt7925_mcu_bss_basic_tlv(struct sk_buff *skb,
 }
 
 static void
-mt7925_mcu_bss_sec_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
+mt7925_mcu_bss_sec_tlv(struct sk_buff *skb,
+		       struct ieee80211_bss_conf *link_conf)
 {
-	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct mt792x_bss_conf *mconf = mt792x_link_conf_to_mconf(link_conf);
+	struct mt76_vif *mvif = &mconf->mt76;
 	struct bss_sec_tlv {
 		__le16 tag;
 		__le16 len;
@@ -2333,7 +2335,7 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 	/* bss_basic must be first */
 	mt7925_mcu_bss_basic_tlv(skb, link_conf->vif, sta, ctx, phy->mt76,
 				 mvif->sta.deflink.wcid.idx, enable);
-	mt7925_mcu_bss_sec_tlv(skb, link_conf->vif);
+	mt7925_mcu_bss_sec_tlv(skb, link_conf);
 
 	mt7925_mcu_bss_bmc_tlv(skb, phy, ctx, link_conf);
 	mt7925_mcu_bss_qos_tlv(skb, link_conf);
