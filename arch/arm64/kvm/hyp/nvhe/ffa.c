@@ -719,6 +719,55 @@ unlock:
 	hyp_spin_unlock(&version_lock);
 }
 
+static void do_ffa_part_get(struct arm_smccc_res *res,
+			    struct kvm_cpu_context *ctxt)
+{
+	DECLARE_REG(u32, uuid0, ctxt, 1);
+	DECLARE_REG(u32, uuid1, ctxt, 2);
+	DECLARE_REG(u32, uuid2, ctxt, 3);
+	DECLARE_REG(u32, uuid3, ctxt, 4);
+	DECLARE_REG(u32, flags, ctxt, 5);
+	u32 count, partition_sz, copy_sz;
+
+	hyp_spin_lock(&host_buffers.lock);
+	if (!host_buffers.rx) {
+		ffa_to_smccc_res(res, FFA_RET_BUSY);
+		goto out_unlock;
+	}
+
+	arm_smccc_1_1_smc(FFA_PARTITION_INFO_GET, uuid0, uuid1,
+			  uuid2, uuid3, flags, 0, 0,
+			  res);
+
+	if (res->a0 != FFA_SUCCESS)
+		goto out_unlock;
+
+	count = res->a2;
+	if (!count)
+		goto out_unlock;
+
+	if (hyp_ffa_version > FFA_VERSION_1_0) {
+		/* Get the number of partitions deployed in the system */
+		if (flags & 0x1)
+			goto out_unlock;
+
+		partition_sz  = res->a3;
+	} else {
+		/* FFA_VERSION_1_0 lacks the size in the response */
+		partition_sz = FFA_1_0_PARTITON_INFO_SZ;
+	}
+
+	copy_sz = partition_sz * count;
+	if (copy_sz > KVM_FFA_MBOX_NR_PAGES * PAGE_SIZE) {
+		ffa_to_smccc_res(res, FFA_RET_ABORTED);
+		goto out_unlock;
+	}
+
+	memcpy(host_buffers.rx, hyp_buffers.rx, copy_sz);
+out_unlock:
+	hyp_spin_unlock(&host_buffers.lock);
+}
+
 bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt, u32 func_id)
 {
 	struct arm_smccc_res res;
@@ -772,6 +821,9 @@ bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt, u32 func_id)
 		goto out_handled;
 	case FFA_VERSION:
 		do_ffa_version(&res, host_ctxt);
+		goto out_handled;
+	case FFA_PARTITION_INFO_GET:
+		do_ffa_part_get(&res, host_ctxt);
 		goto out_handled;
 	}
 
