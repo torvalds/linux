@@ -850,6 +850,12 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 		flow_rule_match_enc_control(rule, &match);
 		addr_type = match.key->addr_type;
 
+		if (flow_rule_has_enc_control_flags(match.mask->flags,
+						    extack)) {
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+
 		/* For tunnel addr_type used same key id`s as for non-tunnel */
 		if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
 			struct flow_match_ipv4_addrs match;
