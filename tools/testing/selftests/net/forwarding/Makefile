@@ -39,6 +39,7 @@ TEST_PROGS = bridge_fdb_learning_limit.sh \
 	ipip_hier_gre.sh \
 	lib_sh_test.sh \
 	local_termination.sh \
+	min_max_mtu.sh \
 	mirror_gre_bound.sh \
 	mirror_gre_bridge_1d.sh \
 	mirror_gre_bridge_1d_vlan.sh \
