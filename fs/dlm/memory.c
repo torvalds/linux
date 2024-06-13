@@ -72,6 +72,8 @@ out:
 
 void dlm_memory_exit(void)
 {
+	rcu_barrier();
+
 	kmem_cache_destroy(writequeue_cache);
 	kmem_cache_destroy(mhandle_cache);
 	kmem_cache_destroy(msg_cache);
