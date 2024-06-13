@@ -612,20 +612,6 @@ static const struct snd_soc_dapm_route nau8822_dapm_routes[] = {
 	{"Right DAC", NULL, "Digital Loopback"},
 };
 
-static int nau8822_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
-				 unsigned int freq, int dir)
-{
-	struct snd_soc_component *component = dai->component;
-	struct nau8822 *nau8822 = snd_soc_component_get_drvdata(component);
-
-	nau8822->div_id = clk_id;
-	nau8822->sysclk = freq;
-	dev_dbg(component->dev, "master sysclk %dHz, source %s\n", freq,
-		clk_id == NAU8822_CLK_PLL ? "PLL" : "MCLK");
-
-	return 0;
-}
-
 static int nau8822_calc_pll(unsigned int pll_in, unsigned int fs,
 				struct nau8822_pll *pll_param)
 {
@@ -778,6 +764,20 @@ static int nau8822_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 
 	pll_param->freq_in = freq_in;
 	pll_param->freq_out = freq_out;
+
+	return 0;
+}
+
+static int nau8822_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
+				 unsigned int freq, int dir)
+{
+	struct snd_soc_component *component = dai->component;
+	struct nau8822 *nau8822 = snd_soc_component_get_drvdata(component);
+
+	nau8822->div_id = clk_id;
+	nau8822->sysclk = freq;
+	dev_dbg(component->dev, "master sysclk %dHz, source %s\n", freq,
+		clk_id == NAU8822_CLK_PLL ? "PLL" : "MCLK");
 
 	return 0;
 }
