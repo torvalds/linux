@@ -256,14 +256,12 @@ static int wilc_sdio_suspend(struct device *dev)
 	int ret;
 
 	dev_info(dev, "sdio suspend\n");
-	chip_wakeup(wilc);
 
 	if (!IS_ERR(wilc->rtc_clk))
 		clk_disable_unprepare(wilc->rtc_clk);
 
 	if (wilc->suspend_event) {
 		host_sleep_notify(wilc);
-		chip_allow_sleep(wilc);
 	}
 
 	ret = wilc_sdio_reset(wilc);
@@ -1003,13 +1001,10 @@ static int wilc_sdio_resume(struct device *dev)
 
 	dev_info(dev, "sdio resume\n");
 	sdio_release_host(func);
-	chip_wakeup(wilc);
 	wilc_sdio_init(wilc, true);
 
 	if (wilc->suspend_event)
 		host_wakeup_notify(wilc);
-
-	chip_allow_sleep(wilc);
 
 	return 0;
 }
