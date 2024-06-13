@@ -78,7 +78,7 @@ void ecc_digits_from_bytes(const u8 *in, unsigned int nbytes,
 	/* diff > 0: not enough input bytes: set most significant digits to 0 */
 	if (diff > 0) {
 		ndigits -= diff;
-		memset(&out[ndigits - 1], 0, diff * sizeof(u64));
+		memset(&out[ndigits], 0, diff * sizeof(u64));
 	}
 
 	if (o) {
