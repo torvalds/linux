@@ -982,6 +982,8 @@ static int wilc_sdio_suspend(struct device *dev)
 
 	host_sleep_notify(wilc);
 
+	wilc_sdio_disable_interrupt(wilc);
+
 	ret = wilc_sdio_reset(wilc);
 	if (ret) {
 		dev_err(&func->dev, "Fail reset sdio\n");
@@ -998,6 +1000,7 @@ static int wilc_sdio_resume(struct device *dev)
 
 	dev_info(dev, "sdio resume\n");
 	wilc_sdio_init(wilc, true);
+	wilc_sdio_enable_interrupt(wilc);
 
 	host_wakeup_notify(wilc);
 
