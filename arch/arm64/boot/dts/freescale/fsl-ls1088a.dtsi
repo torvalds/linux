@@ -131,7 +131,7 @@
 	};
 
 	thermal-zones {
-		core-cluster {
+		core-cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -166,7 +166,7 @@
 			};
 		};
 
-		soc {
+		soc-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;

@@ -154,7 +154,7 @@
 	};
 
 	thermal-zones {
-		ddr-controller {
+		ddr-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -174,7 +174,7 @@
 			};
 		};
 
-		serdes {
+		serdes-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;
@@ -194,7 +194,7 @@
 			};
 		};
 
-		fman {
+		fman-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 2>;
@@ -214,7 +214,7 @@
 			};
 		};
 
-		core-cluster {
+		core-cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 3>;
@@ -245,7 +245,7 @@
 			};
 		};
 
-		sec {
+		sec-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 4>;

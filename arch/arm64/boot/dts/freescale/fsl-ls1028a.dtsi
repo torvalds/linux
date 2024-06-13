@@ -155,7 +155,7 @@
 	};
 
 	thermal-zones {
-		ddr-controller {
+		ddr-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -175,7 +175,7 @@
 			};
 		};
 
-		core-cluster {
+		core-cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;

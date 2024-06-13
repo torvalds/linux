@@ -449,7 +449,7 @@
 	};
 
 	thermal-zones {
-		cluster6-7 {
+		cluster6-7-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -492,7 +492,7 @@
 			};
 		};
 
-		ddr-cluster5 {
+		ddr-cluster5-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;
@@ -512,7 +512,7 @@
 			};
 		};
 
-		wriop {
+		wriop-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 2>;
@@ -532,7 +532,7 @@
 			};
 		};
 
-		dce-qbman-hsio2 {
+		dce-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 3>;
@@ -552,7 +552,7 @@
 			};
 		};
 
-		ccn-dpaa-tbu {
+		ccn-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 4>;
@@ -572,7 +572,7 @@
 			};
 		};
 
-		cluster4-hsio3 {
+		cluster4-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 5>;
@@ -592,7 +592,7 @@
 			};
 		};
 
-		cluster2-3 {
+		cluster2-3-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 6>;
