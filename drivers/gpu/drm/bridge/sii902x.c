@@ -322,7 +322,8 @@ static const struct drm_connector_helper_funcs sii902x_connector_helper_funcs = 
 	.get_modes = sii902x_get_modes,
 };
 
-static void sii902x_bridge_disable(struct drm_bridge *bridge)
+static void sii902x_bridge_atomic_disable(struct drm_bridge *bridge,
+					  struct drm_bridge_state *old_bridge_state)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 
@@ -335,7 +336,8 @@ static void sii902x_bridge_disable(struct drm_bridge *bridge)
 	mutex_unlock(&sii902x->mutex);
 }
 
-static void sii902x_bridge_enable(struct drm_bridge *bridge)
+static void sii902x_bridge_atomic_enable(struct drm_bridge *bridge,
+					 struct drm_bridge_state *old_bridge_state)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 
@@ -520,8 +522,8 @@ sii902x_bridge_mode_valid(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs sii902x_bridge_funcs = {
 	.attach = sii902x_bridge_attach,
 	.mode_set = sii902x_bridge_mode_set,
-	.disable = sii902x_bridge_disable,
-	.enable = sii902x_bridge_enable,
+	.atomic_disable = sii902x_bridge_atomic_disable,
+	.atomic_enable = sii902x_bridge_atomic_enable,
 	.detect = sii902x_bridge_detect,
 	.edid_read = sii902x_bridge_edid_read,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
