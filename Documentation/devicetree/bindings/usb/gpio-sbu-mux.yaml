@@ -22,6 +22,7 @@ properties:
           - nxp,cbdtu02043
           - onnn,fsusb43l10x
           - pericom,pi3usb102
+          - ti,tmuxhs4212
       - const: gpio-sbu-mux
 
   enable-gpios:
