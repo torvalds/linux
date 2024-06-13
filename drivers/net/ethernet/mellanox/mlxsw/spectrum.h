@@ -359,7 +359,6 @@ struct mlxsw_sp_port {
 		u16 egr_types;
 		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
-	int max_mtu;
 	u32 max_speed;
 	struct mlxsw_sp_hdroom *hdroom;
 	u64 module_overheat_initial_val;
