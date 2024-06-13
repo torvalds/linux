@@ -23,3 +23,4 @@ virtio_net.ko
 virtio_input.ko
 minidump.ko
 debug_symbol.ko
+secure_buffer.ko
