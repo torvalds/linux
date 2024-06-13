@@ -1067,9 +1067,10 @@ static void encode_nops(struct compound_hdr *hdr)
 	*hdr->nops_p = htonl(hdr->nops);
 }
 
-static void encode_nfs4_stateid(struct xdr_stream *xdr, const nfs4_stateid *stateid)
+static void encode_nfs4_stateid(struct xdr_stream *xdr,
+				const nfs4_stateid *stateid)
 {
-	encode_opaque_fixed(xdr, stateid, NFS4_STATEID_SIZE);
+	encode_opaque_fixed(xdr, stateid->data, NFS4_STATEID_SIZE);
 }
 
 static void encode_nfs4_verifier(struct xdr_stream *xdr, const nfs4_verifier *verf)
