@@ -1921,6 +1921,59 @@ mt7925_mcu_uni_add_beacon_offload(struct mt792x_dev *dev,
 				 &req, sizeof(req), true);
 }
 
+static
+void mt7925_mcu_bss_rlm_tlv(struct sk_buff *skb, struct mt76_phy *phy,
+			    struct ieee80211_chanctx_conf *ctx)
+{
+	struct cfg80211_chan_def *chandef = ctx ? &ctx->def : &phy->chandef;
+	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
+	enum nl80211_band band = chandef->chan->band;
+	struct bss_rlm_tlv *req;
+	struct tlv *tlv;
+
+	tlv = mt76_connac_mcu_add_tlv(skb, UNI_BSS_INFO_RLM, sizeof(*req));
+	req = (struct bss_rlm_tlv *)tlv;
+	req->control_channel = chandef->chan->hw_value,
+	req->center_chan = ieee80211_frequency_to_channel(freq1),
+	req->center_chan2 = ieee80211_frequency_to_channel(freq2),
+	req->tx_streams = hweight8(phy->antenna_mask),
+	req->ht_op_info = 4, /* set HT 40M allowed */
+	req->rx_streams = hweight8(phy->antenna_mask),
+	req->band = band;
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_40:
+		req->bw = CMD_CBW_40MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		req->bw = CMD_CBW_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		req->bw = CMD_CBW_8080MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		req->bw = CMD_CBW_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_5:
+		req->bw = CMD_CBW_5MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		req->bw = CMD_CBW_10MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+	default:
+		req->bw = CMD_CBW_20MHZ;
+		req->ht_op_info = 0;
+		break;
+	}
+
+	if (req->control_channel < req->center_chan)
+		req->sco = 1; /* SCA */
+	else if (req->control_channel > req->center_chan)
+		req->sco = 3; /* SCB */
+}
+
 int mt7925_mcu_set_chctx(struct mt76_phy *phy, struct mt76_vif *mvif,
 			 struct ieee80211_chanctx_conf *ctx)
 {
@@ -2326,9 +2379,10 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 			    int enable)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)link_conf->vif->drv_priv;
+	struct mt792x_bss_conf *mconf = mt792x_vif_to_link(mvif,
+							   link_conf->link_id);
 	struct mt792x_dev *dev = phy->dev;
 	struct sk_buff *skb;
-	int err;
 
 	skb = __mt7925_mcu_alloc_bss_req(&dev->mt76, &mvif->bss_conf.mt76,
 					 MT7925_BSS_UPDATE_MAX_SIZE);
@@ -2350,12 +2404,10 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 		mt7925_mcu_bss_color_tlv(skb, link_conf, enable);
 	}
 
-	err = mt76_mcu_skb_send_msg(&dev->mt76, skb,
-				    MCU_UNI_CMD(BSS_INFO_UPDATE), true);
-	if (err < 0)
-		return err;
+	mt7925_mcu_bss_rlm_tlv(skb, phy->mt76, mconf->mt76.ctx);
 
-	return mt7925_mcu_set_chctx(phy->mt76, &mvif->bss_conf.mt76, ctx);
+	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				     MCU_UNI_CMD(BSS_INFO_UPDATE), true);
 }
 
 int mt7925_mcu_set_dbdc(struct mt76_phy *phy)

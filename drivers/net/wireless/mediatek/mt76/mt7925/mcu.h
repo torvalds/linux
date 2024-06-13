@@ -456,6 +456,21 @@ struct bss_ifs_time_tlv {
 	__le16 eifs_cck_time;
 } __packed;
 
+struct bss_rlm_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 control_channel;
+	u8 center_chan;
+	u8 center_chan2;
+	u8 bw;
+	u8 tx_streams;
+	u8 rx_streams;
+	u8 ht_op_info;
+	u8 sco;
+	u8 band;
+	u8 pad[3];
+} __packed;
+
 #define MT7925_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +		\
 					 sizeof(struct sta_rec_basic) +		\
 					 sizeof(struct sta_rec_bf) +		\
@@ -484,6 +499,7 @@ struct bss_ifs_time_tlv {
 					 sizeof(struct bss_info_uni_he) +		\
 					 sizeof(struct bss_info_uni_bss_color) +	\
 					 sizeof(struct bss_ifs_time_tlv) +		\
+					 sizeof(struct bss_rlm_tlv) +		\
 					 sizeof(struct tlv))
 
 #define MT_CONNAC3_SKU_POWER_LIMIT      449
