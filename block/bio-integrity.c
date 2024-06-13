@@ -448,10 +448,10 @@ bool bio_integrity_prep(struct bio *bio)
 		return true;
 
 	if (bio_data_dir(bio) == READ) {
-		if (!(bi->flags & BLK_INTEGRITY_VERIFY))
+		if (bi->flags & BLK_INTEGRITY_NOVERIFY)
 			return true;
 	} else {
-		if (!(bi->flags & BLK_INTEGRITY_GENERATE))
+		if (bi->flags & BLK_INTEGRITY_NOGENERATE)
 			return true;
 
 		/*
