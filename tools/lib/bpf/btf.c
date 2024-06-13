@@ -116,6 +116,9 @@ struct btf {
 	/* whether strings are already deduplicated */
 	bool strs_deduped;
 
+	/* whether base_btf should be freed in btf_free for this instance */
+	bool owns_base;
+
 	/* BTF object FD, if loaded into kernel */
 	int fd;
 
@@ -969,6 +972,8 @@ void btf__free(struct btf *btf)
 	free(btf->raw_data);
 	free(btf->raw_data_swapped);
 	free(btf->type_offs);
+	if (btf->owns_base)
+		btf__free(btf->base_btf);
 	free(btf);
 }
 
@@ -1084,16 +1089,86 @@ struct btf *btf__new_split(const void *data, __u32 size, struct btf *base_btf)
 	return libbpf_ptr(btf_new(data, size, base_btf));
 }
 
+struct btf_elf_secs {
+	Elf_Data *btf_data;
+	Elf_Data *btf_ext_data;
+	Elf_Data *btf_base_data;
+};
+
+static int btf_find_elf_sections(Elf *elf, const char *path, struct btf_elf_secs *secs)
+{
+	Elf_Scn *scn = NULL;
+	Elf_Data *data;
+	GElf_Ehdr ehdr;
+	size_t shstrndx;
+	int idx = 0;
+
+	if (!gelf_getehdr(elf, &ehdr)) {
+		pr_warn("failed to get EHDR from %s\n", path);
+		goto err;
+	}
+
+	if (elf_getshdrstrndx(elf, &shstrndx)) {
+		pr_warn("failed to get section names section index for %s\n",
+			path);
+		goto err;
+	}
+
+	if (!elf_rawdata(elf_getscn(elf, shstrndx), NULL)) {
+		pr_warn("failed to get e_shstrndx from %s\n", path);
+		goto err;
+	}
+
+	while ((scn = elf_nextscn(elf, scn)) != NULL) {
+		Elf_Data **field;
+		GElf_Shdr sh;
+		char *name;
+
+		idx++;
+		if (gelf_getshdr(scn, &sh) != &sh) {
+			pr_warn("failed to get section(%d) header from %s\n",
+				idx, path);
+			goto err;
+		}
+		name = elf_strptr(elf, shstrndx, sh.sh_name);
+		if (!name) {
+			pr_warn("failed to get section(%d) name from %s\n",
+				idx, path);
+			goto err;
+		}
+
+		if (strcmp(name, BTF_ELF_SEC) == 0)
+			field = &secs->btf_data;
+		else if (strcmp(name, BTF_EXT_ELF_SEC) == 0)
+			field = &secs->btf_ext_data;
+		else if (strcmp(name, BTF_BASE_ELF_SEC) == 0)
+			field = &secs->btf_base_data;
+		else
+			continue;
+
+		data = elf_getdata(scn, 0);
+		if (!data) {
+			pr_warn("failed to get section(%d, %s) data from %s\n",
+				idx, name, path);
+			goto err;
+		}
+		*field = data;
+	}
+
+	return 0;
+
+err:
+	return -LIBBPF_ERRNO__FORMAT;
+}
+
 static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 				 struct btf_ext **btf_ext)
 {
-	Elf_Data *btf_data = NULL, *btf_ext_data = NULL;
-	int err = 0, fd = -1, idx = 0;
+	struct btf_elf_secs secs = {};
+	struct btf *dist_base_btf = NULL;
 	struct btf *btf = NULL;
-	Elf_Scn *scn = NULL;
+	int err = 0, fd = -1;
 	Elf *elf = NULL;
-	GElf_Ehdr ehdr;
-	size_t shstrndx;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		pr_warn("failed to init libelf for %s\n", path);
@@ -1107,73 +1182,48 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 		return ERR_PTR(err);
 	}
 
-	err = -LIBBPF_ERRNO__FORMAT;
-
 	elf = elf_begin(fd, ELF_C_READ, NULL);
 	if (!elf) {
 		pr_warn("failed to open %s as ELF file\n", path);
 		goto done;
 	}
-	if (!gelf_getehdr(elf, &ehdr)) {
-		pr_warn("failed to get EHDR from %s\n", path);
+
+	err = btf_find_elf_sections(elf, path, &secs);
+	if (err)
 		goto done;
-	}
 
-	if (elf_getshdrstrndx(elf, &shstrndx)) {
-		pr_warn("failed to get section names section index for %s\n",
-			path);
-		goto done;
-	}
-
-	if (!elf_rawdata(elf_getscn(elf, shstrndx), NULL)) {
-		pr_warn("failed to get e_shstrndx from %s\n", path);
-		goto done;
-	}
-
-	while ((scn = elf_nextscn(elf, scn)) != NULL) {
-		GElf_Shdr sh;
-		char *name;
-
-		idx++;
-		if (gelf_getshdr(scn, &sh) != &sh) {
-			pr_warn("failed to get section(%d) header from %s\n",
-				idx, path);
-			goto done;
-		}
-		name = elf_strptr(elf, shstrndx, sh.sh_name);
-		if (!name) {
-			pr_warn("failed to get section(%d) name from %s\n",
-				idx, path);
-			goto done;
-		}
-		if (strcmp(name, BTF_ELF_SEC) == 0) {
-			btf_data = elf_getdata(scn, 0);
-			if (!btf_data) {
-				pr_warn("failed to get section(%d, %s) data from %s\n",
-					idx, name, path);
-				goto done;
-			}
-			continue;
-		} else if (btf_ext && strcmp(name, BTF_EXT_ELF_SEC) == 0) {
-			btf_ext_data = elf_getdata(scn, 0);
-			if (!btf_ext_data) {
-				pr_warn("failed to get section(%d, %s) data from %s\n",
-					idx, name, path);
-				goto done;
-			}
-			continue;
-		}
-	}
-
-	if (!btf_data) {
+	if (!secs.btf_data) {
 		pr_warn("failed to find '%s' ELF section in %s\n", BTF_ELF_SEC, path);
 		err = -ENODATA;
 		goto done;
 	}
-	btf = btf_new(btf_data->d_buf, btf_data->d_size, base_btf);
-	err = libbpf_get_error(btf);
-	if (err)
+
+	if (secs.btf_base_data) {
+		dist_base_btf = btf_new(secs.btf_base_data->d_buf, secs.btf_base_data->d_size,
+					NULL);
+		if (IS_ERR(dist_base_btf)) {
+			err = PTR_ERR(dist_base_btf);
+			dist_base_btf = NULL;
+			goto done;
+		}
+	}
+
+	btf = btf_new(secs.btf_data->d_buf, secs.btf_data->d_size,
+		      dist_base_btf ?: base_btf);
+	if (IS_ERR(btf)) {
+		err = PTR_ERR(btf);
 		goto done;
+	}
+	if (dist_base_btf && base_btf) {
+		err = btf__relocate(btf, base_btf);
+		if (err)
+			goto done;
+		btf__free(dist_base_btf);
+		dist_base_btf = NULL;
+	}
+
+	if (dist_base_btf)
+		btf->owns_base = true;
 
 	switch (gelf_getclass(elf)) {
 	case ELFCLASS32:
@@ -1187,11 +1237,12 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 		break;
 	}
 
-	if (btf_ext && btf_ext_data) {
-		*btf_ext = btf_ext__new(btf_ext_data->d_buf, btf_ext_data->d_size);
-		err = libbpf_get_error(*btf_ext);
-		if (err)
+	if (btf_ext && secs.btf_ext_data) {
+		*btf_ext = btf_ext__new(secs.btf_ext_data->d_buf, secs.btf_ext_data->d_size);
+		if (IS_ERR(*btf_ext)) {
+			err = PTR_ERR(*btf_ext);
 			goto done;
+		}
 	} else if (btf_ext) {
 		*btf_ext = NULL;
 	}
@@ -1205,6 +1256,7 @@ done:
 
 	if (btf_ext)
 		btf_ext__free(*btf_ext);
+	btf__free(dist_base_btf);
 	btf__free(btf);
 
 	return ERR_PTR(err);
@@ -5598,5 +5650,9 @@ void btf_set_base_btf(struct btf *btf, const struct btf *base_btf)
 
 int btf__relocate(struct btf *btf, const struct btf *base_btf)
 {
-	return libbpf_err(btf_relocate(btf, base_btf, NULL));
+	int err = btf_relocate(btf, base_btf, NULL);
+
+	if (!err)
+		btf->owns_base = false;
+	return libbpf_err(err);
 }
