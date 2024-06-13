@@ -193,6 +193,8 @@ int bch2_run_online_recovery_passes(struct bch_fs *c)
 {
 	int ret = 0;
 
+	down_read(&c->state_lock);
+
 	for (unsigned i = 0; i < ARRAY_SIZE(recovery_pass_fns); i++) {
 		struct recovery_pass_fn *p = recovery_pass_fns + i;
 
@@ -207,6 +209,8 @@ int bch2_run_online_recovery_passes(struct bch_fs *c)
 		if (ret)
 			break;
 	}
+
+	up_read(&c->state_lock);
 
 	return ret;
 }

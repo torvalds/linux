@@ -85,7 +85,7 @@ static inline struct bucket_array *gc_bucket_array(struct bch_dev *ca)
 	return rcu_dereference_check(ca->buckets_gc,
 				     !ca->fs ||
 				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
-				     lockdep_is_held(&ca->fs->gc_lock) ||
+				     lockdep_is_held(&ca->fs->state_lock) ||
 				     lockdep_is_held(&ca->bucket_lock));
 }
 
@@ -103,7 +103,7 @@ static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
 	return rcu_dereference_check(ca->bucket_gens,
 				     !ca->fs ||
 				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
-				     lockdep_is_held(&ca->fs->gc_lock) ||
+				     lockdep_is_held(&ca->fs->state_lock) ||
 				     lockdep_is_held(&ca->bucket_lock));
 }
 

@@ -1217,7 +1217,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		bucket_gens->nbuckets - bucket_gens->first_bucket;
 
 	if (resize) {
-		down_write(&c->gc_lock);
 		down_write(&ca->bucket_lock);
 		percpu_down_write(&c->mark_lock);
 	}
@@ -1240,7 +1239,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	if (resize) {
 		percpu_up_write(&c->mark_lock);
 		up_write(&ca->bucket_lock);
-		up_write(&c->gc_lock);
 	}
 
 	ret = 0;

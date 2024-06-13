@@ -1240,7 +1240,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	int ret;
 
 	/*
-	 * Ideally we would be using state_lock and not gc_lock here, but that
+	 * Ideally we would be using state_lock and not gc_gens_lock here, but that
 	 * introduces a deadlock in the RO path - we currently take the state
 	 * lock at the start of going RO, thus the gc thread may get stuck:
 	 */
@@ -1248,7 +1248,8 @@ int bch2_gc_gens(struct bch_fs *c)
 		return 0;
 
 	trace_and_count(c, gc_gens_start, c);
-	down_read(&c->gc_lock);
+
+	down_read(&c->state_lock);
 
 	for_each_member_device(c, ca) {
 		struct bucket_gens *gens = bucket_gens(ca);
@@ -1317,7 +1318,7 @@ err:
 		ca->oldest_gen = NULL;
 	}
 
-	up_read(&c->gc_lock);
+	up_read(&c->state_lock);
 	mutex_unlock(&c->gc_gens_lock);
 	if (!bch2_err_matches(ret, EROFS))
 		bch_err_fn(c, ret);

@@ -596,8 +596,6 @@ int bch2_alloc_read(struct bch_fs *c)
 	struct bch_dev *ca = NULL;
 	int ret;
 
-	down_read(&c->gc_lock);
-
 	if (c->sb.version_upgrade_complete >= bcachefs_metadata_version_bucket_gens) {
 		ret = for_each_btree_key(trans, iter, BTREE_ID_bucket_gens, POS_MIN,
 					 BTREE_ITER_prefetch, k, ({
@@ -646,7 +644,6 @@ int bch2_alloc_read(struct bch_fs *c)
 
 	bch2_dev_put(ca);
 	bch2_trans_put(trans);
-	up_read(&c->gc_lock);
 
 	bch_err_fn(c, ret);
 	return ret;

@@ -538,8 +538,8 @@ struct bch_dev {
 	/*
 	 * Buckets:
 	 * Per-bucket arrays are protected by c->mark_lock, bucket_lock and
-	 * gc_lock, for device resize - holding any is sufficient for access:
-	 * Or rcu_read_lock(), but only for dev_ptr_stale():
+	 * gc_gens_lock, for device resize - holding any is sufficient for
+	 * access: Or rcu_read_lock(), but only for dev_ptr_stale():
 	 */
 	struct bucket_array __rcu *buckets_gc;
 	struct bucket_gens __rcu *bucket_gens;
