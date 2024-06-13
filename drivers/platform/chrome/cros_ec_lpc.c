@@ -139,7 +139,7 @@ static int cros_ec_lpc_mec_read_bytes(unsigned int offset, unsigned int length,
 	int in_range = cros_ec_lpc_mec_in_range(offset, length);
 
 	if (in_range < 0)
-		return 0;
+		return in_range;
 
 	return in_range ?
 		cros_ec_lpc_io_bytes_mec(MEC_IO_READ,
@@ -158,7 +158,7 @@ static int cros_ec_lpc_mec_write_bytes(unsigned int offset, unsigned int length,
 	int in_range = cros_ec_lpc_mec_in_range(offset, length);
 
 	if (in_range < 0)
-		return 0;
+		return in_range;
 
 	return in_range ?
 		cros_ec_lpc_io_bytes_mec(MEC_IO_WRITE,
