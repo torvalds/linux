@@ -1628,39 +1628,46 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	if (info->sta || !info->offload_fw)
-		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->vif, info->sta,
+	if (info->link_sta || !info->offload_fw)
+		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->vif,
+					      info->link_sta->sta,
 					      info->enable, info->newly);
-	if (info->sta && info->enable) {
-		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->sta);
-		mt7925_mcu_sta_ht_tlv(skb, info->sta);
-		mt7925_mcu_sta_vht_tlv(skb, info->sta);
-		mt76_connac_mcu_sta_uapsd(skb, info->vif, info->sta);
-		mt7925_mcu_sta_amsdu_tlv(skb, info->vif, info->sta);
-		mt7925_mcu_sta_he_tlv(skb, info->sta);
-		mt7925_mcu_sta_he_6g_tlv(skb, info->sta);
-		mt7925_mcu_sta_eht_tlv(skb, info->sta);
-		mt7925_mcu_sta_rate_ctrl_tlv(skb, info->vif, info->sta);
-		mt7925_mcu_sta_state_v2_tlv(phy, skb, info->sta,
+	if (info->link_sta && info->enable) {
+		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->link_sta->sta);
+		mt7925_mcu_sta_ht_tlv(skb, info->link_sta->sta);
+		mt7925_mcu_sta_vht_tlv(skb, info->link_sta->sta);
+		mt76_connac_mcu_sta_uapsd(skb, info->vif, info->link_sta->sta);
+		mt7925_mcu_sta_amsdu_tlv(skb, info->vif, info->link_sta->sta);
+		mt7925_mcu_sta_he_tlv(skb, info->link_sta->sta);
+		mt7925_mcu_sta_he_6g_tlv(skb, info->link_sta->sta);
+		mt7925_mcu_sta_eht_tlv(skb, info->link_sta->sta);
+		mt7925_mcu_sta_rate_ctrl_tlv(skb, info->vif,
+					     info->link_sta->sta);
+		mt7925_mcu_sta_state_v2_tlv(phy, skb, info->link_sta->sta,
 					    info->vif, info->rcpi,
 					    info->state);
-		mt7925_mcu_sta_mld_tlv(skb, info->vif, info->sta);
+		mt7925_mcu_sta_mld_tlv(skb, info->vif, info->link_sta->sta);
 	}
 
-	if (info->enable)
-		mt7925_mcu_sta_hdr_trans_tlv(skb, info->vif, info->sta);
+	if (info->enable) {
+		struct ieee80211_sta *sta = info->link_sta ?
+			info->link_sta->sta : NULL;
+
+		mt7925_mcu_sta_hdr_trans_tlv(skb, info->vif, sta);
+	}
 
 	return mt76_mcu_skb_send_msg(dev, skb, info->cmd, true);
 }
 
-int mt7925_mcu_sta_update(struct mt792x_dev *dev, struct ieee80211_sta *sta,
+int mt7925_mcu_sta_update(struct mt792x_dev *dev,
+			  struct ieee80211_link_sta *link_sta,
 			  struct ieee80211_vif *vif, bool enable,
 			  enum mt76_sta_info_state state)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	int rssi = -ewma_rssi_read(&mvif->bss_conf.rssi);
 	struct mt76_sta_cmd_info info = {
-		.sta = sta,
+		.link_sta = link_sta,
 		.vif = vif,
 		.enable = enable,
 		.cmd = MCU_UNI_CMD(STA_REC_UPDATE),
@@ -1669,10 +1676,14 @@ int mt7925_mcu_sta_update(struct mt792x_dev *dev, struct ieee80211_sta *sta,
 		.rcpi = to_rcpi(rssi),
 	};
 	struct mt792x_sta *msta;
+	struct mt792x_link_sta *mlink;
 
-	msta = sta ? (struct mt792x_sta *)sta->drv_priv : NULL;
-	info.wcid = msta ? &msta->deflink.wcid : &mvif->sta.deflink.wcid;
-	info.newly = msta ? state != MT76_STA_INFO_STATE_ASSOC : true;
+	if (link_sta) {
+		msta = (struct mt792x_sta *)link_sta->sta->drv_priv;
+		mlink = mt792x_sta_to_link(msta, link_sta->link_id);
+	}
+	info.wcid = link_sta ? &mlink->wcid : &mvif->sta.deflink.wcid;
+	info.newly = link_sta ? state != MT76_STA_INFO_STATE_ASSOC : true;
 
 	return mt7925_mcu_sta_cmd(&dev->mphy, &info);
 }

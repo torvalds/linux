@@ -96,6 +96,7 @@ struct mt792x_link_sta {
 
 struct mt792x_sta {
 	struct mt792x_link_sta deflink; /* must be first */
+	struct mt792x_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	struct mt792x_vif *vif;
 };
@@ -236,6 +237,21 @@ mt792x_vif_to_link(struct mt792x_vif *mvif, u8 link_id)
 
 	return rcu_dereference_protected(mvif->link_conf[link_id],
 		lockdep_is_held(&mvif->phy->dev->mt76.mutex));
+}
+
+static inline struct mt792x_link_sta *
+mt792x_sta_to_link(struct mt792x_sta *msta, u8 link_id)
+{
+	struct ieee80211_vif *vif;
+
+	vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
+
+	if (!ieee80211_vif_is_mld(vif) ||
+	    link_id >= IEEE80211_LINK_UNSPECIFIED)
+		return &msta->deflink;
+
+	return rcu_dereference_protected(msta->link[link_id],
+		lockdep_is_held(&msta->vif->phy->dev->mt76.mutex));
 }
 
 static inline struct mt792x_bss_conf *
