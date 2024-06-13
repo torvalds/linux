@@ -275,7 +275,7 @@ static int bpf_crypto_crypt(const struct bpf_crypto_ctx *ctx,
 	if (__bpf_dynptr_is_rdonly(dst))
 		return -EINVAL;
 
-	siv_len = __bpf_dynptr_size(siv);
+	siv_len = siv ? __bpf_dynptr_size(siv) : 0;
 	src_len = __bpf_dynptr_size(src);
 	dst_len = __bpf_dynptr_size(dst);
 	if (!src_len || !dst_len)
@@ -303,42 +303,42 @@ static int bpf_crypto_crypt(const struct bpf_crypto_ctx *ctx,
 
 /**
  * bpf_crypto_decrypt() - Decrypt buffer using configured context and IV provided.
- * @ctx:	The crypto context being used. The ctx must be a trusted pointer.
- * @src:	bpf_dynptr to the encrypted data. Must be a trusted pointer.
- * @dst:	bpf_dynptr to the buffer where to store the result. Must be a trusted pointer.
- * @siv:	bpf_dynptr to IV data and state data to be used by decryptor.
+ * @ctx:		The crypto context being used. The ctx must be a trusted pointer.
+ * @src:		bpf_dynptr to the encrypted data. Must be a trusted pointer.
+ * @dst:		bpf_dynptr to the buffer where to store the result. Must be a trusted pointer.
+ * @siv__nullable:	bpf_dynptr to IV data and state data to be used by decryptor. May be NULL.
  *
  * Decrypts provided buffer using IV data and the crypto context. Crypto context must be configured.
  */
 __bpf_kfunc int bpf_crypto_decrypt(struct bpf_crypto_ctx *ctx,
 				   const struct bpf_dynptr *src,
 				   const struct bpf_dynptr *dst,
-				   const struct bpf_dynptr *siv)
+				   const struct bpf_dynptr *siv__nullable)
 {
 	const struct bpf_dynptr_kern *src_kern = (struct bpf_dynptr_kern *)src;
 	const struct bpf_dynptr_kern *dst_kern = (struct bpf_dynptr_kern *)dst;
-	const struct bpf_dynptr_kern *siv_kern = (struct bpf_dynptr_kern *)siv;
+	const struct bpf_dynptr_kern *siv_kern = (struct bpf_dynptr_kern *)siv__nullable;
 
 	return bpf_crypto_crypt(ctx, src_kern, dst_kern, siv_kern, true);
 }
 
 /**
  * bpf_crypto_encrypt() - Encrypt buffer using configured context and IV provided.
- * @ctx:	The crypto context being used. The ctx must be a trusted pointer.
- * @src:	bpf_dynptr to the plain data. Must be a trusted pointer.
- * @dst:	bpf_dynptr to buffer where to store the result. Must be a trusted pointer.
- * @siv:	bpf_dynptr to IV data and state data to be used by decryptor.
+ * @ctx:		The crypto context being used. The ctx must be a trusted pointer.
+ * @src:		bpf_dynptr to the plain data. Must be a trusted pointer.
+ * @dst:		bpf_dynptr to the buffer where to store the result. Must be a trusted pointer.
+ * @siv__nullable:	bpf_dynptr to IV data and state data to be used by decryptor. May be NULL.
  *
  * Encrypts provided buffer using IV data and the crypto context. Crypto context must be configured.
  */
 __bpf_kfunc int bpf_crypto_encrypt(struct bpf_crypto_ctx *ctx,
 				   const struct bpf_dynptr *src,
 				   const struct bpf_dynptr *dst,
-				   const struct bpf_dynptr *siv)
+				   const struct bpf_dynptr *siv__nullable)
 {
 	const struct bpf_dynptr_kern *src_kern = (struct bpf_dynptr_kern *)src;
 	const struct bpf_dynptr_kern *dst_kern = (struct bpf_dynptr_kern *)dst;
-	const struct bpf_dynptr_kern *siv_kern = (struct bpf_dynptr_kern *)siv;
+	const struct bpf_dynptr_kern *siv_kern = (struct bpf_dynptr_kern *)siv__nullable;
 
 	return bpf_crypto_crypt(ctx, src_kern, dst_kern, siv_kern, false);
 }
