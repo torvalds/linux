@@ -317,62 +317,80 @@ static int mt7925_start(struct ieee80211_hw *hw)
 	return err;
 }
 
+static int mt7925_mac_link_bss_add(struct mt792x_dev *dev,
+				   struct ieee80211_bss_conf *link_conf,
+				   struct mt792x_link_sta *mlink)
+{
+	struct mt792x_bss_conf *mconf = mt792x_link_conf_to_mconf(link_conf);
+	struct ieee80211_vif *vif = link_conf->vif;
+	struct mt792x_vif *mvif = mconf->vif;
+	struct mt76_txq *mtxq;
+	int idx, ret = 0;
+
+	mconf->mt76.idx = __ffs64(~dev->mt76.vif_mask);
+	if (mconf->mt76.idx >= MT792x_MAX_INTERFACES) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	mconf->mt76.omac_idx = mconf->mt76.idx;
+	mconf->mt76.band_idx = 0;
+	mconf->mt76.wmm_idx = mconf->mt76.idx % MT76_CONNAC_MAX_WMM_SETS;
+
+	if (mvif->phy->mt76->chandef.chan->band != NL80211_BAND_2GHZ)
+		mconf->mt76.basic_rates_idx = MT792x_BASIC_RATES_TBL + 4;
+	else
+		mconf->mt76.basic_rates_idx = MT792x_BASIC_RATES_TBL;
+
+	ret = mt76_connac_mcu_uni_add_dev(&dev->mphy, link_conf,
+					  &mlink->wcid, true);
+	if (ret)
+		goto out;
+
+	dev->mt76.vif_mask |= BIT_ULL(mconf->mt76.idx);
+	mvif->phy->omac_mask |= BIT_ULL(mconf->mt76.omac_idx);
+
+	idx = MT792x_WTBL_RESERVED - mconf->mt76.idx;
+
+	INIT_LIST_HEAD(&mlink->wcid.poll_list);
+	mlink->wcid.idx = idx;
+	mlink->wcid.phy_idx = mconf->mt76.band_idx;
+	mlink->wcid.hw_key_idx = -1;
+	mlink->wcid.tx_info |= MT_WCID_TX_INFO_SET;
+	mt76_wcid_init(&mlink->wcid);
+
+	mt7925_mac_wtbl_update(dev, idx,
+			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
+
+	ewma_rssi_init(&mconf->rssi);
+
+	rcu_assign_pointer(dev->mt76.wcid[idx], &mlink->wcid);
+	if (vif->txq) {
+		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
+		mtxq->wcid = idx;
+	}
+
+out:
+	return ret;
+}
+
 static int
 mt7925_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);
-	struct mt76_txq *mtxq;
-	int idx, ret = 0;
+	int ret = 0;
 
 	mt792x_mutex_acquire(dev);
 
-	mvif->bss_conf.mt76.idx = __ffs64(~dev->mt76.vif_mask);
-	if (mvif->bss_conf.mt76.idx >= MT792x_MAX_INTERFACES) {
-		ret = -ENOSPC;
-		goto out;
-	}
-
-	mvif->bss_conf.mt76.omac_idx = mvif->bss_conf.mt76.idx;
 	mvif->phy = phy;
-	mvif->bss_conf.mt76.band_idx = 0;
-	mvif->bss_conf.mt76.wmm_idx = mvif->bss_conf.mt76.idx % MT76_CONNAC_MAX_WMM_SETS;
 	mvif->bss_conf.vif = mvif;
-
-	if (phy->mt76->chandef.chan->band != NL80211_BAND_2GHZ)
-		mvif->bss_conf.mt76.basic_rates_idx = MT792x_BASIC_RATES_TBL + 4;
-	else
-		mvif->bss_conf.mt76.basic_rates_idx = MT792x_BASIC_RATES_TBL;
-
-	ret = mt76_connac_mcu_uni_add_dev(&dev->mphy, &vif->bss_conf,
-					  &mvif->sta.deflink.wcid, true);
-	if (ret)
-		goto out;
-
-	dev->mt76.vif_mask |= BIT_ULL(mvif->bss_conf.mt76.idx);
-	phy->omac_mask |= BIT_ULL(mvif->bss_conf.mt76.omac_idx);
-
-	idx = MT792x_WTBL_RESERVED - mvif->bss_conf.mt76.idx;
-
-	INIT_LIST_HEAD(&mvif->sta.deflink.wcid.poll_list);
-	mvif->sta.deflink.wcid.idx = idx;
-	mvif->sta.deflink.wcid.phy_idx = mvif->bss_conf.mt76.band_idx;
-	mvif->sta.deflink.wcid.hw_key_idx = -1;
-	mvif->sta.deflink.wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	mvif->sta.vif = mvif;
-	mt76_wcid_init(&mvif->sta.deflink.wcid);
 
-	mt7925_mac_wtbl_update(dev, idx,
-			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
-
-	ewma_rssi_init(&mvif->bss_conf.rssi);
-
-	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.deflink.wcid);
-	if (vif->txq) {
-		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-		mtxq->wcid = idx;
-	}
+	ret = mt7925_mac_link_bss_add(dev, &vif->bss_conf, &mvif->sta.deflink);
+	if (ret < 0)
+		goto out;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 out:
