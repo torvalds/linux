@@ -97,7 +97,7 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 
 static void __domain_ctl(struct xe_gt *gt, struct xe_force_wake_domain *domain, bool wake)
 {
-	if (IS_SRIOV(gt_to_xe(gt)))
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return;
 
 	xe_mmio_write32(gt, domain->reg_ctl, domain->mask | (wake ? domain->val : 0));
@@ -108,7 +108,7 @@ static int __domain_wait(struct xe_gt *gt, struct xe_force_wake_domain *domain, 
 	u32 value;
 	int ret;
 
-	if (IS_SRIOV(gt_to_xe(gt)))
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return 0;
 
 	ret = xe_mmio_wait32(gt, domain->reg_ack, domain->val, wake ? domain->val : 0,
