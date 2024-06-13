@@ -398,7 +398,8 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	trace_async_request_outbound_initiate((uintptr_t)t, generation, speed, t->packet.header, payload,
+	trace_async_request_outbound_initiate((uintptr_t)t, card->index, generation, speed,
+					      t->packet.header, payload,
 					      tcode_is_read_request(tcode) ? 0 : length / 4);
 
 	card->driver->send_request(card, &t->packet);
@@ -879,9 +880,10 @@ void fw_send_response(struct fw_card *card,
 	// Increase the reference count so that the object is kept during in-flight.
 	fw_request_get(request);
 
-	trace_async_response_outbound_initiate((uintptr_t)request, request->response.generation,
-					       request->response.speed, request->response.header,
-					       data, data ? data_length / 4 : 0);
+	trace_async_response_outbound_initiate((uintptr_t)request, card->index,
+					       request->response.generation, request->response.speed,
+					       request->response.header, data,
+					       data ? data_length / 4 : 0);
 
 	card->driver->send_response(card, &request->response);
 }

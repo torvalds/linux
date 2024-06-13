@@ -36,10 +36,11 @@
 #define QUADLET_SIZE	4
 
 DECLARE_EVENT_CLASS(async_outbound_initiate_template,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, header, data, data_count),
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, header, data, data_count),
 	TP_STRUCT__entry(
 		__field(u64, transaction)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, scode)
 		__array(u32, header, ASYNC_HEADER_QUADLET_COUNT)
@@ -47,6 +48,7 @@ DECLARE_EVENT_CLASS(async_outbound_initiate_template,
 	),
 	TP_fast_assign(
 		__entry->transaction = transaction;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->scode = scode;
 		memcpy(__entry->header, header, QUADLET_SIZE * ASYNC_HEADER_QUADLET_COUNT);
@@ -54,8 +56,9 @@ DECLARE_EVENT_CLASS(async_outbound_initiate_template,
 	),
 	// This format is for the request subaction.
 	TP_printk(
-		"transaction=0x%llx generation=%u scode=%u dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x offset=0x%012llx header=%s data=%s",
+		"transaction=0x%llx card_index=%u generation=%u scode=%u dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x offset=0x%012llx header=%s data=%s",
 		__entry->transaction,
+		__entry->card_index,
 		__entry->generation,
 		__entry->scode,
 		ASYNC_HEADER_GET_DESTINATION(__entry->header),
@@ -142,8 +145,8 @@ DECLARE_EVENT_CLASS(async_inbound_template,
 );
 
 DEFINE_EVENT(async_outbound_initiate_template, async_request_outbound_initiate,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, header, data, data_count)
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, header, data, data_count)
 );
 
 DEFINE_EVENT(async_outbound_complete_template, async_request_outbound_complete,
@@ -178,11 +181,12 @@ DEFINE_EVENT_PRINT(async_inbound_template, async_request_inbound,
 );
 
 DEFINE_EVENT_PRINT(async_outbound_initiate_template, async_response_outbound_initiate,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, header, data, data_count),
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, header, data, data_count),
 	TP_printk(
-		"transaction=0x%llx generation=%u scode=%u dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x rcode=%u header=%s data=%s",
+		"transaction=0x%llx card_index=%u generation=%u scode=%u dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x rcode=%u header=%s data=%s",
 		__entry->transaction,
+		__entry->card_index,
 		__entry->generation,
 		__entry->scode,
 		ASYNC_HEADER_GET_DESTINATION(__entry->header),
