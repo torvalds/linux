@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __SOC_QCOM_SOCINFO_H__
@@ -21,6 +21,25 @@ enum feature_code {
 	SOCINFO_FC_AG,
 	SOCINFO_FC_AH,
 	SOCINFO_FC_EXT_RESERVE,
+
+	/* SubPart feature code */
+	SOCINFO_FC_W0 = 0xd1,
+	SOCINFO_FC_W1,
+	SOCINFO_FC_W2,
+	SOCINFO_FC_W3,
+	SOCINFO_FC_W4,
+	SOCINFO_FC_W5,
+	SOCINFO_FC_W6,
+	SOCINFO_FC_W7,
+	SOCINFO_FC_W8,
+	SOCINFO_FC_W9,
+	SOCINFO_FC_WA,
+	SOCINFO_FC_WB,
+	SOCINFO_FC_WC,
+	SOCINFO_FC_WD,
+	SOCINFO_FC_WE,
+	SOCINFO_FC_WF,
+	SOCINFO_FC_SUBPART_RESERVE,
 
 	/* Internal feature code */
 	SOCINFO_FC_Y0 = 0xf1,
