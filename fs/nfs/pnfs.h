@@ -356,6 +356,7 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 				       struct pnfs_layout_segment *lseg);
 void pnfs_layout_return_unused_byclid(struct nfs_client *clp,
 				      enum pnfs_iomode iomode);
+int pnfs_layout_handle_reboot(struct nfs_client *clp);
 
 /* nfs4_deviceid_flags */
 enum {
@@ -735,6 +736,11 @@ static inline void pnfs_destroy_layout(struct nfs_inode *nfsi)
 
 static inline void pnfs_destroy_layout_final(struct nfs_inode *nfsi)
 {
+}
+
+static inline int pnfs_layout_handle_reboot(struct nfs_client *clp)
+{
+	return 0;
 }
 
 static inline struct pnfs_layout_segment *

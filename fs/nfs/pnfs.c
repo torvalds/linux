@@ -61,6 +61,7 @@ static void pnfs_free_returned_lsegs(struct pnfs_layout_hdr *lo,
 		u32 seq);
 static bool pnfs_lseg_dec_and_remove_zero(struct pnfs_layout_segment *lseg,
 		                struct list_head *tmp_list);
+static int pnfs_layout_return_on_reboot(struct pnfs_layout_hdr *lo);
 
 /* Return the registered pnfs layout driver module matching given id */
 static struct pnfs_layoutdriver_type *
@@ -937,25 +938,37 @@ restart:
 	return pnfs_layout_free_bulk_destroy_list(&layout_list, mode);
 }
 
-int pnfs_layout_destroy_byclid(struct nfs_client *clp,
-			       enum pnfs_layout_destroy_mode mode)
+static void pnfs_layout_build_destroy_list_byclient(struct nfs_client *clp,
+						    struct list_head *list)
 {
 	struct nfs_server *server;
-	LIST_HEAD(layout_list);
 
 	spin_lock(&clp->cl_lock);
 	rcu_read_lock();
 restart:
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
-		if (pnfs_layout_bulk_destroy_byserver_locked(clp,
-					server,
-					&layout_list) != 0)
+		if (pnfs_layout_bulk_destroy_byserver_locked(clp, server,
+							     list) != 0)
 			goto restart;
 	}
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
+}
 
-	return pnfs_layout_free_bulk_destroy_list(&layout_list, mode);
+static int pnfs_layout_do_destroy_byclid(struct nfs_client *clp,
+					 struct list_head *list,
+					 enum pnfs_layout_destroy_mode mode)
+{
+	pnfs_layout_build_destroy_list_byclient(clp, list);
+	return pnfs_layout_free_bulk_destroy_list(list, mode);
+}
+
+int pnfs_layout_destroy_byclid(struct nfs_client *clp,
+			       enum pnfs_layout_destroy_mode mode)
+{
+	LIST_HEAD(layout_list);
+
+	return pnfs_layout_do_destroy_byclid(clp, &layout_list, mode);
 }
 
 /*
@@ -969,6 +982,67 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
 	nfs4_deviceid_purge_client(clp);
 
 	pnfs_layout_destroy_byclid(clp, PNFS_LAYOUT_INVALIDATE);
+}
+
+static void pnfs_layout_build_recover_list_byclient(struct nfs_client *clp,
+						    struct list_head *list)
+{
+	struct nfs_server *server;
+
+	spin_lock(&clp->cl_lock);
+	rcu_read_lock();
+restart:
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
+		if (!(server->caps & NFS_CAP_REBOOT_LAYOUTRETURN))
+			continue;
+		if (pnfs_layout_bulk_destroy_byserver_locked(clp, server,
+							     list) != 0)
+			goto restart;
+	}
+	rcu_read_unlock();
+	spin_unlock(&clp->cl_lock);
+}
+
+static int pnfs_layout_bulk_list_reboot(struct list_head *list)
+{
+	struct pnfs_layout_hdr *lo;
+	struct nfs_server *server;
+	int ret;
+
+	list_for_each_entry(lo, list, plh_bulk_destroy) {
+		server = NFS_SERVER(lo->plh_inode);
+		ret = pnfs_layout_return_on_reboot(lo);
+		switch (ret) {
+		case 0:
+			continue;
+		case -NFS4ERR_BAD_STATEID:
+			server->caps &= ~NFS_CAP_REBOOT_LAYOUTRETURN;
+			break;
+		case -NFS4ERR_NO_GRACE:
+			break;
+		default:
+			goto err;
+		}
+		break;
+	}
+	return 0;
+err:
+	return ret;
+}
+
+int pnfs_layout_handle_reboot(struct nfs_client *clp)
+{
+	LIST_HEAD(list);
+	int ret = 0, ret2;
+
+	pnfs_layout_build_recover_list_byclient(clp, &list);
+	if (!list_empty(&list))
+		ret = pnfs_layout_bulk_list_reboot(&list);
+	ret2 = pnfs_layout_do_destroy_byclid(clp, &list,
+					     PNFS_LAYOUT_INVALIDATE);
+	if (!ret)
+		ret = ret2;
+	return (ret == 0) ?  0 : -EAGAIN;
 }
 
 static void
@@ -1443,6 +1517,24 @@ pnfs_commit_and_return_layout(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 	pnfs_put_layout_hdr(lo);
 	return ret;
+}
+
+static int pnfs_layout_return_on_reboot(struct pnfs_layout_hdr *lo)
+{
+	struct inode *inode = lo->plh_inode;
+	const struct cred *cred;
+
+	spin_lock(&inode->i_lock);
+	if (!pnfs_layout_is_valid(lo)) {
+		spin_unlock(&inode->i_lock);
+		return 0;
+	}
+	cred = get_cred(lo->plh_lc_cred);
+	pnfs_get_layout_hdr(lo);
+	spin_unlock(&inode->i_lock);
+
+	return pnfs_send_layoutreturn(lo, &zero_stateid, &cred, IOMODE_ANY,
+				      PNFS_FL_LAYOUTRETURN_PRIVILEGED);
 }
 
 bool pnfs_roc(struct inode *ino,
