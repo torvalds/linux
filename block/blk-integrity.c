@@ -123,10 +123,10 @@ int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
 	struct blk_integrity *b1 = &gd1->queue->integrity;
 	struct blk_integrity *b2 = &gd2->queue->integrity;
 
-	if (!b1->profile && !b2->profile)
+	if (!b1->tuple_size && !b2->tuple_size)
 		return 0;
 
-	if (!b1->profile || !b2->profile)
+	if (!b1->tuple_size || !b2->tuple_size)
 		return -1;
 
 	if (b1->interval_exp != b2->interval_exp) {
@@ -150,10 +150,13 @@ int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
 		return -1;
 	}
 
-	if (b1->profile != b2->profile) {
+	if (b1->csum_type != b2->csum_type ||
+	    (b1->flags & BLK_INTEGRITY_REF_TAG) !=
+	    (b2->flags & BLK_INTEGRITY_REF_TAG)) {
 		pr_err("%s: %s/%s type %s != %s\n", __func__,
 		       gd1->disk_name, gd2->disk_name,
-		       b1->profile->name, b2->profile->name);
+		       blk_integrity_profile_name(b1),
+		       blk_integrity_profile_name(b2));
 		return -1;
 	}
 
@@ -217,14 +220,37 @@ static inline struct blk_integrity *dev_to_bi(struct device *dev)
 	return &dev_to_disk(dev)->queue->integrity;
 }
 
+const char *blk_integrity_profile_name(struct blk_integrity *bi)
+{
+	switch (bi->csum_type) {
+	case BLK_INTEGRITY_CSUM_IP:
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
+			return "T10-DIF-TYPE1-IP";
+		return "T10-DIF-TYPE3-IP";
+	case BLK_INTEGRITY_CSUM_CRC:
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
+			return "T10-DIF-TYPE1-CRC";
+		return "T10-DIF-TYPE3-CRC";
+	case BLK_INTEGRITY_CSUM_CRC64:
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
+			return "EXT-DIF-TYPE1-CRC64";
+		return "EXT-DIF-TYPE3-CRC64";
+	case BLK_INTEGRITY_CSUM_NONE:
+		break;
+	}
+
+	return "nop";
+}
+EXPORT_SYMBOL_GPL(blk_integrity_profile_name);
+
 static ssize_t format_show(struct device *dev, struct device_attribute *attr,
 			   char *page)
 {
 	struct blk_integrity *bi = dev_to_bi(dev);
 
-	if (bi->profile && bi->profile->name)
-		return sysfs_emit(page, "%s\n", bi->profile->name);
-	return sysfs_emit(page, "none\n");
+	if (!bi->tuple_size)
+		return sysfs_emit(page, "none\n");
+	return sysfs_emit(page, "%s\n", blk_integrity_profile_name(bi));
 }
 
 static ssize_t tag_size_show(struct device *dev, struct device_attribute *attr,
@@ -326,28 +352,6 @@ const struct attribute_group blk_integrity_attr_group = {
 	.attrs = integrity_attrs,
 };
 
-static blk_status_t blk_integrity_nop_fn(struct blk_integrity_iter *iter)
-{
-	return BLK_STS_OK;
-}
-
-static void blk_integrity_nop_prepare(struct request *rq)
-{
-}
-
-static void blk_integrity_nop_complete(struct request *rq,
-		unsigned int nr_bytes)
-{
-}
-
-static const struct blk_integrity_profile nop_profile = {
-	.name = "nop",
-	.generate_fn = blk_integrity_nop_fn,
-	.verify_fn = blk_integrity_nop_fn,
-	.prepare_fn = blk_integrity_nop_prepare,
-	.complete_fn = blk_integrity_nop_complete,
-};
-
 /**
  * blk_integrity_register - Register a gendisk as being integrity-capable
  * @disk:	struct gendisk pointer to make integrity-aware
@@ -363,11 +367,11 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 {
 	struct blk_integrity *bi = &disk->queue->integrity;
 
+	bi->csum_type = template->csum_type;
 	bi->flags = BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE |
 		template->flags;
 	bi->interval_exp = template->interval_exp ? :
 		ilog2(queue_logical_block_size(disk->queue));
-	bi->profile = template->profile ? template->profile : &nop_profile;
 	bi->tuple_size = template->tuple_size;
 	bi->tag_size = template->tag_size;
 	bi->pi_offset = template->pi_offset;
@@ -394,7 +398,7 @@ void blk_integrity_unregister(struct gendisk *disk)
 {
 	struct blk_integrity *bi = &disk->queue->integrity;
 
-	if (!bi->profile)
+	if (!bi->tuple_size)
 		return;
 
 	/* ensure all bios are off the integrity workqueue */

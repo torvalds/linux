@@ -6,7 +6,6 @@ config NVME_TARGET
 	depends on CONFIGFS_FS
 	select NVME_KEYRING if NVME_TARGET_TCP_TLS
 	select KEYS if NVME_TARGET_TCP_TLS
-	select BLK_DEV_INTEGRITY_T10 if BLK_DEV_INTEGRITY
 	select SGL_ALLOC
 	help
 	  This enabled target side support for the NVMe protocol, that is

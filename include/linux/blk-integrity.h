@@ -10,7 +10,7 @@ enum blk_integrity_flags {
 	BLK_INTEGRITY_VERIFY		= 1 << 0,
 	BLK_INTEGRITY_GENERATE		= 1 << 1,
 	BLK_INTEGRITY_DEVICE_CAPABLE	= 1 << 2,
-	BLK_INTEGRITY_IP_CHECKSUM	= 1 << 3,
+	BLK_INTEGRITY_REF_TAG		= 1 << 3,
 };
 
 struct blk_integrity_iter {
@@ -19,22 +19,10 @@ struct blk_integrity_iter {
 	sector_t		seed;
 	unsigned int		data_size;
 	unsigned short		interval;
-	unsigned char		tuple_size;
-	unsigned char		pi_offset;
 	const char		*disk_name;
 };
 
-typedef blk_status_t (integrity_processing_fn) (struct blk_integrity_iter *);
-typedef void (integrity_prepare_fn) (struct request *);
-typedef void (integrity_complete_fn) (struct request *, unsigned int);
-
-struct blk_integrity_profile {
-	integrity_processing_fn		*generate_fn;
-	integrity_processing_fn		*verify_fn;
-	integrity_prepare_fn		*prepare_fn;
-	integrity_complete_fn		*complete_fn;
-	const char			*name;
-};
+const char *blk_integrity_profile_name(struct blk_integrity *bi);
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 void blk_integrity_register(struct gendisk *, struct blk_integrity *);
@@ -44,26 +32,23 @@ int blk_rq_map_integrity_sg(struct request_queue *, struct bio *,
 				   struct scatterlist *);
 int blk_rq_count_integrity_sg(struct request_queue *, struct bio *);
 
+static inline bool
+blk_integrity_queue_supports_integrity(struct request_queue *q)
+{
+	return q->integrity.tuple_size;
+}
+
 static inline struct blk_integrity *blk_get_integrity(struct gendisk *disk)
 {
-	struct blk_integrity *bi = &disk->queue->integrity;
-
-	if (!bi->profile)
+	if (!blk_integrity_queue_supports_integrity(disk->queue))
 		return NULL;
-
-	return bi;
+	return &disk->queue->integrity;
 }
 
 static inline struct blk_integrity *
 bdev_get_integrity(struct block_device *bdev)
 {
 	return blk_get_integrity(bdev->bd_disk);
-}
-
-static inline bool
-blk_integrity_queue_supports_integrity(struct request_queue *q)
-{
-	return q->integrity.profile;
 }
 
 static inline unsigned short

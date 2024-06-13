@@ -378,10 +378,9 @@ EXPORT_SYMBOL_GPL(bio_integrity_map_user);
  * bio_integrity_process - Process integrity metadata for a bio
  * @bio:	bio to generate/verify integrity metadata for
  * @proc_iter:  iterator to process
- * @proc_fn:	Pointer to the relevant processing function
  */
 static blk_status_t bio_integrity_process(struct bio *bio,
-		struct bvec_iter *proc_iter, integrity_processing_fn *proc_fn)
+		struct bvec_iter *proc_iter)
 {
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct blk_integrity_iter iter;
@@ -392,17 +391,18 @@ static blk_status_t bio_integrity_process(struct bio *bio,
 
 	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
 	iter.interval = 1 << bi->interval_exp;
-	iter.tuple_size = bi->tuple_size;
 	iter.seed = proc_iter->bi_sector;
 	iter.prot_buf = bvec_virt(bip->bip_vec);
-	iter.pi_offset = bi->pi_offset;
 
 	__bio_for_each_segment(bv, bio, bviter, *proc_iter) {
 		void *kaddr = bvec_kmap_local(&bv);
 
 		iter.data_buf = kaddr;
 		iter.data_size = bv.bv_len;
-		ret = proc_fn(&iter);
+		if (bio_data_dir(bio) == WRITE)
+			blk_integrity_generate(&iter, bi);
+		else
+			ret = blk_integrity_verify(&iter, bi);
 		kunmap_local(kaddr);
 
 		if (ret)
@@ -448,12 +448,10 @@ bool bio_integrity_prep(struct bio *bio)
 		return true;
 
 	if (bio_data_dir(bio) == READ) {
-		if (!bi->profile->verify_fn ||
-		    !(bi->flags & BLK_INTEGRITY_VERIFY))
+		if (!(bi->flags & BLK_INTEGRITY_VERIFY))
 			return true;
 	} else {
-		if (!bi->profile->generate_fn ||
-		    !(bi->flags & BLK_INTEGRITY_GENERATE))
+		if (!(bi->flags & BLK_INTEGRITY_GENERATE))
 			return true;
 
 		/*
@@ -488,7 +486,7 @@ bool bio_integrity_prep(struct bio *bio)
 	bip->bip_flags |= BIP_BLOCK_INTEGRITY;
 	bip_set_seed(bip, bio->bi_iter.bi_sector);
 
-	if (bi->flags & BLK_INTEGRITY_IP_CHECKSUM)
+	if (bi->csum_type == BLK_INTEGRITY_CSUM_IP)
 		bip->bip_flags |= BIP_IP_CHECKSUM;
 
 	/* Map it */
@@ -511,12 +509,10 @@ bool bio_integrity_prep(struct bio *bio)
 	}
 
 	/* Auto-generate integrity metadata if this is a write */
-	if (bio_data_dir(bio) == WRITE) {
-		bio_integrity_process(bio, &bio->bi_iter,
-				      bi->profile->generate_fn);
-	} else {
+	if (bio_data_dir(bio) == WRITE)
+		bio_integrity_process(bio, &bio->bi_iter);
+	else
 		bip->bio_iter = bio->bi_iter;
-	}
 	return true;
 
 err_end_io:
@@ -539,15 +535,13 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	struct bio_integrity_payload *bip =
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 
 	/*
 	 * At the moment verify is called bio's iterator was advanced
 	 * during split and completion, we need to rewind iterator to
 	 * it's original position.
 	 */
-	bio->bi_status = bio_integrity_process(bio, &bip->bio_iter,
-						bi->profile->verify_fn);
+	bio->bi_status = bio_integrity_process(bio, &bip->bio_iter);
 	bio_integrity_free(bio);
 	bio_endio(bio);
 }
@@ -569,7 +563,7 @@ bool __bio_integrity_endio(struct bio *bio)
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 
 	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status &&
-	    (bip->bip_flags & BIP_BLOCK_INTEGRITY) && bi->profile->verify_fn) {
+	    (bip->bip_flags & BIP_BLOCK_INTEGRITY) && bi->csum_type) {
 		INIT_WORK(&bip->bip_work, bio_integrity_verify_fn);
 		queue_work(kintegrityd_wq, &bip->bip_work);
 		return false;

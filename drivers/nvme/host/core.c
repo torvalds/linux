@@ -1744,17 +1744,16 @@ static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
 	case NVME_NS_DPS_PI_TYPE3:
 		switch (head->guard_type) {
 		case NVME_NVM_NS_16B_GUARD:
-			integrity.profile = &t10_pi_type3_crc;
+			integrity.csum_type = BLK_INTEGRITY_CSUM_CRC;
 			integrity.tag_size = sizeof(u16) + sizeof(u32);
 			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
 			break;
 		case NVME_NVM_NS_64B_GUARD:
-			integrity.profile = &ext_pi_type3_crc64;
+			integrity.csum_type = BLK_INTEGRITY_CSUM_CRC64;
 			integrity.tag_size = sizeof(u16) + 6;
 			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
 			break;
 		default:
-			integrity.profile = NULL;
 			break;
 		}
 		break;
@@ -1762,22 +1761,22 @@ static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
 	case NVME_NS_DPS_PI_TYPE2:
 		switch (head->guard_type) {
 		case NVME_NVM_NS_16B_GUARD:
-			integrity.profile = &t10_pi_type1_crc;
+			integrity.csum_type = BLK_INTEGRITY_CSUM_CRC;
 			integrity.tag_size = sizeof(u16);
-			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
+			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE |
+					   BLK_INTEGRITY_REF_TAG;
 			break;
 		case NVME_NVM_NS_64B_GUARD:
-			integrity.profile = &ext_pi_type1_crc64;
+			integrity.csum_type = BLK_INTEGRITY_CSUM_CRC64;
 			integrity.tag_size = sizeof(u16);
-			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
+			integrity.flags |= BLK_INTEGRITY_DEVICE_CAPABLE |
+					   BLK_INTEGRITY_REF_TAG;
 			break;
 		default:
-			integrity.profile = NULL;
 			break;
 		}
 		break;
 	default:
-		integrity.profile = NULL;
 		break;
 	}
 

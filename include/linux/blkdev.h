@@ -105,9 +105,16 @@ enum {
 struct disk_events;
 struct badblocks;
 
+enum blk_integrity_checksum {
+	BLK_INTEGRITY_CSUM_NONE		= 0,
+	BLK_INTEGRITY_CSUM_IP		= 1,
+	BLK_INTEGRITY_CSUM_CRC		= 2,
+	BLK_INTEGRITY_CSUM_CRC64	= 3,
+} __packed ;
+
 struct blk_integrity {
-	const struct blk_integrity_profile	*profile;
 	unsigned char				flags;
+	enum blk_integrity_checksum		csum_type;
 	unsigned char				tuple_size;
 	unsigned char				pi_offset;
 	unsigned char				interval_exp;

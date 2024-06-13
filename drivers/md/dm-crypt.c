@@ -1177,7 +1177,7 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 	struct mapped_device *md = dm_table_get_md(ti->table);
 
 	/* We require an underlying device with non-PI metadata */
-	if (!bi || strcmp(bi->profile->name, "nop")) {
+	if (!bi || bi->csum_type != BLK_INTEGRITY_CSUM_NONE) {
 		ti->error = "Integrity profile not supported.";
 		return -EINVAL;
 	}
