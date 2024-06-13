@@ -957,9 +957,6 @@ static struct phylink_pcs *stmmac_mac_select_pcs(struct phylink_config *config,
 			return pcs;
 	}
 
-	if (priv->hw->xpcs)
-		return &priv->hw->xpcs->pcs;
-
 	return priv->hw->phylink_pcs;
 }
 

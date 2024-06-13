@@ -443,6 +443,16 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 	plat->rx_queues_cfg[0].pkt_route = 0x0;
 }
 
+static struct phylink_pcs *intel_mgbe_select_pcs(struct stmmac_priv *priv,
+						 phy_interface_t interface)
+{
+	/* plat->mdio_bus_data->has_xpcs has been set true, so there
+	 * should always be an XPCS. The original code would always
+	 * return this if present.
+	 */
+	return &priv->hw->xpcs->pcs;
+}
+
 static int intel_mgbe_common_data(struct pci_dev *pdev,
 				  struct plat_stmmacenet_data *plat)
 {
@@ -587,6 +597,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	    plat->phy_interface == PHY_INTERFACE_MODE_1000BASEX) {
 		plat->mdio_bus_data->has_xpcs = true;
 		plat->mdio_bus_data->default_an_inband = true;
+		plat->select_pcs = intel_mgbe_select_pcs;
 	}
 
 	/* Ensure mdio bus scan skips intel serdes and pcs-xpcs */
