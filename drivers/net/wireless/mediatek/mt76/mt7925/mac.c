@@ -1245,7 +1245,7 @@ mt7925_vif_connect_iter(void *priv, u8 *mac,
 
 	mt76_connac_mcu_uni_add_dev(&dev->mphy, &vif->bss_conf,
 				    &mvif->sta.deflink.wcid, true);
-	mt7925_mcu_set_tx(dev, vif);
+	mt7925_mcu_set_tx(dev, &vif->bss_conf);
 
 	if (vif->type == NL80211_IFTYPE_AP) {
 		mt76_connac_mcu_uni_add_bss(dev->phy.mt76, vif, &mvif->sta.deflink.wcid,

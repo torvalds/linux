@@ -1410,7 +1410,7 @@ static void mt7925_link_info_changed(struct ieee80211_hw *hw,
 
 	/* ensure that enable txcmd_mode after bss_info */
 	if (changed & (BSS_CHANGED_QOS | BSS_CHANGED_BEACON_ENABLED))
-		mt7925_mcu_set_tx(dev, vif);
+		mt7925_mcu_set_tx(dev, info);
 
 	mt792x_mutex_release(dev);
 }

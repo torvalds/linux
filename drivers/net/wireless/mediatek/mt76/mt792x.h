@@ -114,6 +114,7 @@ struct mt792x_bss_conf {
 
 struct mt792x_vif {
 	struct mt792x_bss_conf bss_conf; /* must be first */
+	struct mt792x_bss_conf __rcu *link_conf[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	struct mt792x_sta sta;
 	struct mt792x_sta *wep_sta;
@@ -220,6 +221,30 @@ struct mt792x_dev {
 	u32 backup_l1;
 	u32 backup_l2;
 };
+
+static inline struct mt792x_bss_conf *
+mt792x_vif_to_link(struct mt792x_vif *mvif, u8 link_id)
+{
+	struct ieee80211_vif *vif;
+
+	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
+
+	if (!ieee80211_vif_is_mld(vif) ||
+	    link_id >= IEEE80211_LINK_UNSPECIFIED)
+		return &mvif->bss_conf;
+
+	return rcu_dereference_protected(mvif->link_conf[link_id],
+		lockdep_is_held(&mvif->phy->dev->mt76.mutex));
+}
+
+static inline struct mt792x_bss_conf *
+mt792x_link_conf_to_mconf(struct ieee80211_bss_conf *link_conf)
+{
+	struct ieee80211_vif *vif = link_conf->vif;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+
+	return mt792x_vif_to_link(mvif, link_conf->link_id);
+}
 
 static inline struct mt792x_dev *
 mt792x_hw_dev(struct ieee80211_hw *hw)

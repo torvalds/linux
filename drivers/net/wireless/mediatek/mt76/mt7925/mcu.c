@@ -900,7 +900,8 @@ int mt7925_mcu_wtbl_update_hdr_trans(struct mt792x_dev *dev,
 				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 }
 
-int mt7925_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_vif *vif)
+int mt7925_mcu_set_tx(struct mt792x_dev *dev,
+		      struct ieee80211_bss_conf *bss_conf)
 {
 #define MCU_EDCA_AC_PARAM	0
 #define WMM_AIFS_SET		BIT(0)
@@ -909,12 +910,12 @@ int mt7925_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_vif *vif)
 #define WMM_TXOP_SET		BIT(3)
 #define WMM_PARAM_SET		(WMM_AIFS_SET | WMM_CW_MIN_SET | \
 				 WMM_CW_MAX_SET | WMM_TXOP_SET)
-	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct mt792x_bss_conf *mconf = mt792x_link_conf_to_mconf(bss_conf);
 	struct {
 		u8 bss_idx;
 		u8 __rsv[3];
 	} __packed hdr = {
-		.bss_idx = mvif->bss_conf.mt76.idx,
+		.bss_idx = mconf->mt76.idx,
 	};
 	struct sk_buff *skb;
 	int len = sizeof(hdr) + IEEE80211_NUM_ACS * sizeof(struct edca);
@@ -927,7 +928,7 @@ int mt7925_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_vif *vif)
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		struct ieee80211_tx_queue_params *q = &mvif->bss_conf.queue_params[ac];
+		struct ieee80211_tx_queue_params *q = &mconf->queue_params[ac];
 		struct edca *e;
 		struct tlv *tlv;
 
