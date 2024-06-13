@@ -940,7 +940,7 @@
 			spi-num-chipselects = <5>;
 		};
 
-		esdhc: esdhc@2140000 {
+		esdhc: mmc@2140000 {
 			status = "disabled";
 			compatible = "fsl,ls2080a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x2140000 0x0 0x10000>;

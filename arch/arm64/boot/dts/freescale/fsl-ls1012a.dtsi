@@ -156,7 +156,7 @@
 			status = "disabled";
 		};
 
-		esdhc0: esdhc@1560000 {
+		esdhc0: mmc@1560000 {
 			compatible = "fsl,ls1012a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x1560000 0x0 0x10000>;
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
@@ -175,7 +175,7 @@
 			big-endian;
 		};
 
-		esdhc1: esdhc@1580000 {
+		esdhc1: mmc@1580000 {
 			compatible = "fsl,ls1012a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x1580000 0x0 0x10000>;
 			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;

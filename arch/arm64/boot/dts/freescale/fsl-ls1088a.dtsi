@@ -474,7 +474,7 @@
 			status = "disabled";
 		};
 
-		esdhc: esdhc@2140000 {
+		esdhc: mmc@2140000 {
 			compatible = "fsl,ls1088a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x2140000 0x0 0x10000>;
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
