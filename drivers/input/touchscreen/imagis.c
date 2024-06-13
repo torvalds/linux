@@ -121,11 +121,11 @@ static irqreturn_t imagis_interrupt(int irq, void *dev_id)
 	for (i = 0; i < finger_count; i++) {
 		if (ts->tdata->protocol_b)
 			error = imagis_i2c_read_reg(ts,
-						    ts->tdata->touch_coord_cmd, &finger_status);
-		else
-			error = imagis_i2c_read_reg(ts,
 						    ts->tdata->touch_coord_cmd + (i * 4),
 						    &finger_status);
+		else
+			error = imagis_i2c_read_reg(ts,
+						    ts->tdata->touch_coord_cmd, &finger_status);
 		if (error) {
 			dev_err(&ts->client->dev,
 				"failed to read coordinates for finger %d: %d\n",
@@ -394,6 +394,7 @@ static const struct imagis_properties imagis_3032c_data = {
 	.whoami_cmd = IST3038C_REG_CHIPID,
 	.whoami_val = IST3032C_WHOAMI,
 	.touch_keys_supported = true,
+	.protocol_b = true,
 };
 
 static const struct imagis_properties imagis_3038b_data = {
@@ -401,7 +402,6 @@ static const struct imagis_properties imagis_3038b_data = {
 	.touch_coord_cmd = IST3038B_REG_STATUS,
 	.whoami_cmd = IST3038B_REG_CHIPID,
 	.whoami_val = IST3038B_WHOAMI,
-	.protocol_b = true,
 };
 
 static const struct imagis_properties imagis_3038c_data = {
@@ -409,6 +409,7 @@ static const struct imagis_properties imagis_3038c_data = {
 	.touch_coord_cmd = IST3038C_REG_TOUCH_COORD,
 	.whoami_cmd = IST3038C_REG_CHIPID,
 	.whoami_val = IST3038C_WHOAMI,
+	.protocol_b = true,
 };
 
 #ifdef CONFIG_OF
