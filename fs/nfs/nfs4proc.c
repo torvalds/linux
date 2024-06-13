@@ -10048,7 +10048,7 @@ static const struct rpc_call_ops nfs4_layoutreturn_call_ops = {
 	.rpc_release = nfs4_layoutreturn_release,
 };
 
-int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync)
+int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, unsigned int flags)
 {
 	struct rpc_task *task;
 	struct rpc_message msg = {
@@ -10071,7 +10071,7 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync)
 			&task_setup_data.rpc_client, &msg);
 
 	lrp->inode = nfs_igrab_and_active(lrp->args.inode);
-	if (!sync) {
+	if (flags & PNFS_FL_LAYOUTRETURN_ASYNC) {
 		if (!lrp->inode) {
 			nfs4_layoutreturn_release(lrp);
 			return -EAGAIN;
@@ -10079,6 +10079,8 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync)
 		task_setup_data.flags |= RPC_TASK_ASYNC;
 	}
 	if (!lrp->inode)
+		flags |= PNFS_FL_LAYOUTRETURN_PRIVILEGED;
+	if (flags & PNFS_FL_LAYOUTRETURN_PRIVILEGED)
 		nfs4_init_sequence(&lrp->args.seq_args, &lrp->res.seq_res, 1,
 				   1);
 	else
@@ -10087,7 +10089,7 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync)
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
-	if (sync)
+	if (!(flags & PNFS_FL_LAYOUTRETURN_ASYNC))
 		status = task->tk_status;
 	trace_nfs4_layoutreturn(lrp->args.inode, &lrp->args.stateid, status);
 	dprintk("<-- %s status=%d\n", __func__, status);

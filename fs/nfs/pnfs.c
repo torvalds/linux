@@ -1279,7 +1279,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo,
 		       const nfs4_stateid *stateid,
 		       const struct cred **pcred,
 		       enum pnfs_iomode iomode,
-		       bool sync)
+		       unsigned int flags)
 {
 	struct inode *ino = lo->plh_inode;
 	struct pnfs_layoutdriver_type *ld = NFS_SERVER(ino)->pnfs_curr_ld;
@@ -1306,7 +1306,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo,
 	if (ld->prepare_layoutreturn)
 		ld->prepare_layoutreturn(&lrp->args);
 
-	status = nfs4_proc_layoutreturn(lrp, sync);
+	status = nfs4_proc_layoutreturn(lrp, flags);
 out:
 	dprintk("<-- %s status: %d\n", __func__, status);
 	return status;
@@ -1340,7 +1340,8 @@ static void pnfs_layoutreturn_before_put_layout_hdr(struct pnfs_layout_hdr *lo)
 		spin_unlock(&inode->i_lock);
 		if (send) {
 			/* Send an async layoutreturn so we dont deadlock */
-			pnfs_send_layoutreturn(lo, &stateid, &cred, iomode, false);
+			pnfs_send_layoutreturn(lo, &stateid, &cred, iomode,
+					       PNFS_FL_LAYOUTRETURN_ASYNC);
 		}
 	} else
 		spin_unlock(&inode->i_lock);
@@ -1407,7 +1408,8 @@ _pnfs_return_layout(struct inode *ino)
 	send = pnfs_prepare_layoutreturn(lo, &stateid, &cred, NULL);
 	spin_unlock(&ino->i_lock);
 	if (send)
-		status = pnfs_send_layoutreturn(lo, &stateid, &cred, IOMODE_ANY, true);
+		status = pnfs_send_layoutreturn(lo, &stateid, &cred, IOMODE_ANY,
+						0);
 out_wait_layoutreturn:
 	wait_on_bit(&lo->plh_flags, NFS_LAYOUT_RETURN, TASK_UNINTERRUPTIBLE);
 out_put_layout_hdr:
@@ -1548,7 +1550,7 @@ out_noroc:
 		return true;
 	}
 	if (layoutreturn)
-		pnfs_send_layoutreturn(lo, &stateid, &lc_cred, iomode, true);
+		pnfs_send_layoutreturn(lo, &stateid, &lc_cred, iomode, 0);
 	pnfs_put_layout_hdr(lo);
 	return false;
 }
@@ -2595,7 +2597,8 @@ pnfs_mark_layout_for_return(struct inode *inode,
 		return_now = pnfs_prepare_layoutreturn(lo, &stateid, &cred, &iomode);
 		spin_unlock(&inode->i_lock);
 		if (return_now)
-			pnfs_send_layoutreturn(lo, &stateid, &cred, iomode, false);
+			pnfs_send_layoutreturn(lo, &stateid, &cred, iomode,
+					       PNFS_FL_LAYOUTRETURN_ASYNC);
 	} else {
 		spin_unlock(&inode->i_lock);
 		nfs_commit_inode(inode, 0);
@@ -2711,7 +2714,8 @@ restart:
 		}
 		spin_unlock(&inode->i_lock);
 		rcu_read_unlock();
-		pnfs_send_layoutreturn(lo, &stateid, &cred, iomode, false);
+		pnfs_send_layoutreturn(lo, &stateid, &cred, iomode,
+				       PNFS_FL_LAYOUTRETURN_ASYNC);
 		pnfs_put_layout_hdr(lo);
 		cond_resched();
 		goto restart;

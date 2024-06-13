@@ -248,6 +248,9 @@ extern const struct pnfs_layoutdriver_type *pnfs_find_layoutdriver(u32 id);
 extern void pnfs_put_layoutdriver(const struct pnfs_layoutdriver_type *ld);
 
 /* nfs4proc.c */
+#define PNFS_FL_LAYOUTRETURN_ASYNC (1U << 0)
+#define PNFS_FL_LAYOUTRETURN_PRIVILEGED (1U << 1)
+
 extern size_t max_response_pages(struct nfs_server *server);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev,
@@ -255,7 +258,8 @@ extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 extern struct pnfs_layout_segment *
 nfs4_proc_layoutget(struct nfs4_layoutget *lgp,
 		    struct nfs4_exception *exception);
-extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync);
+extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp,
+				  unsigned int flags);
 
 /* pnfs.c */
 void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
