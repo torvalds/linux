@@ -1443,7 +1443,7 @@ struct mt76_connac_bss_basic_tlv {
 	__le16 sta_idx;
 	__le16 nonht_basic_phy;
 	u8 phymode_ext; /* bit(0) AX_6G */
-	u8 pad[1];
+	u8 link_idx;
 } __packed;
 
 struct mt76_connac_bss_qos_tlv {
@@ -1917,7 +1917,7 @@ void mt76_connac_mcu_sta_ba_tlv(struct sk_buff *skb,
 				struct ieee80211_ampdu_params *params,
 				bool enable, bool tx);
 int mt76_connac_mcu_uni_add_dev(struct mt76_phy *phy,
-				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *bss_conf,
 				struct mt76_wcid *wcid,
 				bool enable);
 int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,

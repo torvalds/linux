@@ -1109,8 +1109,8 @@ mt7615_mcu_uni_add_dev(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 
-	return mt76_connac_mcu_uni_add_dev(phy->mt76, vif, &mvif->sta.wcid,
-					   enable);
+	return mt76_connac_mcu_uni_add_dev(phy->mt76, &vif->bss_conf,
+					   &mvif->sta.wcid, enable);
 }
 
 static int

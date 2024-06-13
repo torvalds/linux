@@ -124,7 +124,7 @@ void mt792x_remove_interface(struct ieee80211_hw *hw,
 
 	mt792x_mutex_acquire(dev);
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->deflink.wcid);
-	mt76_connac_mcu_uni_add_dev(&dev->mphy, vif, &mvif->sta.deflink.wcid, false);
+	mt76_connac_mcu_uni_add_dev(&dev->mphy, &vif->bss_conf, &mvif->sta.deflink.wcid, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
