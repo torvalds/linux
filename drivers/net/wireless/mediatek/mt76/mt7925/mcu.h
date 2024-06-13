@@ -590,6 +590,5 @@ int mt7925_mcu_set_chctx(struct mt76_phy *phy, struct mt76_vif *mvif,
 			 struct ieee80211_chanctx_conf *ctx);
 int mt7925_mcu_set_rate_txpower(struct mt76_phy *phy);
 int mt7925_mcu_update_arp_filter(struct mt76_dev *dev,
-				 struct mt76_vif *vif,
-				 struct ieee80211_bss_conf *info);
+				 struct mt76_vif *vif);
 #endif

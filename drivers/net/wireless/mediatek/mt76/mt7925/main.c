@@ -695,65 +695,6 @@ mt7925_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return mvif->basic_rates_idx;
 }
 
-static void mt7925_bss_info_changed(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_bss_conf *info,
-				    u64 changed)
-{
-	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
-	struct mt792x_phy *phy = mt792x_hw_phy(hw);
-	struct mt792x_dev *dev = mt792x_hw_dev(hw);
-
-	mt792x_mutex_acquire(dev);
-
-	if (changed & BSS_CHANGED_ERP_SLOT) {
-		int slottime = info->use_short_slot ? 9 : 20;
-
-		if (slottime != phy->slottime) {
-			phy->slottime = slottime;
-			mt7925_mcu_set_timing(phy, vif);
-		}
-	}
-
-	if (changed & BSS_CHANGED_MCAST_RATE)
-		mvif->mcast_rates_idx =
-				mt7925_get_rates_table(hw, vif, false, true);
-
-	if (changed & BSS_CHANGED_BASIC_RATES)
-		mvif->basic_rates_idx =
-				mt7925_get_rates_table(hw, vif, false, false);
-
-	if (changed & (BSS_CHANGED_BEACON |
-		       BSS_CHANGED_BEACON_ENABLED)) {
-		mvif->beacon_rates_idx =
-				mt7925_get_rates_table(hw, vif, true, false);
-
-		mt7925_mcu_uni_add_beacon_offload(dev, hw, vif,
-						  info->enable_beacon);
-	}
-
-	/* ensure that enable txcmd_mode after bss_info */
-	if (changed & (BSS_CHANGED_QOS | BSS_CHANGED_BEACON_ENABLED))
-		mt7925_mcu_set_tx(dev, vif);
-
-	if (changed & BSS_CHANGED_PS)
-		mt7925_mcu_uni_bss_ps(dev, vif);
-
-	if (changed & BSS_CHANGED_ASSOC) {
-		mt7925_mcu_sta_update(dev, NULL, vif, true,
-				      MT76_STA_INFO_STATE_ASSOC);
-		mt7925_mcu_set_beacon_filter(dev, vif, vif->cfg.assoc);
-	}
-
-	if (changed & BSS_CHANGED_ARP_FILTER) {
-		struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-
-		mt7925_mcu_update_arp_filter(&dev->mt76, &mvif->bss_conf.mt76, info);
-	}
-
-	mt792x_mutex_release(dev);
-}
-
 int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {
@@ -1404,6 +1345,76 @@ static void mt7925_mgd_complete_tx(struct ieee80211_hw *hw,
 	mt7925_abort_roc(mvif->phy, mvif);
 }
 
+static void mt7925_vif_cfg_changed(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   u64 changed)
+{
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+
+	mt792x_mutex_acquire(dev);
+
+	if (changed & BSS_CHANGED_ASSOC) {
+		mt7925_mcu_sta_update(dev, NULL, vif, true,
+				      MT76_STA_INFO_STATE_ASSOC);
+		mt7925_mcu_set_beacon_filter(dev, vif, vif->cfg.assoc);
+	}
+
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+
+		mt7925_mcu_update_arp_filter(&dev->mt76, &mvif->bss_conf.mt76);
+	}
+
+	if (changed & BSS_CHANGED_PS)
+		mt7925_mcu_uni_bss_ps(dev, vif);
+
+	mt792x_mutex_release(dev);
+}
+
+static void mt7925_link_info_changed(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *info,
+				     u64 changed)
+{
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct mt792x_phy *phy = mt792x_hw_phy(hw);
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+
+	mt792x_mutex_acquire(dev);
+
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		int slottime = info->use_short_slot ? 9 : 20;
+
+		if (slottime != phy->slottime) {
+			phy->slottime = slottime;
+			mt7925_mcu_set_timing(phy, vif);
+		}
+	}
+
+	if (changed & BSS_CHANGED_MCAST_RATE)
+		mvif->mcast_rates_idx =
+				mt7925_get_rates_table(hw, vif, false, true);
+
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		mvif->basic_rates_idx =
+				mt7925_get_rates_table(hw, vif, false, false);
+
+	if (changed & (BSS_CHANGED_BEACON |
+		       BSS_CHANGED_BEACON_ENABLED)) {
+		mvif->beacon_rates_idx =
+				mt7925_get_rates_table(hw, vif, true, false);
+
+		mt7925_mcu_uni_add_beacon_offload(dev, hw, vif,
+						  info->enable_beacon);
+	}
+
+	/* ensure that enable txcmd_mode after bss_info */
+	if (changed & (BSS_CHANGED_QOS | BSS_CHANGED_BEACON_ENABLED))
+		mt7925_mcu_set_tx(dev, vif);
+
+	mt792x_mutex_release(dev);
+}
+
 const struct ieee80211_ops mt7925_ops = {
 	.tx = mt792x_tx,
 	.start = mt7925_start,
@@ -1413,7 +1424,6 @@ const struct ieee80211_ops mt7925_ops = {
 	.config = mt7925_config,
 	.conf_tx = mt7925_conf_tx,
 	.configure_filter = mt7925_configure_filter,
-	.bss_info_changed = mt7925_bss_info_changed,
 	.start_ap = mt7925_start_ap,
 	.stop_ap = mt7925_stop_ap,
 	.sta_state = mt76_sta_state,
@@ -1461,6 +1471,8 @@ const struct ieee80211_ops mt7925_ops = {
 	.unassign_vif_chanctx = mt792x_unassign_vif_chanctx,
 	.mgd_prepare_tx = mt7925_mgd_prepare_tx,
 	.mgd_complete_tx = mt7925_mgd_complete_tx,
+	.vif_cfg_changed = mt7925_vif_cfg_changed,
+	.link_info_changed = mt7925_link_info_changed,
 };
 EXPORT_SYMBOL_GPL(mt7925_ops);
 

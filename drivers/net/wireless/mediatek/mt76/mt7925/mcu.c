@@ -121,11 +121,10 @@ int mt7925_mcu_regval(struct mt792x_dev *dev, u32 regidx, u32 *val, bool set)
 EXPORT_SYMBOL_GPL(mt7925_mcu_regval);
 
 int mt7925_mcu_update_arp_filter(struct mt76_dev *dev,
-				 struct mt76_vif *vif,
-				 struct ieee80211_bss_conf *info)
+				 struct mt76_vif *vif)
 {
-	struct ieee80211_vif *mvif = container_of(info, struct ieee80211_vif,
-						  bss_conf);
+	struct ieee80211_vif *mvif = container_of((void *)vif, struct ieee80211_vif,
+						  drv_priv);
 	struct sk_buff *skb;
 	int i, len = min_t(int, mvif->cfg.arp_addr_cnt,
 			   IEEE80211_BSS_ARP_ADDR_LIST_LEN);
