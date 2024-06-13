@@ -376,7 +376,6 @@ static void lan966x_get_eth_mac_stats(struct net_device *dev,
 		lan966x->stats[idx + SYS_COUNT_TX_PMAC_BC];
 	mac_stats->SingleCollisionFrames =
 		lan966x->stats[idx + SYS_COUNT_TX_COL];
-	mac_stats->MultipleCollisionFrames = 0;
 	mac_stats->FramesReceivedOK =
 		lan966x->stats[idx + SYS_COUNT_RX_UC] +
 		lan966x->stats[idx + SYS_COUNT_RX_MC] +
@@ -384,26 +383,19 @@ static void lan966x_get_eth_mac_stats(struct net_device *dev,
 	mac_stats->FrameCheckSequenceErrors =
 		lan966x->stats[idx + SYS_COUNT_RX_CRC] +
 		lan966x->stats[idx + SYS_COUNT_RX_CRC];
-	mac_stats->AlignmentErrors = 0;
 	mac_stats->OctetsTransmittedOK =
 		lan966x->stats[idx + SYS_COUNT_TX_OCT] +
 		lan966x->stats[idx + SYS_COUNT_TX_PMAC_OCT];
 	mac_stats->FramesWithDeferredXmissions =
 		lan966x->stats[idx + SYS_COUNT_TX_MM_HOLD];
-	mac_stats->LateCollisions = 0;
-	mac_stats->FramesAbortedDueToXSColls = 0;
-	mac_stats->FramesLostDueToIntMACXmitError = 0;
-	mac_stats->CarrierSenseErrors = 0;
 	mac_stats->OctetsReceivedOK =
 		lan966x->stats[idx + SYS_COUNT_RX_OCT];
-	mac_stats->FramesLostDueToIntMACRcvError = 0;
 	mac_stats->MulticastFramesXmittedOK =
 		lan966x->stats[idx + SYS_COUNT_TX_MC] +
 		lan966x->stats[idx + SYS_COUNT_TX_PMAC_MC];
 	mac_stats->BroadcastFramesXmittedOK =
 		lan966x->stats[idx + SYS_COUNT_TX_BC] +
 		lan966x->stats[idx + SYS_COUNT_TX_PMAC_BC];
-	mac_stats->FramesWithExcessiveDeferral = 0;
 	mac_stats->MulticastFramesReceivedOK =
 		lan966x->stats[idx + SYS_COUNT_RX_MC];
 	mac_stats->BroadcastFramesReceivedOK =
