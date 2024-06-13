@@ -1636,10 +1636,6 @@ static int igc_ethtool_get_eee(struct net_device *netdev,
 	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 			 edata->supported);
 
-	if (hw->dev_spec._base.eee_enable)
-		mii_eee_cap1_mod_linkmode_t(edata->advertised,
-					    adapter->eee_advert);
-
 	eeer = rd32(IGC_EEER);
 
 	/* EEE status on negotiated link */
@@ -1699,8 +1695,6 @@ static int igc_ethtool_set_eee(struct net_device *netdev,
 			   "Setting EEE options are not supported with EEE disabled\n");
 		return -EINVAL;
 	}
-
-	adapter->eee_advert = linkmode_to_mii_eee_cap1_t(edata->advertised);
 
 	if (hw->dev_spec._base.eee_enable != edata->eee_enabled) {
 		hw->dev_spec._base.eee_enable = edata->eee_enabled;
