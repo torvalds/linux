@@ -1263,7 +1263,7 @@ mt7925_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (err)
 		goto out;
 
-	err = mt7925_mcu_set_bss_pm(dev, vif, true);
+	err = mt7925_mcu_set_bss_pm(dev, link_conf, true);
 	if (err)
 		goto out;
 
@@ -1285,7 +1285,7 @@ mt7925_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mt792x_mutex_acquire(dev);
 
-	err = mt7925_mcu_set_bss_pm(dev, vif, false);
+	err = mt7925_mcu_set_bss_pm(dev, link_conf, false);
 	if (err)
 		goto out;
 

@@ -192,7 +192,8 @@ int __mt7925_start(struct mt792x_phy *phy);
 int mt7925_register_device(struct mt792x_dev *dev);
 void mt7925_unregister_device(struct mt792x_dev *dev);
 int mt7925_run_firmware(struct mt792x_dev *dev);
-int mt7925_mcu_set_bss_pm(struct mt792x_dev *dev, struct ieee80211_vif *vif,
+int mt7925_mcu_set_bss_pm(struct mt792x_dev *dev,
+			  struct ieee80211_bss_conf *link_conf,
 			  bool enable);
 int mt7925_mcu_sta_update(struct mt792x_dev *dev, struct ieee80211_sta *sta,
 			  struct ieee80211_vif *vif, bool enable,
