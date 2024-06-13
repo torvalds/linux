@@ -4549,11 +4549,12 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 			state->stack[spi].spilled_ptr.id = 0;
 	} else if (!reg && !(off % BPF_REG_SIZE) && is_bpf_st_mem(insn) &&
 		   env->bpf_capable) {
-		struct bpf_reg_state fake_reg = {};
+		struct bpf_reg_state *tmp_reg = &env->fake_reg[0];
 
-		__mark_reg_known(&fake_reg, insn->imm);
-		fake_reg.type = SCALAR_VALUE;
-		save_register_state(env, state, spi, &fake_reg, size);
+		memset(tmp_reg, 0, sizeof(*tmp_reg));
+		__mark_reg_known(tmp_reg, insn->imm);
+		tmp_reg->type = SCALAR_VALUE;
+		save_register_state(env, state, spi, tmp_reg, size);
 	} else if (reg && is_spillable_regtype(reg->type)) {
 		/* register containing pointer is being spilled into stack */
 		if (size != BPF_REG_SIZE) {
