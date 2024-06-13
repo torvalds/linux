@@ -2433,7 +2433,7 @@ __bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
 
 /**
  * bpf_dynptr_slice() - Obtain a read-only pointer to the dynptr data.
- * @ptr: The dynptr whose data slice to retrieve
+ * @p: The dynptr whose data slice to retrieve
  * @offset: Offset into the dynptr
  * @buffer__opt: User-provided buffer to copy contents into.  May be NULL
  * @buffer__szk: Size (in bytes) of the buffer if present. This is the
@@ -2504,7 +2504,7 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr *p, u32 offset,
 
 /**
  * bpf_dynptr_slice_rdwr() - Obtain a writable pointer to the dynptr data.
- * @ptr: The dynptr whose data slice to retrieve
+ * @p: The dynptr whose data slice to retrieve
  * @offset: Offset into the dynptr
  * @buffer__opt: User-provided buffer to copy contents into. May be NULL
  * @buffer__szk: Size (in bytes) of the buffer if present. This is the
