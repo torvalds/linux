@@ -504,7 +504,7 @@ void fw_send_phy_config(struct fw_card *card,
 	phy_config_packet.generation = generation;
 	reinit_completion(&phy_config_done);
 
-	trace_async_phy_outbound_initiate((uintptr_t)&phy_config_packet,
+	trace_async_phy_outbound_initiate((uintptr_t)&phy_config_packet, card->index,
 					  phy_config_packet.generation, phy_config_packet.header[1],
 					  phy_config_packet.header[2]);
 

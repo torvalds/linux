@@ -217,23 +217,26 @@ DEFINE_EVENT(async_outbound_complete_template, async_response_outbound_complete,
 #undef ASYNC_HEADER_GET_RCODE
 
 TRACE_EVENT(async_phy_outbound_initiate,
-	TP_PROTO(u64 packet, unsigned int generation, u32 first_quadlet, u32 second_quadlet),
-	TP_ARGS(packet, generation, first_quadlet, second_quadlet),
+	TP_PROTO(u64 packet, unsigned int card_index, unsigned int generation, u32 first_quadlet, u32 second_quadlet),
+	TP_ARGS(packet, card_index, generation, first_quadlet, second_quadlet),
 	TP_STRUCT__entry(
 		__field(u64, packet)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u32, first_quadlet)
 		__field(u32, second_quadlet)
 	),
 	TP_fast_assign(
 		__entry->packet = packet;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->first_quadlet = first_quadlet;
 		__entry->second_quadlet = second_quadlet
 	),
 	TP_printk(
-		"packet=0x%llx generation=%u first_quadlet=0x%08x second_quadlet=0x%08x",
+		"packet=0x%llx card_index=%u generation=%u first_quadlet=0x%08x second_quadlet=0x%08x",
 		__entry->packet,
+		__entry->card_index,
 		__entry->generation,
 		__entry->first_quadlet,
 		__entry->second_quadlet

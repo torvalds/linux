@@ -1659,8 +1659,8 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 		memcpy(pp->data, a->data, sizeof(a->data));
 	}
 
-	trace_async_phy_outbound_initiate((uintptr_t)&e->p, e->p.generation, e->p.header[1],
-					  e->p.header[2]);
+	trace_async_phy_outbound_initiate((uintptr_t)&e->p, card->index, e->p.generation,
+					  e->p.header[1], e->p.header[2]);
 
 	card->driver->send_request(card, &e->p);
 
