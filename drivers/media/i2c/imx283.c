@@ -407,14 +407,6 @@ static const struct imx283_reg_list link_freq_reglist[] = {
 	},
 };
 
-#define CENTERED_RECTANGLE(rect, _width, _height)			\
-	{								\
-		.left = rect.left + ((rect.width - (_width)) / 2),	\
-		.top = rect.top + ((rect.height - (_height)) / 2),	\
-		.width = (_width),					\
-		.height = (_height),					\
-	}
-
 /* Mode configs */
 static const struct imx283_mode supported_modes_12bit[] = {
 	{
@@ -440,7 +432,12 @@ static const struct imx283_mode supported_modes_12bit[] = {
 		.min_shr = 11,
 		.horizontal_ob = 96,
 		.vertical_ob = 16,
-		.crop = CENTERED_RECTANGLE(imx283_active_area, 5472, 3648),
+		.crop = {
+			.top = 40,
+			.left = 108,
+			.width = 5472,
+			.height = 3648,
+		},
 	},
 	{
 		/*
@@ -468,7 +465,12 @@ static const struct imx283_mode supported_modes_12bit[] = {
 		.horizontal_ob = 48,
 		.vertical_ob = 4,
 
-		.crop = CENTERED_RECTANGLE(imx283_active_area, 5472, 3648),
+		.crop = {
+			.top = 40,
+			.left = 108,
+			.width = 5472,
+			.height = 3648,
+		},
 	},
 };
 
@@ -489,7 +491,12 @@ static const struct imx283_mode supported_modes_10bit[] = {
 		.min_shr = 10,
 		.horizontal_ob = 96,
 		.vertical_ob = 16,
-		.crop = CENTERED_RECTANGLE(imx283_active_area, 5472, 3648),
+		.crop = {
+			.top = 40,
+			.left = 108,
+			.width = 5472,
+			.height = 3648,
+		},
 	},
 };
 
