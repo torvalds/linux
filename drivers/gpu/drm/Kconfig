@@ -138,7 +138,7 @@ config DRM_PANIC_DEBUG
 	  If in doubt, say "N".
 
 config DRM_PANIC_SCREEN
-	string "Panic screen formater"
+	string "Panic screen formatter"
 	default "user"
 	depends on DRM_PANIC
 	help
