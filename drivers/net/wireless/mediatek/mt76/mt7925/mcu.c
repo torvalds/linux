@@ -1645,7 +1645,7 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 
 	if (info->link_sta || !info->offload_fw)
 		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->vif,
-					      info->link_sta->sta,
+					      info->link_sta,
 					      info->enable, info->newly);
 	if (info->link_sta && info->enable) {
 		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->link_sta);
