@@ -14,6 +14,7 @@
 # the description and examples of the file structure and vocabulary.
 #
 
+import argparse
 import glob
 import ksft
 import os
@@ -296,14 +297,24 @@ def run_test(yaml_file):
         parse_device_tree_node(device_tree)
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--boards-dir", default="boards", help="Directory containing the board YAML files"
+)
+args = parser.parse_args()
+
 find_pci_controller_dirs()
 find_usb_controller_dirs()
 
 ksft.print_header()
 
+if not os.path.exists(args.boards_dir):
+    ksft.print_msg(f"Boards directory '{args.boards_dir}' doesn't exist")
+    ksft.exit_fail()
+
 board_file = ""
 for board_filename in get_board_filenames():
-    full_board_filename = os.path.join("boards", board_filename + ".yaml")
+    full_board_filename = os.path.join(args.boards_dir, board_filename + ".yaml")
 
     if os.path.exists(full_board_filename):
         board_file = full_board_filename
