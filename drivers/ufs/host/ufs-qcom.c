@@ -6073,10 +6073,15 @@ static void ufs_qcom_resume_complete(struct device *dev)
 
 static int ufs_qcom_system_freeze(struct device *dev)
 {
+	struct ufs_hba *hba = NULL;
+
 	if (!is_bootdevice_ufs) {
 		dev_info(dev, "UFS is not boot dev.\n");
 		return 0;
 	}
+
+	hba = dev_get_drvdata(dev);
+	hba->spm_lvl = UFS_PM_LVL_5;
 
 	return ufshcd_system_freeze(dev);
 }
