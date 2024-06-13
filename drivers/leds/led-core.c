@@ -25,7 +25,7 @@ EXPORT_SYMBOL_GPL(leds_list_lock);
 LIST_HEAD(leds_list);
 EXPORT_SYMBOL_GPL(leds_list);
 
-const char * const led_colors[LED_COLOR_ID_MAX] = {
+static const char * const led_colors[LED_COLOR_ID_MAX] = {
 	[LED_COLOR_ID_WHITE] = "white",
 	[LED_COLOR_ID_RED] = "red",
 	[LED_COLOR_ID_GREEN] = "green",
@@ -42,7 +42,6 @@ const char * const led_colors[LED_COLOR_ID_MAX] = {
 	[LED_COLOR_ID_CYAN] = "cyan",
 	[LED_COLOR_ID_LIME] = "lime",
 };
-EXPORT_SYMBOL_GPL(led_colors);
 
 static int __led_set_brightness(struct led_classdev *led_cdev, unsigned int value)
 {
