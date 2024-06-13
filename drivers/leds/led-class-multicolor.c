@@ -101,7 +101,7 @@ static ssize_t multi_index_show(struct device *dev,
 
 	for (i = 0; i < mcled_cdev->num_colors; i++) {
 		index = mcled_cdev->subled_info[i].color_index;
-		len += sprintf(buf + len, "%s", led_colors[index]);
+		len += sprintf(buf + len, "%s", led_get_color_name(index));
 		if (i < mcled_cdev->num_colors - 1)
 			len += sprintf(buf + len, " ");
 	}
