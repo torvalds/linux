@@ -233,7 +233,7 @@ static bool compute_digest(void *buf)
 reread:
 	ret = recv(sock, buf, digest_len, 0);
 	if (ret == 0) {
-		printf("No disgest returned\n");
+		printf("No digest returned\n");
 		return false;
 	}
 	if (ret != digest_len) {
@@ -308,7 +308,7 @@ int main(void)
 
 	while (true) {
 		if (!compute_digest(digest)) {
-			printf("Failed to coempute digest, iter=%d\n", iter);
+			printf("Failed to compute digest, iter=%d\n", iter);
 			return EXIT_FAILURE;
 		}
 
