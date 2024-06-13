@@ -5583,3 +5583,20 @@ done:
 
 	return 0;
 }
+
+const struct btf_header *btf_header(const struct btf *btf)
+{
+	return btf->hdr;
+}
+
+void btf_set_base_btf(struct btf *btf, const struct btf *base_btf)
+{
+	btf->base_btf = (struct btf *)base_btf;
+	btf->start_id = btf__type_cnt(base_btf);
+	btf->start_str_off = base_btf->hdr->str_len;
+}
+
+int btf__relocate(struct btf *btf, const struct btf *base_btf)
+{
+	return libbpf_err(btf_relocate(btf, base_btf, NULL));
+}
