@@ -2516,6 +2516,8 @@ static void ufshcd_parse_pm_levels(struct ufs_hba *hba)
 		ufshcd_is_valid_pm_lvl(spm_lvl))
 		hba->spm_lvl = spm_lvl;
 	host->is_dt_pm_level_read = true;
+
+	host->spm_lvl_default = hba->spm_lvl;
 }
 
 static void ufs_qcom_override_pa_tx_hsg1_sync_len(struct ufs_hba *hba)
@@ -6034,10 +6036,27 @@ static int ufs_qcom_system_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int ufs_qcom_suspend_prepare(struct device *dev)
 {
+	struct ufs_hba *hba;
+	struct ufs_qcom_host *host;
+
+
 	if (!is_bootdevice_ufs) {
 		dev_info(dev, "UFS is not boot dev.\n");
 		return 0;
 	}
+
+	hba = dev_get_drvdata(dev);
+	host = ufshcd_get_variant(hba);
+
+	/* For deep sleep, set spm level to lvl 5 because all
+	 * regulators is turned off in DS. For other senerios
+	 * like s2idle, retain the default spm level.
+	 */
+	if (pm_suspend_target_state == PM_SUSPEND_MEM)
+		hba->spm_lvl = UFS_PM_LVL_5;
+	else
+		hba->spm_lvl = host->spm_lvl_default;
+
 
 	return ufshcd_suspend_prepare(dev);
 }
