@@ -425,7 +425,7 @@ static int mlxsw_sp_port_mtu_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pmtu_pl[MLXSW_REG_PMTU_LEN];
 
-	mtu += MLXSW_TXHDR_LEN + ETH_HLEN;
+	mtu += MLXSW_PORT_ETH_FRAME_HDR;
 	if (mtu > mlxsw_sp_port->max_mtu)
 		return -EINVAL;
 

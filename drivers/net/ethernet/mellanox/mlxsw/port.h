@@ -7,6 +7,7 @@
 #include <linux/types.h>
 
 #define MLXSW_PORT_MAX_MTU		(10 * 1024)
+#define MLXSW_PORT_ETH_FRAME_HDR	(ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN)
 
 #define MLXSW_PORT_DEFAULT_VID		1
 
