@@ -1559,7 +1559,7 @@ static void outbound_phy_packet_callback(struct fw_packet *packet,
 	struct client *e_client = e->client;
 	u32 rcode;
 
-	trace_async_phy_outbound_complete((uintptr_t)packet, status, packet->generation,
+	trace_async_phy_outbound_complete((uintptr_t)packet, card->index, status, packet->generation,
 					  packet->timestamp);
 
 	switch (status) {

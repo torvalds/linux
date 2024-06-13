@@ -464,7 +464,7 @@ static DECLARE_COMPLETION(phy_config_done);
 static void transmit_phy_packet_callback(struct fw_packet *packet,
 					 struct fw_card *card, int status)
 {
-	trace_async_phy_outbound_complete((uintptr_t)packet, packet->generation, status,
+	trace_async_phy_outbound_complete((uintptr_t)packet, card->index, packet->generation, status,
 					  packet->timestamp);
 	complete(&phy_config_done);
 }

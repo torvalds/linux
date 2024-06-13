@@ -244,23 +244,26 @@ TRACE_EVENT(async_phy_outbound_initiate,
 );
 
 TRACE_EVENT(async_phy_outbound_complete,
-	TP_PROTO(u64 packet, unsigned int generation, unsigned int status, unsigned int timestamp),
-	TP_ARGS(packet, generation, status, timestamp),
+	TP_PROTO(u64 packet, unsigned int card_index, unsigned int generation, unsigned int status, unsigned int timestamp),
+	TP_ARGS(packet, card_index, generation, status, timestamp),
 	TP_STRUCT__entry(
 		__field(u64, packet)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, status)
 		__field(u16, timestamp)
 	),
 	TP_fast_assign(
 		__entry->packet = packet;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->status = status;
 		__entry->timestamp = timestamp;
 	),
 	TP_printk(
-		"packet=0x%llx generation=%u status=%u timestamp=0x%04x",
+		"packet=0x%llx card_index=%u generation=%u status=%u timestamp=0x%04x",
 		__entry->packet,
+		__entry->card_index,
 		__entry->generation,
 		__entry->status,
 		__entry->timestamp
