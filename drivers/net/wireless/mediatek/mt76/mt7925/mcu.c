@@ -1404,18 +1404,18 @@ mt7925_mcu_sta_he_6g_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 }
 
 static void
-mt7925_mcu_sta_eht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
+mt7925_mcu_sta_eht_tlv(struct sk_buff *skb, struct ieee80211_link_sta *link_sta)
 {
 	struct ieee80211_eht_mcs_nss_supp *mcs_map;
 	struct ieee80211_eht_cap_elem_fixed *elem;
 	struct sta_rec_eht *eht;
 	struct tlv *tlv;
 
-	if (!sta->deflink.eht_cap.has_eht)
+	if (!link_sta->eht_cap.has_eht)
 		return;
 
-	mcs_map = &sta->deflink.eht_cap.eht_mcs_nss_supp;
-	elem = &sta->deflink.eht_cap.eht_cap_elem;
+	mcs_map = &link_sta->eht_cap.eht_mcs_nss_supp;
+	elem = &link_sta->eht_cap.eht_cap_elem;
 
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_EHT, sizeof(*eht));
 
@@ -1425,7 +1425,7 @@ mt7925_mcu_sta_eht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 	eht->phy_cap = cpu_to_le64(*(u64 *)elem->phy_cap_info);
 	eht->phy_cap_ext = cpu_to_le64(elem->phy_cap_info[8]);
 
-	if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
+	if (link_sta->bandwidth == IEEE80211_STA_RX_BW_20)
 		memcpy(eht->mcs_map_bw20, &mcs_map->only_20mhz, sizeof(eht->mcs_map_bw20));
 	memcpy(eht->mcs_map_bw80, &mcs_map->bw._80, sizeof(eht->mcs_map_bw80));
 	memcpy(eht->mcs_map_bw160, &mcs_map->bw._160, sizeof(eht->mcs_map_bw160));
@@ -1641,7 +1641,7 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 		mt7925_mcu_sta_amsdu_tlv(skb, info->vif, info->link_sta->sta);
 		mt7925_mcu_sta_he_tlv(skb, info->link_sta->sta);
 		mt7925_mcu_sta_he_6g_tlv(skb, info->link_sta->sta);
-		mt7925_mcu_sta_eht_tlv(skb, info->link_sta->sta);
+		mt7925_mcu_sta_eht_tlv(skb, info->link_sta);
 		mt7925_mcu_sta_rate_ctrl_tlv(skb, info->vif,
 					     info->link_sta);
 		mt7925_mcu_sta_state_v2_tlv(phy, skb, info->link_sta,
