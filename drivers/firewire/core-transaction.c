@@ -174,8 +174,8 @@ static void transmit_complete_callback(struct fw_packet *packet,
 	struct fw_transaction *t =
 	    container_of(packet, struct fw_transaction, packet);
 
-	trace_async_request_outbound_complete((uintptr_t)t, packet->generation, packet->speed,
-					      status, packet->timestamp);
+	trace_async_request_outbound_complete((uintptr_t)t, card->index, packet->generation,
+					      packet->speed, status, packet->timestamp);
 
 	switch (status) {
 	case ACK_COMPLETE:
@@ -674,7 +674,7 @@ static void free_response_callback(struct fw_packet *packet,
 {
 	struct fw_request *request = container_of(packet, struct fw_request, response);
 
-	trace_async_response_outbound_complete((uintptr_t)request, packet->generation,
+	trace_async_response_outbound_complete((uintptr_t)request, card->index, packet->generation,
 					       packet->speed, status, packet->timestamp);
 
 	// Decrease the reference count since not at in-flight.

@@ -71,10 +71,11 @@ DECLARE_EVENT_CLASS(async_outbound_initiate_template,
 
 // The value of status is one of ack codes and rcodes specific to Linux FireWire subsystem.
 DECLARE_EVENT_CLASS(async_outbound_complete_template,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
-	TP_ARGS(transaction, generation, scode, status, timestamp),
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp),
 	TP_STRUCT__entry(
 		__field(u64, transaction)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, scode)
 		__field(u8, status)
@@ -82,14 +83,16 @@ DECLARE_EVENT_CLASS(async_outbound_complete_template,
 	),
 	TP_fast_assign(
 		__entry->transaction = transaction;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->scode = scode;
 		__entry->status = status;
 		__entry->timestamp = timestamp;
 	),
 	TP_printk(
-		"transaction=0x%llx generation=%u scode=%u status=%u timestamp=0x%04x",
+		"transaction=0x%llx card_index=%u generation=%u scode=%u status=%u timestamp=0x%04x",
 		__entry->transaction,
+		__entry->card_index,
 		__entry->generation,
 		__entry->scode,
 		__entry->status,
@@ -144,8 +147,8 @@ DEFINE_EVENT(async_outbound_initiate_template, async_request_outbound_initiate,
 );
 
 DEFINE_EVENT(async_outbound_complete_template, async_request_outbound_complete,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
-	TP_ARGS(transaction, generation, scode, status, timestamp)
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp)
 );
 
 DEFINE_EVENT(async_inbound_template, async_response_inbound,
@@ -194,8 +197,8 @@ DEFINE_EVENT_PRINT(async_outbound_initiate_template, async_response_outbound_ini
 );
 
 DEFINE_EVENT(async_outbound_complete_template, async_response_outbound_complete,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
-	TP_ARGS(transaction, generation, scode, status, timestamp)
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp)
 );
 
 #undef ASYNC_HEADER_GET_DESTINATION
