@@ -105,7 +105,7 @@ mt7921_mcu_set_ipv6_ns_filter(struct mt76_dev *dev,
 		struct mt76_connac_arpns_tlv arpns;
 	} req = {
 		.hdr = {
-			.bss_idx = mvif->mt76.idx,
+			.bss_idx = mvif->bss_conf.mt76.idx,
 		},
 		.arpns = {
 			.tag = cpu_to_le16(UNI_OFFLOAD_OFFLOAD_ND),
@@ -260,7 +260,7 @@ mt7921_mcu_rssi_monitor_iter(void *priv, u8 *mac,
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt76_connac_rssi_notify_event *event = priv;
 	enum nl80211_cqm_rssi_threshold_event nl_event;
-	s32 rssi = le32_to_cpu(event->rssi[mvif->mt76.idx]);
+	s32 rssi = le32_to_cpu(event->rssi[mvif->bss_conf.mt76.idx]);
 
 	if (!rssi)
 		return;
@@ -388,7 +388,7 @@ int mt7921_mcu_uni_tx_ba(struct mt792x_dev *dev,
 	if (enable && !params->amsdu)
 		msta->wcid.amsdu = false;
 
-	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->mt76, params,
+	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->bss_conf.mt76, params,
 				      MCU_UNI_CMD(STA_REC_UPDATE),
 				      enable, true);
 }
@@ -399,7 +399,7 @@ int mt7921_mcu_uni_rx_ba(struct mt792x_dev *dev,
 {
 	struct mt792x_sta *msta = (struct mt792x_sta *)params->sta->drv_priv;
 
-	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->mt76, params,
+	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->bss_conf.mt76, params,
 				      MCU_UNI_CMD(STA_REC_UPDATE),
 				      enable, false);
 }
@@ -678,9 +678,9 @@ int mt7921_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_vif *vif)
 		u8 wmm_idx;
 		u8 pad;
 	} __packed req = {
-		.bss_idx = mvif->mt76.idx,
+		.bss_idx = mvif->bss_conf.mt76.idx,
 		.qos = vif->bss_conf.qos,
-		.wmm_idx = mvif->mt76.wmm_idx,
+		.wmm_idx = mvif->bss_conf.mt76.wmm_idx,
 	};
 	struct mu_edca {
 		u8 cw_min;
@@ -701,15 +701,15 @@ int mt7921_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_vif *vif)
 		struct mu_edca edca[IEEE80211_NUM_ACS];
 		u8 pad3[32];
 	} __packed req_mu = {
-		.bss_idx = mvif->mt76.idx,
+		.bss_idx = mvif->bss_conf.mt76.idx,
 		.qos = vif->bss_conf.qos,
-		.wmm_idx = mvif->mt76.wmm_idx,
+		.wmm_idx = mvif->bss_conf.mt76.wmm_idx,
 	};
 	static const int to_aci[] = { 1, 0, 2, 3 };
 	int ac, ret;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		struct ieee80211_tx_queue_params *q = &mvif->queue_params[ac];
+		struct ieee80211_tx_queue_params *q = &mvif->bss_conf.queue_params[ac];
 		struct edca *e = &req.edca[to_aci[ac]];
 
 		e->aifs = cpu_to_le16(q->aifs);
@@ -738,10 +738,10 @@ int mt7921_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_vif *vif)
 		struct ieee80211_he_mu_edca_param_ac_rec *q;
 		struct mu_edca *e;
 
-		if (!mvif->queue_params[ac].mu_edca)
+		if (!mvif->bss_conf.queue_params[ac].mu_edca)
 			break;
 
-		q = &mvif->queue_params[ac].mu_edca_param_rec;
+		q = &mvif->bss_conf.queue_params[ac].mu_edca_param_rec;
 		e = &(req_mu.edca[to_aci[ac]]);
 
 		e->cw_min = q->ecw_min_max & 0xf;
@@ -790,7 +790,7 @@ int mt7921_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 			.tokenid = token_id,
 			.reqtype = type,
 			.maxinterval = cpu_to_le32(duration),
-			.bss_idx = vif->mt76.idx,
+			.bss_idx = vif->bss_conf.mt76.idx,
 			.control_channel = chan->hw_value,
 			.bw = CMD_CBW_20MHZ,
 			.bw_from_ap = CMD_CBW_20MHZ,
@@ -842,7 +842,7 @@ int mt7921_mcu_abort_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 			.tag = cpu_to_le16(UNI_ROC_ABORT),
 			.len = cpu_to_le16(sizeof(struct roc_abort_tlv)),
 			.tokenid = token_id,
-			.bss_idx = vif->mt76.idx,
+			.bss_idx = vif->bss_conf.mt76.idx,
 			.dbdcband = 0xff, /* auto*/
 		},
 	};
@@ -947,7 +947,7 @@ int mt7921_mcu_uni_bss_ps(struct mt792x_dev *dev, struct ieee80211_vif *vif)
 		} __packed ps;
 	} __packed ps_req = {
 		.hdr = {
-			.bss_idx = mvif->mt76.idx,
+			.bss_idx = mvif->bss_conf.mt76.idx,
 		},
 		.ps = {
 			.tag = cpu_to_le16(UNI_BSS_INFO_PS),
@@ -982,7 +982,7 @@ mt7921_mcu_uni_bss_bcnft(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 		} __packed bcnft;
 	} __packed bcnft_req = {
 		.hdr = {
-			.bss_idx = mvif->mt76.idx,
+			.bss_idx = mvif->bss_conf.mt76.idx,
 		},
 		.bcnft = {
 			.tag = cpu_to_le16(UNI_BSS_INFO_BCNFT),
@@ -1015,7 +1015,7 @@ mt7921_mcu_set_bss_pm(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 		u8 bmc_triggered_ac;
 		u8 pad;
 	} req = {
-		.bss_idx = mvif->mt76.idx,
+		.bss_idx = mvif->bss_conf.mt76.idx,
 		.aid = cpu_to_le16(vif->cfg.aid),
 		.dtim_period = vif->bss_conf.dtim_period,
 		.bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int),
@@ -1024,7 +1024,7 @@ mt7921_mcu_set_bss_pm(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 		u8 bss_idx;
 		u8 pad[3];
 	} req_hdr = {
-		.bss_idx = mvif->mt76.idx,
+		.bss_idx = mvif->bss_conf.mt76.idx,
 	};
 	int err;
 
@@ -1042,7 +1042,7 @@ int mt7921_mcu_sta_update(struct mt792x_dev *dev, struct ieee80211_sta *sta,
 			  enum mt76_sta_info_state state)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	int rssi = -ewma_rssi_read(&mvif->rssi);
+	int rssi = -ewma_rssi_read(&mvif->bss_conf.rssi);
 	struct mt76_sta_cmd_info info = {
 		.sta = sta,
 		.vif = vif,
@@ -1190,7 +1190,7 @@ int mt7921_mcu_config_sniffer(struct mt792x_vif *vif,
 		} __packed tlv;
 	} __packed req = {
 		.hdr = {
-			.band_idx = vif->mt76.band_idx,
+			.band_idx = vif->bss_conf.mt76.band_idx,
 		},
 		.tlv = {
 			.tag = cpu_to_le16(1),
@@ -1251,7 +1251,7 @@ mt7921_mcu_uni_add_beacon_offload(struct mt792x_dev *dev,
 		} __packed beacon_tlv;
 	} req = {
 		.hdr = {
-			.bss_idx = mvif->mt76.idx,
+			.bss_idx = mvif->bss_conf.mt76.idx,
 		},
 		.beacon_tlv = {
 			.tag = cpu_to_le16(UNI_BSS_INFO_BCN_CONTENT),
@@ -1460,7 +1460,7 @@ int mt7921_mcu_set_rssimonitor(struct mt792x_dev *dev, struct ieee80211_vif *vif
 		.enable = vif->cfg.assoc,
 		.cqm_rssi_high = vif->bss_conf.cqm_rssi_thold + vif->bss_conf.cqm_rssi_hyst,
 		.cqm_rssi_low = vif->bss_conf.cqm_rssi_thold - vif->bss_conf.cqm_rssi_hyst,
-		.bss_idx = mvif->mt76.idx,
+		.bss_idx = mvif->bss_conf.mt76.idx,
 	};
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_CE_CMD(RSSI_MONITOR),

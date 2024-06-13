@@ -128,8 +128,8 @@ void mt792x_remove_interface(struct ieee80211_hw *hw,
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
-	dev->mt76.vif_mask &= ~BIT_ULL(mvif->mt76.idx);
-	phy->omac_mask &= ~BIT_ULL(mvif->mt76.omac_idx);
+	dev->mt76.vif_mask &= ~BIT_ULL(mvif->bss_conf.mt76.idx);
+	phy->omac_mask &= ~BIT_ULL(mvif->bss_conf.mt76.omac_idx);
 	mt792x_mutex_release(dev);
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
@@ -149,7 +149,7 @@ int mt792x_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/* no need to update right away, we'll get BSS_CHANGED_QOS */
 	queue = mt76_connac_lmac_mapping(queue);
-	mvif->queue_params[queue] = *params;
+	mvif->bss_conf.queue_params[queue] = *params;
 
 	return 0;
 }
@@ -178,7 +178,7 @@ u64 mt792x_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
-	u8 omac_idx = mvif->mt76.omac_idx;
+	u8 omac_idx = mvif->bss_conf.mt76.omac_idx;
 	union {
 		u64 t64;
 		u32 t32[2];
@@ -204,7 +204,7 @@ void mt792x_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
-	u8 omac_idx = mvif->mt76.omac_idx;
+	u8 omac_idx = mvif->bss_conf.mt76.omac_idx;
 	union {
 		u64 t64;
 		u32 t32[2];
@@ -265,7 +265,7 @@ int mt792x_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
-	mvif->mt76.ctx = ctx;
+	mvif->bss_conf.mt76.ctx = ctx;
 	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
@@ -281,7 +281,7 @@ void mt792x_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
-	mvif->mt76.ctx = NULL;
+	mvif->bss_conf.mt76.ctx = NULL;
 	mutex_unlock(&dev->mt76.mutex);
 }
 EXPORT_SYMBOL_GPL(mt792x_unassign_vif_chanctx);
@@ -405,7 +405,7 @@ mt792x_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct mt76_ethtool_worker_info *wi = wi_data;
 
-	if (msta->vif->mt76.idx != wi->idx)
+	if (msta->vif->bss_conf.mt76.idx != wi->idx)
 		return;
 
 	mt76_ethtool_worker(wi, &msta->wcid.stats, true);
@@ -421,7 +421,7 @@ void mt792x_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_mib_stats *mib = &phy->mib;
 	struct mt76_ethtool_worker_info wi = {
 		.data = data,
-		.idx = mvif->mt76.idx,
+		.idx = mvif->bss_conf.mt76.idx,
 	};
 	int i, ei = 0;
 
