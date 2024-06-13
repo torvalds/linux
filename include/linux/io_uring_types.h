@@ -50,7 +50,7 @@ struct io_wq_work_list {
 
 struct io_wq_work {
 	struct io_wq_work_node list;
-	unsigned flags;
+	atomic_t flags;
 	/* place it here instead of io_kiocb as it fills padding and saves 4B */
 	int cancel_seq;
 };
