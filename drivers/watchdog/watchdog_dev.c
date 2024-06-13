@@ -1004,7 +1004,7 @@ static struct miscdevice watchdog_miscdev = {
 	.fops		= &watchdog_fops,
 };
 
-static struct class watchdog_class = {
+static const struct class watchdog_class = {
 	.name =		"watchdog",
 	.dev_groups =	wdt_groups,
 };
