@@ -959,13 +959,15 @@ int rproc_set_state(struct rproc *rproc, bool state)
 
 		ret = rproc_config_check(adsp, SOCCP_D0);
 		if (ret) {
-			dev_err(adsp->dev, "failed to change from D3 to D0\n");
+			dev_err(adsp->dev, "%s requested D3->D0: soccp failed to update tcsr val=%d\n",
+				current->comm, readl(adsp->config_addr));
 			goto soccp_out;
 		}
 
 		ret = wait_for_completion_timeout(&adsp->q6v5.running_ack, msecs_to_jiffies(5));
 		if (!ret) {
-			dev_err(adsp->dev, "failed to get ack for state change from D3 to D0\n");
+			dev_err(adsp->dev, "%s requested D3->D0: failed to get wake ack\n",
+				current->comm);
 			ret = -ETIMEDOUT;
 			goto soccp_out;
 		} else
@@ -988,7 +990,8 @@ int rproc_set_state(struct rproc *rproc, bool state)
 
 			ret = rproc_config_check(adsp, SOCCP_D3);
 			if (ret) {
-				dev_err(adsp->dev, "failed to change from D0 to D3\n");
+				dev_err(adsp->dev, "%s requested D0->D3 failed: TCSR value:%d\n",
+					current->comm, readl(adsp->config_addr));
 				goto soccp_out;
 			}
 			disable_regulators(adsp);
@@ -998,9 +1001,15 @@ int rproc_set_state(struct rproc *rproc, bool state)
 	}
 
 soccp_out:
+	if (ret && (adsp->rproc->state != RPROC_RUNNING)) {
+		dev_err(adsp->dev, "SOCCP has crashed while processing a D transition req by %s\n",
+			current->comm);
+		ret = -EBUSY;
+	}
+
 	mutex_unlock(&adsp->adsp_lock);
 
-	return ret ? -ETIMEDOUT : 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(rproc_set_state);
 
