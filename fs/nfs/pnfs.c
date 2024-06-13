@@ -868,7 +868,7 @@ pnfs_layout_bulk_destroy_byserver_locked(struct nfs_client *clp,
 
 static int
 pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
-		bool is_bulk_recall)
+				   enum pnfs_layout_destroy_mode mode)
 {
 	struct pnfs_layout_hdr *lo;
 	struct inode *inode;
@@ -887,7 +887,7 @@ pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
 		spin_lock(&inode->i_lock);
 		list_del_init(&lo->plh_bulk_destroy);
 		if (pnfs_mark_layout_stateid_invalid(lo, &lseg_list)) {
-			if (is_bulk_recall)
+			if (mode == PNFS_LAYOUT_BULK_RETURN)
 				set_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
 			ret = -EAGAIN;
 		}
@@ -901,10 +901,8 @@ pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
 	return ret;
 }
 
-int
-pnfs_destroy_layouts_byfsid(struct nfs_client *clp,
-		struct nfs_fsid *fsid,
-		bool is_recall)
+int pnfs_layout_destroy_byfsid(struct nfs_client *clp, struct nfs_fsid *fsid,
+			       enum pnfs_layout_destroy_mode mode)
 {
 	struct nfs_server *server;
 	LIST_HEAD(layout_list);
@@ -923,12 +921,11 @@ restart:
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
 
-	return pnfs_layout_free_bulk_destroy_list(&layout_list, is_recall);
+	return pnfs_layout_free_bulk_destroy_list(&layout_list, mode);
 }
 
-int
-pnfs_destroy_layouts_byclid(struct nfs_client *clp,
-		bool is_recall)
+int pnfs_layout_destroy_byclid(struct nfs_client *clp,
+			       enum pnfs_layout_destroy_mode mode)
 {
 	struct nfs_server *server;
 	LIST_HEAD(layout_list);
@@ -945,7 +942,7 @@ restart:
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
 
-	return pnfs_layout_free_bulk_destroy_list(&layout_list, is_recall);
+	return pnfs_layout_free_bulk_destroy_list(&layout_list, mode);
 }
 
 /*
@@ -958,7 +955,7 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
 	nfs4_deviceid_mark_client_invalid(clp);
 	nfs4_deviceid_purge_client(clp);
 
-	pnfs_destroy_layouts_byclid(clp, false);
+	pnfs_layout_destroy_byclid(clp, PNFS_LAYOUT_INVALIDATE);
 }
 
 static void
