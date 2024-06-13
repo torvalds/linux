@@ -138,6 +138,7 @@ EXPORT_SYMBOL_GPL(mt792x_mac_update_mib_stats);
 struct mt76_wcid *mt792x_rx_get_wcid(struct mt792x_dev *dev, u16 idx,
 				     bool unicast)
 {
+	struct mt792x_link_sta *link;
 	struct mt792x_sta *sta;
 	struct mt76_wcid *wcid;
 
@@ -151,11 +152,12 @@ struct mt76_wcid *mt792x_rx_get_wcid(struct mt792x_dev *dev, u16 idx,
 	if (!wcid->sta)
 		return NULL;
 
-	sta = container_of(wcid, struct mt792x_sta, wcid);
+	link = container_of(wcid, struct mt792x_link_sta, wcid);
+	sta = container_of(link, struct mt792x_sta, deflink);
 	if (!sta->vif)
 		return NULL;
 
-	return &sta->vif->sta.wcid;
+	return &sta->vif->sta.deflink.wcid;
 }
 EXPORT_SYMBOL_GPL(mt792x_rx_get_wcid);
 

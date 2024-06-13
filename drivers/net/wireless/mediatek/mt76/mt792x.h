@@ -81,10 +81,8 @@ enum mt792x_reg_power_type {
 
 DECLARE_EWMA(avg_signal, 10, 8)
 
-struct mt792x_sta {
+struct mt792x_link_sta {
 	struct mt76_wcid wcid; /* must be first */
-
-	struct mt792x_vif *vif;
 
 	u32 airtime_ac[8];
 
@@ -94,6 +92,12 @@ struct mt792x_sta {
 	unsigned long last_txs;
 
 	struct mt76_connac_sta_key_conf bip;
+};
+
+struct mt792x_sta {
+	struct mt792x_link_sta deflink; /* must be first */
+
+	struct mt792x_vif *vif;
 };
 
 DECLARE_EWMA(rssi, 10, 8);

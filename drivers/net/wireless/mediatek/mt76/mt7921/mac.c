@@ -39,6 +39,7 @@ static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 	};
 	struct ieee80211_sta *sta;
 	struct mt792x_sta *msta;
+	struct mt792x_link_sta *mlink;
 	u32 tx_time[IEEE80211_NUM_ACS], rx_time[IEEE80211_NUM_ACS];
 	LIST_HEAD(sta_poll_list);
 	struct rate_info *rate;
@@ -60,23 +61,25 @@ static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 			spin_unlock_bh(&dev->mt76.sta_poll_lock);
 			break;
 		}
-		msta = list_first_entry(&sta_poll_list,
-					struct mt792x_sta, wcid.poll_list);
-		list_del_init(&msta->wcid.poll_list);
+		mlink = list_first_entry(&sta_poll_list,
+					 struct mt792x_link_sta,
+					 wcid.poll_list);
+		msta = container_of(mlink, struct mt792x_sta, deflink);
+		list_del_init(&mlink->wcid.poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
-		idx = msta->wcid.idx;
+		idx = mlink->wcid.idx;
 		addr = mt7921_mac_wtbl_lmac_addr(idx, MT_WTBL_AC0_CTT_OFFSET);
 
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-			u32 tx_last = msta->airtime_ac[i];
-			u32 rx_last = msta->airtime_ac[i + 4];
+			u32 tx_last = mlink->airtime_ac[i];
+			u32 rx_last = mlink->airtime_ac[i + 4];
 
-			msta->airtime_ac[i] = mt76_rr(dev, addr);
-			msta->airtime_ac[i + 4] = mt76_rr(dev, addr + 4);
+			mlink->airtime_ac[i] = mt76_rr(dev, addr);
+			mlink->airtime_ac[i + 4] = mt76_rr(dev, addr + 4);
 
-			tx_time[i] = msta->airtime_ac[i] - tx_last;
-			rx_time[i] = msta->airtime_ac[i + 4] - rx_last;
+			tx_time[i] = mlink->airtime_ac[i] - tx_last;
+			rx_time[i] = mlink->airtime_ac[i + 4] - rx_last;
 
 			if ((tx_last | rx_last) & BIT(30))
 				clear = true;
@@ -87,10 +90,10 @@ static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 		if (clear) {
 			mt7921_mac_wtbl_update(dev, idx,
 					       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
-			memset(msta->airtime_ac, 0, sizeof(msta->airtime_ac));
+			memset(mlink->airtime_ac, 0, sizeof(mlink->airtime_ac));
 		}
 
-		if (!msta->wcid.sta)
+		if (!mlink->wcid.sta)
 			continue;
 
 		sta = container_of((void *)msta, struct ieee80211_sta,
@@ -113,7 +116,7 @@ static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 		 * we need to make sure that flags match so polling GI
 		 * from per-sta counters directly.
 		 */
-		rate = &msta->wcid.rate;
+		rate = &mlink->wcid.rate;
 		addr = mt7921_mac_wtbl_lmac_addr(idx,
 						 MT_WTBL_TXRX_CAP_RATE_OFFSET);
 		val = mt76_rr(dev, addr);
@@ -154,10 +157,10 @@ static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 		rssi[2] = to_rssi(GENMASK(23, 16), val);
 		rssi[3] = to_rssi(GENMASK(31, 14), val);
 
-		msta->ack_signal =
+		mlink->ack_signal =
 			mt76_rx_signal(msta->vif->phy->mt76->antenna_mask, rssi);
 
-		ewma_avg_signal_add(&msta->avg_ack_signal, -msta->ack_signal);
+		ewma_avg_signal_add(&mlink->avg_ack_signal, -mlink->ack_signal);
 	}
 }
 
@@ -180,6 +183,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 	u32 rxd3 = le32_to_cpu(rxd[3]);
 	u32 rxd4 = le32_to_cpu(rxd[4]);
 	struct mt792x_sta *msta = NULL;
+	struct mt792x_link_sta *mlink;
 	u16 seq_ctrl = 0;
 	__le16 fc = 0;
 	u8 mode = 0;
@@ -210,10 +214,11 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 	status->wcid = mt792x_rx_get_wcid(dev, idx, unicast);
 
 	if (status->wcid) {
-		msta = container_of(status->wcid, struct mt792x_sta, wcid);
+		mlink = container_of(status->wcid, struct mt792x_link_sta, wcid);
+		msta = container_of(mlink, struct mt792x_sta, deflink);
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
-		if (list_empty(&msta->wcid.poll_list))
-			list_add_tail(&msta->wcid.poll_list,
+		if (list_empty(&mlink->wcid.poll_list))
+			list_add_tail(&mlink->wcid.poll_list,
 				      &dev->mt76.sta_poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 	}
@@ -444,7 +449,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 
 void mt7921_mac_add_txs(struct mt792x_dev *dev, void *data)
 {
-	struct mt792x_sta *msta = NULL;
+	struct mt792x_link_sta *mlink;
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u16 wcidx;
@@ -468,15 +473,15 @@ void mt7921_mac_add_txs(struct mt792x_dev *dev, void *data)
 	if (!wcid)
 		goto out;
 
-	msta = container_of(wcid, struct mt792x_sta, wcid);
+	mlink = container_of(wcid, struct mt792x_link_sta, wcid);
 
 	mt76_connac2_mac_add_txs_skb(&dev->mt76, wcid, pid, txs_data);
 	if (!wcid->sta)
 		goto out;
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
-	if (list_empty(&msta->wcid.poll_list))
-		list_add_tail(&msta->wcid.poll_list, &dev->mt76.sta_poll_list);
+	if (list_empty(&mlink->wcid.poll_list))
+		list_add_tail(&mlink->wcid.poll_list, &dev->mt76.sta_poll_list);
 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
 out:
@@ -513,7 +518,7 @@ static void mt7921_mac_tx_free(struct mt792x_dev *dev, void *data, int len)
 		 * 1'b0: msdu_id with the same 'wcid pair' as above.
 		 */
 		if (info & MT_TX_FREE_PAIR) {
-			struct mt792x_sta *msta;
+			struct mt792x_link_sta *mlink;
 			u16 idx;
 
 			count++;
@@ -523,10 +528,10 @@ static void mt7921_mac_tx_free(struct mt792x_dev *dev, void *data, int len)
 			if (!sta)
 				continue;
 
-			msta = container_of(wcid, struct mt792x_sta, wcid);
+			mlink = container_of(wcid, struct mt792x_link_sta, wcid);
 			spin_lock_bh(&mdev->sta_poll_lock);
-			if (list_empty(&msta->wcid.poll_list))
-				list_add_tail(&msta->wcid.poll_list,
+			if (list_empty(&mlink->wcid.poll_list))
+				list_add_tail(&mlink->wcid.poll_list,
 					      &mdev->sta_poll_list);
 			spin_unlock_bh(&mdev->sta_poll_lock);
 			continue;
@@ -641,11 +646,11 @@ mt7921_vif_connect_iter(void *priv, u8 *mac,
 	if (vif->type == NL80211_IFTYPE_STATION)
 		ieee80211_disconnect(vif, true);
 
-	mt76_connac_mcu_uni_add_dev(&dev->mphy, vif, &mvif->sta.wcid, true);
+	mt76_connac_mcu_uni_add_dev(&dev->mphy, vif, &mvif->sta.deflink.wcid, true);
 	mt7921_mcu_set_tx(dev, vif);
 
 	if (vif->type == NL80211_IFTYPE_AP) {
-		mt76_connac_mcu_uni_add_bss(dev->phy.mt76, vif, &mvif->sta.wcid,
+		mt76_connac_mcu_uni_add_bss(dev->phy.mt76, vif, &mvif->sta.deflink.wcid,
 					    true, NULL);
 		mt7921_mcu_sta_update(dev, NULL, vif, true,
 				      MT76_STA_INFO_STATE_NONE);
@@ -786,9 +791,9 @@ int mt7921_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (sta) {
 		struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 
-		if (time_after(jiffies, msta->last_txs + HZ / 4)) {
+		if (time_after(jiffies, msta->deflink.last_txs + HZ / 4)) {
 			info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
-			msta->last_txs = jiffies;
+			msta->deflink.last_txs = jiffies;
 		}
 	}
 

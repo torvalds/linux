@@ -65,14 +65,14 @@ void mt792x_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct mt792x_sta *sta;
 
 		sta = (struct mt792x_sta *)control->sta->drv_priv;
-		wcid = &sta->wcid;
+		wcid = &sta->deflink.wcid;
 	}
 
 	if (vif && !control->sta) {
 		struct mt792x_vif *mvif;
 
 		mvif = (struct mt792x_vif *)vif->drv_priv;
-		wcid = &mvif->sta.wcid;
+		wcid = &mvif->sta.deflink.wcid;
 	}
 
 	if (mt76_connac_pm_ref(mphy, &dev->pm)) {
@@ -120,11 +120,11 @@ void mt792x_remove_interface(struct ieee80211_hw *hw,
 	struct mt792x_sta *msta = &mvif->sta;
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);
-	int idx = msta->wcid.idx;
+	int idx = msta->deflink.wcid.idx;
 
 	mt792x_mutex_acquire(dev);
-	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
-	mt76_connac_mcu_uni_add_dev(&dev->mphy, vif, &mvif->sta.wcid, false);
+	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->deflink.wcid);
+	mt76_connac_mcu_uni_add_dev(&dev->mphy, vif, &mvif->sta.deflink.wcid, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
@@ -133,11 +133,11 @@ void mt792x_remove_interface(struct ieee80211_hw *hw,
 	mt792x_mutex_release(dev);
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
-	if (!list_empty(&msta->wcid.poll_list))
-		list_del_init(&msta->wcid.poll_list);
+	if (!list_empty(&msta->deflink.wcid.poll_list))
+		list_del_init(&msta->deflink.wcid.poll_list);
 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
-	mt76_wcid_cleanup(&dev->mt76, &msta->wcid);
+	mt76_wcid_cleanup(&dev->mt76, &msta->deflink.wcid);
 }
 EXPORT_SYMBOL_GPL(mt792x_remove_interface);
 
@@ -408,7 +408,7 @@ mt792x_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 	if (msta->vif->bss_conf.mt76.idx != wi->idx)
 		return;
 
-	mt76_ethtool_worker(wi, &msta->wcid.stats, true);
+	mt76_ethtool_worker(wi, &msta->deflink.wcid.stats, true);
 }
 
 void mt792x_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -487,7 +487,7 @@ void mt792x_sta_statistics(struct ieee80211_hw *hw,
 			   struct station_info *sinfo)
 {
 	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
-	struct rate_info *txrate = &msta->wcid.rate;
+	struct rate_info *txrate = &msta->deflink.wcid.rate;
 
 	if (!txrate->legacy && !txrate->flags)
 		return;
@@ -502,19 +502,19 @@ void mt792x_sta_statistics(struct ieee80211_hw *hw,
 		sinfo->txrate.he_dcm = txrate->he_dcm;
 		sinfo->txrate.he_ru_alloc = txrate->he_ru_alloc;
 	}
-	sinfo->tx_failed = msta->wcid.stats.tx_failed;
+	sinfo->tx_failed = msta->deflink.wcid.stats.tx_failed;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 
-	sinfo->tx_retries = msta->wcid.stats.tx_retries;
+	sinfo->tx_retries = msta->deflink.wcid.stats.tx_retries;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
 
 	sinfo->txrate.flags = txrate->flags;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 
-	sinfo->ack_signal = (s8)msta->ack_signal;
+	sinfo->ack_signal = (s8)msta->deflink.ack_signal;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
 
-	sinfo->avg_ack_signal = -(s8)ewma_avg_signal_read(&msta->avg_ack_signal);
+	sinfo->avg_ack_signal = -(s8)ewma_avg_signal_read(&msta->deflink.avg_ack_signal);
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL_AVG);
 }
 EXPORT_SYMBOL_GPL(mt792x_sta_statistics);

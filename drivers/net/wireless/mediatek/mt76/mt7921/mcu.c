@@ -386,7 +386,7 @@ int mt7921_mcu_uni_tx_ba(struct mt792x_dev *dev,
 	struct mt792x_sta *msta = (struct mt792x_sta *)params->sta->drv_priv;
 
 	if (enable && !params->amsdu)
-		msta->wcid.amsdu = false;
+		msta->deflink.wcid.amsdu = false;
 
 	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->bss_conf.mt76, params,
 				      MCU_UNI_CMD(STA_REC_UPDATE),
@@ -1055,7 +1055,7 @@ int mt7921_mcu_sta_update(struct mt792x_dev *dev, struct ieee80211_sta *sta,
 	struct mt792x_sta *msta;
 
 	msta = sta ? (struct mt792x_sta *)sta->drv_priv : NULL;
-	info.wcid = msta ? &msta->wcid : &mvif->sta.wcid;
+	info.wcid = msta ? &msta->deflink.wcid : &mvif->sta.deflink.wcid;
 	info.newly = msta ? state != MT76_STA_INFO_STATE_ASSOC : true;
 
 	return mt76_connac_mcu_sta_cmd(&dev->mphy, &info);
