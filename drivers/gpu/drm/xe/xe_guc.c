@@ -1094,7 +1094,7 @@ void xe_guc_irq_handler(struct xe_guc *guc, const u16 iir)
 
 void xe_guc_sanitize(struct xe_guc *guc)
 {
-	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_LOADABLE);
+	xe_uc_fw_sanitize(&guc->fw);
 	xe_guc_ct_disable(&guc->ct);
 	guc->submission_state.enabled = false;
 }

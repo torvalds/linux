@@ -295,9 +295,7 @@ fail:
 
 void xe_huc_sanitize(struct xe_huc *huc)
 {
-	if (!xe_uc_fw_is_loadable(&huc->fw))
-		return;
-	xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_LOADABLE);
+	xe_uc_fw_sanitize(&huc->fw);
 }
 
 void xe_huc_print_info(struct xe_huc *huc, struct drm_printer *p)
