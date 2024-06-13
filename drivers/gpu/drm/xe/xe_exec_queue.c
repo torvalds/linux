@@ -67,7 +67,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	q->fence_irq = &gt->fence_irq[hwe->class];
 	q->ring_ops = gt->ring_ops[hwe->class];
 	q->ops = gt->exec_queue_ops;
-	INIT_LIST_HEAD(&q->compute.link);
+	INIT_LIST_HEAD(&q->lr.link);
 	INIT_LIST_HEAD(&q->multi_gt_link);
 
 	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
@@ -633,8 +633,8 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			return PTR_ERR(q);
 
 		if (xe_vm_in_preempt_fence_mode(vm)) {
-			q->compute.context = dma_fence_context_alloc(1);
-			spin_lock_init(&q->compute.lock);
+			q->lr.context = dma_fence_context_alloc(1);
+			spin_lock_init(&q->lr.lock);
 
 			err = xe_vm_add_compute_exec_queue(vm, q);
 			if (XE_IOCTL_DBG(xe, err))
