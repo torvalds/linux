@@ -1196,17 +1196,16 @@ static void ad7192_reg_disable(void *reg)
 
 static int ad7192_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	struct ad7192_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *aincom;
 	int ret;
 
-	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ?\n");
-		return -ENODEV;
-	}
+	if (!spi->irq)
+		return dev_err_probe(dev, -ENODEV, "Failed to get IRQ\n");
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -1219,71 +1218,69 @@ static int ad7192_probe(struct spi_device *spi)
 	 * Newer firmware should provide a zero volt fixed supply if wired to
 	 * ground.
 	 */
-	aincom = devm_regulator_get_optional(&spi->dev, "aincom");
+	aincom = devm_regulator_get_optional(dev, "aincom");
 	if (IS_ERR(aincom)) {
 		if (PTR_ERR(aincom) != -ENODEV)
-			return dev_err_probe(&spi->dev, PTR_ERR(aincom),
+			return dev_err_probe(dev, PTR_ERR(aincom),
 					     "Failed to get AINCOM supply\n");
 
 		st->aincom_mv = 0;
 	} else {
 		ret = regulator_enable(aincom);
 		if (ret)
-			return dev_err_probe(&spi->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "Failed to enable specified AINCOM supply\n");
 
-		ret = devm_add_action_or_reset(&spi->dev, ad7192_reg_disable, aincom);
+		ret = devm_add_action_or_reset(dev, ad7192_reg_disable, aincom);
 		if (ret)
 			return ret;
 
 		ret = regulator_get_voltage(aincom);
 		if (ret < 0)
-			return dev_err_probe(&spi->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "Device tree error, AINCOM voltage undefined\n");
 		st->aincom_mv = ret / MILLI;
 	}
 
-	st->avdd = devm_regulator_get(&spi->dev, "avdd");
+	st->avdd = devm_regulator_get(dev, "avdd");
 	if (IS_ERR(st->avdd))
 		return PTR_ERR(st->avdd);
 
 	ret = regulator_enable(st->avdd);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to enable specified AVdd supply\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to enable specified AVdd supply\n");
 
-	ret = devm_add_action_or_reset(&spi->dev, ad7192_reg_disable, st->avdd);
+	ret = devm_add_action_or_reset(dev, ad7192_reg_disable, st->avdd);
 	if (ret)
 		return ret;
 
-	ret = devm_regulator_get_enable(&spi->dev, "dvdd");
+	ret = devm_regulator_get_enable(dev, "dvdd");
 	if (ret)
-		return dev_err_probe(&spi->dev, ret, "Failed to enable specified DVdd supply\n");
+		return dev_err_probe(dev, ret, "Failed to enable specified DVdd supply\n");
 
-	st->vref = devm_regulator_get_optional(&spi->dev, "vref");
+	st->vref = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(st->vref)) {
 		if (PTR_ERR(st->vref) != -ENODEV)
 			return PTR_ERR(st->vref);
 
 		ret = regulator_get_voltage(st->avdd);
 		if (ret < 0)
-			return dev_err_probe(&spi->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "Device tree error, AVdd voltage undefined\n");
 	} else {
 		ret = regulator_enable(st->vref);
-		if (ret) {
-			dev_err(&spi->dev, "Failed to enable specified Vref supply\n");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to enable specified Vref supply\n");
 
-		ret = devm_add_action_or_reset(&spi->dev, ad7192_reg_disable, st->vref);
+		ret = devm_add_action_or_reset(dev, ad7192_reg_disable, st->vref);
 		if (ret)
 			return ret;
 
 		ret = regulator_get_voltage(st->vref);
 		if (ret < 0)
-			return dev_err_probe(&spi->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "Device tree error, Vref voltage undefined\n");
 	}
 	st->int_vref_mv = ret / 1000;
@@ -1305,13 +1302,13 @@ static int ad7192_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_ad_sd_setup_buffer_and_trigger(&spi->dev, indio_dev);
+	ret = devm_ad_sd_setup_buffer_and_trigger(dev, indio_dev);
 	if (ret)
 		return ret;
 
 	st->fclk = AD7192_INT_FREQ_MHZ;
 
-	st->mclk = devm_clk_get_optional_enabled(&spi->dev, "mclk");
+	st->mclk = devm_clk_get_optional_enabled(dev, "mclk");
 	if (IS_ERR(st->mclk))
 		return PTR_ERR(st->mclk);
 
@@ -1320,18 +1317,16 @@ static int ad7192_probe(struct spi_device *spi)
 	if (st->clock_sel == AD7192_CLK_EXT_MCLK1_2 ||
 	    st->clock_sel == AD7192_CLK_EXT_MCLK2) {
 		st->fclk = clk_get_rate(st->mclk);
-		if (!ad7192_valid_external_frequency(st->fclk)) {
-			dev_err(&spi->dev,
-				"External clock frequency out of bounds\n");
-			return -EINVAL;
-		}
+		if (!ad7192_valid_external_frequency(st->fclk))
+			return dev_err_probe(dev, -EINVAL,
+					     "External clock frequency out of bounds\n");
 	}
 
-	ret = ad7192_setup(indio_dev, &spi->dev);
+	ret = ad7192_setup(indio_dev, dev);
 	if (ret)
 		return ret;
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct of_device_id ad7192_of_match[] = {
