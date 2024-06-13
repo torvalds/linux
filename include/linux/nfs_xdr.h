@@ -1438,7 +1438,7 @@ struct nfs41_secinfo_no_name_args {
 
 struct nfs41_test_stateid_args {
 	struct nfs4_sequence_args	seq_args;
-	nfs4_stateid			*stateid;
+	nfs4_stateid			stateid;
 };
 
 struct nfs41_test_stateid_res {
