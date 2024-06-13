@@ -1383,7 +1383,7 @@ static void mt7925_vif_cfg_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_PS)
-		mt7925_mcu_uni_bss_ps(dev, vif);
+		mt7925_mcu_uni_bss_ps(dev, &vif->bss_conf);
 
 	mt792x_mutex_release(dev);
 }
