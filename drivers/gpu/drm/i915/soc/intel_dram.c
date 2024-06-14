@@ -142,24 +142,51 @@ static void detect_mem_freq(struct drm_i915_private *i915)
 		drm_dbg(&i915->drm, "DDR speed: %d kHz\n", i915->mem_freq);
 }
 
-static unsigned int pnv_fsb_freq(struct drm_i915_private *i915)
+static unsigned int i9xx_fsb_freq(struct drm_i915_private *i915)
 {
 	u32 fsb;
 
 	fsb = intel_uncore_read(&i915->uncore, CLKCFG) & CLKCFG_FSB_MASK;
 
-	switch (fsb) {
-	case CLKCFG_FSB_400:
-		return 400000;
-	case CLKCFG_FSB_533:
-		return 533333;
-	case CLKCFG_FSB_667:
-		return 666667;
-	case CLKCFG_FSB_800:
-		return 800000;
+	if (IS_PINEVIEW(i915) || IS_MOBILE(i915)) {
+		switch (fsb) {
+		case CLKCFG_FSB_400:
+			return 400000;
+		case CLKCFG_FSB_533:
+			return 533333;
+		case CLKCFG_FSB_667:
+			return 666667;
+		case CLKCFG_FSB_800:
+			return 800000;
+		case CLKCFG_FSB_1067:
+			return 1066667;
+		case CLKCFG_FSB_1333:
+			return 1333333;
+		default:
+			MISSING_CASE(fsb);
+			return 1333333;
+		}
+	} else {
+		switch (fsb) {
+		case CLKCFG_FSB_400_ALT:
+			return 400000;
+		case CLKCFG_FSB_533:
+			return 533333;
+		case CLKCFG_FSB_667:
+			return 666667;
+		case CLKCFG_FSB_800:
+			return 800000;
+		case CLKCFG_FSB_1067_ALT:
+			return 1066667;
+		case CLKCFG_FSB_1333_ALT:
+			return 1333333;
+		case CLKCFG_FSB_1600_ALT:
+			return 1600000;
+		default:
+			MISSING_CASE(fsb);
+			return 1333333;
+		}
 	}
-
-	return 0;
 }
 
 static unsigned int ilk_fsb_freq(struct drm_i915_private *dev_priv)
@@ -193,8 +220,8 @@ static void detect_fsb_freq(struct drm_i915_private *i915)
 {
 	if (GRAPHICS_VER(i915) == 5)
 		i915->fsb_freq = ilk_fsb_freq(i915);
-	else if (IS_PINEVIEW(i915))
-		i915->fsb_freq = pnv_fsb_freq(i915);
+	else if (GRAPHICS_VER(i915) == 3 || GRAPHICS_VER(i915) == 4)
+		i915->fsb_freq = i9xx_fsb_freq(i915);
 
 	if (i915->fsb_freq)
 		drm_dbg(&i915->drm, "FSB frequency: %d kHz\n", i915->fsb_freq);
