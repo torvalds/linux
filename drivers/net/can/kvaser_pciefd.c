@@ -1619,7 +1619,7 @@ static int kvaser_pciefd_read_packet(struct kvaser_pciefd *pcie, int *start_pos,
 	/* Position does not point to the end of the package,
 	 * corrupted packet size?
 	 */
-	if ((*start_pos + size) != pos)
+	if (unlikely((*start_pos + size) != pos))
 		return -EIO;
 
 	/* Point to the next packet header, if any */
@@ -1658,10 +1658,10 @@ static void kvaser_pciefd_receive_irq(struct kvaser_pciefd *pcie)
 			  KVASER_PCIEFD_SRB_ADDR(pcie) + KVASER_PCIEFD_SRB_CMD_REG);
 	}
 
-	if (irq & KVASER_PCIEFD_SRB_IRQ_DOF0 ||
-	    irq & KVASER_PCIEFD_SRB_IRQ_DOF1 ||
-	    irq & KVASER_PCIEFD_SRB_IRQ_DUF0 ||
-	    irq & KVASER_PCIEFD_SRB_IRQ_DUF1)
+	if (unlikely(irq & KVASER_PCIEFD_SRB_IRQ_DOF0 ||
+		     irq & KVASER_PCIEFD_SRB_IRQ_DOF1 ||
+		     irq & KVASER_PCIEFD_SRB_IRQ_DUF0 ||
+		     irq & KVASER_PCIEFD_SRB_IRQ_DUF1))
 		dev_err(&pcie->pci->dev, "DMA IRQ error 0x%08X\n", irq);
 
 	iowrite32(irq, KVASER_PCIEFD_SRB_ADDR(pcie) + KVASER_PCIEFD_SRB_IRQ_REG);
