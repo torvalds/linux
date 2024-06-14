@@ -23,6 +23,7 @@
 
 #include <linux/time.h>
 
+#include "soc/intel_dram.h"
 #include "hsw_ips.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
@@ -3539,10 +3540,8 @@ static int vlv_hrawclk(struct drm_i915_private *dev_priv)
 				      CCK_DISPLAY_REF_CLOCK_CONTROL);
 }
 
-static int i9xx_hrawclk(struct drm_i915_private *dev_priv)
+static int i9xx_hrawclk(struct drm_i915_private *i915)
 {
-	u32 clkcfg;
-
 	/*
 	 * hrawclock is 1/4 the FSB frequency
 	 *
@@ -3553,46 +3552,7 @@ static int i9xx_hrawclk(struct drm_i915_private *dev_priv)
 	 * don't know which registers have that information,
 	 * and all the relevant docs have gone to bit heaven :(
 	 */
-	clkcfg = intel_de_read(dev_priv, CLKCFG) & CLKCFG_FSB_MASK;
-
-	if (IS_MOBILE(dev_priv)) {
-		switch (clkcfg) {
-		case CLKCFG_FSB_400:
-			return 100000;
-		case CLKCFG_FSB_533:
-			return 133333;
-		case CLKCFG_FSB_667:
-			return 166667;
-		case CLKCFG_FSB_800:
-			return 200000;
-		case CLKCFG_FSB_1067:
-			return 266667;
-		case CLKCFG_FSB_1333:
-			return 333333;
-		default:
-			MISSING_CASE(clkcfg);
-			return 133333;
-		}
-	} else {
-		switch (clkcfg) {
-		case CLKCFG_FSB_400_ALT:
-			return 100000;
-		case CLKCFG_FSB_533:
-			return 133333;
-		case CLKCFG_FSB_667:
-			return 166667;
-		case CLKCFG_FSB_800:
-			return 200000;
-		case CLKCFG_FSB_1067_ALT:
-			return 266667;
-		case CLKCFG_FSB_1333_ALT:
-			return 333333;
-		case CLKCFG_FSB_1600_ALT:
-			return 400000;
-		default:
-			return 133333;
-		}
-	}
+	return DIV_ROUND_CLOSEST(i9xx_fsb_freq(i915), 4);
 }
 
 /**
