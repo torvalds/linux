@@ -3613,11 +3613,6 @@
 	mtdparts=	[MTD]
 			See drivers/mtd/parsers/cmdlinepart.c
 
-	mtdset=		[ARM]
-			ARM/S3C2412 JIVE boot control
-
-			See arch/arm/mach-s3c/mach-jive.c
-
 	mtouchusb.raw_coordinates=
 			[HW] Make the MicroTouch USB driver use raw coordinates
 			('y', default) or cooked coordinates ('n')
