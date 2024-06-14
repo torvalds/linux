@@ -687,10 +687,12 @@ struct ice_ctl_q_info *ice_get_sbq(struct ice_hw *hw)
  * ice_shutdown_ctrlq - shutdown routine for any control queue
  * @hw: pointer to the hardware structure
  * @q_type: specific Control queue type
+ * @unloading: is the driver unloading itself
  *
  * NOTE: this function does not destroy the control queue locks.
  */
-static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
+static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type,
+			       bool unloading)
 {
 	struct ice_ctl_q_info *cq;
 
@@ -698,7 +700,7 @@ static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 	case ICE_CTL_Q_ADMIN:
 		cq = &hw->adminq;
 		if (ice_check_sq_alive(hw, cq))
-			ice_aq_q_shutdown(hw, true);
+			ice_aq_q_shutdown(hw, unloading);
 		break;
 	case ICE_CTL_Q_SB:
 		cq = &hw->sbq;
@@ -717,20 +719,21 @@ static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 /**
  * ice_shutdown_all_ctrlq - shutdown routine for all control queues
  * @hw: pointer to the hardware structure
+ * @unloading: is the driver unloading itself
  *
  * NOTE: this function does not destroy the control queue locks. The driver
  * may call this at runtime to shutdown and later restart control queues, such
  * as in response to a reset event.
  */
-void ice_shutdown_all_ctrlq(struct ice_hw *hw)
+void ice_shutdown_all_ctrlq(struct ice_hw *hw, bool unloading)
 {
 	/* Shutdown FW admin queue */
-	ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN);
+	ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN, unloading);
 	/* Shutdown PHY Sideband */
 	if (ice_is_sbq_supported(hw))
-		ice_shutdown_ctrlq(hw, ICE_CTL_Q_SB);
+		ice_shutdown_ctrlq(hw, ICE_CTL_Q_SB, unloading);
 	/* Shutdown PF-VF Mailbox */
-	ice_shutdown_ctrlq(hw, ICE_CTL_Q_MAILBOX);
+	ice_shutdown_ctrlq(hw, ICE_CTL_Q_MAILBOX, unloading);
 }
 
 /**
@@ -762,7 +765,7 @@ int ice_init_all_ctrlq(struct ice_hw *hw)
 			break;
 
 		ice_debug(hw, ICE_DBG_AQ_MSG, "Retry Admin Queue init due to FW critical error\n");
-		ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN);
+		ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN, true);
 		msleep(ICE_CTL_Q_ADMIN_INIT_MSEC);
 	} while (retry++ < ICE_CTL_Q_ADMIN_INIT_TIMEOUT);
 
@@ -843,7 +846,7 @@ static void ice_destroy_ctrlq_locks(struct ice_ctl_q_info *cq)
 void ice_destroy_all_ctrlq(struct ice_hw *hw)
 {
 	/* shut down all the control queues first */
-	ice_shutdown_all_ctrlq(hw);
+	ice_shutdown_all_ctrlq(hw, true);
 
 	ice_destroy_ctrlq_locks(&hw->adminq);
 	if (ice_is_sbq_supported(hw))
