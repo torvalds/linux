@@ -128,27 +128,11 @@ void irq_domain_free_fwnode(struct fwnode_handle *fwnode)
 }
 EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
 
-static struct irq_domain *__irq_domain_create(struct fwnode_handle *fwnode,
-					      unsigned int size,
-					      irq_hw_number_t hwirq_max,
-					      int direct_max,
-					      const struct irq_domain_ops *ops,
-					      void *host_data)
+static int irq_domain_set_name(struct irq_domain *domain,
+			       const struct fwnode_handle *fwnode)
 {
-	struct irqchip_fwid *fwid;
-	struct irq_domain *domain;
-
 	static atomic_t unknown_domains;
-
-	if (WARN_ON((size && direct_max) ||
-		    (!IS_ENABLED(CONFIG_IRQ_DOMAIN_NOMAP) && direct_max) ||
-		    (direct_max && (direct_max != hwirq_max))))
-		return NULL;
-
-	domain = kzalloc_node(struct_size(domain, revmap, size),
-			      GFP_KERNEL, of_node_to_nid(to_of_node(fwnode)));
-	if (!domain)
-		return NULL;
+	struct irqchip_fwid *fwid;
 
 	if (is_fwnode_irqchip(fwnode)) {
 		fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
@@ -157,10 +141,8 @@ static struct irq_domain *__irq_domain_create(struct fwnode_handle *fwnode,
 		case IRQCHIP_FWNODE_NAMED:
 		case IRQCHIP_FWNODE_NAMED_ID:
 			domain->name = kstrdup(fwid->name, GFP_KERNEL);
-			if (!domain->name) {
-				kfree(domain);
-				return NULL;
-			}
+			if (!domain->name)
+				return -ENOMEM;
 			domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
 			break;
 		default:
@@ -177,10 +159,8 @@ static struct irq_domain *__irq_domain_create(struct fwnode_handle *fwnode,
 		 * the trick and is not as offensive as '\'...
 		 */
 		name = kasprintf(GFP_KERNEL, "%pfw", fwnode);
-		if (!name) {
-			kfree(domain);
-			return NULL;
-		}
+		if (!name)
+			return -ENOMEM;
 
 		domain->name = strreplace(name, '/', ':');
 		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
@@ -191,11 +171,38 @@ static struct irq_domain *__irq_domain_create(struct fwnode_handle *fwnode,
 			pr_err("Invalid fwnode type for irqdomain\n");
 		domain->name = kasprintf(GFP_KERNEL, "unknown-%d",
 					 atomic_inc_return(&unknown_domains));
-		if (!domain->name) {
-			kfree(domain);
-			return NULL;
-		}
+		if (!domain->name)
+			return -ENOMEM;
 		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+	}
+
+	return 0;
+}
+
+static struct irq_domain *__irq_domain_create(struct fwnode_handle *fwnode,
+					      unsigned int size,
+					      irq_hw_number_t hwirq_max,
+					      int direct_max,
+					      const struct irq_domain_ops *ops,
+					      void *host_data)
+{
+	struct irq_domain *domain;
+	int err;
+
+	if (WARN_ON((size && direct_max) ||
+		    (!IS_ENABLED(CONFIG_IRQ_DOMAIN_NOMAP) && direct_max) ||
+		    (direct_max && direct_max != hwirq_max)))
+		return NULL;
+
+	domain = kzalloc_node(struct_size(domain, revmap, size),
+			      GFP_KERNEL, of_node_to_nid(to_of_node(fwnode)));
+	if (!domain)
+		return NULL;
+
+	err = irq_domain_set_name(domain, fwnode);
+	if (err) {
+		kfree(domain);
+		return NULL;
 	}
 
 	domain->fwnode = fwnode_handle_get(fwnode);
