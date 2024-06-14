@@ -817,3 +817,7 @@
 		rx-internal-delay-ps = <2000>;
 	};
 };
+
+&gpmc0 {
+	ranges = <0 0 0x00 0x51000000 0x01000000>; /* CS0 space. Min partition = 16MB */
+};
