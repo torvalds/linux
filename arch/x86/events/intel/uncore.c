@@ -843,7 +843,9 @@ static void uncore_pmu_disable(struct pmu *pmu)
 static ssize_t uncore_get_attr_cpumask(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return cpumap_print_to_pagebuf(true, buf, &uncore_cpu_mask);
+	struct intel_uncore_pmu *pmu = container_of(dev_get_drvdata(dev), struct intel_uncore_pmu, pmu);
+
+	return cpumap_print_to_pagebuf(true, buf, &pmu->cpu_mask);
 }
 
 static DEVICE_ATTR(cpumask, S_IRUGO, uncore_get_attr_cpumask, NULL);
@@ -1453,6 +1455,18 @@ static void uncore_pci_exit(void)
 	}
 }
 
+static bool uncore_die_has_box(struct intel_uncore_type *type,
+			       int die, unsigned int pmu_idx)
+{
+	if (!type->boxes)
+		return true;
+
+	if (intel_uncore_find_discovery_unit_id(type->boxes, die, pmu_idx) < 0)
+		return false;
+
+	return true;
+}
+
 static void uncore_change_type_ctx(struct intel_uncore_type *type, int old_cpu,
 				   int new_cpu)
 {
@@ -1468,18 +1482,25 @@ static void uncore_change_type_ctx(struct intel_uncore_type *type, int old_cpu,
 
 		if (old_cpu < 0) {
 			WARN_ON_ONCE(box->cpu != -1);
-			box->cpu = new_cpu;
+			if (uncore_die_has_box(type, die, pmu->pmu_idx)) {
+				box->cpu = new_cpu;
+				cpumask_set_cpu(new_cpu, &pmu->cpu_mask);
+			}
 			continue;
 		}
 
-		WARN_ON_ONCE(box->cpu != old_cpu);
+		WARN_ON_ONCE(box->cpu != -1 && box->cpu != old_cpu);
 		box->cpu = -1;
+		cpumask_clear_cpu(old_cpu, &pmu->cpu_mask);
 		if (new_cpu < 0)
 			continue;
 
+		if (!uncore_die_has_box(type, die, pmu->pmu_idx))
+			continue;
 		uncore_pmu_cancel_hrtimer(box);
 		perf_pmu_migrate_context(&pmu->pmu, old_cpu, new_cpu);
 		box->cpu = new_cpu;
+		cpumask_set_cpu(new_cpu, &pmu->cpu_mask);
 	}
 }
 
@@ -1502,7 +1523,7 @@ static void uncore_box_unref(struct intel_uncore_type **types, int id)
 		pmu = type->pmus;
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			box = pmu->boxes[id];
-			if (box && atomic_dec_return(&box->refcnt) == 0)
+			if (box && box->cpu >= 0 && atomic_dec_return(&box->refcnt) == 0)
 				uncore_box_exit(box);
 		}
 	}
@@ -1592,7 +1613,7 @@ static int uncore_box_ref(struct intel_uncore_type **types,
 		pmu = type->pmus;
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			box = pmu->boxes[id];
-			if (box && atomic_inc_return(&box->refcnt) == 1)
+			if (box && box->cpu >= 0 && atomic_inc_return(&box->refcnt) == 1)
 				uncore_box_init(box);
 		}
 	}

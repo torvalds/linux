@@ -86,6 +86,7 @@ struct intel_uncore_type {
 	const struct attribute_group *attr_groups[4];
 	const struct attribute_group **attr_update;
 	struct pmu *pmu; /* for custom pmu ops */
+	struct rb_root *boxes;
 	/*
 	 * Uncore PMU would store relevant platform topology configuration here
 	 * to identify which platform component each PMON block of that type is
@@ -125,6 +126,7 @@ struct intel_uncore_pmu {
 	int				func_id;
 	bool				registered;
 	atomic_t			activeboxes;
+	cpumask_t			cpu_mask;
 	struct intel_uncore_type	*type;
 	struct intel_uncore_box		**boxes;
 };

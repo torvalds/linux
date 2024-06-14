@@ -122,6 +122,64 @@ get_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	return add_uncore_discovery_type(unit);
 }
 
+static inline int pmu_idx_cmp(const void *key, const struct rb_node *b)
+{
+	struct intel_uncore_discovery_unit *unit;
+	const unsigned int *id = key;
+
+	unit = rb_entry(b, struct intel_uncore_discovery_unit, node);
+
+	if (unit->pmu_idx > *id)
+		return -1;
+	else if (unit->pmu_idx < *id)
+		return 1;
+
+	return 0;
+}
+
+static struct intel_uncore_discovery_unit *
+intel_uncore_find_discovery_unit(struct rb_root *units, int die,
+				 unsigned int pmu_idx)
+{
+	struct intel_uncore_discovery_unit *unit;
+	struct rb_node *pos;
+
+	if (!units)
+		return NULL;
+
+	pos = rb_find_first(&pmu_idx, units, pmu_idx_cmp);
+	if (!pos)
+		return NULL;
+	unit = rb_entry(pos, struct intel_uncore_discovery_unit, node);
+
+	if (die < 0)
+		return unit;
+
+	for (; pos; pos = rb_next(pos)) {
+		unit = rb_entry(pos, struct intel_uncore_discovery_unit, node);
+
+		if (unit->pmu_idx != pmu_idx)
+			break;
+
+		if (unit->die == die)
+			return unit;
+	}
+
+	return NULL;
+}
+
+int intel_uncore_find_discovery_unit_id(struct rb_root *units, int die,
+					unsigned int pmu_idx)
+{
+	struct intel_uncore_discovery_unit *unit;
+
+	unit = intel_uncore_find_discovery_unit(units, die, pmu_idx);
+	if (unit)
+		return unit->id;
+
+	return -1;
+}
+
 static inline bool unit_less(struct rb_node *a, const struct rb_node *b)
 {
 	struct intel_uncore_discovery_unit *a_node, *b_node;
