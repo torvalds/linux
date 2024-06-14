@@ -1236,6 +1236,30 @@ static const unsigned int avb0_mdio_pins[] = {
 static const unsigned int avb0_mdio_mux[] = {
 	AVB0_MDC_MARK, AVB0_MDIO_MARK,
 };
+static const unsigned int avb0_mii_pins[] = {
+	/*
+	 * AVB0_MII_TD0, AVB0_MII_TD1, AVB0_MII_TD2,
+	 * AVB0_MII_TD3, AVB0_MII_RD0, AVB0_MII_RD1,
+	 * AVB0_MII_RD2, AVB0_MII_RD3, AVB0_MII_TXC,
+	 * AVB0_MII_TX_EN, AVB0_MII_TX_ER, AVB0_MII_RXC,
+	 * AVB0_MII_RX_DV, AVB0_MII_RX_ER, AVB0_MII_CRS,
+	 * AVB0_MII_COL
+	 */
+	RCAR_GP_PIN(7, 11), RCAR_GP_PIN(7,  7), RCAR_GP_PIN(7,  6),
+	RCAR_GP_PIN(7,  3), RCAR_GP_PIN(7, 18), RCAR_GP_PIN(7, 17),
+	RCAR_GP_PIN(7, 12), RCAR_GP_PIN(7,  8), RCAR_GP_PIN(7, 15),
+	RCAR_GP_PIN(7, 16), RCAR_GP_PIN(7,  4), RCAR_GP_PIN(7, 19),
+	RCAR_GP_PIN(7, 20), RCAR_GP_PIN(7,  2), RCAR_GP_PIN(7,  1),
+	RCAR_GP_PIN(7,  0),
+};
+static const unsigned int avb0_mii_mux[] = {
+	AVB0_MII_TD0_MARK, AVB0_MII_TD1_MARK, AVB0_MII_TD2_MARK,
+	AVB0_MII_TD3_MARK, AVB0_MII_RD0_MARK, AVB0_MII_RD1_MARK,
+	AVB0_MII_RD2_MARK, AVB0_MII_RD3_MARK, AVB0_MII_TXC_MARK,
+	AVB0_MII_TX_EN_MARK, AVB0_MII_TX_ER_MARK, AVB0_MII_RXC_MARK,
+	AVB0_MII_RX_DV_MARK, AVB0_MII_RX_ER_MARK, AVB0_MII_CRS_MARK,
+	AVB0_MII_COL_MARK,
+};
 static const unsigned int avb0_rgmii_pins[] = {
 	/*
 	 * AVB0_TX_CTL, AVB0_TXC, AVB0_TD0, AVB0_TD1, AVB0_TD2, AVB0_TD3,
@@ -1313,6 +1337,30 @@ static const unsigned int avb1_mdio_pins[] = {
 };
 static const unsigned int avb1_mdio_mux[] = {
 	AVB1_MDC_MARK, AVB1_MDIO_MARK,
+};
+static const unsigned int avb1_mii_pins[] = {
+	/*
+	 * AVB1_MII_TD0, AVB1_MII_TD1, AVB1_MII_TD2,
+	 * AVB1_MII_TD3, AVB1_MII_RD0, AVB1_MII_RD1,
+	 * AVB1_MII_RD2, AVB1_MII_RD3, AVB1_MII_TXC,
+	 * AVB1_MII_TX_EN, AVB1_MII_TX_ER, AVB1_MII_RXC,
+	 * AVB1_MII_RX_DV, AVB1_MII_RX_ER, AVB1_MII_CRS,
+	 * AVB1_MII_COL
+	 */
+	RCAR_GP_PIN(6, 13), RCAR_GP_PIN(6, 12), RCAR_GP_PIN(6, 16),
+	RCAR_GP_PIN(6, 18), RCAR_GP_PIN(6, 15), RCAR_GP_PIN(6, 14),
+	RCAR_GP_PIN(6, 17), RCAR_GP_PIN(6, 19), RCAR_GP_PIN(6,  6),
+	RCAR_GP_PIN(6,  7), RCAR_GP_PIN(6,  4), RCAR_GP_PIN(6,  8),
+	RCAR_GP_PIN(6,  9), RCAR_GP_PIN(6,  5), RCAR_GP_PIN(6, 11),
+	RCAR_GP_PIN(6, 10),
+};
+static const unsigned int avb1_mii_mux[] = {
+	AVB1_MII_TD0_MARK, AVB1_MII_TD1_MARK, AVB1_MII_TD2_MARK,
+	AVB1_MII_TD3_MARK, AVB1_MII_RD0_MARK, AVB1_MII_RD1_MARK,
+	AVB1_MII_RD2_MARK, AVB1_MII_RD3_MARK, AVB1_MII_TXC_MARK,
+	AVB1_MII_TX_EN_MARK, AVB1_MII_TX_ER_MARK, AVB1_MII_RXC_MARK,
+	AVB1_MII_RX_DV_MARK, AVB1_MII_RX_ER_MARK, AVB1_MII_CRS_MARK,
+	AVB1_MII_COL_MARK,
 };
 static const unsigned int avb1_rgmii_pins[] = {
 	/*
@@ -2444,6 +2492,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb0_magic),
 	SH_PFC_PIN_GROUP(avb0_phy_int),
 	SH_PFC_PIN_GROUP(avb0_mdio),
+	SH_PFC_PIN_GROUP(avb0_mii),
 	SH_PFC_PIN_GROUP(avb0_rgmii),
 	SH_PFC_PIN_GROUP(avb0_txcrefclk),
 	SH_PFC_PIN_GROUP(avb0_avtp_pps),
@@ -2454,6 +2503,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb1_magic),
 	SH_PFC_PIN_GROUP(avb1_phy_int),
 	SH_PFC_PIN_GROUP(avb1_mdio),
+	SH_PFC_PIN_GROUP(avb1_mii),
 	SH_PFC_PIN_GROUP(avb1_rgmii),
 	SH_PFC_PIN_GROUP(avb1_txcrefclk),
 	SH_PFC_PIN_GROUP(avb1_avtp_pps),
@@ -2628,6 +2678,7 @@ static const char * const avb0_groups[] = {
 	"avb0_magic",
 	"avb0_phy_int",
 	"avb0_mdio",
+	"avb0_mii",
 	"avb0_rgmii",
 	"avb0_txcrefclk",
 	"avb0_avtp_pps",
@@ -2640,6 +2691,7 @@ static const char * const avb1_groups[] = {
 	"avb1_magic",
 	"avb1_phy_int",
 	"avb1_mdio",
+	"avb1_mii",
 	"avb1_rgmii",
 	"avb1_txcrefclk",
 	"avb1_avtp_pps",
