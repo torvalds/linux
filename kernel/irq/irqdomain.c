@@ -179,45 +179,40 @@ static int irq_domain_set_name(struct irq_domain *domain,
 	return 0;
 }
 
-static struct irq_domain *__irq_domain_create(struct fwnode_handle *fwnode,
-					      unsigned int size,
-					      irq_hw_number_t hwirq_max,
-					      int direct_max,
-					      const struct irq_domain_ops *ops,
-					      void *host_data)
+static struct irq_domain *__irq_domain_create(const struct irq_domain_info *info)
 {
 	struct irq_domain *domain;
 	int err;
 
-	if (WARN_ON((size && direct_max) ||
-		    (!IS_ENABLED(CONFIG_IRQ_DOMAIN_NOMAP) && direct_max) ||
-		    (direct_max && direct_max != hwirq_max)))
+	if (WARN_ON((info->size && info->direct_max) ||
+		    (!IS_ENABLED(CONFIG_IRQ_DOMAIN_NOMAP) && info->direct_max) ||
+		    (info->direct_max && info->direct_max != info->hwirq_max)))
 		return NULL;
 
-	domain = kzalloc_node(struct_size(domain, revmap, size),
-			      GFP_KERNEL, of_node_to_nid(to_of_node(fwnode)));
+	domain = kzalloc_node(struct_size(domain, revmap, info->size),
+			      GFP_KERNEL, of_node_to_nid(to_of_node(info->fwnode)));
 	if (!domain)
 		return NULL;
 
-	err = irq_domain_set_name(domain, fwnode);
+	err = irq_domain_set_name(domain, info->fwnode);
 	if (err) {
 		kfree(domain);
 		return NULL;
 	}
 
-	domain->fwnode = fwnode_handle_get(fwnode);
+	domain->fwnode = fwnode_handle_get(info->fwnode);
 	fwnode_dev_initialized(domain->fwnode, true);
 
 	/* Fill structure */
 	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
-	domain->ops = ops;
-	domain->host_data = host_data;
-	domain->hwirq_max = hwirq_max;
+	domain->ops = info->ops;
+	domain->host_data = info->host_data;
+	domain->hwirq_max = info->hwirq_max;
 
-	if (direct_max)
+	if (info->direct_max)
 		domain->flags |= IRQ_DOMAIN_FLAG_NO_MAP;
 
-	domain->revmap_size = size;
+	domain->revmap_size = info->size;
 
 	/*
 	 * Hierarchical domains use the domain lock of the root domain
@@ -264,8 +259,7 @@ struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
 {
 	struct irq_domain *domain;
 
-	domain = __irq_domain_create(info->fwnode, info->size, info->hwirq_max,
-				     info->direct_max, info->ops, info->host_data);
+	domain = __irq_domain_create(info);
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 
@@ -1204,13 +1198,19 @@ struct irq_domain *irq_domain_create_hierarchy(struct irq_domain *parent,
 					    const struct irq_domain_ops *ops,
 					    void *host_data)
 {
+	struct irq_domain_info info = {
+		.fwnode		= fwnode,
+		.size		= size,
+		.hwirq_max	= size,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
 	struct irq_domain *domain;
 
-	if (size)
-		domain = __irq_domain_create(fwnode, size, size, 0, ops, host_data);
-	else
-		domain = __irq_domain_create(fwnode, 0, ~0, 0, ops, host_data);
+	if (!info.size)
+		info.hwirq_max = ~0U;
 
+	domain = __irq_domain_create(&info);
 	if (domain) {
 		if (parent)
 			domain->root = parent->root;
