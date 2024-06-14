@@ -259,9 +259,9 @@ retry:
 
 	/* Wait behind rebinds */
 	if (!xe_vm_in_lr_mode(vm)) {
-		err = drm_sched_job_add_resv_dependencies(&job->drm,
-							  xe_vm_resv(vm),
-							  DMA_RESV_USAGE_KERNEL);
+		err = xe_sched_job_add_deps(job,
+					    xe_vm_resv(vm),
+					    DMA_RESV_USAGE_KERNEL);
 		if (err)
 			goto err_put_job;
 	}

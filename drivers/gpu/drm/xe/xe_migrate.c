@@ -647,12 +647,6 @@ static void emit_copy(struct xe_gt *gt, struct xe_bb *bb,
 	bb->cs[bb->len++] = upper_32_bits(src_ofs);
 }
 
-static int job_add_deps(struct xe_sched_job *job, struct dma_resv *resv,
-			enum dma_resv_usage usage)
-{
-	return drm_sched_job_add_resv_dependencies(&job->drm, resv, usage);
-}
-
 static u64 xe_migrate_batch_base(struct xe_migrate *m, bool usm)
 {
 	return usm ? m->usm_batch_base_ofs : m->batch_base_ofs;
@@ -849,11 +843,11 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 
 		xe_sched_job_add_migrate_flush(job, flush_flags);
 		if (!fence) {
-			err = job_add_deps(job, src_bo->ttm.base.resv,
-					   DMA_RESV_USAGE_BOOKKEEP);
+			err = xe_sched_job_add_deps(job, src_bo->ttm.base.resv,
+						    DMA_RESV_USAGE_BOOKKEEP);
 			if (!err && src_bo != dst_bo)
-				err = job_add_deps(job, dst_bo->ttm.base.resv,
-						   DMA_RESV_USAGE_BOOKKEEP);
+				err = xe_sched_job_add_deps(job, dst_bo->ttm.base.resv,
+							    DMA_RESV_USAGE_BOOKKEEP);
 			if (err)
 				goto err_job;
 		}
@@ -1091,8 +1085,8 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 			 * fences, which are always tracked as
 			 * DMA_RESV_USAGE_KERNEL.
 			 */
-			err = job_add_deps(job, bo->ttm.base.resv,
-					   DMA_RESV_USAGE_KERNEL);
+			err = xe_sched_job_add_deps(job, bo->ttm.base.resv,
+						    DMA_RESV_USAGE_KERNEL);
 			if (err)
 				goto err_job;
 		}
@@ -1417,8 +1411,8 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 
 	/* Wait on BO move */
 	if (bo) {
-		err = job_add_deps(job, bo->ttm.base.resv,
-				   DMA_RESV_USAGE_KERNEL);
+		err = xe_sched_job_add_deps(job, bo->ttm.base.resv,
+					    DMA_RESV_USAGE_KERNEL);
 		if (err)
 			goto err_job;
 	}
@@ -1428,8 +1422,8 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	 * trigger preempts before moving forward
 	 */
 	if (first_munmap_rebind) {
-		err = job_add_deps(job, xe_vm_resv(vm),
-				   DMA_RESV_USAGE_BOOKKEEP);
+		err = xe_sched_job_add_deps(job, xe_vm_resv(vm),
+					    DMA_RESV_USAGE_BOOKKEEP);
 		if (err)
 			goto err_job;
 	}
