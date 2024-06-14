@@ -293,6 +293,7 @@ int irq_domain_alloc_generic_chips(struct irq_domain *d,
 	size_t gc_sz;
 	size_t sz;
 	void *tmp;
+	int ret;
 
 	if (d->gc)
 		return -EBUSY;
@@ -314,6 +315,7 @@ int irq_domain_alloc_generic_chips(struct irq_domain *d,
 	dgc->irq_flags_to_set = info->irq_flags_to_set;
 	dgc->irq_flags_to_clear = info->irq_flags_to_clear;
 	dgc->gc_flags = info->gc_flags;
+	dgc->exit = info->exit;
 	d->gc = dgc;
 
 	/* Calc pointer to the first generic chip */
@@ -331,6 +333,12 @@ int irq_domain_alloc_generic_chips(struct irq_domain *d,
 			gc->reg_writel = &irq_writel_be;
 		}
 
+		if (info->init) {
+			ret = info->init(gc);
+			if (ret)
+				goto err;
+		}
+
 		raw_spin_lock_irqsave(&gc_lock, flags);
 		list_add_tail(&gc->list, &gc_list);
 		raw_spin_unlock_irqrestore(&gc_lock, flags);
@@ -338,6 +346,16 @@ int irq_domain_alloc_generic_chips(struct irq_domain *d,
 		tmp += gc_sz;
 	}
 	return 0;
+
+err:
+	while (i--) {
+		if (dgc->exit)
+			dgc->exit(dgc->gc[i]);
+		irq_remove_generic_chip(dgc->gc[i], ~0U, 0, 0);
+	}
+	d->gc = NULL;
+	kfree(dgc);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(irq_domain_alloc_generic_chips);
 
@@ -353,9 +371,11 @@ void irq_domain_remove_generic_chips(struct irq_domain *d)
 	if (!dgc)
 		return;
 
-	for (i = 0; i < dgc->num_chips; i++)
+	for (i = 0; i < dgc->num_chips; i++) {
+		if (dgc->exit)
+			dgc->exit(dgc->gc[i]);
 		irq_remove_generic_chip(dgc->gc[i], ~0U, 0, 0);
-
+	}
 	d->gc = NULL;
 	kfree(dgc);
 }
