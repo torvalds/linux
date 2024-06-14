@@ -187,17 +187,17 @@ static struct irq_domain *__irq_domain_create(const struct irq_domain_info *info
 	if (WARN_ON((info->size && info->direct_max) ||
 		    (!IS_ENABLED(CONFIG_IRQ_DOMAIN_NOMAP) && info->direct_max) ||
 		    (info->direct_max && info->direct_max != info->hwirq_max)))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	domain = kzalloc_node(struct_size(domain, revmap, info->size),
 			      GFP_KERNEL, of_node_to_nid(to_of_node(info->fwnode)));
 	if (!domain)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	err = irq_domain_set_name(domain, info->fwnode);
 	if (err) {
 		kfree(domain);
-		return NULL;
+		return ERR_PTR(err);
 	}
 
 	domain->fwnode = fwnode_handle_get(info->fwnode);
@@ -260,8 +260,8 @@ struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
 	struct irq_domain *domain;
 
 	domain = __irq_domain_create(info);
-	if (!domain)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(domain))
+		return domain;
 
 	domain->flags |= info->domain_flags;
 
