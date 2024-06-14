@@ -314,7 +314,7 @@ static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
 
 extern const struct fwnode_operations irqchip_fwnode_ops;
 
-static inline bool is_fwnode_irqchip(struct fwnode_handle *fwnode)
+static inline bool is_fwnode_irqchip(const struct fwnode_handle *fwnode)
 {
 	return fwnode && fwnode->ops == &irqchip_fwnode_ops;
 }
