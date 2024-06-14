@@ -43,6 +43,11 @@ static const char *intel_dram_type_str(enum intel_dram_type type)
 
 #undef DRAM_TYPE_STR
 
+static bool pnv_is_ddr3(struct drm_i915_private *i915)
+{
+	return intel_uncore_read(&i915->uncore, CSHRDDR3CTL) & CSHRDDR3CTL_DDR3;
+}
+
 static void pnv_detect_mem_freq(struct drm_i915_private *dev_priv)
 {
 	u32 tmp;
@@ -60,10 +65,6 @@ static void pnv_detect_mem_freq(struct drm_i915_private *dev_priv)
 		dev_priv->mem_freq = 800;
 		break;
 	}
-
-	/* detect pineview DDR3 setting */
-	tmp = intel_uncore_read(&dev_priv->uncore, CSHRDDR3CTL);
-	dev_priv->is_ddr3 = (tmp & CSHRDDR3CTL_DDR3) ? 1 : 0;
 }
 
 static void ilk_detect_mem_freq(struct drm_i915_private *dev_priv)
@@ -142,6 +143,9 @@ static void detect_mem_freq(struct drm_i915_private *i915)
 		chv_detect_mem_freq(i915);
 	else if (IS_VALLEYVIEW(i915))
 		vlv_detect_mem_freq(i915);
+
+	if (IS_PINEVIEW(i915))
+		i915->is_ddr3 = pnv_is_ddr3(i915);
 
 	if (i915->mem_freq)
 		drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
