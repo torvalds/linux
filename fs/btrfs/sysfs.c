@@ -386,6 +386,7 @@ static const char *rescue_opts[] = {
 	"ignorebadroots",
 	"ignoredatacsums",
 	"ignoremetacsums",
+	"ignoresuperflags",
 	"all",
 };
 
