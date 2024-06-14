@@ -48,7 +48,7 @@ static bool pnv_is_ddr3(struct drm_i915_private *i915)
 	return intel_uncore_read(&i915->uncore, CSHRDDR3CTL) & CSHRDDR3CTL_DDR3;
 }
 
-static void pnv_detect_mem_freq(struct drm_i915_private *dev_priv)
+static unsigned int pnv_mem_freq(struct drm_i915_private *dev_priv)
 {
 	u32 tmp;
 
@@ -56,44 +56,38 @@ static void pnv_detect_mem_freq(struct drm_i915_private *dev_priv)
 
 	switch (tmp & CLKCFG_MEM_MASK) {
 	case CLKCFG_MEM_533:
-		dev_priv->mem_freq = 533;
-		break;
+		return 533;
 	case CLKCFG_MEM_667:
-		dev_priv->mem_freq = 667;
-		break;
+		return 667;
 	case CLKCFG_MEM_800:
-		dev_priv->mem_freq = 800;
-		break;
+		return 800;
 	}
+
+	return 0;
 }
 
-static void ilk_detect_mem_freq(struct drm_i915_private *dev_priv)
+static unsigned int ilk_mem_freq(struct drm_i915_private *dev_priv)
 {
 	u16 ddrpll;
 
 	ddrpll = intel_uncore_read16(&dev_priv->uncore, DDRMPLL1);
 	switch (ddrpll & 0xff) {
 	case 0xc:
-		dev_priv->mem_freq = 800;
-		break;
+		return 800;
 	case 0x10:
-		dev_priv->mem_freq = 1066;
-		break;
+		return 1066;
 	case 0x14:
-		dev_priv->mem_freq = 1333;
-		break;
+		return 1333;
 	case 0x18:
-		dev_priv->mem_freq = 1600;
-		break;
+		return 1600;
 	default:
 		drm_dbg(&dev_priv->drm, "unknown memory frequency 0x%02x\n",
 			ddrpll & 0xff);
-		dev_priv->mem_freq = 0;
-		break;
+		return 0;
 	}
 }
 
-static void chv_detect_mem_freq(struct drm_i915_private *i915)
+static unsigned int chv_mem_freq(struct drm_i915_private *i915)
 {
 	u32 val;
 
@@ -103,15 +97,13 @@ static void chv_detect_mem_freq(struct drm_i915_private *i915)
 
 	switch ((val >> 2) & 0x7) {
 	case 3:
-		i915->mem_freq = 2000;
-		break;
+		return 2000;
 	default:
-		i915->mem_freq = 1600;
-		break;
+		return 1600;
 	}
 }
 
-static void vlv_detect_mem_freq(struct drm_i915_private *i915)
+static unsigned int vlv_mem_freq(struct drm_i915_private *i915)
 {
 	u32 val;
 
@@ -122,27 +114,26 @@ static void vlv_detect_mem_freq(struct drm_i915_private *i915)
 	switch ((val >> 6) & 3) {
 	case 0:
 	case 1:
-		i915->mem_freq = 800;
-		break;
+		return 800;
 	case 2:
-		i915->mem_freq = 1066;
-		break;
+		return 1066;
 	case 3:
-		i915->mem_freq = 1333;
-		break;
+		return 1333;
 	}
+
+	return 0;
 }
 
 static void detect_mem_freq(struct drm_i915_private *i915)
 {
 	if (IS_PINEVIEW(i915))
-		pnv_detect_mem_freq(i915);
+		i915->mem_freq = pnv_mem_freq(i915);
 	else if (GRAPHICS_VER(i915) == 5)
-		ilk_detect_mem_freq(i915);
+		i915->mem_freq = ilk_mem_freq(i915);
 	else if (IS_CHERRYVIEW(i915))
-		chv_detect_mem_freq(i915);
+		i915->mem_freq = chv_mem_freq(i915);
 	else if (IS_VALLEYVIEW(i915))
-		vlv_detect_mem_freq(i915);
+		i915->mem_freq = vlv_mem_freq(i915);
 
 	if (IS_PINEVIEW(i915))
 		i915->is_ddr3 = pnv_is_ddr3(i915);
