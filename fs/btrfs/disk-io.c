@@ -2347,7 +2347,7 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 		ret = -EINVAL;
 	}
 	if (btrfs_super_flags(sb) & ~BTRFS_SUPER_FLAG_SUPP) {
-		btrfs_err(fs_info, "unrecognized or unsupported super flag: %llu",
+		btrfs_err(fs_info, "unrecognized or unsupported super flag: 0x%llx",
 				btrfs_super_flags(sb) & ~BTRFS_SUPER_FLAG_SUPP);
 		ret = -EINVAL;
 	}
