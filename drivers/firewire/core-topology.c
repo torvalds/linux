@@ -140,7 +140,7 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 		}
 
 		port_capacity = self_id_sequence_get_port_capacity(quadlet_count);
-		trace_self_id_sequence(self_id_sequence, quadlet_count, generation);
+		trace_self_id_sequence(card->index, self_id_sequence, quadlet_count, generation);
 
 		for (port_index = 0; port_index < port_capacity; ++port_index) {
 			port_status = self_id_sequence_get_port_status(self_id_sequence, quadlet_count,

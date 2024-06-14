@@ -395,14 +395,16 @@ void copy_port_status(u8 *port_status, unsigned int port_capacity, const u32 *se
 		      unsigned int quadlet_count);
 
 TRACE_EVENT(self_id_sequence,
-	TP_PROTO(const u32 *self_id_sequence, unsigned int quadlet_count, unsigned int generation),
-	TP_ARGS(self_id_sequence, quadlet_count, generation),
+	TP_PROTO(unsigned int card_index, const u32 *self_id_sequence, unsigned int quadlet_count, unsigned int generation),
+	TP_ARGS(card_index, self_id_sequence, quadlet_count, generation),
 	TP_STRUCT__entry(
+		__field(u8, card_index)
 		__field(u8, generation)
 		__dynamic_array(u8, port_status, self_id_sequence_get_port_capacity(quadlet_count))
 		__dynamic_array(u32, self_id_sequence, quadlet_count)
 	),
 	TP_fast_assign(
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		copy_port_status(__get_dynamic_array(port_status), __get_dynamic_array_len(port_status),
 				 self_id_sequence, quadlet_count);
@@ -410,7 +412,8 @@ TRACE_EVENT(self_id_sequence,
 					   __get_dynamic_array_len(self_id_sequence));
 	),
 	TP_printk(
-		"generation=%u phy_id=0x%02x link_active=%s gap_count=%u scode=%u contender=%s power_class=%u initiated_reset=%s port_status=%s self_id_sequence=%s",
+		"card_index=%u generation=%u phy_id=0x%02x link_active=%s gap_count=%u scode=%u contender=%s power_class=%u initiated_reset=%s port_status=%s self_id_sequence=%s",
+		__entry->card_index,
 		__entry->generation,
 		PHY_PACKET_SELF_ID_GET_PHY_ID(__get_dynamic_array(self_id_sequence)),
 		PHY_PACKET_SELF_ID_GET_LINK_ACTIVE(__get_dynamic_array(self_id_sequence)) ? "true" : "false",
