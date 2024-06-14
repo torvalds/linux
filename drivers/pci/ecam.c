@@ -55,7 +55,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 	bus_range_max = resource_size(cfgres) >> bus_shift;
 	if (bus_range > bus_range_max) {
 		bus_range = bus_range_max;
-		cfg->busr.end = busr->start + bus_range - 1;
+		resource_set_size(&cfg->busr, bus_range);
 		dev_warn(dev, "ECAM area %pR can only accommodate %pR (reduced from %pR desired)\n",
 			 cfgres, &cfg->busr, busr);
 	}
