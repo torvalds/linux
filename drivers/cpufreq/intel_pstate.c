@@ -1302,12 +1302,17 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 
 	no_turbo = !!clamp_t(int, input, 0, 1);
 
-	if (no_turbo == global.no_turbo)
-		goto unlock_driver;
-
-	if (global.turbo_disabled) {
-		pr_notice_once("Turbo disabled by BIOS or unavailable on processor\n");
+	WRITE_ONCE(global.turbo_disabled, turbo_is_disabled());
+	if (global.turbo_disabled && !no_turbo) {
+		pr_notice("Turbo disabled by BIOS or unavailable on processor\n");
 		count = -EPERM;
+		if (global.no_turbo)
+			goto unlock_driver;
+		else
+			no_turbo = 1;
+	}
+
+	if (no_turbo == global.no_turbo) {
 		goto unlock_driver;
 	}
 
@@ -1762,7 +1767,7 @@ static u64 atom_get_val(struct cpudata *cpudata, int pstate)
 	u32 vid;
 
 	val = (u64)pstate << 8;
-	if (READ_ONCE(global.no_turbo) && !global.turbo_disabled)
+	if (READ_ONCE(global.no_turbo) && !READ_ONCE(global.turbo_disabled))
 		val |= (u64)1 << 32;
 
 	vid_fp = cpudata->vid.min + mul_fp(
@@ -1927,7 +1932,7 @@ static u64 core_get_val(struct cpudata *cpudata, int pstate)
 	u64 val;
 
 	val = (u64)pstate << 8;
-	if (READ_ONCE(global.no_turbo) && !global.turbo_disabled)
+	if (READ_ONCE(global.no_turbo) && !READ_ONCE(global.turbo_disabled))
 		val |= (u64)1 << 32;
 
 	return val;
