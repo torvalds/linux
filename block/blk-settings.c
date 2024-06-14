@@ -303,7 +303,6 @@ int blk_set_default_limits(struct queue_limits *lim)
  */
 int queue_limits_commit_update(struct request_queue *q,
 		struct queue_limits *lim)
-	__releases(q->limits_lock)
 {
 	int error;
 

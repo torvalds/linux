@@ -893,7 +893,6 @@ static inline unsigned int blk_chunk_sectors_left(sector_t offset,
  */
 static inline struct queue_limits
 queue_limits_start_update(struct request_queue *q)
-	__acquires(q->limits_lock)
 {
 	mutex_lock(&q->limits_lock);
 	return q->limits;
