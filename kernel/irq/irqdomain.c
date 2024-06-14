@@ -129,7 +129,8 @@ void irq_domain_free_fwnode(struct fwnode_handle *fwnode)
 EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
 
 static int irq_domain_set_name(struct irq_domain *domain,
-			       const struct fwnode_handle *fwnode)
+			       const struct fwnode_handle *fwnode,
+			       enum irq_domain_bus_token bus_token)
 {
 	static atomic_t unknown_domains;
 	struct irqchip_fwid *fwid;
@@ -140,13 +141,23 @@ static int irq_domain_set_name(struct irq_domain *domain,
 		switch (fwid->type) {
 		case IRQCHIP_FWNODE_NAMED:
 		case IRQCHIP_FWNODE_NAMED_ID:
-			domain->name = kstrdup(fwid->name, GFP_KERNEL);
+			domain->name = bus_token ?
+					kasprintf(GFP_KERNEL, "%s-%d",
+						  fwid->name, bus_token) :
+					kstrdup(fwid->name, GFP_KERNEL);
 			if (!domain->name)
 				return -ENOMEM;
 			domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
 			break;
 		default:
 			domain->name = fwid->name;
+			if (bus_token) {
+				domain->name = kasprintf(GFP_KERNEL, "%s-%d",
+							 fwid->name, bus_token);
+				if (!domain->name)
+					return -ENOMEM;
+				domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+			}
 			break;
 		}
 	} else if (is_of_node(fwnode) || is_acpi_device_node(fwnode) ||
@@ -158,7 +169,9 @@ static int irq_domain_set_name(struct irq_domain *domain,
 		 * unhappy about. Replace them with ':', which does
 		 * the trick and is not as offensive as '\'...
 		 */
-		name = kasprintf(GFP_KERNEL, "%pfw", fwnode);
+		name = bus_token ?
+			kasprintf(GFP_KERNEL, "%pfw-%d", fwnode, bus_token) :
+			kasprintf(GFP_KERNEL, "%pfw", fwnode);
 		if (!name)
 			return -ENOMEM;
 
@@ -169,8 +182,12 @@ static int irq_domain_set_name(struct irq_domain *domain,
 	if (!domain->name) {
 		if (fwnode)
 			pr_err("Invalid fwnode type for irqdomain\n");
-		domain->name = kasprintf(GFP_KERNEL, "unknown-%d",
-					 atomic_inc_return(&unknown_domains));
+		domain->name = bus_token ?
+				kasprintf(GFP_KERNEL, "unknown-%d-%d",
+					  atomic_inc_return(&unknown_domains),
+					  bus_token) :
+				kasprintf(GFP_KERNEL, "unknown-%d",
+					  atomic_inc_return(&unknown_domains));
 		if (!domain->name)
 			return -ENOMEM;
 		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
@@ -194,7 +211,7 @@ static struct irq_domain *__irq_domain_create(const struct irq_domain_info *info
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 
-	err = irq_domain_set_name(domain, info->fwnode);
+	err = irq_domain_set_name(domain, info->fwnode, info->bus_token);
 	if (err) {
 		kfree(domain);
 		return ERR_PTR(err);
@@ -207,6 +224,7 @@ static struct irq_domain *__irq_domain_create(const struct irq_domain_info *info
 	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
 	domain->ops = info->ops;
 	domain->host_data = info->host_data;
+	domain->bus_token = info->bus_token;
 	domain->hwirq_max = info->hwirq_max;
 
 	if (info->direct_max)
