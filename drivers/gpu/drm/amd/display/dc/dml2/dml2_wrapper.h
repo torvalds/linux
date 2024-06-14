@@ -303,5 +303,5 @@ bool dml2_validate(const struct dc *in_dc,
  */
 void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 	unsigned int *fclk_change_support, unsigned int *dram_clk_change_support);
-
+void dml2_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2);
 #endif //_DML2_WRAPPER_H_

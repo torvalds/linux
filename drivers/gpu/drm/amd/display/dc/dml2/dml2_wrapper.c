@@ -821,6 +821,12 @@ void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 	*dram_clk_change_support = (unsigned int) dml2->v20.dml_core_ctx.ms.support.DRAMClockChangeSupport[0];
 }
 
+void dml2_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2)
+{
+	if (dml2->architecture == dml2_architecture_21)
+		dml21_prepare_mcache_programming(in_dc, context, dml2);
+}
+
 void dml2_copy(struct dml2_context *dst_dml2,
 	struct dml2_context *src_dml2)
 {

@@ -1753,6 +1753,10 @@ static void dcn20_update_dchubp_dpp(
 			&pipe_ctx->plane_res.scl_data.viewport_c);
 		viewport_changed = true;
 	}
+		if (hubp->funcs->hubp_program_mcache_id_and_split_coordinate)
+			hubp->funcs->hubp_program_mcache_id_and_split_coordinate(
+				hubp,
+				&pipe_ctx->mcache_regs);
 
 	/* Any updates are handled in dc interface, just need to apply existing for plane enable */
 	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed ||

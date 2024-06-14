@@ -595,6 +595,12 @@ void hwss_build_fast_sequence(struct dc *dc,
 	if (!plane || !stream)
 		return;
 
+	if (dc->hwss.wait_for_dcc_meta_propagation) {
+		block_sequence[*num_steps].params.wait_for_dcc_meta_propagation_params.dc = dc;
+		block_sequence[*num_steps].params.wait_for_dcc_meta_propagation_params.top_pipe_to_program = pipe_ctx;
+		block_sequence[*num_steps].func = HUBP_WAIT_FOR_DCC_META_PROP;
+		(*num_steps)++;
+	}
 	if (dc->hwss.subvp_pipe_control_lock_fast) {
 		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.dc = dc;
 		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.lock = true;
@@ -834,6 +840,11 @@ void hwss_execute_sequence(struct dc *dc,
 			break;
 		case DMUB_SUBVP_SAVE_SURF_ADDR:
 			hwss_subvp_save_surf_addr(params);
+			break;
+		case HUBP_WAIT_FOR_DCC_META_PROP:
+			dc->hwss.wait_for_dcc_meta_propagation(
+					params->wait_for_dcc_meta_propagation_params.dc,
+					params->wait_for_dcc_meta_propagation_params.top_pipe_to_program);
 			break;
 		case DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST:
 			dc->hwss.fams2_global_control_lock_fast(params);

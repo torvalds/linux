@@ -333,6 +333,9 @@ struct dc_dcc_setting {
 		uint32_t dcc_128_128_uncontrained : 1;  //available in ASICs before DCN 3.0
 		uint32_t dcc_256_128_128 : 1;		//available starting with DCN 3.0
 		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN 3.0 (the best compression case)
+		uint32_t dcc_256_256 : 1;  //available in ASICs starting with DCN 4.0x (the best compression case)
+		uint32_t dcc_256_128 : 1;  //available in ASICs starting with DCN 4.0x
+		uint32_t dcc_256_64 : 1;   //available in ASICs starting with DCN 4.0x (the worst compression case)
 	} dcc_controls;
 };
 
@@ -1037,6 +1040,7 @@ struct dc_debug_options {
 	unsigned int static_screen_wait_frames;
 	uint32_t pwm_freq;
 	bool force_chroma_subsampling_1tap;
+	unsigned int dcc_meta_propagation_delay_us;
 	bool disable_422_left_edge_pixel;
 	bool dml21_force_pstate_method;
 	uint32_t dml21_force_pstate_method_values[MAX_PIPES];

@@ -1617,6 +1617,14 @@ bool dcn401_validate_bandwidth(struct dc *dc,
 	return out;
 }
 
+void dcn401_prepare_mcache_programming(struct dc *dc,
+		struct dc_state *context)
+{
+	if (dc->debug.using_dml21)
+		dml2_prepare_mcache_programming(dc, context,
+				context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2);
+}
+
 static void dcn401_build_pipe_pix_clk_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_stream_state *stream = pipe_ctx->stream;
@@ -1699,6 +1707,7 @@ static struct resource_funcs dcn401_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn401_patch_unknown_plane_state,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.add_phantom_pipes = dcn32_add_phantom_pipes,
+	.prepare_mcache_programming = dcn401_prepare_mcache_programming,
 	.build_pipe_pix_clk_params = dcn401_build_pipe_pix_clk_params,
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
 };

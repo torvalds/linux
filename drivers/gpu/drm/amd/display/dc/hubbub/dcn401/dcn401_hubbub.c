@@ -824,6 +824,285 @@ void hubbub401_det_request_size(
 		}
 	}
 }
+bool hubbub401_get_dcc_compression_cap(struct hubbub *hubbub,
+		const struct dc_dcc_surface_param *input,
+		struct dc_surface_dcc_cap *output)
+{
+	struct dc *dc = hubbub->ctx->dc;
+	/* DCN4_Programming_Guide_DCHUB.docx, Section 5.11.2.2 */
+	enum dcc_control dcc_control;
+	unsigned int plane0_bpe, plane1_bpe;
+	enum segment_order segment_order_horz, segment_order_vert;
+	enum segment_order p1_segment_order_horz, p1_segment_order_vert;
+	bool req128_horz_wc, req128_vert_wc;
+	unsigned int plane0_width = 0, plane0_height = 0, plane1_width = 0, plane1_height = 0;
+	bool p1_req128_horz_wc, p1_req128_vert_wc, is_dual_plane;
+
+	memset(output, 0, sizeof(*output));
+
+	if (dc->debug.disable_dcc == DCC_DISABLE)
+		return false;
+
+	switch (input->format) {
+	default:
+		is_dual_plane = false;
+
+		plane1_width = 0;
+		plane1_height = 0;
+
+		if (input->surface_size.width > 6144 + 16)
+			plane0_width = 6160;
+		else
+			plane0_width = input->surface_size.width;
+
+		if (input->surface_size.height > 6144 + 16)
+			plane0_height = 6160;
+		else
+			plane0_height = input->surface_size.height;
+
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
+		is_dual_plane = true;
+
+		if (input->surface_size.width > 7680 + 16)
+			plane0_width = 7696;
+		else
+			plane0_width = input->surface_size.width;
+
+		if (input->surface_size.height > 4320 + 16)
+			plane0_height = 4336;
+		else
+			plane0_height = input->surface_size.height;
+
+		if (input->plane1_size.width > 7680 + 16)
+			plane1_width = 7696 / 2;
+		else
+			plane1_width = input->plane1_size.width;
+
+		if (input->plane1_size.height > 4320 + 16)
+			plane1_height = 4336 / 2;
+		else
+			plane1_height = input->plane1_size.height;
+
+		break;
+
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
+		is_dual_plane = true;
+
+		if (input->surface_size.width > 5120 + 16)
+			plane0_width = 5136;
+		else
+			plane0_width = input->surface_size.width;
+
+		if (input->surface_size.height > 5120 + 16)
+			plane0_height = 5136;
+		else
+			plane0_height = input->surface_size.height;
+
+		if (input->plane1_size.width > 5120 + 16)
+			plane1_width = 5136;
+		else
+			plane1_width = input->plane1_size.width;
+
+		if (input->plane1_size.height > 5120 + 16)
+			plane1_height = 5136;
+		else
+			plane1_height = input->plane1_size.height;
+
+		break;
+	}
+
+	if (!hubbub->funcs->dcc_support_pixel_format_plane0_plane1(input->format,
+			&plane0_bpe, &plane1_bpe))
+		return false;
+
+	/* Find plane0 DCC Controls */
+	if (!is_dual_plane) {
+
+		if (!hubbub->funcs->dcc_support_swizzle_addr3(input->swizzle_mode_addr3,
+				input->plane0_pitch, plane0_bpe,
+				&segment_order_horz, &segment_order_vert))
+			return false;
+
+		hubbub401_det_request_size(TO_DCN20_HUBBUB(hubbub)->detile_buf_size, input->format,
+				plane0_height, plane0_width, plane0_bpe,
+				plane1_height, plane1_width, plane1_bpe,
+				&req128_horz_wc, &req128_vert_wc, &p1_req128_horz_wc, &p1_req128_vert_wc);
+
+		if (!req128_horz_wc && !req128_vert_wc) {
+			dcc_control = dcc_control__256_256;
+		} else if (input->scan == SCAN_DIRECTION_HORIZONTAL) {
+			if (!req128_horz_wc)
+				dcc_control = dcc_control__256_256;
+			else if (segment_order_horz == segment_order__contiguous)
+				dcc_control = dcc_control__256_128;
+			else
+				dcc_control = dcc_control__256_64;
+		} else if (input->scan == SCAN_DIRECTION_VERTICAL) {
+			if (!req128_vert_wc)
+				dcc_control = dcc_control__256_256;
+			else if (segment_order_vert == segment_order__contiguous)
+				dcc_control = dcc_control__256_128;
+			else
+				dcc_control = dcc_control__256_64;
+		} else {
+			if ((req128_horz_wc &&
+				segment_order_horz == segment_order__non_contiguous) ||
+				(req128_vert_wc &&
+				segment_order_vert == segment_order__non_contiguous))
+				/* access_dir not known, must use most constraining */
+				dcc_control = dcc_control__256_64;
+			else
+				/* req128 is true for either horz and vert
+				 * but segment_order is contiguous
+				 */
+				dcc_control = dcc_control__256_128;
+		}
+
+		if (dc->debug.disable_dcc == DCC_HALF_REQ_DISALBE &&
+			dcc_control != dcc_control__256_256)
+			return false;
+
+		switch (dcc_control) {
+		case dcc_control__256_256:
+			output->grph.rgb.dcc_controls.dcc_256_256 = 1;
+			output->grph.rgb.dcc_controls.dcc_256_128 = 1;
+			output->grph.rgb.dcc_controls.dcc_256_64 = 1;
+			break;
+		case dcc_control__256_128:
+			output->grph.rgb.dcc_controls.dcc_256_128 = 1;
+			output->grph.rgb.dcc_controls.dcc_256_64 = 1;
+			break;
+		case dcc_control__256_64:
+			output->grph.rgb.dcc_controls.dcc_256_64 = 1;
+			break;
+		default:
+			/* Shouldn't get here */
+			ASSERT(0);
+			break;
+		}
+	} else {
+		/* For dual plane cases, need to examine both planes together */
+		if (!hubbub->funcs->dcc_support_swizzle_addr3(input->swizzle_mode_addr3,
+				input->plane0_pitch, plane0_bpe,
+				&segment_order_horz, &segment_order_vert))
+			return false;
+
+		if (!hubbub->funcs->dcc_support_swizzle_addr3(input->swizzle_mode_addr3,
+			input->plane1_pitch, plane1_bpe,
+			&p1_segment_order_horz, &p1_segment_order_vert))
+			return false;
+
+		hubbub401_det_request_size(TO_DCN20_HUBBUB(hubbub)->detile_buf_size, input->format,
+				plane0_height, plane0_width, plane0_bpe,
+				plane1_height, plane1_width, plane1_bpe,
+				&req128_horz_wc, &req128_vert_wc, &p1_req128_horz_wc, &p1_req128_vert_wc);
+
+		/* Determine Plane 0 DCC Controls */
+		if (!req128_horz_wc && !req128_vert_wc) {
+			dcc_control = dcc_control__256_256;
+		} else if (input->scan == SCAN_DIRECTION_HORIZONTAL) {
+			if (!req128_horz_wc)
+				dcc_control = dcc_control__256_256;
+			else if (segment_order_horz == segment_order__contiguous)
+				dcc_control = dcc_control__256_128;
+			else
+				dcc_control = dcc_control__256_64;
+		} else if (input->scan == SCAN_DIRECTION_VERTICAL) {
+			if (!req128_vert_wc)
+				dcc_control = dcc_control__256_256;
+			else if (segment_order_vert == segment_order__contiguous)
+				dcc_control = dcc_control__256_128;
+			else
+				dcc_control = dcc_control__256_64;
+		} else {
+			if ((req128_horz_wc &&
+				segment_order_horz == segment_order__non_contiguous) ||
+				(req128_vert_wc &&
+				segment_order_vert == segment_order__non_contiguous))
+				/* access_dir not known, must use most constraining */
+				dcc_control = dcc_control__256_64;
+			else
+				/* req128 is true for either horz and vert
+				 * but segment_order is contiguous
+				 */
+				dcc_control = dcc_control__256_128;
+		}
+
+		switch (dcc_control) {
+		case dcc_control__256_256:
+			output->video.luma.dcc_controls.dcc_256_256 = 1;
+			output->video.luma.dcc_controls.dcc_256_128 = 1;
+			output->video.luma.dcc_controls.dcc_256_64 = 1;
+			break;
+		case dcc_control__256_128:
+			output->video.luma.dcc_controls.dcc_256_128 = 1;
+			output->video.luma.dcc_controls.dcc_256_64 = 1;
+			break;
+		case dcc_control__256_64:
+			output->video.luma.dcc_controls.dcc_256_64 = 1;
+			break;
+		default:
+			ASSERT(0);
+			break;
+		}
+
+		/* Determine Plane 1 DCC Controls */
+		if (!p1_req128_horz_wc && !p1_req128_vert_wc) {
+			dcc_control = dcc_control__256_256;
+		} else if (input->scan == SCAN_DIRECTION_HORIZONTAL) {
+			if (!p1_req128_horz_wc)
+				dcc_control = dcc_control__256_256;
+			else if (p1_segment_order_horz == segment_order__contiguous)
+				dcc_control = dcc_control__256_128;
+			else
+				dcc_control = dcc_control__256_64;
+		} else if (input->scan == SCAN_DIRECTION_VERTICAL) {
+			if (!p1_req128_vert_wc)
+				dcc_control = dcc_control__256_256;
+			else if (p1_segment_order_vert == segment_order__contiguous)
+				dcc_control = dcc_control__256_128;
+			else
+				dcc_control = dcc_control__256_64;
+		} else {
+			if ((p1_req128_horz_wc &&
+				p1_segment_order_horz == segment_order__non_contiguous) ||
+				(p1_req128_vert_wc &&
+				p1_segment_order_vert == segment_order__non_contiguous))
+				/* access_dir not known, must use most constraining */
+				dcc_control = dcc_control__256_64;
+			else
+				/* req128 is true for either horz and vert
+				 * but segment_order is contiguous
+				 */
+				dcc_control = dcc_control__256_128;
+		}
+
+		switch (dcc_control) {
+		case dcc_control__256_256:
+			output->video.chroma.dcc_controls.dcc_256_256 = 1;
+			output->video.chroma.dcc_controls.dcc_256_128 = 1;
+			output->video.chroma.dcc_controls.dcc_256_64 = 1;
+			break;
+		case dcc_control__256_128:
+			output->video.chroma.dcc_controls.dcc_256_128 = 1;
+			output->video.chroma.dcc_controls.dcc_256_64 = 1;
+			break;
+		case dcc_control__256_64:
+			output->video.chroma.dcc_controls.dcc_256_64 = 1;
+			break;
+		default:
+			ASSERT(0);
+			break;
+		}
+	}
+
+	output->capable = true;
+	return true;
+}
 
 static void dcn401_program_det_segments(struct hubbub *hubbub, int hubp_inst, unsigned det_buffer_size_seg)
 {
@@ -891,6 +1170,7 @@ static const struct hubbub_funcs hubbub4_01_funcs = {
 	.init_vm_ctx = hubbub2_init_vm_ctx,
 	.dcc_support_swizzle_addr3 = hubbub401_dcc_support_swizzle,
 	.dcc_support_pixel_format_plane0_plane1 = hubbub401_dcc_support_pixel_format,
+	.get_dcc_compression_cap = hubbub401_get_dcc_compression_cap,
 	.wm_read_state = hubbub401_wm_read_state,
 	.get_dchub_ref_freq = hubbub2_get_dchub_ref_freq,
 	.program_watermarks = hubbub401_program_watermarks,

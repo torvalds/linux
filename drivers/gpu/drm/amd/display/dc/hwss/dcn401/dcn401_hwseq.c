@@ -1336,6 +1336,31 @@ bool dcn401_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	return true;
 }
 
+void dcn401_wait_for_dcc_meta_propagation(const struct dc *dc,
+		const struct pipe_ctx *top_pipe)
+{
+	bool is_wait_needed = false;
+	const struct pipe_ctx *pipe_ctx = top_pipe;
+
+	/* check if any surfaces are updating address while using flip immediate and dcc */
+	while (pipe_ctx != NULL) {
+		if (pipe_ctx->plane_state &&
+				pipe_ctx->plane_state->dcc.enable &&
+				pipe_ctx->plane_state->flip_immediate &&
+				pipe_ctx->plane_state->update_flags.bits.addr_update) {
+			is_wait_needed = true;
+			break;
+		}
+
+		/* check next pipe */
+		pipe_ctx = pipe_ctx->bottom_pipe;
+	}
+
+	if (is_wait_needed && dc->debug.dcc_meta_propagation_delay_us > 0) {
+		udelay(dc->debug.dcc_meta_propagation_delay_us);
+	}
+}
+
 void dcn401_prepare_bandwidth(struct dc *dc,
 	struct dc_state *context)
 {

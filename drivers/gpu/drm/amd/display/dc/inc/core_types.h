@@ -97,6 +97,9 @@ struct resource_funcs {
 	unsigned int (*calculate_mall_ways_from_bytes)(
 				const struct dc *dc,
 				unsigned int total_size_in_mall_bytes);
+	void (*prepare_mcache_programming)(
+					struct dc *dc,
+					struct dc_state *context);
 	/**
 	 * @populate_dml_pipes - Populate pipe data struct
 	 *

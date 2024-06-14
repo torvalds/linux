@@ -626,6 +626,26 @@ void hubp401_set_viewport(
 		  SEC_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
+void hubp401_program_mcache_id_and_split_coordinate(
+	struct hubp *hubp,
+	struct dml2_hubp_pipe_mcache_regs *mcache_regs)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_SET_8(DCHUBP_MCACHEID_CONFIG, 0,
+		MCACHEID_REG_READ_1H_P0, mcache_regs->main.p0.mcache_id_first,
+		MCACHEID_REG_READ_2H_P0, mcache_regs->main.p0.mcache_id_second,
+		MCACHEID_REG_READ_1H_P1, mcache_regs->main.p1.mcache_id_first,
+		MCACHEID_REG_READ_2H_P1, mcache_regs->main.p1.mcache_id_second,
+		MCACHEID_MALL_PREF_1H_P0, mcache_regs->mall.p0.mcache_id_first,
+		MCACHEID_MALL_PREF_2H_P0, mcache_regs->mall.p0.mcache_id_second,
+		MCACHEID_MALL_PREF_1H_P1, mcache_regs->mall.p1.mcache_id_first,
+		MCACHEID_MALL_PREF_2H_P1, mcache_regs->mall.p1.mcache_id_second);
+
+	REG_SET_2(DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE, 0,
+		VIEWPORT_MCACHE_SPLIT_COORDINATE, mcache_regs->main.p0.split_location,
+		VIEWPORT_MCACHE_SPLIT_COORDINATE_C, mcache_regs->main.p1.split_location);
+}
 void hubp401_set_flip_int(struct hubp *hubp)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
@@ -963,6 +983,7 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.phantom_hubp_post_enable = hubp32_phantom_hubp_post_enable,
 	.hubp_update_mall_sel = hubp401_update_mall_sel,
 	.hubp_prepare_subvp_buffering = hubp32_prepare_subvp_buffering,
+	.hubp_program_mcache_id_and_split_coordinate = hubp401_program_mcache_id_and_split_coordinate,
 	.hubp_update_3dlut_fl_bias_scale = hubp401_update_3dlut_fl_bias_scale,
 	.hubp_program_3dlut_fl_mode = hubp401_program_3dlut_fl_mode,
 	.hubp_program_3dlut_fl_format = hubp401_program_3dlut_fl_format,
