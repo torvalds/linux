@@ -862,6 +862,9 @@ static const struct attribute_group uncore_pmu_attr_group = {
 static inline int uncore_get_box_id(struct intel_uncore_type *type,
 				    struct intel_uncore_pmu *pmu)
 {
+	if (type->boxes)
+		return intel_uncore_find_discovery_unit_id(type->boxes, -1, pmu->pmu_idx);
+
 	return type->box_ids ? type->box_ids[pmu->pmu_idx] : pmu->pmu_idx;
 }
 
