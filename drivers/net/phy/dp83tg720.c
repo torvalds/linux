@@ -36,11 +36,20 @@
 
 static int dp83tg720_config_aneg(struct phy_device *phydev)
 {
+	int ret;
+
 	/* Autoneg is not supported and this PHY supports only one speed.
 	 * We need to care only about master/slave configuration if it was
 	 * changed by user.
 	 */
-	return genphy_c45_pma_baset1_setup_master_slave(phydev);
+	ret = genphy_c45_pma_baset1_setup_master_slave(phydev);
+	if (ret)
+		return ret;
+
+	/* Re-read role configuration to make changes visible even if
+	 * the link is in administrative down state.
+	 */
+	return genphy_c45_pma_baset1_read_master_slave(phydev);
 }
 
 static int dp83tg720_read_status(struct phy_device *phydev)
@@ -69,6 +78,8 @@ static int dp83tg720_read_status(struct phy_device *phydev)
 			return ret;
 
 		/* After HW reset we need to restore master/slave configuration.
+		 * genphy_c45_pma_baset1_read_master_slave() call will be done
+		 * by the dp83tg720_config_aneg() function.
 		 */
 		ret = dp83tg720_config_aneg(phydev);
 		if (ret)
@@ -168,8 +179,15 @@ static int dp83tg720_config_init(struct phy_device *phydev)
 	/* In case the PHY is bootstrapped in managed mode, we need to
 	 * wake it.
 	 */
-	return phy_write_mmd(phydev, MDIO_MMD_VEND2, DP83TG720S_LPS_CFG3,
-			     DP83TG720S_LPS_CFG3_PWR_MODE_0);
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND2, DP83TG720S_LPS_CFG3,
+			    DP83TG720S_LPS_CFG3_PWR_MODE_0);
+	if (ret)
+		return ret;
+
+	/* Make role configuration visible for ethtool on init and after
+	 * rest.
+	 */
+	return genphy_c45_pma_baset1_read_master_slave(phydev);
 }
 
 static struct phy_driver dp83tg720_driver[] = {
