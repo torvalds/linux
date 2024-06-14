@@ -95,11 +95,17 @@ impl GenDiskBuilder {
     ) -> Result<GenDisk<T>> {
         let lock_class_key = crate::sync::LockClassKey::new();
 
+        // SAFETY: `bindings::queue_limits` contain only fields that are valid when zeroed.
+        let mut lim: bindings::queue_limits = unsafe { core::mem::zeroed() };
+
+        lim.logical_block_size = self.logical_block_size;
+        lim.physical_block_size = self.physical_block_size;
+
         // SAFETY: `tagset.raw_tag_set()` points to a valid and initialized tag set
         let gendisk = from_err_ptr(unsafe {
             bindings::__blk_mq_alloc_disk(
                 tagset.raw_tag_set(),
-                core::ptr::null_mut(), // TODO: We can pass queue limits right here
+                &mut lim,
                 core::ptr::null_mut(),
                 lock_class_key.as_ptr(),
             )
@@ -140,18 +146,6 @@ impl GenDiskBuilder {
         )?;
         raw_writer.write_fmt(name)?;
         raw_writer.write_char('\0')?;
-
-        // SAFETY: `gendisk` points to a valid and initialized instance of
-        // `struct gendisk`. We have exclusive access, so we cannot race.
-        unsafe {
-            bindings::blk_queue_logical_block_size((*gendisk).queue, self.logical_block_size)
-        };
-
-        // SAFETY: `gendisk` points to a valid and initialized instance of
-        // `struct gendisk`. We have exclusive access, so we cannot race.
-        unsafe {
-            bindings::blk_queue_physical_block_size((*gendisk).queue, self.physical_block_size)
-        };
 
         // SAFETY: `gendisk` points to a valid and initialized instance of
         // `struct gendisk`. `set_capacity` takes a lock to synchronize this
