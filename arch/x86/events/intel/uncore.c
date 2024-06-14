@@ -969,6 +969,9 @@ static void uncore_type_exit(struct intel_uncore_type *type)
 	if (type->cleanup_mapping)
 		type->cleanup_mapping(type);
 
+	if (type->cleanup_extra_boxes)
+		type->cleanup_extra_boxes(type);
+
 	if (pmu) {
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			uncore_pmu_unregister(pmu);
@@ -1084,22 +1087,19 @@ static struct intel_uncore_pmu *
 uncore_pci_find_dev_pmu_from_types(struct pci_dev *pdev)
 {
 	struct intel_uncore_type **types = uncore_pci_uncores;
+	struct intel_uncore_discovery_unit *unit;
 	struct intel_uncore_type *type;
-	u64 box_ctl;
-	int i, die;
+	struct rb_node *node;
 
 	for (; *types; types++) {
 		type = *types;
-		for (die = 0; die < __uncore_max_dies; die++) {
-			for (i = 0; i < type->num_boxes; i++) {
-				if (!type->box_ctls[die])
-					continue;
-				box_ctl = type->box_ctls[die] + type->pci_offsets[i];
-				if (pdev->devfn == UNCORE_DISCOVERY_PCI_DEVFN(box_ctl) &&
-				    pdev->bus->number == UNCORE_DISCOVERY_PCI_BUS(box_ctl) &&
-				    pci_domain_nr(pdev->bus) == UNCORE_DISCOVERY_PCI_DOMAIN(box_ctl))
-					return &type->pmus[i];
-			}
+
+		for (node = rb_first(type->boxes); node; node = rb_next(node)) {
+			unit = rb_entry(node, struct intel_uncore_discovery_unit, node);
+			if (pdev->devfn == UNCORE_DISCOVERY_PCI_DEVFN(unit->addr) &&
+			    pdev->bus->number == UNCORE_DISCOVERY_PCI_BUS(unit->addr) &&
+			    pci_domain_nr(pdev->bus) == UNCORE_DISCOVERY_PCI_DOMAIN(unit->addr))
+				return &type->pmus[unit->pmu_idx];
 		}
 	}
 
@@ -1375,28 +1375,25 @@ static struct notifier_block uncore_pci_notifier = {
 static void uncore_pci_pmus_register(void)
 {
 	struct intel_uncore_type **types = uncore_pci_uncores;
+	struct intel_uncore_discovery_unit *unit;
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
+	struct rb_node *node;
 	struct pci_dev *pdev;
-	u64 box_ctl;
-	int i, die;
 
 	for (; *types; types++) {
 		type = *types;
-		for (die = 0; die < __uncore_max_dies; die++) {
-			for (i = 0; i < type->num_boxes; i++) {
-				if (!type->box_ctls[die])
-					continue;
-				box_ctl = type->box_ctls[die] + type->pci_offsets[i];
-				pdev = pci_get_domain_bus_and_slot(UNCORE_DISCOVERY_PCI_DOMAIN(box_ctl),
-								   UNCORE_DISCOVERY_PCI_BUS(box_ctl),
-								   UNCORE_DISCOVERY_PCI_DEVFN(box_ctl));
-				if (!pdev)
-					continue;
-				pmu = &type->pmus[i];
 
-				uncore_pci_pmu_register(pdev, type, pmu, die);
-			}
+		for (node = rb_first(type->boxes); node; node = rb_next(node)) {
+			unit = rb_entry(node, struct intel_uncore_discovery_unit, node);
+			pdev = pci_get_domain_bus_and_slot(UNCORE_DISCOVERY_PCI_DOMAIN(unit->addr),
+							   UNCORE_DISCOVERY_PCI_BUS(unit->addr),
+							   UNCORE_DISCOVERY_PCI_DEVFN(unit->addr));
+
+			if (!pdev)
+				continue;
+			pmu = &type->pmus[unit->pmu_idx];
+			uncore_pci_pmu_register(pdev, type, pmu, unit->die);
 		}
 	}
 

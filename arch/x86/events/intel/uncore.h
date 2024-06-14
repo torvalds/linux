@@ -99,6 +99,10 @@ struct intel_uncore_type {
 	int (*get_topology)(struct intel_uncore_type *type);
 	void (*set_mapping)(struct intel_uncore_type *type);
 	void (*cleanup_mapping)(struct intel_uncore_type *type);
+	/*
+	 * Optional callbacks for extra uncore units cleanup
+	 */
+	void (*cleanup_extra_boxes)(struct intel_uncore_type *type);
 };
 
 #define pmu_group attr_groups[0]

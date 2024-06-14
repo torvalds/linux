@@ -215,8 +215,8 @@ uncore_find_unit(struct rb_root *root, unsigned int id)
 	return NULL;
 }
 
-static void uncore_find_add_unit(struct intel_uncore_discovery_unit *node,
-				 struct rb_root *root, u16 *num_units)
+void uncore_find_add_unit(struct intel_uncore_discovery_unit *node,
+			  struct rb_root *root, u16 *num_units)
 {
 	struct intel_uncore_discovery_unit *unit = uncore_find_unit(root, node->id);
 
@@ -560,7 +560,7 @@ bool intel_generic_uncore_assign_hw_event(struct perf_event *event,
 	if (!box->pmu->type->boxes)
 		return false;
 
-	if (box->pci_dev || box->io_addr) {
+	if (box->io_addr) {
 		hwc->config_base = uncore_pci_event_ctl(box, hwc->idx);
 		hwc->event_base  = uncore_pci_perf_ctr(box, hwc->idx);
 		return true;
@@ -570,16 +570,28 @@ bool intel_generic_uncore_assign_hw_event(struct perf_event *event,
 	if (!box_ctl)
 		return false;
 
+	if (box->pci_dev) {
+		box_ctl = UNCORE_DISCOVERY_PCI_BOX_CTRL(box_ctl);
+		hwc->config_base = box_ctl + uncore_pci_event_ctl(box, hwc->idx);
+		hwc->event_base  = box_ctl + uncore_pci_perf_ctr(box, hwc->idx);
+		return true;
+	}
+
 	hwc->config_base = box_ctl + box->pmu->type->event_ctl + hwc->idx;
 	hwc->event_base  = box_ctl + box->pmu->type->perf_ctr + hwc->idx;
 
 	return true;
 }
 
+static inline int intel_pci_uncore_box_ctl(struct intel_uncore_box *box)
+{
+	return UNCORE_DISCOVERY_PCI_BOX_CTRL(intel_generic_uncore_box_ctl(box));
+}
+
 void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
-	int box_ctl = uncore_pci_box_ctl(box);
+	int box_ctl = intel_pci_uncore_box_ctl(box);
 
 	__set_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags);
 	pci_write_config_dword(pdev, box_ctl, GENERIC_PMON_BOX_CTL_INT);
@@ -588,7 +600,7 @@ void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box)
 void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
-	int box_ctl = uncore_pci_box_ctl(box);
+	int box_ctl = intel_pci_uncore_box_ctl(box);
 
 	pci_write_config_dword(pdev, box_ctl, GENERIC_PMON_BOX_CTL_FRZ);
 }
@@ -596,7 +608,7 @@ void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box)
 void intel_generic_uncore_pci_enable_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
-	int box_ctl = uncore_pci_box_ctl(box);
+	int box_ctl = intel_pci_uncore_box_ctl(box);
 
 	pci_write_config_dword(pdev, box_ctl, 0);
 }
@@ -748,6 +760,8 @@ static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 		uncore->box_ctl = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl);
 		uncore->box_ctls = type->box_ctrl_die;
 		uncore->pci_offsets = type->box_offset;
+		uncore->boxes = &type->units;
+		uncore->num_boxes = type->num_units;
 		break;
 	case UNCORE_ACCESS_MMIO:
 		uncore->ops = &generic_uncore_mmio_ops;
