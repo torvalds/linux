@@ -2099,7 +2099,7 @@ static const unsigned int pwm0_mux[] = {
 	PWM0_MARK,
 };
 
-/* - PWM1_A ------------------------------------------------------------------- */
+/* - PWM1 ------------------------------------------------------------------- */
 static const unsigned int pwm1_a_pins[] = {
 	/* PWM1_A */
 	RCAR_GP_PIN(3, 13),
@@ -2108,7 +2108,6 @@ static const unsigned int pwm1_a_mux[] = {
 	PWM1_A_MARK,
 };
 
-/* - PWM1_B ------------------------------------------------------------------- */
 static const unsigned int pwm1_b_pins[] = {
 	/* PWM1_B */
 	RCAR_GP_PIN(2, 13),
@@ -2126,7 +2125,7 @@ static const unsigned int pwm2_mux[] = {
 	PWM2_MARK,
 };
 
-/* - PWM3_A ------------------------------------------------------------------- */
+/* - PWM3 ------------------------------------------------------------------- */
 static const unsigned int pwm3_a_pins[] = {
 	/* PWM3_A */
 	RCAR_GP_PIN(1, 22),
@@ -2135,7 +2134,6 @@ static const unsigned int pwm3_a_mux[] = {
 	PWM3_A_MARK,
 };
 
-/* - PWM3_B ------------------------------------------------------------------- */
 static const unsigned int pwm3_b_pins[] = {
 	/* PWM3_B */
 	RCAR_GP_PIN(2, 15),
