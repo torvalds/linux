@@ -3542,16 +3542,7 @@ static int vlv_hrawclk(struct drm_i915_private *dev_priv)
 
 static int i9xx_hrawclk(struct drm_i915_private *i915)
 {
-	/*
-	 * hrawclock is 1/4 the FSB frequency
-	 *
-	 * Note that this only reads the state of the FSB
-	 * straps, not the actual FSB frequency. Some BIOSen
-	 * let you configure each independently. Ideally we'd
-	 * read out the actual FSB frequency but sadly we
-	 * don't know which registers have that information,
-	 * and all the relevant docs have gone to bit heaven :(
-	 */
+	/* hrawclock is 1/4 the FSB frequency */
 	return DIV_ROUND_CLOSEST(i9xx_fsb_freq(i915), 4);
 }
 
