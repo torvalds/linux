@@ -58,11 +58,6 @@ static int imx8qxp_pxl2dpi_bridge_attach(struct drm_bridge *bridge,
 		return -EINVAL;
 	}
 
-	if (!bridge->encoder) {
-		DRM_DEV_ERROR(p2d->dev, "missing encoder\n");
-		return -ENODEV;
-	}
-
 	return drm_bridge_attach(bridge->encoder,
 				 p2d->next_bridge, bridge,
 				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);

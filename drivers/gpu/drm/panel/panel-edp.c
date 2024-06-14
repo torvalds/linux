@@ -222,10 +222,7 @@ struct edp_panel_entry {
 
 struct panel_edp {
 	struct drm_panel base;
-	bool enabled;
 	bool no_hpd;
-
-	bool prepared;
 
 	ktime_t prepared_time;
 	ktime_t powered_on_time;
@@ -395,13 +392,8 @@ static int panel_edp_disable(struct drm_panel *panel)
 {
 	struct panel_edp *p = to_panel_edp(panel);
 
-	if (!p->enabled)
-		return 0;
-
 	if (p->desc->delay.disable)
 		msleep(p->desc->delay.disable);
-
-	p->enabled = false;
 
 	return 0;
 }
@@ -420,17 +412,11 @@ static int panel_edp_suspend(struct device *dev)
 
 static int panel_edp_unprepare(struct drm_panel *panel)
 {
-	struct panel_edp *p = to_panel_edp(panel);
 	int ret;
-
-	/* Unpreparing when already unprepared is a no-op */
-	if (!p->prepared)
-		return 0;
 
 	ret = pm_runtime_put_sync_suspend(panel->dev);
 	if (ret < 0)
 		return ret;
-	p->prepared = false;
 
 	return 0;
 }
@@ -542,20 +528,13 @@ static int panel_edp_resume(struct device *dev)
 
 static int panel_edp_prepare(struct drm_panel *panel)
 {
-	struct panel_edp *p = to_panel_edp(panel);
 	int ret;
-
-	/* Preparing when already prepared is a no-op */
-	if (p->prepared)
-		return 0;
 
 	ret = pm_runtime_get_sync(panel->dev);
 	if (ret < 0) {
 		pm_runtime_put_autosuspend(panel->dev);
 		return ret;
 	}
-
-	p->prepared = true;
 
 	return 0;
 }
@@ -564,9 +543,6 @@ static int panel_edp_enable(struct drm_panel *panel)
 {
 	struct panel_edp *p = to_panel_edp(panel);
 	unsigned int delay;
-
-	if (p->enabled)
-		return 0;
 
 	delay = p->desc->delay.enable;
 
@@ -597,8 +573,6 @@ static int panel_edp_enable(struct drm_panel *panel)
 	panel_edp_wait(p->prepared_time, p->desc->delay.prepare_to_enable);
 
 	panel_edp_wait(p->powered_on_time, p->desc->delay.powered_on_to_enable);
-
-	p->enabled = true;
 
 	return 0;
 }
@@ -869,7 +843,6 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 	if (!panel)
 		return -ENOMEM;
 
-	panel->enabled = false;
 	panel->prepared_time = 0;
 	panel->desc = desc;
 	panel->aux = aux;
@@ -971,13 +944,34 @@ err_finished_ddc_init:
 	return err;
 }
 
+static void panel_edp_shutdown(struct device *dev)
+{
+	struct panel_edp *panel = dev_get_drvdata(dev);
+
+	/*
+	 * NOTE: the following two calls don't really belong here. It is the
+	 * responsibility of a correctly written DRM modeset driver to call
+	 * drm_atomic_helper_shutdown() at shutdown time and that should
+	 * cause the panel to be disabled / unprepared if needed. For now,
+	 * however, we'll keep these calls due to the sheer number of
+	 * different DRM modeset drivers used with panel-edp. The fact that
+	 * we're calling these and _also_ the drm_atomic_helper_shutdown()
+	 * will try to disable/unprepare means that we can get a warning about
+	 * trying to disable/unprepare an already disabled/unprepared panel,
+	 * but that's something we'll have to live with until we've confirmed
+	 * that all DRM modeset drivers are properly calling
+	 * drm_atomic_helper_shutdown().
+	 */
+	drm_panel_disable(&panel->base);
+	drm_panel_unprepare(&panel->base);
+}
+
 static void panel_edp_remove(struct device *dev)
 {
 	struct panel_edp *panel = dev_get_drvdata(dev);
 
 	drm_panel_remove(&panel->base);
-	drm_panel_disable(&panel->base);
-	drm_panel_unprepare(&panel->base);
+	panel_edp_shutdown(dev);
 
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
@@ -986,14 +980,6 @@ static void panel_edp_remove(struct device *dev)
 
 	drm_edid_free(panel->drm_edid);
 	panel->drm_edid = NULL;
-}
-
-static void panel_edp_shutdown(struct device *dev)
-{
-	struct panel_edp *panel = dev_get_drvdata(dev);
-
-	drm_panel_disable(&panel->base);
-	drm_panel_unprepare(&panel->base);
 }
 
 static const struct display_timing auo_b101ean01_timing = {
@@ -1983,8 +1969,10 @@ static const struct edp_panel_entry edp_panels[] = {
 	EDP_PANEL_ENTRY('A', 'U', 'O', 0x1062, &delay_200_500_e50, "B120XAN01.0"),
 	EDP_PANEL_ENTRY('A', 'U', 'O', 0x125c, &delay_200_500_e50, "Unknown"),
 	EDP_PANEL_ENTRY('A', 'U', 'O', 0x145c, &delay_200_500_e50, "B116XAB01.4"),
+	EDP_PANEL_ENTRY('A', 'U', 'O', 0x1999, &delay_200_500_e50, "Unknown"),
 	EDP_PANEL_ENTRY('A', 'U', 'O', 0x1e9b, &delay_200_500_e50, "B133UAN02.1"),
 	EDP_PANEL_ENTRY('A', 'U', 'O', 0x1ea5, &delay_200_500_e50, "B116XAK01.6"),
+	EDP_PANEL_ENTRY('A', 'U', 'O', 0x203d, &delay_200_500_e50, "B140HTN02.0"),
 	EDP_PANEL_ENTRY('A', 'U', 'O', 0x208d, &delay_200_500_e50, "B140HTN02.1"),
 	EDP_PANEL_ENTRY('A', 'U', 'O', 0x235c, &delay_200_500_e50, "B116XTN02.3"),
 	EDP_PANEL_ENTRY('A', 'U', 'O', 0x239b, &delay_200_500_e50, "B116XAN06.1"),
@@ -2005,6 +1993,8 @@ static const struct edp_panel_entry edp_panels[] = {
 
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0607, &delay_200_500_e200, "Unknown"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0608, &delay_200_500_e50, "NT116WHM-N11"),
+	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0609, &delay_200_500_e50_po2e200, "NT116WHM-N21 V4.1"),
+	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0623, &delay_200_500_e200, "NT116WHM-N21 V4.0"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0668, &delay_200_500_e200, "Unknown"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x068f, &delay_200_500_e200, "Unknown"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x06e5, &delay_200_500_e200, "Unknown"),
@@ -2020,6 +2010,7 @@ static const struct edp_panel_entry edp_panels[] = {
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0771, &delay_200_500_e200, "Unknown"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0786, &delay_200_500_p2e80, "NV116WHM-T01"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0797, &delay_200_500_e200, "Unknown"),
+	EDP_PANEL_ENTRY('B', 'O', 'E', 0x07a8, &delay_200_500_e50_po2e200, "NT116WHM-N21"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x07d1, &boe_nv133fhm_n61.delay, "NV133FHM-N61"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x07d3, &delay_200_500_e200, "Unknown"),
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x07f6, &delay_200_500_e200, "NT140FHM-N44"),
@@ -2067,6 +2058,7 @@ static const struct edp_panel_entry edp_panels[] = {
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1157, &delay_200_500_e80_d50, "N116BGE-EA2"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x115b, &delay_200_500_e80_d50, "N116BCN-EB1"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x115e, &delay_200_500_e80_d50, "N116BCA-EA1"),
+	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1160, &delay_200_500_e80_d50, "N116BCJ-EAK"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1247, &delay_200_500_e80_d50, "N120ACA-EA1"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x142b, &delay_200_500_e80_d50, "N140HCA-EAC"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x142e, &delay_200_500_e80_d50, "N140BGA-EA4"),
@@ -2094,6 +2086,7 @@ static const struct edp_panel_entry edp_panels[] = {
 	EDP_PANEL_ENTRY('K', 'D', 'B', 0x0624, &kingdisplay_kd116n21_30nv_a010.delay, "116N21-30NV-A010"),
 	EDP_PANEL_ENTRY('K', 'D', 'B', 0x1118, &delay_200_500_e50, "KD116N29-30NK-A005"),
 	EDP_PANEL_ENTRY('K', 'D', 'B', 0x1120, &delay_200_500_e80_d50, "116N29-30NK-C007"),
+	EDP_PANEL_ENTRY('K', 'D', 'B', 0x1212, &delay_200_500_e50, "KD116N0930A16"),
 
 	EDP_PANEL_ENTRY('K', 'D', 'C', 0x044f, &delay_200_500_e50, "KD116N9-30NH-F3"),
 	EDP_PANEL_ENTRY('K', 'D', 'C', 0x05f1, &delay_200_500_e80_d50, "KD116N5-30NV-G7"),
@@ -2113,6 +2106,7 @@ static const struct edp_panel_entry edp_panels[] = {
 
 	EDP_PANEL_ENTRY('S', 'H', 'P', 0x1511, &delay_200_500_e50, "LQ140M1JW48"),
 	EDP_PANEL_ENTRY('S', 'H', 'P', 0x1523, &sharp_lq140m1jw46.delay, "LQ140M1JW46"),
+	EDP_PANEL_ENTRY('S', 'H', 'P', 0x153a, &delay_200_500_e50, "LQ140T1JH01"),
 	EDP_PANEL_ENTRY('S', 'H', 'P', 0x154c, &delay_200_500_p2e100, "LQ116M1JW10"),
 
 	EDP_PANEL_ENTRY('S', 'T', 'A', 0x0100, &delay_100_500_e200, "2081116HHD028001-51D"),

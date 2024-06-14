@@ -337,11 +337,6 @@ static int lt9611uxc_connector_init(struct drm_bridge *bridge, struct lt9611uxc 
 {
 	int ret;
 
-	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
-	}
-
 	lt9611uxc->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
 	drm_connector_helper_add(&lt9611uxc->connector,

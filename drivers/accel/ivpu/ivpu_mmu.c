@@ -519,7 +519,8 @@ static int ivpu_mmu_cmdq_sync(struct ivpu_device *vdev)
 	if (ret)
 		return ret;
 
-	clflush_cache_range(q->base, IVPU_MMU_CMDQ_SIZE);
+	if (!ivpu_is_force_snoop_enabled(vdev))
+		clflush_cache_range(q->base, IVPU_MMU_CMDQ_SIZE);
 	REGV_WR32(IVPU_MMU_REG_CMDQ_PROD, q->prod);
 
 	ret = ivpu_mmu_cmdq_wait_for_cons(vdev);
@@ -567,7 +568,8 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	int ret;
 
 	memset(mmu->cmdq.base, 0, IVPU_MMU_CMDQ_SIZE);
-	clflush_cache_range(mmu->cmdq.base, IVPU_MMU_CMDQ_SIZE);
+	if (!ivpu_is_force_snoop_enabled(vdev))
+		clflush_cache_range(mmu->cmdq.base, IVPU_MMU_CMDQ_SIZE);
 	mmu->cmdq.prod = 0;
 	mmu->cmdq.cons = 0;
 
@@ -661,7 +663,8 @@ static void ivpu_mmu_strtab_link_cd(struct ivpu_device *vdev, u32 sid)
 	WRITE_ONCE(entry[1], str[1]);
 	WRITE_ONCE(entry[0], str[0]);
 
-	clflush_cache_range(entry, IVPU_MMU_STRTAB_ENT_SIZE);
+	if (!ivpu_is_force_snoop_enabled(vdev))
+		clflush_cache_range(entry, IVPU_MMU_STRTAB_ENT_SIZE);
 
 	ivpu_dbg(vdev, MMU, "STRTAB write entry (SSID=%u): 0x%llx, 0x%llx\n", sid, str[0], str[1]);
 }
@@ -735,7 +738,8 @@ static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
 	WRITE_ONCE(entry[3], cd[3]);
 	WRITE_ONCE(entry[0], cd[0]);
 
-	clflush_cache_range(entry, IVPU_MMU_CDTAB_ENT_SIZE);
+	if (!ivpu_is_force_snoop_enabled(vdev))
+		clflush_cache_range(entry, IVPU_MMU_CDTAB_ENT_SIZE);
 
 	ivpu_dbg(vdev, MMU, "CDTAB %s entry (SSID=%u, dma=%pad): 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
 		 cd_dma ? "write" : "clear", ssid, &cd_dma, cd[0], cd[1], cd[2], cd[3]);

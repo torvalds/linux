@@ -6909,7 +6909,7 @@ DRM DRIVER FOR LG SW43408 PANELS
 M:	Sumit Semwal <sumit.semwal@linaro.org>
 M:	Caleb Connolly <caleb.connolly@linaro.org>
 S:	Maintained
-T:	git git://anongit.freedesktop.org/drm/drm-misc
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/panel/lg,sw43408.yaml
 F:	drivers/gpu/drm/panel/panel-lg-sw43408.c
 

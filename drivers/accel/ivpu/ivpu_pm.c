@@ -18,6 +18,7 @@
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
+#include "ivpu_ms.h"
 #include "ivpu_pm.h"
 
 static bool ivpu_disable_recovery;
@@ -131,6 +132,7 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 	ivpu_suspend(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);
 	ivpu_jobs_abort_all(vdev);
+	ivpu_ms_cleanup_all(vdev);
 
 	ret = ivpu_resume(vdev);
 	if (ret)
@@ -262,6 +264,7 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 
 	if (!hw_is_idle) {
 		ivpu_err(vdev, "NPU failed to enter idle, force suspended.\n");
+		atomic_inc(&vdev->pm->reset_counter);
 		ivpu_fw_log_dump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
@@ -333,6 +336,8 @@ void ivpu_pm_reset_prepare_cb(struct pci_dev *pdev)
 	ivpu_hw_reset(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);
 	ivpu_jobs_abort_all(vdev);
+	ivpu_ms_cleanup_all(vdev);
+
 	ivpu_dbg(vdev, PM, "Pre-reset done.\n");
 }
 

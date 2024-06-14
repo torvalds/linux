@@ -490,7 +490,7 @@ v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data, u32 quer
 	struct v3d_file_priv *v3d_priv = job->base.file->driver_priv;
 	struct v3d_dev *v3d = job->base.v3d;
 	struct v3d_perfmon *perfmon;
-	u64 counter_values[V3D_PERFCNT_NUM];
+	u64 counter_values[V3D_MAX_COUNTERS];
 
 	for (int i = 0; i < performance_query->nperfmons; i++) {
 		perfmon = v3d_perfmon_find(v3d_priv,

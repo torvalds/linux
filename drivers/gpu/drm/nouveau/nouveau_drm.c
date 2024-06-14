@@ -32,7 +32,7 @@
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_vblank.h>
@@ -846,9 +846,9 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		goto fail_drm_dev_init;
 
 	if (nouveau_drm(drm_dev)->client.device.info.ram_size <= 32 * 1024 * 1024)
-		drm_fbdev_generic_setup(drm_dev, 8);
+		drm_fbdev_ttm_setup(drm_dev, 8);
 	else
-		drm_fbdev_generic_setup(drm_dev, 32);
+		drm_fbdev_ttm_setup(drm_dev, 32);
 
 	quirk_broken_nv_runpm(pdev);
 	return 0;

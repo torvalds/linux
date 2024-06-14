@@ -24,6 +24,8 @@ struct ivpu_file_priv;
  */
 struct ivpu_cmdq {
 	struct vpu_job_queue *jobq;
+	struct ivpu_bo *primary_preempt_buf;
+	struct ivpu_bo *secondary_preempt_buf;
 	struct ivpu_bo *mem;
 	u32 entry_count;
 	u32 db_id;
