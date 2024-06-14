@@ -34,16 +34,19 @@
 /* NXP HW err codes */
 #define BTNXPUART_IR_HW_ERR		0xb0
 
-#define FIRMWARE_W8987		"nxp/uartuart8987_bt.bin"
-#define FIRMWARE_W8997		"nxp/uartuart8997_bt_v4.bin"
-#define FIRMWARE_W9098		"nxp/uartuart9098_bt_v1.bin"
-#define FIRMWARE_IW416		"nxp/uartiw416_bt_v0.bin"
-#define FIRMWARE_IW612		"nxp/uartspi_n61x_v1.bin.se"
-#define FIRMWARE_IW624		"nxp/uartiw624_bt.bin"
-#define FIRMWARE_SECURE_IW624	"nxp/uartiw624_bt.bin.se"
-#define FIRMWARE_AW693		"nxp/uartaw693_bt.bin"
-#define FIRMWARE_SECURE_AW693	"nxp/uartaw693_bt.bin.se"
-#define FIRMWARE_HELPER		"nxp/helper_uart_3000000.bin"
+#define FIRMWARE_W8987		"uart8987_bt_v0.bin"
+#define FIRMWARE_W8987_OLD	"uartuart8987_bt.bin"
+#define FIRMWARE_W8997		"uart8997_bt_v4.bin"
+#define FIRMWARE_W8997_OLD	"uartuart8997_bt_v4.bin"
+#define FIRMWARE_W9098		"uart9098_bt_v1.bin"
+#define FIRMWARE_W9098_OLD	"uartuart9098_bt_v1.bin"
+#define FIRMWARE_IW416		"uartiw416_bt_v0.bin"
+#define FIRMWARE_IW612		"uartspi_n61x_v1.bin.se"
+#define FIRMWARE_IW624		"uartiw624_bt.bin"
+#define FIRMWARE_SECURE_IW624	"uartiw624_bt.bin.se"
+#define FIRMWARE_AW693		"uartaw693_bt.bin"
+#define FIRMWARE_SECURE_AW693	"uartaw693_bt.bin.se"
+#define FIRMWARE_HELPER		"helper_uart_3000000.bin"
 
 #define CHIP_ID_W9098		0x5c03
 #define CHIP_ID_IW416		0x7201
@@ -145,6 +148,7 @@ struct psmode_cmd_payload {
 struct btnxpuart_data {
 	const char *helper_fw_name;
 	const char *fw_name;
+	const char *fw_name_old;
 };
 
 struct btnxpuart_dev {
@@ -694,19 +698,30 @@ static bool process_boot_signature(struct btnxpuart_dev *nxpdev)
 	return is_fw_downloading(nxpdev);
 }
 
-static int nxp_request_firmware(struct hci_dev *hdev, const char *fw_name)
+static int nxp_request_firmware(struct hci_dev *hdev, const char *fw_name,
+				const char *fw_name_old)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+	const char *fw_name_dt;
 	int err = 0;
 
 	if (!fw_name)
 		return -ENOENT;
 
 	if (!strlen(nxpdev->fw_name)) {
-		snprintf(nxpdev->fw_name, MAX_FW_FILE_NAME_LEN, "%s", fw_name);
+		if (strcmp(fw_name, FIRMWARE_HELPER) &&
+		    !device_property_read_string(&nxpdev->serdev->dev,
+						 "firmware-name",
+						 &fw_name_dt))
+			fw_name = fw_name_dt;
+		snprintf(nxpdev->fw_name, MAX_FW_FILE_NAME_LEN, "nxp/%s", fw_name);
+		err = request_firmware_direct(&nxpdev->fw, nxpdev->fw_name, &hdev->dev);
+		if (err < 0 && fw_name_old) {
+			snprintf(nxpdev->fw_name, MAX_FW_FILE_NAME_LEN, "nxp/%s", fw_name_old);
+			err = request_firmware_direct(&nxpdev->fw, nxpdev->fw_name, &hdev->dev);
+		}
 
 		bt_dev_info(hdev, "Request Firmware: %s", nxpdev->fw_name);
-		err = request_firmware(&nxpdev->fw, nxpdev->fw_name, &hdev->dev);
 		if (err < 0) {
 			bt_dev_err(hdev, "Firmware file %s not found", nxpdev->fw_name);
 			clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
@@ -785,10 +800,10 @@ static int nxp_recv_fw_req_v1(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	if (!nxp_data->helper_fw_name || nxpdev->helper_downloaded) {
-		if (nxp_request_firmware(hdev, nxp_data->fw_name))
+		if (nxp_request_firmware(hdev, nxp_data->fw_name, nxp_data->fw_name_old))
 			goto free_skb;
 	} else if (nxp_data->helper_fw_name && !nxpdev->helper_downloaded) {
-		if (nxp_request_firmware(hdev, nxp_data->helper_fw_name))
+		if (nxp_request_firmware(hdev, nxp_data->helper_fw_name, NULL))
 			goto free_skb;
 	}
 
@@ -890,10 +905,25 @@ static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 	return fw_name;
 }
 
+static char *nxp_get_old_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
+					 u8 loader_ver)
+{
+	char *fw_name_old = NULL;
+
+	switch (chipid) {
+	case CHIP_ID_W9098:
+		fw_name_old = FIRMWARE_W9098_OLD;
+		break;
+	}
+	return fw_name_old;
+}
+
 static int nxp_recv_chip_ver_v3(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct v3_start_ind *req = skb_pull_data(skb, sizeof(*req));
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+	const char *fw_name;
+	const char *fw_name_old;
 	u16 chip_id;
 	u8 loader_ver;
 
@@ -903,8 +933,9 @@ static int nxp_recv_chip_ver_v3(struct hci_dev *hdev, struct sk_buff *skb)
 	chip_id = le16_to_cpu(req->chip_id);
 	loader_ver = req->loader_ver;
 	bt_dev_info(hdev, "ChipID: %04x, Version: %d", chip_id, loader_ver);
-	if (!nxp_request_firmware(hdev, nxp_get_fw_name_from_chipid(hdev,
-								    chip_id, loader_ver)))
+	fw_name = nxp_get_fw_name_from_chipid(hdev, chip_id, loader_ver);
+	fw_name_old = nxp_get_old_fw_name_from_chipid(hdev, chip_id, loader_ver);
+	if (!nxp_request_firmware(hdev, fw_name, fw_name_old))
 		nxp_send_ack(NXP_ACK_V3, hdev);
 
 free_skb:
@@ -1426,11 +1457,13 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 static struct btnxpuart_data w8987_data __maybe_unused = {
 	.helper_fw_name = NULL,
 	.fw_name = FIRMWARE_W8987,
+	.fw_name_old = FIRMWARE_W8987_OLD,
 };
 
 static struct btnxpuart_data w8997_data __maybe_unused = {
 	.helper_fw_name = FIRMWARE_HELPER,
 	.fw_name = FIRMWARE_W8997,
+	.fw_name_old = FIRMWARE_W8997_OLD,
 };
 
 static const struct of_device_id nxpuart_of_match_table[] __maybe_unused = {
