@@ -20,7 +20,7 @@ static struct thermal_cooling_device *tcc_cdev;
 static int tcc_get_max_state(struct thermal_cooling_device *cdev, unsigned long
 			     *state)
 {
-	*state = 0x3f;
+	*state = intel_tcc_get_offset_mask();
 	return 0;
 }
 
