@@ -68,6 +68,19 @@ extern struct kvm_s2_mmu *lookup_s2_mmu(struct kvm_vcpu *vcpu);
 extern void kvm_vcpu_load_hw_mmu(struct kvm_vcpu *vcpu);
 extern void kvm_vcpu_put_hw_mmu(struct kvm_vcpu *vcpu);
 
+struct kvm_s2_trans {
+	phys_addr_t output;
+	unsigned long block_size;
+	bool writable;
+	bool readable;
+	int level;
+	u32 esr;
+	u64 upper_attr;
+};
+
+extern int kvm_walk_nested_s2(struct kvm_vcpu *vcpu, phys_addr_t gipa,
+			      struct kvm_s2_trans *result);
+
 int kvm_init_nv_sysregs(struct kvm *kvm);
 
 #ifdef CONFIG_ARM64_PTR_AUTH
