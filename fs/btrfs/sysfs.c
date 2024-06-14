@@ -385,6 +385,7 @@ static const char *rescue_opts[] = {
 	"nologreplay",
 	"ignorebadroots",
 	"ignoredatacsums",
+	"ignoremetacsums",
 	"all",
 };
 

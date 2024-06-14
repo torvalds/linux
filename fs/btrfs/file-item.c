@@ -353,7 +353,7 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	u32 bio_offset = 0;
 
 	if ((inode->flags & BTRFS_INODE_NODATASUM) ||
-	    test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state))
+	    test_bit(BTRFS_FS_STATE_NO_DATA_CSUMS, &fs_info->fs_state))
 		return BLK_STS_OK;
 
 	/*
