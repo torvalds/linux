@@ -495,6 +495,16 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_ftruncate_prep,
 		.issue			= io_ftruncate,
 	},
+	[IORING_OP_BIND] = {
+#if defined(CONFIG_NET)
+		.needs_file		= 1,
+		.prep			= io_bind_prep,
+		.issue			= io_bind,
+		.async_size		= sizeof(struct io_async_msghdr),
+#else
+		.prep			= io_eopnotsupp_prep,
+#endif
+	},
 };
 
 const struct io_cold_def io_cold_defs[] = {
@@ -715,6 +725,9 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_FTRUNCATE] = {
 		.name			= "FTRUNCATE",
+	},
+	[IORING_OP_BIND] = {
+		.name			= "BIND",
 	},
 };
 

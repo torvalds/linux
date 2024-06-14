@@ -51,6 +51,11 @@ struct io_connect {
 	bool				seen_econnaborted;
 };
 
+struct io_bind {
+	struct file			*file;
+	int				addr_len;
+};
+
 struct io_sr_msg {
 	struct file			*file;
 	union {
@@ -1713,6 +1718,37 @@ out:
 	io_req_msg_cleanup(req, issue_flags);
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
+}
+
+int io_bind_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_bind *bind = io_kiocb_to_cmd(req, struct io_bind);
+	struct sockaddr __user *uaddr;
+	struct io_async_msghdr *io;
+
+	if (sqe->len || sqe->buf_index || sqe->rw_flags || sqe->splice_fd_in)
+		return -EINVAL;
+
+	uaddr = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	bind->addr_len =  READ_ONCE(sqe->addr2);
+
+	io = io_msg_alloc_async(req);
+	if (unlikely(!io))
+		return -ENOMEM;
+	return move_addr_to_kernel(uaddr, bind->addr_len, &io->addr);
+}
+
+int io_bind(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_bind *bind = io_kiocb_to_cmd(req, struct io_bind);
+	struct io_async_msghdr *io = req->async_data;
+	int ret;
+
+	ret = __sys_bind_socket(sock_from_file(req->file),  &io->addr, bind->addr_len);
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_set_res(req, ret, 0);
+	return 0;
 }
 
 void io_netmsg_cache_free(const void *entry)
