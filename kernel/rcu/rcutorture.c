@@ -366,8 +366,6 @@ struct rcu_torture_ops {
 	bool (*same_gp_state_full)(struct rcu_gp_oldstate *rgosp1, struct rcu_gp_oldstate *rgosp2);
 	unsigned long (*get_gp_state)(void);
 	void (*get_gp_state_full)(struct rcu_gp_oldstate *rgosp);
-	unsigned long (*get_gp_completed)(void);
-	void (*get_gp_completed_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*start_gp_poll)(void);
 	void (*start_gp_poll_full)(struct rcu_gp_oldstate *rgosp);
 	bool (*poll_gp_state)(unsigned long oldstate);
@@ -553,8 +551,6 @@ static struct rcu_torture_ops rcu_ops = {
 	.get_comp_state_full	= get_completed_synchronize_rcu_full,
 	.get_gp_state		= get_state_synchronize_rcu,
 	.get_gp_state_full	= get_state_synchronize_rcu_full,
-	.get_gp_completed	= get_completed_synchronize_rcu,
-	.get_gp_completed_full	= get_completed_synchronize_rcu_full,
 	.start_gp_poll		= start_poll_synchronize_rcu,
 	.start_gp_poll_full	= start_poll_synchronize_rcu_full,
 	.poll_gp_state		= poll_state_synchronize_rcu,
@@ -1437,8 +1433,8 @@ rcu_torture_writer(void *arg)
 					  rcu_torture_writer_state_getname(),
 					  rcu_torture_writer_state,
 					  cookie, cur_ops->get_gp_state());
-				if (cur_ops->get_gp_completed) {
-					cookie = cur_ops->get_gp_completed();
+				if (cur_ops->get_comp_state) {
+					cookie = cur_ops->get_comp_state();
 					WARN_ON_ONCE(!cur_ops->poll_gp_state(cookie));
 				}
 				cur_ops->readunlock(idx);
@@ -1452,8 +1448,8 @@ rcu_torture_writer(void *arg)
 					  rcu_torture_writer_state_getname(),
 					  rcu_torture_writer_state,
 					  cpumask_pr_args(cpu_online_mask));
-				if (cur_ops->get_gp_completed_full) {
-					cur_ops->get_gp_completed_full(&cookie_full);
+				if (cur_ops->get_comp_state_full) {
+					cur_ops->get_comp_state_full(&cookie_full);
 					WARN_ON_ONCE(!cur_ops->poll_gp_state_full(&cookie_full));
 				}
 				cur_ops->readunlock(idx);
