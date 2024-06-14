@@ -15,6 +15,11 @@
 #define	NUMA_NO_NODE	(-1)
 #define	NUMA_NO_MEMBLK	(-1)
 
+static inline bool numa_valid_node(int nid)
+{
+	return nid >= 0 && nid < MAX_NUMNODES;
+}
+
 /* optionally keep NUMA memory info available post init */
 #ifdef CONFIG_NUMA_KEEP_MEMINFO
 #define __initdata_or_meminfo
