@@ -7,7 +7,9 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 
+#include <asm/kvm_arm.h>
 #include <asm/kvm_emulate.h>
+#include <asm/kvm_mmu.h>
 #include <asm/kvm_nested.h>
 #include <asm/sysreg.h>
 
@@ -15,6 +17,222 @@
 
 /* Protection against the sysreg repainting madness... */
 #define NV_FTR(r, f)		ID_AA64##r##_EL1_##f
+
+/*
+ * Ratio of live shadow S2 MMU per vcpu. This is a trade-off between
+ * memory usage and potential number of different sets of S2 PTs in
+ * the guests. Running out of S2 MMUs only affects performance (we
+ * will invalidate them more often).
+ */
+#define S2_MMU_PER_VCPU		2
+
+void kvm_init_nested(struct kvm *kvm)
+{
+	kvm->arch.nested_mmus = NULL;
+	kvm->arch.nested_mmus_size = 0;
+}
+
+static int init_nested_s2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
+{
+	/*
+	 * We only initialise the IPA range on the canonical MMU, which
+	 * defines the contract between KVM and userspace on where the
+	 * "hardware" is in the IPA space. This affects the validity of MMIO
+	 * exits forwarded to userspace, for example.
+	 *
+	 * For nested S2s, we use the PARange as exposed to the guest, as it
+	 * is allowed to use it at will to expose whatever memory map it
+	 * wants to its own guests as it would be on real HW.
+	 */
+	return kvm_init_stage2_mmu(kvm, mmu, kvm_get_pa_bits(kvm));
+}
+
+int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_s2_mmu *tmp;
+	int num_mmus, ret = 0;
+
+	/*
+	 * Let's treat memory allocation failures as benign: If we fail to
+	 * allocate anything, return an error and keep the allocated array
+	 * alive. Userspace may try to recover by intializing the vcpu
+	 * again, and there is no reason to affect the whole VM for this.
+	 */
+	num_mmus = atomic_read(&kvm->online_vcpus) * S2_MMU_PER_VCPU;
+	tmp = kvrealloc(kvm->arch.nested_mmus,
+			size_mul(sizeof(*kvm->arch.nested_mmus), kvm->arch.nested_mmus_size),
+			size_mul(sizeof(*kvm->arch.nested_mmus), num_mmus),
+			GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	if (!tmp)
+		return -ENOMEM;
+
+	/*
+	 * If we went through a realocation, adjust the MMU back-pointers in
+	 * the previously initialised kvm_pgtable structures.
+	 */
+	if (kvm->arch.nested_mmus != tmp)
+		for (int i = 0; i < kvm->arch.nested_mmus_size; i++)
+			tmp[i].pgt->mmu = &tmp[i];
+
+	for (int i = kvm->arch.nested_mmus_size; !ret && i < num_mmus; i++)
+		ret = init_nested_s2_mmu(kvm, &tmp[i]);
+
+	if (ret) {
+		for (int i = kvm->arch.nested_mmus_size; i < num_mmus; i++)
+			kvm_free_stage2_pgd(&tmp[i]);
+
+		return ret;
+	}
+
+	kvm->arch.nested_mmus_size = num_mmus;
+	kvm->arch.nested_mmus = tmp;
+
+	return 0;
+}
+
+struct kvm_s2_mmu *lookup_s2_mmu(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	bool nested_stage2_enabled;
+	u64 vttbr, vtcr, hcr;
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	vttbr = vcpu_read_sys_reg(vcpu, VTTBR_EL2);
+	vtcr = vcpu_read_sys_reg(vcpu, VTCR_EL2);
+	hcr = vcpu_read_sys_reg(vcpu, HCR_EL2);
+
+	nested_stage2_enabled = hcr & HCR_VM;
+
+	/* Don't consider the CnP bit for the vttbr match */
+	vttbr &= ~VTTBR_CNP_BIT;
+
+	/*
+	 * Two possibilities when looking up a S2 MMU context:
+	 *
+	 * - either S2 is enabled in the guest, and we need a context that is
+	 *   S2-enabled and matches the full VTTBR (VMID+BADDR) and VTCR,
+	 *   which makes it safe from a TLB conflict perspective (a broken
+	 *   guest won't be able to generate them),
+	 *
+	 * - or S2 is disabled, and we need a context that is S2-disabled
+	 *   and matches the VMID only, as all TLBs are tagged by VMID even
+	 *   if S2 translation is disabled.
+	 */
+	for (int i = 0; i < kvm->arch.nested_mmus_size; i++) {
+		struct kvm_s2_mmu *mmu = &kvm->arch.nested_mmus[i];
+
+		if (!kvm_s2_mmu_valid(mmu))
+			continue;
+
+		if (nested_stage2_enabled &&
+		    mmu->nested_stage2_enabled &&
+		    vttbr == mmu->tlb_vttbr &&
+		    vtcr == mmu->tlb_vtcr)
+			return mmu;
+
+		if (!nested_stage2_enabled &&
+		    !mmu->nested_stage2_enabled &&
+		    get_vmid(vttbr) == get_vmid(mmu->tlb_vttbr))
+			return mmu;
+	}
+	return NULL;
+}
+
+static struct kvm_s2_mmu *get_s2_mmu_nested(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_s2_mmu *s2_mmu;
+	int i;
+
+	lockdep_assert_held_write(&vcpu->kvm->mmu_lock);
+
+	s2_mmu = lookup_s2_mmu(vcpu);
+	if (s2_mmu)
+		goto out;
+
+	/*
+	 * Make sure we don't always search from the same point, or we
+	 * will always reuse a potentially active context, leaving
+	 * free contexts unused.
+	 */
+	for (i = kvm->arch.nested_mmus_next;
+	     i < (kvm->arch.nested_mmus_size + kvm->arch.nested_mmus_next);
+	     i++) {
+		s2_mmu = &kvm->arch.nested_mmus[i % kvm->arch.nested_mmus_size];
+
+		if (atomic_read(&s2_mmu->refcnt) == 0)
+			break;
+	}
+	BUG_ON(atomic_read(&s2_mmu->refcnt)); /* We have struct MMUs to spare */
+
+	/* Set the scene for the next search */
+	kvm->arch.nested_mmus_next = (i + 1) % kvm->arch.nested_mmus_size;
+
+	/* Clear the old state */
+	if (kvm_s2_mmu_valid(s2_mmu))
+		kvm_stage2_unmap_range(s2_mmu, 0, kvm_phys_size(s2_mmu));
+
+	/*
+	 * The virtual VMID (modulo CnP) will be used as a key when matching
+	 * an existing kvm_s2_mmu.
+	 *
+	 * We cache VTCR at allocation time, once and for all. It'd be great
+	 * if the guest didn't screw that one up, as this is not very
+	 * forgiving...
+	 */
+	s2_mmu->tlb_vttbr = vcpu_read_sys_reg(vcpu, VTTBR_EL2) & ~VTTBR_CNP_BIT;
+	s2_mmu->tlb_vtcr = vcpu_read_sys_reg(vcpu, VTCR_EL2);
+	s2_mmu->nested_stage2_enabled = vcpu_read_sys_reg(vcpu, HCR_EL2) & HCR_VM;
+
+out:
+	atomic_inc(&s2_mmu->refcnt);
+	return s2_mmu;
+}
+
+void kvm_init_nested_s2_mmu(struct kvm_s2_mmu *mmu)
+{
+	/* CnP being set denotes an invalid entry */
+	mmu->tlb_vttbr = VTTBR_CNP_BIT;
+	mmu->nested_stage2_enabled = false;
+	atomic_set(&mmu->refcnt, 0);
+}
+
+void kvm_vcpu_load_hw_mmu(struct kvm_vcpu *vcpu)
+{
+	if (is_hyp_ctxt(vcpu)) {
+		vcpu->arch.hw_mmu = &vcpu->kvm->arch.mmu;
+	} else {
+		write_lock(&vcpu->kvm->mmu_lock);
+		vcpu->arch.hw_mmu = get_s2_mmu_nested(vcpu);
+		write_unlock(&vcpu->kvm->mmu_lock);
+	}
+}
+
+void kvm_vcpu_put_hw_mmu(struct kvm_vcpu *vcpu)
+{
+	if (kvm_is_nested_s2_mmu(vcpu->kvm, vcpu->arch.hw_mmu)) {
+		atomic_dec(&vcpu->arch.hw_mmu->refcnt);
+		vcpu->arch.hw_mmu = NULL;
+	}
+}
+
+void kvm_arch_flush_shadow_all(struct kvm *kvm)
+{
+	int i;
+
+	for (i = 0; i < kvm->arch.nested_mmus_size; i++) {
+		struct kvm_s2_mmu *mmu = &kvm->arch.nested_mmus[i];
+
+		if (!WARN_ON(atomic_read(&mmu->refcnt)))
+			kvm_free_stage2_pgd(mmu);
+	}
+	kfree(kvm->arch.nested_mmus);
+	kvm->arch.nested_mmus = NULL;
+	kvm->arch.nested_mmus_size = 0;
+	kvm_uninit_stage2_mmu(kvm);
+}
 
 /*
  * Our emulated CPU doesn't support all the possible features. For the
