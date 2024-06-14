@@ -74,9 +74,6 @@ static const struct cxsr_latency *pnv_get_cxsr_latency(struct drm_i915_private *
 {
 	int i;
 
-	if (i915->fsb_freq == 0 || i915->mem_freq == 0)
-		return NULL;
-
 	for (i = 0; i < ARRAY_SIZE(cxsr_latency_table); i++) {
 		const struct cxsr_latency *latency = &cxsr_latency_table[i];
 		bool is_desktop = !IS_MOBILE(i915);
@@ -88,7 +85,9 @@ static const struct cxsr_latency *pnv_get_cxsr_latency(struct drm_i915_private *
 			return latency;
 	}
 
-	drm_dbg_kms(&i915->drm, "Unknown FSB/MEM found, disable CxSR\n");
+	drm_dbg_kms(&i915->drm,
+		    "Could not find CxSR latency for DDR%s, FSB %u MHz, MEM %u MHz\n",
+		    i915->is_ddr3 ? "3" : "2", i915->fsb_freq, i915->mem_freq);
 
 	return NULL;
 }
@@ -639,8 +638,7 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 
 	latency = pnv_get_cxsr_latency(dev_priv);
 	if (!latency) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "Unknown FSB/MEM found, disable CxSR\n");
+		drm_dbg_kms(&dev_priv->drm, "Unknown FSB/MEM, disabling CxSR\n");
 		intel_set_memory_cxsr(dev_priv, false);
 		return;
 	}
@@ -4030,12 +4028,7 @@ void i9xx_wm_init(struct drm_i915_private *dev_priv)
 		dev_priv->display.funcs.wm = &g4x_wm_funcs;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!pnv_get_cxsr_latency(dev_priv)) {
-			drm_info(&dev_priv->drm,
-				 "failed to find known CxSR latency "
-				 "(found ddr%s fsb freq %d, mem freq %d), "
-				 "disabling CxSR\n",
-				 (dev_priv->is_ddr3 == 1) ? "3" : "2",
-				 dev_priv->fsb_freq, dev_priv->mem_freq);
+			drm_info(&dev_priv->drm,  "Unknown FSB/MEM, disabling CxSR\n");
 			/* Disable CxSR and never update its watermark again */
 			intel_set_memory_cxsr(dev_priv, false);
 			dev_priv->display.funcs.wm = &nop_funcs;
