@@ -354,7 +354,8 @@ struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 			enum damos_action action,
 			unsigned long apply_interval_us,
 			struct damos_quota *quota,
-			struct damos_watermarks *wmarks)
+			struct damos_watermarks *wmarks,
+			int target_nid)
 {
 	struct damos *scheme;
 
@@ -380,6 +381,8 @@ struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 
 	scheme->wmarks = *wmarks;
 	scheme->wmarks.activated = true;
+
+	scheme->target_nid = target_nid;
 
 	return scheme;
 }
