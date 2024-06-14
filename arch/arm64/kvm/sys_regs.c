@@ -2854,6 +2854,57 @@ static bool handle_vmalls12e1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	return true;
 }
 
+static bool handle_ripas2e1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
+			      const struct sys_reg_desc *r)
+{
+	u32 sys_encoding = sys_insn(p->Op0, p->Op1, p->CRn, p->CRm, p->Op2);
+	u64 vttbr = vcpu_read_sys_reg(vcpu, VTTBR_EL2);
+	u64 base, range, tg, num, scale;
+	int shift;
+
+	if (!kvm_supported_tlbi_ipas2_op(vcpu, sys_encoding)) {
+		kvm_inject_undefined(vcpu);
+		return false;
+	}
+
+	/*
+	 * Because the shadow S2 structure doesn't necessarily reflect that
+	 * of the guest's S2 (different base granule size, for example), we
+	 * decide to ignore TTL and only use the described range.
+	 */
+	tg	= FIELD_GET(GENMASK(47, 46), p->regval);
+	scale	= FIELD_GET(GENMASK(45, 44), p->regval);
+	num	= FIELD_GET(GENMASK(43, 39), p->regval);
+	base	= p->regval & GENMASK(36, 0);
+
+	switch(tg) {
+	case 1:
+		shift = 12;
+		break;
+	case 2:
+		shift = 14;
+		break;
+	case 3:
+	default:		/* IMPDEF: handle tg==0 as 64k */
+		shift = 16;
+		break;
+	}
+
+	base <<= shift;
+	range = __TLBI_RANGE_PAGES(num, scale) << shift;
+
+	kvm_s2_mmu_iterate_by_vmid(vcpu->kvm, get_vmid(vttbr),
+				   &(union tlbi_info) {
+					   .range = {
+						   .start = base,
+						   .size = range,
+					   },
+				   },
+				   s2_mmu_unmap_range);
+
+	return true;
+}
+
 static void s2_mmu_unmap_ipa(struct kvm_s2_mmu *mmu,
 			     const union tlbi_info *info)
 {
@@ -2966,12 +3017,28 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_VALE1OS, handle_tlbi_el1),
 	SYS_INSN(TLBI_VAALE1OS, handle_tlbi_el1),
 
+	SYS_INSN(TLBI_RVAE1IS, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVAAE1IS, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVALE1IS, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVAALE1IS, handle_tlbi_el1),
+
 	SYS_INSN(TLBI_VMALLE1IS, handle_tlbi_el1),
 	SYS_INSN(TLBI_VAE1IS, handle_tlbi_el1),
 	SYS_INSN(TLBI_ASIDE1IS, handle_tlbi_el1),
 	SYS_INSN(TLBI_VAAE1IS, handle_tlbi_el1),
 	SYS_INSN(TLBI_VALE1IS, handle_tlbi_el1),
 	SYS_INSN(TLBI_VAALE1IS, handle_tlbi_el1),
+
+	SYS_INSN(TLBI_RVAE1OS, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVAAE1OS, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVALE1OS, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVAALE1OS, handle_tlbi_el1),
+
+	SYS_INSN(TLBI_RVAE1, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVAAE1, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVALE1, handle_tlbi_el1),
+	SYS_INSN(TLBI_RVAALE1, handle_tlbi_el1),
+
 	SYS_INSN(TLBI_VMALLE1, handle_tlbi_el1),
 	SYS_INSN(TLBI_VAE1, handle_tlbi_el1),
 	SYS_INSN(TLBI_ASIDE1, handle_tlbi_el1),
@@ -2980,7 +3047,9 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_VAALE1, handle_tlbi_el1),
 
 	SYS_INSN(TLBI_IPAS2E1IS, handle_ipas2e1is),
+	SYS_INSN(TLBI_RIPAS2E1IS, handle_ripas2e1is),
 	SYS_INSN(TLBI_IPAS2LE1IS, handle_ipas2e1is),
+	SYS_INSN(TLBI_RIPAS2LE1IS, handle_ripas2e1is),
 
 	SYS_INSN(TLBI_ALLE2OS, trap_undef),
 	SYS_INSN(TLBI_VAE2OS, trap_undef),
@@ -2988,12 +3057,23 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_VALE2OS, trap_undef),
 	SYS_INSN(TLBI_VMALLS12E1OS, handle_vmalls12e1is),
 
+	SYS_INSN(TLBI_RVAE2IS, trap_undef),
+	SYS_INSN(TLBI_RVALE2IS, trap_undef),
+
 	SYS_INSN(TLBI_ALLE1IS, handle_alle1is),
 	SYS_INSN(TLBI_VMALLS12E1IS, handle_vmalls12e1is),
 	SYS_INSN(TLBI_IPAS2E1OS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2E1, handle_ipas2e1is),
+	SYS_INSN(TLBI_RIPAS2E1, handle_ripas2e1is),
+	SYS_INSN(TLBI_RIPAS2E1OS, handle_ripas2e1is),
 	SYS_INSN(TLBI_IPAS2LE1OS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2LE1, handle_ipas2e1is),
+	SYS_INSN(TLBI_RIPAS2LE1, handle_ripas2e1is),
+	SYS_INSN(TLBI_RIPAS2LE1OS, handle_ripas2e1is),
+	SYS_INSN(TLBI_RVAE2OS, trap_undef),
+	SYS_INSN(TLBI_RVALE2OS, trap_undef),
+	SYS_INSN(TLBI_RVAE2, trap_undef),
+	SYS_INSN(TLBI_RVALE2, trap_undef),
 	SYS_INSN(TLBI_ALLE1, handle_alle1is),
 	SYS_INSN(TLBI_VMALLS12E1, handle_vmalls12e1is),
 };
