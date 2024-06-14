@@ -76,6 +76,7 @@ static const unsigned int freq_table[] = { 20, 33, 50, 100, 5000, 8333, 12500,
  */
 struct max6639_data {
 	struct regmap *regmap;
+	struct mutex update_lock;
 
 	/* Register values initialized only once */
 	u8 ppr[MAX6639_NUM_CHANNELS];	/* Pulses per rotation 0..3 for 1..4 ppr */
@@ -232,6 +233,9 @@ static int max6639_read_fan(struct device *dev, u32 attr, int channel,
 			return res;
 		*fan_val = !!(val & BIT(1 - channel));
 		return 0;
+	case hwmon_fan_pulses:
+		*fan_val = data->ppr[channel];
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -241,6 +245,33 @@ static int max6639_set_ppr(struct max6639_data *data, int channel, u8 ppr)
 {
 	/* Decrement the PPR value and shift left by 6 to match the register format */
 	return regmap_write(data->regmap, MAX6639_REG_FAN_PPR(channel), ppr-- << 6);
+}
+
+static int max6639_write_fan(struct device *dev, u32 attr, int channel,
+			     long val)
+{
+	struct max6639_data *data = dev_get_drvdata(dev);
+	int err;
+
+	switch (attr) {
+	case hwmon_fan_pulses:
+		if (val <= 0 || val > 4)
+			return -EINVAL;
+
+		mutex_lock(&data->update_lock);
+		/* Set Fan pulse per revolution */
+		err = max6639_set_ppr(data, channel, val);
+		if (err < 0) {
+			mutex_unlock(&data->update_lock);
+			return err;
+		}
+		data->ppr[channel] = val;
+
+		mutex_unlock(&data->update_lock);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static umode_t max6639_fan_is_visible(const void *_data, u32 attr, int channel)
@@ -262,6 +293,7 @@ static int max6639_read_pwm(struct device *dev, u32 attr, int channel,
 	struct max6639_data *data = dev_get_drvdata(dev);
 	unsigned int val;
 	int res;
+	u8 i;
 
 	switch (attr) {
 	case hwmon_pwm_input:
@@ -269,6 +301,28 @@ static int max6639_read_pwm(struct device *dev, u32 attr, int channel,
 		if (res < 0)
 			return res;
 		*pwm_val = val * 255 / 120;
+		return 0;
+	case hwmon_pwm_freq:
+		mutex_lock(&data->update_lock);
+		res = regmap_read(data->regmap, MAX6639_REG_FAN_CONFIG3(channel), &val);
+		if (res < 0) {
+			mutex_unlock(&data->update_lock);
+			return res;
+		}
+		i = val & MAX6639_FAN_CONFIG3_FREQ_MASK;
+
+		res = regmap_read(data->regmap, MAX6639_REG_GCONFIG, &val);
+		if (res < 0) {
+			mutex_unlock(&data->update_lock);
+			return res;
+		}
+
+		if (val & MAX6639_GCONFIG_PWM_FREQ_HI)
+			i |= 0x4;
+		i &= 0x7;
+		*pwm_val = freq_table[i];
+
+		mutex_unlock(&data->update_lock);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
@@ -280,6 +334,7 @@ static int max6639_write_pwm(struct device *dev, u32 attr, int channel,
 {
 	struct max6639_data *data = dev_get_drvdata(dev);
 	int err;
+	u8 i;
 
 	switch (attr) {
 	case hwmon_pwm_input:
@@ -287,6 +342,28 @@ static int max6639_write_pwm(struct device *dev, u32 attr, int channel,
 			return -EINVAL;
 		err = regmap_write(data->regmap, MAX6639_REG_TARGTDUTY(channel),
 				   val * 120 / 255);
+		return err;
+	case hwmon_pwm_freq:
+		val = clamp_val(val, 0, 25000);
+
+		i = find_closest(val, freq_table, ARRAY_SIZE(freq_table));
+
+		mutex_lock(&data->update_lock);
+		err = regmap_update_bits(data->regmap, MAX6639_REG_FAN_CONFIG3(channel),
+					 MAX6639_FAN_CONFIG3_FREQ_MASK, i);
+		if (err < 0) {
+			mutex_unlock(&data->update_lock);
+			return err;
+		}
+
+		if (i >> 2)
+			err = regmap_set_bits(data->regmap, MAX6639_REG_GCONFIG,
+					      MAX6639_GCONFIG_PWM_FREQ_HI);
+		else
+			err = regmap_clear_bits(data->regmap, MAX6639_REG_GCONFIG,
+						MAX6639_GCONFIG_PWM_FREQ_HI);
+
+		mutex_unlock(&data->update_lock);
 		return err;
 	default:
 		return -EOPNOTSUPP;
@@ -297,6 +374,7 @@ static umode_t max6639_pwm_is_visible(const void *_data, u32 attr, int channel)
 {
 	switch (attr) {
 	case hwmon_pwm_input:
+	case hwmon_pwm_freq:
 		return 0644;
 	default:
 		return 0;
@@ -402,6 +480,8 @@ static int max6639_write(struct device *dev, enum hwmon_sensor_types type,
 			 u32 attr, int channel, long val)
 {
 	switch (type) {
+	case hwmon_fan:
+		return max6639_write_fan(dev, attr, channel, val);
 	case hwmon_pwm:
 		return max6639_write_pwm(dev, attr, channel, val);
 	case hwmon_temp:
@@ -429,11 +509,11 @@ static umode_t max6639_is_visible(const void *data,
 
 static const struct hwmon_channel_info * const max6639_info[] = {
 	HWMON_CHANNEL_INFO(fan,
-			   HWMON_F_INPUT | HWMON_F_FAULT,
-			   HWMON_F_INPUT | HWMON_F_FAULT),
+			   HWMON_F_INPUT | HWMON_F_FAULT | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_FAULT | HWMON_F_PULSES),
 	HWMON_CHANNEL_INFO(pwm,
-			   HWMON_PWM_INPUT,
-			   HWMON_PWM_INPUT),
+			   HWMON_PWM_INPUT | HWMON_PWM_FREQ,
+			   HWMON_PWM_INPUT | HWMON_PWM_FREQ),
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_MAX | HWMON_T_MAX_ALARM |
 			   HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_EMERGENCY |
@@ -643,6 +723,8 @@ static int max6639_probe(struct i2c_client *client)
 			return err;
 		}
 	}
+
+	mutex_init(&data->update_lock);
 
 	/* Initialize the max6639 chip */
 	err = max6639_init_client(client, data);
