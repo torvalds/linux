@@ -703,6 +703,30 @@ static inline void page_vma_mapped_walk_done(struct page_vma_mapped_walk *pvmw)
 		spin_unlock(pvmw->ptl);
 }
 
+/**
+ * page_vma_mapped_walk_restart - Restart the page table walk.
+ * @pvmw: Pointer to struct page_vma_mapped_walk.
+ *
+ * It restarts the page table walk when changes occur in the page
+ * table, such as splitting a PMD. Ensures that the PTL held during
+ * the previous walk is released and resets the state to allow for
+ * a new walk starting at the current address stored in pvmw->address.
+ */
+static inline void
+page_vma_mapped_walk_restart(struct page_vma_mapped_walk *pvmw)
+{
+	WARN_ON_ONCE(!pvmw->pmd && !pvmw->pte);
+
+	if (likely(pvmw->ptl))
+		spin_unlock(pvmw->ptl);
+	else
+		WARN_ON_ONCE(1);
+
+	pvmw->ptl = NULL;
+	pvmw->pmd = NULL;
+	pvmw->pte = NULL;
+}
+
 bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw);
 
 /*
