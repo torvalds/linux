@@ -1000,4 +1000,5 @@ void iova_cache_put(void)
 EXPORT_SYMBOL_GPL(iova_cache_put);
 
 MODULE_AUTHOR("Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>");
+MODULE_DESCRIPTION("IOMMU I/O Virtual Address management");
 MODULE_LICENSE("GPL");
