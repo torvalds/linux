@@ -38,6 +38,8 @@
 
 #define TDREPORT_SUBTYPE_0	0
 
+static atomic_long_t nr_shared;
+
 /* Called from __tdx_hypercall() for unrecoverable failure */
 noinstr void __noreturn __tdx_hypercall_failed(void)
 {
@@ -820,6 +822,11 @@ static int tdx_enc_status_change_finish(unsigned long vaddr, int numpages,
 	 */
 	if (!enc && !tdx_enc_status_changed(vaddr, numpages, enc))
 		return -EIO;
+
+	if (enc)
+		atomic_long_sub(numpages, &nr_shared);
+	else
+		atomic_long_add(numpages, &nr_shared);
 
 	return 0;
 }
