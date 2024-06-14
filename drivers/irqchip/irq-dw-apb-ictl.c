@@ -122,7 +122,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	int ret, nrirqs, parent_irq, i;
 	u32 reg;
 
-	if (!parent) {
+	if (!parent && IS_BUILTIN(CONFIG_DW_APB_ICTL)) {
 		/* Used as the primary interrupt controller */
 		parent_irq = 0;
 		domain_ops = &dw_apb_ictl_irq_domain_ops;
@@ -214,5 +214,12 @@ err_release:
 	release_mem_region(r.start, resource_size(&r));
 	return ret;
 }
-IRQCHIP_DECLARE(dw_apb_ictl,
-		"snps,dw-apb-ictl", dw_apb_ictl_init);
+#if IS_BUILTIN(CONFIG_DW_APB_ICTL)
+IRQCHIP_DECLARE(dw_apb_ictl, "snps,dw-apb-ictl", dw_apb_ictl_init);
+#else
+IRQCHIP_PLATFORM_DRIVER_BEGIN(dw_apb_ictl)
+IRQCHIP_MATCH("snps,dw-apb-ictl", dw_apb_ictl_init)
+IRQCHIP_PLATFORM_DRIVER_END(dw_apb_ictl)
+MODULE_DESCRIPTION("DesignWare APB Interrupt Controller");
+MODULE_LICENSE("GPL v2");
+#endif
