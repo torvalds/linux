@@ -466,6 +466,12 @@
 			AM64X_IOPAD(0x00f4, PIN_INPUT, 2) /* (Y9) PRG1_PRU0_GPO15.PRG1_RGMII1_TX_CTL */
 		>;
 	};
+
+	icssg1_iep0_pins_default: icssg1-iep0-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0104, PIN_OUTPUT, 2) /* (W7) PRG1_PRU0_GPO19.PRG1_IEP0_EDC_SYNC_OUT0 */
+		>;
+	};
 };
 
 &main_uart0 {
@@ -820,4 +826,9 @@
 
 &gpmc0 {
 	ranges = <0 0 0x00 0x51000000 0x01000000>; /* CS0 space. Min partition = 16MB */
+};
+
+&icssg1_iep0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&icssg1_iep0_pins_default>;
 };
