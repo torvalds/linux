@@ -761,4 +761,5 @@ static void __exit pstore_exit(void)
 module_exit(pstore_exit)
 
 MODULE_AUTHOR("Tony Luck <tony.luck@intel.com>");
+MODULE_DESCRIPTION("Persistent Storage - platform driver interface");
 MODULE_LICENSE("GPL");
