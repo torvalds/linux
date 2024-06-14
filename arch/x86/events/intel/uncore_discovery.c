@@ -606,34 +606,30 @@ static struct intel_uncore_ops generic_uncore_pci_ops = {
 
 #define UNCORE_GENERIC_MMIO_SIZE		0x4000
 
-static u64 generic_uncore_mmio_box_ctl(struct intel_uncore_box *box)
-{
-	struct intel_uncore_type *type = box->pmu->type;
-
-	if (!type->box_ctls || !type->box_ctls[box->dieid] || !type->mmio_offsets)
-		return 0;
-
-	return type->box_ctls[box->dieid] + type->mmio_offsets[box->pmu->pmu_idx];
-}
-
 void intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box)
 {
-	u64 box_ctl = generic_uncore_mmio_box_ctl(box);
+	static struct intel_uncore_discovery_unit *unit;
 	struct intel_uncore_type *type = box->pmu->type;
 	resource_size_t addr;
 
-	if (!box_ctl) {
-		pr_warn("Uncore type %d box %d: Invalid box control address.\n",
-			type->type_id, type->box_ids[box->pmu->pmu_idx]);
+	unit = intel_uncore_find_discovery_unit(type->boxes, box->dieid, box->pmu->pmu_idx);
+	if (!unit) {
+		pr_warn("Uncore type %d id %d: Cannot find box control address.\n",
+			type->type_id, box->pmu->pmu_idx);
 		return;
 	}
 
-	addr = box_ctl;
+	if (!unit->addr) {
+		pr_warn("Uncore type %d box %d: Invalid box control address.\n",
+			type->type_id, unit->id);
+		return;
+	}
+
+	addr = unit->addr;
 	box->io_addr = ioremap(addr, UNCORE_GENERIC_MMIO_SIZE);
 	if (!box->io_addr) {
 		pr_warn("Uncore type %d box %d: ioremap error for 0x%llx.\n",
-			type->type_id, type->box_ids[box->pmu->pmu_idx],
-			(unsigned long long)addr);
+			type->type_id, unit->id, (unsigned long long)addr);
 		return;
 	}
 
@@ -722,6 +718,8 @@ static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 		uncore->box_ctls = type->box_ctrl_die;
 		uncore->mmio_offsets = type->box_offset;
 		uncore->mmio_map_size = UNCORE_GENERIC_MMIO_SIZE;
+		uncore->boxes = &type->units;
+		uncore->num_boxes = type->num_units;
 		break;
 	default:
 		return false;
