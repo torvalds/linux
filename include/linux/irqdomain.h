@@ -304,6 +304,8 @@ struct irq_domain_info {
 };
 
 struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info);
+struct irq_domain *devm_irq_domain_instantiate(struct device *dev,
+					       const struct irq_domain_info *info);
 
 struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, unsigned int size,
 				    irq_hw_number_t hwirq_max, int direct_max,
