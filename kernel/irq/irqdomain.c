@@ -276,12 +276,14 @@ static void irq_domain_free(struct irq_domain *domain)
 struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
 {
 	struct irq_domain *domain;
+	int err;
 
 	domain = __irq_domain_create(info);
 	if (IS_ERR(domain))
 		return domain;
 
 	domain->flags |= info->domain_flags;
+	domain->exit = info->exit;
 
 #ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
 	if (info->parent) {
@@ -290,9 +292,19 @@ struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
 	}
 #endif
 
+	if (info->init) {
+		err = info->init(domain);
+		if (err)
+			goto err_domain_free;
+	}
+
 	__irq_domain_publish(domain);
 
 	return domain;
+
+err_domain_free:
+	irq_domain_free(domain);
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(irq_domain_instantiate);
 
@@ -339,6 +351,9 @@ EXPORT_SYMBOL_GPL(__irq_domain_add);
  */
 void irq_domain_remove(struct irq_domain *domain)
 {
+	if (domain->exit)
+		domain->exit(domain);
+
 	mutex_lock(&irq_domain_mutex);
 	debugfs_remove_domain_dir(domain);
 
