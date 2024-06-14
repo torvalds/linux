@@ -66,6 +66,9 @@ static const unsigned short normal_i2c[] = {
 #define SPD5118_EEPROM_BASE		0x80
 #define SPD5118_EEPROM_SIZE		(SPD5118_PAGE_SIZE * SPD5118_NUM_PAGES)
 
+#define PAGE_ADDR0(page)		(((page) & BIT(0)) << 6)
+#define PAGE_ADDR1_4(page)		(((page) & GENMASK(4, 1)) >> 1)
+
 /* Temperature unit in millicelsius */
 #define SPD5118_TEMP_UNIT		(MILLIDEGREE_PER_DEGREE / 4)
 /* Representable temperature range in millicelsius */
@@ -75,6 +78,7 @@ static const unsigned short normal_i2c[] = {
 struct spd5118_data {
 	struct regmap *regmap;
 	struct mutex nvmem_lock;
+	bool is_16bit;
 };
 
 /* hwmon */
@@ -331,11 +335,12 @@ static const struct hwmon_chip_info spd5118_chip_info = {
 
 /* nvmem */
 
-static ssize_t spd5118_nvmem_read_page(struct regmap *regmap, char *buf,
+static ssize_t spd5118_nvmem_read_page(struct spd5118_data *data, char *buf,
 				       unsigned int offset, size_t count)
 {
-	int addr = (offset >> SPD5118_PAGE_SHIFT) * 0x100 + SPD5118_EEPROM_BASE;
-	int err;
+	int page = offset >> SPD5118_PAGE_SHIFT;
+	struct regmap *regmap = data->regmap;
+	int err, addr;
 
 	offset &= SPD5118_PAGE_MASK;
 
@@ -343,6 +348,12 @@ static ssize_t spd5118_nvmem_read_page(struct regmap *regmap, char *buf,
 	if (offset + count > SPD5118_PAGE_SIZE)
 		count = SPD5118_PAGE_SIZE - offset;
 
+	if (data->is_16bit) {
+		addr = SPD5118_EEPROM_BASE | PAGE_ADDR0(page) |
+		  (PAGE_ADDR1_4(page) << 8);
+	} else {
+		addr = page * 0x100 + SPD5118_EEPROM_BASE;
+	}
 	err = regmap_bulk_read(regmap, addr + offset, buf, count);
 	if (err)
 		return err;
@@ -365,7 +376,7 @@ static int spd5118_nvmem_read(void *priv, unsigned int off, void *val, size_t co
 	mutex_lock(&data->nvmem_lock);
 
 	while (count) {
-		ret = spd5118_nvmem_read_page(data->regmap, buf, off, count);
+		ret = spd5118_nvmem_read_page(data, buf, off, count);
 		if (ret < 0) {
 			mutex_unlock(&data->nvmem_lock);
 			return ret;
@@ -515,6 +526,13 @@ static int spd5118_common_probe(struct device *dev, struct regmap *regmap)
 		return err;
 	if (!(capability & SPD5118_CAP_TS_SUPPORT))
 		return -ENODEV;
+
+	/*
+	 * 16-bit register addresses are not (yet) supported with I2C.
+	 * Therefore, if this is an I2C device, register addresses must be
+	 * 8 bit wide.
+	 */
+	data->is_16bit = !!i2c_verify_adapter(dev);
 
 	err = regmap_read(regmap, SPD5118_REG_REVISION, &revision);
 	if (err)
