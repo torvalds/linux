@@ -121,6 +121,15 @@ static u32 compute_fsc(int level, u32 fsc)
 	return fsc | (level & 0x3);
 }
 
+static int esr_s2_fault(struct kvm_vcpu *vcpu, int level, u32 fsc)
+{
+	u32 esr;
+
+	esr = kvm_vcpu_get_esr(vcpu) & ~ESR_ELx_FSC;
+	esr |= compute_fsc(level, fsc);
+	return esr;
+}
+
 static int get_ia_size(struct s2_walk_info *wi)
 {
 	return 64 - wi->t0sz;
@@ -480,6 +489,42 @@ void kvm_vcpu_put_hw_mmu(struct kvm_vcpu *vcpu)
 		atomic_dec(&vcpu->arch.hw_mmu->refcnt);
 		vcpu->arch.hw_mmu = NULL;
 	}
+}
+
+/*
+ * Returns non-zero if permission fault is handled by injecting it to the next
+ * level hypervisor.
+ */
+int kvm_s2_handle_perm_fault(struct kvm_vcpu *vcpu, struct kvm_s2_trans *trans)
+{
+	bool forward_fault = false;
+
+	trans->esr = 0;
+
+	if (!kvm_vcpu_trap_is_permission_fault(vcpu))
+		return 0;
+
+	if (kvm_vcpu_trap_is_iabt(vcpu)) {
+		forward_fault = !kvm_s2_trans_executable(trans);
+	} else {
+		bool write_fault = kvm_is_write_fault(vcpu);
+
+		forward_fault = ((write_fault && !trans->writable) ||
+				 (!write_fault && !trans->readable));
+	}
+
+	if (forward_fault)
+		trans->esr = esr_s2_fault(vcpu, trans->level, ESR_ELx_FSC_PERM);
+
+	return forward_fault;
+}
+
+int kvm_inject_s2_fault(struct kvm_vcpu *vcpu, u64 esr_el2)
+{
+	vcpu_write_sys_reg(vcpu, vcpu->arch.fault.far_el2, FAR_EL2);
+	vcpu_write_sys_reg(vcpu, vcpu->arch.fault.hpfar_el2, HPFAR_EL2);
+
+	return kvm_inject_nested_sync(vcpu, esr_el2);
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
