@@ -266,10 +266,59 @@ static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu)
 	__fpsimd_save_state(*host_data_ptr(fpsimd_state));
 }
 
+static bool kvm_hyp_handle_tlbi_el2(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	int ret = -EINVAL;
+	u32 instr;
+	u64 val;
+
+	/*
+	 * Ideally, we would never trap on EL2 S1 TLB invalidations using
+	 * the EL1 instructions when the guest's HCR_EL2.{E2H,TGE}=={1,1}.
+	 * But "thanks" to FEAT_NV2, we don't trap writes to HCR_EL2,
+	 * meaning that we can't track changes to the virtual TGE bit. So we
+	 * have to leave HCR_EL2.TTLB set on the host. Oopsie...
+	 *
+	 * Try and handle these invalidation as quickly as possible, without
+	 * fully exiting. Note that we don't need to consider any forwarding
+	 * here, as having E2H+TGE set is the very definition of being
+	 * InHost.
+	 *
+	 * For the lesser hypervisors out there that have failed to get on
+	 * with the VHE program, we can also handle the nVHE style of EL2
+	 * invalidation.
+	 */
+	if (!(is_hyp_ctxt(vcpu)))
+		return false;
+
+	instr = esr_sys64_to_sysreg(kvm_vcpu_get_esr(vcpu));
+	val = vcpu_get_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu));
+
+	if ((kvm_supported_tlbi_s1e1_op(vcpu, instr) &&
+	     vcpu_el2_e2h_is_set(vcpu) && vcpu_el2_tge_is_set(vcpu)) ||
+	    kvm_supported_tlbi_s1e2_op (vcpu, instr))
+		ret = __kvm_tlbi_s1e2(NULL, val, instr);
+
+	if (ret)
+		return false;
+
+	__kvm_skip_instr(vcpu);
+
+	return true;
+}
+
+static bool kvm_hyp_handle_sysreg_vhe(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	if (kvm_hyp_handle_tlbi_el2(vcpu, exit_code))
+		return true;
+
+	return kvm_hyp_handle_sysreg(vcpu, exit_code);
+}
+
 static const exit_handler_fn hyp_exit_handlers[] = {
 	[0 ... ESR_ELx_EC_MAX]		= NULL,
 	[ESR_ELx_EC_CP15_32]		= kvm_hyp_handle_cp15_32,
-	[ESR_ELx_EC_SYS64]		= kvm_hyp_handle_sysreg,
+	[ESR_ELx_EC_SYS64]		= kvm_hyp_handle_sysreg_vhe,
 	[ESR_ELx_EC_SVE]		= kvm_hyp_handle_fpsimd,
 	[ESR_ELx_EC_FP_ASIMD]		= kvm_hyp_handle_fpsimd,
 	[ESR_ELx_EC_IABT_LOW]		= kvm_hyp_handle_iabt_low,

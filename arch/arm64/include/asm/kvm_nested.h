@@ -117,6 +117,61 @@ extern void kvm_nested_s2_wp(struct kvm *kvm);
 extern void kvm_nested_s2_unmap(struct kvm *kvm);
 extern void kvm_nested_s2_flush(struct kvm *kvm);
 
+static inline bool kvm_supported_tlbi_s1e1_op(struct kvm_vcpu *vpcu, u32 instr)
+{
+	struct kvm *kvm = vpcu->kvm;
+	u8 CRm = sys_reg_CRm(instr);
+
+	if (!(sys_reg_Op0(instr) == TLBI_Op0 &&
+	      sys_reg_Op1(instr) == TLBI_Op1_EL1))
+		return false;
+
+	if (!(sys_reg_CRn(instr) == TLBI_CRn_XS ||
+	      (sys_reg_CRn(instr) == TLBI_CRn_nXS &&
+	       kvm_has_feat(kvm, ID_AA64ISAR1_EL1, XS, IMP))))
+		return false;
+
+	if (CRm == TLBI_CRm_nROS &&
+	    !kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, OS))
+		return false;
+
+	if ((CRm == TLBI_CRm_RIS || CRm == TLBI_CRm_ROS ||
+	     CRm == TLBI_CRm_RNS) &&
+	    !kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, RANGE))
+		return false;
+
+	return true;
+}
+
+static inline bool kvm_supported_tlbi_s1e2_op(struct kvm_vcpu *vpcu, u32 instr)
+{
+	struct kvm *kvm = vpcu->kvm;
+	u8 CRm = sys_reg_CRm(instr);
+
+	if (!(sys_reg_Op0(instr) == TLBI_Op0 &&
+	      sys_reg_Op1(instr) == TLBI_Op1_EL2))
+		return false;
+
+	if (!(sys_reg_CRn(instr) == TLBI_CRn_XS ||
+	      (sys_reg_CRn(instr) == TLBI_CRn_nXS &&
+	       kvm_has_feat(kvm, ID_AA64ISAR1_EL1, XS, IMP))))
+		return false;
+
+	if (CRm == TLBI_CRm_IPAIS || CRm == TLBI_CRm_IPAONS)
+		return false;
+
+	if (CRm == TLBI_CRm_nROS &&
+	    !kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, OS))
+		return false;
+
+	if ((CRm == TLBI_CRm_RIS || CRm == TLBI_CRm_ROS ||
+	     CRm == TLBI_CRm_RNS) &&
+	    !kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, RANGE))
+		return false;
+
+	return true;
+}
+
 int kvm_init_nv_sysregs(struct kvm *kvm);
 
 #ifdef CONFIG_ARM64_PTR_AUTH
