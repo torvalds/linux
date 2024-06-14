@@ -400,7 +400,17 @@ static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_no
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node_to_fwnode(of_node), size, size, 0, ops, host_data);
+	struct irq_domain_info info = {
+		.fwnode		= of_node_to_fwnode(of_node),
+		.size		= size,
+		.hwirq_max	= size,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
+	struct irq_domain *d;
+
+	d = irq_domain_instantiate(&info);
+	return IS_ERR(d) ? NULL : d;
 }
 
 #ifdef CONFIG_IRQ_DOMAIN_NOMAP
@@ -409,7 +419,17 @@ static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_nod
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node_to_fwnode(of_node), 0, max_irq, max_irq, ops, host_data);
+	struct irq_domain_info info = {
+		.fwnode		= of_node_to_fwnode(of_node),
+		.hwirq_max	= max_irq,
+		.direct_max	= max_irq,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
+	struct irq_domain *d;
+
+	d = irq_domain_instantiate(&info);
+	return IS_ERR(d) ? NULL : d;
 }
 
 extern unsigned int irq_create_direct_mapping(struct irq_domain *host);
@@ -419,7 +439,16 @@ static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node_to_fwnode(of_node), 0, ~0, 0, ops, host_data);
+	struct irq_domain_info info = {
+		.fwnode		= of_node_to_fwnode(of_node),
+		.hwirq_max	= ~0U,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
+	struct irq_domain *d;
+
+	d = irq_domain_instantiate(&info);
+	return IS_ERR(d) ? NULL : d;
 }
 
 static inline struct irq_domain *irq_domain_create_linear(struct fwnode_handle *fwnode,
@@ -427,14 +456,33 @@ static inline struct irq_domain *irq_domain_create_linear(struct fwnode_handle *
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(fwnode, size, size, 0, ops, host_data);
+	struct irq_domain_info info = {
+		.fwnode		= fwnode,
+		.size		= size,
+		.hwirq_max	= size,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
+	struct irq_domain *d;
+
+	d = irq_domain_instantiate(&info);
+	return IS_ERR(d) ? NULL : d;
 }
 
 static inline struct irq_domain *irq_domain_create_tree(struct fwnode_handle *fwnode,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(fwnode, 0, ~0, 0, ops, host_data);
+	struct irq_domain_info info = {
+		.fwnode		= fwnode,
+		.hwirq_max	= ~0,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
+	struct irq_domain *d;
+
+	d = irq_domain_instantiate(&info);
+	return IS_ERR(d) ? NULL : d;
 }
 
 extern void irq_domain_remove(struct irq_domain *host);
