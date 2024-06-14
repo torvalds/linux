@@ -1213,23 +1213,16 @@ struct irq_domain *irq_domain_create_hierarchy(struct irq_domain *parent,
 		.hwirq_max	= size,
 		.ops		= ops,
 		.host_data	= host_data,
+		.domain_flags	= flags,
+		.parent		= parent,
 	};
-	struct irq_domain *domain;
+	struct irq_domain *d;
 
 	if (!info.size)
 		info.hwirq_max = ~0U;
 
-	domain = __irq_domain_create(&info);
-	if (domain) {
-		if (parent)
-			domain->root = parent->root;
-		domain->parent = parent;
-		domain->flags |= flags;
-
-		__irq_domain_publish(domain);
-	}
-
-	return domain;
+	d = irq_domain_instantiate(&info);
+	return IS_ERR(d) ? NULL : d;
 }
 EXPORT_SYMBOL_GPL(irq_domain_create_hierarchy);
 
