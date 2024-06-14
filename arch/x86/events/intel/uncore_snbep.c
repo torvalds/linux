@@ -6163,7 +6163,55 @@ static struct intel_uncore_type spr_uncore_mdf = {
 	.name			= "mdf",
 };
 
-#define UNCORE_SPR_NUM_UNCORE_TYPES		12
+static void spr_uncore_mmio_offs8_init_box(struct intel_uncore_box *box)
+{
+	__set_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags);
+	intel_generic_uncore_mmio_init_box(box);
+}
+
+static struct intel_uncore_ops spr_uncore_mmio_offs8_ops = {
+	.init_box		= spr_uncore_mmio_offs8_init_box,
+	.exit_box		= uncore_mmio_exit_box,
+	.disable_box		= intel_generic_uncore_mmio_disable_box,
+	.enable_box		= intel_generic_uncore_mmio_enable_box,
+	.disable_event		= intel_generic_uncore_mmio_disable_event,
+	.enable_event		= spr_uncore_mmio_enable_event,
+	.read_counter		= uncore_mmio_read_counter,
+};
+
+#define SPR_UNCORE_MMIO_OFFS8_COMMON_FORMAT()			\
+	SPR_UNCORE_COMMON_FORMAT(),				\
+	.ops			= &spr_uncore_mmio_offs8_ops
+
+static struct event_constraint spr_uncore_cxlcm_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x02, 0x0f),
+	UNCORE_EVENT_CONSTRAINT(0x05, 0x0f),
+	UNCORE_EVENT_CONSTRAINT(0x40, 0xf0),
+	UNCORE_EVENT_CONSTRAINT(0x41, 0xf0),
+	UNCORE_EVENT_CONSTRAINT(0x42, 0xf0),
+	UNCORE_EVENT_CONSTRAINT(0x43, 0xf0),
+	UNCORE_EVENT_CONSTRAINT(0x4b, 0xf0),
+	UNCORE_EVENT_CONSTRAINT(0x52, 0xf0),
+	EVENT_CONSTRAINT_END
+};
+
+static struct intel_uncore_type spr_uncore_cxlcm = {
+	SPR_UNCORE_MMIO_OFFS8_COMMON_FORMAT(),
+	.name			= "cxlcm",
+	.constraints		= spr_uncore_cxlcm_constraints,
+};
+
+static struct intel_uncore_type spr_uncore_cxldp = {
+	SPR_UNCORE_MMIO_OFFS8_COMMON_FORMAT(),
+	.name			= "cxldp",
+};
+
+static struct intel_uncore_type spr_uncore_hbm = {
+	SPR_UNCORE_COMMON_FORMAT(),
+	.name			= "hbm",
+};
+
+#define UNCORE_SPR_NUM_UNCORE_TYPES		15
 #define UNCORE_SPR_CHA				0
 #define UNCORE_SPR_IIO				1
 #define UNCORE_SPR_IMC				6
@@ -6187,6 +6235,9 @@ static struct intel_uncore_type *spr_uncores[UNCORE_SPR_NUM_UNCORE_TYPES] = {
 	NULL,
 	NULL,
 	&spr_uncore_mdf,
+	&spr_uncore_cxlcm,
+	&spr_uncore_cxldp,
+	&spr_uncore_hbm,
 };
 
 /*
@@ -6656,7 +6707,7 @@ static struct intel_uncore_type gnr_uncore_b2cmi = {
 };
 
 static struct intel_uncore_type gnr_uncore_b2cxl = {
-	SPR_UNCORE_MMIO_COMMON_FORMAT(),
+	SPR_UNCORE_MMIO_OFFS8_COMMON_FORMAT(),
 	.name			= "b2cxl",
 };
 
