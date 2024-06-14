@@ -33,6 +33,20 @@ static void guest_not_bsp_vcpu(void *arg)
 	GUEST_DONE();
 }
 
+static void test_set_invalid_bsp(struct kvm_vm *vm)
+{
+	unsigned long max_vcpu_id = vm_check_cap(vm, KVM_CAP_MAX_VCPU_ID);
+	int r;
+
+	if (max_vcpu_id) {
+		r = __vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *)(max_vcpu_id + 1));
+		TEST_ASSERT(r == -1 && errno == EINVAL, "BSP with ID > MAX should fail");
+	}
+
+	r = __vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *)(1L << 32));
+	TEST_ASSERT(r == -1 && errno == EINVAL, "BSP with ID[63:32]!=0 should fail");
+}
+
 static void test_set_bsp_busy(struct kvm_vcpu *vcpu, const char *msg)
 {
 	int r = __vm_ioctl(vcpu->vm, KVM_SET_BOOT_CPU_ID,
@@ -79,6 +93,8 @@ static struct kvm_vm *create_vm(uint32_t nr_vcpus, uint32_t bsp_vcpu_id,
 	uint32_t i;
 
 	vm = vm_create(nr_vcpus);
+
+	test_set_invalid_bsp(vm);
 
 	vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *)(unsigned long)bsp_vcpu_id);
 
