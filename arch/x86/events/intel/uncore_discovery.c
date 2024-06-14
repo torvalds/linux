@@ -93,6 +93,8 @@ add_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	if (!type->box_ctrl_die)
 		goto free_type;
 
+	type->units = RB_ROOT;
+
 	type->access_type = unit->access_type;
 	num_discovered_types[type->access_type]++;
 	type->type = unit->box_type;
@@ -120,10 +122,59 @@ get_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	return add_uncore_discovery_type(unit);
 }
 
+static inline bool unit_less(struct rb_node *a, const struct rb_node *b)
+{
+	struct intel_uncore_discovery_unit *a_node, *b_node;
+
+	a_node = rb_entry(a, struct intel_uncore_discovery_unit, node);
+	b_node = rb_entry(b, struct intel_uncore_discovery_unit, node);
+
+	if (a_node->pmu_idx < b_node->pmu_idx)
+		return true;
+	if (a_node->pmu_idx > b_node->pmu_idx)
+		return false;
+
+	if (a_node->die < b_node->die)
+		return true;
+	if (a_node->die > b_node->die)
+		return false;
+
+	return 0;
+}
+
+static inline struct intel_uncore_discovery_unit *
+uncore_find_unit(struct rb_root *root, unsigned int id)
+{
+	struct intel_uncore_discovery_unit *unit;
+	struct rb_node *node;
+
+	for (node = rb_first(root); node; node = rb_next(node)) {
+		unit = rb_entry(node, struct intel_uncore_discovery_unit, node);
+		if (unit->id == id)
+			return unit;
+	}
+
+	return NULL;
+}
+
+static void uncore_find_add_unit(struct intel_uncore_discovery_unit *node,
+				 struct rb_root *root, u16 *num_units)
+{
+	struct intel_uncore_discovery_unit *unit = uncore_find_unit(root, node->id);
+
+	if (unit)
+		node->pmu_idx = unit->pmu_idx;
+	else if (num_units)
+		node->pmu_idx = (*num_units)++;
+
+	rb_add(&node->node, root, unit_less);
+}
+
 static void
 uncore_insert_box_info(struct uncore_unit_discovery *unit,
 		       int die, bool parsed)
 {
+	struct intel_uncore_discovery_unit *node;
 	struct intel_uncore_discovery_type *type;
 	unsigned int *ids;
 	u64 *box_offset;
@@ -136,14 +187,26 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 		return;
 	}
 
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return;
+
+	node->die = die;
+	node->id = unit->box_id;
+	node->addr = unit->ctl;
+
 	if (parsed) {
 		type = search_uncore_discovery_type(unit->box_type);
 		if (!type) {
 			pr_info("A spurious uncore type %d is detected, "
 				"Disable the uncore type.\n",
 				unit->box_type);
+			kfree(node);
 			return;
 		}
+
+		uncore_find_add_unit(node, &type->units, &type->num_units);
+
 		/* Store the first box of each die */
 		if (!type->box_ctrl_die[die])
 			type->box_ctrl_die[die] = unit->ctl;
@@ -152,15 +215,17 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 
 	type = get_uncore_discovery_type(unit);
 	if (!type)
-		return;
+		goto free_node;
 
 	box_offset = kcalloc(type->num_boxes + 1, sizeof(u64), GFP_KERNEL);
 	if (!box_offset)
-		return;
+		goto free_node;
 
 	ids = kcalloc(type->num_boxes + 1, sizeof(unsigned int), GFP_KERNEL);
 	if (!ids)
 		goto free_box_offset;
+
+	uncore_find_add_unit(node, &type->units, &type->num_units);
 
 	/* Store generic information for the first box */
 	if (!type->num_boxes) {
@@ -201,6 +266,8 @@ free_ids:
 free_box_offset:
 	kfree(box_offset);
 
+free_node:
+	kfree(node);
 }
 
 static bool
@@ -339,8 +406,16 @@ err:
 void intel_uncore_clear_discovery_tables(void)
 {
 	struct intel_uncore_discovery_type *type, *next;
+	struct intel_uncore_discovery_unit *pos;
+	struct rb_node *node;
 
 	rbtree_postorder_for_each_entry_safe(type, next, &discovery_tables, node) {
+		while (!RB_EMPTY_ROOT(&type->units)) {
+			node = rb_first(&type->units);
+			pos = rb_entry(node, struct intel_uncore_discovery_unit, node);
+			rb_erase(node, &type->units);
+			kfree(pos);
+		}
 		kfree(type->box_ctrl_die);
 		kfree(type);
 	}
