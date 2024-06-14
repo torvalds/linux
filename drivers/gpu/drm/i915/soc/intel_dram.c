@@ -56,11 +56,11 @@ static unsigned int pnv_mem_freq(struct drm_i915_private *dev_priv)
 
 	switch (tmp & CLKCFG_MEM_MASK) {
 	case CLKCFG_MEM_533:
-		return 533;
+		return 533333;
 	case CLKCFG_MEM_667:
-		return 667;
+		return 666667;
 	case CLKCFG_MEM_800:
-		return 800;
+		return 800000;
 	}
 
 	return 0;
@@ -73,13 +73,13 @@ static unsigned int ilk_mem_freq(struct drm_i915_private *dev_priv)
 	ddrpll = intel_uncore_read16(&dev_priv->uncore, DDRMPLL1);
 	switch (ddrpll & 0xff) {
 	case 0xc:
-		return 800;
+		return 800000;
 	case 0x10:
-		return 1066;
+		return 1066667;
 	case 0x14:
-		return 1333;
+		return 1333333;
 	case 0x18:
-		return 1600;
+		return 1600000;
 	default:
 		drm_dbg(&dev_priv->drm, "unknown memory frequency 0x%02x\n",
 			ddrpll & 0xff);
@@ -97,9 +97,9 @@ static unsigned int chv_mem_freq(struct drm_i915_private *i915)
 
 	switch ((val >> 2) & 0x7) {
 	case 3:
-		return 2000;
+		return 2000000;
 	default:
-		return 1600;
+		return 1600000;
 	}
 }
 
@@ -114,11 +114,11 @@ static unsigned int vlv_mem_freq(struct drm_i915_private *i915)
 	switch ((val >> 6) & 3) {
 	case 0:
 	case 1:
-		return 800;
+		return 800000;
 	case 2:
-		return 1066;
+		return 1066667;
 	case 3:
-		return 1333;
+		return 1333333;
 	}
 
 	return 0;
@@ -139,7 +139,7 @@ static void detect_mem_freq(struct drm_i915_private *i915)
 		i915->is_ddr3 = pnv_is_ddr3(i915);
 
 	if (i915->mem_freq)
-		drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
+		drm_dbg(&i915->drm, "DDR speed: %d kHz\n", i915->mem_freq);
 }
 
 static unsigned int pnv_fsb_freq(struct drm_i915_private *i915)
@@ -150,13 +150,13 @@ static unsigned int pnv_fsb_freq(struct drm_i915_private *i915)
 
 	switch (fsb) {
 	case CLKCFG_FSB_400:
-		return 400;
+		return 400000;
 	case CLKCFG_FSB_533:
-		return 533;
+		return 533333;
 	case CLKCFG_FSB_667:
-		return 667;
+		return 666667;
 	case CLKCFG_FSB_800:
-		return 800;
+		return 800000;
 	}
 
 	return 0;
@@ -170,19 +170,19 @@ static unsigned int ilk_fsb_freq(struct drm_i915_private *dev_priv)
 
 	switch (fsb) {
 	case 0x00c:
-		return 3200;
+		return 3200000;
 	case 0x00e:
-		return 3733;
+		return 3733333;
 	case 0x010:
-		return 4266;
+		return 4266667;
 	case 0x012:
-		return 4800;
+		return 4800000;
 	case 0x014:
-		return 5333;
+		return 5333333;
 	case 0x016:
-		return 5866;
+		return 5866667;
 	case 0x018:
-		return 6400;
+		return 6400000;
 	default:
 		drm_dbg(&dev_priv->drm, "unknown fsb frequency 0x%04x\n", fsb);
 		return 0;
@@ -197,7 +197,7 @@ static void detect_fsb_freq(struct drm_i915_private *i915)
 		i915->fsb_freq = pnv_fsb_freq(i915);
 
 	if (i915->fsb_freq)
-		drm_dbg(&i915->drm, "FSB frequency: %d MHz\n", i915->fsb_freq);
+		drm_dbg(&i915->drm, "FSB frequency: %d kHz\n", i915->fsb_freq);
 }
 
 static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)

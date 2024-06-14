@@ -80,13 +80,13 @@ static const struct cxsr_latency *pnv_get_cxsr_latency(struct drm_i915_private *
 
 		if (is_desktop == latency->is_desktop &&
 		    i915->is_ddr3 == latency->is_ddr3 &&
-		    i915->fsb_freq == latency->fsb_freq &&
-		    i915->mem_freq == latency->mem_freq)
+		    DIV_ROUND_CLOSEST(i915->fsb_freq, 1000) == latency->fsb_freq &&
+		    DIV_ROUND_CLOSEST(i915->mem_freq, 1000) == latency->mem_freq)
 			return latency;
 	}
 
 	drm_dbg_kms(&i915->drm,
-		    "Could not find CxSR latency for DDR%s, FSB %u MHz, MEM %u MHz\n",
+		    "Could not find CxSR latency for DDR%s, FSB %u kHz, MEM %u kHz\n",
 		    i915->is_ddr3 ? "3" : "2", i915->fsb_freq, i915->mem_freq);
 
 	return NULL;
