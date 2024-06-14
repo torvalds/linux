@@ -219,3 +219,68 @@ void __kvm_flush_vm_context(void)
 	__tlbi(alle1is);
 	dsb(ish);
 }
+
+/*
+ * TLB invalidation emulation for NV. For any given instruction, we
+ * perform the following transformtions:
+ *
+ * - a TLBI targeting EL2 S1 is remapped to EL1 S1
+ * - a non-shareable TLBI is upgraded to being inner-shareable
+ */
+int __kvm_tlbi_s1e2(struct kvm_s2_mmu *mmu, u64 va, u64 sys_encoding)
+{
+	struct tlb_inv_context cxt;
+	int ret = 0;
+
+	/*
+	 * The guest will have provided its own DSB ISHST before trapping.
+	 * If it hasn't, that's its own problem, and we won't paper over it
+	 * (plus, there is plenty of extra synchronisation before we even
+	 * get here...).
+	 */
+
+	if (mmu)
+		enter_vmid_context(mmu, &cxt);
+
+	switch (sys_encoding) {
+	case OP_TLBI_ALLE2:
+	case OP_TLBI_ALLE2IS:
+	case OP_TLBI_VMALLE1:
+	case OP_TLBI_VMALLE1IS:
+		__tlbi(vmalle1is);
+		break;
+	case OP_TLBI_VAE2:
+	case OP_TLBI_VAE2IS:
+	case OP_TLBI_VAE1:
+	case OP_TLBI_VAE1IS:
+		__tlbi(vae1is, va);
+		break;
+	case OP_TLBI_VALE2:
+	case OP_TLBI_VALE2IS:
+	case OP_TLBI_VALE1:
+	case OP_TLBI_VALE1IS:
+		__tlbi(vale1is, va);
+		break;
+	case OP_TLBI_ASIDE1:
+	case OP_TLBI_ASIDE1IS:
+		__tlbi(aside1is, va);
+		break;
+	case OP_TLBI_VAAE1:
+	case OP_TLBI_VAAE1IS:
+		__tlbi(vaae1is, va);
+		break;
+	case OP_TLBI_VAALE1:
+	case OP_TLBI_VAALE1IS:
+		__tlbi(vaale1is, va);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	dsb(ish);
+	isb();
+
+	if (mmu)
+		exit_vmid_context(&cxt);
+
+	return ret;
+}
