@@ -1557,7 +1557,7 @@ static const unsigned int hscif0_ctrl_mux[] = {
 	HRTS0_N_MARK, HCTS0_N_MARK,
 };
 
-/* - HSCIF1_A ----------------------------------------------------------------- */
+/* - HSCIF1 ------------------------------------------------------------------- */
 static const unsigned int hscif1_data_a_pins[] = {
 	/* HRX1_A, HTX1_A */
 	RCAR_GP_PIN(0, 15), RCAR_GP_PIN(0, 14),
@@ -1580,7 +1580,6 @@ static const unsigned int hscif1_ctrl_a_mux[] = {
 	HRTS1_N_A_MARK, HCTS1_N_A_MARK,
 };
 
-/* - HSCIF1_B ---------------------------------------------------------------- */
 static const unsigned int hscif1_data_b_pins[] = {
 	/* HRX1_B, HTX1_B */
 	RCAR_GP_PIN(1, 7), RCAR_GP_PIN(1, 6),
@@ -1626,7 +1625,7 @@ static const unsigned int hscif2_ctrl_mux[] = {
 	HRTS2_N_MARK, HCTS2_N_MARK,
 };
 
-/* - HSCIF3_A ----------------------------------------------------------------- */
+/* - HSCIF3 ------------------------------------------------------------------- */
 static const unsigned int hscif3_data_a_pins[] = {
 	/* HRX3_A, HTX3_A */
 	RCAR_GP_PIN(1, 24), RCAR_GP_PIN(1, 28),
@@ -1649,7 +1648,6 @@ static const unsigned int hscif3_ctrl_a_mux[] = {
 	HRTS3_N_A_MARK, HCTS3_N_A_MARK,
 };
 
-/* - HSCIF3_B ----------------------------------------------------------------- */
 static const unsigned int hscif3_data_b_pins[] = {
 	/* HRX3_B, HTX3_B */
 	RCAR_GP_PIN(1, 4), RCAR_GP_PIN(1, 0),
@@ -2109,7 +2107,7 @@ static const unsigned int pcie0_clkreq_n_mux[] = {
 	PCIE0_CLKREQ_N_MARK,
 };
 
-/* - PWM0_A ------------------------------------------------------------------- */
+/* - PWM0 --------------------------------------------------------------------- */
 static const unsigned int pwm0_a_pins[] = {
 	/* PWM0_A */
 	RCAR_GP_PIN(1, 15),
@@ -2118,7 +2116,6 @@ static const unsigned int pwm0_a_mux[] = {
 	PWM0_A_MARK,
 };
 
-/* - PWM0_B ------------------------------------------------------------------- */
 static const unsigned int pwm0_b_pins[] = {
 	/* PWM0_B */
 	RCAR_GP_PIN(1, 14),
@@ -2127,7 +2124,7 @@ static const unsigned int pwm0_b_mux[] = {
 	PWM0_B_MARK,
 };
 
-/* - PWM1_A ------------------------------------------------------------------- */
+/* - PWM1 --------------------------------------------------------------------- */
 static const unsigned int pwm1_a_pins[] = {
 	/* PWM1_A */
 	RCAR_GP_PIN(3, 13),
@@ -2136,7 +2133,6 @@ static const unsigned int pwm1_a_mux[] = {
 	PWM1_A_MARK,
 };
 
-/* - PWM1_B ------------------------------------------------------------------- */
 static const unsigned int pwm1_b_pins[] = {
 	/* PWM1_B */
 	RCAR_GP_PIN(2, 13),
@@ -2145,7 +2141,6 @@ static const unsigned int pwm1_b_mux[] = {
 	PWM1_B_MARK,
 };
 
-/* - PWM1_C ------------------------------------------------------------------- */
 static const unsigned int pwm1_c_pins[] = {
 	/* PWM1_C */
 	RCAR_GP_PIN(2, 17),
@@ -2154,7 +2149,7 @@ static const unsigned int pwm1_c_mux[] = {
 	PWM1_C_MARK,
 };
 
-/* - PWM2_A ------------------------------------------------------------------- */
+/* - PWM2 --------------------------------------------------------------------- */
 static const unsigned int pwm2_a_pins[] = {
 	/* PWM2_A */
 	RCAR_GP_PIN(3, 14),
@@ -2163,7 +2158,6 @@ static const unsigned int pwm2_a_mux[] = {
 	PWM2_A_MARK,
 };
 
-/* - PWM2_B ------------------------------------------------------------------- */
 static const unsigned int pwm2_b_pins[] = {
 	/* PWM2_B */
 	RCAR_GP_PIN(2, 14),
@@ -2172,7 +2166,6 @@ static const unsigned int pwm2_b_mux[] = {
 	PWM2_B_MARK,
 };
 
-/* - PWM2_C ------------------------------------------------------------------- */
 static const unsigned int pwm2_c_pins[] = {
 	/* PWM2_C */
 	RCAR_GP_PIN(2, 19),
@@ -2181,7 +2174,7 @@ static const unsigned int pwm2_c_mux[] = {
 	PWM2_C_MARK,
 };
 
-/* - PWM3_A ------------------------------------------------------------------- */
+/* - PWM3 --------------------------------------------------------------------- */
 static const unsigned int pwm3_a_pins[] = {
 	/* PWM3_A */
 	RCAR_GP_PIN(4, 14),
@@ -2190,7 +2183,6 @@ static const unsigned int pwm3_a_mux[] = {
 	PWM3_A_MARK,
 };
 
-/* - PWM3_B ------------------------------------------------------------------- */
 static const unsigned int pwm3_b_pins[] = {
 	/* PWM3_B */
 	RCAR_GP_PIN(2, 15),
@@ -2199,7 +2191,6 @@ static const unsigned int pwm3_b_mux[] = {
 	PWM3_B_MARK,
 };
 
-/* - PWM3_C ------------------------------------------------------------------- */
 static const unsigned int pwm3_c_pins[] = {
 	/* PWM3_C */
 	RCAR_GP_PIN(1, 22),
@@ -2276,7 +2267,7 @@ static const unsigned int scif0_ctrl_mux[] = {
 	RTS0_N_MARK, CTS0_N_MARK,
 };
 
-/* - SCIF1_A ------------------------------------------------------------------ */
+/* - SCIF1 -------------------------------------------------------------------- */
 static const unsigned int scif1_data_a_pins[] = {
 	/* RX1_A, TX1_A */
 	RCAR_GP_PIN(0, 15), RCAR_GP_PIN(0, 14),
@@ -2299,7 +2290,6 @@ static const unsigned int scif1_ctrl_a_mux[] = {
 	RTS1_N_A_MARK, CTS1_N_A_MARK,
 };
 
-/* - SCIF1_B ------------------------------------------------------------------ */
 static const unsigned int scif1_data_b_pins[] = {
 	/* RX1_B, TX1_B */
 	RCAR_GP_PIN(1, 7), RCAR_GP_PIN(1, 6),
@@ -2322,7 +2312,7 @@ static const unsigned int scif1_ctrl_b_mux[] = {
 	RTS1_N_B_MARK, CTS1_N_B_MARK,
 };
 
-/* - SCIF3_A ------------------------------------------------------------------ */
+/* - SCIF3 -------------------------------------------------------------------- */
 static const unsigned int scif3_data_a_pins[] = {
 	/* RX3_A, TX3_A */
 	RCAR_GP_PIN(1, 27), RCAR_GP_PIN(1, 28),
@@ -2345,7 +2335,6 @@ static const unsigned int scif3_ctrl_a_mux[] = {
 	RTS3_N_A_MARK, CTS3_N_A_MARK,
 };
 
-/* - SCIF3_B ------------------------------------------------------------------ */
 static const unsigned int scif3_data_b_pins[] = {
 	/* RX3_B, TX3_B */
 	RCAR_GP_PIN(1, 1), RCAR_GP_PIN(1, 0),
@@ -2424,7 +2413,7 @@ static const unsigned int ssi_ctrl_mux[] = {
 	SSI_SCK_MARK, SSI_WS_MARK,
 };
 
-/* - TPU_A ------------------------------------------------------------------- */
+/* - TPU --------------------------------------------------------------------- */
 static const unsigned int tpu_to0_a_pins[] = {
 	/* TPU0TO0_A */
 	RCAR_GP_PIN(2, 8),
@@ -2454,7 +2443,6 @@ static const unsigned int tpu_to3_a_mux[] = {
 	TPU0TO3_A_MARK,
 };
 
-/* - TPU_B ------------------------------------------------------------------- */
 static const unsigned int tpu_to0_b_pins[] = {
 	/* TPU0TO0_B */
 	RCAR_GP_PIN(1, 25),
