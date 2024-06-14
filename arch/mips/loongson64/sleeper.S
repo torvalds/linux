@@ -11,7 +11,11 @@
 
 LEAF(loongson_lefi_sleep)
 	SUSPEND_SAVE
-	jalr    a0
-    smp_slave_setup
+	move	t9, a0
+	PTR_LA	a0, wake
+	move	a1, sp
+	jalr    t9
+wake:
+	smp_slave_setup
 	RESUME_RESTORE_REGS_RETURN
 END(loongson_lefi_sleep)
