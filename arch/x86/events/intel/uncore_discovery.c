@@ -89,10 +89,6 @@ add_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	if (!type)
 		return NULL;
 
-	type->box_ctrl_die = kcalloc(__uncore_max_dies, sizeof(u64), GFP_KERNEL);
-	if (!type->box_ctrl_die)
-		goto free_type;
-
 	type->units = RB_ROOT;
 
 	type->access_type = unit->access_type;
@@ -102,12 +98,6 @@ add_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	rb_add(&type->node, &discovery_tables, __type_less);
 
 	return type;
-
-free_type:
-	kfree(type);
-
-	return NULL;
-
 }
 
 static struct intel_uncore_discovery_type *
@@ -230,13 +220,10 @@ void uncore_find_add_unit(struct intel_uncore_discovery_unit *node,
 
 static void
 uncore_insert_box_info(struct uncore_unit_discovery *unit,
-		       int die, bool parsed)
+		       int die)
 {
 	struct intel_uncore_discovery_unit *node;
 	struct intel_uncore_discovery_type *type;
-	unsigned int *ids;
-	u64 *box_offset;
-	int i;
 
 	if (!unit->ctl || !unit->ctl_offset || !unit->ctr_offset) {
 		pr_info("Invalid address is detected for uncore type %d box %d, "
@@ -253,79 +240,21 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 	node->id = unit->box_id;
 	node->addr = unit->ctl;
 
-	if (parsed) {
-		type = search_uncore_discovery_type(unit->box_type);
-		if (!type) {
-			pr_info("A spurious uncore type %d is detected, "
-				"Disable the uncore type.\n",
-				unit->box_type);
-			kfree(node);
-			return;
-		}
-
-		uncore_find_add_unit(node, &type->units, &type->num_units);
-
-		/* Store the first box of each die */
-		if (!type->box_ctrl_die[die])
-			type->box_ctrl_die[die] = unit->ctl;
+	type = get_uncore_discovery_type(unit);
+	if (!type) {
+		kfree(node);
 		return;
 	}
-
-	type = get_uncore_discovery_type(unit);
-	if (!type)
-		goto free_node;
-
-	box_offset = kcalloc(type->num_boxes + 1, sizeof(u64), GFP_KERNEL);
-	if (!box_offset)
-		goto free_node;
-
-	ids = kcalloc(type->num_boxes + 1, sizeof(unsigned int), GFP_KERNEL);
-	if (!ids)
-		goto free_box_offset;
 
 	uncore_find_add_unit(node, &type->units, &type->num_units);
 
 	/* Store generic information for the first box */
-	if (!type->num_boxes) {
-		type->box_ctrl = unit->ctl;
-		type->box_ctrl_die[die] = unit->ctl;
+	if (type->num_units == 1) {
 		type->num_counters = unit->num_regs;
 		type->counter_width = unit->bit_width;
 		type->ctl_offset = unit->ctl_offset;
 		type->ctr_offset = unit->ctr_offset;
-		*ids = unit->box_id;
-		goto end;
 	}
-
-	for (i = 0; i < type->num_boxes; i++) {
-		ids[i] = type->ids[i];
-		box_offset[i] = type->box_offset[i];
-
-		if (unit->box_id == ids[i]) {
-			pr_info("Duplicate uncore type %d box ID %d is detected, "
-				"Drop the duplicate uncore unit.\n",
-				unit->box_type, unit->box_id);
-			goto free_ids;
-		}
-	}
-	ids[i] = unit->box_id;
-	box_offset[i] = unit->ctl - type->box_ctrl;
-	kfree(type->ids);
-	kfree(type->box_offset);
-end:
-	type->ids = ids;
-	type->box_offset = box_offset;
-	type->num_boxes++;
-	return;
-
-free_ids:
-	kfree(ids);
-
-free_box_offset:
-	kfree(box_offset);
-
-free_node:
-	kfree(node);
 }
 
 static bool
@@ -404,7 +333,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 		if (uncore_ignore_unit(&unit, ignore))
 			continue;
 
-		uncore_insert_box_info(&unit, die, *parsed);
+		uncore_insert_box_info(&unit, die);
 	}
 
 	*parsed = true;
@@ -474,7 +403,6 @@ void intel_uncore_clear_discovery_tables(void)
 			rb_erase(node, &type->units);
 			kfree(pos);
 		}
-		kfree(type->box_ctrl_die);
 		kfree(type);
 	}
 }
@@ -738,41 +666,23 @@ static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 				      struct intel_uncore_discovery_type *type)
 {
 	uncore->type_id = type->type;
-	uncore->num_boxes = type->num_boxes;
 	uncore->num_counters = type->num_counters;
 	uncore->perf_ctr_bits = type->counter_width;
-	uncore->box_ids = type->ids;
+	uncore->perf_ctr = (unsigned int)type->ctr_offset;
+	uncore->event_ctl = (unsigned int)type->ctl_offset;
+	uncore->boxes = &type->units;
+	uncore->num_boxes = type->num_units;
 
 	switch (type_id) {
 	case UNCORE_ACCESS_MSR:
 		uncore->ops = &generic_uncore_msr_ops;
-		uncore->perf_ctr = (unsigned int)type->ctr_offset;
-		uncore->event_ctl = (unsigned int)type->ctl_offset;
-		uncore->box_ctl = (unsigned int)type->box_ctrl;
-		uncore->msr_offsets = type->box_offset;
-		uncore->boxes = &type->units;
-		uncore->num_boxes = type->num_units;
 		break;
 	case UNCORE_ACCESS_PCI:
 		uncore->ops = &generic_uncore_pci_ops;
-		uncore->perf_ctr = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl) + type->ctr_offset;
-		uncore->event_ctl = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl) + type->ctl_offset;
-		uncore->box_ctl = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl);
-		uncore->box_ctls = type->box_ctrl_die;
-		uncore->pci_offsets = type->box_offset;
-		uncore->boxes = &type->units;
-		uncore->num_boxes = type->num_units;
 		break;
 	case UNCORE_ACCESS_MMIO:
 		uncore->ops = &generic_uncore_mmio_ops;
-		uncore->perf_ctr = (unsigned int)type->ctr_offset;
-		uncore->event_ctl = (unsigned int)type->ctl_offset;
-		uncore->box_ctl = (unsigned int)type->box_ctrl;
-		uncore->box_ctls = type->box_ctrl_die;
-		uncore->mmio_offsets = type->box_offset;
 		uncore->mmio_map_size = UNCORE_GENERIC_MMIO_SIZE;
-		uncore->boxes = &type->units;
-		uncore->num_boxes = type->num_units;
 		break;
 	default:
 		return false;
