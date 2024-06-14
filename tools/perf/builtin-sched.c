@@ -1594,8 +1594,6 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 
 	sched->curr_thread[this_cpu.cpu] = thread__get(sched_in);
 
-	printf("  ");
-
 	new_shortname = 0;
 	if (!tr->shortname[0]) {
 		if (!strcmp(thread__comm_str(sched_in), "swapper")) {
@@ -1621,6 +1619,11 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 		}
 		new_shortname = 1;
 	}
+
+	if (sched->map.cpus && !perf_cpu_map__has(sched->map.cpus, this_cpu))
+		goto out;
+
+	printf("  ");
 
 	for (i = 0; i < cpus_nr; i++) {
 		struct perf_cpu cpu = {
@@ -1656,9 +1659,6 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 			color_fprintf(stdout, color, "   ");
 	}
 
-	if (sched->map.cpus && !perf_cpu_map__has(sched->map.cpus, this_cpu))
-		goto out;
-
 	timestamp__scnprintf_usec(timestamp, stimestamp, sizeof(stimestamp));
 	color_fprintf(stdout, color, "  %12s secs ", stimestamp);
 	if (new_shortname || tr->comm_changed || (verbose > 0 && thread__tid(sched_in))) {
@@ -1675,9 +1675,9 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 	if (sched->map.comp && new_cpu)
 		color_fprintf(stdout, color, " (CPU %d)", this_cpu);
 
-out:
 	color_fprintf(stdout, color, "\n");
 
+out:
 	thread__put(sched_in);
 
 	return 0;
