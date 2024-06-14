@@ -17,6 +17,7 @@
 #include "hid-uclogic-rdesc.h"
 #include <linux/slab.h>
 #include <asm/unaligned.h>
+#include <kunit/visibility.h>
 
 /* Fixed WP4030U report descriptor */
 __u8 uclogic_rdesc_wp4030u_fixed_arr[] = {
@@ -1242,3 +1243,4 @@ __u8 *uclogic_rdesc_template_apply(const __u8 *template_ptr,
 
 	return rdesc_ptr;
 }
+EXPORT_SYMBOL_IF_KUNIT(uclogic_rdesc_template_apply);

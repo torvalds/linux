@@ -154,10 +154,8 @@ obj-$(CONFIG_HID_WINWING)	+= hid-winwing.o
 obj-$(CONFIG_HID_SENSOR_HUB)	+= hid-sensor-hub.o
 obj-$(CONFIG_HID_SENSOR_CUSTOM_SENSOR)	+= hid-sensor-custom.o
 
-hid-uclogic-test-objs		:= hid-uclogic-rdesc.o \
-				   hid-uclogic-params.o \
-				   hid-uclogic-rdesc-test.o
-obj-$(CONFIG_HID_KUNIT_TEST)	+= hid-uclogic-test.o
+hid-uclogic-test-objs		:= hid-uclogic-rdesc-test.o
+obj-$(CONFIG_HID_KUNIT_TEST)	+= hid-uclogic.o hid-uclogic-test.o
 
 obj-$(CONFIG_USB_HID)		+= usbhid/
 obj-$(CONFIG_USB_MOUSE)		+= usbhid/
