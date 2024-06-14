@@ -276,6 +276,12 @@ struct irq_domain_info {
 	int					direct_max;
 	const struct irq_domain_ops		*ops;
 	void					*host_data;
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+	/**
+	 * @parent: Pointer to the parent irq domain used in a hierarchy domain
+	 */
+	struct irq_domain			*parent;
+#endif
 };
 
 struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info);

@@ -265,6 +265,13 @@ struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
 
 	domain->flags |= info->domain_flags;
 
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+	if (info->parent) {
+		domain->root = info->parent->root;
+		domain->parent = info->parent;
+	}
+#endif
+
 	__irq_domain_publish(domain);
 
 	return domain;
