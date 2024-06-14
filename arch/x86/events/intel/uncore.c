@@ -263,6 +263,9 @@ static void uncore_assign_hw_event(struct intel_uncore_box *box,
 		return;
 	}
 
+	if (intel_generic_uncore_assign_hw_event(event, box))
+		return;
+
 	hwc->config_base = uncore_event_ctl(box, hwc->idx);
 	hwc->event_base  = uncore_perf_ctr(box, hwc->idx);
 }

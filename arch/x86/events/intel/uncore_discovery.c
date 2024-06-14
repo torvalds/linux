@@ -499,19 +499,31 @@ static const struct attribute_group generic_uncore_format_group = {
 	.attrs = generic_uncore_formats_attr,
 };
 
+static u64 intel_generic_uncore_box_ctl(struct intel_uncore_box *box)
+{
+	struct intel_uncore_discovery_unit *unit;
+
+	unit = intel_uncore_find_discovery_unit(box->pmu->type->boxes,
+						-1, box->pmu->pmu_idx);
+	if (WARN_ON_ONCE(!unit))
+		return 0;
+
+	return unit->addr;
+}
+
 void intel_generic_uncore_msr_init_box(struct intel_uncore_box *box)
 {
-	wrmsrl(uncore_msr_box_ctl(box), GENERIC_PMON_BOX_CTL_INT);
+	wrmsrl(intel_generic_uncore_box_ctl(box), GENERIC_PMON_BOX_CTL_INT);
 }
 
 void intel_generic_uncore_msr_disable_box(struct intel_uncore_box *box)
 {
-	wrmsrl(uncore_msr_box_ctl(box), GENERIC_PMON_BOX_CTL_FRZ);
+	wrmsrl(intel_generic_uncore_box_ctl(box), GENERIC_PMON_BOX_CTL_FRZ);
 }
 
 void intel_generic_uncore_msr_enable_box(struct intel_uncore_box *box)
 {
-	wrmsrl(uncore_msr_box_ctl(box), 0);
+	wrmsrl(intel_generic_uncore_box_ctl(box), 0);
 }
 
 static void intel_generic_uncore_msr_enable_event(struct intel_uncore_box *box,
@@ -538,6 +550,31 @@ static struct intel_uncore_ops generic_uncore_msr_ops = {
 	.enable_event		= intel_generic_uncore_msr_enable_event,
 	.read_counter		= uncore_msr_read_counter,
 };
+
+bool intel_generic_uncore_assign_hw_event(struct perf_event *event,
+					  struct intel_uncore_box *box)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	u64 box_ctl;
+
+	if (!box->pmu->type->boxes)
+		return false;
+
+	if (box->pci_dev || box->io_addr) {
+		hwc->config_base = uncore_pci_event_ctl(box, hwc->idx);
+		hwc->event_base  = uncore_pci_perf_ctr(box, hwc->idx);
+		return true;
+	}
+
+	box_ctl = intel_generic_uncore_box_ctl(box);
+	if (!box_ctl)
+		return false;
+
+	hwc->config_base = box_ctl + box->pmu->type->event_ctl + hwc->idx;
+	hwc->event_base  = box_ctl + box->pmu->type->perf_ctr + hwc->idx;
+
+	return true;
+}
 
 void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box)
 {
@@ -697,10 +734,12 @@ static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 	switch (type_id) {
 	case UNCORE_ACCESS_MSR:
 		uncore->ops = &generic_uncore_msr_ops;
-		uncore->perf_ctr = (unsigned int)type->box_ctrl + type->ctr_offset;
-		uncore->event_ctl = (unsigned int)type->box_ctrl + type->ctl_offset;
+		uncore->perf_ctr = (unsigned int)type->ctr_offset;
+		uncore->event_ctl = (unsigned int)type->ctl_offset;
 		uncore->box_ctl = (unsigned int)type->box_ctrl;
 		uncore->msr_offsets = type->box_offset;
+		uncore->boxes = &type->units;
+		uncore->num_boxes = type->num_units;
 		break;
 	case UNCORE_ACCESS_PCI:
 		uncore->ops = &generic_uncore_pci_ops;
