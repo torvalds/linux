@@ -56,6 +56,11 @@ struct io_bind {
 	int				addr_len;
 };
 
+struct io_listen {
+	struct file			*file;
+	int				backlog;
+};
+
 struct io_sr_msg {
 	struct file			*file;
 	union {
@@ -1745,6 +1750,29 @@ int io_bind(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 
 	ret = __sys_bind_socket(sock_from_file(req->file),  &io->addr, bind->addr_len);
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_set_res(req, ret, 0);
+	return 0;
+}
+
+int io_listen_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_listen *listen = io_kiocb_to_cmd(req, struct io_listen);
+
+	if (sqe->addr || sqe->buf_index || sqe->rw_flags || sqe->splice_fd_in || sqe->addr2)
+		return -EINVAL;
+
+	listen->backlog = READ_ONCE(sqe->len);
+	return 0;
+}
+
+int io_listen(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_listen *listen = io_kiocb_to_cmd(req, struct io_listen);
+	int ret;
+
+	ret = __sys_listen_socket(sock_from_file(req->file), listen->backlog);
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);

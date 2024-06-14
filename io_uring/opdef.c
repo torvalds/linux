@@ -505,6 +505,16 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_eopnotsupp_prep,
 #endif
 	},
+	[IORING_OP_LISTEN] = {
+#if defined(CONFIG_NET)
+		.needs_file		= 1,
+		.prep			= io_listen_prep,
+		.issue			= io_listen,
+		.async_size		= sizeof(struct io_async_msghdr),
+#else
+		.prep			= io_eopnotsupp_prep,
+#endif
+	},
 };
 
 const struct io_cold_def io_cold_defs[] = {
@@ -728,6 +738,9 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_BIND] = {
 		.name			= "BIND",
+	},
+	[IORING_OP_LISTEN] = {
+		.name			= "LISTEN",
 	},
 };
 
