@@ -292,16 +292,25 @@ struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
 	}
 #endif
 
+	if (info->dgc_info) {
+		err = irq_domain_alloc_generic_chips(domain, info->dgc_info);
+		if (err)
+			goto err_domain_free;
+	}
+
 	if (info->init) {
 		err = info->init(domain);
 		if (err)
-			goto err_domain_free;
+			goto err_domain_gc_remove;
 	}
 
 	__irq_domain_publish(domain);
 
 	return domain;
 
+err_domain_gc_remove:
+	if (info->dgc_info)
+		irq_domain_remove_generic_chips(domain);
 err_domain_free:
 	irq_domain_free(domain);
 	return ERR_PTR(err);
@@ -368,6 +377,9 @@ void irq_domain_remove(struct irq_domain *domain)
 		irq_set_default_host(NULL);
 
 	mutex_unlock(&irq_domain_mutex);
+
+	if (domain->flags & IRQ_DOMAIN_FLAG_DESTROY_GC)
+		irq_domain_remove_generic_chips(domain);
 
 	pr_debug("Removed domain %s\n", domain->name);
 	irq_domain_free(domain);
