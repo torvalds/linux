@@ -1894,6 +1894,9 @@ static void remove_dev_resources(struct pci_dev *dev, struct resource *io,
 	}
 }
 
+#define ALIGN_DOWN_IF_NONZERO(addr, align) \
+			((align) ? ALIGN_DOWN((addr), (align)) : (addr))
+
 /*
  * io, mmio and mmio_pref contain the total amount of bridge window space
  * available. This includes the minimal space needed to cover all the
@@ -2005,8 +2008,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		 * what is available).
 		 */
 		align = pci_resource_alignment(dev, res);
-		resource_set_size(&io, align ? ALIGN_DOWN(io_per_b, align)
-					     : io_per_b);
+		resource_set_size(&io, ALIGN_DOWN_IF_NONZERO(io_per_b, align));
 
 		/*
 		 * The x_per_b holds the extra resource space that can be
@@ -2018,15 +2020,14 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 
 		res = &dev->resource[PCI_BRIDGE_MEM_WINDOW];
 		align = pci_resource_alignment(dev, res);
-		resource_set_size(&mmio, align ? ALIGN_DOWN(mmio_per_b, align)
-					       : mmio_per_b);
+		resource_set_size(&mmio,
+				  ALIGN_DOWN_IF_NONZERO(mmio_per_b,align));
 		mmio.start -= resource_size(res);
 
 		res = &dev->resource[PCI_BRIDGE_PREF_MEM_WINDOW];
 		align = pci_resource_alignment(dev, res);
 		resource_set_size(&mmio_pref,
-				  align ? ALIGN_DOWN(mmio_pref_per_b, align)
-					: mmio_pref_per_b);
+				  ALIGN_DOWN_IF_NONZERO(mmio_pref_per_b, align));
 		mmio_pref.start -= resource_size(res);
 
 		pci_bus_distribute_available_resources(b, add_list, io, mmio,
