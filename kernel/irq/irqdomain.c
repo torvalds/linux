@@ -442,10 +442,17 @@ struct irq_domain *irq_domain_create_simple(struct fwnode_handle *fwnode,
 					    const struct irq_domain_ops *ops,
 					    void *host_data)
 {
+	struct irq_domain_info info = {
+		.fwnode		= fwnode,
+		.size		= size,
+		.hwirq_max	= size,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
 	struct irq_domain *domain;
 
-	domain = __irq_domain_add(fwnode, size, size, 0, ops, host_data);
-	if (!domain)
+	domain = irq_domain_instantiate(&info);
+	if (IS_ERR(domain))
 		return NULL;
 
 	if (first_irq > 0) {
@@ -498,11 +505,20 @@ struct irq_domain *irq_domain_create_legacy(struct fwnode_handle *fwnode,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
+	struct irq_domain_info info = {
+		.fwnode		= fwnode,
+		.size		= first_hwirq + size,
+		.hwirq_max	= first_hwirq + size,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
 	struct irq_domain *domain;
 
-	domain = __irq_domain_add(fwnode, first_hwirq + size, first_hwirq + size, 0, ops, host_data);
-	if (domain)
-		irq_domain_associate_many(domain, first_irq, first_hwirq, size);
+	domain = irq_domain_instantiate(&info);
+	if (IS_ERR(domain))
+		return NULL;
+
+	irq_domain_associate_many(domain, first_irq, first_hwirq, size);
 
 	return domain;
 }
