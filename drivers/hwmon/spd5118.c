@@ -513,6 +513,58 @@ static const struct regmap_config spd5118_regmap_config = {
 	.num_ranges = ARRAY_SIZE(spd5118_regmap_range_cfg),
 };
 
+static int spd5118_init(struct i2c_client *client)
+{
+	struct i2c_adapter *adapter = client->adapter;
+	int err, regval, mode;
+
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
+				     I2C_FUNC_SMBUS_WORD_DATA))
+		return -ENODEV;
+
+	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
+	if (regval < 0 || (regval && regval != 0x5118))
+		return -ENODEV;
+
+	/*
+	 * If the device type registers return 0, it is possible that the chip
+	 * has a non-zero page selected and takes the specification literally,
+	 * i.e. disables access to volatile registers besides the page register
+	 * if the page is not 0. Try to identify such chips.
+	 */
+	if (!regval) {
+		/* Vendor ID registers must also be 0 */
+		regval = i2c_smbus_read_word_data(client, SPD5118_REG_VENDOR);
+		if (regval)
+			return -ENODEV;
+
+		/* The selected page in MR11 must not be 0 */
+		mode = i2c_smbus_read_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE);
+		if (mode < 0 || (mode & ~SPD5118_LEGACY_MODE_MASK) ||
+		    !(mode & SPD5118_LEGACY_PAGE_MASK))
+			return -ENODEV;
+
+		err = i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE,
+						mode & SPD5118_LEGACY_MODE_ADDR);
+		if (err)
+			return -ENODEV;
+
+		/*
+		 * If the device type registers are still bad after selecting
+		 * page 0, this is not a SPD5118 device. Restore original
+		 * legacy mode register value and abort.
+		 */
+		regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
+		if (regval != 0x5118) {
+			i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE, mode);
+			return -ENODEV;
+		}
+	}
+
+	/* We are reasonably sure that this is really a SPD5118 hub controller */
+	return 0;
+}
+
 static int spd5118_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -521,6 +573,10 @@ static int spd5118_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	struct regmap *regmap;
 	int err;
+
+	err = spd5118_init(client);
+	if (err)
+		return err;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
