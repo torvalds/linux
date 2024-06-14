@@ -677,7 +677,8 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 
 	bch2_pagecache_add_get(inode);
 
-	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
+	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT,
+				    FGP_WRITEBEGIN | fgf_set_order(len),
 				    mapping_gfp_mask(mapping));
 	if (IS_ERR_OR_NULL(folio))
 		goto err_unlock;
@@ -819,7 +820,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	darray_init(&fs);
 
 	ret = bch2_filemap_get_contig_folios_d(mapping, pos, end,
-					       FGP_WRITEBEGIN,
+					       FGP_WRITEBEGIN | fgf_set_order(len),
 					       mapping_gfp_mask(mapping), &fs);
 	if (ret)
 		goto out;
