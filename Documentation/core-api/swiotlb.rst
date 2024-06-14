@@ -192,7 +192,7 @@ alignment larger than PAGE_SIZE.
 
 Dynamic swiotlb
 ---------------
-When CONFIG_DYNAMIC_SWIOTLB is enabled, swiotlb can do on-demand expansion of
+When CONFIG_SWIOTLB_DYNAMIC is enabled, swiotlb can do on-demand expansion of
 the amount of memory available for allocation as bounce buffers. If a bounce
 buffer request fails due to lack of available space, an asynchronous background
 task is kicked off to allocate memory from general system memory and turn it

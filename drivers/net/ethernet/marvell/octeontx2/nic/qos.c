@@ -1422,7 +1422,10 @@ static int otx2_qos_leaf_to_inner(struct otx2_nic *pfvf, u16 classid,
 	otx2_qos_read_txschq_cfg(pfvf, node, old_cfg);
 
 	/* delete the txschq nodes allocated for this node */
+	otx2_qos_disable_sq(pfvf, qid);
+	otx2_qos_free_hw_node_schq(pfvf, node);
 	otx2_qos_free_sw_node_schq(pfvf, node);
+	pfvf->qos.qid_to_sqmap[qid] = OTX2_QOS_INVALID_SQ;
 
 	/* mark this node as htb inner node */
 	WRITE_ONCE(node->qid, OTX2_QOS_QID_INNER);
@@ -1632,6 +1635,7 @@ static int otx2_qos_leaf_del_last(struct otx2_nic *pfvf, u16 classid, bool force
 		dwrr_del_node = true;
 
 	/* destroy the leaf node */
+	otx2_qos_disable_sq(pfvf, qid);
 	otx2_qos_destroy_node(pfvf, node);
 	pfvf->qos.qid_to_sqmap[qid] = OTX2_QOS_INVALID_SQ;
 

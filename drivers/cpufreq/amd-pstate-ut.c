@@ -26,9 +26,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/fs.h>
-#include <linux/amd-pstate.h>
 
 #include <acpi/cppc_acpi.h>
+
+#include "amd-pstate.h"
 
 /*
  * Abbreviations:

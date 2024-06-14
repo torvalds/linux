@@ -266,6 +266,12 @@ const struct bus_type pnp_bus_type = {
 	.dev_groups = pnp_dev_groups,
 };
 
+bool dev_is_pnp(const struct device *dev)
+{
+	return dev->bus == &pnp_bus_type;
+}
+EXPORT_SYMBOL_GPL(dev_is_pnp);
+
 int pnp_register_driver(struct pnp_driver *drv)
 {
 	drv->driver.name = drv->name;
