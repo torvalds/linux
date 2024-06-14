@@ -226,6 +226,7 @@ void __kvm_flush_vm_context(void)
  *
  * - a TLBI targeting EL2 S1 is remapped to EL1 S1
  * - a non-shareable TLBI is upgraded to being inner-shareable
+ * - an outer-shareable TLBI is also mapped to inner-shareable
  */
 int __kvm_tlbi_s1e2(struct kvm_s2_mmu *mmu, u64 va, u64 sys_encoding)
 {
@@ -245,32 +246,41 @@ int __kvm_tlbi_s1e2(struct kvm_s2_mmu *mmu, u64 va, u64 sys_encoding)
 	switch (sys_encoding) {
 	case OP_TLBI_ALLE2:
 	case OP_TLBI_ALLE2IS:
+	case OP_TLBI_ALLE2OS:
 	case OP_TLBI_VMALLE1:
 	case OP_TLBI_VMALLE1IS:
+	case OP_TLBI_VMALLE1OS:
 		__tlbi(vmalle1is);
 		break;
 	case OP_TLBI_VAE2:
 	case OP_TLBI_VAE2IS:
+	case OP_TLBI_VAE2OS:
 	case OP_TLBI_VAE1:
 	case OP_TLBI_VAE1IS:
+	case OP_TLBI_VAE1OS:
 		__tlbi(vae1is, va);
 		break;
 	case OP_TLBI_VALE2:
 	case OP_TLBI_VALE2IS:
+	case OP_TLBI_VALE2OS:
 	case OP_TLBI_VALE1:
 	case OP_TLBI_VALE1IS:
+	case OP_TLBI_VALE1OS:
 		__tlbi(vale1is, va);
 		break;
 	case OP_TLBI_ASIDE1:
 	case OP_TLBI_ASIDE1IS:
+	case OP_TLBI_ASIDE1OS:
 		__tlbi(aside1is, va);
 		break;
 	case OP_TLBI_VAAE1:
 	case OP_TLBI_VAAE1IS:
+	case OP_TLBI_VAAE1OS:
 		__tlbi(vaae1is, va);
 		break;
 	case OP_TLBI_VAALE1:
 	case OP_TLBI_VAALE1IS:
+	case OP_TLBI_VAALE1OS:
 		__tlbi(vaale1is, va);
 		break;
 	default:

@@ -2959,6 +2959,13 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	{ SYS_DESC(SYS_DC_CIGSW), access_dcgsw },
 	{ SYS_DESC(SYS_DC_CIGDSW), access_dcgsw },
 
+	SYS_INSN(TLBI_VMALLE1OS, handle_tlbi_el1),
+	SYS_INSN(TLBI_VAE1OS, handle_tlbi_el1),
+	SYS_INSN(TLBI_ASIDE1OS, handle_tlbi_el1),
+	SYS_INSN(TLBI_VAAE1OS, handle_tlbi_el1),
+	SYS_INSN(TLBI_VALE1OS, handle_tlbi_el1),
+	SYS_INSN(TLBI_VAALE1OS, handle_tlbi_el1),
+
 	SYS_INSN(TLBI_VMALLE1IS, handle_tlbi_el1),
 	SYS_INSN(TLBI_VAE1IS, handle_tlbi_el1),
 	SYS_INSN(TLBI_ASIDE1IS, handle_tlbi_el1),
@@ -2975,9 +2982,17 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2E1IS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2LE1IS, handle_ipas2e1is),
 
+	SYS_INSN(TLBI_ALLE2OS, trap_undef),
+	SYS_INSN(TLBI_VAE2OS, trap_undef),
+	SYS_INSN(TLBI_ALLE1OS, handle_alle1is),
+	SYS_INSN(TLBI_VALE2OS, trap_undef),
+	SYS_INSN(TLBI_VMALLS12E1OS, handle_vmalls12e1is),
+
 	SYS_INSN(TLBI_ALLE1IS, handle_alle1is),
 	SYS_INSN(TLBI_VMALLS12E1IS, handle_vmalls12e1is),
+	SYS_INSN(TLBI_IPAS2E1OS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2E1, handle_ipas2e1is),
+	SYS_INSN(TLBI_IPAS2LE1OS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2LE1, handle_ipas2e1is),
 	SYS_INSN(TLBI_ALLE1, handle_alle1is),
 	SYS_INSN(TLBI_VMALLS12E1, handle_vmalls12e1is),

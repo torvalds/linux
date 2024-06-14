@@ -805,9 +805,12 @@ static u64 limit_nv_id_reg(u32 id, u64 val)
 
 	switch (id) {
 	case SYS_ID_AA64ISAR0_EL1:
-		/* Support everything but TME, O.S. and Range TLBIs */
+		/* Support everything but TME and Range TLBIs */
+		tmp = FIELD_GET(NV_FTR(ISAR0, TLB), val);
+		tmp = min(tmp, ID_AA64ISAR0_EL1_TLB_OS);
 		val &= ~(NV_FTR(ISAR0, TLB)		|
 			 NV_FTR(ISAR0, TME));
+		val |= FIELD_PREP(NV_FTR(ISAR0, TLB), tmp);
 		break;
 
 	case SYS_ID_AA64ISAR1_EL1:
