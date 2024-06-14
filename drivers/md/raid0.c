@@ -377,13 +377,18 @@ static void raid0_free(struct mddev *mddev, void *priv)
 static int raid0_set_limits(struct mddev *mddev)
 {
 	struct queue_limits lim;
+	int err;
 
 	blk_set_stacking_limits(&lim);
 	lim.max_hw_sectors = mddev->chunk_sectors;
 	lim.max_write_zeroes_sectors = mddev->chunk_sectors;
 	lim.io_min = mddev->chunk_sectors << 9;
 	lim.io_opt = lim.io_min * mddev->raid_disks;
-	mddev_stack_rdev_limits(mddev, &lim);
+	err = mddev_stack_rdev_limits(mddev, &lim, MDDEV_STACK_INTEGRITY);
+	if (err) {
+		queue_limits_cancel_update(mddev->gendisk->queue);
+		return err;
+	}
 	return queue_limits_set(mddev->gendisk->queue, &lim);
 }
 

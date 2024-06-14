@@ -220,17 +220,7 @@ static inline sector_t sectors_to_logical(struct scsi_device *sdev, sector_t sec
 	return sector >> (ilog2(sdev->sector_size) - 9);
 }
 
-#ifdef CONFIG_BLK_DEV_INTEGRITY
-
-extern void sd_dif_config_host(struct scsi_disk *);
-
-#else /* CONFIG_BLK_DEV_INTEGRITY */
-
-static inline void sd_dif_config_host(struct scsi_disk *disk)
-{
-}
-
-#endif /* CONFIG_BLK_DEV_INTEGRITY */
+void sd_dif_config_host(struct scsi_disk *sdkp, struct queue_limits *lim);
 
 static inline int sd_is_zoned(struct scsi_disk *sdkp)
 {
@@ -239,7 +229,8 @@ static inline int sd_is_zoned(struct scsi_disk *sdkp)
 
 #ifdef CONFIG_BLK_DEV_ZONED
 
-int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE]);
+int sd_zbc_read_zones(struct scsi_disk *sdkp, struct queue_limits *lim,
+		u8 buf[SD_BUF_SIZE]);
 int sd_zbc_revalidate_zones(struct scsi_disk *sdkp);
 blk_status_t sd_zbc_setup_zone_mgmt_cmnd(struct scsi_cmnd *cmd,
 					 unsigned char op, bool all);
@@ -250,7 +241,8 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 
 #else /* CONFIG_BLK_DEV_ZONED */
 
-static inline int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE])
+static inline int sd_zbc_read_zones(struct scsi_disk *sdkp,
+		struct queue_limits *lim, u8 buf[SD_BUF_SIZE])
 {
 	return 0;
 }

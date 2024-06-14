@@ -350,25 +350,6 @@ static struct kmem_cache *journal_io_cache;
 #define DEBUG_bytes(bytes, len, msg, ...)	do { } while (0)
 #endif
 
-static void dm_integrity_prepare(struct request *rq)
-{
-}
-
-static void dm_integrity_complete(struct request *rq, unsigned int nr_bytes)
-{
-}
-
-/*
- * DM Integrity profile, protection is performed layer above (dm-crypt)
- */
-static const struct blk_integrity_profile dm_integrity_profile = {
-	.name			= "DM-DIF-EXT-TAG",
-	.generate_fn		= NULL,
-	.verify_fn		= NULL,
-	.prepare_fn		= dm_integrity_prepare,
-	.complete_fn		= dm_integrity_complete,
-};
-
 static void dm_integrity_map_continue(struct dm_integrity_io *dio, bool from_map);
 static void integrity_bio_wait(struct work_struct *w);
 static void dm_integrity_dtr(struct dm_target *ti);
@@ -3494,6 +3475,17 @@ static void dm_integrity_io_hints(struct dm_target *ti, struct queue_limits *lim
 		limits->dma_alignment = limits->logical_block_size - 1;
 		limits->discard_granularity = ic->sectors_per_block << SECTOR_SHIFT;
 	}
+
+	if (!ic->internal_hash) {
+		struct blk_integrity *bi = &limits->integrity;
+
+		memset(bi, 0, sizeof(*bi));
+		bi->tuple_size = ic->tag_size;
+		bi->tag_size = bi->tuple_size;
+		bi->interval_exp =
+			ic->sb->log2_sectors_per_block + SECTOR_SHIFT;
+	}
+
 	limits->max_integrity_segments = USHRT_MAX;
 }
 
@@ -3648,20 +3640,6 @@ try_smaller_buffer:
 	sb_set_version(ic);
 
 	return 0;
-}
-
-static void dm_integrity_set(struct dm_target *ti, struct dm_integrity_c *ic)
-{
-	struct gendisk *disk = dm_disk(dm_table_get_md(ti->table));
-	struct blk_integrity bi;
-
-	memset(&bi, 0, sizeof(bi));
-	bi.profile = &dm_integrity_profile;
-	bi.tuple_size = ic->tag_size;
-	bi.tag_size = bi.tuple_size;
-	bi.interval_exp = ic->sb->log2_sectors_per_block + SECTOR_SHIFT;
-
-	blk_integrity_register(disk, &bi);
 }
 
 static void dm_integrity_free_page_list(struct page_list *pl)
@@ -4648,9 +4626,6 @@ try_smaller_buffer:
 				goto bad;
 		}
 	}
-
-	if (!ic->internal_hash)
-		dm_integrity_set(ti, ic);
 
 	ti->num_flush_bios = 1;
 	ti->flush_supported = true;

@@ -2082,9 +2082,6 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	if (rdev->saved_raid_disk < 0 && !_enough(conf, 1, -1))
 		return -EINVAL;
 
-	if (md_integrity_add_rdev(rdev, mddev))
-		return -ENXIO;
-
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
 
@@ -3975,12 +3972,17 @@ static int raid10_set_queue_limits(struct mddev *mddev)
 {
 	struct r10conf *conf = mddev->private;
 	struct queue_limits lim;
+	int err;
 
 	blk_set_stacking_limits(&lim);
 	lim.max_write_zeroes_sectors = 0;
 	lim.io_min = mddev->chunk_sectors << 9;
 	lim.io_opt = lim.io_min * raid10_nr_stripes(conf);
-	mddev_stack_rdev_limits(mddev, &lim);
+	err = mddev_stack_rdev_limits(mddev, &lim, MDDEV_STACK_INTEGRITY);
+	if (err) {
+		queue_limits_cancel_update(mddev->gendisk->queue);
+		return err;
+	}
 	return queue_limits_set(mddev->gendisk->queue, &lim);
 }
 
