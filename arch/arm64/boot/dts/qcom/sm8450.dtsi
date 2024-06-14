@@ -2087,7 +2087,7 @@
 				      "rchng",
 				      "pipe";
 
-			clock-output-names = "pcie_1_pipe_clk", "pcie_1_phy_aux_clk";
+			clock-output-names = "pcie_1_pipe_clk";
 			#clock-cells = <1>;
 
 			#phy-cells = <0>;
