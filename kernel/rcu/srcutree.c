@@ -1543,7 +1543,8 @@ EXPORT_SYMBOL_GPL(start_poll_synchronize_srcu);
  */
 bool poll_state_synchronize_srcu(struct srcu_struct *ssp, unsigned long cookie)
 {
-	if (!rcu_seq_done(&ssp->srcu_sup->srcu_gp_seq, cookie))
+	if (cookie != SRCU_GET_STATE_COMPLETED &&
+	    !rcu_seq_done(&ssp->srcu_sup->srcu_gp_seq, cookie))
 		return false;
 	// Ensure that the end of the SRCU grace period happens before
 	// any subsequent code that the caller might execute.
