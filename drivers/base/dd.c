@@ -1118,7 +1118,7 @@ static void __device_driver_unlock(struct device *dev, struct device *parent)
  * Manually attach driver to a device. Will acquire both @dev lock and
  * @dev->parent lock if needed. Returns 0 on success, -ERR on failure.
  */
-int device_driver_attach(struct device_driver *drv, struct device *dev)
+int device_driver_attach(const struct device_driver *drv, struct device *dev)
 {
 	int ret;
 
@@ -1154,7 +1154,7 @@ static void __driver_attach_async_helper(void *_dev, async_cookie_t cookie)
 
 static int __driver_attach(struct device *dev, void *data)
 {
-	struct device_driver *drv = data;
+	const struct device_driver *drv = data;
 	bool async = false;
 	int ret;
 
@@ -1227,9 +1227,10 @@ static int __driver_attach(struct device *dev, void *data)
  * returns 0 and the @dev->driver is set, we've found a
  * compatible pair.
  */
-int driver_attach(struct device_driver *drv)
+int driver_attach(const struct device_driver *drv)
 {
-	return bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
+	/* The (void *) will be put back to const * in __driver_attach() */
+	return bus_for_each_dev(drv->bus, NULL, (void *)drv, __driver_attach);
 }
 EXPORT_SYMBOL_GPL(driver_attach);
 

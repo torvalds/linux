@@ -161,10 +161,11 @@ void device_release_driver_internal(struct device *dev, const struct device_driv
 void driver_detach(const struct device_driver *drv);
 void driver_deferred_probe_del(struct device *dev);
 void device_set_deferred_probe_reason(const struct device *dev, struct va_format *vaf);
-static inline int driver_match_device(struct device_driver *drv,
+static inline int driver_match_device(const struct device_driver *drv,
 				      struct device *dev)
 {
-	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
+	/* cast will be removed in the future when match can handle a const pointer properly. */
+	return drv->bus->match ? drv->bus->match(dev, (struct device_driver *)drv) : 1;
 }
 
 static inline void dev_sync_state(struct device *dev)
