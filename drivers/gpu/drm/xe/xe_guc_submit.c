@@ -1782,8 +1782,8 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 {
 	trace_xe_exec_queue_scheduling_done(q);
 
-	if (exec_queue_pending_enable(q)) {
-		xe_gt_assert(guc_to_gt(guc), runnable_state == 1);
+	if (runnable_state == 1) {
+		xe_gt_assert(guc_to_gt(guc), exec_queue_pending_enable(q));
 
 		q->guc->resume_time = ktime_get();
 		clear_exec_queue_pending_enable(q);
