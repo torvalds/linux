@@ -6255,11 +6255,6 @@
 			Not specifying this option is equivalent to
 			spec_store_bypass_disable=auto.
 
-	spia_io_base=	[HW,MTD]
-	spia_fio_base=
-	spia_pedr=
-	spia_peddr=
-
 	split_lock_detect=
 			[X86] Enable split lock detection or bus lock detection
 
