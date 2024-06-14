@@ -1822,6 +1822,20 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	return __sys_socketpair(family, type, protocol, usockvec);
 }
 
+int __sys_bind_socket(struct socket *sock, struct sockaddr_storage *address,
+		      int addrlen)
+{
+	int err;
+
+	err = security_socket_bind(sock, (struct sockaddr *)address,
+				   addrlen);
+	if (!err)
+		err = READ_ONCE(sock->ops)->bind(sock,
+						 (struct sockaddr *)address,
+						 addrlen);
+	return err;
+}
+
 /*
  *	Bind a name to a socket. Nothing much to do here since it's
  *	the protocol's responsibility to handle the local address.
@@ -1839,15 +1853,8 @@ int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
 		err = move_addr_to_kernel(umyaddr, addrlen, &address);
-		if (!err) {
-			err = security_socket_bind(sock,
-						   (struct sockaddr *)&address,
-						   addrlen);
-			if (!err)
-				err = READ_ONCE(sock->ops)->bind(sock,
-						      (struct sockaddr *)
-						      &address, addrlen);
-		}
+		if (!err)
+			err = __sys_bind_socket(sock, &address, addrlen);
 		fput_light(sock->file, fput_needed);
 	}
 	return err;
