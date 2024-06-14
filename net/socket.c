@@ -1870,23 +1870,28 @@ SYSCALL_DEFINE3(bind, int, fd, struct sockaddr __user *, umyaddr, int, addrlen)
  *	necessary for a listen, and if that works, we mark the socket as
  *	ready for listening.
  */
+int __sys_listen_socket(struct socket *sock, int backlog)
+{
+	int somaxconn, err;
+
+	somaxconn = READ_ONCE(sock_net(sock->sk)->core.sysctl_somaxconn);
+	if ((unsigned int)backlog > somaxconn)
+		backlog = somaxconn;
+
+	err = security_socket_listen(sock, backlog);
+	if (!err)
+		err = READ_ONCE(sock->ops)->listen(sock, backlog);
+	return err;
+}
 
 int __sys_listen(int fd, int backlog)
 {
 	struct socket *sock;
 	int err, fput_needed;
-	int somaxconn;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
-		somaxconn = READ_ONCE(sock_net(sock->sk)->core.sysctl_somaxconn);
-		if ((unsigned int)backlog > somaxconn)
-			backlog = somaxconn;
-
-		err = security_socket_listen(sock, backlog);
-		if (!err)
-			err = READ_ONCE(sock->ops)->listen(sock, backlog);
-
+		err = __sys_listen_socket(sock, backlog);
 		fput_light(sock->file, fput_needed);
 	}
 	return err;

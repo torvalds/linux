@@ -449,6 +449,7 @@ extern int __sys_connect_file(struct file *file, struct sockaddr_storage *addr,
 extern int __sys_connect(int fd, struct sockaddr __user *uservaddr,
 			 int addrlen);
 extern int __sys_listen(int fd, int backlog);
+extern int __sys_listen_socket(struct socket *sock, int backlog);
 extern int __sys_getsockname(int fd, struct sockaddr __user *usockaddr,
 			     int __user *usockaddr_len);
 extern int __sys_getpeername(int fd, struct sockaddr __user *usockaddr,
