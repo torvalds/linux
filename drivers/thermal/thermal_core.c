@@ -467,6 +467,21 @@ static void thermal_governor_trip_crossed(struct thermal_governor *governor,
 		governor->trip_crossed(tz, trip, crossed_up);
 }
 
+static void thermal_trip_crossed(struct thermal_zone_device *tz,
+				 const struct thermal_trip *trip,
+				 struct thermal_governor *governor,
+				 bool crossed_up)
+{
+	if (crossed_up) {
+		thermal_notify_tz_trip_up(tz, trip);
+		thermal_debug_tz_trip_up(tz, trip);
+	} else {
+		thermal_notify_tz_trip_down(tz, trip);
+		thermal_debug_tz_trip_down(tz, trip);
+	}
+	thermal_governor_trip_crossed(governor, tz, trip, crossed_up);
+}
+
 static int thermal_trip_notify_cmp(void *ascending, const struct list_head *a,
 				   const struct list_head *b)
 {
@@ -506,18 +521,12 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 		handle_thermal_trip(tz, td, &way_up_list, &way_down_list);
 
 	list_sort(&way_up_list, &way_up_list, thermal_trip_notify_cmp);
-	list_for_each_entry(td, &way_up_list, notify_list_node) {
-		thermal_notify_tz_trip_up(tz, &td->trip);
-		thermal_debug_tz_trip_up(tz, &td->trip);
-		thermal_governor_trip_crossed(governor, tz, &td->trip, true);
-	}
+	list_for_each_entry(td, &way_up_list, notify_list_node)
+		thermal_trip_crossed(tz, &td->trip, governor, true);
 
 	list_sort(NULL, &way_down_list, thermal_trip_notify_cmp);
-	list_for_each_entry(td, &way_down_list, notify_list_node) {
-		thermal_notify_tz_trip_down(tz, &td->trip);
-		thermal_debug_tz_trip_down(tz, &td->trip);
-		thermal_governor_trip_crossed(governor, tz, &td->trip, false);
-	}
+	list_for_each_entry(td, &way_down_list, notify_list_node)
+		thermal_trip_crossed(tz, &td->trip, governor, false);
 
 	if (governor->manage)
 		governor->manage(tz);
@@ -592,6 +601,12 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 	mutex_unlock(&tz->lock);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
+
+void thermal_zone_trip_down(struct thermal_zone_device *tz,
+			    const struct thermal_trip *trip)
+{
+	thermal_trip_crossed(tz, trip, thermal_get_tz_governor(tz), false);
+}
 
 int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),
 			      void *data)
