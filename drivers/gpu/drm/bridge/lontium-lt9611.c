@@ -23,6 +23,8 @@
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/display/drm_hdmi_helper.h>
+#include <drm/display/drm_hdmi_state_helper.h>
 
 #define EDID_SEG_SIZE	256
 #define EDID_LEN	32
@@ -331,49 +333,6 @@ static int lt9611_video_check(struct lt9611 *lt9611)
 end:
 	dev_err(lt9611->dev, "read video check error\n");
 	return temp;
-}
-
-static void lt9611_hdmi_set_infoframes(struct lt9611 *lt9611,
-				       struct drm_connector *connector,
-				       struct drm_display_mode *mode)
-{
-	union hdmi_infoframe infoframe;
-	ssize_t len;
-	u8 iframes = 0x0a; /* UD1 infoframe */
-	u8 buf[32];
-	int ret;
-	int i;
-
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&infoframe.avi,
-						       connector,
-						       mode);
-	if (ret < 0)
-		goto out;
-
-	len = hdmi_infoframe_pack(&infoframe, buf, sizeof(buf));
-	if (len < 0)
-		goto out;
-
-	for (i = 0; i < len; i++)
-		regmap_write(lt9611->regmap, 0x8440 + i, buf[i]);
-
-	ret = drm_hdmi_vendor_infoframe_from_display_mode(&infoframe.vendor.hdmi,
-							  connector,
-							  mode);
-	if (ret < 0)
-		goto out;
-
-	len = hdmi_infoframe_pack(&infoframe, buf, sizeof(buf));
-	if (len < 0)
-		goto out;
-
-	for (i = 0; i < len; i++)
-		regmap_write(lt9611->regmap, 0x8474 + i, buf[i]);
-
-	iframes |= 0x20;
-
-out:
-	regmap_write(lt9611->regmap, 0x843d, iframes); /* UD1 infoframe */
 }
 
 static void lt9611_hdmi_tx_digital(struct lt9611 *lt9611, bool is_hdmi)
@@ -719,7 +678,7 @@ lt9611_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	lt9611_mipi_input_analog(lt9611);
-	lt9611_hdmi_set_infoframes(lt9611, connector, mode);
+	drm_atomic_helper_connector_hdmi_update_infoframes(connector, state);
 	lt9611_hdmi_tx_digital(lt9611, connector->display_info.is_hdmi);
 	lt9611_hdmi_tx_phy(lt9611);
 
@@ -798,22 +757,25 @@ static enum drm_mode_status lt9611_bridge_mode_valid(struct drm_bridge *bridge,
 						     const struct drm_display_mode *mode)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
+	unsigned long long rate;
 
 	if (mode->hdisplay > 3840)
 		return MODE_BAD_HVALUE;
 
-	if (mode->vdisplay > 2160)
-		return MODE_BAD_VVALUE;
-
-	if (mode->hdisplay == 3840 &&
-	    mode->vdisplay == 2160 &&
-	    drm_mode_vrefresh(mode) > 30)
-		return MODE_CLOCK_HIGH;
-
 	if (mode->hdisplay > 2000 && !lt9611->dsi1_node)
 		return MODE_PANEL;
-	else
-		return MODE_OK;
+
+	rate = drm_hdmi_compute_mode_clock(mode, 8, HDMI_COLORSPACE_RGB);
+	return bridge->funcs->hdmi_tmds_char_rate_valid(bridge, mode, rate);
+}
+
+static int lt9611_bridge_atomic_check(struct drm_bridge *bridge,
+				      struct drm_bridge_state *bridge_state,
+				      struct drm_crtc_state *crtc_state,
+				      struct drm_connector_state *conn_state)
+{
+	return drm_atomic_helper_connector_hdmi_check(conn_state->connector,
+						      conn_state->state);
 }
 
 static void lt9611_bridge_atomic_pre_enable(struct drm_bridge *bridge,
@@ -887,6 +849,99 @@ lt9611_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	return input_fmts;
 }
 
+/*
+ * Other working frames:
+ * - 0x01, 0x84df
+ * - 0x04, 0x84c0
+ */
+#define LT9611_INFOFRAME_AUDIO	0x02
+#define LT9611_INFOFRAME_AVI	0x08
+#define LT9611_INFOFRAME_SPD	0x10
+#define LT9611_INFOFRAME_VENDOR	0x20
+
+static int lt9611_hdmi_clear_infoframe(struct drm_bridge *bridge,
+				       enum hdmi_infoframe_type type)
+{
+	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
+	unsigned int mask;
+
+	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		mask = LT9611_INFOFRAME_AVI;
+		break;
+
+	case HDMI_INFOFRAME_TYPE_SPD:
+		mask = LT9611_INFOFRAME_SPD;
+		break;
+
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		mask = LT9611_INFOFRAME_VENDOR;
+		break;
+
+	default:
+		drm_dbg_driver(lt9611->bridge.dev, "Unsupported HDMI InfoFrame %x\n", type);
+		mask = 0;
+		break;
+	}
+
+	if (mask)
+		regmap_update_bits(lt9611->regmap, 0x843d, mask, 0);
+
+	return 0;
+}
+
+static int lt9611_hdmi_write_infoframe(struct drm_bridge *bridge,
+				       enum hdmi_infoframe_type type,
+				       const u8 *buffer, size_t len)
+{
+	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
+	unsigned int mask, addr;
+	int i;
+
+	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		mask = LT9611_INFOFRAME_AVI;
+		addr = 0x8440;
+		break;
+
+	case HDMI_INFOFRAME_TYPE_SPD:
+		mask = LT9611_INFOFRAME_SPD;
+		addr = 0x8493;
+		break;
+
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		mask = LT9611_INFOFRAME_VENDOR;
+		addr = 0x8474;
+		break;
+
+	default:
+		drm_dbg_driver(lt9611->bridge.dev, "Unsupported HDMI InfoFrame %x\n", type);
+		mask = 0;
+		break;
+	}
+
+	if (mask) {
+		for (i = 0; i < len; i++)
+			regmap_write(lt9611->regmap, addr + i, buffer[i]);
+
+		regmap_update_bits(lt9611->regmap, 0x843d, mask, mask);
+	}
+
+	return 0;
+}
+
+static enum drm_mode_status
+lt9611_hdmi_tmds_char_rate_valid(const struct drm_bridge *bridge,
+				 const struct drm_display_mode *mode,
+				 unsigned long long tmds_rate)
+{
+	/* 297 MHz for 4k@30 mode */
+	if (tmds_rate > 297000000)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
 static const struct drm_bridge_funcs lt9611_bridge_funcs = {
 	.attach = lt9611_bridge_attach,
 	.mode_valid = lt9611_bridge_mode_valid,
@@ -894,6 +949,7 @@ static const struct drm_bridge_funcs lt9611_bridge_funcs = {
 	.edid_read = lt9611_bridge_edid_read,
 	.hpd_enable = lt9611_bridge_hpd_enable,
 
+	.atomic_check = lt9611_bridge_atomic_check,
 	.atomic_pre_enable = lt9611_bridge_atomic_pre_enable,
 	.atomic_enable = lt9611_bridge_atomic_enable,
 	.atomic_disable = lt9611_bridge_atomic_disable,
@@ -902,6 +958,10 @@ static const struct drm_bridge_funcs lt9611_bridge_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.atomic_get_input_bus_fmts = lt9611_atomic_get_input_bus_fmts,
+
+	.hdmi_tmds_char_rate_valid = lt9611_hdmi_tmds_char_rate_valid,
+	.hdmi_write_infoframe = lt9611_hdmi_write_infoframe,
+	.hdmi_clear_infoframe = lt9611_hdmi_clear_infoframe,
 };
 
 static int lt9611_parse_dt(struct device *dev,
@@ -1116,8 +1176,11 @@ static int lt9611_probe(struct i2c_client *client)
 	lt9611->bridge.funcs = &lt9611_bridge_funcs;
 	lt9611->bridge.of_node = client->dev.of_node;
 	lt9611->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID |
-			     DRM_BRIDGE_OP_HPD | DRM_BRIDGE_OP_MODES;
+			     DRM_BRIDGE_OP_HPD | DRM_BRIDGE_OP_MODES |
+			     DRM_BRIDGE_OP_HDMI;
 	lt9611->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
+	lt9611->bridge.vendor = "Lontium";
+	lt9611->bridge.product = "LT9611";
 
 	drm_bridge_add(&lt9611->bridge);
 
