@@ -123,3 +123,6 @@
 #include "k3-am62p-j722s-common-main.dtsi"
 #include "k3-am62p-j722s-common-mcu.dtsi"
 #include "k3-am62p-j722s-common-wakeup.dtsi"
+
+/* Include AM62P specific peripherals */
+#include "k3-am62p-main.dtsi"
