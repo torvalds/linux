@@ -1829,8 +1829,7 @@ skip_init_ctx:
 			prog->jited_len = 0;
 			goto out_free_hdr;
 		}
-		if (WARN_ON(bpf_jit_binary_pack_finalize(prog, ro_header,
-							 header))) {
+		if (WARN_ON(bpf_jit_binary_pack_finalize(ro_header, header))) {
 			/* ro_header has been freed */
 			ro_header = NULL;
 			prog = orig_prog;
