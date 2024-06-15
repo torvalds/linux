@@ -224,7 +224,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 
 		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
-			__set_current_state(TASK_RUNNING);
+			finish_wait(&ctx->rsrc_quiesce_wq, &we);
 			mutex_lock(&ctx->uring_lock);
 			if (list_empty(&ctx->rsrc_ref_list))
 				ret = 0;
@@ -232,7 +232,6 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		}
 
 		schedule();
-		__set_current_state(TASK_RUNNING);
 		mutex_lock(&ctx->uring_lock);
 		ret = 0;
 	} while (!list_empty(&ctx->rsrc_ref_list));
