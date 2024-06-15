@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
- * Device Tree file for the AM62P MCU domain peripherals
+ * Device Tree file for the MCU domain peripherals shared by AM62P and J722S
+ *
  * Copyright (C) 2023-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 

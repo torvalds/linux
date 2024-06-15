@@ -116,10 +116,10 @@
 		};
 	};
 
-	#include "k3-am62p-thermal.dtsi"
+	#include "k3-am62p-j722s-common-thermal.dtsi"
 };
 
 /* Now include peripherals for each bus segment */
-#include "k3-am62p-main.dtsi"
-#include "k3-am62p-mcu.dtsi"
-#include "k3-am62p-wakeup.dtsi"
+#include "k3-am62p-j722s-common-main.dtsi"
+#include "k3-am62p-j722s-common-mcu.dtsi"
+#include "k3-am62p-j722s-common-wakeup.dtsi"
