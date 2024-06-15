@@ -447,6 +447,7 @@
   misc_register
   mod_delayed_work_on
   mod_timer
+  __module_get
   module_layout
   __msecs_to_jiffies
   msleep
