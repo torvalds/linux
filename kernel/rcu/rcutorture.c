@@ -373,6 +373,8 @@ struct rcu_torture_ops {
 	bool (*poll_need_2gp)(bool poll, bool poll_full);
 	void (*cond_sync)(unsigned long oldstate);
 	void (*cond_sync_full)(struct rcu_gp_oldstate *rgosp);
+	int poll_active;
+	int poll_active_full;
 	call_rcu_func_t call;
 	void (*cb_barrier)(void);
 	void (*fqs)(void);
@@ -558,6 +560,8 @@ static struct rcu_torture_ops rcu_ops = {
 	.poll_need_2gp		= rcu_poll_need_2gp,
 	.cond_sync		= cond_synchronize_rcu,
 	.cond_sync_full		= cond_synchronize_rcu_full,
+	.poll_active		= NUM_ACTIVE_RCU_POLL_OLDSTATE,
+	.poll_active_full	= NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE,
 	.get_gp_state_exp	= get_state_synchronize_rcu,
 	.start_gp_poll_exp	= start_poll_synchronize_rcu_expedited,
 	.start_gp_poll_exp_full	= start_poll_synchronize_rcu_expedited_full,
@@ -741,6 +745,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.get_gp_state	= srcu_torture_get_gp_state,
 	.start_gp_poll	= srcu_torture_start_gp_poll,
 	.poll_gp_state	= srcu_torture_poll_gp_state,
+	.poll_active	= NUM_ACTIVE_SRCU_POLL_OLDSTATE,
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
@@ -783,6 +788,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.get_gp_state	= srcu_torture_get_gp_state,
 	.start_gp_poll	= srcu_torture_start_gp_poll,
 	.poll_gp_state	= srcu_torture_poll_gp_state,
+	.poll_active	= NUM_ACTIVE_SRCU_POLL_OLDSTATE,
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
@@ -1374,13 +1380,15 @@ rcu_torture_writer(void *arg)
 	int i;
 	int idx;
 	int oldnice = task_nice(current);
-	struct rcu_gp_oldstate rgo[NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE];
+	struct rcu_gp_oldstate *rgo = NULL;
+	int rgo_size = 0;
 	struct rcu_torture *rp;
 	struct rcu_torture *old_rp;
 	static DEFINE_TORTURE_RANDOM(rand);
 	unsigned long stallsdone = jiffies;
 	bool stutter_waited;
-	unsigned long ulo[NUM_ACTIVE_RCU_POLL_OLDSTATE];
+	unsigned long *ulo = NULL;
+	int ulo_size = 0;
 
 	// If a new stall test is added, this must be adjusted.
 	if (stall_cpu_holdoff + stall_gp_kthread + stall_cpu)
@@ -1400,6 +1408,16 @@ rcu_torture_writer(void *arg)
 		rcu_torture_writer_state = RTWS_STOPPING;
 		torture_kthread_stopping("rcu_torture_writer");
 		return 0;
+	}
+	if (cur_ops->poll_active > 0) {
+		ulo = kzalloc(cur_ops->poll_active * sizeof(ulo[0]), GFP_KERNEL);
+		if (!WARN_ON(!ulo))
+			ulo_size = cur_ops->poll_active;
+	}
+	if (cur_ops->poll_active_full > 0) {
+		rgo = kzalloc(cur_ops->poll_active_full * sizeof(rgo[0]), GFP_KERNEL);
+		if (!WARN_ON(!rgo))
+			rgo_size = cur_ops->poll_active_full;
 	}
 
 	do {
@@ -1502,19 +1520,19 @@ rcu_torture_writer(void *arg)
 				break;
 			case RTWS_POLL_GET:
 				rcu_torture_writer_state = RTWS_POLL_GET;
-				for (i = 0; i < ARRAY_SIZE(ulo); i++)
+				for (i = 0; i < ulo_size; i++)
 					ulo[i] = cur_ops->get_comp_state();
 				gp_snap = cur_ops->start_gp_poll();
 				rcu_torture_writer_state = RTWS_POLL_WAIT;
 				while (!cur_ops->poll_gp_state(gp_snap)) {
 					gp_snap1 = cur_ops->get_gp_state();
-					for (i = 0; i < ARRAY_SIZE(ulo); i++)
+					for (i = 0; i < ulo_size; i++)
 						if (cur_ops->poll_gp_state(ulo[i]) ||
 						    cur_ops->same_gp_state(ulo[i], gp_snap1)) {
 							ulo[i] = gp_snap1;
 							break;
 						}
-					WARN_ON_ONCE(i >= ARRAY_SIZE(ulo));
+					WARN_ON_ONCE(ulo_size > 0 && i >= ulo_size);
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
 				}
@@ -1522,20 +1540,20 @@ rcu_torture_writer(void *arg)
 				break;
 			case RTWS_POLL_GET_FULL:
 				rcu_torture_writer_state = RTWS_POLL_GET_FULL;
-				for (i = 0; i < ARRAY_SIZE(rgo); i++)
+				for (i = 0; i < rgo_size; i++)
 					cur_ops->get_comp_state_full(&rgo[i]);
 				cur_ops->start_gp_poll_full(&gp_snap_full);
 				rcu_torture_writer_state = RTWS_POLL_WAIT_FULL;
 				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
 					cur_ops->get_gp_state_full(&gp_snap1_full);
-					for (i = 0; i < ARRAY_SIZE(rgo); i++)
+					for (i = 0; i < rgo_size; i++)
 						if (cur_ops->poll_gp_state_full(&rgo[i]) ||
 						    cur_ops->same_gp_state_full(&rgo[i],
 										&gp_snap1_full)) {
 							rgo[i] = gp_snap1_full;
 							break;
 						}
-					WARN_ON_ONCE(i >= ARRAY_SIZE(rgo));
+					WARN_ON_ONCE(rgo_size > 0 && i >= rgo_size);
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
 				}
@@ -1617,6 +1635,8 @@ rcu_torture_writer(void *arg)
 		pr_alert("%s" TORTURE_FLAG
 			 " Dynamic grace-period expediting was disabled.\n",
 			 torture_type);
+	kfree(ulo);
+	kfree(rgo);
 	rcu_torture_writer_state = RTWS_STOPPING;
 	torture_kthread_stopping("rcu_torture_writer");
 	return 0;
