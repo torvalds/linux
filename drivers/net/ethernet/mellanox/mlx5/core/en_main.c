@@ -4910,7 +4910,7 @@ static netdev_features_t mlx5e_tunnel_features_check(struct mlx5e_priv *priv,
 	}
 
 out:
-	/* Disable CSUM and GSO if the udp dport is not offloaded by HW */
+	/* Disable CSUM and GSO if skb cannot be offloaded by HW */
 	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 }
 
