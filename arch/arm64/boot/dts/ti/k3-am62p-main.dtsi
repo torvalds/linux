@@ -32,3 +32,20 @@
 		};
 	};
 };
+
+&oc_sram {
+	reg = <0x00 0x70000000 0x00 0x10000>;
+	ranges = <0x00 0x00 0x70000000 0x10000>;
+};
+
+&inta_main_dmss {
+	ti,interrupt-ranges = <5 69 35>;
+};
+
+&main_gpio0 {
+	ti,ngpio = <92>;
+};
+
+&main_gpio1 {
+	ti,ngpio = <52>;
+};

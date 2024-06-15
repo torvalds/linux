@@ -8,10 +8,8 @@
 &cbass_main {
 	oc_sram: sram@70000000 {
 		compatible = "mmio-sram";
-		reg = <0x00 0x70000000 0x00 0x10000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x00 0x00 0x70000000 0x10000>;
 	};
 
 	gic500: interrupt-controller@1800000 {
@@ -92,7 +90,6 @@
 			msi-controller;
 			ti,sci = <&dmsc>;
 			ti,sci-dev-id = <28>;
-			ti,interrupt-ranges = <5 69 35>;
 			ti,unmapped-event-sources = <&main_bcdma>, <&main_pktdma>;
 		};
 
@@ -539,7 +536,6 @@
 			     <193>, <194>, <195>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		ti,ngpio = <92>;
 		ti,davinci-gpio-unbanked = <0>;
 		power-domains = <&k3_pds 77 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 77 0>;
@@ -556,7 +552,6 @@
 			     <183>, <184>, <185>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		ti,ngpio = <52>;
 		ti,davinci-gpio-unbanked = <0>;
 		power-domains = <&k3_pds 78 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 78 0>;
