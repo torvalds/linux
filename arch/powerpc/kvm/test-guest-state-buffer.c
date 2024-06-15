@@ -325,4 +325,5 @@ static struct kunit_suite guest_state_buffer_test_suite = {
 
 kunit_test_suites(&guest_state_buffer_test_suite);
 
+MODULE_DESCRIPTION("KUnit tests for Guest State Buffer APIs");
 MODULE_LICENSE("GPL");
