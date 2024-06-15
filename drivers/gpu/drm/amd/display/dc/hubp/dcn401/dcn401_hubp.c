@@ -677,11 +677,22 @@ void hubp401_cursor_set_position(
 	int rec_x_offset = x_pos - pos->x_hotspot;
 	int rec_y_offset = y_pos - pos->y_hotspot;
 	int dst_x_offset;
-	int x_pos_viewport = x_pos * param->viewport.width / param->recout.width;
-	int x_hot_viewport = pos->x_hotspot * param->viewport.width / param->recout.width;
+	int x_pos_viewport = 0;
+	int x_hot_viewport = 0;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
 	hubp->curs_pos = *pos;
+
+	/* Recout is zero for pipes if the entire dst_rect is contained
+	 * within preceeding ODM slices.
+	 */
+	if (param->recout.width) {
+		x_pos_viewport = x_pos * param->viewport.width / param->recout.width;
+		x_hot_viewport = pos->x_hotspot * param->viewport.width / param->recout.width;
+	} else {
+		ASSERT(!cur_en || x_pos == 0);
+		ASSERT(!cur_en || pos->x_hotspot == 0);
+	}
 
 	/*
 	 * Guard aganst cursor_set_position() from being called with invalid
