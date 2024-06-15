@@ -129,5 +129,6 @@ static struct cpufreq_governor spu_governor = {
 cpufreq_governor_init(spu_governor);
 cpufreq_governor_exit(spu_governor);
 
+MODULE_DESCRIPTION("SPU-aware cpufreq governor for the cell processor");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Krafft <krafft@de.ibm.com>");
