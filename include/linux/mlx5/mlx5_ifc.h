@@ -2651,6 +2651,46 @@ struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits {
 	u8         port_xmit_wait[0x20];
 };
 
+struct mlx5_ifc_ib_ext_port_cntrs_grp_data_layout_bits {
+	u8         reserved_at_0[0x300];
+
+	u8         port_xmit_data_high[0x20];
+
+	u8         port_xmit_data_low[0x20];
+
+	u8         port_rcv_data_high[0x20];
+
+	u8         port_rcv_data_low[0x20];
+
+	u8         port_xmit_pkts_high[0x20];
+
+	u8         port_xmit_pkts_low[0x20];
+
+	u8         port_rcv_pkts_high[0x20];
+
+	u8         port_rcv_pkts_low[0x20];
+
+	u8         reserved_at_400[0x80];
+
+	u8         port_unicast_xmit_pkts_high[0x20];
+
+	u8         port_unicast_xmit_pkts_low[0x20];
+
+	u8         port_multicast_xmit_pkts_high[0x20];
+
+	u8         port_multicast_xmit_pkts_low[0x20];
+
+	u8         port_unicast_rcv_pkts_high[0x20];
+
+	u8         port_unicast_rcv_pkts_low[0x20];
+
+	u8         port_multicast_rcv_pkts_high[0x20];
+
+	u8         port_multicast_rcv_pkts_low[0x20];
+
+	u8         reserved_at_580[0x240];
+};
+
 struct mlx5_ifc_eth_per_tc_prio_grp_data_layout_bits {
 	u8         transmit_queue_high[0x20];
 
@@ -4543,6 +4583,7 @@ union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	struct mlx5_ifc_eth_per_tc_prio_grp_data_layout_bits eth_per_tc_prio_grp_data_layout;
 	struct mlx5_ifc_eth_per_tc_congest_prio_grp_data_layout_bits eth_per_tc_congest_prio_grp_data_layout;
 	struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits ib_port_cntrs_grp_data_layout;
+	struct mlx5_ifc_ib_ext_port_cntrs_grp_data_layout_bits ib_ext_port_cntrs_grp_data_layout;
 	struct mlx5_ifc_phys_layer_cntrs_bits phys_layer_cntrs;
 	struct mlx5_ifc_phys_layer_statistical_cntrs_bits phys_layer_statistical_cntrs;
 	u8         reserved_at_0[0x7c0];
@@ -9851,8 +9892,10 @@ struct mlx5_ifc_ppcnt_reg_bits {
 	u8         grp[0x6];
 
 	u8         clr[0x1];
-	u8         reserved_at_21[0x1c];
-	u8         prio_tc[0x3];
+	u8         reserved_at_21[0x13];
+	u8         plane_ind[0x4];
+	u8         reserved_at_38[0x3];
+	u8         prio_tc[0x5];
 
 	union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits counter_set;
 };
