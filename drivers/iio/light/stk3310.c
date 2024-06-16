@@ -37,6 +37,8 @@
 
 #define STK3310_CHIP_ID_VAL			0x13
 #define STK3311_CHIP_ID_VAL			0x1D
+#define STK3311A_CHIP_ID_VAL			0x15
+#define STK3311S34_CHIP_ID_VAL			0x1E
 #define STK3311X_CHIP_ID_VAL			0x12
 #define STK3335_CHIP_ID_VAL			0x51
 #define STK3310_PSINT_EN			0x01
@@ -80,6 +82,15 @@ static const struct reg_field stk3310_reg_field_flag_psint =
 				REG_FIELD(STK3310_REG_FLAG, 4, 4);
 static const struct reg_field stk3310_reg_field_flag_nf =
 				REG_FIELD(STK3310_REG_FLAG, 0, 0);
+
+static const u8 stk3310_chip_ids[] = {
+	STK3310_CHIP_ID_VAL,
+	STK3311A_CHIP_ID_VAL,
+	STK3311S34_CHIP_ID_VAL,
+	STK3311X_CHIP_ID_VAL,
+	STK3311_CHIP_ID_VAL,
+	STK3335_CHIP_ID_VAL,
+};
 
 /* Estimate maximum proximity values with regard to measurement scale. */
 static const int stk3310_ps_max[4] = {
@@ -196,6 +207,16 @@ static struct attribute *stk3310_attributes[] = {
 static const struct attribute_group stk3310_attribute_group = {
 	.attrs = stk3310_attributes
 };
+
+static int stk3310_check_chip_id(const u8 chip_id)
+{
+	for (int i = 0; i < ARRAY_SIZE(stk3310_chip_ids); i++) {
+		if (chip_id == stk3310_chip_ids[i])
+			return 0;
+	}
+
+	return -ENODEV;
+}
 
 static int stk3310_get_index(const int table[][2], int table_size,
 			     int val, int val2)
@@ -473,13 +494,9 @@ static int stk3310_init(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	if (chipid != STK3310_CHIP_ID_VAL &&
-	    chipid != STK3311_CHIP_ID_VAL &&
-	    chipid != STK3311X_CHIP_ID_VAL &&
-	    chipid != STK3335_CHIP_ID_VAL) {
-		dev_err(&client->dev, "invalid chip id: 0x%x\n", chipid);
-		return -ENODEV;
-	}
+	ret = stk3310_check_chip_id(chipid);
+	if (ret < 0)
+		dev_warn(&client->dev, "unknown chip id: 0x%x\n", chipid);
 
 	state = STK3310_STATE_EN_ALS | STK3310_STATE_EN_PS;
 	ret = stk3310_set_state(data, state);
@@ -683,9 +700,9 @@ static DEFINE_SIMPLE_DEV_PM_OPS(stk3310_pm_ops, stk3310_suspend,
 				stk3310_resume);
 
 static const struct i2c_device_id stk3310_i2c_id[] = {
-	{"STK3310", 0},
-	{"STK3311", 0},
-	{"STK3335", 0},
+	{ "STK3310" },
+	{ "STK3311" },
+	{ "STK3335" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, stk3310_i2c_id);

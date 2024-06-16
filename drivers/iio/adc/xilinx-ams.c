@@ -1430,5 +1430,6 @@ static struct platform_driver ams_driver = {
 };
 module_platform_driver(ams_driver);
 
+MODULE_DESCRIPTION("Xilinx AMS driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Xilinx, Inc.");

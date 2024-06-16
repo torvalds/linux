@@ -881,7 +881,7 @@ static const struct of_device_id veml6030_of_match[] = {
 MODULE_DEVICE_TABLE(of, veml6030_of_match);
 
 static const struct i2c_device_id veml6030_id[] = {
-	{ "veml6030", 0 },
+	{ "veml6030" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, veml6030_id);

@@ -38,6 +38,14 @@ properties:
       The first value specifies the positive input pin, the second
       specifies the negative input pin.
 
+  single-channel:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When devices combine single-ended and differential channels, allow the
+      channel for a single element to be specified, independent of reg (as for
+      differential channels). If this and diff-channels are not present reg
+      shall be used instead.
+
   settling-time-us:
     description:
       Time between enabling the channel and first stable readings.
@@ -49,5 +57,16 @@ properties:
       In some cases, the desired filtering characteristics are a function the
       device design and can interact with other characteristics such as
       settling time.
+
+anyOf:
+  - oneOf:
+      - required:
+          - reg
+          - diff-channels
+      - required:
+          - reg
+          - single-channel
+  - required:
+      - reg
 
 additionalProperties: true
