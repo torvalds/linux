@@ -2266,7 +2266,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	for(;;) {
 		struct mnt_idmap *idmap;
 		const char *link;
-		u64 hash_len;
+		unsigned int len;
 		int type;
 
 		idmap = mnt_idmap(nd->path.mnt);
@@ -2274,37 +2274,34 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		if (err)
 			return err;
 
-		hash_len = hash_name(nd->path.dentry, name);
+		nd->last.name = name;
+		nd->last.hash_len = hash_name(nd->path.dentry, name);
+		len = hashlen_len(nd->last.hash_len);
+		name += len;
 
 		type = LAST_NORM;
-		if (name[0] == '.') switch (hashlen_len(hash_len)) {
-			case 2:
-				if (name[1] == '.') {
+		/* We know len is at least 1, so compare against 2 */
+		if (len <= 2 && name[-1] == '.') {
+			if (len == 2) {
+				if (name[-2] == '.') {
 					type = LAST_DOTDOT;
 					nd->state |= ND_JUMPED;
 				}
-				break;
-			case 1:
+			} else {
 				type = LAST_DOT;
+			}
 		}
+		nd->last_type = type;
 		if (likely(type == LAST_NORM)) {
 			struct dentry *parent = nd->path.dentry;
 			nd->state &= ~ND_JUMPED;
 			if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
-				struct qstr this = { { .hash_len = hash_len }, .name = name };
-				err = parent->d_op->d_hash(parent, &this);
+				err = parent->d_op->d_hash(parent, &nd->last);
 				if (err < 0)
 					return err;
-				hash_len = this.hash_len;
-				name = this.name;
 			}
 		}
 
-		nd->last.hash_len = hash_len;
-		nd->last.name = name;
-		nd->last_type = type;
-
-		name += hashlen_len(hash_len);
 		if (!*name)
 			goto OK;
 		/*
