@@ -165,4 +165,5 @@ void sha256(const u8 *data, unsigned int len, u8 *out)
 }
 EXPORT_SYMBOL(sha256);
 
+MODULE_DESCRIPTION("SHA-256 Algorithm");
 MODULE_LICENSE("GPL");
