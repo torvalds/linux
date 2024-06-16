@@ -2163,9 +2163,11 @@ EXPORT_SYMBOL(hashlen_string);
 
 /*
  * Calculate the length and hash of the path component, and
- * return the "hash_len" as the result.
+ * return the length as the result.
  */
-static inline unsigned long hash_name(struct nameidata *nd, const char *name)
+static inline unsigned long hash_name(struct nameidata *nd,
+				      const char *name,
+				      unsigned long *lastword)
 {
 	unsigned long a = 0, b, x = 0, y = (unsigned long)nd->path.dentry;
 	unsigned long adata, bdata, mask, len;
@@ -2185,13 +2187,24 @@ inside:
 	adata = prep_zero_mask(a, adata, &constants);
 	bdata = prep_zero_mask(b, bdata, &constants);
 	mask = create_zero_mask(adata | bdata);
-	x ^= a & zero_bytemask(mask);
+	a &= zero_bytemask(mask);
+	*lastword = a;
+	x ^= a;
 	len += find_zero(mask);
 
 	nd->last.hash = fold_hash(x, y);
 	nd->last.len = len;
 	return len;
 }
+
+/*
+ * Note that the 'last' word is always zero-masked, but
+ * was loaded as a possibly big-endian word.
+ */
+#ifdef __BIG_ENDIAN
+  #define LAST_WORD_IS_DOT	(0x2eul << (BITS_PER_LONG-8))
+  #define LAST_WORD_IS_DOTDOT	(0x2e2eul << (BITS_PER_LONG-16))
+#endif
 
 #else	/* !CONFIG_DCACHE_WORD_ACCESS: Slow, byte-at-a-time version */
 
@@ -2225,22 +2238,29 @@ EXPORT_SYMBOL(hashlen_string);
  * We know there's a real path component here of at least
  * one character.
  */
-static inline unsigned long hash_name(struct nameidata *nd, const char *name)
+static inline unsigned long hash_name(struct nameidata *nd, const char *name, unsigned long *lastword)
 {
 	unsigned long hash = init_name_hash(nd->path.dentry);
-	unsigned long len = 0, c;
+	unsigned long len = 0, c, last = 0;
 
 	c = (unsigned char)*name;
 	do {
+		last = (last << 8) + c;
 		len++;
 		hash = partial_name_hash(c, hash);
 		c = (unsigned char)name[len];
 	} while (c && c != '/');
+	*lastword = last;
 	nd->last.hash = end_name_hash(hash);
 	nd->last.len = len;
 	return len;
 }
 
+#endif
+
+#ifndef LAST_WORD_IS_DOT
+  #define LAST_WORD_IS_DOT	0x2e
+  #define LAST_WORD_IS_DOTDOT	0x2e2e
 #endif
 
 /*
@@ -2271,8 +2291,8 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	for(;;) {
 		struct mnt_idmap *idmap;
 		const char *link;
+		unsigned long lastword;
 		unsigned int len;
-		int type;
 
 		idmap = mnt_idmap(nd->path.mnt);
 		err = may_lookup(idmap, nd);
@@ -2280,25 +2300,29 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			return err;
 
 		nd->last.name = name;
-		len = hash_name(nd, name);
+		len = hash_name(nd, name, &lastword);
 		name += len;
 
-		type = LAST_NORM;
-		/* We know len is at least 1, so compare against 2 */
-		if (len <= 2 && name[-1] == '.') {
-			if (len == 2) {
-				if (name[-2] == '.') {
-					type = LAST_DOTDOT;
-					nd->state |= ND_JUMPED;
-				}
-			} else {
-				type = LAST_DOT;
-			}
-		}
-		nd->last_type = type;
-		if (likely(type == LAST_NORM)) {
-			struct dentry *parent = nd->path.dentry;
+		switch(lastword) {
+		case LAST_WORD_IS_DOTDOT:
+			if (len != 2)
+				goto normal;
+			nd->last_type = LAST_DOTDOT;
+			nd->state |= ND_JUMPED;
+			break;
+
+		case LAST_WORD_IS_DOT:
+			if (len != 1)
+				goto normal;
+			nd->last_type = LAST_DOT;
+			break;
+
+		default:
+		normal:
+			nd->last_type = LAST_NORM;
 			nd->state &= ~ND_JUMPED;
+
+			struct dentry *parent = nd->path.dentry;
 			if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
 				err = parent->d_op->d_hash(parent, &nd->last);
 				if (err < 0)
