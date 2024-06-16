@@ -114,6 +114,7 @@
 #include "../perf_event.h"
 #include "../probe.h"
 
+MODULE_DESCRIPTION("Support for Intel cstate performance events");
 MODULE_LICENSE("GPL");
 
 #define DEFINE_CSTATE_FORMAT_ATTR(_var, _name, _format)		\

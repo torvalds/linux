@@ -174,6 +174,8 @@ trap cleanup_all_ns EXIT
 setup_hsr_interfaces 0
 do_complete_ping_test
 
+setup_ns ns1 ns2 ns3
+
 setup_hsr_interfaces 1
 do_complete_ping_test
 

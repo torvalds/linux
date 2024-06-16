@@ -104,6 +104,7 @@ static int blk_validate_zoned_limits(struct queue_limits *lim)
 static int blk_validate_limits(struct queue_limits *lim)
 {
 	unsigned int max_hw_sectors;
+	unsigned int logical_block_sectors;
 
 	/*
 	 * Unless otherwise specified, default to 512 byte logical blocks and a
@@ -134,8 +135,11 @@ static int blk_validate_limits(struct queue_limits *lim)
 		lim->max_hw_sectors = BLK_SAFE_MAX_SECTORS;
 	if (WARN_ON_ONCE(lim->max_hw_sectors < PAGE_SECTORS))
 		return -EINVAL;
+	logical_block_sectors = lim->logical_block_size >> SECTOR_SHIFT;
+	if (WARN_ON_ONCE(logical_block_sectors > lim->max_hw_sectors))
+		return -EINVAL;
 	lim->max_hw_sectors = round_down(lim->max_hw_sectors,
-			lim->logical_block_size >> SECTOR_SHIFT);
+			logical_block_sectors);
 
 	/*
 	 * The actual max_sectors value is a complex beast and also takes the
@@ -153,7 +157,7 @@ static int blk_validate_limits(struct queue_limits *lim)
 		lim->max_sectors = min(max_hw_sectors, BLK_DEF_MAX_SECTORS_CAP);
 	}
 	lim->max_sectors = round_down(lim->max_sectors,
-			lim->logical_block_size >> SECTOR_SHIFT);
+			logical_block_sectors);
 
 	/*
 	 * Random default for the maximum number of segments.  Driver should not
@@ -611,6 +615,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	unsigned int top, bottom, alignment, ret = 0;
 
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
+	t->max_user_sectors = min_not_zero(t->max_user_sectors,
+			b->max_user_sectors);
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
 	t->max_dev_sectors = min_not_zero(t->max_dev_sectors, b->max_dev_sectors);
 	t->max_write_zeroes_sectors = min(t->max_write_zeroes_sectors,

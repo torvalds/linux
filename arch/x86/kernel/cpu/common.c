@@ -1075,6 +1075,10 @@ void get_cpu_address_sizes(struct cpuinfo_x86 *c)
 
 		c->x86_virt_bits = (eax >> 8) & 0xff;
 		c->x86_phys_bits = eax & 0xff;
+
+		/* Provide a sane default if not enumerated: */
+		if (!c->x86_clflush_size)
+			c->x86_clflush_size = 32;
 	}
 
 	c->x86_cache_bits = c->x86_phys_bits;
@@ -1585,6 +1589,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	if (have_cpuid_p()) {
 		cpu_detect(c);
 		get_cpu_vendor(c);
+		intel_unlock_cpuid_leafs(c);
 		get_cpu_cap(c);
 		setup_force_cpu_cap(X86_FEATURE_CPUID);
 		get_cpu_address_sizes(c);
@@ -1744,7 +1749,7 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	cpu_detect(c);
 
 	get_cpu_vendor(c);
-
+	intel_unlock_cpuid_leafs(c);
 	get_cpu_cap(c);
 
 	get_cpu_address_sizes(c);

@@ -1107,7 +1107,6 @@ L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/admin-guide/pm/amd-pstate.rst
 F:	drivers/cpufreq/amd-pstate*
-F:	include/linux/amd-pstate.h
 F:	tools/power/x86/amd_pstate_tracer/amd_pstate_trace.py
 
 AMD PTDMA DRIVER
@@ -3854,6 +3853,7 @@ BPF JIT for ARM64
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Alexei Starovoitov <ast@kernel.org>
 M:	Puranjay Mohan <puranjay@kernel.org>
+R:	Xu Kuohai <xukuohai@huaweicloud.com>
 L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/arm64/net/
@@ -5187,7 +5187,6 @@ F:	Documentation/devicetree/bindings/media/i2c/chrontel,ch7322.yaml
 F:	drivers/media/cec/i2c/ch7322.c
 
 CIRRUS LOGIC AUDIO CODEC DRIVERS
-M:	James Schulman <james.schulman@cirrus.com>
 M:	David Rhodes <david.rhodes@cirrus.com>
 M:	Richard Fitzgerald <rf@opensource.cirrus.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
@@ -15238,7 +15237,6 @@ F:	drivers/staging/most/
 F:	include/linux/most.h
 
 MOTORCOMM PHY DRIVER
-M:	Peter Geis <pgwipeout@gmail.com>
 M:	Frank <Frank.Sae@motor-comm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -21316,7 +21314,7 @@ F:	arch/riscv/boot/dts/starfive/
 
 STARFIVE DWMAC GLUE LAYER
 M:	Emil Renner Berthing <kernel@esmil.dk>
-M:	Samin Guo <samin.guo@starfivetech.com>
+M:	Minda Chen <minda.chen@starfivetech.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/starfive,jh7110-dwmac.yaml
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-starfive.c
@@ -22679,7 +22677,7 @@ L:	tomoyo-users-en@lists.osdn.me (subscribers-only, for users in English)
 L:	tomoyo-dev@lists.osdn.me (subscribers-only, for developers in Japanese)
 L:	tomoyo-users@lists.osdn.me (subscribers-only, for users in Japanese)
 S:	Maintained
-W:	https://tomoyo.osdn.jp/
+W:	https://tomoyo.sourceforge.net/
 F:	security/tomoyo/
 
 TOPSTAR LAPTOP EXTRAS DRIVER

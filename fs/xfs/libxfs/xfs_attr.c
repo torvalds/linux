@@ -329,26 +329,20 @@ xfs_attr_calc_size(
 	return nblks;
 }
 
-/* Initialize transaction reservation for attr operations */
-void
-xfs_init_attr_trans(
-	struct xfs_da_args	*args,
-	struct xfs_trans_res	*tres,
-	unsigned int		*total)
+/* Initialize transaction reservation for an xattr set/replace/upsert */
+inline struct xfs_trans_res
+xfs_attr_set_resv(
+	const struct xfs_da_args	*args)
 {
-	struct xfs_mount	*mp = args->dp->i_mount;
+	struct xfs_mount		*mp = args->dp->i_mount;
+	struct xfs_trans_res		ret = {
+		.tr_logres = M_RES(mp)->tr_attrsetm.tr_logres +
+			    M_RES(mp)->tr_attrsetrt.tr_logres * args->total,
+		.tr_logcount		= XFS_ATTRSET_LOG_COUNT,
+		.tr_logflags		= XFS_TRANS_PERM_LOG_RES,
+	};
 
-	if (args->value) {
-		tres->tr_logres = M_RES(mp)->tr_attrsetm.tr_logres +
-				 M_RES(mp)->tr_attrsetrt.tr_logres *
-				 args->total;
-		tres->tr_logcount = XFS_ATTRSET_LOG_COUNT;
-		tres->tr_logflags = XFS_TRANS_PERM_LOG_RES;
-		*total = args->total;
-	} else {
-		*tres = M_RES(mp)->tr_attrrm;
-		*total = XFS_ATTRRM_SPACE_RES(mp);
-	}
+	return ret;
 }
 
 /*
@@ -1006,7 +1000,7 @@ xfs_attr_set(
 	struct xfs_trans_res	tres;
 	int			error, local;
 	int			rmt_blks = 0;
-	unsigned int		total;
+	unsigned int		total = 0;
 
 	ASSERT(!args->trans);
 
@@ -1033,10 +1027,15 @@ xfs_attr_set(
 
 		if (!local)
 			rmt_blks = xfs_attr3_rmt_blocks(mp, args->valuelen);
+
+		tres = xfs_attr_set_resv(args);
+		total = args->total;
 		break;
 	case XFS_ATTRUPDATE_REMOVE:
 		XFS_STATS_INC(mp, xs_attr_remove);
 		rmt_blks = xfs_attr3_max_rmt_blocks(mp);
+		tres = M_RES(mp)->tr_attrrm;
+		total = XFS_ATTRRM_SPACE_RES(mp);
 		break;
 	}
 
@@ -1044,7 +1043,6 @@ xfs_attr_set(
 	 * Root fork attributes can use reserved data blocks for this
 	 * operation if necessary
 	 */
-	xfs_init_attr_trans(args, &tres, &total);
 	error = xfs_trans_alloc_inode(dp, &tres, total, 0, rsvd, &args->trans);
 	if (error)
 		return error;

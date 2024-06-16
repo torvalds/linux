@@ -282,14 +282,10 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 		if (IS_ERR(file)) {
 			put_unused_fd(ufd);
 			kfree(ctx);
-			return ufd;
+			return PTR_ERR(file);
 		}
 		file->f_mode |= FMODE_NOWAIT;
 
-		/*
-		 * When we call this, the initialization must be complete, since
-		 * anon_inode_getfd() will install the fd.
-		 */
 		fd_install(ufd, file);
 	} else {
 		struct fd f = fdget(ufd);

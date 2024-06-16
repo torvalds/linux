@@ -4860,18 +4860,23 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 			path->slots[0]++;
 			continue;
 		}
-		if (!dropped_extents) {
-			/*
-			 * Avoid logging extent items logged in past fsync calls
-			 * and leading to duplicate keys in the log tree.
-			 */
+		/*
+		 * Avoid overlapping items in the log tree. The first time we
+		 * get here, get rid of everything from a past fsync. After
+		 * that, if the current extent starts before the end of the last
+		 * extent we copied, truncate the last one. This can happen if
+		 * an ordered extent completion modifies the subvolume tree
+		 * while btrfs_next_leaf() has the tree unlocked.
+		 */
+		if (!dropped_extents || key.offset < truncate_offset) {
 			ret = truncate_inode_items(trans, root->log_root, inode,
-						   truncate_offset,
+						   min(key.offset, truncate_offset),
 						   BTRFS_EXTENT_DATA_KEY);
 			if (ret)
 				goto out;
 			dropped_extents = true;
 		}
+		truncate_offset = btrfs_file_extent_end(path);
 		if (ins_nr == 0)
 			start_slot = slot;
 		ins_nr++;
