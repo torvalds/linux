@@ -4662,6 +4662,8 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 			return RDMA_AH_ATTR_TYPE_OPA;
 		return RDMA_AH_ATTR_TYPE_IB;
 	}
+	if (dev->type == RDMA_DEVICE_TYPE_SMI)
+		return RDMA_AH_ATTR_TYPE_IB;
 
 	return RDMA_AH_ATTR_TYPE_UNDEFINED;
 }
