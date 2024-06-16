@@ -1712,17 +1712,26 @@ static struct dentry *lookup_slow(const struct qstr *name,
 }
 
 static inline int may_lookup(struct mnt_idmap *idmap,
-			     struct nameidata *nd)
+			     struct nameidata *restrict nd)
 {
-	if (nd->flags & LOOKUP_RCU) {
-		int err = inode_permission(idmap, nd->inode, MAY_EXEC|MAY_NOT_BLOCK);
-		if (!err)		// success, keep going
-			return 0;
-		if (!try_to_unlazy(nd))
-			return -ECHILD;	// redo it all non-lazy
-		if (err != -ECHILD)	// hard error
-			return err;
-	}
+	int err, mask;
+
+	mask = nd->flags & LOOKUP_RCU ? MAY_NOT_BLOCK : 0;
+	err = inode_permission(idmap, nd->inode, mask | MAY_EXEC);
+	if (likely(!err))
+		return 0;
+
+	// If we failed, and we weren't in LOOKUP_RCU, it's final
+	if (!(nd->flags & LOOKUP_RCU))
+		return err;
+
+	// Drop out of RCU mode to make sure it wasn't transient
+	if (!try_to_unlazy(nd))
+		return -ECHILD;	// redo it all non-lazy
+
+	if (err != -ECHILD)	// hard error
+		return err;
+
 	return inode_permission(idmap, nd->inode, MAY_EXEC);
 }
 
