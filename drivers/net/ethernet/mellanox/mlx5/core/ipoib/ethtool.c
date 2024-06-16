@@ -215,7 +215,7 @@ static int mlx5i_get_link_ksettings(struct net_device *netdev,
 	int speed, ret;
 
 	ret = mlx5_query_ib_port_oper(mdev, &ib_link_width_oper, &ib_proto_oper,
-				      1);
+				      1, 0);
 	if (ret)
 		return ret;
 
