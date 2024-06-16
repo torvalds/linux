@@ -570,6 +570,8 @@ enum rdma_nldev_attr {
 
 	RDMA_NLDEV_ATTR_DEV_TYPE,		/* u8 */
 
+	RDMA_NLDEV_ATTR_PARENT_NAME,		/* string */
+
 	/*
 	 * Always the end
 	 */
