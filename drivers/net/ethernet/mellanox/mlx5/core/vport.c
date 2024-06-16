@@ -737,6 +737,7 @@ int mlx5_query_hca_vport_context(struct mlx5_core_dev *dev,
 	rep->grh_required = MLX5_GET_PR(hca_vport_context, ctx, grh_required);
 	rep->sys_image_guid = MLX5_GET64_PR(hca_vport_context, ctx,
 					    system_image_guid);
+	rep->num_plane = MLX5_GET_PR(hca_vport_context, ctx, num_port_plane);
 
 ex:
 	kvfree(out);

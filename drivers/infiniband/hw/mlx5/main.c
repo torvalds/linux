@@ -1357,7 +1357,13 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u32 port,
 	props->sm_sl		= rep->sm_sl;
 	props->state		= rep->vport_state;
 	props->phys_state	= rep->port_physical_state;
-	props->port_cap_flags	= rep->cap_mask1;
+
+	props->port_cap_flags = rep->cap_mask1;
+	if (dev->num_plane) {
+		props->port_cap_flags |= IB_PORT_SM_DISABLED;
+		props->port_cap_flags &= ~IB_PORT_SM;
+	}
+
 	props->gid_tbl_len	= mlx5_get_gid_table_len(MLX5_CAP_GEN(mdev, gid_table_size));
 	props->max_msg_sz	= 1 << MLX5_CAP_GEN(mdev, log_max_msg);
 	props->pkey_tbl_len	= mlx5_to_sw_pkey_sz(MLX5_CAP_GEN(mdev, pkey_table_size));
@@ -2776,6 +2782,23 @@ static int mlx5_ib_event_slave_port(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int mlx5_ib_get_plane_num(struct mlx5_core_dev *mdev, u8 *num_plane)
+{
+	struct mlx5_hca_vport_context vport_ctx;
+	int err;
+
+	*num_plane = 0;
+	if (!MLX5_CAP_GEN(mdev, ib_virt))
+		return 0;
+
+	err = mlx5_query_hca_vport_context(mdev, 0, 1, 0, &vport_ctx);
+	if (err)
+		return err;
+
+	*num_plane = vport_ctx.num_plane;
+	return 0;
+}
+
 static int set_has_smi_cap(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_hca_vport_context vport_ctx;
@@ -2786,10 +2809,14 @@ static int set_has_smi_cap(struct mlx5_ib_dev *dev)
 		return 0;
 
 	for (port = 1; port <= dev->num_ports; port++) {
-		if (!MLX5_CAP_GEN(dev->mdev, ib_virt)) {
+		if (dev->num_plane) {
+			dev->port_caps[port - 1].has_smi = false;
+			continue;
+		} else if (!MLX5_CAP_GEN(dev->mdev, ib_virt)) {
 			dev->port_caps[port - 1].has_smi = true;
 			continue;
 		}
+
 		err = mlx5_query_hca_vport_context(dev->mdev, 0, port, 0,
 						   &vport_ctx);
 		if (err) {
@@ -2994,6 +3021,11 @@ static u32 get_core_cap_flags(struct ib_device *ibdev,
 
 	if (rep->grh_required)
 		ret |= RDMA_CORE_CAP_IB_GRH_REQUIRED;
+
+	if (dev->num_plane)
+		return ret | RDMA_CORE_CAP_PROT_IB | RDMA_CORE_CAP_IB_MAD |
+			RDMA_CORE_CAP_IB_CM | RDMA_CORE_CAP_IB_SA |
+			RDMA_CORE_CAP_AF_IB;
 
 	if (ll == IB_LINK_LAYER_INFINIBAND)
 		return ret | RDMA_CORE_PORT_IBA_IB;
@@ -4477,11 +4509,18 @@ static int mlx5r_probe(struct auxiliary_device *adev,
 	dev = ib_alloc_device(mlx5_ib_dev, ib_dev);
 	if (!dev)
 		return -ENOMEM;
+
+	if (ll == IB_LINK_LAYER_INFINIBAND) {
+		ret = mlx5_ib_get_plane_num(mdev, &dev->num_plane);
+		if (ret)
+			goto fail;
+	}
+
 	dev->port = kcalloc(num_ports, sizeof(*dev->port),
 			     GFP_KERNEL);
 	if (!dev->port) {
-		ib_dealloc_device(&dev->ib_dev);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 
 	dev->mdev = mdev;
@@ -4493,14 +4532,17 @@ static int mlx5r_probe(struct auxiliary_device *adev,
 		profile = &pf_profile;
 
 	ret = __mlx5_ib_add(dev, profile);
-	if (ret) {
-		kfree(dev->port);
-		ib_dealloc_device(&dev->ib_dev);
-		return ret;
-	}
+	if (ret)
+		goto fail_ib_add;
 
 	auxiliary_set_drvdata(adev, dev);
 	return 0;
+
+fail_ib_add:
+	kfree(dev->port);
+fail:
+	ib_dealloc_device(&dev->ib_dev);
+	return ret;
 }
 
 static void mlx5r_remove(struct auxiliary_device *adev)
