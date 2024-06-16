@@ -301,6 +301,10 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_RES_SRQ_GET_RAW,
 
+	RDMA_NLDEV_CMD_NEWDEV,
+
+	RDMA_NLDEV_CMD_DELDEV,
+
 	RDMA_NLDEV_NUM_OPS
 };
 
@@ -563,6 +567,8 @@ enum rdma_nldev_attr {
 	 * QP subtype string, used for driver QPs
 	 */
 	RDMA_NLDEV_ATTR_RES_SUBTYPE,		/* string */
+
+	RDMA_NLDEV_ATTR_DEV_TYPE,		/* u8 */
 
 	/*
 	 * Always the end
