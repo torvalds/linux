@@ -2165,9 +2165,9 @@ EXPORT_SYMBOL(hashlen_string);
  * Calculate the length and hash of the path component, and
  * return the "hash_len" as the result.
  */
-static inline u64 hash_name(const void *salt, const char *name)
+static inline unsigned long hash_name(struct nameidata *nd, const char *name)
 {
-	unsigned long a = 0, b, x = 0, y = (unsigned long)salt;
+	unsigned long a = 0, b, x = 0, y = (unsigned long)nd->path.dentry;
 	unsigned long adata, bdata, mask, len;
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
@@ -2186,8 +2186,11 @@ inside:
 	bdata = prep_zero_mask(b, bdata, &constants);
 	mask = create_zero_mask(adata | bdata);
 	x ^= a & zero_bytemask(mask);
+	len += find_zero(mask);
 
-	return hashlen_create(fold_hash(x, y), len + find_zero(mask));
+	nd->last.hash = fold_hash(x, y);
+	nd->last.len = len;
+	return len;
 }
 
 #else	/* !CONFIG_DCACHE_WORD_ACCESS: Slow, byte-at-a-time version */
@@ -2222,9 +2225,9 @@ EXPORT_SYMBOL(hashlen_string);
  * We know there's a real path component here of at least
  * one character.
  */
-static inline u64 hash_name(const void *salt, const char *name)
+static inline unsigned long hash_name(struct nameidata *nd, const char *name)
 {
-	unsigned long hash = init_name_hash(salt);
+	unsigned long hash = init_name_hash(nd->path.dentry);
 	unsigned long len = 0, c;
 
 	c = (unsigned char)*name;
@@ -2233,7 +2236,9 @@ static inline u64 hash_name(const void *salt, const char *name)
 		hash = partial_name_hash(c, hash);
 		c = (unsigned char)name[len];
 	} while (c && c != '/');
-	return hashlen_create(end_name_hash(hash), len);
+	nd->last.hash = end_name_hash(hash);
+	nd->last.len = len;
+	return len;
 }
 
 #endif
@@ -2275,8 +2280,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			return err;
 
 		nd->last.name = name;
-		nd->last.hash_len = hash_name(nd->path.dentry, name);
-		len = hashlen_len(nd->last.hash_len);
+		len = hash_name(nd, name);
 		name += len;
 
 		type = LAST_NORM;
