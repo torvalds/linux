@@ -93,7 +93,7 @@ static int xgpu_ai_poll_ack(struct amdgpu_device *adev)
 		timeout -= 5;
 	} while (timeout > 1);
 
-	pr_err("Doesn't get TRN_MSG_ACK from pf in %d msec\n", AI_MAILBOX_POLL_ACK_TIMEDOUT);
+	dev_err(adev->dev, "Doesn't get TRN_MSG_ACK from pf in %d msec\n", AI_MAILBOX_POLL_ACK_TIMEDOUT);
 
 	return -ETIME;
 }
@@ -111,7 +111,7 @@ static int xgpu_ai_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 		timeout -= 10;
 	} while (timeout > 1);
 
-	pr_err("Doesn't get msg:%d from pf, error=%d\n", event, r);
+	dev_err(adev->dev, "Doesn't get msg:%d from pf, error=%d\n", event, r);
 
 	return -ETIME;
 }
@@ -132,7 +132,7 @@ static void xgpu_ai_mailbox_trans_msg (struct amdgpu_device *adev,
 		xgpu_ai_mailbox_set_valid(adev, false);
 		trn = xgpu_ai_peek_ack(adev);
 		if (trn) {
-			pr_err("trn=%x ACK should not assert! wait again !\n", trn);
+			dev_err_ratelimited(adev->dev, "trn=%x ACK should not assert! wait again !\n", trn);
 			msleep(1);
 		}
 	} while(trn);
@@ -155,7 +155,7 @@ static void xgpu_ai_mailbox_trans_msg (struct amdgpu_device *adev,
 	/* start to poll ack */
 	r = xgpu_ai_poll_ack(adev);
 	if (r)
-		pr_err("Doesn't get ack from pf, continue\n");
+		dev_err(adev->dev, "Doesn't get ack from pf, continue\n");
 
 	xgpu_ai_mailbox_set_valid(adev, false);
 }
@@ -173,7 +173,7 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 		req == IDH_REQ_GPU_RESET_ACCESS) {
 		r = xgpu_ai_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
 		if (r) {
-			pr_err("Doesn't get READY_TO_ACCESS_GPU from pf, give up\n");
+			dev_err(adev->dev, "Doesn't get READY_TO_ACCESS_GPU from pf, give up\n");
 			return r;
 		}
 		/* Retrieve checksum from mailbox2 */
@@ -231,7 +231,7 @@ static int xgpu_ai_mailbox_ack_irq(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("get ack intr and do nothing.\n");
+	dev_dbg(adev->dev, "get ack intr and do nothing.\n");
 	return 0;
 }
 
@@ -258,12 +258,15 @@ static int xgpu_ai_wait_reset(struct amdgpu_device *adev)
 {
 	int timeout = AI_MAILBOX_POLL_FLR_TIMEDOUT;
 	do {
-		if (xgpu_ai_mailbox_peek_msg(adev) == IDH_FLR_NOTIFICATION_CMPL)
+		if (xgpu_ai_mailbox_peek_msg(adev) == IDH_FLR_NOTIFICATION_CMPL) {
+			dev_dbg(adev->dev, "Got AI IDH_FLR_NOTIFICATION_CMPL after %d ms\n", AI_MAILBOX_POLL_FLR_TIMEDOUT - timeout);
 			return 0;
+		}
 		msleep(10);
 		timeout -= 10;
 	} while (timeout > 1);
-	dev_warn(adev->dev, "waiting IDH_FLR_NOTIFICATION_CMPL timeout\n");
+
+	dev_dbg(adev->dev, "waiting AI IDH_FLR_NOTIFICATION_CMPL timeout\n");
 	return -ETIME;
 }
 
