@@ -519,4 +519,5 @@ static struct kunit_suite test_unwind_suite = {
 
 kunit_test_suites(&test_unwind_suite);
 
+MODULE_DESCRIPTION("KUnit test for unwind_for_each_frame");
 MODULE_LICENSE("GPL");
