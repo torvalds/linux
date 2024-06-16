@@ -69,7 +69,7 @@ static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
 	if (ignore_bkey || !in_wc)
 		op_modifier |= 0x2;
 
-	return mlx5_cmd_mad_ifc(dev->mdev, in_mad, response_mad, op_modifier,
+	return mlx5_cmd_mad_ifc(dev, in_mad, response_mad, op_modifier,
 				port);
 }
 

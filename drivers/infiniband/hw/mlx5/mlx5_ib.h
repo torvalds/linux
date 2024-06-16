@@ -1191,6 +1191,8 @@ struct mlx5_ib_dev {
 #endif
 
 	u8 num_plane;
+	struct mlx5_ib_dev *smi_dev;
+	const char *sub_dev_name;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -1699,4 +1701,10 @@ static inline bool mlx5_umem_needs_ats(struct mlx5_ib_dev *dev,
 int set_roce_addr(struct mlx5_ib_dev *dev, u32 port_num,
 		  unsigned int index, const union ib_gid *gid,
 		  const struct ib_gid_attr *attr);
+
+static inline u32 smi_to_native_portnum(struct mlx5_ib_dev *dev, u32 port)
+{
+	return (port - 1) / dev->num_ports + 1;
+}
+
 #endif /* MLX5_IB_H */

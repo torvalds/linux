@@ -4217,7 +4217,12 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 	/* todo implement counter_index functionality */
 
-	if (is_sqp(qp->type))
+	if (dev->ib_dev.type == RDMA_DEVICE_TYPE_SMI && is_qp0(qp->type)) {
+		MLX5_SET(ads, pri_path, vhca_port_num,
+			 smi_to_native_portnum(dev, qp->port));
+		if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR)
+			MLX5_SET(ads, pri_path, plane_index, qp->port);
+	} else if (is_sqp(qp->type))
 		MLX5_SET(ads, pri_path, vhca_port_num, qp->port);
 
 	if (attr_mask & IB_QP_PORT)
