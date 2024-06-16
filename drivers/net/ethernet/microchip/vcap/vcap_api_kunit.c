@@ -211,7 +211,7 @@ static int vcap_test_port_info(struct net_device *ndev,
 	return 0;
 }
 
-static struct vcap_operations test_callbacks = {
+static const struct vcap_operations test_callbacks = {
 	.validate_keyset = test_val_keyset,
 	.add_default_fields = test_add_def_fields,
 	.cache_erase = test_cache_erase,
