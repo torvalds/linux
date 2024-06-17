@@ -985,6 +985,9 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
 	lim.logical_block_size = bsize;
 	lim.physical_block_size = bsize;
 	lim.io_min = bsize;
+	lim.features &= ~BLK_FEAT_WRITE_CACHE;
+	if (file->f_op->fsync && !(lo->lo_flags & LO_FLAGS_READ_ONLY))
+		lim.features |= BLK_FEAT_WRITE_CACHE;
 	if (!backing_bdev || bdev_nonrot(backing_bdev))
 		blk_queue_flag_set(QUEUE_FLAG_NONROT, lo->lo_queue);
 	else
@@ -1078,9 +1081,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
 
-	if (!(lo->lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
-		blk_queue_write_cache(lo->lo_queue, true, false);
-
 	error = loop_reconfigure_limits(lo, config->block_size);
 	if (WARN_ON_ONCE(error))
 		goto out_unlock;
@@ -1130,9 +1130,6 @@ static void __loop_clr_fd(struct loop_device *lo, bool release)
 	struct queue_limits lim;
 	struct file *filp;
 	gfp_t gfp = lo->old_gfp_mask;
-
-	if (test_bit(QUEUE_FLAG_WC, &lo->lo_queue->queue_flags))
-		blk_queue_write_cache(lo->lo_queue, false, false);
 
 	/*
 	 * Freeze the request queue when unbinding on a live file descriptor and

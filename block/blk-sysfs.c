@@ -423,32 +423,41 @@ static ssize_t queue_io_timeout_store(struct request_queue *q, const char *page,
 
 static ssize_t queue_wc_show(struct request_queue *q, char *page)
 {
-	if (test_bit(QUEUE_FLAG_WC, &q->queue_flags))
-		return sprintf(page, "write back\n");
-
-	return sprintf(page, "write through\n");
+	if (q->limits.features & BLK_FLAGS_WRITE_CACHE_DISABLED)
+		return sprintf(page, "write through\n");
+	return sprintf(page, "write back\n");
 }
 
 static ssize_t queue_wc_store(struct request_queue *q, const char *page,
 			      size_t count)
 {
+	struct queue_limits lim;
+	bool disable;
+	int err;
+
 	if (!strncmp(page, "write back", 10)) {
-		if (!test_bit(QUEUE_FLAG_HW_WC, &q->queue_flags))
-			return -EINVAL;
-		blk_queue_flag_set(QUEUE_FLAG_WC, q);
+		disable = false;
 	} else if (!strncmp(page, "write through", 13) ||
-		 !strncmp(page, "none", 4)) {
-		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
+		   !strncmp(page, "none", 4)) {
+		disable = true;
 	} else {
 		return -EINVAL;
 	}
 
+	lim = queue_limits_start_update(q);
+	if (disable)
+		lim.flags |= BLK_FLAGS_WRITE_CACHE_DISABLED;
+	else
+		lim.flags &= ~BLK_FLAGS_WRITE_CACHE_DISABLED;
+	err = queue_limits_commit_update(q, &lim);
+	if (err)
+		return err;
 	return count;
 }
 
 static ssize_t queue_fua_show(struct request_queue *q, char *page)
 {
-	return sprintf(page, "%u\n", test_bit(QUEUE_FLAG_FUA, &q->queue_flags));
+	return sprintf(page, "%u\n", !!(q->limits.features & BLK_FEAT_FUA));
 }
 
 static ssize_t queue_dax_show(struct request_queue *q, char *page)

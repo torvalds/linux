@@ -282,6 +282,28 @@ static inline bool blk_op_is_passthrough(blk_opf_t op)
 	return op == REQ_OP_DRV_IN || op == REQ_OP_DRV_OUT;
 }
 
+/* flags set by the driver in queue_limits.features */
+enum {
+	/* supports a volatile write cache */
+	BLK_FEAT_WRITE_CACHE			= (1u << 0),
+
+	/* supports passing on the FUA bit */
+	BLK_FEAT_FUA				= (1u << 1),
+};
+
+/*
+ * Flags automatically inherited when stacking limits.
+ */
+#define BLK_FEAT_INHERIT_MASK \
+	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA)
+
+
+/* internal flags in queue_limits.flags */
+enum {
+	/* do not send FLUSH or FUA command despite advertised write cache */
+	BLK_FLAGS_WRITE_CACHE_DISABLED		= (1u << 31),
+};
+
 /*
  * BLK_BOUNCE_NONE:	never bounce (default)
  * BLK_BOUNCE_HIGH:	bounce all highmem pages
@@ -292,6 +314,8 @@ enum blk_bounce {
 };
 
 struct queue_limits {
+	unsigned int		features;
+	unsigned int		flags;
 	enum blk_bounce		bounce;
 	unsigned long		seg_boundary_mask;
 	unsigned long		virt_boundary_mask;
@@ -536,12 +560,9 @@ struct request_queue {
 #define QUEUE_FLAG_ADD_RANDOM	10	/* Contributes to random pool */
 #define QUEUE_FLAG_SYNCHRONOUS	11	/* always completes in submit context */
 #define QUEUE_FLAG_SAME_FORCE	12	/* force complete on same CPU */
-#define QUEUE_FLAG_HW_WC	13	/* Write back caching supported */
 #define QUEUE_FLAG_INIT_DONE	14	/* queue is initialized */
 #define QUEUE_FLAG_STABLE_WRITES 15	/* don't modify blks until WB is done */
 #define QUEUE_FLAG_POLL		16	/* IO polling enabled if set */
-#define QUEUE_FLAG_WC		17	/* Write back caching */
-#define QUEUE_FLAG_FUA		18	/* device supports FUA writes */
 #define QUEUE_FLAG_DAX		19	/* device supports DAX */
 #define QUEUE_FLAG_STATS	20	/* track IO start and completion times */
 #define QUEUE_FLAG_REGISTERED	22	/* queue has been registered to a disk */
@@ -951,7 +972,6 @@ void queue_limits_stack_bdev(struct queue_limits *t, struct block_device *bdev,
 		sector_t offset, const char *pfx);
 extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
-extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
 
 struct blk_independent_access_ranges *
 disk_alloc_independent_access_ranges(struct gendisk *disk, int nr_ia_ranges);
@@ -1304,14 +1324,20 @@ static inline bool bdev_stable_writes(struct block_device *bdev)
 	return test_bit(QUEUE_FLAG_STABLE_WRITES, &q->queue_flags);
 }
 
+static inline bool blk_queue_write_cache(struct request_queue *q)
+{
+	return (q->limits.features & BLK_FEAT_WRITE_CACHE) &&
+		!(q->limits.flags & BLK_FLAGS_WRITE_CACHE_DISABLED);
+}
+
 static inline bool bdev_write_cache(struct block_device *bdev)
 {
-	return test_bit(QUEUE_FLAG_WC, &bdev_get_queue(bdev)->queue_flags);
+	return blk_queue_write_cache(bdev_get_queue(bdev));
 }
 
 static inline bool bdev_fua(struct block_device *bdev)
 {
-	return test_bit(QUEUE_FLAG_FUA, &bdev_get_queue(bdev)->queue_flags);
+	return bdev_get_queue(bdev)->limits.features & BLK_FEAT_FUA;
 }
 
 static inline bool bdev_nowait(struct block_device *bdev)

@@ -487,8 +487,6 @@ static void ublk_dev_param_basic_apply(struct ublk_device *ub)
 	struct request_queue *q = ub->ub_disk->queue;
 	const struct ublk_param_basic *p = &ub->params.basic;
 
-	blk_queue_write_cache(q, p->attrs & UBLK_ATTR_VOLATILE_CACHE,
-			p->attrs & UBLK_ATTR_FUA);
 	if (p->attrs & UBLK_ATTR_ROTATIONAL)
 		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
 	else
@@ -2208,6 +2206,12 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 		lim.max_active_zones = p->max_active_zones;
 		lim.max_open_zones =  p->max_open_zones;
 		lim.max_zone_append_sectors = p->max_zone_append_sectors;
+	}
+
+	if (ub->params.basic.attrs & UBLK_ATTR_VOLATILE_CACHE) {
+		lim.features |= BLK_FEAT_WRITE_CACHE;
+		if (ub->params.basic.attrs & UBLK_ATTR_FUA)
+			lim.features |= BLK_FEAT_FUA;
 	}
 
 	if (wait_for_completion_interruptible(&ub->completion) != 0)

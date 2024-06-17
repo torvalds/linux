@@ -897,7 +897,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 		sector_t sectors, struct block_device *cached_bdev,
 		const struct block_device_operations *ops)
 {
-	struct request_queue *q;
 	const size_t max_stripes = min_t(size_t, INT_MAX,
 					 SIZE_MAX / sizeof(atomic_t));
 	struct queue_limits lim = {
@@ -909,6 +908,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 		.io_min			= block_size,
 		.logical_block_size	= block_size,
 		.physical_block_size	= block_size,
+		.features		= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA,
 	};
 	uint64_t n;
 	int idx;
@@ -975,12 +975,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	d->disk->fops		= ops;
 	d->disk->private_data	= d;
 
-	q = d->disk->queue;
-
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, d->disk->queue);
-
-	blk_queue_write_cache(q, true, true);
-
 	return 0;
 
 out_bioset_exit:

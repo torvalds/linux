@@ -835,6 +835,7 @@ static int ubd_add(int n, char **error_out)
 	struct queue_limits lim = {
 		.max_segments		= MAX_SG,
 		.seg_boundary_mask	= PAGE_SIZE - 1,
+		.features		= BLK_FEAT_WRITE_CACHE,
 	};
 	struct gendisk *disk;
 	int err = 0;
@@ -882,7 +883,6 @@ static int ubd_add(int n, char **error_out)
 	}
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
-	blk_queue_write_cache(disk->queue, true, false);
 	disk->major = UBD_MAJOR;
 	disk->first_minor = n << UBD_SHIFT;
 	disk->minors = 1 << UBD_SHIFT;

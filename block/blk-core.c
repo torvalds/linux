@@ -782,7 +782,7 @@ void submit_bio_noacct(struct bio *bio)
 		if (WARN_ON_ONCE(bio_op(bio) != REQ_OP_WRITE &&
 				 bio_op(bio) != REQ_OP_ZONE_APPEND))
 			goto end_io;
-		if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
+		if (!bdev_write_cache(bdev)) {
 			bio->bi_opf &= ~(REQ_PREFLUSH | REQ_FUA);
 			if (!bio_sectors(bio)) {
 				status = BLK_STS_OK;

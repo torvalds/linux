@@ -342,12 +342,14 @@ static int __nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
 		lim.max_hw_discard_sectors = UINT_MAX;
 	else
 		lim.max_hw_discard_sectors = 0;
-	if (!(nbd->config->flags & NBD_FLAG_SEND_FLUSH))
-		blk_queue_write_cache(nbd->disk->queue, false, false);
-	else if (nbd->config->flags & NBD_FLAG_SEND_FUA)
-		blk_queue_write_cache(nbd->disk->queue, true, true);
-	else
-		blk_queue_write_cache(nbd->disk->queue, true, false);
+	if (!(nbd->config->flags & NBD_FLAG_SEND_FLUSH)) {
+		lim.features &= ~(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA);
+	} else if (nbd->config->flags & NBD_FLAG_SEND_FUA) {
+		lim.features |= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA;
+	} else {
+		lim.features |= BLK_FEAT_WRITE_CACHE;
+		lim.features &= ~BLK_FEAT_FUA;
+	}
 	lim.logical_block_size = blksize;
 	lim.physical_block_size = blksize;
 	error = queue_limits_commit_update(nbd->disk->queue, &lim);

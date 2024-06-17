@@ -959,6 +959,12 @@ static void blkif_set_queue_limits(const struct blkfront_info *info,
 			lim->max_secure_erase_sectors = UINT_MAX;
 	}
 
+	if (info->feature_flush) {
+		lim->features |= BLK_FEAT_WRITE_CACHE;
+		if (info->feature_fua)
+			lim->features |= BLK_FEAT_FUA;
+	}
+
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
 	lim->logical_block_size = info->sector_size;
 	lim->physical_block_size = info->physical_sector_size;
@@ -987,8 +993,6 @@ static const char *flush_info(struct blkfront_info *info)
 
 static void xlvbd_flush(struct blkfront_info *info)
 {
-	blk_queue_write_cache(info->rq, info->feature_flush ? true : false,
-			      info->feature_fua ? true : false);
 	pr_info("blkfront: %s: %s %s %s %s %s %s %s\n",
 		info->gd->disk_name, flush_info(info),
 		"persistent grants:", info->feature_persistent ?

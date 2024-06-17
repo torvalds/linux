@@ -120,17 +120,18 @@ static const char *sd_cache_types[] = {
 	"write back, no read (daft)"
 };
 
-static void sd_set_flush_flag(struct scsi_disk *sdkp)
+static void sd_set_flush_flag(struct scsi_disk *sdkp,
+		struct queue_limits *lim)
 {
-	bool wc = false, fua = false;
-
 	if (sdkp->WCE) {
-		wc = true;
+		lim->features |= BLK_FEAT_WRITE_CACHE;
 		if (sdkp->DPOFUA)
-			fua = true;
+			lim->features |= BLK_FEAT_FUA;
+		else
+			lim->features &= ~BLK_FEAT_FUA;
+	} else {
+		lim->features &= ~(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA);
 	}
-
-	blk_queue_write_cache(sdkp->disk->queue, wc, fua);
 }
 
 static ssize_t
@@ -168,9 +169,18 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 	wce = (ct & 0x02) && !sdkp->write_prot ? 1 : 0;
 
 	if (sdkp->cache_override) {
+		struct queue_limits lim;
+
 		sdkp->WCE = wce;
 		sdkp->RCD = rcd;
-		sd_set_flush_flag(sdkp);
+
+		lim = queue_limits_start_update(sdkp->disk->queue);
+		sd_set_flush_flag(sdkp, &lim);
+		blk_mq_freeze_queue(sdkp->disk->queue);
+		ret = queue_limits_commit_update(sdkp->disk->queue, &lim);
+		blk_mq_unfreeze_queue(sdkp->disk->queue);
+		if (ret)
+			return ret;
 		return count;
 	}
 
@@ -3663,7 +3673,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 * We now have all cache related info, determine how we deal
 	 * with flush requests.
 	 */
-	sd_set_flush_flag(sdkp);
+	sd_set_flush_flag(sdkp, &lim);
 
 	/* Initial block count limit based on CDB TRANSFER LENGTH field size. */
 	dev_max = sdp->use_16_for_rw ? SD_MAX_XFER_BLOCKS : SD_DEF_XFER_BLOCKS;

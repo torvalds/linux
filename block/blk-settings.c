@@ -261,6 +261,9 @@ static int blk_validate_limits(struct queue_limits *lim)
 		lim->misaligned = 0;
 	}
 
+	if (!(lim->features & BLK_FEAT_WRITE_CACHE))
+		lim->features &= ~BLK_FEAT_FUA;
+
 	err = blk_validate_integrity_limits(lim);
 	if (err)
 		return err;
@@ -453,6 +456,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		     sector_t start)
 {
 	unsigned int top, bottom, alignment, ret = 0;
+
+	t->features |= (b->features & BLK_FEAT_INHERIT_MASK);
 
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_user_sectors = min_not_zero(t->max_user_sectors,
@@ -710,30 +715,6 @@ void blk_set_queue_depth(struct request_queue *q, unsigned int depth)
 	rq_qos_queue_depth_changed(q);
 }
 EXPORT_SYMBOL(blk_set_queue_depth);
-
-/**
- * blk_queue_write_cache - configure queue's write cache
- * @q:		the request queue for the device
- * @wc:		write back cache on or off
- * @fua:	device supports FUA writes, if true
- *
- * Tell the block layer about the write cache of @q.
- */
-void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
-{
-	if (wc) {
-		blk_queue_flag_set(QUEUE_FLAG_HW_WC, q);
-		blk_queue_flag_set(QUEUE_FLAG_WC, q);
-	} else {
-		blk_queue_flag_clear(QUEUE_FLAG_HW_WC, q);
-		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
-	}
-	if (fua)
-		blk_queue_flag_set(QUEUE_FLAG_FUA, q);
-	else
-		blk_queue_flag_clear(QUEUE_FLAG_FUA, q);
-}
-EXPORT_SYMBOL_GPL(blk_queue_write_cache);
 
 int bdev_alignment_offset(struct block_device *bdev)
 {
