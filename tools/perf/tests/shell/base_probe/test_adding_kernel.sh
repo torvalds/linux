@@ -21,7 +21,17 @@
 THIS_TEST_NAME=`basename $0 .sh`
 TEST_RESULT=0
 
+# shellcheck source=lib/probe_vfs_getname.sh
+. "$(dirname "$0")/../lib/probe_vfs_getname.sh"
+
 TEST_PROBE=${TEST_PROBE:-"inode_permission"}
+
+# set NO_DEBUGINFO to skip testcase if debuginfo is not present
+# skip_if_no_debuginfo returns 2 if debuginfo is not present
+skip_if_no_debuginfo
+if [ $? -eq 2 ]; then
+	NO_DEBUGINFO=1
+fi
 
 check_kprobes_available
 if [ $? -ne 0 ]; then
@@ -67,7 +77,12 @@ PERF_EXIT_CODE=$?
 ../common/check_all_patterns_found.pl "\s*probe:${TEST_PROBE}(?:_\d+)?\s+\(on ${TEST_PROBE}(?:[:\+]$RE_NUMBER_HEX)?@.+\)" < $LOGS_DIR/adding_kernel_list-l.log
 CHECK_EXIT_CODE=$?
 
-print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "listing added probe :: perf probe -l"
+if [ $NO_DEBUGINFO ] ; then
+	print_testcase_skipped $NO_DEBUGINFO $NO_DEBUGINFO "Skipped due to missing debuginfo"
+else
+	print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "listing added probe :: perf probe -l"
+fi
+
 (( TEST_RESULT += $? ))
 
 
@@ -208,7 +223,12 @@ PERF_EXIT_CODE=$?
 ../common/check_all_patterns_found.pl "probe:vfs_mknod" "probe:vfs_create" "probe:vfs_rmdir" "probe:vfs_link" "probe:vfs_write" < $LOGS_DIR/adding_kernel_adding_wildcard.err
 CHECK_EXIT_CODE=$?
 
-print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "wildcard adding support"
+if [ $NO_DEBUGINFO ] ; then
+	print_testcase_skipped $NO_DEBUGINFO $NO_DEBUGINFO "Skipped due to missing debuginfo"
+else
+	print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "wildcard adding support"
+fi
+
 (( TEST_RESULT += $? ))
 
 
@@ -232,7 +252,12 @@ CHECK_EXIT_CODE=$?
 ../common/check_no_patterns_found.pl "$RE_SEGFAULT" < $LOGS_DIR/adding_kernel_nonexisting.err
 (( CHECK_EXIT_CODE += $? ))
 
-print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "non-existing variable"
+if [ $NO_DEBUGINFO ]; then
+	print_testcase_skipped $NO_DEBUGINFO $NO_DEBUGINFO "Skipped due to missing debuginfo"
+else
+	print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "non-existing variable"
+fi
+
 (( TEST_RESULT += $? ))
 
 
