@@ -189,6 +189,8 @@ struct exynos5_usbdrd_phy_drvdata {
 	int n_clks;
 	const char * const *core_clk_names;
 	int n_core_clks;
+	const char * const *regulator_names;
+	int n_regulators;
 	u32 pmu_offset_usbdrd0_phy;
 	u32 pmu_offset_usbdrd0_phy_ss;
 	u32 pmu_offset_usbdrd1_phy;
@@ -205,8 +207,7 @@ struct exynos5_usbdrd_phy_drvdata {
  *	    instances each with its 'phy' and 'phy_cfg'.
  * @extrefclk: frequency select settings when using 'separate
  *	       reference clocks' for SS and HS operations
- * @vbus: VBUS regulator for phy
- * @vbus_boost: Boost regulator for VBUS present on few Exynos boards
+ * @regulators: regulators for phy
  */
 struct exynos5_usbdrd_phy {
 	struct device *dev;
@@ -222,8 +223,7 @@ struct exynos5_usbdrd_phy {
 		const struct exynos5_usbdrd_phy_config *phy_cfg;
 	} phys[EXYNOS5_DRDPHYS_NUM];
 	u32 extrefclk;
-	struct regulator *vbus;
-	struct regulator *vbus_boost;
+	struct regulator_bulk_data *regulators;
 };
 
 static inline
@@ -507,31 +507,17 @@ static int exynos5_usbdrd_phy_power_on(struct phy *phy)
 		return ret;
 
 	/* Enable VBUS supply */
-	if (phy_drd->vbus_boost) {
-		ret = regulator_enable(phy_drd->vbus_boost);
-		if (ret) {
-			dev_err(phy_drd->dev,
-				"Failed to enable VBUS boost supply\n");
-			goto fail_vbus;
-		}
-	}
-
-	if (phy_drd->vbus) {
-		ret = regulator_enable(phy_drd->vbus);
-		if (ret) {
-			dev_err(phy_drd->dev, "Failed to enable VBUS supply\n");
-			goto fail_vbus_boost;
-		}
+	ret = regulator_bulk_enable(phy_drd->drv_data->n_regulators,
+				    phy_drd->regulators);
+	if (ret) {
+		dev_err(phy_drd->dev, "Failed to enable PHY regulator(s)\n");
+		goto fail_vbus;
 	}
 
 	/* Power-on PHY */
 	inst->phy_cfg->phy_isol(inst, false);
 
 	return 0;
-
-fail_vbus_boost:
-	if (phy_drd->vbus_boost)
-		regulator_disable(phy_drd->vbus_boost);
 
 fail_vbus:
 	clk_bulk_disable_unprepare(phy_drd->drv_data->n_core_clks,
@@ -551,10 +537,8 @@ static int exynos5_usbdrd_phy_power_off(struct phy *phy)
 	inst->phy_cfg->phy_isol(inst, true);
 
 	/* Disable VBUS supply */
-	if (phy_drd->vbus)
-		regulator_disable(phy_drd->vbus);
-	if (phy_drd->vbus_boost)
-		regulator_disable(phy_drd->vbus_boost);
+	regulator_bulk_disable(phy_drd->drv_data->n_regulators,
+			       phy_drd->regulators);
 
 	clk_bulk_disable_unprepare(phy_drd->drv_data->n_core_clks,
 				   phy_drd->core_clks);
@@ -961,6 +945,10 @@ static const char * const exynos5433_core_clk_names[] = {
 	"ref", "phy_pipe", "phy_utmi", "itp",
 };
 
+static const char * const exynos5_regulator_names[] = {
+	"vbus", "vbus-boost",
+};
+
 static const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
 	.phy_ops		= &exynos5_usbdrd_phy_ops,
@@ -970,6 +958,8 @@ static const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
 	.n_clks			= ARRAY_SIZE(exynos5_clk_names),
 	.core_clk_names		= exynos5_core_clk_names,
 	.n_core_clks		= ARRAY_SIZE(exynos5_core_clk_names),
+	.regulator_names	= exynos5_regulator_names,
+	.n_regulators		= ARRAY_SIZE(exynos5_regulator_names),
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos5250_usbdrd_phy = {
@@ -980,6 +970,8 @@ static const struct exynos5_usbdrd_phy_drvdata exynos5250_usbdrd_phy = {
 	.n_clks			= ARRAY_SIZE(exynos5_clk_names),
 	.core_clk_names		= exynos5_core_clk_names,
 	.n_core_clks		= ARRAY_SIZE(exynos5_core_clk_names),
+	.regulator_names	= exynos5_regulator_names,
+	.n_regulators		= ARRAY_SIZE(exynos5_regulator_names),
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos5433_usbdrd_phy = {
@@ -991,6 +983,8 @@ static const struct exynos5_usbdrd_phy_drvdata exynos5433_usbdrd_phy = {
 	.n_clks			= ARRAY_SIZE(exynos5_clk_names),
 	.core_clk_names		= exynos5433_core_clk_names,
 	.n_core_clks		= ARRAY_SIZE(exynos5433_core_clk_names),
+	.regulator_names	= exynos5_regulator_names,
+	.n_regulators		= ARRAY_SIZE(exynos5_regulator_names),
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos7_usbdrd_phy = {
@@ -1001,6 +995,8 @@ static const struct exynos5_usbdrd_phy_drvdata exynos7_usbdrd_phy = {
 	.n_clks			= ARRAY_SIZE(exynos5_clk_names),
 	.core_clk_names		= exynos5433_core_clk_names,
 	.n_core_clks		= ARRAY_SIZE(exynos5433_core_clk_names),
+	.regulator_names	= exynos5_regulator_names,
+	.n_regulators		= ARRAY_SIZE(exynos5_regulator_names),
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos850_usbdrd_phy = {
@@ -1011,6 +1007,8 @@ static const struct exynos5_usbdrd_phy_drvdata exynos850_usbdrd_phy = {
 	.n_clks			= ARRAY_SIZE(exynos5_clk_names),
 	.core_clk_names		= exynos5_core_clk_names,
 	.n_core_clks		= ARRAY_SIZE(exynos5_core_clk_names),
+	.regulator_names	= exynos5_regulator_names,
+	.n_regulators		= ARRAY_SIZE(exynos5_regulator_names),
 };
 
 static const struct of_device_id exynos5_usbdrd_phy_of_match[] = {
@@ -1083,26 +1081,20 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	if (channel < 0)
 		dev_dbg(dev, "Not a multi-controller usbdrd phy\n");
 
-	/* Get Vbus regulators */
-	phy_drd->vbus = devm_regulator_get(dev, "vbus");
-	if (IS_ERR(phy_drd->vbus)) {
-		ret = PTR_ERR(phy_drd->vbus);
-		if (ret == -EPROBE_DEFER)
-			return ret;
-
-		dev_warn(dev, "Failed to get VBUS supply regulator\n");
-		phy_drd->vbus = NULL;
-	}
-
-	phy_drd->vbus_boost = devm_regulator_get(dev, "vbus-boost");
-	if (IS_ERR(phy_drd->vbus_boost)) {
-		ret = PTR_ERR(phy_drd->vbus_boost);
-		if (ret == -EPROBE_DEFER)
-			return ret;
-
-		dev_warn(dev, "Failed to get VBUS boost supply regulator\n");
-		phy_drd->vbus_boost = NULL;
-	}
+	/* Get regulators */
+	phy_drd->regulators = devm_kcalloc(dev,
+					   drv_data->n_regulators,
+					   sizeof(*phy_drd->regulators),
+					   GFP_KERNEL);
+	if (!phy_drd->regulators)
+		return ENOMEM;
+	regulator_bulk_set_supply_names(phy_drd->regulators,
+					drv_data->regulator_names,
+					drv_data->n_regulators);
+	ret = devm_regulator_bulk_get(dev, drv_data->n_regulators,
+				      phy_drd->regulators);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get regulators\n");
 
 	dev_vdbg(dev, "Creating usbdrd_phy phy\n");
 
