@@ -677,10 +677,13 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 		return -ENODEV;
 
 	ret = ipu_bridge_init(&ipu->dev, ipu_bridge_parse_ssdb);
+	put_device(&ipu->dev);
 	if (ret < 0)
 		return ret;
-	if (WARN_ON(!dev_fwnode(dev)))
+	if (!dev_fwnode(dev)) {
+		dev_err(dev, "mei-csi probed without device fwnode!\n");
 		return -ENXIO;
+	}
 
 	csi = devm_kzalloc(dev, sizeof(struct mei_csi), GFP_KERNEL);
 	if (!csi)

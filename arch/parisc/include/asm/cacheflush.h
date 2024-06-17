@@ -31,18 +31,17 @@ void flush_cache_all_local(void);
 void flush_cache_all(void);
 void flush_cache_mm(struct mm_struct *mm);
 
-void flush_kernel_dcache_page_addr(const void *addr);
-
 #define flush_kernel_dcache_range(start,size) \
 	flush_kernel_dcache_range_asm((start), (start)+(size));
 
+/* The only way to flush a vmap range is to flush whole cache */
 #define ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE 1
 void flush_kernel_vmap_range(void *vaddr, int size);
 void invalidate_kernel_vmap_range(void *vaddr, int size);
 
-#define flush_cache_vmap(start, end)		flush_cache_all()
+void flush_cache_vmap(unsigned long start, unsigned long end);
 #define flush_cache_vmap_early(start, end)	do { } while (0)
-#define flush_cache_vunmap(start, end)		flush_cache_all()
+void flush_cache_vunmap(unsigned long start, unsigned long end);
 
 void flush_dcache_folio(struct folio *folio);
 #define flush_dcache_folio flush_dcache_folio
@@ -77,17 +76,11 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);
 
-/* defined in pacache.S exported in cache.c used by flush_anon_page */
-void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
-
 #define ARCH_HAS_FLUSH_ANON_PAGE
 void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr);
 
 #define ARCH_HAS_FLUSH_ON_KUNMAP
-static inline void kunmap_flush_on_unmap(const void *addr)
-{
-	flush_kernel_dcache_page_addr(addr);
-}
+void kunmap_flush_on_unmap(const void *addr);
 
 #endif /* _PARISC_CACHEFLUSH_H */
 

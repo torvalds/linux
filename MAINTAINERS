@@ -1117,7 +1117,6 @@ L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/admin-guide/pm/amd-pstate.rst
 F:	drivers/cpufreq/amd-pstate*
-F:	include/linux/amd-pstate.h
 F:	tools/power/x86/amd_pstate_tracer/amd_pstate_trace.py
 
 AMD PTDMA DRIVER
@@ -11045,8 +11044,8 @@ F:	include/uapi/drm/i915_drm.h
 
 INTEL DRM XE DRIVER (Lunar Lake and newer)
 M:	Lucas De Marchi <lucas.demarchi@intel.com>
-M:	Oded Gabbay <ogabbay@kernel.org>
 M:	Thomas Hellström <thomas.hellstrom@linux.intel.com>
+M:	Rodrigo Vivi <rodrigo.vivi@intel.com>
 L:	intel-xe@lists.freedesktop.org
 S:	Supported
 W:	https://drm.pages.freedesktop.org/intel-docs/
@@ -15249,7 +15248,6 @@ F:	drivers/staging/most/
 F:	include/linux/most.h
 
 MOTORCOMM PHY DRIVER
-M:	Peter Geis <pgwipeout@gmail.com>
 M:	Frank <Frank.Sae@motor-comm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -15838,7 +15836,7 @@ F:	drivers/nfc/virtual_ncidev.c
 F:	tools/testing/selftests/nci/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
-M:	Trond Myklebust <trond.myklebust@hammerspace.com>
+M:	Trond Myklebust <trondmy@kernel.org>
 M:	Anna Schumaker <anna@kernel.org>
 L:	linux-nfs@vger.kernel.org
 S:	Maintained
@@ -22698,7 +22696,7 @@ L:	tomoyo-users-en@lists.osdn.me (subscribers-only, for users in English)
 L:	tomoyo-dev@lists.osdn.me (subscribers-only, for developers in Japanese)
 L:	tomoyo-users@lists.osdn.me (subscribers-only, for users in Japanese)
 S:	Maintained
-W:	https://tomoyo.osdn.jp/
+W:	https://tomoyo.sourceforge.net/
 F:	security/tomoyo/
 
 TOPSTAR LAPTOP EXTRAS DRIVER

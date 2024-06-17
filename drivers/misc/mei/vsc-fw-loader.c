@@ -252,7 +252,7 @@ static int vsc_get_sensor_name(struct vsc_fw_loader *fw_loader,
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER };
 	union acpi_object obj = {
-		.type = ACPI_TYPE_INTEGER,
+		.integer.type = ACPI_TYPE_INTEGER,
 		.integer.value = 1,
 	};
 	struct acpi_object_list arg_list = {
