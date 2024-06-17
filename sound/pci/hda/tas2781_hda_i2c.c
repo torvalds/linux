@@ -597,18 +597,13 @@ static void tas2781_hda_remove_controls(struct tas2781_hda *tas_hda)
 {
 	struct hda_codec *codec = tas_hda->priv->codec;
 
-	if (tas_hda->dsp_prog_ctl)
-		snd_ctl_remove(codec->card, tas_hda->dsp_prog_ctl);
-
-	if (tas_hda->dsp_conf_ctl)
-		snd_ctl_remove(codec->card, tas_hda->dsp_conf_ctl);
+	snd_ctl_remove(codec->card, tas_hda->dsp_prog_ctl);
+	snd_ctl_remove(codec->card, tas_hda->dsp_conf_ctl);
 
 	for (int i = ARRAY_SIZE(tas_hda->snd_ctls) - 1; i >= 0; i--)
-		if (tas_hda->snd_ctls[i])
-			snd_ctl_remove(codec->card, tas_hda->snd_ctls[i]);
+		snd_ctl_remove(codec->card, tas_hda->snd_ctls[i]);
 
-	if (tas_hda->prof_ctl)
-		snd_ctl_remove(codec->card, tas_hda->prof_ctl);
+	snd_ctl_remove(codec->card, tas_hda->prof_ctl);
 }
 
 static void tasdev_fw_ready(const struct firmware *fmw, void *context)
