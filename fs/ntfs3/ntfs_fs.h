@@ -1140,6 +1140,13 @@ static inline void le64_sub_cpu(__le64 *var, u64 val)
 	*var = cpu_to_le64(le64_to_cpu(*var) - val);
 }
 
+#if IS_ENABLED(CONFIG_NTFS_FS)
 bool is_legacy_ntfs(struct super_block *sb);
+#else
+static inline bool is_legacy_ntfs(struct super_block *sb)
+{
+	return false;
+}
+#endif
 
 #endif /* _LINUX_NTFS3_NTFS_FS_H */

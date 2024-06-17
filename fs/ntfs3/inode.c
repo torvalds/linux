@@ -441,10 +441,9 @@ end_enum:
 		 * Usually a hard links to directories are disabled.
 		 */
 		inode->i_op = &ntfs_dir_inode_operations;
-		if (is_legacy_ntfs(inode->i_sb))
-			inode->i_fop = &ntfs_legacy_dir_operations;
-		else
-			inode->i_fop = &ntfs_dir_operations;
+		inode->i_fop = unlikely(is_legacy_ntfs(sb)) ?
+				       &ntfs_legacy_dir_operations :
+				       &ntfs_dir_operations;
 		ni->i_valid = 0;
 	} else if (S_ISLNK(mode)) {
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
@@ -454,10 +453,9 @@ end_enum:
 	} else if (S_ISREG(mode)) {
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
 		inode->i_op = &ntfs_file_inode_operations;
-		if (is_legacy_ntfs(inode->i_sb))
-			inode->i_fop = &ntfs_legacy_file_operations;
-		else
-			inode->i_fop = &ntfs_file_operations;
+		inode->i_fop = unlikely(is_legacy_ntfs(sb)) ?
+				       &ntfs_legacy_file_operations :
+				       &ntfs_file_operations;
 		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
 							      &ntfs_aops;
 		if (ino != MFT_REC_MFT)
@@ -1627,10 +1625,9 @@ int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 
 	if (S_ISDIR(mode)) {
 		inode->i_op = &ntfs_dir_inode_operations;
-		if (is_legacy_ntfs(inode->i_sb))
-			inode->i_fop = &ntfs_legacy_dir_operations;
-		else
-			inode->i_fop = &ntfs_dir_operations;
+		inode->i_fop = unlikely(is_legacy_ntfs(sb)) ?
+				       &ntfs_legacy_dir_operations :
+				       &ntfs_dir_operations;
 	} else if (S_ISLNK(mode)) {
 		inode->i_op = &ntfs_link_inode_operations;
 		inode->i_fop = NULL;
@@ -1639,10 +1636,9 @@ int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		inode_nohighmem(inode);
 	} else if (S_ISREG(mode)) {
 		inode->i_op = &ntfs_file_inode_operations;
-		if (is_legacy_ntfs(inode->i_sb))
-			inode->i_fop = &ntfs_legacy_file_operations;
-		else
-			inode->i_fop = &ntfs_file_operations;
+		inode->i_fop = unlikely(is_legacy_ntfs(sb)) ?
+				       &ntfs_legacy_file_operations :
+				       &ntfs_file_operations;
 		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
 							      &ntfs_aops;
 		init_rwsem(&ni->file.run_lock);

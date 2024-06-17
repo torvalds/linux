@@ -1837,9 +1837,7 @@ bool is_legacy_ntfs(struct super_block *sb)
 #else
 static inline void register_as_ntfs_legacy(void) {}
 static inline void unregister_as_ntfs_legacy(void) {}
-bool is_legacy_ntfs(struct super_block *sb) { return false; }
 #endif
-
 
 // clang-format on
 

@@ -631,10 +631,12 @@ const struct file_operations ntfs_dir_operations = {
 #endif
 };
 
+#if IS_ENABLED(CONFIG_NTFS_FS)
 const struct file_operations ntfs_legacy_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= ntfs_readdir,
 	.open		= ntfs_file_open,
 };
+#endif
 // clang-format on
