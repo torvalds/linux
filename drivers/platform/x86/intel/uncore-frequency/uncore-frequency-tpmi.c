@@ -130,13 +130,13 @@ static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
 
 /* Helper function to write MMIO offset for max/min control frequency */
 static void write_control_freq(struct tpmi_uncore_cluster_info *cluster_info, unsigned int input,
-			      unsigned int min_max)
+			      unsigned int index)
 {
 	u64 control;
 
 	control = readq(cluster_info->cluster_base + UNCORE_CONTROL_INDEX);
 
-	if (min_max) {
+	if (index == UNCORE_INDEX_MAX_FREQ) {
 		control &= ~UNCORE_MAX_RATIO_MASK;
 		control |= FIELD_PREP(UNCORE_MAX_RATIO_MASK, input);
 	} else {
@@ -149,7 +149,7 @@ static void write_control_freq(struct tpmi_uncore_cluster_info *cluster_info, un
 
 /* Callback for sysfs write for max/min frequencies. Called under mutex locks */
 static int uncore_write_control_freq(struct uncore_data *data, unsigned int input,
-				     unsigned int min_max)
+				     enum uncore_index index)
 {
 	struct tpmi_uncore_cluster_info *cluster_info;
 	struct tpmi_uncore_struct *uncore_root;
@@ -174,10 +174,10 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 
 			for (j = 0; j < uncore_root->pd_info[i].cluster_count; ++j)
 				write_control_freq(&uncore_root->pd_info[i].cluster_infos[j],
-						  input, min_max);
+						  input, index);
 		}
 
-		if (min_max)
+		if (index == UNCORE_INDEX_MAX_FREQ)
 			uncore_root->max_ratio = input;
 		else
 			uncore_root->min_ratio = input;
@@ -185,13 +185,15 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 		return 0;
 	}
 
-	if (min_max && uncore_root->max_ratio && uncore_root->max_ratio < input)
+	if (index == UNCORE_INDEX_MAX_FREQ && uncore_root->max_ratio &&
+	    uncore_root->max_ratio < input)
 		return -EINVAL;
 
-	if (!min_max && uncore_root->min_ratio && uncore_root->min_ratio > input)
+	if (index == UNCORE_INDEX_MIN_FREQ && uncore_root->min_ratio &&
+	    uncore_root->min_ratio > input)
 		return -EINVAL;
 
-	write_control_freq(cluster_info, input, min_max);
+	write_control_freq(cluster_info, input, index);
 
 	return 0;
 }

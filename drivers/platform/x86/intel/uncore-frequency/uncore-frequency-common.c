@@ -20,7 +20,7 @@ static DEFINE_IDA(intel_uncore_ida);
 
 /* callbacks for actual HW read/write */
 static int (*uncore_read)(struct uncore_data *data, unsigned int *min, unsigned int *max);
-static int (*uncore_write)(struct uncore_data *data, unsigned int input, unsigned int min_max);
+static int (*uncore_write)(struct uncore_data *data, unsigned int input, enum uncore_index index);
 static int (*uncore_read_freq)(struct uncore_data *data, unsigned int *freq);
 
 static ssize_t show_domain_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
@@ -45,7 +45,7 @@ static ssize_t show_package_id(struct kobject *kobj, struct kobj_attribute *attr
 }
 
 static ssize_t show_min_max_freq_khz(struct uncore_data *data,
-				      char *buf, int min_max)
+				      char *buf, enum uncore_index index)
 {
 	unsigned int min, max;
 	int ret;
@@ -56,7 +56,7 @@ static ssize_t show_min_max_freq_khz(struct uncore_data *data,
 	if (ret)
 		return ret;
 
-	if (min_max)
+	if (index == UNCORE_INDEX_MAX_FREQ)
 		return sprintf(buf, "%u\n", max);
 
 	return sprintf(buf, "%u\n", min);
@@ -64,7 +64,7 @@ static ssize_t show_min_max_freq_khz(struct uncore_data *data,
 
 static ssize_t store_min_max_freq_khz(struct uncore_data *data,
 				      const char *buf, ssize_t count,
-				      int min_max)
+				      enum uncore_index index)
 {
 	unsigned int input;
 	int ret;
@@ -73,7 +73,7 @@ static ssize_t store_min_max_freq_khz(struct uncore_data *data,
 		return -EINVAL;
 
 	mutex_lock(&uncore_lock);
-	ret = uncore_write(data, input, min_max);
+	ret = uncore_write(data, input, index);
 	mutex_unlock(&uncore_lock);
 
 	if (ret)
@@ -125,11 +125,11 @@ static ssize_t show_perf_status_freq_khz(struct uncore_data *data, char *buf)
 		return show_perf_status_freq_khz(data, buf); \
 	}
 
-store_uncore_min_max(min_freq_khz, 0);
-store_uncore_min_max(max_freq_khz, 1);
+store_uncore_min_max(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
+store_uncore_min_max(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
-show_uncore_min_max(min_freq_khz, 0);
-show_uncore_min_max(max_freq_khz, 1);
+show_uncore_min_max(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
+show_uncore_min_max(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
 show_uncore_perf_status(current_freq_khz);
 
@@ -270,7 +270,8 @@ void uncore_freq_remove_die_entry(struct uncore_data *data)
 EXPORT_SYMBOL_NS_GPL(uncore_freq_remove_die_entry, INTEL_UNCORE_FREQUENCY);
 
 int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, unsigned int *min, unsigned int *max),
-			     int (*write_control_freq)(struct uncore_data *data, unsigned int input, unsigned int set_max),
+			     int (*write_control_freq)(struct uncore_data *data, unsigned int input,
+						       enum uncore_index index),
 			     int (*read_freq)(struct uncore_data *data, unsigned int *freq))
 {
 	mutex_lock(&uncore_lock);

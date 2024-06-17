@@ -66,8 +66,14 @@ struct uncore_data {
 
 #define UNCORE_DOMAIN_ID_INVALID	-1
 
+enum uncore_index {
+	UNCORE_INDEX_MIN_FREQ,
+	UNCORE_INDEX_MAX_FREQ,
+};
+
 int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, unsigned int *min, unsigned int *max),
-			     int (*write_control_freq)(struct uncore_data *data, unsigned int input, unsigned int min_max),
+			     int (*write_control_freq)(struct uncore_data *data, unsigned int input,
+						       enum uncore_index index),
 			     int (*uncore_read_freq)(struct uncore_data *data, unsigned int *freq));
 void uncore_freq_common_exit(void);
 int uncore_freq_add_entry(struct uncore_data *data, int cpu);

@@ -62,7 +62,7 @@ static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
 }
 
 static int uncore_write_control_freq(struct uncore_data *data, unsigned int input,
-				     unsigned int min_max)
+				     enum uncore_index index)
 {
 	int ret;
 	u64 cap;
@@ -78,7 +78,7 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 	if (ret)
 		return ret;
 
-	if (min_max) {
+	if (index == UNCORE_INDEX_MAX_FREQ) {
 		cap &= ~UNCORE_MAX_RATIO_MASK;
 		cap |= FIELD_PREP(UNCORE_MAX_RATIO_MASK, input);
 	} else  {
