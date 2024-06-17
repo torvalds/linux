@@ -11,7 +11,7 @@
 #include <sound/soc-link.h>
 
 #define soc_dai_ret(dai, ret) _soc_dai_ret(dai, __func__, ret)
-static inline int _soc_dai_ret(struct snd_soc_dai *dai,
+static inline int _soc_dai_ret(const struct snd_soc_dai *dai,
 			       const char *func, int ret)
 {
 	/* Positive, Zero values are not errors */
@@ -327,7 +327,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_channel_map);
  * @rx_slot: pointer to an array which imply the RX slot number channel
  *           0~num-1 uses
  */
-int snd_soc_dai_get_channel_map(struct snd_soc_dai *dai,
+int snd_soc_dai_get_channel_map(const struct snd_soc_dai *dai,
 				unsigned int *tx_num, unsigned int *tx_slot,
 				unsigned int *rx_num, unsigned int *rx_slot)
 {
