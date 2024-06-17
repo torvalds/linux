@@ -45,6 +45,9 @@ struct pca9532_data {
 	struct gpio_chip gpio;
 #endif
 	const struct pca9532_chip_info *chip_info;
+
+#define PCA9532_PWM_ID_0	0
+#define PCA9532_PWM_ID_1	1
 	u8 pwm[2];
 	u8 psc[2];
 };
@@ -181,12 +184,12 @@ static int pca9532_set_brightness(struct led_classdev *led_cdev,
 		led->state = PCA9532_ON;
 	else {
 		led->state = PCA9532_PWM0; /* Thecus: hardcode one pwm */
-		err = pca9532_calcpwm(led->client, 0, 0, value);
+		err = pca9532_calcpwm(led->client, PCA9532_PWM_ID_0, 0, value);
 		if (err)
 			return err;
 	}
 	if (led->state == PCA9532_PWM0)
-		pca9532_setpwm(led->client, 0);
+		pca9532_setpwm(led->client, PCA9532_PWM_ID_0);
 	pca9532_setled(led);
 	return err;
 }
@@ -209,11 +212,11 @@ static int pca9532_set_blink(struct led_classdev *led_cdev,
 
 	/* Thecus specific: only use PSC/PWM 0 */
 	psc = (*delay_on * 152-1)/1000;
-	err = pca9532_calcpwm(client, 0, psc, led_cdev->brightness);
+	err = pca9532_calcpwm(client, PCA9532_PWM_ID_0, psc, led_cdev->brightness);
 	if (err)
 		return err;
 	if (led->state == PCA9532_PWM0)
-		pca9532_setpwm(led->client, 0);
+		pca9532_setpwm(led->client, PCA9532_PWM_ID_0);
 	pca9532_setled(led);
 
 	return 0;
@@ -229,9 +232,9 @@ static int pca9532_event(struct input_dev *dev, unsigned int type,
 
 	/* XXX: allow different kind of beeps with psc/pwm modifications */
 	if (value > 1 && value < 32767)
-		data->pwm[1] = 127;
+		data->pwm[PCA9532_PWM_ID_1] = 127;
 	else
-		data->pwm[1] = 0;
+		data->pwm[PCA9532_PWM_ID_1] = 0;
 
 	schedule_work(&data->work);
 
@@ -246,7 +249,7 @@ static void pca9532_input_work(struct work_struct *work)
 
 	mutex_lock(&data->update_lock);
 	i2c_smbus_write_byte_data(data->client, PCA9532_REG_PWM(maxleds, 1),
-		data->pwm[1]);
+		data->pwm[PCA9532_PWM_ID_1]);
 	mutex_unlock(&data->update_lock);
 }
 
@@ -475,9 +478,9 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 
 	pdata->gpio_base = -1;
 
-	of_property_read_u8_array(np, "nxp,pwm", &pdata->pwm[0],
+	of_property_read_u8_array(np, "nxp,pwm", &pdata->pwm[PCA9532_PWM_ID_0],
 				  ARRAY_SIZE(pdata->pwm));
-	of_property_read_u8_array(np, "nxp,psc", &pdata->psc[0],
+	of_property_read_u8_array(np, "nxp,psc", &pdata->psc[PCA9532_PWM_ID_0],
 				  ARRAY_SIZE(pdata->psc));
 
 	for_each_available_child_of_node(np, child) {
