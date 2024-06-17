@@ -370,10 +370,7 @@ static int kxsd9_power_down(struct kxsd9_state *st)
 	 * make sure we conserve power even if there are others users on the
 	 * regulators.
 	 */
-	ret = regmap_update_bits(st->map,
-				 KXSD9_REG_CTRL_B,
-				 KXSD9_CTRL_B_ENABLE,
-				 0);
+	ret = regmap_clear_bits(st->map, KXSD9_REG_CTRL_B, KXSD9_CTRL_B_ENABLE);
 	if (ret)
 		return ret;
 
