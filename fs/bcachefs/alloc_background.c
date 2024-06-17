@@ -2019,6 +2019,21 @@ err:
 	goto out;
 }
 
+static struct bkey_s_c next_lru_key(struct btree_trans *trans, struct btree_iter *iter,
+				    struct bch_dev *ca, bool *wrapped)
+{
+	struct bkey_s_c k;
+again:
+	k = bch2_btree_iter_peek_upto(iter, lru_pos(ca->dev_idx, U64_MAX, LRU_TIME_MAX));
+	if (!k.k && !*wrapped) {
+		bch2_btree_iter_set_pos(iter, lru_pos(ca->dev_idx, 0, 0));
+		*wrapped = true;
+		goto again;
+	}
+
+	return k;
+}
+
 static void bch2_do_invalidates_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs, invalidate_work);
@@ -2032,12 +2047,33 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 	for_each_member_device(c, ca) {
 		s64 nr_to_invalidate =
 			should_invalidate_buckets(ca, bch2_dev_usage_read(ca));
+		struct btree_iter iter;
+		bool wrapped = false;
 
-		ret = for_each_btree_key_upto(trans, iter, BTREE_ID_lru,
-				lru_pos(ca->dev_idx, 0, 0),
-				lru_pos(ca->dev_idx, U64_MAX, LRU_TIME_MAX),
-				BTREE_ITER_intent, k,
-			invalidate_one_bucket(trans, &iter, k, &nr_to_invalidate));
+		bch2_trans_iter_init(trans, &iter, BTREE_ID_lru,
+				     lru_pos(ca->dev_idx, 0,
+					     ((bch2_current_io_time(c, READ) + U32_MAX) &
+					      LRU_TIME_MAX)), 0);
+
+		while (true) {
+			bch2_trans_begin(trans);
+
+			struct bkey_s_c k = next_lru_key(trans, &iter, ca, &wrapped);
+			ret = bkey_err(k);
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				continue;
+			if (ret)
+				break;
+			if (!k.k)
+				break;
+
+			ret = invalidate_one_bucket(trans, &iter, k, &nr_to_invalidate);
+			if (ret)
+				break;
+
+			bch2_btree_iter_advance(&iter);
+		}
+		bch2_trans_iter_exit(trans, &iter);
 
 		if (ret < 0) {
 			bch2_dev_put(ca);
