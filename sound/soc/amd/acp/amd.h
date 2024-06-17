@@ -173,6 +173,7 @@ struct acp_dev_data {
 	unsigned int i2s_irq;
 
 	bool tdm_mode;
+	bool is_i2s_config;
 	/* SOC specific dais */
 	struct snd_soc_dai_driver *dai_driver;
 	int num_dai;
