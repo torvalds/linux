@@ -37,12 +37,17 @@
  * gc_9_4_3:
  *   cpp -DASIC_FAMILY=GC_9_4_3 cwsr_trap_handler_gfx9.asm -P -o gc_9_4_3.sp3
  *   sp3 gc_9_4_3.sp3 -hex gc_9_4_3.hex
+ *
+ * gc_9_5_0:
+ *   cpp -DASIC_FAMILY=GC_9_5_0 cwsr_trap_handler_gfx9.asm -P -o gc_9_5_0.sp3
+ *   sp3 gc_9_5_0.sp3 -hex gc_9_5_0.hex
  */
 
 #define CHIP_VEGAM 18
 #define CHIP_ARCTURUS 23
 #define CHIP_ALDEBARAN 25
 #define CHIP_GC_9_4_3 26
+#define CHIP_GC_9_5_0 27
 
 var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store bug causing incorrect stores under concurrency
 var SAVE_AFTER_XNACK_ERROR	    =	1		    //workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
@@ -68,7 +73,11 @@ var SQ_WAVE_STATUS_ALLOW_REPLAY_MASK    = 0x400000
 var SQ_WAVE_STATUS_ECC_ERR_MASK         = 0x20000
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT	= 12
+#if ASIC_FAMILY >= CHIP_GC_9_5_0
+var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 11
+#else
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 9
+#endif
 var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE	= 6
 var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SIZE	= 3			//FIXME	 sq.blk still has 4 bits at this time while SQ programming guide has 3 bits
 var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SHIFT	= 24
