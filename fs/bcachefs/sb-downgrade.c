@@ -228,7 +228,7 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 
 		dst = (void *) &darray_top(table);
 		dst->version = cpu_to_le16(src->version);
-		dst->recovery_passes[0]	= cpu_to_le64(src->recovery_passes);
+		dst->recovery_passes[0]	= cpu_to_le64(bch2_recovery_passes_to_stable(src->recovery_passes));
 		dst->recovery_passes[1]	= 0;
 		dst->nr_errors		= cpu_to_le16(src->nr_errors);
 		for (unsigned i = 0; i < src->nr_errors; i++)
