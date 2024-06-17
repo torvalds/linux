@@ -186,8 +186,8 @@ const char *blk_integrity_profile_name(struct blk_integrity *bi)
 }
 EXPORT_SYMBOL_GPL(blk_integrity_profile_name);
 
-static ssize_t flag_store(struct device *dev, struct device_attribute *attr,
-		const char *page, size_t count, unsigned char flag)
+static ssize_t flag_store(struct device *dev, const char *page, size_t count,
+		unsigned char flag)
 {
 	struct request_queue *q = dev_to_disk(dev)->queue;
 	struct queue_limits lim;
@@ -213,8 +213,7 @@ static ssize_t flag_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t flag_show(struct device *dev, struct device_attribute *attr,
-		char *page, unsigned char flag)
+static ssize_t flag_show(struct device *dev, char *page, unsigned char flag)
 {
 	struct blk_integrity *bi = dev_to_bi(dev);
 
@@ -253,26 +252,26 @@ static ssize_t read_verify_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *page, size_t count)
 {
-	return flag_store(dev, attr, page, count, BLK_INTEGRITY_NOVERIFY);
+	return flag_store(dev, page, count, BLK_INTEGRITY_NOVERIFY);
 }
 
 static ssize_t read_verify_show(struct device *dev,
 				struct device_attribute *attr, char *page)
 {
-	return flag_show(dev, attr, page, BLK_INTEGRITY_NOVERIFY);
+	return flag_show(dev, page, BLK_INTEGRITY_NOVERIFY);
 }
 
 static ssize_t write_generate_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *page, size_t count)
 {
-	return flag_store(dev, attr, page, count, BLK_INTEGRITY_NOGENERATE);
+	return flag_store(dev, page, count, BLK_INTEGRITY_NOGENERATE);
 }
 
 static ssize_t write_generate_show(struct device *dev,
 				   struct device_attribute *attr, char *page)
 {
-	return flag_show(dev, attr, page, BLK_INTEGRITY_NOGENERATE);
+	return flag_show(dev, page, BLK_INTEGRITY_NOGENERATE);
 }
 
 static ssize_t device_is_integrity_capable_show(struct device *dev,
