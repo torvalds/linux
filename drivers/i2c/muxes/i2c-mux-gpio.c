@@ -5,16 +5,16 @@
  * Peter Korsgaard <peter.korsgaard@barco.com>
  */
 
-#include <linux/i2c.h>
-#include <linux/i2c-mux.h>
-#include <linux/overflow.h>
-#include <linux/platform_data/i2c-mux-gpio.h>
-#include <linux/platform_device.h>
-#include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/bits.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
+#include <linux/i2c.h>
+#include <linux/i2c-mux.h>
+#include <linux/module.h>
+#include <linux/overflow.h>
+#include <linux/platform_data/i2c-mux-gpio.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 struct gpiomux {
 	struct i2c_mux_gpio_platform_data data;
