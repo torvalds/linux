@@ -940,7 +940,7 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 			drm_dbg(&i915->drm,
 				"Disabling stolen memory support due to OOB placement: lmem_size = %lli vs dsm_base = %lli\n",
 				lmem_size, dsm_base);
-			return 0;
+			return NULL;
 		}
 		dsm_size = ALIGN_DOWN(lmem_size - dsm_base, SZ_1M);
 	}
