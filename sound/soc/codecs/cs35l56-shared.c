@@ -393,7 +393,7 @@ int cs35l56_irq_request(struct cs35l56_base *cs35l56_base, int irq)
 {
 	int ret;
 
-	if (!irq)
+	if (irq < 1)
 		return 0;
 
 	ret = devm_request_threaded_irq(cs35l56_base->dev, irq, NULL, cs35l56_irq,
