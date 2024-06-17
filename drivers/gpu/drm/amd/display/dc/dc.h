@@ -293,6 +293,8 @@ struct dc_caps {
 	bool cursor_not_scaled;
 	bool dcmode_power_limits_present;
 	bool sequential_ono;
+	/* Conservative limit for DCC cases which require ODM4:1 to support*/
+	uint32_t dcc_plane_width_limit;
 };
 
 struct dc_bug_wa {
