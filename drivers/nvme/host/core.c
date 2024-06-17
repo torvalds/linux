@@ -3724,6 +3724,7 @@ static void nvme_ns_add_to_ctrl_list(struct nvme_ns *ns)
 
 static void nvme_alloc_ns(struct nvme_ctrl *ctrl, struct nvme_ns_info *info)
 {
+	struct queue_limits lim = { };
 	struct nvme_ns *ns;
 	struct gendisk *disk;
 	int node = ctrl->numa_node;
@@ -3732,7 +3733,10 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, struct nvme_ns_info *info)
 	if (!ns)
 		return;
 
-	disk = blk_mq_alloc_disk(ctrl->tagset, NULL, ns);
+	if (ctrl->opts && ctrl->opts->data_digest)
+		lim.features |= BLK_FEAT_STABLE_WRITES;
+
+	disk = blk_mq_alloc_disk(ctrl->tagset, &lim, ns);
 	if (IS_ERR(disk))
 		goto out_free_ns;
 	disk->fops = &nvme_bdev_ops;
@@ -3740,9 +3744,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, struct nvme_ns_info *info)
 
 	ns->disk = disk;
 	ns->queue = disk->queue;
-
-	if (ctrl->opts && ctrl->opts->data_digest)
-		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, ns->queue);
 
 	if (ctrl->ops->supports_pci_p2pdma &&
 	    ctrl->ops->supports_pci_p2pdma(ctrl))

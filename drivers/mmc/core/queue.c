@@ -378,13 +378,14 @@ static struct gendisk *mmc_alloc_disk(struct mmc_queue *mq,
 		lim.max_segments = host->max_segs;
 	}
 
+	if (mmc_host_is_spi(host) && host->use_spi_crc)
+		lim.features |= BLK_FEAT_STABLE_WRITES;
+
 	disk = blk_mq_alloc_disk(&mq->tag_set, &lim, mq);
 	if (IS_ERR(disk))
 		return disk;
 	mq->queue = disk->queue;
 
-	if (mmc_host_is_spi(host) && host->use_spi_crc)
-		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, mq->queue);
 	blk_queue_rq_timeout(mq->queue, 60 * HZ);
 
 	dma_set_max_seg_size(mmc_dev(host), queue_max_segment_size(mq->queue));

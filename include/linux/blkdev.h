@@ -298,13 +298,17 @@ enum {
 
 	/* do disk/partitions IO accounting */
 	BLK_FEAT_IO_STAT			= (1u << 4),
+
+	/* don't modify data until writeback is done */
+	BLK_FEAT_STABLE_WRITES			= (1u << 5),
 };
 
 /*
  * Flags automatically inherited when stacking limits.
  */
 #define BLK_FEAT_INHERIT_MASK \
-	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL)
+	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
+	 BLK_FEAT_STABLE_WRITES)
 
 /* internal flags in queue_limits.flags */
 enum {
@@ -565,7 +569,6 @@ struct request_queue {
 #define QUEUE_FLAG_SYNCHRONOUS	11	/* always completes in submit context */
 #define QUEUE_FLAG_SAME_FORCE	12	/* force complete on same CPU */
 #define QUEUE_FLAG_INIT_DONE	14	/* queue is initialized */
-#define QUEUE_FLAG_STABLE_WRITES 15	/* don't modify blks until WB is done */
 #define QUEUE_FLAG_POLL		16	/* IO polling enabled if set */
 #define QUEUE_FLAG_DAX		19	/* device supports DAX */
 #define QUEUE_FLAG_STATS	20	/* track IO start and completion times */
@@ -1323,7 +1326,7 @@ static inline bool bdev_stable_writes(struct block_device *bdev)
 	if (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) &&
 	    q->limits.integrity.csum_type != BLK_INTEGRITY_CSUM_NONE)
 		return true;
-	return test_bit(QUEUE_FLAG_STABLE_WRITES, &q->queue_flags);
+	return q->limits.features & BLK_FEAT_STABLE_WRITES;
 }
 
 static inline bool blk_queue_write_cache(struct request_queue *q)

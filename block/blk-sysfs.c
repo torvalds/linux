@@ -296,37 +296,10 @@ static ssize_t queue_##_name##_store(struct request_queue *q,		 \
 	return queue_feature_store(q, page, count, _feature);		 \
 }
 
-#define QUEUE_SYSFS_BIT_FNS(name, flag, neg)				\
-static ssize_t								\
-queue_##name##_show(struct request_queue *q, char *page)		\
-{									\
-	int bit;							\
-	bit = test_bit(QUEUE_FLAG_##flag, &q->queue_flags);		\
-	return queue_var_show(neg ? !bit : bit, page);			\
-}									\
-static ssize_t								\
-queue_##name##_store(struct request_queue *q, const char *page, size_t count) \
-{									\
-	unsigned long val;						\
-	ssize_t ret;							\
-	ret = queue_var_store(&val, page, count);			\
-	if (ret < 0)							\
-		 return ret;						\
-	if (neg)							\
-		val = !val;						\
-									\
-	if (val)							\
-		blk_queue_flag_set(QUEUE_FLAG_##flag, q);		\
-	else								\
-		blk_queue_flag_clear(QUEUE_FLAG_##flag, q);		\
-	return ret;							\
-}
-
 QUEUE_SYSFS_FEATURE(rotational, BLK_FEAT_ROTATIONAL)
 QUEUE_SYSFS_FEATURE(add_random, BLK_FEAT_ADD_RANDOM)
 QUEUE_SYSFS_FEATURE(iostats, BLK_FEAT_IO_STAT)
-QUEUE_SYSFS_BIT_FNS(stable_writes, STABLE_WRITES, 0);
-#undef QUEUE_SYSFS_BIT_FNS
+QUEUE_SYSFS_FEATURE(stable_writes, BLK_FEAT_STABLE_WRITES);
 
 static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 {

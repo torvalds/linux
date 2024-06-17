@@ -1819,13 +1819,6 @@ static bool dm_table_supports_secure_erase(struct dm_table *t)
 	return true;
 }
 
-static int device_requires_stable_pages(struct dm_target *ti,
-					struct dm_dev *dev, sector_t start,
-					sector_t len, void *data)
-{
-	return bdev_stable_writes(dev->bdev);
-}
-
 int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			      struct queue_limits *limits)
 {
@@ -1861,18 +1854,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 
 	if (dm_table_any_dev_attr(t, device_dax_write_cache_enabled, NULL))
 		dax_write_cache(t->md->dax_dev, true);
-
-	/*
-	 * Some devices don't use blk_integrity but still want stable pages
-	 * because they do their own checksumming.
-	 * If any underlying device requires stable pages, a table must require
-	 * them as well.  Only targets that support iterate_devices are considered:
-	 * don't want error, zero, etc to require stable pages.
-	 */
-	if (dm_table_any_dev_attr(t, device_requires_stable_pages, NULL))
-		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, q);
-	else
-		blk_queue_flag_clear(QUEUE_FLAG_STABLE_WRITES, q);
 
 	/*
 	 * For a zoned target, setup the zones related queue attributes
