@@ -34,6 +34,20 @@ def define_anorak():
         "drivers/gpu/drm/display/drm_display_helper.ko",
         "drivers/gpu/drm/display/drm_dp_aux_bus.ko",
         "drivers/hwspinlock/qcom_hwspinlock.ko",
+        "drivers/hwtracing/coresight/coresight.ko",
+        "drivers/hwtracing/coresight/coresight-csr.ko",
+        "drivers/hwtracing/coresight/coresight-cti.ko",
+        "drivers/hwtracing/coresight/coresight-dummy.ko",
+        "drivers/hwtracing/coresight/coresight-funnel.ko",
+        "drivers/hwtracing/coresight/coresight-hwevent.ko",
+        "drivers/hwtracing/coresight/coresight-remote-etm.ko",
+        "drivers/hwtracing/coresight/coresight-replicator.ko",
+        "drivers/hwtracing/coresight/coresight-stm.ko",
+        "drivers/hwtracing/coresight/coresight-tgu.ko",
+        "drivers/hwtracing/coresight/coresight-tmc.ko",
+        "drivers/hwtracing/coresight/coresight-tmc-sec.ko",
+        "drivers/hwtracing/coresight/coresight-tpda.ko",
+        "drivers/hwtracing/coresight/coresight-tpdm.ko",
         "drivers/hwtracing/stm/stm_console.ko",
         "drivers/hwtracing/stm/stm_core.ko",
         "drivers/hwtracing/stm/stm_ftrace.ko",
@@ -105,6 +119,7 @@ def define_anorak():
         "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/crypto-qti.ko",
+        "drivers/soc/qcom/dcc_v2.ko",
         "drivers/soc/qcom/dcvs/bwmon.ko",
         "drivers/soc/qcom/dcvs/dcvs_fp.ko",
         "drivers/soc/qcom/dcvs/memlat.ko",
@@ -203,6 +218,7 @@ def define_anorak():
 
     _anorak_consolidate_in_tree_modules = _anorak_in_tree_modules + [
         # keep sorted
+        "drivers/hwtracing/coresight/coresight-etm4x.ko",
         "drivers/misc/lkdtm/lkdtm.ko",
         "kernel/sched/walt/sched-walt-debug.ko",
     ]
