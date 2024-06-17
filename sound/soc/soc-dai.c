@@ -473,7 +473,7 @@ int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
  */
 bool snd_soc_dai_stream_valid(const struct snd_soc_dai *dai, int dir)
 {
-	struct snd_soc_pcm_stream *stream = snd_soc_dai_get_pcm_stream(dai, dir);
+	const struct snd_soc_pcm_stream *stream = snd_soc_dai_get_pcm_stream(dai, dir);
 
 	/* If the codec specifies any channels at all, it supports the stream */
 	return stream->channels_min;

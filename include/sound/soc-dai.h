@@ -473,7 +473,7 @@ struct snd_soc_dai {
 	unsigned int probed:1;
 };
 
-static inline struct snd_soc_pcm_stream *
+static inline const struct snd_soc_pcm_stream *
 snd_soc_dai_get_pcm_stream(const struct snd_soc_dai *dai, int stream)
 {
 	return (stream == SNDRV_PCM_STREAM_PLAYBACK) ?
