@@ -14,6 +14,15 @@
 
 #include "adv748x.h"
 
+static const unsigned int adv748x_csi2_txa_fmts[] = {
+	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_RGB888_1X24,
+};
+
+static const unsigned int adv748x_csi2_txb_fmts[] = {
+	MEDIA_BUS_FMT_UYVY8_1X16,
+};
+
 int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx, unsigned int vc)
 {
 	return tx_write(tx, ADV748X_CSI_VC_REF, vc << ADV748X_CSI_VC_REF_SHIFT);
@@ -139,6 +148,41 @@ static const struct v4l2_subdev_video_ops adv748x_csi2_video_ops = {
  * But we must support setting the pad formats for format propagation.
  */
 
+static int adv748x_csi2_enum_mbus_code(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_state *sd_state,
+				       struct v4l2_subdev_mbus_code_enum *code)
+{
+	struct adv748x_csi2 *tx = adv748x_sd_to_csi2(sd);
+	const unsigned int *codes = is_txa(tx) ?
+				    adv748x_csi2_txa_fmts :
+				    adv748x_csi2_txb_fmts;
+	size_t num_fmts = is_txa(tx) ? ARRAY_SIZE(adv748x_csi2_txa_fmts)
+				     : ARRAY_SIZE(adv748x_csi2_txb_fmts);
+
+	/*
+	 * The format available on the source pad is the one applied on the sink
+	 * pad.
+	 */
+	if (code->pad == ADV748X_CSI2_SOURCE) {
+		struct v4l2_mbus_framefmt *fmt;
+
+		if (code->index)
+			return -EINVAL;
+
+		fmt = v4l2_subdev_state_get_format(sd_state, ADV748X_CSI2_SINK);
+		code->code = fmt->code;
+
+		return 0;
+	}
+
+	if (code->index >= num_fmts)
+		return -EINVAL;
+
+	code->code = codes[code->index];
+
+	return 0;
+}
+
 static struct v4l2_mbus_framefmt *
 adv748x_csi2_get_pad_format(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
@@ -228,6 +272,7 @@ static int adv748x_csi2_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad
 }
 
 static const struct v4l2_subdev_pad_ops adv748x_csi2_pad_ops = {
+	.enum_mbus_code = adv748x_csi2_enum_mbus_code,
 	.get_fmt = adv748x_csi2_get_format,
 	.set_fmt = adv748x_csi2_set_format,
 	.get_mbus_config = adv748x_csi2_get_mbus_config,
