@@ -114,6 +114,23 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 	return 0;
 }
 
+static int uncore_read(struct uncore_data *data, unsigned int *value, enum uncore_index index)
+{
+	switch (index) {
+	case UNCORE_INDEX_MIN_FREQ:
+	case UNCORE_INDEX_MAX_FREQ:
+		return uncore_read_control_freq(data, value, index);
+
+	case UNCORE_INDEX_CURRENT_FREQ:
+		return uncore_read_freq(data, value);
+
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 /* Caller provides protection */
 static struct uncore_data *uncore_get_instance(unsigned int cpu)
 {
@@ -256,8 +273,7 @@ static int __init intel_uncore_init(void)
 	if (!uncore_instances)
 		return -ENOMEM;
 
-	ret = uncore_freq_common_init(uncore_read_control_freq, uncore_write_control_freq,
-				      uncore_read_freq);
+	ret = uncore_freq_common_init(uncore_read, uncore_write_control_freq);
 	if (ret)
 		goto err_free;
 

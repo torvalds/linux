@@ -91,7 +91,7 @@ static void read_control_freq(struct tpmi_uncore_cluster_info *cluster_info,
 
 #define UNCORE_MAX_RATIO	FIELD_MAX(UNCORE_MAX_RATIO_MASK)
 
-/* Callback for sysfs read for max/min frequencies. Called under mutex locks */
+/* Helper for sysfs read for max/min frequencies. Called under mutex locks */
 static int uncore_read_control_freq(struct uncore_data *data, unsigned int *value,
 				    enum uncore_index index)
 {
@@ -207,7 +207,7 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 	return 0;
 }
 
-/* Callback for sysfs read for the current uncore frequency. Called under mutex locks */
+/* Helper for sysfs read for the current uncore frequency. Called under mutex locks */
 static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 {
 	struct tpmi_uncore_cluster_info *cluster_info;
@@ -221,6 +221,24 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 	*freq = FIELD_GET(UNCORE_CURRENT_RATIO_MASK, status) * UNCORE_FREQ_KHZ_MULTIPLIER;
 
 	return 0;
+}
+
+/* Callback for sysfs read for TPMI uncore values. Called under mutex locks. */
+static int uncore_read(struct uncore_data *data, unsigned int *value, enum uncore_index index)
+{
+	switch (index) {
+	case UNCORE_INDEX_MIN_FREQ:
+	case UNCORE_INDEX_MAX_FREQ:
+		return uncore_read_control_freq(data, value, index);
+
+	case UNCORE_INDEX_CURRENT_FREQ:
+		return uncore_read_freq(data, value);
+
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
 static void remove_cluster_entries(struct tpmi_uncore_struct *tpmi_uncore)
@@ -273,8 +291,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 		return -EINVAL;
 
 	/* Register callbacks to uncore core */
-	ret = uncore_freq_common_init(uncore_read_control_freq, uncore_write_control_freq,
-				      uncore_read_freq);
+	ret = uncore_freq_common_init(uncore_read, uncore_write_control_freq);
 	if (ret)
 		return ret;
 

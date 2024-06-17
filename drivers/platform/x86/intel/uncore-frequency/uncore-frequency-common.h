@@ -69,13 +69,13 @@ struct uncore_data {
 enum uncore_index {
 	UNCORE_INDEX_MIN_FREQ,
 	UNCORE_INDEX_MAX_FREQ,
+	UNCORE_INDEX_CURRENT_FREQ,
 };
 
-int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, unsigned int *value,
-						     enum uncore_index index),
-			    int (*write_control_freq)(struct uncore_data *data, unsigned int input,
-						      enum uncore_index index),
-			    int (*uncore_read_freq)(struct uncore_data *data, unsigned int *freq));
+int uncore_freq_common_init(int (*read)(struct uncore_data *data, unsigned int *value,
+					enum uncore_index index),
+			    int (*write)(struct uncore_data *data, unsigned int input,
+					 enum uncore_index index));
 void uncore_freq_common_exit(void);
 int uncore_freq_add_entry(struct uncore_data *data, int cpu);
 void uncore_freq_remove_die_entry(struct uncore_data *data);

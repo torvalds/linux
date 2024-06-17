@@ -21,7 +21,6 @@ static DEFINE_IDA(intel_uncore_ida);
 /* callbacks for actual HW read/write */
 static int (*uncore_read)(struct uncore_data *data, unsigned int *value, enum uncore_index index);
 static int (*uncore_write)(struct uncore_data *data, unsigned int input, enum uncore_index index);
-static int (*uncore_read_freq)(struct uncore_data *data, unsigned int *freq);
 
 static ssize_t show_domain_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -85,7 +84,7 @@ static ssize_t show_perf_status_freq_khz(struct uncore_data *data, char *buf)
 	int ret;
 
 	mutex_lock(&uncore_lock);
-	ret = uncore_read_freq(data, &freq);
+	ret = uncore_read(data, &freq, UNCORE_INDEX_CURRENT_FREQ);
 	mutex_unlock(&uncore_lock);
 	if (ret)
 		return ret;
@@ -195,7 +194,7 @@ static int create_attr_group(struct uncore_data *data, char *name)
 	data->uncore_attrs[index++] = &data->initial_min_freq_khz_kobj_attr.attr;
 	data->uncore_attrs[index++] = &data->initial_max_freq_khz_kobj_attr.attr;
 
-	ret = uncore_read_freq(data, &freq);
+	ret = uncore_read(data, &freq, UNCORE_INDEX_CURRENT_FREQ);
 	if (!ret)
 		data->uncore_attrs[index++] = &data->current_freq_khz_kobj_attr.attr;
 
@@ -267,17 +266,15 @@ void uncore_freq_remove_die_entry(struct uncore_data *data)
 }
 EXPORT_SYMBOL_NS_GPL(uncore_freq_remove_die_entry, INTEL_UNCORE_FREQUENCY);
 
-int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, unsigned int *value,
-						     enum uncore_index index),
-			    int (*write_control_freq)(struct uncore_data *data, unsigned int input,
-						      enum uncore_index index),
-			    int (*read_freq)(struct uncore_data *data, unsigned int *freq))
+int uncore_freq_common_init(int (*read)(struct uncore_data *data, unsigned int *value,
+					enum uncore_index index),
+			    int (*write)(struct uncore_data *data, unsigned int input,
+					 enum uncore_index index))
 {
 	mutex_lock(&uncore_lock);
 
-	uncore_read = read_control_freq;
-	uncore_write = write_control_freq;
-	uncore_read_freq = read_freq;
+	uncore_read = read;
+	uncore_write = write;
 
 	if (!uncore_root_kobj) {
 		struct device *dev_root = bus_get_dev_root(&cpu_subsys);
