@@ -358,15 +358,15 @@ static int rradc_enable_continuous_mode(struct rradc_chip *chip)
 	int ret;
 
 	/* Clear channel log */
-	ret = regmap_update_bits(chip->regmap, chip->base + RR_ADC_LOG,
-				 RR_ADC_LOG_CLR_CTRL, RR_ADC_LOG_CLR_CTRL);
+	ret = regmap_set_bits(chip->regmap, chip->base + RR_ADC_LOG,
+			      RR_ADC_LOG_CLR_CTRL);
 	if (ret < 0) {
 		dev_err(chip->dev, "log ctrl update to clear failed:%d\n", ret);
 		return ret;
 	}
 
-	ret = regmap_update_bits(chip->regmap, chip->base + RR_ADC_LOG,
-				 RR_ADC_LOG_CLR_CTRL, 0);
+	ret = regmap_clear_bits(chip->regmap, chip->base + RR_ADC_LOG,
+				RR_ADC_LOG_CLR_CTRL);
 	if (ret < 0) {
 		dev_err(chip->dev, "log ctrl update to not clear failed:%d\n",
 			ret);
@@ -374,9 +374,8 @@ static int rradc_enable_continuous_mode(struct rradc_chip *chip)
 	}
 
 	/* Switch to continuous mode */
-	ret = regmap_update_bits(chip->regmap, chip->base + RR_ADC_CTL,
-				 RR_ADC_CTL_CONTINUOUS_SEL,
-				 RR_ADC_CTL_CONTINUOUS_SEL);
+	ret = regmap_set_bits(chip->regmap, chip->base + RR_ADC_CTL,
+			      RR_ADC_CTL_CONTINUOUS_SEL);
 	if (ret < 0)
 		dev_err(chip->dev, "Update to continuous mode failed:%d\n",
 			ret);
@@ -389,8 +388,8 @@ static int rradc_disable_continuous_mode(struct rradc_chip *chip)
 	int ret;
 
 	/* Switch to non continuous mode */
-	ret = regmap_update_bits(chip->regmap, chip->base + RR_ADC_CTL,
-				 RR_ADC_CTL_CONTINUOUS_SEL, 0);
+	ret = regmap_clear_bits(chip->regmap, chip->base + RR_ADC_CTL,
+				RR_ADC_CTL_CONTINUOUS_SEL);
 	if (ret < 0)
 		dev_err(chip->dev, "Update to non-continuous mode failed:%d\n",
 			ret);
@@ -434,8 +433,8 @@ static int rradc_read_status_in_cont_mode(struct rradc_chip *chip,
 		return -EINVAL;
 	}
 
-	ret = regmap_update_bits(chip->regmap, chip->base + chan->trigger_addr,
-				 chan->trigger_mask, chan->trigger_mask);
+	ret = regmap_set_bits(chip->regmap, chip->base + chan->trigger_addr,
+			      chan->trigger_mask);
 	if (ret < 0) {
 		dev_err(chip->dev,
 			"Failed to apply trigger for channel '%s' ret=%d\n",
@@ -469,8 +468,8 @@ static int rradc_read_status_in_cont_mode(struct rradc_chip *chip,
 	rradc_disable_continuous_mode(chip);
 
 disable_trigger:
-	regmap_update_bits(chip->regmap, chip->base + chan->trigger_addr,
-			   chan->trigger_mask, 0);
+	regmap_clear_bits(chip->regmap, chip->base + chan->trigger_addr,
+			  chan->trigger_mask);
 
 	return ret;
 }
@@ -481,17 +480,16 @@ static int rradc_prepare_batt_id_conversion(struct rradc_chip *chip,
 {
 	int ret;
 
-	ret = regmap_update_bits(chip->regmap, chip->base + RR_ADC_BATT_ID_CTRL,
-				 RR_ADC_BATT_ID_CTRL_CHANNEL_CONV,
-				 RR_ADC_BATT_ID_CTRL_CHANNEL_CONV);
+	ret = regmap_set_bits(chip->regmap, chip->base + RR_ADC_BATT_ID_CTRL,
+			      RR_ADC_BATT_ID_CTRL_CHANNEL_CONV);
 	if (ret < 0) {
 		dev_err(chip->dev, "Enabling BATT ID channel failed:%d\n", ret);
 		return ret;
 	}
 
-	ret = regmap_update_bits(chip->regmap,
-				 chip->base + RR_ADC_BATT_ID_TRIGGER,
-				 RR_ADC_TRIGGER_CTL, RR_ADC_TRIGGER_CTL);
+	ret = regmap_set_bits(chip->regmap,
+			      chip->base + RR_ADC_BATT_ID_TRIGGER,
+			      RR_ADC_TRIGGER_CTL);
 	if (ret < 0) {
 		dev_err(chip->dev, "BATT_ID trigger set failed:%d\n", ret);
 		goto out_disable_batt_id;
@@ -500,12 +498,12 @@ static int rradc_prepare_batt_id_conversion(struct rradc_chip *chip,
 	ret = rradc_read_status_in_cont_mode(chip, chan_address);
 
 	/* Reset registers back to default values */
-	regmap_update_bits(chip->regmap, chip->base + RR_ADC_BATT_ID_TRIGGER,
-			   RR_ADC_TRIGGER_CTL, 0);
+	regmap_clear_bits(chip->regmap, chip->base + RR_ADC_BATT_ID_TRIGGER,
+			  RR_ADC_TRIGGER_CTL);
 
 out_disable_batt_id:
-	regmap_update_bits(chip->regmap, chip->base + RR_ADC_BATT_ID_CTRL,
-			   RR_ADC_BATT_ID_CTRL_CHANNEL_CONV, 0);
+	regmap_clear_bits(chip->regmap, chip->base + RR_ADC_BATT_ID_CTRL,
+			  RR_ADC_BATT_ID_CTRL_CHANNEL_CONV);
 
 	return ret;
 }
@@ -965,9 +963,9 @@ static int rradc_probe(struct platform_device *pdev)
 
 	if (batt_id_delay >= 0) {
 		batt_id_delay = FIELD_PREP(BATT_ID_SETTLE_MASK, batt_id_delay);
-		ret = regmap_update_bits(chip->regmap,
-					 chip->base + RR_ADC_BATT_ID_CFG,
-					 batt_id_delay, batt_id_delay);
+		ret = regmap_set_bits(chip->regmap,
+				      chip->base + RR_ADC_BATT_ID_CFG,
+				      batt_id_delay);
 		if (ret < 0) {
 			dev_err(chip->dev,
 				"BATT_ID settling time config failed:%d\n",
