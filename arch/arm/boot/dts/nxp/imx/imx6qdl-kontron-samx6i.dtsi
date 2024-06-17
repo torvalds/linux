@@ -800,7 +800,6 @@
 
 /* SDMMC */
 &usdhc4 {
-	/* Internal eMMC, optional on some boards */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
@@ -809,6 +808,7 @@
 	non-removable;
 	vmmc-supply = <&reg_3p3v_s0>;
 	vqmmc-supply = <&reg_1p8v_s0>;
+	status = "okay";
 };
 
 &wdog1 {
