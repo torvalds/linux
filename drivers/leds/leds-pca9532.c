@@ -53,6 +53,7 @@ struct pca9532_data {
 #define PCA9532_PWM_ID_1	1
 	u8 pwm[2];
 	u8 psc[2];
+	bool hw_blink;
 };
 
 static int pca9532_probe(struct i2c_client *client);
@@ -238,7 +239,12 @@ static int pca9532_set_blink(struct led_classdev *led_cdev,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
 	struct pca9532_led *led = ldev_to_led(led_cdev);
+	struct i2c_client *client = led->client;
+	struct pca9532_data *data = i2c_get_clientdata(client);
 	int err;
+
+	if (!data->hw_blink)
+		return -EINVAL;
 
 	if (*delay_on == 0 && *delay_off == 0) {
 		/* led subsystem ask us for a blink rate */
@@ -395,6 +401,7 @@ static int pca9532_configure(struct i2c_client *client,
 			data->psc[i]);
 	}
 
+	data->hw_blink = true;
 	for (i = 0; i < data->chip_info->num_leds; i++) {
 		struct pca9532_led *led = &data->leds[i];
 		struct pca9532_led *pled = &pdata->leds[i];
@@ -429,6 +436,8 @@ static int pca9532_configure(struct i2c_client *client,
 			pca9532_setled(led);
 			break;
 		case PCA9532_TYPE_N2100_BEEP:
+			/* PWM1 is reserved for beeper so blink will not use hardware */
+			data->hw_blink = false;
 			BUG_ON(data->idev);
 			led->state = PCA9532_PWM1;
 			pca9532_setled(led);
