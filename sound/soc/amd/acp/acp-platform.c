@@ -197,6 +197,20 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	else
 		runtime->hw = acp_pcm_hardware_capture;
 
+	ret = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, DMA_SIZE);
+	if (ret) {
+		dev_err(component->dev, "set hw constraint HW_PARAM_PERIOD_BYTES failed\n");
+		kfree(stream);
+		return ret;
+	}
+
+	ret = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, DMA_SIZE);
+	if (ret) {
+		dev_err(component->dev, "set hw constraint HW_PARAM_BUFFER_BYTES failed\n");
+		kfree(stream);
+		return ret;
+	}
+
 	ret = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0) {
 		dev_err(component->dev, "set integer constraint failed\n");
