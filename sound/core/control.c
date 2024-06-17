@@ -604,6 +604,7 @@ static inline int snd_ctl_remove_locked(struct snd_card *card,
  *
  * Removes the control from the card and then releases the instance.
  * You don't need to call snd_ctl_free_one().
+ * Passing NULL to @kcontrol argument is allowed as noop.
  *
  * Return: 0 if successful, or a negative error code on failure.
  *
@@ -611,6 +612,8 @@ static inline int snd_ctl_remove_locked(struct snd_card *card,
  */
 int snd_ctl_remove(struct snd_card *card, struct snd_kcontrol *kcontrol)
 {
+	if (!kcontrol)
+		return 0;
 	guard(rwsem_write)(&card->controls_rwsem);
 	return snd_ctl_remove_locked(card, kcontrol);
 }
