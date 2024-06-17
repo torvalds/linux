@@ -149,7 +149,7 @@
 		status = "disabled";
 	};
 
-	i2c_intern: i2c-gpio-intern {
+	i2c_intern: i2c-0 {
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c_gpio_intern>;
@@ -160,7 +160,7 @@
 		#size-cells = <0>;
 	};
 
-	i2c_lcd: i2c-gpio-lcd {
+	i2c_lcd: i2c-1 {
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c_gpio_lcd>;
@@ -172,7 +172,7 @@
 		status = "disabled";
 	};
 
-	i2c_cam: i2c-gpio-cam {
+	i2c_cam: i2c-2 {
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c_gpio_cam>;
@@ -190,7 +190,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_audmux>;
 
-	audmux_ssi1 {
+	mux-ssi1 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT1_SSI0>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_TFSEL(MX51_AUDMUX_PORT3) |
@@ -202,7 +202,7 @@
 		>;
 	};
 
-	audmux_adu3 {
+	mux-aud3 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT3>;
 		fsl,port-config = <
 			IMX_AUDMUX_V2_PTCR_SYN
@@ -210,7 +210,7 @@
 		>;
 	};
 
-	audmux_ssi2 {
+	mux-ssi2 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT2_SSI1>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_TFSEL(MX51_AUDMUX_PORT4) |
@@ -222,7 +222,7 @@
 		>;
 	};
 
-	audmux_adu4 {
+	mux-aud4 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT4>;
 		fsl,port-config = <
 			IMX_AUDMUX_V2_PTCR_SYN
