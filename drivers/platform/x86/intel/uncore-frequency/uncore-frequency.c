@@ -14,6 +14,7 @@
  * Author: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -36,6 +37,11 @@ static enum cpuhp_state uncore_hp_state __read_mostly;
 #define MSR_UNCORE_PERF_STATUS	0x621
 #define UNCORE_FREQ_KHZ_MULTIPLIER	100000
 
+#define UNCORE_MAX_RATIO_MASK	GENMASK_ULL(6, 0)
+#define UNCORE_MIN_RATIO_MASK	GENMASK_ULL(14, 8)
+
+#define UNCORE_CURRENT_RATIO_MASK	GENMASK_ULL(6, 0)
+
 static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
 				    unsigned int *max)
 {
@@ -49,8 +55,8 @@ static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
 	if (ret)
 		return ret;
 
-	*max = (cap & 0x7F) * UNCORE_FREQ_KHZ_MULTIPLIER;
-	*min = ((cap & GENMASK(14, 8)) >> 8) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	*max = FIELD_GET(UNCORE_MAX_RATIO_MASK, cap) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	*min = FIELD_GET(UNCORE_MIN_RATIO_MASK, cap) * UNCORE_FREQ_KHZ_MULTIPLIER;
 
 	return 0;
 }
@@ -62,7 +68,7 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 	u64 cap;
 
 	input /= UNCORE_FREQ_KHZ_MULTIPLIER;
-	if (!input || input > 0x7F)
+	if (!input || input > FIELD_MAX(UNCORE_MAX_RATIO_MASK))
 		return -EINVAL;
 
 	if (data->control_cpu < 0)
@@ -73,11 +79,11 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 		return ret;
 
 	if (min_max) {
-		cap &= ~0x7F;
-		cap |= input;
+		cap &= ~UNCORE_MAX_RATIO_MASK;
+		cap |= FIELD_PREP(UNCORE_MAX_RATIO_MASK, input);
 	} else  {
-		cap &= ~GENMASK(14, 8);
-		cap |= (input << 8);
+		cap &= ~UNCORE_MIN_RATIO_MASK;
+		cap |= FIELD_PREP(UNCORE_MIN_RATIO_MASK, input);
 	}
 
 	ret = wrmsrl_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT, cap);
@@ -101,7 +107,7 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 	if (ret)
 		return ret;
 
-	*freq = (ratio & 0x7F) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	*freq = FIELD_GET(UNCORE_CURRENT_RATIO_MASK, ratio) * UNCORE_FREQ_KHZ_MULTIPLIER;
 
 	return 0;
 }
