@@ -198,7 +198,7 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 		goto out;
 
 	kvm->arch.sysreg_masks = kzalloc(sizeof(*(kvm->arch.sysreg_masks)),
-					 GFP_KERNEL);
+					 GFP_KERNEL_ACCOUNT);
 	if (!kvm->arch.sysreg_masks) {
 		ret = -ENOMEM;
 		goto out;
