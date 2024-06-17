@@ -6988,6 +6988,8 @@ static void hci_le_big_info_adv_report_evt(struct hci_dev *hdev, void *data,
 	if (!pa_sync)
 		goto unlock;
 
+	pa_sync->iso_qos.bcast.encryption = ev->encryption;
+
 	/* Notify iso layer */
 	hci_connect_cfm(pa_sync, 0);
 
