@@ -5,75 +5,13 @@
 #include <linux/gfp.h>
 #include <linux/kmemleak.h>
 
-#define GENRADIX_ARY		(GENRADIX_NODE_SIZE / sizeof(struct genradix_node *))
-#define GENRADIX_ARY_SHIFT	ilog2(GENRADIX_ARY)
-
-struct genradix_node {
-	union {
-		/* Interior node: */
-		struct genradix_node	*children[GENRADIX_ARY];
-
-		/* Leaf: */
-		u8			data[GENRADIX_NODE_SIZE];
-	};
-};
-
-static inline int genradix_depth_shift(unsigned depth)
-{
-	return GENRADIX_NODE_SHIFT + GENRADIX_ARY_SHIFT * depth;
-}
-
-/*
- * Returns size (of data, in bytes) that a tree of a given depth holds:
- */
-static inline size_t genradix_depth_size(unsigned depth)
-{
-	return 1UL << genradix_depth_shift(depth);
-}
-
-/* depth that's needed for a genradix that can address up to ULONG_MAX: */
-#define GENRADIX_MAX_DEPTH	\
-	DIV_ROUND_UP(BITS_PER_LONG - GENRADIX_NODE_SHIFT, GENRADIX_ARY_SHIFT)
-
-#define GENRADIX_DEPTH_MASK				\
-	((unsigned long) (roundup_pow_of_two(GENRADIX_MAX_DEPTH + 1) - 1))
-
-static inline unsigned genradix_root_to_depth(struct genradix_root *r)
-{
-	return (unsigned long) r & GENRADIX_DEPTH_MASK;
-}
-
-static inline struct genradix_node *genradix_root_to_node(struct genradix_root *r)
-{
-	return (void *) ((unsigned long) r & ~GENRADIX_DEPTH_MASK);
-}
-
 /*
  * Returns pointer to the specified byte @offset within @radix, or NULL if not
  * allocated
  */
 void *__genradix_ptr(struct __genradix *radix, size_t offset)
 {
-	struct genradix_root *r = READ_ONCE(radix->root);
-	struct genradix_node *n = genradix_root_to_node(r);
-	unsigned level		= genradix_root_to_depth(r);
-
-	if (ilog2(offset) >= genradix_depth_shift(level))
-		return NULL;
-
-	while (1) {
-		if (!n)
-			return NULL;
-		if (!level)
-			break;
-
-		level--;
-
-		n = n->children[offset >> genradix_depth_shift(level)];
-		offset &= genradix_depth_size(level) - 1;
-	}
-
-	return &n->data[offset];
+	return __genradix_ptr_inlined(radix, offset);
 }
 EXPORT_SYMBOL(__genradix_ptr);
 
