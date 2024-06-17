@@ -362,6 +362,12 @@ properties:
           - const: gw,ventana
           - const: fsl,imx6q
 
+      - description: i.MX6Q Kontron SMARC-sAMX6i on SMARC Eval Carrier 2.0
+        items:
+          - const: kontron,imx6q-samx6i-ads2
+          - const: kontron,imx6q-samx6i
+          - const: fsl,imx6q
+
       - description: i.MX6Q PHYTEC phyBOARD-Mira
         items:
           - enum:
@@ -541,6 +547,12 @@ properties:
               - gw,imx6dl-gw5912
               - gw,imx6dl-gw5913
           - const: gw,ventana
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL Kontron SMARC-sAMX6i on SMARC Eval Carrier 2.0
+        items:
+          - const: kontron,imx6dl-samx6i-ads2
+          - const: kontron,imx6dl-samx6i
           - const: fsl,imx6dl
 
       - description: i.MX6DL PHYTEC phyBOARD-Mira
