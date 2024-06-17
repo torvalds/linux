@@ -133,7 +133,7 @@ config AD5624R_SPI
 
 config AD9739A
 	tristate "Analog Devices AD9739A RF DAC spi driver"
-	depends on SPI || COMPILE_TEST
+	depends on SPI
 	select REGMAP_SPI
 	select IIO_BACKEND
 	help
