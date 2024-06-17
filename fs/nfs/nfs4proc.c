@@ -6575,6 +6575,7 @@ struct nfs4_delegreturndata {
 		u32 roc_barrier;
 		bool roc;
 	} lr;
+	struct nfs4_delegattr sattr;
 	struct nfs_fattr fattr;
 	int rpc_status;
 	struct inode *inode;
@@ -6598,6 +6599,30 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	if (pnfs_roc_done(task, &data->args.lr_args, &data->res.lr_res,
 			  &data->res.lr_ret) == -EAGAIN)
 		goto out_restart;
+
+	if (data->args.sattr_args && task->tk_status != 0) {
+		switch(data->res.sattr_ret) {
+		case 0:
+			data->args.sattr_args = NULL;
+			data->res.sattr_res = false;
+			break;
+		case -NFS4ERR_ADMIN_REVOKED:
+		case -NFS4ERR_DELEG_REVOKED:
+		case -NFS4ERR_EXPIRED:
+		case -NFS4ERR_BAD_STATEID:
+			/* Let the main handler below do stateid recovery */
+			break;
+		case -NFS4ERR_OLD_STATEID:
+			if (nfs4_refresh_delegation_stateid(&data->stateid,
+						data->inode))
+				goto out_restart;
+			fallthrough;
+		default:
+			data->args.sattr_args = NULL;
+			data->res.sattr_res = false;
+			goto out_restart;
+		}
+	}
 
 	switch (task->tk_status) {
 	case 0:
