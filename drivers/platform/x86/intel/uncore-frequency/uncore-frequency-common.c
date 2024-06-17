@@ -76,20 +76,6 @@ static ssize_t store_attr(struct uncore_data *data, const char *buf, ssize_t cou
 	return count;
 }
 
-static ssize_t show_perf_status_freq_khz(struct uncore_data *data, char *buf)
-{
-	unsigned int freq;
-	int ret;
-
-	mutex_lock(&uncore_lock);
-	ret = uncore_read(data, &freq, UNCORE_INDEX_CURRENT_FREQ);
-	mutex_unlock(&uncore_lock);
-	if (ret)
-		return ret;
-
-	return sprintf(buf, "%u\n", freq);
-}
-
 #define store_uncore_attr(name, index)					\
 	static ssize_t store_##name(struct kobject *kobj,		\
 				     struct kobj_attribute *attr,	\
@@ -109,22 +95,13 @@ static ssize_t show_perf_status_freq_khz(struct uncore_data *data, char *buf)
 		return show_attr(data, buf, index);			\
 	}
 
-#define show_uncore_perf_status(name)					\
-	static ssize_t show_##name(struct kobject *kobj,		\
-				   struct kobj_attribute *attr, char *buf)\
-	{                                                               \
-		struct uncore_data *data = container_of(attr, struct uncore_data, name##_kobj_attr);\
-									\
-		return show_perf_status_freq_khz(data, buf); \
-	}
-
 store_uncore_attr(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
 store_uncore_attr(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
 show_uncore_attr(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
 show_uncore_attr(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
-show_uncore_perf_status(current_freq_khz);
+show_uncore_attr(current_freq_khz, UNCORE_INDEX_CURRENT_FREQ);
 
 #define show_uncore_data(member_name)					\
 	static ssize_t show_##member_name(struct kobject *kobj,	\
