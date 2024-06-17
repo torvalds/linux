@@ -134,6 +134,62 @@ EXPORT_SYMBOL(gic_nonsecure_priorities);
 		__priority;						\
 	})
 
+static u32 gic_get_pribits(void)
+{
+	u32 pribits;
+
+	pribits = gic_read_ctlr();
+	pribits &= ICC_CTLR_EL1_PRI_BITS_MASK;
+	pribits >>= ICC_CTLR_EL1_PRI_BITS_SHIFT;
+	pribits++;
+
+	return pribits;
+}
+
+static bool gic_has_group0(void)
+{
+	u32 val;
+	u32 old_pmr;
+
+	old_pmr = gic_read_pmr();
+
+	/*
+	 * Let's find out if Group0 is under control of EL3 or not by
+	 * setting the highest possible, non-zero priority in PMR.
+	 *
+	 * If SCR_EL3.FIQ is set, the priority gets shifted down in
+	 * order for the CPU interface to set bit 7, and keep the
+	 * actual priority in the non-secure range. In the process, it
+	 * looses the least significant bit and the actual priority
+	 * becomes 0x80. Reading it back returns 0, indicating that
+	 * we're don't have access to Group0.
+	 */
+	gic_write_pmr(BIT(8 - gic_get_pribits()));
+	val = gic_read_pmr();
+
+	gic_write_pmr(old_pmr);
+
+	return val != 0;
+}
+
+static inline bool gic_dist_security_disabled(void)
+{
+	return readl_relaxed(gic_data.dist_base + GICD_CTLR) & GICD_CTLR_DS;
+}
+
+static bool cpus_have_security_disabled __ro_after_init;
+static bool cpus_have_group0 __ro_after_init;
+
+static void __init gic_prio_init(void)
+{
+	cpus_have_security_disabled = gic_dist_security_disabled();
+	cpus_have_group0 = gic_has_group0();
+
+	pr_info("GICD_CTRL.DS=%d, SCR_EL3.FIQ=%d\n",
+		cpus_have_security_disabled,
+		!cpus_have_group0);
+}
+
 /* rdist_nmi_refs[n] == number of cpus having the rdist interrupt n set as NMI */
 static refcount_t *rdist_nmi_refs;
 
@@ -868,44 +924,6 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 		__gic_handle_irq_from_irqson(regs);
 }
 
-static u32 gic_get_pribits(void)
-{
-	u32 pribits;
-
-	pribits = gic_read_ctlr();
-	pribits &= ICC_CTLR_EL1_PRI_BITS_MASK;
-	pribits >>= ICC_CTLR_EL1_PRI_BITS_SHIFT;
-	pribits++;
-
-	return pribits;
-}
-
-static bool gic_has_group0(void)
-{
-	u32 val;
-	u32 old_pmr;
-
-	old_pmr = gic_read_pmr();
-
-	/*
-	 * Let's find out if Group0 is under control of EL3 or not by
-	 * setting the highest possible, non-zero priority in PMR.
-	 *
-	 * If SCR_EL3.FIQ is set, the priority gets shifted down in
-	 * order for the CPU interface to set bit 7, and keep the
-	 * actual priority in the non-secure range. In the process, it
-	 * looses the least significant bit and the actual priority
-	 * becomes 0x80. Reading it back returns 0, indicating that
-	 * we're don't have access to Group0.
-	 */
-	gic_write_pmr(BIT(8 - gic_get_pribits()));
-	val = gic_read_pmr();
-
-	gic_write_pmr(old_pmr);
-
-	return val != 0;
-}
-
 static void __init gic_dist_init(void)
 {
 	unsigned int i;
@@ -1122,12 +1140,6 @@ static void gic_update_rdist_properties(void)
 			gic_data.rdists.has_vpend_valid_dirty ? "Valid+Dirty " : "");
 }
 
-/* Check whether it's single security state view */
-static inline bool gic_dist_security_disabled(void)
-{
-	return readl_relaxed(gic_data.dist_base + GICD_CTLR) & GICD_CTLR_DS;
-}
-
 static void gic_cpu_sys_reg_init(void)
 {
 	int i, cpu = smp_processor_id();
@@ -1155,18 +1167,14 @@ static void gic_cpu_sys_reg_init(void)
 		write_gicreg(DEFAULT_PMR_VALUE, ICC_PMR_EL1);
 	} else if (gic_supports_nmi()) {
 		/*
-		 * Mismatch configuration with boot CPU, the system is likely
-		 * to die as interrupt masking will not work properly on all
-		 * CPUs
+		 * Check that all CPUs use the same priority space.
 		 *
-		 * The boot CPU calls this function before enabling NMI support,
-		 * and as a result we'll never see this warning in the boot path
-		 * for that CPU.
+		 * If there's a mismatch with the boot CPU, the system is
+		 * likely to die as interrupt masking will not work properly on
+		 * all CPUs.
 		 */
-		if (static_branch_unlikely(&gic_nonsecure_priorities))
-			WARN_ON(!group0 || gic_dist_security_disabled());
-		else
-			WARN_ON(group0 && !gic_dist_security_disabled());
+		WARN_ON(group0 != cpus_have_group0);
+		WARN_ON(gic_dist_security_disabled() != cpus_have_security_disabled);
 	}
 
 	/*
@@ -2062,6 +2070,7 @@ static int __init gic_init_bases(phys_addr_t dist_phys_base,
 
 	gic_update_rdist_properties();
 
+	gic_prio_init();
 	gic_dist_init();
 	gic_cpu_init();
 	gic_enable_nmi_support();
