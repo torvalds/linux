@@ -7,6 +7,6 @@
 #include "imx6qdl-kontron-samx6i.dtsi"
 
 / {
-	model = "Kontron SMARC sAMX6i Quad/Dual";
+	model = "Kontron SMARC-sAMX6i Quad/Dual";
 	compatible = "kontron,imx6q-samx6i", "fsl,imx6q";
 };
