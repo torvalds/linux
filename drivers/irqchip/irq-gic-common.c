@@ -45,7 +45,7 @@ void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 }
 
 int gic_configure_irq(unsigned int irq, unsigned int type,
-		       void __iomem *base, void (*sync_access)(void))
+		       void __iomem *base)
 {
 	u32 confmask = 0x2 << ((irq % 16) * 2);
 	u32 confoff = (irq / 16) * 4;
@@ -84,14 +84,10 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 
 	raw_spin_unlock_irqrestore(&irq_controller_lock, flags);
 
-	if (sync_access)
-		sync_access();
-
 	return ret;
 }
 
-void gic_dist_config(void __iomem *base, int gic_irqs,
-		     void (*sync_access)(void))
+void gic_dist_config(void __iomem *base, int gic_irqs)
 {
 	unsigned int i;
 
@@ -118,12 +114,9 @@ void gic_dist_config(void __iomem *base, int gic_irqs,
 		writel_relaxed(GICD_INT_EN_CLR_X32,
 			       base + GIC_DIST_ENABLE_CLEAR + i / 8);
 	}
-
-	if (sync_access)
-		sync_access();
 }
 
-void gic_cpu_config(void __iomem *base, int nr, void (*sync_access)(void))
+void gic_cpu_config(void __iomem *base, int nr)
 {
 	int i;
 
@@ -144,7 +137,4 @@ void gic_cpu_config(void __iomem *base, int nr, void (*sync_access)(void))
 	for (i = 0; i < nr; i += 4)
 		writel_relaxed(GICD_INT_DEF_PRI_X4,
 					base + GIC_DIST_PRI + i * 4 / 4);
-
-	if (sync_access)
-		sync_access();
 }

@@ -303,7 +303,7 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 			    type != IRQ_TYPE_EDGE_RISING)
 		return -EINVAL;
 
-	ret = gic_configure_irq(gicirq, type, base + GIC_DIST_CONFIG, NULL);
+	ret = gic_configure_irq(gicirq, type, base + GIC_DIST_CONFIG);
 	if (ret && gicirq < 32) {
 		/* Misconfigured PPIs are usually not fatal */
 		pr_warn("GIC: PPI%ld is secure or misconfigured\n", gicirq - 16);
@@ -479,7 +479,7 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	for (i = 32; i < gic_irqs; i += 4)
 		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
 
-	gic_dist_config(base, gic_irqs, NULL);
+	gic_dist_config(base, gic_irqs);
 
 	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
 }
@@ -516,7 +516,7 @@ static int gic_cpu_init(struct gic_chip_data *gic)
 				gic_cpu_map[i] &= ~cpu_mask;
 	}
 
-	gic_cpu_config(dist_base, 32, NULL);
+	gic_cpu_config(dist_base, 32);
 
 	writel_relaxed(GICC_INT_PRI_THRESHOLD, base + GIC_CPU_PRIMASK);
 	gic_cpu_if_up(gic);

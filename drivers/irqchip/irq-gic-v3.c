@@ -670,7 +670,7 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 
 	offset = convert_offset_index(d, GICD_ICFGR, &index);
 
-	ret = gic_configure_irq(index, type, base + offset, NULL);
+	ret = gic_configure_irq(index, type, base + offset);
 	if (ret && (range == PPI_RANGE || range == EPPI_RANGE)) {
 		/* Misconfigured PPIs are usually not fatal */
 		pr_warn("GIC: PPI INTID%ld is secure or misconfigured\n", irq);
@@ -940,7 +940,7 @@ static void __init gic_dist_init(void)
 		writel_relaxed(GICD_INT_DEF_PRI_X4, base + GICD_IPRIORITYRnE + i);
 
 	/* Now do the common stuff */
-	gic_dist_config(base, GIC_LINE_NR, NULL);
+	gic_dist_config(base, GIC_LINE_NR);
 
 	val = GICD_CTLR_ARE_NS | GICD_CTLR_ENABLE_G1A | GICD_CTLR_ENABLE_G1;
 	if (gic_data.rdists.gicd_typer2 & GICD_TYPER2_nASSGIcap) {
@@ -1282,7 +1282,8 @@ static void gic_cpu_init(void)
 	for (i = 0; i < gic_data.ppi_nr + SGI_NR; i += 32)
 		writel_relaxed(~0, rbase + GICR_IGROUPR0 + i / 8);
 
-	gic_cpu_config(rbase, gic_data.ppi_nr + SGI_NR, gic_redist_wait_for_rwp);
+	gic_cpu_config(rbase, gic_data.ppi_nr + SGI_NR);
+	gic_redist_wait_for_rwp();
 
 	/* initialise system registers */
 	gic_cpu_sys_reg_init();
