@@ -2225,7 +2225,7 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 {
 	struct nfs_delegation *delegation;
 	struct nfs4_opendata *opendata;
-	fmode_t delegation_type = 0;
+	u32 delegation_type = NFS4_OPEN_DELEGATE_NONE;
 	int status;
 
 	opendata = nfs4_open_recoverdata_alloc(ctx, state,
@@ -2234,8 +2234,20 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 		return PTR_ERR(opendata);
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
-	if (delegation != NULL && test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags) != 0)
-		delegation_type = delegation->type;
+	if (delegation != NULL && test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags) != 0) {
+		switch(delegation->type) {
+		case FMODE_READ:
+			delegation_type = NFS4_OPEN_DELEGATE_READ;
+			if (test_bit(NFS_DELEGATION_DELEGTIME, &delegation->flags))
+				delegation_type = NFS4_OPEN_DELEGATE_READ_ATTRS_DELEG;
+			break;
+		case FMODE_WRITE:
+		case FMODE_READ|FMODE_WRITE:
+			delegation_type = NFS4_OPEN_DELEGATE_WRITE;
+			if (test_bit(NFS_DELEGATION_DELEGTIME, &delegation->flags))
+				delegation_type = NFS4_OPEN_DELEGATE_WRITE_ATTRS_DELEG;
+		}
+	}
 	rcu_read_unlock();
 	opendata->o_arg.u.delegation_type = delegation_type;
 	status = nfs4_open_recover(opendata, state);
