@@ -248,8 +248,8 @@ static int pca9532_set_blink(struct led_classdev *led_cdev,
 
 	if (*delay_on == 0 && *delay_off == 0) {
 		/* led subsystem ask us for a blink rate */
-		*delay_on = 1000;
-		*delay_off = 1000;
+		*delay_on = 500;
+		*delay_off = 500;
 	}
 
 	err = pca9532_update_hw_blink(led, *delay_on, *delay_off);
