@@ -39,6 +39,14 @@
  */
 #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
 
+/**
+ * REPEAT_BYTE_U32 - repeat the value @x multiple times as a u32 value
+ * @x: value to repeat
+ *
+ * NOTE: @x is not checked for > 0xff; larger values produce odd results.
+ */
+#define REPEAT_BYTE_U32(x)	lower_32_bits(REPEAT_BYTE(x))
+
 /* Set bits in the first 'n' bytes when loaded from memory */
 #ifdef __LITTLE_ENDIAN
 #  define aligned_byte_mask(n) ((1UL << 8*(n))-1)
