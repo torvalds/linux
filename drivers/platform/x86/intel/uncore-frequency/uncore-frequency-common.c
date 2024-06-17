@@ -43,8 +43,7 @@ static ssize_t show_package_id(struct kobject *kobj, struct kobj_attribute *attr
 	return sprintf(buf, "%u\n", data->package_id);
 }
 
-static ssize_t show_min_max_freq_khz(struct uncore_data *data,
-				      char *buf, enum uncore_index index)
+static ssize_t show_attr(struct uncore_data *data, char *buf, enum uncore_index index)
 {
 	unsigned int value;
 	int ret;
@@ -58,9 +57,8 @@ static ssize_t show_min_max_freq_khz(struct uncore_data *data,
 	return sprintf(buf, "%u\n", value);
 }
 
-static ssize_t store_min_max_freq_khz(struct uncore_data *data,
-				      const char *buf, ssize_t count,
-				      enum uncore_index index)
+static ssize_t store_attr(struct uncore_data *data, const char *buf, ssize_t count,
+			  enum uncore_index index)
 {
 	unsigned int input;
 	int ret;
@@ -92,24 +90,23 @@ static ssize_t show_perf_status_freq_khz(struct uncore_data *data, char *buf)
 	return sprintf(buf, "%u\n", freq);
 }
 
-#define store_uncore_min_max(name, min_max)				\
+#define store_uncore_attr(name, index)					\
 	static ssize_t store_##name(struct kobject *kobj,		\
 				     struct kobj_attribute *attr,	\
 				     const char *buf, size_t count)	\
 	{								\
 		struct uncore_data *data = container_of(attr, struct uncore_data, name##_kobj_attr);\
 									\
-		return store_min_max_freq_khz(data, buf, count,	\
-					      min_max);		\
+		return store_attr(data, buf, count, index);		\
 	}
 
-#define show_uncore_min_max(name, min_max)				\
+#define show_uncore_attr(name, index)					\
 	static ssize_t show_##name(struct kobject *kobj,		\
 				    struct kobj_attribute *attr, char *buf)\
 	{                                                               \
 		struct uncore_data *data = container_of(attr, struct uncore_data, name##_kobj_attr);\
 									\
-		return show_min_max_freq_khz(data, buf, min_max);	\
+		return show_attr(data, buf, index);			\
 	}
 
 #define show_uncore_perf_status(name)					\
@@ -121,11 +118,11 @@ static ssize_t show_perf_status_freq_khz(struct uncore_data *data, char *buf)
 		return show_perf_status_freq_khz(data, buf); \
 	}
 
-store_uncore_min_max(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
-store_uncore_min_max(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
+store_uncore_attr(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
+store_uncore_attr(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
-show_uncore_min_max(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
-show_uncore_min_max(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
+show_uncore_attr(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
+show_uncore_attr(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
 show_uncore_perf_status(current_freq_khz);
 
