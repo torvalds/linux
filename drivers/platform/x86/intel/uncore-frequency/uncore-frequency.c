@@ -42,8 +42,8 @@ static enum cpuhp_state uncore_hp_state __read_mostly;
 
 #define UNCORE_CURRENT_RATIO_MASK	GENMASK_ULL(6, 0)
 
-static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
-				    unsigned int *max)
+static int uncore_read_control_freq(struct uncore_data *data, unsigned int *value,
+				    enum uncore_index index)
 {
 	u64 cap;
 	int ret;
@@ -55,8 +55,10 @@ static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
 	if (ret)
 		return ret;
 
-	*max = FIELD_GET(UNCORE_MAX_RATIO_MASK, cap) * UNCORE_FREQ_KHZ_MULTIPLIER;
-	*min = FIELD_GET(UNCORE_MIN_RATIO_MASK, cap) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	if (index == UNCORE_INDEX_MAX_FREQ)
+		*value = FIELD_GET(UNCORE_MAX_RATIO_MASK, cap) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	else
+		*value = FIELD_GET(UNCORE_MIN_RATIO_MASK, cap) * UNCORE_FREQ_KHZ_MULTIPLIER;
 
 	return 0;
 }

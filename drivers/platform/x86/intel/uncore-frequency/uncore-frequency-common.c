@@ -19,7 +19,7 @@ static int uncore_instance_count;
 static DEFINE_IDA(intel_uncore_ida);
 
 /* callbacks for actual HW read/write */
-static int (*uncore_read)(struct uncore_data *data, unsigned int *min, unsigned int *max);
+static int (*uncore_read)(struct uncore_data *data, unsigned int *value, enum uncore_index index);
 static int (*uncore_write)(struct uncore_data *data, unsigned int input, enum uncore_index index);
 static int (*uncore_read_freq)(struct uncore_data *data, unsigned int *freq);
 
@@ -47,19 +47,16 @@ static ssize_t show_package_id(struct kobject *kobj, struct kobj_attribute *attr
 static ssize_t show_min_max_freq_khz(struct uncore_data *data,
 				      char *buf, enum uncore_index index)
 {
-	unsigned int min, max;
+	unsigned int value;
 	int ret;
 
 	mutex_lock(&uncore_lock);
-	ret = uncore_read(data, &min, &max);
+	ret = uncore_read(data, &value, index);
 	mutex_unlock(&uncore_lock);
 	if (ret)
 		return ret;
 
-	if (index == UNCORE_INDEX_MAX_FREQ)
-		return sprintf(buf, "%u\n", max);
-
-	return sprintf(buf, "%u\n", min);
+	return sprintf(buf, "%u\n", value);
 }
 
 static ssize_t store_min_max_freq_khz(struct uncore_data *data,
@@ -238,7 +235,8 @@ int uncore_freq_add_entry(struct uncore_data *data, int cpu)
 		sprintf(data->name, "package_%02d_die_%02d", data->package_id, data->die_id);
 	}
 
-	uncore_read(data, &data->initial_min_freq_khz, &data->initial_max_freq_khz);
+	uncore_read(data, &data->initial_min_freq_khz, UNCORE_INDEX_MIN_FREQ);
+	uncore_read(data, &data->initial_max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
 	ret = create_attr_group(data, data->name);
 	if (ret) {
@@ -269,10 +267,11 @@ void uncore_freq_remove_die_entry(struct uncore_data *data)
 }
 EXPORT_SYMBOL_NS_GPL(uncore_freq_remove_die_entry, INTEL_UNCORE_FREQUENCY);
 
-int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, unsigned int *min, unsigned int *max),
-			     int (*write_control_freq)(struct uncore_data *data, unsigned int input,
-						       enum uncore_index index),
-			     int (*read_freq)(struct uncore_data *data, unsigned int *freq))
+int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, unsigned int *value,
+						     enum uncore_index index),
+			    int (*write_control_freq)(struct uncore_data *data, unsigned int input,
+						      enum uncore_index index),
+			    int (*read_freq)(struct uncore_data *data, unsigned int *freq))
 {
 	mutex_lock(&uncore_lock);
 

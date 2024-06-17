@@ -78,20 +78,22 @@ struct tpmi_uncore_struct {
 
 /* Helper function to read MMIO offset for max/min control frequency */
 static void read_control_freq(struct tpmi_uncore_cluster_info *cluster_info,
-			     unsigned int *min, unsigned int *max)
+			     unsigned int *value, enum uncore_index index)
 {
 	u64 control;
 
 	control = readq(cluster_info->cluster_base + UNCORE_CONTROL_INDEX);
-	*max = FIELD_GET(UNCORE_MAX_RATIO_MASK, control) * UNCORE_FREQ_KHZ_MULTIPLIER;
-	*min = FIELD_GET(UNCORE_MIN_RATIO_MASK, control) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	if (index == UNCORE_INDEX_MAX_FREQ)
+		*value = FIELD_GET(UNCORE_MAX_RATIO_MASK, control) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	else
+		*value = FIELD_GET(UNCORE_MIN_RATIO_MASK, control) * UNCORE_FREQ_KHZ_MULTIPLIER;
 }
 
 #define UNCORE_MAX_RATIO	FIELD_MAX(UNCORE_MAX_RATIO_MASK)
 
 /* Callback for sysfs read for max/min frequencies. Called under mutex locks */
-static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
-				    unsigned int *max)
+static int uncore_read_control_freq(struct uncore_data *data, unsigned int *value,
+				    enum uncore_index index)
 {
 	struct tpmi_uncore_cluster_info *cluster_info;
 
@@ -99,10 +101,11 @@ static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
 
 	if (cluster_info->root_domain) {
 		struct tpmi_uncore_struct *uncore_root = cluster_info->uncore_root;
-		int i, _min = 0, _max = 0;
+		unsigned int min, max, v;
+		int i;
 
-		*min = UNCORE_MAX_RATIO * UNCORE_FREQ_KHZ_MULTIPLIER;
-		*max = 0;
+		min = UNCORE_MAX_RATIO * UNCORE_FREQ_KHZ_MULTIPLIER;
+		max = 0;
 
 		/*
 		 * Get the max/min by looking at each cluster. Get the lowest
@@ -113,17 +116,23 @@ static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
 
 			for (j = 0; j < uncore_root->pd_info[i].cluster_count; ++j) {
 				read_control_freq(&uncore_root->pd_info[i].cluster_infos[j],
-						  &_min, &_max);
-				if (*min > _min)
-					*min = _min;
-				if (*max < _max)
-					*max = _max;
+						  &v, index);
+				if (v < min)
+					min = v;
+				if (v > max)
+					max = v;
 			}
 		}
+
+		if (index == UNCORE_INDEX_MIN_FREQ)
+			*value = min;
+		else
+			*value = max;
+
 		return 0;
 	}
 
-	read_control_freq(cluster_info, min, max);
+	read_control_freq(cluster_info, value, index);
 
 	return 0;
 }
