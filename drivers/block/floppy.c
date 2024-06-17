@@ -4516,7 +4516,8 @@ static bool floppy_available(int drive)
 static int floppy_alloc_disk(unsigned int drive, unsigned int type)
 {
 	struct queue_limits lim = {
-		.max_hw_sectors = 64,
+		.max_hw_sectors		= 64,
+		.features		= BLK_FEAT_ROTATIONAL,
 	};
 	struct gendisk *disk;
 

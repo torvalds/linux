@@ -1146,7 +1146,6 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 		err = PTR_ERR(gd);
 		goto out_free_tag_set;
 	}
-	blk_queue_flag_set(QUEUE_FLAG_VIRT, gd->queue);
 
 	strcpy(gd->disk_name, DEV_NAME);
 	ptr = encode_disk_name(gd->disk_name + sizeof(DEV_NAME) - 1, offset);

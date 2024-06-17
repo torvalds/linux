@@ -974,8 +974,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	d->disk->minors		= BCACHE_MINORS;
 	d->disk->fops		= ops;
 	d->disk->private_data	= d;
-
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, d->disk->queue);
 	return 0;
 
 out_bioset_exit:

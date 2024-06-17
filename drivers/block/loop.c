@@ -985,13 +985,11 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
 	lim.logical_block_size = bsize;
 	lim.physical_block_size = bsize;
 	lim.io_min = bsize;
-	lim.features &= ~BLK_FEAT_WRITE_CACHE;
+	lim.features &= ~(BLK_FEAT_WRITE_CACHE | BLK_FEAT_ROTATIONAL);
 	if (file->f_op->fsync && !(lo->lo_flags & LO_FLAGS_READ_ONLY))
 		lim.features |= BLK_FEAT_WRITE_CACHE;
-	if (!backing_bdev || bdev_nonrot(backing_bdev))
-		blk_queue_flag_set(QUEUE_FLAG_NONROT, lo->lo_queue);
-	else
-		blk_queue_flag_clear(QUEUE_FLAG_NONROT, lo->lo_queue);
+	if (backing_bdev && !bdev_nonrot(backing_bdev))
+		lim.features |= BLK_FEAT_ROTATIONAL;
 	loop_config_discard(lo, &lim);
 	return queue_limits_commit_update(lo->lo_queue, &lim);
 }

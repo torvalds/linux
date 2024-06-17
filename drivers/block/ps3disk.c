@@ -388,7 +388,8 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 		.max_segments		= -1,
 		.max_segment_size	= dev->bounce_size,
 		.dma_alignment		= dev->blk_size - 1,
-		.features		= BLK_FEAT_WRITE_CACHE,
+		.features		= BLK_FEAT_WRITE_CACHE |
+					  BLK_FEAT_ROTATIONAL,
 	};
 	struct gendisk *gendisk;
 

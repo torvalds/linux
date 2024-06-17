@@ -1716,12 +1716,6 @@ static int device_dax_write_cache_enabled(struct dm_target *ti,
 	return false;
 }
 
-static int device_is_rotational(struct dm_target *ti, struct dm_dev *dev,
-				sector_t start, sector_t len, void *data)
-{
-	return !bdev_nonrot(dev->bdev);
-}
-
 static int device_is_not_random(struct dm_target *ti, struct dm_dev *dev,
 			     sector_t start, sector_t len, void *data)
 {
@@ -1869,12 +1863,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 
 	if (dm_table_any_dev_attr(t, device_dax_write_cache_enabled, NULL))
 		dax_write_cache(t->md->dax_dev, true);
-
-	/* Ensure that all underlying devices are non-rotational. */
-	if (dm_table_any_dev_attr(t, device_is_rotational, NULL))
-		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
-	else
-		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 
 	/*
 	 * Some devices don't use blk_integrity but still want stable pages

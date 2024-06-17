@@ -475,7 +475,6 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 		goto out_tag;
 	}
 	rq = bdev->rq = bdev->gendisk->queue;
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, rq);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, rq);
 
 	bdev->gendisk->private_data = scmdev;

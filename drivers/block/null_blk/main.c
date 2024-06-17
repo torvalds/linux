@@ -1948,7 +1948,6 @@ static int null_add_dev(struct nullb_device *dev)
 	}
 
 	nullb->q->queuedata = nullb;
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, nullb->q);
 
 	rv = ida_alloc(&nullb_indexes, GFP_KERNEL);
 	if (rv < 0)

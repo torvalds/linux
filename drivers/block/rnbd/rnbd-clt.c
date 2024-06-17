@@ -1352,10 +1352,6 @@ static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev,
 	if (dev->access_mode == RNBD_ACCESS_RO)
 		set_disk_ro(dev->gd, true);
 
-	/*
-	 * Network device does not need rotational
-	 */
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, dev->queue);
 	err = add_disk(dev->gd);
 	if (err)
 		put_disk(dev->gd);

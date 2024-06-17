@@ -263,6 +263,39 @@ static ssize_t queue_dma_alignment_show(struct request_queue *q, char *page)
 	return queue_var_show(queue_dma_alignment(q), page);
 }
 
+static ssize_t queue_feature_store(struct request_queue *q, const char *page,
+		size_t count, unsigned int feature)
+{
+	struct queue_limits lim;
+	unsigned long val;
+	ssize_t ret;
+
+	ret = queue_var_store(&val, page, count);
+	if (ret < 0)
+		return ret;
+
+	lim = queue_limits_start_update(q);
+	if (val)
+		lim.features |= feature;
+	else
+		lim.features &= ~feature;
+	ret = queue_limits_commit_update(q, &lim);
+	if (ret)
+		return ret;
+	return count;
+}
+
+#define QUEUE_SYSFS_FEATURE(_name, _feature)				 \
+static ssize_t queue_##_name##_show(struct request_queue *q, char *page) \
+{									 \
+	return sprintf(page, "%u\n", !!(q->limits.features & _feature)); \
+}									 \
+static ssize_t queue_##_name##_store(struct request_queue *q,		 \
+		const char *page, size_t count)				 \
+{									 \
+	return queue_feature_store(q, page, count, _feature);		 \
+}
+
 #define QUEUE_SYSFS_BIT_FNS(name, flag, neg)				\
 static ssize_t								\
 queue_##name##_show(struct request_queue *q, char *page)		\
@@ -289,7 +322,7 @@ queue_##name##_store(struct request_queue *q, const char *page, size_t count) \
 	return ret;							\
 }
 
-QUEUE_SYSFS_BIT_FNS(nonrot, NONROT, 1);
+QUEUE_SYSFS_FEATURE(rotational, BLK_FEAT_ROTATIONAL)
 QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
 QUEUE_SYSFS_BIT_FNS(iostats, IO_STAT, 0);
 QUEUE_SYSFS_BIT_FNS(stable_writes, STABLE_WRITES, 0);
@@ -526,7 +559,7 @@ static struct queue_sysfs_entry queue_hw_sector_size_entry = {
 	.show = queue_logical_block_size_show,
 };
 
-QUEUE_RW_ENTRY(queue_nonrot, "rotational");
+QUEUE_RW_ENTRY(queue_rotational, "rotational");
 QUEUE_RW_ENTRY(queue_iostats, "iostats");
 QUEUE_RW_ENTRY(queue_random, "add_random");
 QUEUE_RW_ENTRY(queue_stable_writes, "stable_writes");
@@ -624,7 +657,7 @@ static struct attribute *queue_attrs[] = {
 	&queue_write_zeroes_max_entry.attr,
 	&queue_zone_append_max_entry.attr,
 	&queue_zone_write_granularity_entry.attr,
-	&queue_nonrot_entry.attr,
+	&queue_rotational_entry.attr,
 	&queue_zoned_entry.attr,
 	&queue_nr_zones_entry.attr,
 	&queue_max_open_zones_entry.attr,

@@ -1867,11 +1867,6 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 		goto out_err_disk;
 	}
 
-	/*
-	 * Tell the block layer that we are not a rotational device
-	 */
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
-
 	mutex_init(&nbd->config_lock);
 	refcount_set(&nbd->config_refs, 0);
 	/*

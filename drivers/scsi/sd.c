@@ -3318,7 +3318,7 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp,
 	rcu_read_unlock();
 
 	if (rot == 1) {
-		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+		lim->features &= ~BLK_FEAT_ROTATIONAL;
 		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
 	}
 
@@ -3646,7 +3646,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		 * cause this to be updated correctly and any device which
 		 * doesn't support it should be treated as rotational.
 		 */
-		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
+		lim.features |= BLK_FEAT_ROTATIONAL;
 		blk_queue_flag_set(QUEUE_FLAG_ADD_RANDOM, q);
 
 		if (scsi_device_supports_vpd(sdp)) {

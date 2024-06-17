@@ -337,6 +337,7 @@ aoeblk_gdalloc(void *vp)
 	struct queue_limits lim = {
 		.max_hw_sectors		= aoe_maxsectors,
 		.io_opt			= SZ_2M,
+		.features		= BLK_FEAT_ROTATIONAL,
 	};
 	ulong flags;
 	int late = 0;
