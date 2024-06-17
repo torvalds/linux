@@ -306,27 +306,29 @@ static void dcn401_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr
 			struct dc_state *context,
 			int ref_dtbclk_khz)
 {
-	struct dccg *dccg = clk_mgr->dccg;
-	uint32_t tg_mask = 0;
 	int i;
+	struct dccg *dccg = clk_mgr->dccg;
+	struct pipe_ctx *otg_master;
+	bool use_hpo_encoder;
 
-	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* use mask to program DTO once per tg */
-		if (pipe_ctx->stream_res.tg &&
-				!(tg_mask & (1 << pipe_ctx->stream_res.tg->inst))) {
-			tg_mask |= (1 << pipe_ctx->stream_res.tg->inst);
+	for (i = 0; i < context->stream_count; i++) {
+		otg_master = resource_get_otg_master_for_stream(
+				&context->res_ctx, context->streams[i]);
+		ASSERT(otg_master);
+		ASSERT(otg_master->clock_source);
+		ASSERT(otg_master->clock_source->funcs->program_pix_clk);
+		ASSERT(otg_master->stream_res.pix_clk_params.controller_id >= CONTROLLER_ID_D0);
 
-			if (dccg->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
-				pipe_ctx->clock_source->funcs->program_pix_clk(
-						pipe_ctx->clock_source,
-						&pipe_ctx->stream_res.pix_clk_params,
-						dccg->ctx->dc->link_srv->dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
-						&pipe_ctx->pll_settings);
-			}
+		use_hpo_encoder = dccg->ctx->dc->link_srv->dp_is_128b_132b_signal(otg_master);
+		if (!use_hpo_encoder)
+			continue;
 
-		}
+		otg_master->clock_source->funcs->program_pix_clk(
+				otg_master->clock_source,
+				&otg_master->stream_res.pix_clk_params,
+				dccg->ctx->dc->link_srv->dp_get_encoding_format(&otg_master->link_config.dp_link_settings),
+				&otg_master->pll_settings);
 	}
 }
 
