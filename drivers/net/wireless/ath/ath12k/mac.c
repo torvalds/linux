@@ -9254,7 +9254,6 @@ static struct ath12k_hw *ath12k_mac_hw_allocate(struct ath12k_base *ab,
 
 	ah = ath12k_hw_to_ah(hw);
 	ah->hw = hw;
-	ah->ab = ab;
 	ah->num_radio = num_pdev_map;
 
 	mutex_init(&ah->hw_mutex);
