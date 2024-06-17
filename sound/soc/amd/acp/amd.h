@@ -162,8 +162,6 @@ struct acp_resource {
 	int irqp_used;
 	bool soc_mclk;
 	u32 irq_reg_offset;
-	u32 i2s_pin_cfg_offset;
-	int i2s_mode;
 	u64 scratch_reg_offset;
 	u64 sram_pte_offset;
 };
