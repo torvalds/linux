@@ -3301,7 +3301,6 @@ static void sd_read_block_limits_ext(struct scsi_disk *sdkp)
 static void sd_read_block_characteristics(struct scsi_disk *sdkp,
 		struct queue_limits *lim)
 {
-	struct request_queue *q = sdkp->disk->queue;
 	struct scsi_vpd *vpd;
 	u16 rot;
 
@@ -3317,10 +3316,8 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp,
 	sdkp->zoned = (vpd->data[8] >> 4) & 3;
 	rcu_read_unlock();
 
-	if (rot == 1) {
-		lim->features &= ~BLK_FEAT_ROTATIONAL;
-		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
-	}
+	if (rot == 1)
+		lim->features &= ~(BLK_FEAT_ROTATIONAL | BLK_FEAT_ADD_RANDOM);
 
 	if (!sdkp->first_scan)
 		return;
@@ -3599,7 +3596,6 @@ static int sd_revalidate_disk(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdp = sdkp->device;
-	struct request_queue *q = sdkp->disk->queue;
 	sector_t old_capacity = sdkp->capacity;
 	struct queue_limits lim;
 	unsigned char *buffer;
@@ -3646,8 +3642,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		 * cause this to be updated correctly and any device which
 		 * doesn't support it should be treated as rotational.
 		 */
-		lim.features |= BLK_FEAT_ROTATIONAL;
-		blk_queue_flag_set(QUEUE_FLAG_ADD_RANDOM, q);
+		lim.features |= (BLK_FEAT_ROTATIONAL | BLK_FEAT_ADD_RANDOM);
 
 		if (scsi_device_supports_vpd(sdp)) {
 			sd_read_block_provisioning(sdkp);

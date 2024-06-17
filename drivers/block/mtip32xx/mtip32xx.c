@@ -3485,7 +3485,6 @@ skip_create_disk:
 		goto start_service_thread;
 
 	/* Set device limits. */
-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, dd->queue);
 	dma_set_max_seg_size(&dd->pdev->dev, 0x400000);
 
 	/* Set the capacity of the device in 512 byte sectors. */

@@ -374,9 +374,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	/* Create the request queue */
 	spin_lock_init(&new->queue_lock);
 	INIT_LIST_HEAD(&new->rq_list);
-
-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, new->rq);
-
 	gd->queue = new->rq;
 
 	if (new->readonly)
