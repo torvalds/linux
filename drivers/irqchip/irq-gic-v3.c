@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
+#include <linux/kernel.h>
 #include <linux/kstrtox.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -36,7 +37,8 @@
 
 #include "irq-gic-common.h"
 
-#define GICD_INT_NMI_PRI	(GICD_INT_DEF_PRI & ~0x80)
+static u8 dist_prio_irq __ro_after_init = GICD_INT_DEF_PRI;
+static u8 dist_prio_nmi __ro_after_init = GICD_INT_DEF_PRI & ~0x80;
 
 #define FLAGS_WORKAROUND_GICR_WAKER_MSM8996	(1ULL << 0)
 #define FLAGS_WORKAROUND_CAVIUM_ERRATUM_38539	(1ULL << 1)
@@ -556,7 +558,7 @@ static int gic_irq_nmi_setup(struct irq_data *d)
 		desc->handle_irq = handle_fasteoi_nmi;
 	}
 
-	gic_irq_set_prio(d, GICD_INT_NMI_PRI);
+	gic_irq_set_prio(d, dist_prio_nmi);
 
 	return 0;
 }
@@ -591,7 +593,7 @@ static void gic_irq_nmi_teardown(struct irq_data *d)
 		desc->handle_irq = handle_fasteoi_irq;
 	}
 
-	gic_irq_set_prio(d, GICD_INT_DEF_PRI);
+	gic_irq_set_prio(d, dist_prio_irq);
 }
 
 static bool gic_arm64_erratum_2941627_needed(struct irq_data *d)
@@ -753,7 +755,7 @@ static bool gic_rpr_is_nmi_prio(void)
 	if (!gic_supports_nmi())
 		return false;
 
-	return unlikely(gic_read_rpr() == GICD_INT_RPR_PRI(GICD_INT_NMI_PRI));
+	return unlikely(gic_read_rpr() == GICD_INT_RPR_PRI(dist_prio_nmi));
 }
 
 static bool gic_irqnr_is_special(u32 irqnr)
@@ -937,10 +939,11 @@ static void __init gic_dist_init(void)
 		writel_relaxed(0, base + GICD_ICFGRnE + i / 4);
 
 	for (i = 0; i < GIC_ESPI_NR; i += 4)
-		writel_relaxed(GICD_INT_DEF_PRI_X4, base + GICD_IPRIORITYRnE + i);
+		writel_relaxed(REPEAT_BYTE_U32(dist_prio_irq),
+			       base + GICD_IPRIORITYRnE + i);
 
 	/* Now do the common stuff */
-	gic_dist_config(base, GIC_LINE_NR);
+	gic_dist_config(base, GIC_LINE_NR, dist_prio_irq);
 
 	val = GICD_CTLR_ARE_NS | GICD_CTLR_ENABLE_G1A | GICD_CTLR_ENABLE_G1;
 	if (gic_data.rdists.gicd_typer2 & GICD_TYPER2_nASSGIcap) {
@@ -1282,7 +1285,7 @@ static void gic_cpu_init(void)
 	for (i = 0; i < gic_data.ppi_nr + SGI_NR; i += 32)
 		writel_relaxed(~0, rbase + GICR_IGROUPR0 + i / 8);
 
-	gic_cpu_config(rbase, gic_data.ppi_nr + SGI_NR);
+	gic_cpu_config(rbase, gic_data.ppi_nr + SGI_NR, dist_prio_irq);
 	gic_redist_wait_for_rwp();
 
 	/* initialise system registers */
@@ -2066,7 +2069,7 @@ static int __init gic_init_bases(phys_addr_t dist_phys_base,
 	gic_cpu_pm_init();
 
 	if (gic_dist_supports_lpis()) {
-		its_init(handle, &gic_data.rdists, gic_data.domain);
+		its_init(handle, &gic_data.rdists, gic_data.domain, dist_prio_irq);
 		its_cpu_init();
 		its_lpi_memreserve_init();
 	} else {

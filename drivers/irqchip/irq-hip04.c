@@ -260,7 +260,7 @@ static void __init hip04_irq_dist_init(struct hip04_irq_data *intc)
 	for (i = 32; i < nr_irqs; i += 2)
 		writel_relaxed(cpumask, base + GIC_DIST_TARGET + ((i * 2) & ~3));
 
-	gic_dist_config(base, nr_irqs);
+	gic_dist_config(base, nr_irqs, GICD_INT_DEF_PRI);
 
 	writel_relaxed(1, base + GIC_DIST_CTRL);
 }
@@ -287,7 +287,7 @@ static void hip04_irq_cpu_init(struct hip04_irq_data *intc)
 		if (i != cpu)
 			hip04_cpu_map[i] &= ~cpu_mask;
 
-	gic_cpu_config(dist_base, 32);
+	gic_cpu_config(dist_base, 32, GICD_INT_DEF_PRI);
 
 	writel_relaxed(0xf0, base + GIC_CPU_PRIMASK);
 	writel_relaxed(1, base + GIC_CPU_CTRL);

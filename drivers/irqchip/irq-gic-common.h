@@ -21,8 +21,8 @@ struct gic_quirk {
 
 int gic_configure_irq(unsigned int irq, unsigned int type,
                        void __iomem *base);
-void gic_dist_config(void __iomem *base, int gic_irqs);
-void gic_cpu_config(void __iomem *base, int nr);
+void gic_dist_config(void __iomem *base, int gic_irqs, u8 priority);
+void gic_cpu_config(void __iomem *base, int nr, u8 priority);
 void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 		void *data);
 void gic_enable_of_quirks(const struct device_node *np,

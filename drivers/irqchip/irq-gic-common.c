@@ -7,6 +7,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/kernel.h>
 
 #include "irq-gic-common.h"
 
@@ -87,7 +88,7 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 	return ret;
 }
 
-void gic_dist_config(void __iomem *base, int gic_irqs)
+void gic_dist_config(void __iomem *base, int gic_irqs, u8 priority)
 {
 	unsigned int i;
 
@@ -102,7 +103,8 @@ void gic_dist_config(void __iomem *base, int gic_irqs)
 	 * Set priority on all global interrupts.
 	 */
 	for (i = 32; i < gic_irqs; i += 4)
-		writel_relaxed(GICD_INT_DEF_PRI_X4, base + GIC_DIST_PRI + i);
+		writel_relaxed(REPEAT_BYTE_U32(priority),
+			       base + GIC_DIST_PRI + i);
 
 	/*
 	 * Deactivate and disable all SPIs. Leave the PPI and SGIs
@@ -116,7 +118,7 @@ void gic_dist_config(void __iomem *base, int gic_irqs)
 	}
 }
 
-void gic_cpu_config(void __iomem *base, int nr)
+void gic_cpu_config(void __iomem *base, int nr, u8 priority)
 {
 	int i;
 
@@ -135,6 +137,6 @@ void gic_cpu_config(void __iomem *base, int nr)
 	 * Set priority on PPI and SGI interrupts
 	 */
 	for (i = 0; i < nr; i += 4)
-		writel_relaxed(GICD_INT_DEF_PRI_X4,
+		writel_relaxed(REPEAT_BYTE_U32(priority),
 					base + GIC_DIST_PRI + i * 4 / 4);
 }
