@@ -21,35 +21,12 @@
 #define INIT_PSTATE_EL2 \
 	(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT | PSR_MODE_EL2h)
 
-/*
- * PMR values used to mask/unmask interrupts.
- *
- * GIC priority masking works as follows: if an IRQ's priority is a higher value
- * than the value held in PMR, that IRQ is masked. Lowering the value of PMR
- * means masking more IRQs (or at least that the same IRQs remain masked).
- *
- * To mask interrupts, we clear the most significant bit of PMR.
- *
- * Some code sections either automatically switch back to PSR.I or explicitly
- * require to not use priority masking. If bit GIC_PRIO_PSR_I_SET is included
- * in the priority mask, it indicates that PSR.I should be set and
- * interrupt disabling temporarily does not rely on IRQ priorities.
- */
-#define GIC_PRIO_IRQON			0xe0
-#define __GIC_PRIO_IRQOFF		(GIC_PRIO_IRQON & ~0x80)
-#define __GIC_PRIO_IRQOFF_NS		0xa0
-#define GIC_PRIO_PSR_I_SET		(1 << 4)
+#include <linux/irqchip/arm-gic-v3-prio.h>
 
-#define GIC_PRIO_IRQOFF							\
-	({								\
-		extern struct static_key_false gic_nonsecure_priorities;\
-		u8 __prio = __GIC_PRIO_IRQOFF;				\
-									\
-		if (static_branch_unlikely(&gic_nonsecure_priorities))	\
-			__prio = __GIC_PRIO_IRQOFF_NS;			\
-									\
-		__prio;							\
-	})
+#define GIC_PRIO_IRQON		GICV3_PRIO_UNMASKED
+#define GIC_PRIO_IRQOFF		GICV3_PRIO_IRQ
+
+#define GIC_PRIO_PSR_I_SET	GICV3_PRIO_PSR_I_SET
 
 /* Additional SPSR bits not exposed in the UABI */
 #define PSR_MODE_THREAD_BIT	(1 << 0)
