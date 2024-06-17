@@ -310,6 +310,9 @@ enum {
 
 	/* supports DAX */
 	BLK_FEAT_DAX				= (1u << 8),
+
+	/* supports I/O polling */
+	BLK_FEAT_POLL				= (1u << 9),
 };
 
 /*
@@ -577,7 +580,6 @@ struct request_queue {
 #define QUEUE_FLAG_NOXMERGES	9	/* No extended merges */
 #define QUEUE_FLAG_SAME_FORCE	12	/* force complete on same CPU */
 #define QUEUE_FLAG_INIT_DONE	14	/* queue is initialized */
-#define QUEUE_FLAG_POLL		16	/* IO polling enabled if set */
 #define QUEUE_FLAG_STATS	20	/* track IO start and completion times */
 #define QUEUE_FLAG_REGISTERED	22	/* queue has been registered to a disk */
 #define QUEUE_FLAG_QUIESCED	24	/* queue has been quiesced */
