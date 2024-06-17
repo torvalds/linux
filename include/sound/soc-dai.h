@@ -180,8 +180,8 @@ int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
 int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio);
 
 /* Digital Audio interface formatting */
-int snd_soc_dai_get_fmt_max_priority(struct snd_soc_pcm_runtime *rtd);
-u64 snd_soc_dai_get_fmt(struct snd_soc_dai *dai, int priority);
+int snd_soc_dai_get_fmt_max_priority(const struct snd_soc_pcm_runtime *rtd);
+u64 snd_soc_dai_get_fmt(const struct snd_soc_dai *dai, int priority);
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt);
 
 int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
@@ -202,7 +202,7 @@ int snd_soc_dai_get_channel_map(struct snd_soc_dai *dai,
 		unsigned int *tx_num, unsigned int *tx_slot,
 		unsigned int *rx_num, unsigned int *rx_slot);
 
-int snd_soc_dai_is_dummy(struct snd_soc_dai *dai);
+int snd_soc_dai_is_dummy(const struct snd_soc_dai *dai);
 
 int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 			  struct snd_pcm_substream *substream,
@@ -218,7 +218,7 @@ void snd_soc_dai_suspend(struct snd_soc_dai *dai);
 void snd_soc_dai_resume(struct snd_soc_dai *dai);
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 			     struct snd_soc_pcm_runtime *rtd, int num);
-bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream);
+bool snd_soc_dai_stream_valid(const struct snd_soc_dai *dai, int stream);
 void snd_soc_dai_link_set_capabilities(struct snd_soc_dai_link *dai_link);
 void snd_soc_dai_action(struct snd_soc_dai *dai,
 			int stream, int action);
@@ -232,7 +232,7 @@ static inline void snd_soc_dai_deactivate(struct snd_soc_dai *dai,
 {
 	snd_soc_dai_action(dai, stream, -1);
 }
-int snd_soc_dai_active(struct snd_soc_dai *dai);
+int snd_soc_dai_active(const struct snd_soc_dai *dai);
 
 int snd_soc_pcm_dai_probe(struct snd_soc_pcm_runtime *rtd, int order);
 int snd_soc_pcm_dai_remove(struct snd_soc_pcm_runtime *rtd, int order);
@@ -271,7 +271,7 @@ int snd_soc_dai_compr_get_metadata(struct snd_soc_dai *dai,
 				   struct snd_compr_stream *cstream,
 				   struct snd_compr_metadata *metadata);
 
-const char *snd_soc_dai_name_get(struct snd_soc_dai *dai);
+const char *snd_soc_dai_name_get(const struct snd_soc_dai *dai);
 
 struct snd_soc_dai_ops {
 	/* DAI driver callbacks */
@@ -518,7 +518,8 @@ static inline void snd_soc_dai_init_dma_data(struct snd_soc_dai *dai, void *play
 	snd_soc_dai_dma_data_set_capture(dai,  capture);
 }
 
-static inline unsigned int snd_soc_dai_tdm_mask_get(struct snd_soc_dai *dai, int stream)
+static inline unsigned int snd_soc_dai_tdm_mask_get(const struct snd_soc_dai *dai,
+						    int stream)
 {
 	return dai->stream[stream].tdm_mask;
 }
@@ -529,7 +530,8 @@ static inline void snd_soc_dai_tdm_mask_set(struct snd_soc_dai *dai, int stream,
 	dai->stream[stream].tdm_mask = tdm_mask;
 }
 
-static inline unsigned int snd_soc_dai_stream_active(struct snd_soc_dai *dai, int stream)
+static inline unsigned int snd_soc_dai_stream_active(const struct snd_soc_dai *dai,
+						     int stream)
 {
 	/* see snd_soc_dai_action() for setup */
 	return dai->stream[stream].active;

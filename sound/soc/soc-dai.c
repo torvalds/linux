@@ -134,7 +134,7 @@ int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
 
-int snd_soc_dai_get_fmt_max_priority(struct snd_soc_pcm_runtime *rtd)
+int snd_soc_dai_get_fmt_max_priority(const struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai;
 	int i, max = 0;
@@ -166,7 +166,7 @@ int snd_soc_dai_get_fmt_max_priority(struct snd_soc_pcm_runtime *rtd)
  * modes.  This will mean that sometimes fewer formats
  * are reported here than are supported by set_fmt().
  */
-u64 snd_soc_dai_get_fmt(struct snd_soc_dai *dai, int priority)
+u64 snd_soc_dai_get_fmt(const struct snd_soc_dai *dai, int priority)
 {
 	const struct snd_soc_dai_ops *ops = dai->driver->ops;
 	u64 fmt = 0;
@@ -471,7 +471,7 @@ int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
  *
  * Returns true if the DAI supports the indicated stream type.
  */
-bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
+bool snd_soc_dai_stream_valid(const struct snd_soc_dai *dai, int dir)
 {
 	struct snd_soc_pcm_stream *stream = snd_soc_dai_get_pcm_stream(dai, dir);
 
@@ -528,7 +528,7 @@ void snd_soc_dai_action(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_action);
 
-int snd_soc_dai_active(struct snd_soc_dai *dai)
+int snd_soc_dai_active(const struct snd_soc_dai *dai)
 {
 	int stream, active;
 
