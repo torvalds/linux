@@ -687,7 +687,7 @@ out_einval:
 	return -EINVAL;
 }
 
-static int nfs_have_delegation(struct inode *inode, fmode_t flags)
+static int nfs_have_delegation(struct inode *inode, fmode_t type, int flags)
 {
 	return 0;
 }

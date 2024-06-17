@@ -82,11 +82,10 @@ static void nfs_mark_return_delegation(struct nfs_server *server,
 	set_bit(NFS4CLNT_DELEGRETURN, &server->nfs_client->cl_state);
 }
 
-static bool
-nfs4_is_valid_delegation(const struct nfs_delegation *delegation,
-		fmode_t flags)
+static bool nfs4_is_valid_delegation(const struct nfs_delegation *delegation,
+				     fmode_t type)
 {
-	if (delegation != NULL && (delegation->type & flags) == flags &&
+	if (delegation != NULL && (delegation->type & type) == type &&
 	    !test_bit(NFS_DELEGATION_REVOKED, &delegation->flags) &&
 	    !test_bit(NFS_DELEGATION_RETURNING, &delegation->flags))
 		return true;
@@ -103,16 +102,16 @@ struct nfs_delegation *nfs4_get_valid_delegation(const struct inode *inode)
 	return NULL;
 }
 
-static int
-nfs4_do_check_delegation(struct inode *inode, fmode_t flags, bool mark)
+static int nfs4_do_check_delegation(struct inode *inode, fmode_t type,
+				    int flags, bool mark)
 {
 	struct nfs_delegation *delegation;
 	int ret = 0;
 
-	flags &= FMODE_READ|FMODE_WRITE;
+	type &= FMODE_READ|FMODE_WRITE;
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
-	if (nfs4_is_valid_delegation(delegation, flags)) {
+	if (nfs4_is_valid_delegation(delegation, type)) {
 		if (mark)
 			nfs_mark_delegation_referenced(delegation);
 		ret = 1;
@@ -124,22 +123,23 @@ nfs4_do_check_delegation(struct inode *inode, fmode_t flags, bool mark)
  * nfs4_have_delegation - check if inode has a delegation, mark it
  * NFS_DELEGATION_REFERENCED if there is one.
  * @inode: inode to check
- * @flags: delegation types to check for
+ * @type: delegation types to check for
+ * @flags: various modifiers
  *
  * Returns one if inode has the indicated delegation, otherwise zero.
  */
-int nfs4_have_delegation(struct inode *inode, fmode_t flags)
+int nfs4_have_delegation(struct inode *inode, fmode_t type, int flags)
 {
-	return nfs4_do_check_delegation(inode, flags, true);
+	return nfs4_do_check_delegation(inode, type, flags, true);
 }
 
 /*
  * nfs4_check_delegation - check if inode has a delegation, do not mark
  * NFS_DELEGATION_REFERENCED if it has one.
  */
-int nfs4_check_delegation(struct inode *inode, fmode_t flags)
+int nfs4_check_delegation(struct inode *inode, fmode_t type)
 {
-	return nfs4_do_check_delegation(inode, flags, false);
+	return nfs4_do_check_delegation(inode, type, 0, false);
 }
 
 static int nfs_delegation_claim_locks(struct nfs4_state *state, const nfs4_stateid *stateid)

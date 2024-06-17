@@ -293,7 +293,7 @@ static void nfs4_bitmap_copy_adjust(__u32 *dst, const __u32 *src,
 	unsigned long cache_validity;
 
 	memcpy(dst, src, NFS4_BITMASK_SZ*sizeof(*dst));
-	if (!inode || !nfs4_have_delegation(inode, FMODE_READ))
+	if (!inode || !nfs_have_read_or_write_delegation(inode))
 		return;
 
 	cache_validity = READ_ONCE(NFS_I(inode)->cache_validity) | flags;
@@ -1264,7 +1264,7 @@ nfs4_update_changeattr_locked(struct inode *inode,
 		if (S_ISDIR(inode->i_mode))
 			nfs_force_lookup_revalidate(inode);
 
-		if (!NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
+		if (!nfs_have_delegated_attributes(inode))
 			cache_validity |=
 				NFS_INO_INVALID_ACCESS | NFS_INO_INVALID_ACL |
 				NFS_INO_INVALID_SIZE | NFS_INO_INVALID_OTHER |
@@ -3700,7 +3700,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 
 	if (calldata->arg.fmode == 0 || calldata->arg.fmode == FMODE_READ) {
 		/* Close-to-open cache consistency revalidation */
-		if (!nfs4_have_delegation(inode, FMODE_READ)) {
+		if (!nfs4_have_delegation(inode, FMODE_READ, 0)) {
 			nfs4_bitmask_set(calldata->arg.bitmask_store,
 					 server->cache_consistency_bitmask,
 					 inode, 0);
@@ -4638,7 +4638,7 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	};
 	int status = 0;
 
-	if (!nfs4_have_delegation(inode, FMODE_READ)) {
+	if (!nfs4_have_delegation(inode, FMODE_READ, 0)) {
 		res.fattr = nfs_alloc_fattr();
 		if (res.fattr == NULL)
 			return -ENOMEM;
@@ -5607,7 +5607,7 @@ bool nfs4_write_need_cache_consistency_data(struct nfs_pgio_header *hdr)
 	/* Otherwise, request attributes if and only if we don't hold
 	 * a delegation
 	 */
-	return nfs4_have_delegation(hdr->inode, FMODE_READ) == 0;
+	return nfs4_have_delegation(hdr->inode, FMODE_READ, 0) == 0;
 }
 
 void nfs4_bitmask_set(__u32 bitmask[], const __u32 src[],
@@ -7654,10 +7654,10 @@ static int nfs4_add_lease(struct file *file, int arg, struct file_lease **lease,
 	int ret;
 
 	/* No delegation, no lease */
-	if (!nfs4_have_delegation(inode, type))
+	if (!nfs4_have_delegation(inode, type, 0))
 		return -EAGAIN;
 	ret = generic_setlease(file, arg, lease, priv);
-	if (ret || nfs4_have_delegation(inode, type))
+	if (ret || nfs4_have_delegation(inode, type, 0))
 		return ret;
 	/* We raced with a delegation return */
 	nfs4_delete_lease(file, priv);

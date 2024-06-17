@@ -979,7 +979,7 @@ nfs3_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return status;
 }
 
-static int nfs3_have_delegation(struct inode *inode, fmode_t flags)
+static int nfs3_have_delegation(struct inode *inode, fmode_t type, int flags)
 {
 	return 0;
 }

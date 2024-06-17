@@ -75,8 +75,8 @@ bool nfs4_refresh_delegation_stateid(nfs4_stateid *dst, struct inode *inode);
 
 struct nfs_delegation *nfs4_get_valid_delegation(const struct inode *inode);
 void nfs_mark_delegation_referenced(struct nfs_delegation *delegation);
-int nfs4_have_delegation(struct inode *inode, fmode_t flags);
-int nfs4_check_delegation(struct inode *inode, fmode_t flags);
+int nfs4_have_delegation(struct inode *inode, fmode_t type, int flags);
+int nfs4_check_delegation(struct inode *inode, fmode_t type);
 bool nfs4_delegation_flush_on_close(const struct inode *inode);
 void nfs_inode_find_delegation_state_and_recover(struct inode *inode,
 		const nfs4_stateid *stateid);
@@ -84,9 +84,19 @@ int nfs4_inode_make_writeable(struct inode *inode);
 
 #endif
 
+static inline int nfs_have_read_or_write_delegation(struct inode *inode)
+{
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0);
+}
+
+static inline int nfs_have_write_delegation(struct inode *inode)
+{
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE, 0);
+}
+
 static inline int nfs_have_delegated_attributes(struct inode *inode)
 {
-	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ);
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0);
 }
 
 #endif
