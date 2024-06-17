@@ -536,8 +536,7 @@ static void mlx4_en_get_strings(struct net_device *dev,
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		for (i = 0; i < ARRAY_SIZE(mlx4_en_priv_flags); i++)
-			strcpy(data + i * ETH_GSTRING_LEN,
-			       mlx4_en_priv_flags[i]);
+			ethtool_puts(&data, mlx4_en_priv_flags[i]);
 		break;
 
 	}
