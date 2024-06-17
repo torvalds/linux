@@ -1495,7 +1495,7 @@ static void svm_vcpu_free(struct kvm_vcpu *vcpu)
 	__free_pages(virt_to_page(svm->msrpm), get_order(MSRPM_SIZE));
 }
 
-static struct sev_es_save_area *sev_es_host_save_area(struct svm_cpu_data *sd)
+static __always_inline struct sev_es_save_area *sev_es_host_save_area(struct svm_cpu_data *sd)
 {
 	return page_address(sd->save_area) + 0x400;
 }
