@@ -459,10 +459,10 @@ static void mlx4_en_get_strings(struct net_device *dev,
 	switch (stringset) {
 	case ETH_SS_TEST:
 		for (i = 0; i < MLX4_EN_NUM_SELF_TEST - 2; i++)
-			strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
+			ethtool_puts(&data, mlx4_en_test_names[i]);
 		if (priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_UC_LOOPBACK)
 			for (; i < MLX4_EN_NUM_SELF_TEST; i++)
-				strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
+				ethtool_puts(&data, mlx4_en_test_names[i]);
 		break;
 
 	case ETH_SS_STATS:
