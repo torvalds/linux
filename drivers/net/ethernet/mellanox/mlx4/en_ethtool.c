@@ -450,7 +450,6 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				uint32_t stringset, uint8_t *data)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int index = 0;
 	int i, strings = 0;
 	struct bitmap_iterator it;
 
@@ -470,68 +469,51 @@ static void mlx4_en_get_strings(struct net_device *dev,
 		for (i = 0; i < NUM_MAIN_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_PORT_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_PF_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_FLOW_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_PKT_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_XDP_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_PHY_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < priv->tx_ring_num[TX]; i++) {
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"tx%d_packets", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"tx%d_bytes", i);
+			ethtool_sprintf(&data, "tx%d_packets", i);
+			ethtool_sprintf(&data, "tx%d_bytes", i);
 		}
 		for (i = 0; i < priv->rx_ring_num; i++) {
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_packets", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_bytes", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_dropped", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_drop", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_redirect", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_redirect_fail", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_tx", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_tx_full", i);
+			ethtool_sprintf(&data, "rx%d_packets", i);
+			ethtool_sprintf(&data, "rx%d_bytes", i);
+			ethtool_sprintf(&data, "rx%d_dropped", i);
+			ethtool_sprintf(&data, "rx%d_xdp_drop", i);
+			ethtool_sprintf(&data, "rx%d_xdp_redirect", i);
+			ethtool_sprintf(&data, "rx%d_xdp_redirect_fail", i);
+			ethtool_sprintf(&data, "rx%d_xdp_tx", i);
+			ethtool_sprintf(&data, "rx%d_xdp_tx_full", i);
 		}
 		break;
 	case ETH_SS_PRIV_FLAGS:
