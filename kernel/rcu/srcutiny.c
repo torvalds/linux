@@ -20,7 +20,11 @@
 #include "rcu_segcblist.h"
 #include "rcu.h"
 
+#ifndef CONFIG_TREE_RCU
 int rcu_scheduler_active __read_mostly;
+#else // #ifndef CONFIG_TREE_RCU
+extern int rcu_scheduler_active;
+#endif // #else // #ifndef CONFIG_TREE_RCU
 static LIST_HEAD(srcu_boot_list);
 static bool srcu_init_done;
 
@@ -282,11 +286,13 @@ bool poll_state_synchronize_srcu(struct srcu_struct *ssp, unsigned long cookie)
 }
 EXPORT_SYMBOL_GPL(poll_state_synchronize_srcu);
 
+#ifndef CONFIG_TREE_RCU
 /* Lockdep diagnostics.  */
 void __init rcu_scheduler_starting(void)
 {
 	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
 }
+#endif // #ifndef CONFIG_TREE_RCU
 
 /*
  * Queue work for srcu_struct structures with early boot callbacks.
