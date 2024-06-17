@@ -2174,21 +2174,37 @@ EXPORT_SYMBOL(hashlen_string);
  * Calculate the length and hash of the path component, and
  * return the length as the result.
  */
-static inline unsigned long hash_name(struct nameidata *nd,
-				      const char *name,
-				      unsigned long *lastword)
+static inline const char *hash_name(struct nameidata *nd,
+				    const char *name,
+				    unsigned long *lastword)
 {
-	unsigned long a = 0, b, x = 0, y = (unsigned long)nd->path.dentry;
+	unsigned long a, b, x, y = (unsigned long)nd->path.dentry;
 	unsigned long adata, bdata, mask, len;
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
-	len = 0;
-	goto inside;
+	/*
+	 * The first iteration is special, because it can result in
+	 * '.' and '..' and has no mixing other than the final fold.
+	 */
+	a = load_unaligned_zeropad(name);
+	b = a ^ REPEAT_BYTE('/');
+	if (has_zero(a, &adata, &constants) | has_zero(b, &bdata, &constants)) {
+		adata = prep_zero_mask(a, adata, &constants);
+		bdata = prep_zero_mask(b, bdata, &constants);
+		mask = create_zero_mask(adata | bdata);
+		a &= zero_bytemask(mask);
+		*lastword = a;
+		len = find_zero(mask);
+		nd->last.hash = fold_hash(a, y);
+		nd->last.len = len;
+		return name + len;
+	}
 
+	len = 0;
+	x = 0;
 	do {
 		HASH_MIX(x, y, a);
 		len += sizeof(unsigned long);
-inside:
 		a = load_unaligned_zeropad(name+len);
 		b = a ^ REPEAT_BYTE('/');
 	} while (!(has_zero(a, &adata, &constants) | has_zero(b, &bdata, &constants)));
@@ -2197,13 +2213,13 @@ inside:
 	bdata = prep_zero_mask(b, bdata, &constants);
 	mask = create_zero_mask(adata | bdata);
 	a &= zero_bytemask(mask);
-	*lastword = a;
 	x ^= a;
 	len += find_zero(mask);
+	*lastword = 0;		// Multi-word components cannot be DOT or DOTDOT
 
 	nd->last.hash = fold_hash(x, y);
 	nd->last.len = len;
-	return len;
+	return name + len;
 }
 
 /*
@@ -2247,7 +2263,7 @@ EXPORT_SYMBOL(hashlen_string);
  * We know there's a real path component here of at least
  * one character.
  */
-static inline unsigned long hash_name(struct nameidata *nd, const char *name, unsigned long *lastword)
+static inline const char *hash_name(struct nameidata *nd, const char *name, unsigned long *lastword)
 {
 	unsigned long hash = init_name_hash(nd->path.dentry);
 	unsigned long len = 0, c, last = 0;
@@ -2259,10 +2275,14 @@ static inline unsigned long hash_name(struct nameidata *nd, const char *name, un
 		hash = partial_name_hash(c, hash);
 		c = (unsigned char)name[len];
 	} while (c && c != '/');
+
+	// This is reliable for DOT or DOTDOT, since the component
+	// cannot contain NUL characters - top bits being zero means
+	// we cannot have had any other pathnames.
 	*lastword = last;
 	nd->last.hash = end_name_hash(hash);
 	nd->last.len = len;
-	return len;
+	return name + len;
 }
 
 #endif
@@ -2301,7 +2321,6 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		struct mnt_idmap *idmap;
 		const char *link;
 		unsigned long lastword;
-		unsigned int len;
 
 		idmap = mnt_idmap(nd->path.mnt);
 		err = may_lookup(idmap, nd);
@@ -2309,25 +2328,19 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			return err;
 
 		nd->last.name = name;
-		len = hash_name(nd, name, &lastword);
-		name += len;
+		name = hash_name(nd, name, &lastword);
 
 		switch(lastword) {
 		case LAST_WORD_IS_DOTDOT:
-			if (len != 2)
-				goto normal;
 			nd->last_type = LAST_DOTDOT;
 			nd->state |= ND_JUMPED;
 			break;
 
 		case LAST_WORD_IS_DOT:
-			if (len != 1)
-				goto normal;
 			nd->last_type = LAST_DOT;
 			break;
 
 		default:
-		normal:
 			nd->last_type = LAST_NORM;
 			nd->state &= ~ND_JUMPED;
 
