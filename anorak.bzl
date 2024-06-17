@@ -97,6 +97,7 @@ def define_anorak():
         "drivers/rpmsg/qcom_glink_spss.ko",
         "drivers/rpmsg/qcom_smd.ko",
         "drivers/rtc/rtc-pm8xxx.ko",
+        "drivers/scsi/sg.ko",
         "drivers/slimbus/slim-qcom-ngd-ctrl.ko",
         "drivers/slimbus/slimbus.ko",
         "drivers/soc/qcom/altmode-glink.ko",
