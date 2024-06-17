@@ -882,7 +882,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 			closure_wake_up(&c->freelist_wait);
 
 		if (statechange(a->data_type == BCH_DATA_need_discard) &&
-		    !bch2_bucket_is_open(c, new.k->p.inode, new.k->p.offset) &&
+		    !bch2_bucket_is_open_safe(c, new.k->p.inode, new.k->p.offset) &&
 		    bucket_flushed(new_a))
 			bch2_discard_one_bucket_fast(c, new.k->p);
 
