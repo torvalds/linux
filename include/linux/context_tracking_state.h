@@ -113,7 +113,7 @@ static __always_inline bool context_tracking_enabled_cpu(int cpu)
 	return context_tracking_enabled() && per_cpu(context_tracking.active, cpu);
 }
 
-static inline bool context_tracking_enabled_this_cpu(void)
+static __always_inline bool context_tracking_enabled_this_cpu(void)
 {
 	return context_tracking_enabled() && __this_cpu_read(context_tracking.active);
 }
