@@ -29,6 +29,9 @@
 #define LED_SHIFT(led)		(LED_NUM(led) * 2)
 #define LED_MASK(led)		(0x3 << LED_SHIFT(led))
 
+#define PCA9532_PWM_PERIOD_DIV	152
+#define PCA9532_PWM_DUTY_DIV	256
+
 #define ldev_to_led(c)       container_of(c, struct pca9532_led, ldev)
 
 struct pca9532_chip_info {
@@ -194,29 +197,59 @@ static int pca9532_set_brightness(struct led_classdev *led_cdev,
 	return err;
 }
 
+static int pca9532_update_hw_blink(struct pca9532_led *led,
+				   unsigned long delay_on, unsigned long delay_off)
+{
+	struct pca9532_data *data = i2c_get_clientdata(led->client);
+	unsigned int psc;
+	int i;
+
+	/* Look for others LEDs that already use PWM1 */
+	for (i = 0; i < data->chip_info->num_leds; i++) {
+		struct pca9532_led *other = &data->leds[i];
+
+		if (other == led)
+			continue;
+
+		if (other->state == PCA9532_PWM1) {
+			if (other->ldev.blink_delay_on != delay_on ||
+			    other->ldev.blink_delay_off != delay_off) {
+				dev_err(&led->client->dev,
+					"HW can handle only one blink configuration at a time\n");
+				return -EINVAL;
+			}
+		}
+	}
+
+	psc = ((delay_on + delay_off) * PCA9532_PWM_PERIOD_DIV - 1) / 1000;
+	if (psc > U8_MAX) {
+		dev_err(&led->client->dev, "Blink period too long to be handled by hardware\n");
+		return -EINVAL;
+	}
+
+	led->state = PCA9532_PWM1;
+	data->psc[PCA9532_PWM_ID_1] = psc;
+	data->pwm[PCA9532_PWM_ID_1] = (delay_on * PCA9532_PWM_DUTY_DIV) / (delay_on + delay_off);
+
+	return pca9532_setpwm(data->client, PCA9532_PWM_ID_1);
+}
+
 static int pca9532_set_blink(struct led_classdev *led_cdev,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
 	struct pca9532_led *led = ldev_to_led(led_cdev);
-	struct i2c_client *client = led->client;
-	int psc;
-	int err = 0;
+	int err;
 
 	if (*delay_on == 0 && *delay_off == 0) {
 		/* led subsystem ask us for a blink rate */
 		*delay_on = 1000;
 		*delay_off = 1000;
 	}
-	if (*delay_on != *delay_off || *delay_on > 1690 || *delay_on < 6)
-		return -EINVAL;
 
-	/* Thecus specific: only use PSC/PWM 0 */
-	psc = (*delay_on * 152-1)/1000;
-	err = pca9532_calcpwm(client, PCA9532_PWM_ID_0, psc, led_cdev->brightness);
+	err = pca9532_update_hw_blink(led, *delay_on, *delay_off);
 	if (err)
 		return err;
-	if (led->state == PCA9532_PWM0)
-		pca9532_setpwm(led->client, PCA9532_PWM_ID_0);
+
 	pca9532_setled(led);
 
 	return 0;
