@@ -239,13 +239,34 @@ static irqreturn_t uniphier_tm_alarm_irq_thread(int irq, void *_tdev)
 	return IRQ_HANDLED;
 }
 
+struct trip_walk_data {
+	struct uniphier_tm_dev *tdev;
+	int crit_temp;
+	int index;
+};
+
+static int uniphier_tm_trip_walk_cb(struct thermal_trip *trip, void *arg)
+{
+	struct trip_walk_data *twd = arg;
+
+	if (trip->type == THERMAL_TRIP_CRITICAL &&
+	    trip->temperature < twd->crit_temp)
+		twd->crit_temp = trip->temperature;
+
+	uniphier_tm_set_alert(twd->tdev, twd->index, trip->temperature);
+	twd->tdev->alert_en[twd->index++] = true;
+
+	return 0;
+}
+
 static int uniphier_tm_probe(struct platform_device *pdev)
 {
+	struct trip_walk_data twd = { .crit_temp = INT_MAX, .index = 0 };
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
 	struct device_node *parent;
 	struct uniphier_tm_dev *tdev;
-	int i, ret, irq, crit_temp = INT_MAX;
+	int ret, irq;
 
 	tdev = devm_kzalloc(dev, sizeof(*tdev), GFP_KERNEL);
 	if (!tdev)
@@ -293,20 +314,10 @@ static int uniphier_tm_probe(struct platform_device *pdev)
 	}
 
 	/* set alert temperatures */
-	for (i = 0; i < thermal_zone_get_num_trips(tdev->tz_dev); i++) {
-		struct thermal_trip trip;
+	twd.tdev = tdev;
+	thermal_zone_for_each_trip(tdev->tz_dev, uniphier_tm_trip_walk_cb, &twd);
 
-		ret = thermal_zone_get_trip(tdev->tz_dev, i, &trip);
-		if (ret)
-			return ret;
-
-		if (trip.type == THERMAL_TRIP_CRITICAL &&
-		    trip.temperature < crit_temp)
-			crit_temp = trip.temperature;
-		uniphier_tm_set_alert(tdev, i, trip.temperature);
-		tdev->alert_en[i] = true;
-	}
-	if (crit_temp > CRITICAL_TEMP_LIMIT) {
+	if (twd.crit_temp > CRITICAL_TEMP_LIMIT) {
 		dev_err(dev, "critical trip is over limit(>%d), or not set\n",
 			CRITICAL_TEMP_LIMIT);
 		return -EINVAL;
