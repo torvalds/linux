@@ -356,10 +356,6 @@
 				regulator-always-on;
 			};
 
-			/*
-			 * Per schematics, of all VGEN's, only VGEN5 has some
-			 * usage ... but even that - over DNI resistor
-			 */
 			vgen1 {
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1550000>;
@@ -380,8 +376,7 @@
 				regulator-max-microvolt = <3300000>;
 			};
 
-			reg_2p5v_s0: vgen5 {
-				regulator-name = "V_2V5_S0";
+			vgen5 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};
