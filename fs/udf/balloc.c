@@ -73,9 +73,9 @@ static int read_block_bitmap(struct super_block *sb,
 	return 0;
 }
 
-static int __load_block_bitmap(struct super_block *sb,
-			       struct udf_bitmap *bitmap,
-			       unsigned int block_group)
+static int load_block_bitmap(struct super_block *sb,
+			     struct udf_bitmap *bitmap,
+			     unsigned int block_group)
 {
 	int retval = 0;
 	int nr_groups = bitmap->s_nr_groups;
@@ -100,23 +100,6 @@ static int __load_block_bitmap(struct super_block *sb,
 		return retval;
 
 	return block_group;
-}
-
-static inline int load_block_bitmap(struct super_block *sb,
-				    struct udf_bitmap *bitmap,
-				    unsigned int block_group)
-{
-	int slot;
-
-	slot = __load_block_bitmap(sb, bitmap, block_group);
-
-	if (slot < 0)
-		return slot;
-
-	if (!bitmap->s_block_bitmap[slot])
-		return -EIO;
-
-	return slot;
 }
 
 static void udf_add_free_space(struct super_block *sb, u16 partition, u32 cnt)
