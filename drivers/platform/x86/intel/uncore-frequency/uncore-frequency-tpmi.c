@@ -69,9 +69,12 @@ struct tpmi_uncore_struct {
 	bool write_blocked;
 };
 
-#define UNCORE_GENMASK_MIN_RATIO	GENMASK_ULL(21, 15)
-#define UNCORE_GENMASK_MAX_RATIO	GENMASK_ULL(14, 8)
-#define UNCORE_GENMASK_CURRENT_RATIO	GENMASK_ULL(6, 0)
+/* Bit definitions for STATUS register */
+#define UNCORE_CURRENT_RATIO_MASK			GENMASK_ULL(6, 0)
+
+/* Bit definitions for CONTROL register */
+#define UNCORE_MAX_RATIO_MASK				GENMASK_ULL(14, 8)
+#define UNCORE_MIN_RATIO_MASK				GENMASK_ULL(21, 15)
 
 /* Helper function to read MMIO offset for max/min control frequency */
 static void read_control_freq(struct tpmi_uncore_cluster_info *cluster_info,
@@ -80,11 +83,11 @@ static void read_control_freq(struct tpmi_uncore_cluster_info *cluster_info,
 	u64 control;
 
 	control = readq(cluster_info->cluster_base + UNCORE_CONTROL_INDEX);
-	*max = FIELD_GET(UNCORE_GENMASK_MAX_RATIO, control) * UNCORE_FREQ_KHZ_MULTIPLIER;
-	*min = FIELD_GET(UNCORE_GENMASK_MIN_RATIO, control) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	*max = FIELD_GET(UNCORE_MAX_RATIO_MASK, control) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	*min = FIELD_GET(UNCORE_MIN_RATIO_MASK, control) * UNCORE_FREQ_KHZ_MULTIPLIER;
 }
 
-#define UNCORE_MAX_RATIO	FIELD_MAX(UNCORE_GENMASK_MAX_RATIO)
+#define UNCORE_MAX_RATIO	FIELD_MAX(UNCORE_MAX_RATIO_MASK)
 
 /* Callback for sysfs read for max/min frequencies. Called under mutex locks */
 static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
@@ -134,11 +137,11 @@ static void write_control_freq(struct tpmi_uncore_cluster_info *cluster_info, un
 	control = readq(cluster_info->cluster_base + UNCORE_CONTROL_INDEX);
 
 	if (min_max) {
-		control &= ~UNCORE_GENMASK_MAX_RATIO;
-		control |= FIELD_PREP(UNCORE_GENMASK_MAX_RATIO, input);
+		control &= ~UNCORE_MAX_RATIO_MASK;
+		control |= FIELD_PREP(UNCORE_MAX_RATIO_MASK, input);
 	} else {
-		control &= ~UNCORE_GENMASK_MIN_RATIO;
-		control |= FIELD_PREP(UNCORE_GENMASK_MIN_RATIO, input);
+		control &= ~UNCORE_MIN_RATIO_MASK;
+		control |= FIELD_PREP(UNCORE_MIN_RATIO_MASK, input);
 	}
 
 	writeq(control, (cluster_info->cluster_base + UNCORE_CONTROL_INDEX));
@@ -204,7 +207,7 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 		return -ENODATA;
 
 	status = readq((u8 __iomem *)cluster_info->cluster_base + UNCORE_STATUS_INDEX);
-	*freq = FIELD_GET(UNCORE_GENMASK_CURRENT_RATIO, status) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	*freq = FIELD_GET(UNCORE_CURRENT_RATIO_MASK, status) * UNCORE_FREQ_KHZ_MULTIPLIER;
 
 	return 0;
 }
