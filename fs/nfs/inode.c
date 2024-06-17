@@ -275,6 +275,8 @@ EXPORT_SYMBOL_GPL(nfs_zap_acl_cache);
 
 void nfs_invalidate_atime(struct inode *inode)
 {
+	if (nfs_have_delegated_atime(inode))
+		return;
 	spin_lock(&inode->i_lock);
 	nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATIME);
 	spin_unlock(&inode->i_lock);
@@ -604,6 +606,33 @@ out_no_inode:
 }
 EXPORT_SYMBOL_GPL(nfs_fhget);
 
+void nfs_update_delegated_atime(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	if (nfs_have_delegated_atime(inode)) {
+		inode_update_timestamps(inode, S_ATIME);
+		NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_ATIME;
+	}
+	spin_unlock(&inode->i_lock);
+}
+
+void nfs_update_delegated_mtime_locked(struct inode *inode)
+{
+	if (nfs_have_delegated_mtime(inode)) {
+		inode_update_timestamps(inode, S_CTIME | S_MTIME);
+		NFS_I(inode)->cache_validity &= ~(NFS_INO_INVALID_CTIME |
+						  NFS_INO_INVALID_MTIME);
+	}
+}
+
+void nfs_update_delegated_mtime(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	nfs_update_delegated_mtime_locked(inode);
+	spin_unlock(&inode->i_lock);
+}
+EXPORT_SYMBOL_GPL(nfs_update_delegated_mtime);
+
 #define NFS_VALID_ATTRS (ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_SIZE|ATTR_ATIME|ATTR_ATIME_SET|ATTR_MTIME|ATTR_MTIME_SET|ATTR_FILE|ATTR_OPEN)
 
 int
@@ -629,6 +658,17 @@ nfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 		if (attr->ia_size == i_size_read(inode))
 			attr->ia_valid &= ~ATTR_SIZE;
+	}
+
+	if (nfs_have_delegated_mtime(inode)) {
+		if (attr->ia_valid & ATTR_MTIME) {
+			nfs_update_delegated_mtime(inode);
+			attr->ia_valid &= ~ATTR_MTIME;
+		}
+		if (attr->ia_valid & ATTR_ATIME) {
+			nfs_update_delegated_atime(inode);
+			attr->ia_valid &= ~ATTR_ATIME;
+		}
 	}
 
 	/* Optimization: if the end result is no change, don't RPC */
@@ -686,6 +726,7 @@ static int nfs_vmtruncate(struct inode * inode, loff_t offset)
 
 	spin_unlock(&inode->i_lock);
 	truncate_pagecache(inode, offset);
+	nfs_update_delegated_mtime_locked(inode);
 	spin_lock(&inode->i_lock);
 out:
 	return err;
@@ -709,8 +750,9 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr,
 	spin_lock(&inode->i_lock);
 	NFS_I(inode)->attr_gencount = fattr->gencount;
 	if ((attr->ia_valid & ATTR_SIZE) != 0) {
-		nfs_set_cache_invalid(inode, NFS_INO_INVALID_MTIME |
-						     NFS_INO_INVALID_BLOCKS);
+		if (!nfs_have_delegated_mtime(inode))
+			nfs_set_cache_invalid(inode, NFS_INO_INVALID_MTIME);
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_BLOCKS);
 		nfs_inc_stats(inode, NFSIOS_SETATTRTRUNC);
 		nfs_vmtruncate(inode, attr->ia_size);
 	}
@@ -856,8 +898,12 @@ int nfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 
 	/* Flush out writes to the server in order to update c/mtime/version.  */
 	if ((request_mask & (STATX_CTIME | STATX_MTIME | STATX_CHANGE_COOKIE)) &&
-	    S_ISREG(inode->i_mode))
-		filemap_write_and_wait(inode->i_mapping);
+	    S_ISREG(inode->i_mode)) {
+		if (nfs_have_delegated_mtime(inode))
+			filemap_fdatawrite(inode->i_mapping);
+		else
+			filemap_write_and_wait(inode->i_mapping);
+	}
 
 	/*
 	 * We may force a getattr if the user cares about atime.

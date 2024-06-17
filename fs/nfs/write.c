@@ -289,6 +289,8 @@ static void nfs_grow_file(struct folio *folio, unsigned int offset,
 	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_SIZE;
 	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
 out:
+	/* Atomically update timestamps if they are delegated to us. */
+	nfs_update_delegated_mtime_locked(inode);
 	spin_unlock(&inode->i_lock);
 	nfs_fscache_invalidate(inode, 0);
 }
@@ -1513,6 +1515,13 @@ void nfs_writeback_update_inode(struct nfs_pgio_header *hdr)
 {
 	struct nfs_fattr *fattr = &hdr->fattr;
 	struct inode *inode = hdr->inode;
+
+	if (nfs_have_delegated_mtime(inode)) {
+		spin_lock(&inode->i_lock);
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_BLOCKS);
+		spin_unlock(&inode->i_lock);
+		return;
+	}
 
 	spin_lock(&inode->i_lock);
 	nfs_writeback_check_extend(hdr, fattr);

@@ -1245,7 +1245,8 @@ nfs4_update_changeattr_locked(struct inode *inode,
 	struct nfs_inode *nfsi = NFS_I(inode);
 	u64 change_attr = inode_peek_iversion_raw(inode);
 
-	cache_validity |= NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME;
+	if (!nfs_have_delegated_mtime(inode))
+		cache_validity |= NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME;
 	if (S_ISDIR(inode->i_mode))
 		cache_validity |= NFS_INO_INVALID_DATA;
 
@@ -1961,6 +1962,8 @@ nfs4_process_delegation(struct inode *inode, const struct cred *cred,
 	switch (delegation->open_delegation_type) {
 	case NFS4_OPEN_DELEGATE_READ:
 	case NFS4_OPEN_DELEGATE_WRITE:
+	case NFS4_OPEN_DELEGATE_READ_ATTRS_DELEG:
+	case NFS4_OPEN_DELEGATE_WRITE_ATTRS_DELEG:
 		break;
 	default:
 		return;
@@ -1974,16 +1977,16 @@ nfs4_process_delegation(struct inode *inode, const struct cred *cred,
 				   NFS_SERVER(inode)->nfs_client->cl_hostname);
 		break;
 	case NFS4_OPEN_CLAIM_PREVIOUS:
-		nfs_inode_reclaim_delegation(inode, cred,
-				delegation->type,
-				&delegation->stateid,
-				delegation->pagemod_limit);
+		nfs_inode_reclaim_delegation(inode, cred, delegation->type,
+					     &delegation->stateid,
+					     delegation->pagemod_limit,
+					     delegation->open_delegation_type);
 		break;
 	default:
-		nfs_inode_set_delegation(inode, cred,
-				delegation->type,
-				&delegation->stateid,
-				delegation->pagemod_limit);
+		nfs_inode_set_delegation(inode, cred, delegation->type,
+					 &delegation->stateid,
+					 delegation->pagemod_limit,
+					 delegation->open_delegation_type);
 	}
 	if (delegation->do_recall)
 		nfs_async_inode_return_delegation(inode, &delegation->stateid);
