@@ -28,6 +28,14 @@ CPULIST=$(cat $CGROUP2/cpuset.cpus.effective)
 NR_CPUS=$(lscpu | grep "^CPU(s):" | sed -e "s/.*:[[:space:]]*//")
 [[ $NR_CPUS -lt 8 ]] && skip_test "Test needs at least 8 cpus available!"
 
+# Check to see if /dev/console exists and is writable
+if [[ -c /dev/console && -w /dev/console ]]
+then
+	CONSOLE=/dev/console
+else
+	CONSOLE=/dev/null
+fi
+
 # Set verbose flag and delay factor
 PROG=$1
 VERBOSE=0
@@ -103,8 +111,8 @@ console_msg()
 {
 	MSG=$1
 	echo "$MSG"
-	echo "" > /dev/console
-	echo "$MSG" > /dev/console
+	echo "" > $CONSOLE
+	echo "$MSG" > $CONSOLE
 	pause 0.01
 }
 
@@ -694,9 +702,9 @@ null_isolcpus_check()
 	[[ $VERBOSE -gt 0 ]] || return 0
 	# Retry a few times before printing error
 	RETRY=0
-	while [[ $RETRY -lt 5 ]]
+	while [[ $RETRY -lt 8 ]]
 	do
-		pause 0.01
+		pause 0.02
 		check_isolcpus "."
 		[[ $? -eq 0 ]] && return 0
 		((RETRY++))
@@ -726,7 +734,7 @@ run_state_test()
 
 	while [[ $I -lt $CNT ]]
 	do
-		echo "Running test $I ..." > /dev/console
+		echo "Running test $I ..." > $CONSOLE
 		[[ $VERBOSE -gt 1 ]] && {
 			echo ""
 			eval echo \${$TEST[$I]}
@@ -783,7 +791,7 @@ run_state_test()
 		while [[ $NEWLIST != $CPULIST && $RETRY -lt 8 ]]
 		do
 			# Wait a bit longer & recheck a few times
-			pause 0.01
+			pause 0.02
 			((RETRY++))
 			NEWLIST=$(cat cpuset.cpus.effective)
 		done
