@@ -1419,27 +1419,28 @@ static void cs35l41_acpi_device_notify(acpi_handle handle, u32 event, struct dev
 static int cs35l41_hda_bind(struct device *dev, struct device *master, void *master_data)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
-	struct hda_component *comps = master_data;
+	struct hda_component_parent *parent = master_data;
+	struct hda_component *comp;
 	unsigned int sleep_flags;
 	int ret = 0;
 
-	if (!comps || cs35l41->index < 0 || cs35l41->index >= HDA_MAX_COMPONENTS)
+	comp = hda_component_from_index(parent, cs35l41->index);
+	if (!comp)
 		return -EINVAL;
 
-	comps = &comps[cs35l41->index];
-	if (comps->dev)
+	if (comp->dev)
 		return -EBUSY;
 
 	pm_runtime_get_sync(dev);
 
 	mutex_lock(&cs35l41->fw_mutex);
 
-	comps->dev = dev;
+	comp->dev = dev;
 	if (!cs35l41->acpi_subsystem_id)
 		cs35l41->acpi_subsystem_id = kasprintf(GFP_KERNEL, "%.8x",
-						       comps->codec->core.subsystem_id);
-	cs35l41->codec = comps->codec;
-	strscpy(comps->name, dev_name(dev), sizeof(comps->name));
+						       comp->codec->core.subsystem_id);
+	cs35l41->codec = comp->codec;
+	strscpy(comp->name, dev_name(dev), sizeof(comp->name));
 
 	cs35l41->firmware_type = HDA_CS_DSP_FW_SPK_PROT;
 
@@ -1454,13 +1455,13 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 
 	ret = cs35l41_create_controls(cs35l41);
 
-	comps->playback_hook = cs35l41_hda_playback_hook;
-	comps->pre_playback_hook = cs35l41_hda_pre_playback_hook;
-	comps->post_playback_hook = cs35l41_hda_post_playback_hook;
-	comps->acpi_notify = cs35l41_acpi_device_notify;
-	comps->adev = cs35l41->dacpi;
+	comp->playback_hook = cs35l41_hda_playback_hook;
+	comp->pre_playback_hook = cs35l41_hda_pre_playback_hook;
+	comp->post_playback_hook = cs35l41_hda_post_playback_hook;
+	comp->acpi_notify = cs35l41_acpi_device_notify;
+	comp->adev = cs35l41->dacpi;
 
-	comps->acpi_notifications_supported = cs35l41_dsm_supported(acpi_device_handle(comps->adev),
+	comp->acpi_notifications_supported = cs35l41_dsm_supported(acpi_device_handle(comp->adev),
 		CS35L41_DSM_GET_MUTE);
 
 	cs35l41->mute_override = cs35l41_get_acpi_mute_state(cs35l41,
@@ -1469,7 +1470,7 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	mutex_unlock(&cs35l41->fw_mutex);
 
 	sleep_flags = lock_system_sleep();
-	if (!device_link_add(&comps->codec->core.dev, cs35l41->dev, DL_FLAG_STATELESS))
+	if (!device_link_add(&comp->codec->core.dev, cs35l41->dev, DL_FLAG_STATELESS))
 		dev_warn(dev, "Unable to create device link\n");
 	unlock_system_sleep(sleep_flags);
 
@@ -1489,14 +1490,19 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 static void cs35l41_hda_unbind(struct device *dev, struct device *master, void *master_data)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
-	struct hda_component *comps = master_data;
+	struct hda_component_parent *parent = master_data;
+	struct hda_component *comp;
 	unsigned int sleep_flags;
 
-	if (comps[cs35l41->index].dev == dev) {
-		memset(&comps[cs35l41->index], 0, sizeof(*comps));
+	comp = hda_component_from_index(parent, cs35l41->index);
+	if (!comp)
+		return;
+
+	if (comp->dev == dev) {
 		sleep_flags = lock_system_sleep();
 		device_link_remove(&cs35l41->codec->core.dev, cs35l41->dev);
 		unlock_system_sleep(sleep_flags);
+		memset(comp, 0, sizeof(*comp));
 	}
 }
 

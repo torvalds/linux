@@ -93,7 +93,7 @@ static inline struct hda_component *hda_component_from_index(struct hda_componen
 static inline void hda_component_manager_unbind(struct hda_codec *cdc,
 						struct hda_component_parent *parent)
 {
-	component_unbind_all(hda_codec_dev(cdc), &parent->comps);
+	component_unbind_all(hda_codec_dev(cdc), parent);
 }
 
 #endif /* ifndef __HDA_COMPONENT_H__ */

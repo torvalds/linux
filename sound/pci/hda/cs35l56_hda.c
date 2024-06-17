@@ -685,20 +685,21 @@ err_pm_put:
 static int cs35l56_hda_bind(struct device *dev, struct device *master, void *master_data)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
-	struct hda_component *comps = master_data;
+	struct hda_component_parent *parent = master_data;
+	struct hda_component *comp;
 	int ret;
 
-	if (!comps || cs35l56->index < 0 || cs35l56->index >= HDA_MAX_COMPONENTS)
+	comp = hda_component_from_index(parent, cs35l56->index);
+	if (!comp)
 		return -EINVAL;
 
-	comps = &comps[cs35l56->index];
-	if (comps->dev)
+	if (comp->dev)
 		return -EBUSY;
 
-	comps->dev = dev;
-	cs35l56->codec = comps->codec;
-	strscpy(comps->name, dev_name(dev), sizeof(comps->name));
-	comps->playback_hook = cs35l56_hda_playback_hook;
+	comp->dev = dev;
+	cs35l56->codec = comp->codec;
+	strscpy(comp->name, dev_name(dev), sizeof(comp->name));
+	comp->playback_hook = cs35l56_hda_playback_hook;
 
 	ret = cs35l56_hda_fw_load(cs35l56);
 	if (ret)
@@ -720,7 +721,8 @@ static int cs35l56_hda_bind(struct device *dev, struct device *master, void *mas
 static void cs35l56_hda_unbind(struct device *dev, struct device *master, void *master_data)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
-	struct hda_component *comps = master_data;
+	struct hda_component_parent *parent = master_data;
+	struct hda_component *comp;
 
 	cs35l56_hda_remove_controls(cs35l56);
 
@@ -732,8 +734,9 @@ static void cs35l56_hda_unbind(struct device *dev, struct device *master, void *
 	if (cs35l56->base.fw_patched)
 		cs_dsp_power_down(&cs35l56->cs_dsp);
 
-	if (comps[cs35l56->index].dev == dev)
-		memset(&comps[cs35l56->index], 0, sizeof(*comps));
+	comp = hda_component_from_index(parent, cs35l56->index);
+	if (comp && (comp->dev == dev))
+		memset(comp, 0, sizeof(*comp));
 
 	cs35l56->codec = NULL;
 

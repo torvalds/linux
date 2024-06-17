@@ -141,7 +141,7 @@ int hda_component_manager_bind(struct hda_codec *cdc,
 	for (i = 0; i < ARRAY_SIZE(parent->comps); i++)
 		parent->comps[i].codec = cdc;
 
-	return component_bind_all(hda_codec_dev(cdc), &parent->comps);
+	return component_bind_all(hda_codec_dev(cdc), parent);
 }
 EXPORT_SYMBOL_NS_GPL(hda_component_manager_bind, SND_HDA_SCODEC_COMPONENT);
 
