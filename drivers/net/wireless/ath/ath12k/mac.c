@@ -5834,28 +5834,6 @@ static int ath12k_mac_config_mon_status_default(struct ath12k *ar, bool enable)
 	/* TODO: Need to support new monitor mode */
 }
 
-static void ath12k_mac_wait_reconfigure(struct ath12k_base *ab)
-{
-	int recovery_start_count;
-
-	if (!ab->is_reset)
-		return;
-
-	recovery_start_count = atomic_inc_return(&ab->recovery_start_count);
-
-	ath12k_dbg(ab, ATH12K_DBG_MAC, "recovery start count %d\n", recovery_start_count);
-
-	if (recovery_start_count == ab->num_radios) {
-		complete(&ab->recovery_start);
-		ath12k_dbg(ab, ATH12K_DBG_MAC, "recovery started success\n");
-	}
-
-	ath12k_dbg(ab, ATH12K_DBG_MAC, "waiting reconfigure...\n");
-
-	wait_for_completion_timeout(&ab->reconfigure_complete,
-				    ATH12K_RECONFIGURE_TIMEOUT_HZ);
-}
-
 static int ath12k_mac_start(struct ath12k *ar)
 {
 	struct ath12k_hw *ah = ar->ah;
@@ -5987,7 +5965,6 @@ static int ath12k_mac_op_start(struct ieee80211_hw *hw)
 		break;
 	case ATH12K_HW_STATE_RESTARTING:
 		ah->state = ATH12K_HW_STATE_RESTARTED;
-		ath12k_mac_wait_reconfigure(ah->ab);
 		break;
 	case ATH12K_HW_STATE_RESTARTED:
 	case ATH12K_HW_STATE_WEDGED:
