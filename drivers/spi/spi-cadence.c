@@ -601,14 +601,14 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	reset_control_assert(xspi->rstc);
 	reset_control_deassert(xspi->rstc);
 
-	if (!spi_controller_is_target(ctlr)) {
-		xspi->ref_clk = devm_clk_get_enabled(&pdev->dev, "ref_clk");
-		if (IS_ERR(xspi->ref_clk)) {
-			dev_err(&pdev->dev, "ref_clk clock not found.\n");
-			ret = PTR_ERR(xspi->ref_clk);
-			goto remove_ctlr;
-		}
+	xspi->ref_clk = devm_clk_get_enabled(&pdev->dev, "ref_clk");
+	if (IS_ERR(xspi->ref_clk)) {
+		dev_err(&pdev->dev, "ref_clk clock not found.\n");
+		ret = PTR_ERR(xspi->ref_clk);
+		goto remove_ctlr;
+	}
 
+	if (!spi_controller_is_target(ctlr)) {
 		pm_runtime_use_autosuspend(&pdev->dev);
 		pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
 		pm_runtime_get_noresume(&pdev->dev);
