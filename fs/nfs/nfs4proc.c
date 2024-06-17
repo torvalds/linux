@@ -3990,6 +3990,10 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 				sizeof(server->attr_bitmask));
 		server->attr_bitmask_nl[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
 
+		if (res.open_caps.oa_share_access_want[0] &
+		    NFS4_SHARE_WANT_OPEN_XOR_DELEGATION)
+			server->caps |= NFS_CAP_OPEN_XOR;
+
 		memcpy(server->cache_consistency_bitmask, res.attr_bitmask, sizeof(server->cache_consistency_bitmask));
 		server->cache_consistency_bitmask[0] &= FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE;
 		server->cache_consistency_bitmask[1] &= FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY;
