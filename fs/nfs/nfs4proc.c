@@ -2035,8 +2035,11 @@ _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 				data->o_arg.claim,
 				&data->o_res.delegation);
 
-	if (!update_open_stateid(state, &data->o_res.stateid,
-				NULL, data->o_arg.fmode))
+	if (!(data->o_res.rflags & NFS4_OPEN_RESULT_NO_OPEN_STATEID)) {
+		if (!update_open_stateid(state, &data->o_res.stateid,
+					 NULL, data->o_arg.fmode))
+			return ERR_PTR(-EAGAIN);
+	} else if (!update_open_stateid(state, NULL, NULL, data->o_arg.fmode))
 		return ERR_PTR(-EAGAIN);
 	refcount_inc(&state->count);
 
@@ -2105,8 +2108,13 @@ _nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
 				data->o_arg.claim,
 				&data->o_res.delegation);
 
-	if (!update_open_stateid(state, &data->o_res.stateid,
-				NULL, data->o_arg.fmode)) {
+	if (!(data->o_res.rflags & NFS4_OPEN_RESULT_NO_OPEN_STATEID)) {
+		if (!update_open_stateid(state, &data->o_res.stateid,
+					 NULL, data->o_arg.fmode)) {
+			nfs4_put_open_state(state);
+			state = ERR_PTR(-EAGAIN);
+		}
+	} else if (!update_open_stateid(state, NULL, NULL, data->o_arg.fmode)) {
 		nfs4_put_open_state(state);
 		state = ERR_PTR(-EAGAIN);
 	}
