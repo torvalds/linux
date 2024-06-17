@@ -285,7 +285,7 @@ EXPORT_SYMBOL_NS_GPL(ipu6_configure_spc, INTEL_IPU6);
 #define IPU6_ISYS_CSI2_NPORTS		4
 #define IPU6SE_ISYS_CSI2_NPORTS		4
 #define IPU6_TGL_ISYS_CSI2_NPORTS	8
-#define IPU6EP_MTL_ISYS_CSI2_NPORTS	4
+#define IPU6EP_MTL_ISYS_CSI2_NPORTS	6
 
 static void ipu6_internal_pdata_init(struct ipu6_device *isp)
 {
@@ -726,9 +726,6 @@ static void ipu6_pci_remove(struct pci_dev *pdev)
 
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
-
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 
 	release_firmware(isp->cpd_fw);
 
