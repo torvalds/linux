@@ -218,6 +218,22 @@ static int adv748x_csi2_get_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static bool adv748x_csi2_is_fmt_supported(struct adv748x_csi2 *tx, u32 code)
+{
+	const unsigned int *codes = is_txa(tx) ?
+				    adv748x_csi2_txa_fmts :
+				    adv748x_csi2_txb_fmts;
+	size_t num_fmts = is_txa(tx) ? ARRAY_SIZE(adv748x_csi2_txa_fmts)
+				     : ARRAY_SIZE(adv748x_csi2_txb_fmts);
+
+	for (unsigned int i = 0; i < num_fmts; i++) {
+		if (codes[i] == code)
+			return true;
+	}
+
+	return false;
+}
+
 static int adv748x_csi2_set_format(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *sdformat)
@@ -226,6 +242,13 @@ static int adv748x_csi2_set_format(struct v4l2_subdev *sd,
 	struct adv748x_state *state = tx->state;
 	struct v4l2_mbus_framefmt *mbusformat;
 	int ret = 0;
+
+	/*
+	 * Make sure the format is supported, if not default it to
+	 * UYVY8 as it's supported by both TXes.
+	 */
+	if (!adv748x_csi2_is_fmt_supported(tx, sdformat->format.code))
+		sdformat->format.code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 	mbusformat = adv748x_csi2_get_pad_format(sd, sd_state, sdformat->pad,
 						 sdformat->which);
