@@ -185,10 +185,11 @@ struct exynos5_usbdrd_phy_config {
 struct exynos5_usbdrd_phy_drvdata {
 	const struct exynos5_usbdrd_phy_config *phy_cfg;
 	const struct phy_ops *phy_ops;
+	const char * const *core_clk_names;
+	int n_core_clks;
 	u32 pmu_offset_usbdrd0_phy;
 	u32 pmu_offset_usbdrd0_phy_ss;
 	u32 pmu_offset_usbdrd1_phy;
-	bool has_common_clk_gate;
 };
 
 /**
@@ -196,16 +197,12 @@ struct exynos5_usbdrd_phy_drvdata {
  * @dev: pointer to device instance of this platform device
  * @reg_phy: usb phy controller register memory base
  * @clk: phy clock for register access
- * @pipeclk: clock for pipe3 phy
- * @utmiclk: clock for utmi+ phy
- * @itpclk: clock for ITP generation
+ * @core_clks: core clocks for phy (ref, pipe3, utmi+, ITP, etc. as required)
  * @drv_data: pointer to SoC level driver data structure
  * @phys: array for 'EXYNOS5_DRDPHYS_NUM' number of PHY
  *	    instances each with its 'phy' and 'phy_cfg'.
  * @extrefclk: frequency select settings when using 'separate
  *	       reference clocks' for SS and HS operations
- * @ref_clk: reference clock to PHY block from which PHY's
- *	     operational clocks are derived
  * @vbus: VBUS regulator for phy
  * @vbus_boost: Boost regulator for VBUS present on few Exynos boards
  */
@@ -213,9 +210,7 @@ struct exynos5_usbdrd_phy {
 	struct device *dev;
 	void __iomem *reg_phy;
 	struct clk *clk;
-	struct clk *pipeclk;
-	struct clk *utmiclk;
-	struct clk *itpclk;
+	struct clk_bulk_data *core_clks;
 	const struct exynos5_usbdrd_phy_drvdata *drv_data;
 	struct phy_usb_instance {
 		struct phy *phy;
@@ -225,7 +220,6 @@ struct exynos5_usbdrd_phy {
 		const struct exynos5_usbdrd_phy_config *phy_cfg;
 	} phys[EXYNOS5_DRDPHYS_NUM];
 	u32 extrefclk;
-	struct clk *ref_clk;
 	struct regulator *vbus;
 	struct regulator *vbus_boost;
 };
@@ -505,12 +499,10 @@ static int exynos5_usbdrd_phy_power_on(struct phy *phy)
 
 	dev_dbg(phy_drd->dev, "Request to power_on usbdrd_phy phy\n");
 
-	clk_prepare_enable(phy_drd->ref_clk);
-	if (!phy_drd->drv_data->has_common_clk_gate) {
-		clk_prepare_enable(phy_drd->pipeclk);
-		clk_prepare_enable(phy_drd->utmiclk);
-		clk_prepare_enable(phy_drd->itpclk);
-	}
+	ret = clk_bulk_prepare_enable(phy_drd->drv_data->n_core_clks,
+				      phy_drd->core_clks);
+	if (ret)
+		return ret;
 
 	/* Enable VBUS supply */
 	if (phy_drd->vbus_boost) {
@@ -540,12 +532,8 @@ fail_vbus_boost:
 		regulator_disable(phy_drd->vbus_boost);
 
 fail_vbus:
-	clk_disable_unprepare(phy_drd->ref_clk);
-	if (!phy_drd->drv_data->has_common_clk_gate) {
-		clk_disable_unprepare(phy_drd->itpclk);
-		clk_disable_unprepare(phy_drd->utmiclk);
-		clk_disable_unprepare(phy_drd->pipeclk);
-	}
+	clk_bulk_disable_unprepare(phy_drd->drv_data->n_core_clks,
+				   phy_drd->core_clks);
 
 	return ret;
 }
@@ -566,12 +554,8 @@ static int exynos5_usbdrd_phy_power_off(struct phy *phy)
 	if (phy_drd->vbus_boost)
 		regulator_disable(phy_drd->vbus_boost);
 
-	clk_disable_unprepare(phy_drd->ref_clk);
-	if (!phy_drd->drv_data->has_common_clk_gate) {
-		clk_disable_unprepare(phy_drd->itpclk);
-		clk_disable_unprepare(phy_drd->pipeclk);
-		clk_disable_unprepare(phy_drd->utmiclk);
-	}
+	clk_bulk_disable_unprepare(phy_drd->drv_data->n_core_clks,
+				   phy_drd->core_clks);
 
 	return 0;
 }
@@ -885,8 +869,9 @@ static const struct phy_ops exynos850_usbdrd_phy_ops = {
 
 static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
 {
-	unsigned long ref_rate;
 	int ret;
+	struct clk *ref_clk;
+	unsigned long ref_rate;
 
 	phy_drd->clk = devm_clk_get(phy_drd->dev, "phy");
 	if (IS_ERR(phy_drd->clk)) {
@@ -894,42 +879,39 @@ static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
 		return PTR_ERR(phy_drd->clk);
 	}
 
-	phy_drd->ref_clk = devm_clk_get(phy_drd->dev, "ref");
-	if (IS_ERR(phy_drd->ref_clk)) {
-		dev_err(phy_drd->dev, "Failed to get phy reference clock\n");
-		return PTR_ERR(phy_drd->ref_clk);
-	}
-	ref_rate = clk_get_rate(phy_drd->ref_clk);
+	phy_drd->core_clks = devm_kcalloc(phy_drd->dev,
+					  phy_drd->drv_data->n_core_clks,
+					  sizeof(*phy_drd->core_clks),
+					  GFP_KERNEL);
+	if (!phy_drd->core_clks)
+		return -ENOMEM;
 
+	for (int i = 0; i < phy_drd->drv_data->n_core_clks; ++i)
+		phy_drd->core_clks[i].id = phy_drd->drv_data->core_clk_names[i];
+
+	ret = devm_clk_bulk_get(phy_drd->dev, phy_drd->drv_data->n_core_clks,
+				phy_drd->core_clks);
+	if (ret)
+		return dev_err_probe(phy_drd->dev, ret,
+				     "failed to get phy core clock(s)\n");
+
+	ref_clk = NULL;
+	for (int i = 0; i < phy_drd->drv_data->n_core_clks; ++i) {
+		if (!strcmp(phy_drd->core_clks[i].id, "ref")) {
+			ref_clk = phy_drd->core_clks[i].clk;
+			break;
+		}
+	}
+	if (!ref_clk)
+		return dev_err_probe(phy_drd->dev, -ENODEV,
+				     "failed to find phy reference clock\n");
+
+	ref_rate = clk_get_rate(ref_clk);
 	ret = exynos5_rate_to_clk(ref_rate, &phy_drd->extrefclk);
-	if (ret) {
-		dev_err(phy_drd->dev, "Clock rate (%ld) not supported\n",
-			ref_rate);
-		return ret;
-	}
-
-	if (!phy_drd->drv_data->has_common_clk_gate) {
-		phy_drd->pipeclk = devm_clk_get(phy_drd->dev, "phy_pipe");
-		if (IS_ERR(phy_drd->pipeclk)) {
-			dev_info(phy_drd->dev,
-				 "PIPE3 phy operational clock not specified\n");
-			phy_drd->pipeclk = NULL;
-		}
-
-		phy_drd->utmiclk = devm_clk_get(phy_drd->dev, "phy_utmi");
-		if (IS_ERR(phy_drd->utmiclk)) {
-			dev_info(phy_drd->dev,
-				 "UTMI phy operational clock not specified\n");
-			phy_drd->utmiclk = NULL;
-		}
-
-		phy_drd->itpclk = devm_clk_get(phy_drd->dev, "itp");
-		if (IS_ERR(phy_drd->itpclk)) {
-			dev_info(phy_drd->dev,
-				 "ITP clock from main OSC not specified\n");
-			phy_drd->itpclk = NULL;
-		}
-	}
+	if (ret)
+		return dev_err_probe(phy_drd->dev, ret,
+				     "clock rate (%ld) not supported\n",
+				     ref_rate);
 
 	return 0;
 }
@@ -957,19 +939,29 @@ static const struct exynos5_usbdrd_phy_config phy_cfg_exynos850[] = {
 	},
 };
 
+static const char * const exynos5_core_clk_names[] = {
+	"ref",
+};
+
+static const char * const exynos5433_core_clk_names[] = {
+	"ref", "phy_pipe", "phy_utmi", "itp",
+};
+
 static const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
 	.phy_ops		= &exynos5_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 	.pmu_offset_usbdrd1_phy	= EXYNOS5420_USBDRD1_PHY_CONTROL,
-	.has_common_clk_gate	= true,
+	.core_clk_names		= exynos5_core_clk_names,
+	.n_core_clks		= ARRAY_SIZE(exynos5_core_clk_names),
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos5250_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
 	.phy_ops		= &exynos5_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
-	.has_common_clk_gate	= true,
+	.core_clk_names		= exynos5_core_clk_names,
+	.n_core_clks		= ARRAY_SIZE(exynos5_core_clk_names),
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos5433_usbdrd_phy = {
@@ -977,21 +969,24 @@ static const struct exynos5_usbdrd_phy_drvdata exynos5433_usbdrd_phy = {
 	.phy_ops		= &exynos5_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 	.pmu_offset_usbdrd1_phy	= EXYNOS5433_USBHOST30_PHY_CONTROL,
-	.has_common_clk_gate	= false,
+	.core_clk_names		= exynos5433_core_clk_names,
+	.n_core_clks		= ARRAY_SIZE(exynos5433_core_clk_names),
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos7_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
 	.phy_ops		= &exynos5_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
-	.has_common_clk_gate	= false,
+	.core_clk_names		= exynos5433_core_clk_names,
+	.n_core_clks		= ARRAY_SIZE(exynos5433_core_clk_names),
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos850_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos850,
 	.phy_ops		= &exynos850_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
-	.has_common_clk_gate	= true,
+	.core_clk_names		= exynos5_core_clk_names,
+	.n_core_clks		= ARRAY_SIZE(exynos5_core_clk_names),
 };
 
 static const struct of_device_id exynos5_usbdrd_phy_of_match[] = {
@@ -1045,10 +1040,8 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	phy_drd->drv_data = drv_data;
 
 	ret = exynos5_usbdrd_phy_clk_handle(phy_drd);
-	if (ret) {
-		dev_err(dev, "Failed to initialize clocks\n");
+	if (ret)
 		return ret;
-	}
 
 	reg_pmu = syscon_regmap_lookup_by_phandle(dev->of_node,
 						   "samsung,pmu-syscon");
