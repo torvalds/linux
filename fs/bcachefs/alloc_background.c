@@ -259,6 +259,14 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 			 "invalid data type (got %u should be %u)",
 			 a.v->data_type, alloc_data_type(*a.v, a.v->data_type));
 
+	for (unsigned i = 0; i < 2; i++)
+		bkey_fsck_err_on(a.v->io_time[i] > LRU_TIME_MAX,
+				 c, err,
+				 alloc_key_io_time_bad,
+				 "invalid io_time[%s]: %llu, max %llu",
+				 i == READ ? "read" : "write",
+				 a.v->io_time[i], LRU_TIME_MAX);
+
 	switch (a.v->data_type) {
 	case BCH_DATA_free:
 	case BCH_DATA_need_gc_gens:
@@ -757,8 +765,8 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		alloc_data_type_set(new_a, new_a->data_type);
 
 		if (bch2_bucket_sectors_total(*new_a) > bch2_bucket_sectors_total(*old_a)) {
-			new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
-			new_a->io_time[WRITE]= max_t(u64, 1, atomic64_read(&c->io_clock[WRITE].now));
+			new_a->io_time[READ] = bch2_current_io_time(c, READ);
+			new_a->io_time[WRITE]= bch2_current_io_time(c, WRITE);
 			SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, true);
 			SET_BCH_ALLOC_V4_NEED_DISCARD(new_a, true);
 		}
@@ -781,7 +789,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 		if (new_a->data_type == BCH_DATA_cached &&
 		    !new_a->io_time[READ])
-			new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
+			new_a->io_time[READ] = bch2_current_io_time(c, READ);
 
 		u64 old_lru = alloc_lru_idx_read(*old_a);
 		u64 new_lru = alloc_lru_idx_read(*new_a);
@@ -1579,7 +1587,7 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		a_mut->v.io_time[READ] = atomic64_read(&c->io_clock[READ].now);
+		a_mut->v.io_time[READ] = bch2_current_io_time(c, READ);
 		ret = bch2_trans_update(trans, alloc_iter,
 					&a_mut->k_i, BTREE_TRIGGER_norun);
 		if (ret)
@@ -1975,8 +1983,8 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	a->v.data_type		= 0;
 	a->v.dirty_sectors	= 0;
 	a->v.cached_sectors	= 0;
-	a->v.io_time[READ]	= atomic64_read(&c->io_clock[READ].now);
-	a->v.io_time[WRITE]	= atomic64_read(&c->io_clock[WRITE].now);
+	a->v.io_time[READ]	= bch2_current_io_time(c, READ);
+	a->v.io_time[WRITE]	= bch2_current_io_time(c, WRITE);
 
 	ret = bch2_trans_commit(trans, NULL, NULL,
 				BCH_WATERMARK_btree|
@@ -2204,7 +2212,7 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	if (ret)
 		return ret;
 
-	now = atomic64_read(&c->io_clock[rw].now);
+	now = bch2_current_io_time(c, rw);
 	if (a->v.io_time[rw] == now)
 		goto out;
 

@@ -476,6 +476,9 @@ struct bch_lru {
 
 #define LRU_ID_STRIPES		(1U << 16)
 
+#define LRU_TIME_BITS	48
+#define LRU_TIME_MAX	((1ULL << LRU_TIME_BITS) - 1)
+
 /* Optional/variable size superblock sections: */
 
 struct bch_sb_field {
