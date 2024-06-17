@@ -125,6 +125,10 @@
 	sensor@48 {
 		compatible = "ti,tmp108";
 		reg = <0x48>;
+		interrupts-extended = <&tlmm 13 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&temp_alert_default>;
+		pinctrl-names = "default";
+		#thermal-sensor-cells = <0>;
 	};
 };
 
@@ -360,6 +364,14 @@
 		drive-strength = <2>;
 		bias-disable;
 		output-high;
+	};
+
+	temp_alert_default: temp-alert-default-state {
+		pins = "gpio13";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-disable;
 	};
 };
 
