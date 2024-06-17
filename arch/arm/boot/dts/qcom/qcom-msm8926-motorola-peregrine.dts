@@ -29,6 +29,10 @@
 			height = <1280>;
 			stride = <(720 * 3)>;
 			format = "r8g8b8";
+			vsp-supply = <&reg_lcd_pos>;
+			vsn-supply = <&reg_lcd_neg>;
+			vdd-supply = <&pm8226_l28>;
+			vddio-supply = <&vddio_disp_vreg>;
 		};
 	};
 
@@ -49,6 +53,18 @@
 			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <15>;
 		};
+	};
+
+	vddio_disp_vreg: regulator-vddio-disp {
+		compatible = "regulator-fixed";
+		regulator-name = "vddio_disp";
+		gpio = <&tlmm 34 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <300>;
+		enable-active-high;
+		regulator-boot-on;
+		vin-supply = <&pm8226_l8>;
+		pinctrl-0 = <&disp_vddio_default>;
+		pinctrl-names = "default";
 	};
 
 	reserved-memory {
@@ -340,6 +356,14 @@
 		drive-strength = <2>;
 		bias-disable;
 		output-disable;
+	};
+
+	disp_vddio_default: disp-vddio-default-state {
+		pins = "gpio34";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
 	};
 
 	mag_int_default: mag-int-default-state {
