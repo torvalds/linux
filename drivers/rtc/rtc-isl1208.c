@@ -7,6 +7,7 @@
 
 #include <linux/bcd.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -627,6 +628,18 @@ isl1208_rtc_interrupt(int irq, void *data)
 	struct i2c_client *client = data;
 	struct isl1208_state *isl1208 = i2c_get_clientdata(client);
 	int handled = 0, sr, err;
+
+	if (!isl1208->config->has_tamper) {
+		/*
+		 * The INT# output is pulled low 250ms after the alarm is
+		 * triggered. After the INT# output is pulled low, it is low for
+		 * at least 250ms, even if the correct action is taken to clear
+		 * it. It is impossible to clear ALM if it is still active. The
+		 * host must wait for the RTC to progress past the alarm time
+		 * plus the 250ms delay before clearing ALM.
+		 */
+		msleep(250);
+	}
 
 	/*
 	 * I2C reads get NAK'ed if we read straight away after an interrupt?
