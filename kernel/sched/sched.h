@@ -194,6 +194,10 @@ static inline int idle_policy(int policy)
 
 static inline int normal_policy(int policy)
 {
+#ifdef CONFIG_SCHED_CLASS_EXT
+	if (policy == SCHED_EXT)
+		return true;
+#endif
 	return policy == SCHED_NORMAL;
 }
 
@@ -719,6 +723,16 @@ struct cfs_rq {
 #endif /* CONFIG_FAIR_GROUP_SCHED */
 };
 
+#ifdef CONFIG_SCHED_CLASS_EXT
+struct scx_rq {
+	struct scx_dispatch_q	local_dsq;
+	struct list_head	runnable_list;		/* runnable tasks on this rq */
+	unsigned long		ops_qseq;
+	u64			extra_enq_flags;	/* see move_task_to_local_dsq() */
+	u32			nr_running;
+};
+#endif /* CONFIG_SCHED_CLASS_EXT */
+
 static inline int rt_bandwidth_enabled(void)
 {
 	return sysctl_sched_rt_runtime >= 0;
@@ -1066,6 +1080,9 @@ struct rq {
 	struct cfs_rq		cfs;
 	struct rt_rq		rt;
 	struct dl_rq		dl;
+#ifdef CONFIG_SCHED_CLASS_EXT
+	struct scx_rq		scx;
+#endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this CPU: */
