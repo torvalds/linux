@@ -677,15 +677,9 @@ static const struct xe_rtp_entry_sr lrc_was[] = {
 		       ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(CHICKEN_RASTER_2, TBIMR_FAST_CLIP))
 	},
-	/*
-	 * This WA is also needed on primary GT when the media version is 2000.
-	 * Currently, media version 2000 is always paired with graphics version
-	 * 2004, so just checking the latter is sufficient. In the future, media
-	 * version 2000 can be used with some other graphics version where WA
-	 * still needs to be implemented
-	 */
 	{ XE_RTP_NAME("14020756599"),
-	  XE_RTP_RULES(GRAPHICS_VERSION(2004), ENGINE_CLASS(RENDER)),
+	  XE_RTP_RULES(GRAPHICS_VERSION(2004), ENGINE_CLASS(RENDER), OR,
+		       MEDIA_VERSION_ANY_GT(2000), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(WM_CHICKEN3, HIZ_PLANE_COMPRESSION_DIS))
 	},
 	{ XE_RTP_NAME("14021490052"),
