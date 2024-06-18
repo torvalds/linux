@@ -63,6 +63,9 @@ static bool rule_matches(const struct xe_device *xe,
 				xe->info.graphics_verx100 <= r->ver_end &&
 				(!has_samedia(xe) || !xe_gt_is_media_type(gt));
 			break;
+		case XE_RTP_MATCH_GRAPHICS_VERSION_ANY_GT:
+			match = xe->info.graphics_verx100 == r->ver_start;
+			break;
 		case XE_RTP_MATCH_GRAPHICS_STEP:
 			match = xe->info.step.graphics >= r->step_start &&
 				xe->info.step.graphics < r->step_end &&
@@ -81,6 +84,9 @@ static bool rule_matches(const struct xe_device *xe,
 			match = xe->info.step.media >= r->step_start &&
 				xe->info.step.media < r->step_end &&
 				(!has_samedia(xe) || xe_gt_is_media_type(gt));
+			break;
+		case XE_RTP_MATCH_MEDIA_VERSION_ANY_GT:
+			match = xe->info.media_verx100 == r->ver_start;
 			break;
 		case XE_RTP_MATCH_INTEGRATED:
 			match = !xe->info.is_dgfx;

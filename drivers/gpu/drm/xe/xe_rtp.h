@@ -140,8 +140,22 @@ struct xe_reg_sr;
 	  .ver_start = ver_start__, .ver_end = ver_end__, }
 
 /**
- * XE_RTP_RULE_MEDIA_VERSION - Create rule matching media version
+ * XE_RTP_RULE_GRAPHICS_VERSION_ANY_GT - Create rule matching graphics version on any GT
  * @ver__: Graphics IP version to match
+ *
+ * Like XE_RTP_RULE_GRAPHICS_VERSION, but it matches even if the current GT
+ * being checked is not of the graphics type. It allows to add RTP entries to
+ * another GT when the device contains a Graphics IP with that version.
+ *
+ * Refer to XE_RTP_RULES() for expected usage.
+ */
+#define XE_RTP_RULE_GRAPHICS_VERSION_ANY_GT(ver__)				\
+	{ .match_type = XE_RTP_MATCH_GRAPHICS_VERSION_ANY_GT,			\
+	  .ver_start = ver__, }
+
+/**
+ * XE_RTP_RULE_MEDIA_VERSION - Create rule matching media version
+ * @ver__: Media IP version to match
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */
@@ -162,6 +176,20 @@ struct xe_reg_sr;
 #define XE_RTP_RULE_MEDIA_VERSION_RANGE(ver_start__, ver_end__)			\
 	{ .match_type = XE_RTP_MATCH_MEDIA_VERSION_RANGE,			\
 	  .ver_start = ver_start__, .ver_end = ver_end__, }
+
+/**
+ * XE_RTP_RULE_MEDIA_VERSION_ANY_GT - Create rule matching media version on any GT
+ * @ver__: Media IP version to match
+ *
+ * Like XE_RTP_RULE_MEDIA_VERSION, but it matches even if the current GT being
+ * checked is not of the media type. It allows to add RTP entries to another
+ * GT when the device contains a Media IP with that version.
+ *
+ * Refer to XE_RTP_RULES() for expected usage.
+ */
+#define XE_RTP_RULE_MEDIA_VERSION_ANY_GT(ver__)					\
+	{ .match_type = XE_RTP_MATCH_MEDIA_VERSION_ANY_GT,			\
+	  .ver_start = ver__, }
 
 /**
  * XE_RTP_RULE_IS_INTEGRATED - Create a rule matching integrated graphics devices
