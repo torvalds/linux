@@ -9386,8 +9386,8 @@ static void CalculateVMGroupAndRequestTimes(
 	double TimePerVMRequestVBlank[],
 	double TimePerVMRequestFlip[])
 {
-	unsigned int num_group_per_lower_vm_stage = 0;
-	unsigned int num_req_per_lower_vm_stage = 0;
+	unsigned int num_group_per_lower_vm_stage = 1;
+	unsigned int num_req_per_lower_vm_stage = 1;
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: NumberOfActiveSurfaces = %u\n", __func__, NumberOfActiveSurfaces);
