@@ -142,8 +142,8 @@ static int isp_early_init(void *handle)
 	isp->parent = adev->dev;
 
 	if (isp_load_fw_by_psp(adev)) {
-		DRM_WARN("%s: isp fw load failed\n", __func__);
-		return 0;
+		DRM_DEBUG_DRIVER("%s: isp fw load failed\n", __func__);
+		return -ENOENT;
 	}
 
 	return 0;
