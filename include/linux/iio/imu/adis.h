@@ -403,6 +403,10 @@ static inline int adis_check_status(struct adis *adis)
 	return __adis_check_status(adis);
 }
 
+#define adis_dev_auto_lock(adis)	guard(mutex)(&(adis)->state_lock)
+#define adis_dev_auto_scoped_lock(adis) \
+	scoped_guard(mutex, &(adis)->state_lock)
+
 static inline void adis_dev_lock(struct adis *adis)
 {
 	mutex_lock(&adis->state_lock);
