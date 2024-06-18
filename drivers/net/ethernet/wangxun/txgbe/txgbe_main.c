@@ -283,6 +283,12 @@ static int txgbe_sw_init(struct wx *wx)
 	return 0;
 }
 
+static void txgbe_init_fdir(struct txgbe *txgbe)
+{
+	txgbe->fdir_filter_count = 0;
+	spin_lock_init(&txgbe->fdir_perfect_lock);
+}
+
 /**
  * txgbe_open - Called when a network interface is made active
  * @netdev: network interface device structure
@@ -361,6 +367,7 @@ static int txgbe_close(struct net_device *netdev)
 	txgbe_down(wx);
 	wx_free_irq(wx);
 	wx_free_resources(wx);
+	txgbe_fdir_filter_exit(wx);
 	wx_control_hw(wx, false);
 
 	return 0;
@@ -668,6 +675,8 @@ static int txgbe_probe(struct pci_dev *pdev,
 
 	txgbe->wx = wx;
 	wx->priv = txgbe;
+
+	txgbe_init_fdir(txgbe);
 
 	err = txgbe_setup_misc_irq(txgbe);
 	if (err)

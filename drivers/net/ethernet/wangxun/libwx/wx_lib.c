@@ -2705,6 +2705,7 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	netdev_features_t changed = netdev->features ^ features;
 	struct wx *wx = netdev_priv(netdev);
+	bool need_reset = false;
 
 	if (features & NETIF_F_RXHASH) {
 		wr32m(wx, WX_RDB_RA_CTL, WX_RDB_RA_CTL_RSS_EN,
@@ -2721,6 +2722,36 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 		wx->do_reset(netdev);
 	else if (changed & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER))
 		wx_set_rx_mode(netdev);
+
+	if (!(test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)))
+		return 0;
+
+	/* Check if Flow Director n-tuple support was enabled or disabled.  If
+	 * the state changed, we need to reset.
+	 */
+	switch (features & NETIF_F_NTUPLE) {
+	case NETIF_F_NTUPLE:
+		/* turn off ATR, enable perfect filters and reset */
+		if (!(test_and_set_bit(WX_FLAG_FDIR_PERFECT, wx->flags)))
+			need_reset = true;
+
+		clear_bit(WX_FLAG_FDIR_HASH, wx->flags);
+		break;
+	default:
+		/* turn off perfect filters, enable ATR and reset */
+		if (test_and_clear_bit(WX_FLAG_FDIR_PERFECT, wx->flags))
+			need_reset = true;
+
+		/* We cannot enable ATR if RSS is disabled */
+		if (wx->ring_feature[RING_F_RSS].limit <= 1)
+			break;
+
+		set_bit(WX_FLAG_FDIR_HASH, wx->flags);
+		break;
+	}
+
+	if (need_reset)
+		wx->do_reset(netdev);
 
 	return 0;
 }

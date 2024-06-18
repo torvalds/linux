@@ -90,6 +90,7 @@
 #define TXGBE_XPCS_IDA_DATA                     0x13004
 
 /********************************* Flow Director *****************************/
+#define TXGBE_RDB_FDIR_DROP_QUEUE               127
 #define TXGBE_RDB_FDIR_CTL                      0x19500
 #define TXGBE_RDB_FDIR_CTL_INIT_DONE            BIT(3)
 #define TXGBE_RDB_FDIR_CTL_PERFECT_MATCH        BIT(4)
@@ -97,6 +98,13 @@
 #define TXGBE_RDB_FDIR_CTL_HASH_BITS(v)         FIELD_PREP(GENMASK(23, 20), v)
 #define TXGBE_RDB_FDIR_CTL_MAX_LENGTH(v)        FIELD_PREP(GENMASK(27, 24), v)
 #define TXGBE_RDB_FDIR_CTL_FULL_THRESH(v)       FIELD_PREP(GENMASK(31, 28), v)
+#define TXGBE_RDB_FDIR_IP6(_i)                  (0x1950C + ((_i) * 4)) /* 0-2 */
+#define TXGBE_RDB_FDIR_SA                       0x19518
+#define TXGBE_RDB_FDIR_DA                       0x1951C
+#define TXGBE_RDB_FDIR_PORT                     0x19520
+#define TXGBE_RDB_FDIR_PORT_DESTINATION_SHIFT   16
+#define TXGBE_RDB_FDIR_FLEX                     0x19524
+#define TXGBE_RDB_FDIR_FLEX_FLEX_SHIFT          16
 #define TXGBE_RDB_FDIR_HASH                     0x19528
 #define TXGBE_RDB_FDIR_HASH_SIG_SW_INDEX(v)     FIELD_PREP(GENMASK(31, 16), v)
 #define TXGBE_RDB_FDIR_HASH_BUCKET_VALID        BIT(15)
@@ -114,8 +122,16 @@
 #define TXGBE_RDB_FDIR_CMD_QUEUE_EN             BIT(15)
 #define TXGBE_RDB_FDIR_CMD_RX_QUEUE(v)          FIELD_PREP(GENMASK(22, 16), v)
 #define TXGBE_RDB_FDIR_CMD_VT_POOL(v)           FIELD_PREP(GENMASK(29, 24), v)
+#define TXGBE_RDB_FDIR_DA4_MSK                  0x1953C
+#define TXGBE_RDB_FDIR_SA4_MSK                  0x19540
+#define TXGBE_RDB_FDIR_TCP_MSK                  0x19544
+#define TXGBE_RDB_FDIR_UDP_MSK                  0x19548
+#define TXGBE_RDB_FDIR_SCTP_MSK                 0x19560
 #define TXGBE_RDB_FDIR_HKEY                     0x19568
 #define TXGBE_RDB_FDIR_SKEY                     0x1956C
+#define TXGBE_RDB_FDIR_OTHER_MSK                0x19570
+#define TXGBE_RDB_FDIR_OTHER_MSK_POOL           BIT(2)
+#define TXGBE_RDB_FDIR_OTHER_MSK_L4P            BIT(3)
 #define TXGBE_RDB_FDIR_FLEX_CFG(_i)             (0x19580 + ((_i) * 4))
 #define TXGBE_RDB_FDIR_FLEX_CFG_FIELD0          GENMASK(7, 0)
 #define TXGBE_RDB_FDIR_FLEX_CFG_BASE_MAC        FIELD_PREP(GENMASK(1, 0), 0)
@@ -230,6 +246,13 @@ enum txgbe_fdir_pballoc_type {
 	TXGBE_FDIR_PBALLOC_256K = 3,
 };
 
+struct txgbe_fdir_filter {
+	struct hlist_node fdir_node;
+	union txgbe_atr_input filter;
+	u16 sw_idx;
+	u16 action;
+};
+
 /* TX/RX descriptor defines */
 #define TXGBE_DEFAULT_TXD               512
 #define TXGBE_DEFAULT_TX_WORK           256
@@ -316,7 +339,10 @@ struct txgbe {
 	unsigned int link_irq;
 
 	/* flow director */
+	struct hlist_head fdir_filter_list;
 	union txgbe_atr_input fdir_mask;
+	int fdir_filter_count;
+	spinlock_t fdir_perfect_lock; /* spinlock for FDIR */
 };
 
 #endif /* _TXGBE_TYPE_H_ */
