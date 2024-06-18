@@ -106,6 +106,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 		.sticky_cpu	= -1,
 		.holding_cpu	= -1,
 		.runnable_node	= LIST_HEAD_INIT(init_task.scx.runnable_node),
+		.runnable_at	= INITIAL_JIFFIES,
 		.ddsp_dsq_id	= SCX_DSQ_INVALID,
 		.slice		= SCX_SLICE_DFL,
 	},

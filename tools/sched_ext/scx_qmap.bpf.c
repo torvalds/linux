@@ -29,6 +29,8 @@ enum consts {
 char _license[] SEC("license") = "GPL";
 
 const volatile u64 slice_ns = SCX_SLICE_DFL;
+const volatile u32 stall_user_nth;
+const volatile u32 stall_kernel_nth;
 const volatile u32 dsp_batch;
 
 u32 test_error_cnt;
@@ -129,10 +131,19 @@ static int weight_to_idx(u32 weight)
 
 void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 {
+	static u32 user_cnt, kernel_cnt;
 	struct task_ctx *tctx;
 	u32 pid = p->pid;
 	int idx = weight_to_idx(p->scx.weight);
 	void *ring;
+
+	if (p->flags & PF_KTHREAD) {
+		if (stall_kernel_nth && !(++kernel_cnt % stall_kernel_nth))
+			return;
+	} else {
+		if (stall_user_nth && !(++user_cnt % stall_user_nth))
+			return;
+	}
 
 	if (test_error_cnt && !--test_error_cnt)
 		scx_bpf_error("test triggering error");
@@ -261,4 +272,5 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .init_task		= (void *)qmap_init_task,
 	       .init			= (void *)qmap_init,
 	       .exit			= (void *)qmap_exit,
+	       .timeout_ms		= 5000U,
 	       .name			= "qmap");

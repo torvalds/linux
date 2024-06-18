@@ -122,6 +122,7 @@ struct sched_ext_entity {
 	atomic_long_t		ops_state;
 
 	struct list_head	runnable_node;	/* rq->scx.runnable_list */
+	unsigned long		runnable_at;
 
 	u64			ddsp_dsq_id;
 	u64			ddsp_enq_flags;
