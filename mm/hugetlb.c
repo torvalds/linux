@@ -5492,9 +5492,8 @@ again:
 					ret = PTR_ERR(new_folio);
 					break;
 				}
-				ret = copy_user_large_folio(new_folio,
-							    pte_folio,
-							    addr, dst_vma);
+				ret = copy_user_large_folio(new_folio, pte_folio,
+						ALIGN_DOWN(addr, sz), dst_vma);
 				folio_put(pte_folio);
 				if (ret) {
 					folio_put(new_folio);
@@ -6684,7 +6683,7 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 	struct hstate *h = hstate_vma(dst_vma);
 	struct address_space *mapping = dst_vma->vm_file->f_mapping;
 	pgoff_t idx = vma_hugecache_offset(h, dst_vma, dst_addr);
-	unsigned long size;
+	unsigned long size = huge_page_size(h);
 	int vm_shared = dst_vma->vm_flags & VM_SHARED;
 	pte_t _dst_pte;
 	spinlock_t *ptl;
@@ -6703,8 +6702,7 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 		}
 
 		_dst_pte = make_pte_marker(PTE_MARKER_POISONED);
-		set_huge_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte,
-				huge_page_size(h));
+		set_huge_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte, size);
 
 		/* No need to invalidate - it was non-present before */
 		update_mmu_cache(dst_vma, dst_addr, dst_pte);
@@ -6778,7 +6776,8 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 			*foliop = NULL;
 			goto out;
 		}
-		ret = copy_user_large_folio(folio, *foliop, dst_addr, dst_vma);
+		ret = copy_user_large_folio(folio, *foliop,
+					    ALIGN_DOWN(dst_addr, size), dst_vma);
 		folio_put(*foliop);
 		*foliop = NULL;
 		if (ret) {
@@ -6805,9 +6804,8 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 
 	/* Add shared, newly allocated pages to the page cache. */
 	if (vm_shared && !is_continue) {
-		size = i_size_read(mapping->host) >> huge_page_shift(h);
 		ret = -EFAULT;
-		if (idx >= size)
+		if (idx >= (i_size_read(mapping->host) >> huge_page_shift(h)))
 			goto out_release_nounlock;
 
 		/*
@@ -6864,7 +6862,7 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 	if (wp_enabled)
 		_dst_pte = huge_pte_mkuffd_wp(_dst_pte);
 
-	set_huge_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte, huge_page_size(h));
+	set_huge_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte, size);
 
 	hugetlb_count_add(pages_per_huge_page(h), dst_mm);
 
