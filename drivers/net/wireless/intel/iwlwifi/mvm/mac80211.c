@@ -1899,12 +1899,8 @@ void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 	cancel_delayed_work_sync(&mvmvif->csa_work);
 }
 
-/* This function is doing the common part of removing the interface for
- * both - MLD and non-MLD modes. Returns true if removing the interface
- * is done
- */
-static bool iwl_mvm_mac_remove_interface_common(struct ieee80211_hw *hw,
-						struct ieee80211_vif *vif)
+static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -1952,21 +1948,10 @@ static bool iwl_mvm_mac_remove_interface_common(struct ieee80211_hw *hw,
 			mvm->noa_duration = 0;
 		}
 #endif
-		return true;
+		goto out;
 	}
 
 	iwl_mvm_power_update_mac(mvm);
-	return false;
-}
-
-static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif)
-{
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (iwl_mvm_mac_remove_interface_common(hw, vif))
-		goto out;
 
 	/* Before the interface removal, mac80211 would cancel the ROC, and the
 	 * ROC worker would be scheduled if needed. The worker would be flushed
