@@ -64,6 +64,8 @@
 #define PIN_CFG_ELC			BIT(20)
 #define PIN_CFG_IOLH_RZV2H		BIT(21)
 
+#define RZG2L_SINGLE_PIN		BIT_ULL(63)	/* Dedicated pin */
+
 #define RZG2L_MPXED_COMMON_PIN_FUNCS(group) \
 					(PIN_CFG_IOLH_##group | \
 					 PIN_CFG_PUPD | \
@@ -105,15 +107,13 @@
  */
 #define RZG2L_GPIO_PORT_PACK(n, a, f)	RZG2L_GPIO_PORT_SPARSE_PACK((1ULL << (n)) - 1, (a), (f))
 
-/*
- * BIT(63) indicates dedicated pin, p is the register index while
- * referencing to SR/IEN/IOLH/FILxx registers, b is the register bits
- * (b * 8) and f is the pin configuration capabilities supported.
- */
-#define RZG2L_SINGLE_PIN		BIT_ULL(63)
 #define RZG2L_SINGLE_PIN_INDEX_MASK	GENMASK_ULL(62, 56)
 #define RZG2L_SINGLE_PIN_BITS_MASK	GENMASK_ULL(55, 53)
-
+/*
+ * p is the register index while referencing to SR/IEN/IOLH/FILxx
+ * registers, b is the register bits (b * 8) and f is the pin
+ * configuration capabilities supported.
+ */
 #define RZG2L_SINGLE_PIN_PACK(p, b, f)	(RZG2L_SINGLE_PIN | \
 					 FIELD_PREP_CONST(RZG2L_SINGLE_PIN_INDEX_MASK, (p)) | \
 					 FIELD_PREP_CONST(RZG2L_SINGLE_PIN_BITS_MASK, (b)) | \
