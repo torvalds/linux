@@ -421,9 +421,9 @@ static int hsr_xmit(struct sk_buff *skb, struct hsr_port *port,
 bool prp_drop_frame(struct hsr_frame_info *frame, struct hsr_port *port)
 {
 	return ((frame->port_rcv->type == HSR_PT_SLAVE_A &&
-		 port->type ==  HSR_PT_SLAVE_B) ||
+		 port->type == HSR_PT_SLAVE_B) ||
 		(frame->port_rcv->type == HSR_PT_SLAVE_B &&
-		 port->type ==  HSR_PT_SLAVE_A));
+		 port->type == HSR_PT_SLAVE_A));
 }
 
 bool hsr_drop_frame(struct hsr_frame_info *frame, struct hsr_port *port)
