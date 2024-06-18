@@ -2019,14 +2019,14 @@ void cs35l41_hda_remove(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 
+	component_del(cs35l41->dev, &cs35l41_hda_comp_ops);
+
 	pm_runtime_get_sync(cs35l41->dev);
 	pm_runtime_dont_use_autosuspend(cs35l41->dev);
 	pm_runtime_disable(cs35l41->dev);
 
 	if (cs35l41->halo_initialized)
 		cs35l41_remove_dsp(cs35l41);
-
-	component_del(cs35l41->dev, &cs35l41_hda_comp_ops);
 
 	acpi_dev_put(cs35l41->dacpi);
 
