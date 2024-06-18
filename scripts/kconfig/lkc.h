@@ -110,6 +110,7 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help);
 /* symbol.c */
 void sym_clear_all_valid(void);
 struct symbol *sym_choice_default(struct symbol *sym);
+struct symbol *sym_calc_choice(struct menu *choice);
 struct property *sym_get_range_prop(struct symbol *sym);
 const char *sym_get_string_default(struct symbol *sym);
 struct symbol *sym_check_deps(struct symbol *sym);
@@ -119,8 +120,6 @@ static inline tristate sym_get_tristate_value(struct symbol *sym)
 {
 	return sym->curr.tri;
 }
-
-struct symbol *sym_get_choice_value(struct symbol *sym);
 
 static inline bool sym_is_choice(struct symbol *sym)
 {

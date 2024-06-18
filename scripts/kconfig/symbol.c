@@ -288,7 +288,7 @@ struct symbol *sym_choice_default(struct symbol *sym)
  *
  * Return: a chosen symbol
  */
-static struct symbol *sym_calc_choice(struct menu *choice)
+struct symbol *sym_calc_choice(struct menu *choice)
 {
 	struct symbol *res = NULL;
 	struct symbol *sym;
@@ -363,13 +363,6 @@ static struct symbol *sym_calc_choice(struct menu *choice)
 	}
 
 	return res;
-}
-
-struct symbol *sym_get_choice_value(struct symbol *sym)
-{
-	struct menu *menu = list_first_entry(&sym->menus, struct menu, link);
-
-	return sym_calc_choice(menu);
 }
 
 static void sym_warn_unmet_dep(struct symbol *sym)

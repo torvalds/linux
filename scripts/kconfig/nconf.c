@@ -815,7 +815,7 @@ static void build_conf(struct menu *menu)
 
 	type = sym_get_type(sym);
 	if (sym_is_choice(sym)) {
-		struct symbol *def_sym = sym_get_choice_value(sym);
+		struct symbol *def_sym = sym_calc_choice(menu);
 		struct menu *def_menu = NULL;
 
 		child_count++;
@@ -1239,7 +1239,7 @@ static void conf_choice(struct menu *menu)
 		.pattern = "",
 	};
 
-	active = sym_get_choice_value(menu->sym);
+	active = sym_calc_choice(menu);
 	/* this is mostly duplicated from the conf() function. */
 	while (!global_exit) {
 		reset_menu();
@@ -1248,7 +1248,7 @@ static void conf_choice(struct menu *menu)
 			if (!show_all_items && !menu_is_visible(child))
 				continue;
 
-			if (child->sym == sym_get_choice_value(menu->sym))
+			if (child->sym == sym_calc_choice(menu))
 				item_make(child, ':', "<X> %s",
 						menu_get_prompt(child));
 			else if (child->sym)

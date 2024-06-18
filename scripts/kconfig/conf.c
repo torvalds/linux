@@ -422,17 +422,15 @@ help:
 
 static void conf_choice(struct menu *menu)
 {
-	struct symbol *sym, *def_sym;
+	struct symbol *def_sym;
 	struct menu *child;
 	bool is_new = false;
-
-	sym = menu->sym;
 
 	while (1) {
 		int cnt, def;
 
 		printf("%*s%s\n", indent - 1, "", menu_get_prompt(menu));
-		def_sym = sym_get_choice_value(sym);
+		def_sym = sym_calc_choice(menu);
 		cnt = def = 0;
 		line[0] = 0;
 		for (child = menu->list; child; child = child->next) {

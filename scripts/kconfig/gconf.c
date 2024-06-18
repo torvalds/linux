@@ -1054,7 +1054,7 @@ static gchar **fill_row(struct menu *menu)
 
 	if (sym_is_choice(sym)) {	// parse childs for getting final value
 		struct menu *child;
-		struct symbol *def_sym = sym_get_choice_value(sym);
+		struct symbol *def_sym = sym_calc_choice(menu);
 		struct menu *def_menu = NULL;
 
 		for (child = menu->list; child; child = child->next) {

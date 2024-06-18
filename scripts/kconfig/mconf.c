@@ -514,7 +514,7 @@ static void build_conf(struct menu *menu)
 
 	type = sym_get_type(sym);
 	if (sym_is_choice(sym)) {
-		struct symbol *def_sym = sym_get_choice_value(sym);
+		struct symbol *def_sym = sym_calc_choice(menu);
 		struct menu *def_menu = NULL;
 
 		child_count++;
@@ -600,7 +600,7 @@ static void conf_choice(struct menu *menu)
 	struct menu *child;
 	struct symbol *active;
 
-	active = sym_get_choice_value(menu->sym);
+	active = sym_calc_choice(menu);
 	while (1) {
 		int res;
 		int selected;
@@ -619,7 +619,7 @@ static void conf_choice(struct menu *menu)
 			item_set_data(child);
 			if (child->sym == active)
 				item_set_selected(1);
-			if (child->sym == sym_get_choice_value(menu->sym))
+			if (child->sym == sym_calc_choice(menu))
 				item_set_tag('X');
 		}
 		dialog_clear();
