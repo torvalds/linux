@@ -180,16 +180,14 @@ static int add_preempt_fences(struct xe_vm *vm, struct xe_bo *bo)
 	struct xe_exec_queue *q;
 	int err;
 
+	xe_bo_assert_held(bo);
+
 	if (!vm->preempt.num_exec_queues)
 		return 0;
 
-	err = xe_bo_lock(bo, true);
-	if (err)
-		return err;
-
 	err = dma_resv_reserve_fences(bo->ttm.base.resv, vm->preempt.num_exec_queues);
 	if (err)
-		goto out_unlock;
+		return err;
 
 	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link)
 		if (q->lr.pfence) {
@@ -198,9 +196,7 @@ static int add_preempt_fences(struct xe_vm *vm, struct xe_bo *bo)
 					   DMA_RESV_USAGE_BOOKKEEP);
 		}
 
-out_unlock:
-	xe_bo_unlock(bo);
-	return err;
+	return 0;
 }
 
 static void resume_and_reinstall_preempt_fences(struct xe_vm *vm,
@@ -2140,7 +2136,7 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 	struct xe_bo *bo = op->gem.obj ? gem_to_xe_bo(op->gem.obj) : NULL;
 	struct drm_exec exec;
 	struct xe_vma *vma;
-	int err;
+	int err = 0;
 
 	lockdep_assert_held_write(&vm->lock);
 
@@ -2165,23 +2161,22 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 	vma = xe_vma_create(vm, bo, op->gem.offset,
 			    op->va.addr, op->va.addr +
 			    op->va.range - 1, pat_index, flags);
+	if (IS_ERR(vma))
+		goto err_unlock;
+
+	if (xe_vma_is_userptr(vma))
+		err = xe_vma_userptr_pin_pages(to_userptr_vma(vma));
+	else if (!xe_vma_has_no_bo(vma) && !bo->vm)
+		err = add_preempt_fences(vm, bo);
+
+err_unlock:
 	if (bo)
 		drm_exec_fini(&exec);
 
-	if (xe_vma_is_userptr(vma)) {
-		err = xe_vma_userptr_pin_pages(to_userptr_vma(vma));
-		if (err) {
-			prep_vma_destroy(vm, vma, false);
-			xe_vma_destroy_unlocked(vma);
-			return ERR_PTR(err);
-		}
-	} else if (!xe_vma_has_no_bo(vma) && !bo->vm) {
-		err = add_preempt_fences(vm, bo);
-		if (err) {
-			prep_vma_destroy(vm, vma, false);
-			xe_vma_destroy_unlocked(vma);
-			return ERR_PTR(err);
-		}
+	if (err) {
+		prep_vma_destroy(vm, vma, false);
+		xe_vma_destroy_unlocked(vma);
+		vma = ERR_PTR(err);
 	}
 
 	return vma;
