@@ -12,6 +12,8 @@ config PINCTRL_IMX_SCMI
 	depends on ARM_SCMI_PROTOCOL && OF || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
 	help
 	  i.MX95 SCMI firmware provides pinctrl protocol. This driver
 	  utilizes the SCMI interface to do pinctrl configuration.
