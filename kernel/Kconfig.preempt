@@ -156,4 +156,5 @@ config SCHED_CLASS_EXT
 	  similar to struct sched_class.
 
 	  For more information:
+	    Documentation/scheduler/sched-ext.rst
 	    https://github.com/sched-ext/scx
