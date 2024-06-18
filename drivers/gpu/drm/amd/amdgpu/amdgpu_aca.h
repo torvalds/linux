@@ -25,7 +25,6 @@
 #define __AMDGPU_ACA_H__
 
 #include <linux/list.h>
-#include <linux/spinlock.h>
 
 struct ras_err_data;
 struct ras_query_context;
@@ -134,7 +133,7 @@ struct aca_bank_error {
 
 struct aca_error {
 	struct list_head list;
-	spinlock_t lock;
+	struct mutex lock;
 	enum aca_error_type type;
 	int nr_errors;
 };
