@@ -513,7 +513,7 @@ static int tps6594_check_crc_mode(struct tps6594 *tps, bool primary_pmic)
 	} else {
 		regmap_reg = TPS6594_REG_SERIAL_IF_CONFIG;
 		mask_val = TPS6594_BIT_I2C1_SPI_CRC_EN;
-	};
+	}
 
 	/*
 	 * Check if CRC is enabled.
