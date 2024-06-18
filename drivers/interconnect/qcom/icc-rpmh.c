@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -370,7 +370,8 @@ static struct regmap *qcom_icc_rpmh_map(struct platform_device *pdev,
 
 static bool is_voter_disabled(char *voter)
 {
-	if ((strnstr(voter, "disp", strlen(voter)) && socinfo_get_part_info(PART_DISPLAY)) ||
+	if ((strnstr(voter, "disp", strlen(voter)) &&
+	    (socinfo_get_part_info(PART_DISPLAY) || socinfo_get_part_info(PART_DISPLAY1))) ||
 	    (strnstr(voter, "cam", strlen(voter)) && socinfo_get_part_info(PART_CAMERA)))
 		return true;
 
