@@ -8996,6 +8996,7 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		memcpy(vf->mac_addr, resp->mac_address, ETH_ALEN);
 #endif
 	}
+	bp->tso_max_segs = le16_to_cpu(resp->max_tso_segs);
 
 hwrm_func_qcaps_exit:
 	hwrm_req_drop(bp, req);
@@ -15363,6 +15364,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
 	netif_set_tso_max_size(dev, GSO_MAX_SIZE);
+	if (bp->tso_max_segs)
+		netif_set_tso_max_segs(dev, bp->tso_max_segs);
 
 	dev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 			    NETDEV_XDP_ACT_RX_SG;
