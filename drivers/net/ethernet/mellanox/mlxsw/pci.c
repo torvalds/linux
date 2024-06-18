@@ -64,14 +64,9 @@ struct mlxsw_pci_mem_item {
 struct mlxsw_pci_queue_elem_info {
 	struct page *page;
 	char *elem; /* pointer to actual dma mapped element mem chunk */
-	union {
-		struct {
-			struct sk_buff *skb;
-		} sdq;
-		struct {
-			struct sk_buff *skb;
-		} rdq;
-	} u;
+	struct {
+		struct sk_buff *skb;
+	} sdq;
 };
 
 struct mlxsw_pci_queue {
@@ -557,8 +552,8 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 
 	spin_lock(&q->lock);
 	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
-	tx_info = mlxsw_skb_cb(elem_info->u.sdq.skb)->tx_info;
-	skb = elem_info->u.sdq.skb;
+	tx_info = mlxsw_skb_cb(elem_info->sdq.skb)->tx_info;
+	skb = elem_info->sdq.skb;
 	wqe = elem_info->elem;
 	for (i = 0; i < MLXSW_PCI_WQE_SG_ENTRIES; i++)
 		mlxsw_pci_wqe_frag_unmap(mlxsw_pci, wqe, i, DMA_TO_DEVICE);
@@ -573,7 +568,7 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 
 	if (skb)
 		dev_kfree_skb_any(skb);
-	elem_info->u.sdq.skb = NULL;
+	elem_info->sdq.skb = NULL;
 
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in SDQ\n");
@@ -2007,7 +2002,7 @@ static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 		goto unlock;
 	}
 	mlxsw_skb_cb(skb)->tx_info = *tx_info;
-	elem_info->u.sdq.skb = skb;
+	elem_info->sdq.skb = skb;
 
 	wqe = elem_info->elem;
 	mlxsw_pci_wqe_c_set(wqe, 1); /* always report completion */
