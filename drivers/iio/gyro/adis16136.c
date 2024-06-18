@@ -221,13 +221,12 @@ static ssize_t adis16136_read_frequency(struct device *dev,
 	unsigned int freq;
 	int ret;
 
-	adis_dev_lock(&adis16136->adis);
+	adis_dev_auto_lock(&adis16136->adis);
 	ret = __adis16136_get_freq(adis16136, &freq);
-	adis_dev_unlock(&adis16136->adis);
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", freq);
+	return sysfs_emit(buf, "%d\n", freq);
 }
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
@@ -251,21 +250,17 @@ static int adis16136_set_filter(struct iio_dev *indio_dev, int val)
 	unsigned int freq;
 	int i, ret;
 
-	adis_dev_lock(&adis16136->adis);
+	adis_dev_auto_lock(&adis16136->adis);
 	ret = __adis16136_get_freq(adis16136, &freq);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	for (i = ARRAY_SIZE(adis16136_3db_divisors) - 1; i >= 1; i--) {
 		if (freq / adis16136_3db_divisors[i] >= val)
 			break;
 	}
 
-	ret = __adis_write_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT, i);
-out_unlock:
-	adis_dev_unlock(&adis16136->adis);
-
-	return ret;
+	return __adis_write_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT, i);
 }
 
 static int adis16136_get_filter(struct iio_dev *indio_dev, int *val)
@@ -275,23 +270,20 @@ static int adis16136_get_filter(struct iio_dev *indio_dev, int *val)
 	uint16_t val16;
 	int ret;
 
-	adis_dev_lock(&adis16136->adis);
+	adis_dev_auto_lock(&adis16136->adis);
 
 	ret = __adis_read_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT,
 				 &val16);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	ret = __adis16136_get_freq(adis16136, &freq);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	*val = freq / adis16136_3db_divisors[val16 & 0x07];
 
-err_unlock:
-	adis_dev_unlock(&adis16136->adis);
-
-	return ret ? ret : IIO_VAL_INT;
+	return IIO_VAL_INT;
 }
 
 static int adis16136_read_raw(struct iio_dev *indio_dev,
