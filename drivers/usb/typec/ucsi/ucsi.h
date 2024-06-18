@@ -395,7 +395,7 @@ struct ucsi_debugfs_entry {
 struct ucsi {
 	u16 version;
 	struct device *dev;
-	struct driver_data *driver_data;
+	void *driver_data;
 
 	const struct ucsi_operations *ops;
 
