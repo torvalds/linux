@@ -663,6 +663,13 @@ isl1208_rtc_interrupt(int irq, void *data)
 
 		rtc_update_irq(isl1208->rtc, 1, RTC_IRQF | RTC_AF);
 
+		/* Disable the alarm */
+		err = isl1208_rtc_toggle_alarm(client, 0);
+		if (err)
+			return err;
+
+		fsleep(275);
+
 		/* Clear the alarm */
 		sr &= ~ISL1208_REG_SR_ALM;
 		sr = i2c_smbus_write_byte_data(client, ISL1208_REG_SR, sr);
@@ -671,11 +678,6 @@ isl1208_rtc_interrupt(int irq, void *data)
 				__func__);
 		else
 			handled = 1;
-
-		/* Disable the alarm */
-		err = isl1208_rtc_toggle_alarm(client, 0);
-		if (err)
-			return err;
 	}
 
 	if (isl1208->config->has_tamper && (sr & ISL1208_REG_SR_EVT)) {
