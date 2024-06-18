@@ -130,24 +130,20 @@ static int adis_paging_trigger_handler(struct adis *adis)
 {
 	int ret;
 
-	mutex_lock(&adis->state_lock);
+	guard(mutex)(&adis->state_lock);
 	if (adis->current_page != 0) {
 		adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
 		adis->tx[1] = 0;
 		ret = spi_write(adis->spi, adis->tx, 2);
 		if (ret) {
 			dev_err(&adis->spi->dev, "Failed to change device page: %d\n", ret);
-			mutex_unlock(&adis->state_lock);
 			return ret;
 		}
 
 		adis->current_page = 0;
 	}
 
-	ret = spi_sync(adis->spi, &adis->msg);
-	mutex_unlock(&adis->state_lock);
-
-	return ret;
+	return spi_sync(adis->spi, &adis->msg);
 }
 
 static irqreturn_t adis_trigger_handler(int irq, void *p)
