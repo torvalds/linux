@@ -522,6 +522,7 @@ struct cxl_region_params {
  * @params: active + config params for the region
  * @coord: QoS access coordinates for the region
  * @memory_notifier: notifier for setting the access coordinates to node
+ * @adist_notifier: notifier for calculating the abstract distance of node
  */
 struct cxl_region {
 	struct device dev;
@@ -534,6 +535,7 @@ struct cxl_region {
 	struct cxl_region_params params;
 	struct access_coordinate coord[ACCESS_COORDINATE_MAX];
 	struct notifier_block memory_notifier;
+	struct notifier_block adist_notifier;
 };
 
 struct cxl_nvdimm_bridge {
