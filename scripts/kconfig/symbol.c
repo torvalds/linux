@@ -188,7 +188,6 @@ static void sym_set_changed(struct symbol *sym)
 {
 	struct menu *menu;
 
-	sym->flags |= SYMBOL_CHANGED;
 	list_for_each_entry(menu, &sym->menus, link)
 		menu->flags |= MENU_CHANGED;
 }
@@ -282,36 +281,95 @@ struct symbol *sym_choice_default(struct symbol *sym)
 	return NULL;
 }
 
-static struct symbol *sym_calc_choice(struct symbol *sym)
+/*
+ * sym_calc_choice - calculate symbol values in a choice
+ *
+ * @choice: a menu of the choice
+ *
+ * Return: a chosen symbol
+ */
+static struct symbol *sym_calc_choice(struct menu *choice)
 {
-	struct symbol *def_sym;
-	struct property *prop;
-	struct expr *e;
-	int flags;
+	struct symbol *res = NULL;
+	struct symbol *sym;
+	struct menu *menu;
 
-	/* first calculate all choice values' visibilities */
-	flags = sym->flags;
-	prop = sym_get_choice_prop(sym);
-	expr_list_for_each_sym(prop->expr, e, def_sym) {
-		sym_calc_visibility(def_sym);
-		if (def_sym->visible != no)
-			flags &= def_sym->flags;
+	/* Traverse the list of choice members in the priority order. */
+	list_for_each_entry(sym, &choice->choice_members, choice_link) {
+		sym_calc_visibility(sym);
+		if (sym->visible == no)
+			continue;
+
+		/* The first visible symble with the user value 'y'. */
+		if (sym_has_value(sym) && sym->def[S_DEF_USER].tri == yes) {
+			res = sym;
+			break;
+		}
 	}
 
-	sym->flags &= flags | ~SYMBOL_DEF_USER;
+	/*
+	 * If 'y' is not found in the user input, use the default, unless it is
+	 * explicitly set to 'n'.
+	 */
+	if (!res) {
+		res = sym_choice_default(choice->sym);
+		if (res && sym_has_value(res) && res->def[S_DEF_USER].tri == no)
+			res = NULL;
+	}
 
-	/* is the user choice visible? */
-	def_sym = sym->def[S_DEF_USER].val;
-	if (def_sym && def_sym->visible != no)
-		return def_sym;
+	/* Still not found. Pick up the first visible, user-unspecified symbol. */
+	if (!res) {
+		menu_for_each_sub_entry(menu, choice) {
+			sym = menu->sym;
 
-	def_sym = sym_choice_default(sym);
+			if (!sym || sym->visible == no || sym_has_value(sym))
+				continue;
 
-	if (def_sym == NULL)
-		/* no choice? reset tristate value */
-		sym->curr.tri = no;
+			res = sym;
+			break;
+		}
+	}
 
-	return def_sym;
+	/*
+	 * Still not found. Traverse the linked list in the _reverse_ order to
+	 * pick up the least prioritized 'n'.
+	 */
+	if (!res) {
+		list_for_each_entry_reverse(sym, &choice->choice_members,
+					    choice_link) {
+			if (sym->visible == no)
+				continue;
+
+			res = sym;
+			break;
+		}
+	}
+
+	menu_for_each_sub_entry(menu, choice) {
+		tristate val;
+
+		sym = menu->sym;
+
+		if (!sym || sym->visible == no)
+			continue;
+
+		val = sym == res ? yes : no;
+
+		if (sym->curr.tri != val)
+			sym_set_changed(sym);
+
+		sym->curr.tri = val;
+		sym->flags |= SYMBOL_VALID | SYMBOL_WRITE;
+	}
+
+	return res;
+}
+
+struct symbol *sym_get_choice_value(struct symbol *sym)
+{
+	struct menu *menu = list_first_entry(&sym->menus, struct menu, link);
+
+	return sym_calc_choice(menu);
 }
 
 static void sym_warn_unmet_dep(struct symbol *sym)
@@ -347,20 +405,13 @@ void sym_calc_value(struct symbol *sym)
 {
 	struct symbol_value newval, oldval;
 	struct property *prop;
-	struct expr *e;
+	struct menu *choice_menu;
 
 	if (!sym)
 		return;
 
 	if (sym->flags & SYMBOL_VALID)
 		return;
-
-	if (sym_is_choice_value(sym) &&
-	    sym->flags & SYMBOL_NEED_SET_CHOICE_VALUES) {
-		sym->flags &= ~SYMBOL_NEED_SET_CHOICE_VALUES;
-		prop = sym_get_choice_prop(sym);
-		sym_calc_value(prop_get_symbol(prop));
-	}
 
 	sym->flags |= SYMBOL_VALID;
 
@@ -400,9 +451,11 @@ void sym_calc_value(struct symbol *sym)
 	switch (sym_get_type(sym)) {
 	case S_BOOLEAN:
 	case S_TRISTATE:
-		if (sym_is_choice_value(sym) && sym->visible == yes) {
-			prop = sym_get_choice_prop(sym);
-			newval.tri = (prop_get_symbol(prop)->curr.val == sym) ? yes : no;
+		choice_menu = sym_get_choice_menu(sym);
+
+		if (choice_menu) {
+			sym_calc_choice(choice_menu);
+			newval.tri = sym->curr.tri;
 		} else {
 			if (sym->visible != no) {
 				/* if the symbol is visible use the user value
@@ -461,8 +514,6 @@ void sym_calc_value(struct symbol *sym)
 	}
 
 	sym->curr = newval;
-	if (sym_is_choice(sym) && newval.tri == yes)
-		sym->curr.val = sym_calc_choice(sym);
 	sym_validate_range(sym);
 
 	if (memcmp(&oldval, &sym->curr, sizeof(oldval))) {
@@ -473,23 +524,8 @@ void sym_calc_value(struct symbol *sym)
 		}
 	}
 
-	if (sym_is_choice(sym)) {
-		struct symbol *choice_sym;
-
-		prop = sym_get_choice_prop(sym);
-		expr_list_for_each_sym(prop->expr, e, choice_sym) {
-			if ((sym->flags & SYMBOL_WRITE) &&
-			    choice_sym->visible != no)
-				choice_sym->flags |= SYMBOL_WRITE;
-			if (sym->flags & SYMBOL_CHANGED)
-				sym_set_changed(choice_sym);
-		}
-
+	if (sym_is_choice(sym))
 		sym->flags &= ~SYMBOL_WRITE;
-	}
-
-	if (sym->flags & SYMBOL_NEED_SET_CHOICE_VALUES)
-		set_all_choice_values(sym);
 }
 
 void sym_clear_all_valid(void)
@@ -523,15 +559,15 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 {
 	tristate oldval = sym_get_tristate_value(sym);
 
-	if (oldval != val && !sym_tristate_within_range(sym, val))
+	if (!sym_tristate_within_range(sym, val))
 		return false;
 
-	if (!(sym->flags & SYMBOL_DEF_USER)) {
+	if (!(sym->flags & SYMBOL_DEF_USER) || sym->def[S_DEF_USER].tri != val) {
+		sym->def[S_DEF_USER].tri = val;
 		sym->flags |= SYMBOL_DEF_USER;
 		sym_set_changed(sym);
 	}
 
-	sym->def[S_DEF_USER].tri = val;
 	if (oldval != val)
 		sym_clear_all_valid();
 
@@ -565,10 +601,17 @@ void choice_set_value(struct menu *choice, struct symbol *sym)
 
 		menu->sym->def[S_DEF_USER].tri = val;
 		menu->sym->flags |= SYMBOL_DEF_USER;
-	}
 
-	choice->sym->def[S_DEF_USER].val = sym;
-	choice->sym->flags |= SYMBOL_DEF_USER;
+		/*
+		 * Now, the user has explicitly enabled or disabled this symbol,
+		 * it should be given the highest priority. We are possibly
+		 * setting multiple symbols to 'n', where the first symbol is
+		 * given the least prioritized 'n'. This works well when the
+		 * choice block ends up with selecting 'n' symbol.
+		 * (see sym_calc_choice())
+		 */
+		list_move(&menu->sym->choice_link, &choice->choice_members);
+	}
 
 	if (changed)
 		sym_clear_all_valid();

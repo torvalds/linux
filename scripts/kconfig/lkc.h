@@ -40,7 +40,6 @@ void zconf_nextfile(const char *name);
 /* confdata.c */
 extern struct gstr autoconf_cmd;
 const char *conf_get_configname(void);
-void set_all_choice_values(struct symbol *csym);
 
 /* confdata.c and expr.c */
 static inline void xfwrite(const void *str, size_t len, size_t count, FILE *out)
@@ -121,11 +120,7 @@ static inline tristate sym_get_tristate_value(struct symbol *sym)
 	return sym->curr.tri;
 }
 
-
-static inline struct symbol *sym_get_choice_value(struct symbol *sym)
-{
-	return (struct symbol *)sym->curr.val;
-}
+struct symbol *sym_get_choice_value(struct symbol *sym);
 
 static inline bool sym_is_choice(struct symbol *sym)
 {

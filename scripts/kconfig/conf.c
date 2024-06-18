@@ -114,41 +114,54 @@ static void set_randconfig_seed(void)
 	srand(seed);
 }
 
-static void randomize_choice_values(struct symbol *csym)
+/**
+ * randomize_choice_values - randomize choice block
+ *
+ * @choice: menu entry for the choice
+ */
+static void randomize_choice_values(struct menu *choice)
 {
-	struct property *prop;
-	struct symbol *sym;
-	struct expr *e;
-	int cnt, def;
-
-	prop = sym_get_choice_prop(csym);
-
-	/* count entries in choice block */
-	cnt = 0;
-	expr_list_for_each_sym(prop->expr, e, sym)
-		cnt++;
+	struct menu *menu;
+	int x;
+	int cnt = 0;
 
 	/*
-	 * find a random value and set it to yes,
-	 * set the rest to no so we have only one set
+	 * First, count the number of symbols to randomize. If sym_has_value()
+	 * is true, it was specified by KCONFIG_ALLCONFIG. It needs to be
+	 * respected.
 	 */
-	def = rand() % cnt;
+	menu_for_each_sub_entry(menu, choice) {
+		struct symbol *sym = menu->sym;
 
-	cnt = 0;
-	expr_list_for_each_sym(prop->expr, e, sym) {
-		if (def == cnt++) {
-			sym->def[S_DEF_USER].tri = yes;
-			csym->def[S_DEF_USER].val = sym;
-		} else {
-			sym->def[S_DEF_USER].tri = no;
-		}
-		sym->flags |= SYMBOL_DEF_USER;
-		/* clear VALID to get value calculated */
-		sym->flags &= ~SYMBOL_VALID;
+		if (sym && !sym_has_value(sym))
+			cnt++;
 	}
-	csym->flags |= SYMBOL_DEF_USER;
-	/* clear VALID to get value calculated */
-	csym->flags &= ~SYMBOL_VALID;
+
+	while (cnt > 0) {
+		x = rand() % cnt;
+
+		menu_for_each_sub_entry(menu, choice) {
+			struct symbol *sym = menu->sym;
+
+			if (sym && !sym_has_value(sym))
+				x--;
+
+			if (x < 0) {
+				sym->def[S_DEF_USER].tri = yes;
+				sym->flags |= SYMBOL_DEF_USER;
+				/*
+				 * Move the selected item to the _tail_ because
+				 * this needs to have a lower priority than the
+				 * user input from KCONFIG_ALLCONFIG.
+				 */
+				list_move_tail(&sym->choice_link,
+					       &choice->choice_members);
+
+				break;
+			}
+		}
+		cnt--;
+	}
 }
 
 enum conf_def_mode {
@@ -159,9 +172,9 @@ enum conf_def_mode {
 	def_random
 };
 
-static bool conf_set_all_new_symbols(enum conf_def_mode mode)
+static void conf_set_all_new_symbols(enum conf_def_mode mode)
 {
-	struct symbol *sym, *csym;
+	struct menu *menu;
 	int cnt;
 	/*
 	 * can't go as the default in switch-case below, otherwise gcc whines
@@ -170,7 +183,6 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 	int pby = 50; /* probability of bool     = y */
 	int pty = 33; /* probability of tristate = y */
 	int ptm = 33; /* probability of tristate = m */
-	bool has_changed = false;
 
 	if (mode == def_random) {
 		int n, p[3];
@@ -217,14 +229,21 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 		}
 	}
 
-	for_all_symbols(sym) {
+	menu_for_each_entry(menu) {
+		struct symbol *sym = menu->sym;
 		tristate val;
 
-		if (sym_has_value(sym) || sym->flags & SYMBOL_VALID ||
-		    (sym->type != S_BOOLEAN && sym->type != S_TRISTATE))
+		if (!sym || !menu->prompt || sym_has_value(sym) ||
+		    (sym->type != S_BOOLEAN && sym->type != S_TRISTATE) ||
+		    sym_is_choice_value(sym))
 			continue;
 
-		has_changed = true;
+		if (sym_is_choice(sym)) {
+			if (mode == def_random)
+				randomize_choice_values(menu);
+			continue;
+		}
+
 		switch (mode) {
 		case def_yes:
 			val = yes;
@@ -251,34 +270,10 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 			continue;
 		}
 		sym->def[S_DEF_USER].tri = val;
-
-		if (!(sym_is_choice(sym) && mode == def_random))
-			sym->flags |= SYMBOL_DEF_USER;
+		sym->flags |= SYMBOL_DEF_USER;
 	}
 
 	sym_clear_all_valid();
-
-	if (mode != def_random) {
-		for_all_symbols(csym) {
-			if ((sym_is_choice(csym) && !sym_has_value(csym)) ||
-			    sym_is_choice_value(csym))
-				csym->flags |= SYMBOL_NEED_SET_CHOICE_VALUES;
-		}
-	}
-
-	for_all_symbols(csym) {
-		if (sym_has_value(csym) || !sym_is_choice(csym))
-			continue;
-
-		sym_calc_value(csym);
-		if (mode == def_random)
-			randomize_choice_values(csym);
-		else
-			set_all_choice_values(csym);
-		has_changed = true;
-	}
-
-	return has_changed;
 }
 
 static void conf_rewrite_tristates(tristate old_val, tristate new_val)
@@ -429,10 +424,9 @@ static void conf_choice(struct menu *menu)
 {
 	struct symbol *sym, *def_sym;
 	struct menu *child;
-	bool is_new;
+	bool is_new = false;
 
 	sym = menu->sym;
-	is_new = !sym_has_value(sym);
 
 	while (1) {
 		int cnt, def;
@@ -456,8 +450,10 @@ static void conf_choice(struct menu *menu)
 				printf("%*c", indent, ' ');
 			printf(" %d. %s (%s)", cnt, menu_get_prompt(child),
 			       child->sym->name);
-			if (!sym_has_value(child->sym))
+			if (!sym_has_value(child->sym)) {
+				is_new = true;
 				printf(" (NEW)");
+			}
 			printf("\n");
 		}
 		printf("%*schoice", indent - 1, "");
@@ -586,9 +582,7 @@ static void check_conf(struct menu *menu)
 		return;
 
 	sym = menu->sym;
-	if (sym && !sym_has_value(sym) &&
-	    (sym_is_changeable(sym) || sym_is_choice(sym))) {
-
+	if (sym && !sym_has_value(sym) && sym_is_changeable(sym)) {
 		switch (input_mode) {
 		case listnewconfig:
 			if (sym->name)
@@ -804,8 +798,7 @@ int main(int ac, char **av)
 		conf_set_all_new_symbols(def_default);
 		break;
 	case randconfig:
-		/* Really nothing to do in this loop */
-		while (conf_set_all_new_symbols(def_random)) ;
+		conf_set_all_new_symbols(def_random);
 		break;
 	case defconfig:
 		conf_set_all_new_symbols(def_default);
