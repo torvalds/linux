@@ -14,6 +14,8 @@
 #include <drm/xe_drm.h>
 #include "regs/xe_reg_defs.h"
 
+#define XE_OA_BUFFER_SIZE SZ_16M
+
 enum xe_oa_report_header {
 	HDR_32_BIT = 0,
 	HDR_64_BIT,
@@ -143,5 +145,82 @@ struct xe_oa {
 
 	/** @oa_unit_ids: tracks oa unit ids assigned across gt's */
 	u16 oa_unit_ids;
+};
+
+/** @xe_oa_buffer: State of the stream OA buffer */
+struct xe_oa_buffer {
+	/** @format: data format */
+	const struct xe_oa_format *format;
+
+	/** @format: xe_bo backing the OA buffer */
+	struct xe_bo *bo;
+
+	/** @vaddr: mapped vaddr of the OA buffer */
+	u8 *vaddr;
+
+	/** @ptr_lock: Lock protecting reads/writes to head/tail pointers */
+	spinlock_t ptr_lock;
+
+	/** @head: Cached head to read from */
+	u32 head;
+
+	/** @tail: The last verified cached tail where HW has completed writing */
+	u32 tail;
+};
+
+/**
+ * struct xe_oa_stream - state for a single open stream FD
+ */
+struct xe_oa_stream {
+	/** @oa: xe_oa backpointer */
+	struct xe_oa *oa;
+
+	/** @gt: gt associated with the oa stream */
+	struct xe_gt *gt;
+
+	/** @hwe: hardware engine associated with this oa stream */
+	struct xe_hw_engine *hwe;
+
+	/** @stream_lock: Lock serializing stream operations */
+	struct mutex stream_lock;
+
+	/** @sample: true if DRM_XE_OA_PROP_SAMPLE_OA is provided */
+	bool sample;
+
+	/** @exec_q: Exec queue corresponding to DRM_XE_OA_PROPERTY_EXEC_QUEUE_ID */
+	struct xe_exec_queue *exec_q;
+
+	/** @k_exec_q: kernel exec_q used for OA programming batch submissions */
+	struct xe_exec_queue *k_exec_q;
+
+	/** @enabled: Whether the stream is currently enabled */
+	bool enabled;
+
+	/** @oa_config: OA configuration used by the stream */
+	struct xe_oa_config *oa_config;
+
+	/** @oa_config_bos: List of struct @xe_oa_config_bo's */
+	struct llist_head oa_config_bos;
+
+	/** @poll_check_timer: Timer to periodically check for data in the OA buffer */
+	struct hrtimer poll_check_timer;
+
+	/** @poll_wq: Wait queue for waiting for OA data to be available */
+	wait_queue_head_t poll_wq;
+
+	/** @pollin: Whether there is data available to read */
+	bool pollin;
+
+	/** @periodic: Whether periodic sampling is currently enabled */
+	bool periodic;
+
+	/** @period_exponent: OA unit sampling frequency is derived from this */
+	int period_exponent;
+
+	/** @oa_buffer: OA buffer for the stream */
+	struct xe_oa_buffer oa_buffer;
+
+	/** @poll_period_ns: hrtimer period for checking OA buffer for available data */
+	u64 poll_period_ns;
 };
 #endif
