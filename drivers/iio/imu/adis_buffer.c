@@ -126,6 +126,30 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 }
 EXPORT_SYMBOL_NS_GPL(adis_update_scan_mode, IIO_ADISLIB);
 
+static int adis_paging_trigger_handler(struct adis *adis)
+{
+	int ret;
+
+	mutex_lock(&adis->state_lock);
+	if (adis->current_page != 0) {
+		adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
+		adis->tx[1] = 0;
+		ret = spi_write(adis->spi, adis->tx, 2);
+		if (ret) {
+			dev_err(&adis->spi->dev, "Failed to change device page: %d\n", ret);
+			mutex_unlock(&adis->state_lock);
+			return ret;
+		}
+
+		adis->current_page = 0;
+	}
+
+	ret = spi_sync(adis->spi, &adis->msg);
+	mutex_unlock(&adis->state_lock);
+
+	return ret;
+}
+
 static irqreturn_t adis_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -133,25 +157,10 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 	struct adis *adis = iio_device_get_drvdata(indio_dev);
 	int ret;
 
-	if (adis->data->has_paging) {
-		mutex_lock(&adis->state_lock);
-		if (adis->current_page != 0) {
-			adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
-			adis->tx[1] = 0;
-			ret = spi_write(adis->spi, adis->tx, 2);
-			if (ret) {
-				dev_err(&adis->spi->dev, "Failed to change device page: %d\n", ret);
-				mutex_unlock(&adis->state_lock);
-				goto irq_done;
-			}
-
-			adis->current_page = 0;
-		}
-	}
-
-	ret = spi_sync(adis->spi, &adis->msg);
 	if (adis->data->has_paging)
-		mutex_unlock(&adis->state_lock);
+		ret = adis_paging_trigger_handler(adis);
+	else
+		ret = spi_sync(adis->spi, &adis->msg);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to read data: %d", ret);
 		goto irq_done;
