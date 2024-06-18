@@ -280,6 +280,7 @@ BTF_ID(func, bpf_lsm_cred_prepare)
 BTF_ID(func, bpf_lsm_file_ioctl)
 BTF_ID(func, bpf_lsm_file_lock)
 BTF_ID(func, bpf_lsm_file_open)
+BTF_ID(func, bpf_lsm_file_post_open)
 BTF_ID(func, bpf_lsm_file_receive)
 
 BTF_ID(func, bpf_lsm_inode_create)
