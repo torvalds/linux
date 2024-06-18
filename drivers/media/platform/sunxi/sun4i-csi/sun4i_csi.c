@@ -35,8 +35,15 @@ struct sun4i_csi_traits {
 	bool has_isp;
 };
 
+static int sun4i_csi_video_link_validate(struct media_link *link)
+{
+	dev_warn_once(link->graph_obj.mdev->dev,
+		      "Driver bug: link validation not implemented\n");
+	return 0;
+}
+
 static const struct media_entity_operations sun4i_csi_video_entity_ops = {
-	.link_validate = v4l2_subdev_link_validate,
+	.link_validate = sun4i_csi_video_link_validate,
 };
 
 static const struct media_entity_operations sun4i_csi_subdev_entity_ops = {
