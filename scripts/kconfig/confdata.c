@@ -477,7 +477,6 @@ load:
 int conf_read(const char *name)
 {
 	struct symbol *sym;
-	int conf_unsaved = 0;
 
 	conf_set_changed(false);
 
@@ -508,11 +507,11 @@ int conf_read(const char *name)
 		} else if (!sym_has_value(sym) && !(sym->flags & SYMBOL_WRITE))
 			/* no previous value and not saved */
 			continue;
-		conf_unsaved++;
+		conf_set_changed(true);
 		/* maybe print value in verbose mode... */
 	}
 
-	if (conf_warnings || conf_unsaved)
+	if (conf_warnings)
 		conf_set_changed(true);
 
 	return 0;
