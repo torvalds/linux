@@ -199,15 +199,22 @@ static void damon_lru_sort_copy_quota_status(struct damos_quota *dst,
 
 static int damon_lru_sort_apply_parameters(void)
 {
+	struct damon_ctx *param_ctx;
+	struct damon_target *param_target;
 	struct damos *scheme, *hot_scheme, *cold_scheme;
 	struct damos *old_hot_scheme = NULL, *old_cold_scheme = NULL;
 	unsigned int hot_thres, cold_thres;
-	int err = 0;
+	int err;
 
-	err = damon_set_attrs(ctx, &damon_lru_sort_mon_attrs);
+	err = damon_modules_new_paddr_ctx_target(&param_ctx, &param_target);
 	if (err)
 		return err;
 
+	err = damon_set_attrs(ctx, &damon_lru_sort_mon_attrs);
+	if (err)
+		goto out;
+
+	err = -ENOMEM;
 	damon_for_each_scheme(scheme, ctx) {
 		if (!old_hot_scheme) {
 			old_hot_scheme = scheme;
@@ -220,7 +227,7 @@ static int damon_lru_sort_apply_parameters(void)
 		hot_thres_access_freq / 1000;
 	hot_scheme = damon_lru_sort_new_hot_scheme(hot_thres);
 	if (!hot_scheme)
-		return -ENOMEM;
+		goto out;
 	if (old_hot_scheme)
 		damon_lru_sort_copy_quota_status(&hot_scheme->quota,
 				&old_hot_scheme->quota);
@@ -229,18 +236,24 @@ static int damon_lru_sort_apply_parameters(void)
 	cold_scheme = damon_lru_sort_new_cold_scheme(cold_thres);
 	if (!cold_scheme) {
 		damon_destroy_scheme(hot_scheme);
-		return -ENOMEM;
+		goto out;
 	}
 	if (old_cold_scheme)
 		damon_lru_sort_copy_quota_status(&cold_scheme->quota,
 				&old_cold_scheme->quota);
 
-	damon_set_schemes(ctx, &hot_scheme, 1);
-	damon_add_scheme(ctx, cold_scheme);
+	damon_set_schemes(param_ctx, &hot_scheme, 1);
+	damon_add_scheme(param_ctx, cold_scheme);
 
-	return damon_set_region_biggest_system_ram_default(target,
+	err = damon_set_region_biggest_system_ram_default(param_target,
 					&monitor_region_start,
 					&monitor_region_end);
+	if (err)
+		goto out;
+	err = damon_commit_ctx(ctx, param_ctx);
+out:
+	damon_destroy_ctx(param_ctx);
+	return err;
 }
 
 static int damon_lru_sort_turn(bool on)
