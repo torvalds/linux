@@ -651,12 +651,18 @@ u32 xe_lrc_pphwsp_offset(struct xe_lrc *lrc)
 
 /* Make the magic macros work */
 #define __xe_lrc_pphwsp_offset xe_lrc_pphwsp_offset
+#define __xe_lrc_regs_offset xe_lrc_regs_offset
 
 #define LRC_SEQNO_PPHWSP_OFFSET 512
 #define LRC_START_SEQNO_PPHWSP_OFFSET (LRC_SEQNO_PPHWSP_OFFSET + 8)
 #define LRC_CTX_JOB_TIMESTAMP_OFFSET (LRC_START_SEQNO_PPHWSP_OFFSET + 8)
 #define LRC_PARALLEL_PPHWSP_OFFSET 2048
 #define LRC_PPHWSP_SIZE SZ_4K
+
+u32 xe_lrc_regs_offset(struct xe_lrc *lrc)
+{
+	return xe_lrc_pphwsp_offset(lrc) + LRC_PPHWSP_SIZE;
+}
 
 static size_t lrc_reg_size(struct xe_device *xe)
 {
@@ -693,11 +699,6 @@ static inline u32 __xe_lrc_parallel_offset(struct xe_lrc *lrc)
 {
 	/* The parallel is stored in the driver-defined portion of PPHWSP */
 	return xe_lrc_pphwsp_offset(lrc) + LRC_PARALLEL_PPHWSP_OFFSET;
-}
-
-static inline u32 __xe_lrc_regs_offset(struct xe_lrc *lrc)
-{
-	return xe_lrc_pphwsp_offset(lrc) + LRC_PPHWSP_SIZE;
 }
 
 static u32 __xe_lrc_ctx_timestamp_offset(struct xe_lrc *lrc)

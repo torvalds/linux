@@ -13,6 +13,7 @@
 
 #include <drm/xe_drm.h>
 #include "regs/xe_reg_defs.h"
+#include "xe_hw_engine_types.h"
 
 #define XE_OA_BUFFER_SIZE SZ_16M
 
@@ -136,6 +137,9 @@ struct xe_oa {
 
 	/** @metrics_idr: List of dynamic configurations (struct xe_oa_config) */
 	struct idr metrics_idr;
+
+	/** @ctx_oactxctrl_offset: offset of OACTXCONTROL register in context image */
+	u32 ctx_oactxctrl_offset[XE_ENGINE_CLASS_MAX];
 
 	/** @oa_formats: tracks all OA formats across platforms */
 	const struct xe_oa_format *oa_formats;
