@@ -13,6 +13,7 @@
 #include <linux/compat.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
+#include <linux/fileattr.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -48,6 +49,62 @@ static int ntfs_ioctl_fitrim(struct ntfs_sb_info *sbi, unsigned long arg)
 	return 0;
 }
 
+/*
+ * ntfs_fileattr_get - inode_operations::fileattr_get
+ */
+int ntfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct ntfs_inode *ni = ntfs_i(inode);
+	u32 flags = 0;
+
+	if (inode->i_flags & S_IMMUTABLE)
+		flags |= FS_IMMUTABLE_FL;
+
+	if (inode->i_flags & S_APPEND)
+		flags |= FS_APPEND_FL;
+
+	if (is_compressed(ni))
+		flags |= FS_COMPR_FL;
+
+	if (is_encrypted(ni))
+		flags |= FS_ENCRYPT_FL;
+
+	fileattr_fill_flags(fa, flags);
+
+	return 0;
+}
+
+/*
+ * ntfs_fileattr_set - inode_operations::fileattr_set
+ */
+int ntfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
+		      struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	u32 flags = fa->flags;
+	unsigned int new_fl = 0;
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+
+	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL))
+		return -EOPNOTSUPP;
+
+	if (flags & FS_IMMUTABLE_FL)
+		new_fl |= S_IMMUTABLE;
+
+	if (flags & FS_APPEND_FL)
+		new_fl |= S_APPEND;
+
+	inode_set_flags(inode, new_fl, S_IMMUTABLE | S_APPEND);
+
+	inode_set_ctime_current(inode);
+	mark_inode_dirty(inode);
+
+	return 0;
+}
+
 long ntfs_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -77,19 +134,26 @@ int ntfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	struct inode *inode = d_inode(path->dentry);
 	struct ntfs_inode *ni = ntfs_i(inode);
 
+	stat->result_mask |= STATX_BTIME;
+	stat->btime = ni->i_crtime;
+	stat->blksize = ni->mi.sbi->cluster_size; /* 512, 1K, ..., 2M */
+
+	if (inode->i_flags & S_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+
+	if (inode->i_flags & S_APPEND)
+		stat->attributes |= STATX_ATTR_APPEND;
+
 	if (is_compressed(ni))
 		stat->attributes |= STATX_ATTR_COMPRESSED;
 
 	if (is_encrypted(ni))
 		stat->attributes |= STATX_ATTR_ENCRYPTED;
 
-	stat->attributes_mask |= STATX_ATTR_COMPRESSED | STATX_ATTR_ENCRYPTED;
+	stat->attributes_mask |= STATX_ATTR_COMPRESSED | STATX_ATTR_ENCRYPTED |
+				 STATX_ATTR_IMMUTABLE | STATX_ATTR_APPEND;
 
 	generic_fillattr(idmap, request_mask, inode, stat);
-
-	stat->result_mask |= STATX_BTIME;
-	stat->btime = ni->i_crtime;
-	stat->blksize = ni->mi.sbi->cluster_size; /* 512, 1K, ..., 2M */
 
 	return 0;
 }
@@ -1223,6 +1287,8 @@ const struct inode_operations ntfs_file_inode_operations = {
 	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 	.fiemap		= ntfs_fiemap,
+	.fileattr_get	= ntfs_fileattr_get,
+	.fileattr_set	= ntfs_fileattr_set,
 };
 
 const struct file_operations ntfs_file_operations = {
