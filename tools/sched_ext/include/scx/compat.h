@@ -111,16 +111,23 @@ static inline bool __COMPAT_struct_has_field(const char *type, const char *field
  * is used to define ops and compat.h::SCX_OPS_LOAD/ATTACH() are used to load
  * and attach it, backward compatibility is automatically maintained where
  * reasonable.
+ *
+ * ec7e3b0463e1 ("implement-ops") in https://github.com/sched-ext/sched_ext is
+ * the current minimum required kernel version.
  */
 #define SCX_OPS_OPEN(__ops_name, __scx_name) ({					\
 	struct __scx_name *__skel;						\
+										\
+	SCX_BUG_ON(!__COMPAT_struct_has_field("sched_ext_ops", "dump"),		\
+		   "sched_ext_ops.dump() missing, kernel too old?");		\
 										\
 	__skel = __scx_name##__open();						\
 	SCX_BUG_ON(!__skel, "Could not open " #__scx_name);			\
 	__skel; 								\
 })
 
-#define SCX_OPS_LOAD(__skel, __ops_name, __scx_name) ({				\
+#define SCX_OPS_LOAD(__skel, __ops_name, __scx_name, __uei_name) ({		\
+	UEI_SET_SIZE(__skel, __ops_name, __uei_name);				\
 	SCX_BUG_ON(__scx_name##__load((__skel)), "Failed to load skel");	\
 })
 

@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	SCX_OPS_LOAD(skel, simple_ops, scx_simple);
+	SCX_OPS_LOAD(skel, simple_ops, scx_simple, uei);
 	link = SCX_OPS_ATTACH(skel, simple_ops, scx_simple);
 
 	while (!exit_req && !UEI_EXITED(skel, uei)) {

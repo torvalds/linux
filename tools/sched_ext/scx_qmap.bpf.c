@@ -33,6 +33,7 @@ const volatile u32 stall_user_nth;
 const volatile u32 stall_kernel_nth;
 const volatile u32 dsp_batch;
 const volatile s32 disallow_tgid;
+const volatile bool suppress_dump;
 
 u32 test_error_cnt;
 
@@ -258,6 +259,56 @@ s32 BPF_STRUCT_OPS(qmap_init_task, struct task_struct *p,
 		return -ENOMEM;
 }
 
+void BPF_STRUCT_OPS(qmap_dump, struct scx_dump_ctx *dctx)
+{
+	s32 i, pid;
+
+	if (suppress_dump)
+		return;
+
+	bpf_for(i, 0, 5) {
+		void *fifo;
+
+		if (!(fifo = bpf_map_lookup_elem(&queue_arr, &i)))
+			return;
+
+		scx_bpf_dump("QMAP FIFO[%d]:", i);
+		bpf_repeat(4096) {
+			if (bpf_map_pop_elem(fifo, &pid))
+				break;
+			scx_bpf_dump(" %d", pid);
+		}
+		scx_bpf_dump("\n");
+	}
+}
+
+void BPF_STRUCT_OPS(qmap_dump_cpu, struct scx_dump_ctx *dctx, s32 cpu, bool idle)
+{
+	u32 zero = 0;
+	struct cpu_ctx *cpuc;
+
+	if (suppress_dump || idle)
+		return;
+	if (!(cpuc = bpf_map_lookup_percpu_elem(&cpu_ctx_stor, &zero, cpu)))
+		return;
+
+	scx_bpf_dump("QMAP: dsp_idx=%llu dsp_cnt=%llu",
+		     cpuc->dsp_idx, cpuc->dsp_cnt);
+}
+
+void BPF_STRUCT_OPS(qmap_dump_task, struct scx_dump_ctx *dctx, struct task_struct *p)
+{
+	struct task_ctx *taskc;
+
+	if (suppress_dump)
+		return;
+	if (!(taskc = bpf_task_storage_get(&task_ctx_stor, p, 0, 0)))
+		return;
+
+	scx_bpf_dump("QMAP: force_local=%d",
+		     taskc->force_local);
+}
+
 s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 {
 	return scx_bpf_create_dsq(SHARED_DSQ, -1);
@@ -274,6 +325,9 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .dequeue			= (void *)qmap_dequeue,
 	       .dispatch		= (void *)qmap_dispatch,
 	       .init_task		= (void *)qmap_init_task,
+	       .dump			= (void *)qmap_dump,
+	       .dump_cpu		= (void *)qmap_dump_cpu,
+	       .dump_task		= (void *)qmap_dump_task,
 	       .init			= (void *)qmap_init,
 	       .exit			= (void *)qmap_exit,
 	       .timeout_ms		= 5000U,
