@@ -294,11 +294,14 @@ struct vm_area_struct *get_pad_vma(struct vm_area_struct *vma)
 	/* Adjust the start to begin at the start of the padding section */
 	pad->vm_start = VMA_PAD_START(pad);
 
+	/*
+	 * The below modifications to vm_flags don't need mmap write lock,
+	 * since, pad does not belong to the VMA tree.
+	 */
 	/* Make the pad vma PROT_NONE */
-	vm_flags_clear(pad, VM_READ|VM_WRITE|VM_EXEC);
-
+	__vm_flags_mod(pad, 0, VM_READ|VM_WRITE|VM_EXEC);
 	/* Remove padding bits */
-	vm_flags_clear(pad, VM_PAD_MASK);
+	__vm_flags_mod(pad, 0, VM_PAD_MASK);
 
 	return pad;
 }
