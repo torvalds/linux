@@ -524,8 +524,8 @@ static void wa_16021440873(struct intel_plane *plane,
 
 	intel_de_write_fw(dev_priv, SEL_FETCH_CUR_CTL(pipe), ctl);
 
-	intel_de_write(dev_priv, PIPE_SRCSZ_ERLY_TPT(pipe),
-		       PIPESRC_HEIGHT(et_y_position));
+	intel_de_write(dev_priv, CURPOS_ERLY_TPT(dev_priv, pipe),
+		       CURSOR_POS_Y(et_y_position));
 }
 
 static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
