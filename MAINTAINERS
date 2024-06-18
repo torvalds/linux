@@ -24949,6 +24949,12 @@ F:	mm/zpool.c
 F:	mm/zswap.c
 F:	tools/testing/selftests/cgroup/test_zswap.c
 
+SENARYTECH AUDIO CODEC DRIVER
+M:	bo liu <bo.liu@senarytech.com>
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
+F:	sound/pci/hda/patch_senarytech.c
+
 THE REST
 M:	Linus Torvalds <torvalds@linux-foundation.org>
 L:	linux-kernel@vger.kernel.org
