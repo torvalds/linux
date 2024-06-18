@@ -12,6 +12,7 @@ config VIDEO_HANTRO
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
 	select V4L2_H264
+	select V4L2_JPEG_HELPER
 	select V4L2_VP9
 	help
 	  Support for the Hantro IP based Video Processing Units present on
