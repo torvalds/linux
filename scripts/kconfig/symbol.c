@@ -1078,12 +1078,14 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 	struct dep_stack *stack;
 	struct symbol *sym, *next_sym;
 	struct menu *menu = NULL;
+	struct menu *choice;
 	struct property *prop;
 	struct dep_stack cv_stack;
 
-	if (sym_is_choice_value(last_sym)) {
+	choice = sym_get_choice_menu(last_sym);
+	if (choice) {
 		dep_stack_insert(&cv_stack, last_sym);
-		last_sym = prop_get_symbol(sym_get_choice_prop(last_sym));
+		last_sym = choice->sym;
 	}
 
 	for (stack = check_top; stack != NULL; stack = stack->prev)
