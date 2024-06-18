@@ -2659,7 +2659,10 @@ out:
 		tr->last_state = state;
 
 		/* sched out event for task so reset ready to run time */
-		tr->ready_to_run = 0;
+		if (state == 'R')
+			tr->ready_to_run = t;
+		else
+			tr->ready_to_run = 0;
 	}
 
 	evsel__save_time(evsel, sample->time, sample->cpu);
