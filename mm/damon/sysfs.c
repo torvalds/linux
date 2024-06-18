@@ -1162,7 +1162,7 @@ destroy_targets_out:
 	return err;
 }
 
-static int damon_sysfs_set_targets(struct damon_ctx *ctx,
+static int damon_sysfs_add_targets(struct damon_ctx *ctx,
 		struct damon_sysfs_targets *sysfs_targets)
 {
 	int i, err;
@@ -1283,7 +1283,7 @@ static int damon_sysfs_apply_inputs(struct damon_ctx *ctx,
 	err = damon_sysfs_set_attrs(ctx, sys_ctx->attrs);
 	if (err)
 		return err;
-	err = damon_sysfs_set_targets(ctx, sys_ctx->targets);
+	err = damon_sysfs_add_targets(ctx, sys_ctx->targets);
 	if (err)
 		return err;
 	return damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
