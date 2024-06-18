@@ -91,6 +91,8 @@ struct cdev_record {
  *
  * @timestamp: the trip crossing timestamp
  * @duration: total time when the zone temperature was above the trip point
+ * @trip_temp: trip temperature at mitigation start
+ * @trip_hyst: trip hysteresis at mitigation start
  * @count: the number of times the zone temperature was above the trip point
  * @max: maximum recorded temperature above the trip point
  * @min: minimum recorded temperature above the trip point
@@ -99,6 +101,8 @@ struct cdev_record {
 struct trip_stats {
 	ktime_t timestamp;
 	ktime_t duration;
+	int trip_temp;
+	int trip_hyst;
 	int count;
 	int max;
 	int min;
@@ -574,6 +578,7 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
 	int trip_id = thermal_zone_trip_id(tz, trip);
 	ktime_t now = ktime_get();
+	struct trip_stats *trip_stats;
 
 	if (!thermal_dbg)
 		return;
@@ -639,7 +644,10 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	tz_dbg->trips_crossed[tz_dbg->nr_trips++] = trip_id;
 
 	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
-	tze->trip_stats[trip_id].timestamp = now;
+	trip_stats = &tze->trip_stats[trip_id];
+	trip_stats->trip_temp = trip->temperature;
+	trip_stats->trip_hyst = trip->hysteresis;
+	trip_stats->timestamp = now;
 
 unlock:
 	mutex_unlock(&thermal_dbg->lock);
@@ -794,10 +802,6 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		const struct thermal_trip *trip = &td->trip;
 		struct trip_stats *trip_stats;
 
-		/* Skip invalid trips. */
-		if (trip->temperature == THERMAL_TEMP_INVALID)
-			continue;
-
 		/*
 		 * There is no possible mitigation happening at the
 		 * critical trip point, so the stats will be always
@@ -836,8 +840,8 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		seq_printf(s, "| %*d | %*s | %*d | %*d | %c%*lld | %*d | %*d | %*d |\n",
 			   4 , trip_id,
 			   8, type,
-			   9, trip->temperature,
-			   9, trip->hysteresis,
+			   9, trip_stats->trip_temp,
+			   9, trip_stats->trip_hyst,
 			   c, 10, duration_ms,
 			   9, trip_stats->avg,
 			   9, trip_stats->min,

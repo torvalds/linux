@@ -300,6 +300,7 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 	if (!st->trig)
 		return -ENOMEM;
 
+	irq_type |= IRQF_ONESHOT;
 	ret = devm_request_threaded_irq(&indio_dev->dev, st->irq,
 					&inv_mpu6050_interrupt_timestamp,
 					&inv_mpu6050_interrupt_handle,
