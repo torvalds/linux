@@ -237,7 +237,7 @@ Refer to Documentation/devicetree/bindings/net/fsl,fman-dtsec.yaml
 ============================================================================
 FMan IEEE 1588 Node
 
-Refer to Documentation/devicetree/bindings/ptp/ptp-qoriq.txt
+Refer to Documentation/devicetree/bindings/ptp/fsl,ptp.yaml
 
 =============================================================================
 FMan MDIO Node

@@ -86,4 +86,4 @@ Example:
 
 * Gianfar PTP clock nodes
 
-Refer to Documentation/devicetree/bindings/ptp/ptp-qoriq.txt
+Refer to Documentation/devicetree/bindings/ptp/fsl,ptp.yaml
