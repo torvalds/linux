@@ -6300,8 +6300,7 @@ static vm_fault_t hugetlb_no_page(struct address_space *mapping,
 				ret = 0;
 			goto out;
 		}
-		clear_huge_page(&folio->page, vmf->real_address,
-				pages_per_huge_page(h));
+		folio_zero_user(folio, vmf->real_address);
 		__folio_mark_uptodate(folio);
 		new_folio = true;
 

@@ -944,10 +944,10 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
 		goto release;
 	}
 
-	clear_huge_page(page, vmf->address, HPAGE_PMD_NR);
+	folio_zero_user(folio, vmf->address);
 	/*
 	 * The memory barrier inside __folio_mark_uptodate makes sure that
-	 * clear_huge_page writes become visible before the set_pmd_at()
+	 * folio_zero_user writes become visible before the set_pmd_at()
 	 * write.
 	 */
 	__folio_mark_uptodate(folio);
