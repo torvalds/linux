@@ -345,7 +345,7 @@ static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 	if (t == 0)
 		return -EINVAL;
 
-	adis_dev_lock(&st->adis);
+	adis_dev_auto_lock(&st->adis);
 	/*
 	 * When using PPS mode, the input clock needs to be scaled so that we have an IMU
 	 * sample rate between (optimally) 4000 and 4250. After this, we can use the
@@ -388,7 +388,7 @@ static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 		sync_scale = scaled_rate / st->clk_freq;
 		ret = __adis_write_reg_16(&st->adis, ADIS16495_REG_SYNC_SCALE, sync_scale);
 		if (ret)
-			goto error;
+			return ret;
 
 		sample_rate = scaled_rate;
 	}
@@ -400,10 +400,7 @@ static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 	if (t > st->chip_info->max_dec_rate)
 		t = st->chip_info->max_dec_rate;
 
-	ret = __adis_write_reg_16(&st->adis, ADIS16480_REG_DEC_RATE, t);
-error:
-	adis_dev_unlock(&st->adis);
-	return ret;
+	return __adis_write_reg_16(&st->adis, ADIS16480_REG_DEC_RATE, t);
 }
 
 static int adis16480_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
@@ -413,23 +410,21 @@ static int adis16480_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
 	int ret;
 	unsigned int freq, sample_rate = st->clk_freq;
 
-	adis_dev_lock(&st->adis);
+	adis_dev_auto_lock(&st->adis);
 
 	if (st->clk_mode == ADIS16480_CLK_PPS) {
 		u16 sync_scale;
 
 		ret = __adis_read_reg_16(&st->adis, ADIS16495_REG_SYNC_SCALE, &sync_scale);
 		if (ret)
-			goto error;
+			return ret;
 
 		sample_rate = st->clk_freq * sync_scale;
 	}
 
 	ret = __adis_read_reg_16(&st->adis, ADIS16480_REG_DEC_RATE, &t);
 	if (ret)
-		goto error;
-
-	adis_dev_unlock(&st->adis);
+		return ret;
 
 	freq = DIV_ROUND_CLOSEST(sample_rate, (t + 1));
 
@@ -437,9 +432,6 @@ static int adis16480_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
 	*val2 = (freq % 1000) * 1000;
 
 	return IIO_VAL_INT_PLUS_MICRO;
-error:
-	adis_dev_unlock(&st->adis);
-	return ret;
 }
 
 enum {
@@ -630,11 +622,11 @@ static int adis16480_set_filter_freq(struct iio_dev *indio_dev,
 	offset = ad16480_filter_data[chan->scan_index][1];
 	enable_mask = BIT(offset + 2);
 
-	adis_dev_lock(&st->adis);
+	adis_dev_auto_lock(&st->adis);
 
 	ret = __adis_read_reg_16(&st->adis, reg, &val);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	if (freq == 0) {
 		val &= ~enable_mask;
@@ -656,11 +648,7 @@ static int adis16480_set_filter_freq(struct iio_dev *indio_dev,
 		val |= enable_mask;
 	}
 
-	ret = __adis_write_reg_16(&st->adis, reg, val);
-out_unlock:
-	adis_dev_unlock(&st->adis);
-
-	return ret;
+	return __adis_write_reg_16(&st->adis, reg, val);
 }
 
 static int adis16480_read_raw(struct iio_dev *indio_dev,
@@ -1355,28 +1343,25 @@ static irqreturn_t adis16480_trigger_handler(int irq, void *p)
 	u32 crc;
 	bool valid;
 
-	adis_dev_lock(adis);
-	if (adis->current_page != 0) {
-		adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
-		adis->tx[1] = 0;
-		ret = spi_write(adis->spi, adis->tx, 2);
-		if (ret) {
-			dev_err(dev, "Failed to change device page: %d\n", ret);
-			adis_dev_unlock(adis);
-			goto irq_done;
+	adis_dev_auto_scoped_lock(adis) {
+		if (adis->current_page != 0) {
+			adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
+			adis->tx[1] = 0;
+			ret = spi_write(adis->spi, adis->tx, 2);
+			if (ret) {
+				dev_err(dev, "Failed to change device page: %d\n", ret);
+				goto irq_done;
+			}
+
+			adis->current_page = 0;
 		}
 
-		adis->current_page = 0;
+		ret = spi_sync(adis->spi, &adis->msg);
+		if (ret) {
+			dev_err(dev, "Failed to read data: %d\n", ret);
+			goto irq_done;
+		}
 	}
-
-	ret = spi_sync(adis->spi, &adis->msg);
-	if (ret) {
-		dev_err(dev, "Failed to read data: %d\n", ret);
-		adis_dev_unlock(adis);
-		goto irq_done;
-	}
-
-	adis_dev_unlock(adis);
 
 	/*
 	 * After making the burst request, the response can have one or two
