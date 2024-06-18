@@ -24,7 +24,9 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 
+#ifndef __GENKSYMS__
 #include "../core/sock_destructor.h"
+#endif
 
 /* Use skb->cb to track consecutive/adjacent fragments coming at
  * the end of the queue. Nodes in the rb-tree queue will
