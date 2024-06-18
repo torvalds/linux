@@ -1295,8 +1295,8 @@ out:
 
 struct symbol *sym_check_deps(struct symbol *sym)
 {
+	struct menu *choice;
 	struct symbol *sym2;
-	struct property *prop;
 
 	if (sym->flags & SYMBOL_CHECK) {
 		sym_check_print_recursive(sym);
@@ -1305,13 +1305,13 @@ struct symbol *sym_check_deps(struct symbol *sym)
 	if (sym->flags & SYMBOL_CHECKED)
 		return NULL;
 
-	if (sym_is_choice_value(sym)) {
+	choice = sym_get_choice_menu(sym);
+	if (choice) {
 		struct dep_stack stack;
 
 		/* for choice groups start the check with main choice symbol */
 		dep_stack_insert(&stack, sym);
-		prop = sym_get_choice_prop(sym);
-		sym2 = sym_check_deps(prop_get_symbol(prop));
+		sym2 = sym_check_deps(choice->sym);
 		dep_stack_remove();
 	} else if (sym_is_choice(sym)) {
 		sym2 = sym_check_choice_deps(sym);
