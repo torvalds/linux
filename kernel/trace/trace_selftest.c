@@ -877,7 +877,7 @@ static int __init test_graph_storage_single(struct fgraph_fixture *fixture)
 	int ret;
 
 	pr_cont("PASSED\n");
-	pr_info("Testing fgraph storage of %d byte%s: ", size, size > 1 ? "s" : "");
+	pr_info("Testing fgraph storage of %d byte%s: ", size, str_plural(size));
 
 	ret = init_fgraph_fixture(fixture);
 	if (ret && ret != -ENODEV) {
