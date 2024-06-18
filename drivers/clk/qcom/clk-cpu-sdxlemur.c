@@ -136,6 +136,15 @@ static int cpucc_clk_determine_rate(struct clk_hw *hw, struct clk_rate_request *
 		apcs_parent = clk_hw_get_parent(req->best_parent_hw);
 		parent_req.best_parent_rate = clk_hw_get_rate(apcs_parent);
 
+		clk_hw_get_rate_range(req->best_parent_hw,
+				&parent_req.min_rate, &parent_req.max_rate);
+
+		if (req->min_rate > parent_req.min_rate)
+			parent_req.min_rate = req->min_rate;
+
+		if (req->max_rate < parent_req.max_rate)
+			parent_req.max_rate = req->max_rate;
+
 		ret = __clk_determine_rate(req->best_parent_hw, &parent_req);
 		if (ret)
 			return ret;
