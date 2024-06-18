@@ -2309,15 +2309,13 @@ static bool cxl_region_update_coordinates(struct cxl_region *cxlr, int nid)
 static int cxl_region_nid(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
-	struct cxl_endpoint_decoder *cxled;
-	struct cxl_decoder *cxld;
+	struct resource *res;
 
 	guard(rwsem_read)(&cxl_region_rwsem);
-	cxled = p->targets[0];
-	if (!cxled)
+	res = p->res;
+	if (!res)
 		return NUMA_NO_NODE;
-	cxld = &cxled->cxld;
-	return phys_to_target_node(cxld->hpa_range.start);
+	return phys_to_target_node(res->start);
 }
 
 static int cxl_region_perf_attrs_callback(struct notifier_block *nb,
