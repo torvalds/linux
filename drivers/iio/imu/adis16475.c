@@ -302,30 +302,25 @@ static int adis16475_get_freq(struct adis16475 *st, u32 *freq)
 	u16 dec;
 	u32 sample_rate = st->clk_freq;
 
-	adis_dev_lock(&st->adis);
+	adis_dev_auto_lock(&st->adis);
 
 	if (st->sync_mode == ADIS16475_SYNC_SCALED) {
 		u16 sync_scale;
 
 		ret = __adis_read_reg_16(&st->adis, ADIS16475_REG_UP_SCALE, &sync_scale);
 		if (ret)
-			goto error;
+			return ret;
 
 		sample_rate = st->clk_freq * sync_scale;
 	}
 
 	ret = __adis_read_reg_16(&st->adis, ADIS16475_REG_DEC_RATE, &dec);
 	if (ret)
-		goto error;
-
-	adis_dev_unlock(&st->adis);
+		return ret;
 
 	*freq = DIV_ROUND_CLOSEST(sample_rate, dec + 1);
 
 	return 0;
-error:
-	adis_dev_unlock(&st->adis);
-	return ret;
 }
 
 static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
@@ -340,7 +335,7 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 	if (!freq)
 		return -EINVAL;
 
-	adis_dev_lock(&st->adis);
+	adis_dev_auto_lock(&st->adis);
 	/*
 	 * When using sync scaled mode, the input clock needs to be scaled so that we have
 	 * an IMU sample rate between (optimally) int_clk - 100 and int_clk + 100.
@@ -385,7 +380,7 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 		sync_scale = scaled_rate / st->clk_freq;
 		ret = __adis_write_reg_16(&st->adis, ADIS16475_REG_UP_SCALE, sync_scale);
 		if (ret)
-			goto error;
+			return ret;
 
 		sample_rate = scaled_rate;
 	}
@@ -400,9 +395,8 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 
 	ret = __adis_write_reg_16(&st->adis, ADIS16475_REG_DEC_RATE, dec);
 	if (ret)
-		goto error;
+		return ret;
 
-	adis_dev_unlock(&st->adis);
 	/*
 	 * If decimation is used, then gyro and accel data will have meaningful
 	 * bits on the LSB registers. This info is used on the trigger handler.
@@ -410,9 +404,6 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 	assign_bit(ADIS16475_LSB_DEC_MASK, &st->lsb_flag, dec);
 
 	return 0;
-error:
-	adis_dev_unlock(&st->adis);
-	return ret;
 }
 
 /* The values are approximated. */
@@ -541,19 +532,15 @@ static int adis16475_buffer_postdisable(struct iio_dev *indio_dev)
 	struct adis *adis = &st->adis;
 	int ret;
 
-	adis_dev_lock(&st->adis);
+	adis_dev_auto_lock(&st->adis);
 
 	ret = __adis_update_bits(adis, ADIS16475_REG_FIFO_CTRL,
 				 ADIS16575_FIFO_EN_MASK, (u16)ADIS16575_FIFO_EN(0));
 	if (ret)
-		goto unlock;
+		return ret;
 
-	ret = __adis_write_reg_16(adis, ADIS16475_REG_GLOB_CMD,
-				  ADIS16575_FIFO_FLUSH_CMD);
-
-unlock:
-	adis_dev_unlock(&st->adis);
-	return ret;
+	return __adis_write_reg_16(adis, ADIS16475_REG_GLOB_CMD,
+				   ADIS16575_FIFO_FLUSH_CMD);
 }
 
 static const struct iio_buffer_setup_ops adis16475_buffer_ops = {
@@ -567,20 +554,18 @@ static int adis16475_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	int ret;
 	u16 wm_lvl;
 
-	adis_dev_lock(&st->adis);
+	adis_dev_auto_lock(&st->adis);
 
 	val = min_t(unsigned int, val, ADIS16575_MAX_FIFO_WM);
 
 	wm_lvl = ADIS16575_WM_LVL(val - 1);
 	ret = __adis_update_bits(&st->adis, ADIS16475_REG_FIFO_CTRL, ADIS16575_WM_LVL_MASK, wm_lvl);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	st->fifo_watermark = val;
 
-unlock:
-	adis_dev_unlock(&st->adis);
-	return ret;
+	return 0;
 }
 
 static const u32 adis16475_calib_regs[] = {
@@ -1745,7 +1730,7 @@ static irqreturn_t adis16475_trigger_handler_with_fifo(int irq, void *p)
 	int ret;
 	u16 fifo_cnt, i;
 
-	adis_dev_lock(&st->adis);
+	adis_dev_auto_lock(&st->adis);
 
 	ret = __adis_read_reg_16(adis, ADIS16575_REG_FIFO_CNT, &fifo_cnt);
 	if (ret)
@@ -1781,7 +1766,6 @@ unlock:
 	 * reading data from registers will impact the FIFO reading.
 	 */
 	adis16475_burst32_check(st);
-	adis_dev_unlock(&st->adis);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
