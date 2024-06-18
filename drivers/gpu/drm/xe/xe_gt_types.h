@@ -12,6 +12,7 @@
 #include "xe_gt_sriov_vf_types.h"
 #include "xe_hw_engine_types.h"
 #include "xe_hw_fence_types.h"
+#include "xe_oa.h"
 #include "xe_reg_sr_types.h"
 #include "xe_sa_types.h"
 #include "xe_uc_types.h"
@@ -387,6 +388,9 @@ struct xe_gt {
 		 */
 		u8 instances_per_class[XE_ENGINE_CLASS_MAX];
 	} user_engines;
+
+	/** @oa: oa perf counter subsystem per gt info */
+	struct xe_oa_gt oa;
 };
 
 #endif

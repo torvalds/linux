@@ -148,6 +148,8 @@ struct xe_hw_engine {
 	enum xe_hw_engine_id engine_id;
 	/** @eclass: pointer to per hw engine class interface */
 	struct xe_hw_engine_class_intf *eclass;
+	/** @oa_unit: oa unit for this hw engine */
+	struct xe_oa_unit *oa_unit;
 };
 
 /**

@@ -1437,6 +1437,20 @@ enum drm_xe_perf_ioctls {
 };
 
 /**
+ * enum drm_xe_oa_unit_type - OA unit types
+ */
+enum drm_xe_oa_unit_type {
+	/**
+	 * @DRM_XE_OA_UNIT_TYPE_OAG: OAG OA unit. OAR/OAC are considered
+	 * sub-types of OAG. For OAR/OAC, use OAG.
+	 */
+	DRM_XE_OA_UNIT_TYPE_OAG,
+
+	/** @DRM_XE_OA_UNIT_TYPE_OAM: OAM OA unit */
+	DRM_XE_OA_UNIT_TYPE_OAM,
+};
+
+/**
  * enum drm_xe_oa_format_type - OA format types as specified in PRM/Bspec
  * 52198/60942
  */
