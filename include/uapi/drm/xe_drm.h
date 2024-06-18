@@ -1478,6 +1478,10 @@ enum drm_xe_oa_format_type {
  * @drm_xe_user_extension base.name set to @DRM_XE_OA_EXTENSION_SET_PROPERTY.
  * @param field in struct @drm_xe_perf_param points to the first
  * @drm_xe_ext_set_property struct.
+ *
+ * Exactly the same mechanism is also used for stream reconfiguration using
+ * the @DRM_XE_PERF_IOCTL_CONFIG perf fd ioctl, though only a subset of
+ * properties below can be specified for stream reconfiguration.
  */
 enum drm_xe_oa_property_id {
 #define DRM_XE_OA_EXTENSION_SET_PROPERTY	0
