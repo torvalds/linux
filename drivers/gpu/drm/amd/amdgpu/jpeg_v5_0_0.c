@@ -137,10 +137,6 @@ static int jpeg_v5_0_0_hw_init(void *handle)
 	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
 			(adev->doorbell_index.vcn.vcn_ring0_1 << 1), 0);
 
-	WREG32_SOC15(VCN, 0, regVCN_JPEG_DB_CTRL,
-			ring->doorbell_index << VCN_JPEG_DB_CTRL__OFFSET__SHIFT |
-			VCN_JPEG_DB_CTRL__EN_MASK);
-
 	r = amdgpu_ring_test_helper(ring);
 	if (r)
 		return r;
@@ -313,6 +309,10 @@ static int jpeg_v5_0_0_start(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, regJPEG_SYS_INT_EN),
 		JPEG_SYS_INT_EN__DJRBC0_MASK,
 		~JPEG_SYS_INT_EN__DJRBC0_MASK);
+
+	WREG32_SOC15(VCN, 0, regVCN_JPEG_DB_CTRL,
+		ring->doorbell_index << VCN_JPEG_DB_CTRL__OFFSET__SHIFT |
+		VCN_JPEG_DB_CTRL__EN_MASK);
 
 	WREG32_SOC15(JPEG, 0, regUVD_LMI_JRBC_RB_VMID, 0);
 	WREG32_SOC15(JPEG, 0, regUVD_JRBC_RB_CNTL, (0x00000001L | 0x00000002L));
