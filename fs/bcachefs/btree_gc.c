@@ -874,6 +874,9 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	const struct bch_alloc_v4 *old;
 	int ret;
 
+	if (!bucket_valid(ca, k.k->p.offset))
+		return 0;
+
 	old = bch2_alloc_to_v4(k, &old_convert);
 	gc = new = *old;
 
@@ -990,6 +993,8 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 
 		buckets->first_bucket	= ca->mi.first_bucket;
 		buckets->nbuckets	= ca->mi.nbuckets;
+		buckets->nbuckets_minus_first =
+			buckets->nbuckets - buckets->first_bucket;
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
@@ -1003,12 +1008,14 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 				continue;
 			}
 
-			struct bch_alloc_v4 a_convert;
-			const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
+			if (bucket_valid(ca, k.k->p.offset)) {
+				struct bch_alloc_v4 a_convert;
+				const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 
-			struct bucket *g = gc_bucket(ca, k.k->p.offset);
-			g->gen_valid	= 1;
-			g->gen		= a->gen;
+				struct bucket *g = gc_bucket(ca, k.k->p.offset);
+				g->gen_valid	= 1;
+				g->gen		= a->gen;
+			}
 			0;
 		})));
 	bch2_dev_put(ca);
