@@ -382,37 +382,11 @@ static const struct hwmon_chip_info spd5118_chip_info = {
 
 /* nvmem */
 
-static int spd5118_nvmem_set_page(struct regmap *regmap, int page)
-{
-	unsigned int old_page;
-	int err;
-
-	err = regmap_read(regmap, SPD5118_REG_I2C_LEGACY_MODE, &old_page);
-	if (err)
-		return err;
-
-	if (page != (old_page & SPD5118_LEGACY_MODE_MASK)) {
-		/* Update page and explicitly select 1-byte addressing */
-		err = regmap_update_bits(regmap, SPD5118_REG_I2C_LEGACY_MODE,
-					 SPD5118_LEGACY_MODE_MASK, page);
-		if (err)
-			return err;
-
-		/* Selected new NVMEM page, drop cached data */
-		regcache_drop_region(regmap, SPD5118_EEPROM_BASE, 0xff);
-	}
-
-	return 0;
-}
-
 static ssize_t spd5118_nvmem_read_page(struct regmap *regmap, char *buf,
 				       unsigned int offset, size_t count)
 {
+	int addr = (offset >> SPD5118_PAGE_SHIFT) * 0x100 + SPD5118_EEPROM_BASE;
 	int err;
-
-	err = spd5118_nvmem_set_page(regmap, offset >> SPD5118_PAGE_SHIFT);
-	if (err)
-		return err;
 
 	offset &= SPD5118_PAGE_MASK;
 
@@ -420,7 +394,7 @@ static ssize_t spd5118_nvmem_read_page(struct regmap *regmap, char *buf,
 	if (offset + count > SPD5118_PAGE_SIZE)
 		count = SPD5118_PAGE_SIZE - offset;
 
-	err = regmap_bulk_read(regmap, SPD5118_EEPROM_BASE + offset, buf, count);
+	err = regmap_bulk_read(regmap, addr + offset, buf, count);
 	if (err)
 		return err;
 
@@ -515,13 +489,28 @@ static bool spd5118_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
+static const struct regmap_range_cfg spd5118_regmap_range_cfg[] = {
+	{
+	.selector_reg   = SPD5118_REG_I2C_LEGACY_MODE,
+	.selector_mask  = SPD5118_LEGACY_PAGE_MASK,
+	.selector_shift = 0,
+	.window_start   = 0,
+	.window_len     = 0x100,
+	.range_min      = 0,
+	.range_max      = 0x7ff,
+	},
+};
+
 static const struct regmap_config spd5118_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = 0xff,
+	.max_register = 0x7ff,
 	.writeable_reg = spd5118_writeable_reg,
 	.volatile_reg = spd5118_volatile_reg,
 	.cache_type = REGCACHE_MAPLE,
+
+	.ranges = spd5118_regmap_range_cfg,
+	.num_ranges = ARRAY_SIZE(spd5118_regmap_range_cfg),
 };
 
 static int spd5118_probe(struct i2c_client *client)
