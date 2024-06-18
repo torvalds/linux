@@ -355,7 +355,7 @@ struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 {
 	struct shared_phy *sh;
 
-	sh = kzalloc(sizeof(struct shared_phy), GFP_ATOMIC);
+	sh = kzalloc(sizeof(*sh), GFP_ATOMIC);
 	if (sh == NULL)
 		return NULL;
 
@@ -442,7 +442,7 @@ wlc_phy_attach(struct shared_phy *sh, struct bcma_device *d11core,
 		return &pi->pubpi_ro;
 	}
 
-	pi = kzalloc(sizeof(struct brcms_phy), GFP_ATOMIC);
+	pi = kzalloc(sizeof(*pi), GFP_ATOMIC);
 	if (pi == NULL)
 		return NULL;
 	pi->wiphy = wiphy;

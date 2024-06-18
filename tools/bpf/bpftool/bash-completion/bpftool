@@ -930,6 +930,9 @@ _bpftool()
                         format)
                             COMPREPLY=( $( compgen -W "c raw" -- "$cur" ) )
                             ;;
+                        c)
+                            COMPREPLY=( $( compgen -W "unsorted" -- "$cur" ) )
+                            ;;
                         *)
                             # emit extra options
                             case ${words[3]} in

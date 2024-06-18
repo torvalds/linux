@@ -21,9 +21,7 @@
 #include <net/genetlink.h>
 #include <linux/seg6.h>
 #include <linux/seg6_genl.h>
-#ifdef CONFIG_IPV6_SEG6_HMAC
 #include <net/seg6_hmac.h>
-#endif
 
 bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len, bool reduced)
 {
@@ -437,13 +435,11 @@ static int __net_init seg6_net_init(struct net *net)
 
 	net->ipv6.seg6_data = sdata;
 
-#ifdef CONFIG_IPV6_SEG6_HMAC
 	if (seg6_hmac_net_init(net)) {
 		kfree(rcu_dereference_raw(sdata->tun_src));
 		kfree(sdata);
 		return -ENOMEM;
 	}
-#endif
 
 	return 0;
 }
@@ -452,9 +448,7 @@ static void __net_exit seg6_net_exit(struct net *net)
 {
 	struct seg6_pernet_data *sdata = seg6_pernet(net);
 
-#ifdef CONFIG_IPV6_SEG6_HMAC
 	seg6_hmac_net_exit(net);
-#endif
 
 	kfree(rcu_dereference_raw(sdata->tun_src));
 	kfree(sdata);
@@ -520,41 +514,28 @@ int __init seg6_init(void)
 	if (err)
 		goto out_unregister_pernet;
 
-#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
 	err = seg6_iptunnel_init();
 	if (err)
 		goto out_unregister_genl;
 
 	err = seg6_local_init();
-	if (err) {
-		seg6_iptunnel_exit();
-		goto out_unregister_genl;
-	}
-#endif
-
-#ifdef CONFIG_IPV6_SEG6_HMAC
-	err = seg6_hmac_init();
 	if (err)
 		goto out_unregister_iptun;
-#endif
+
+	err = seg6_hmac_init();
+	if (err)
+		goto out_unregister_seg6;
 
 	pr_info("Segment Routing with IPv6\n");
 
 out:
 	return err;
-#ifdef CONFIG_IPV6_SEG6_HMAC
-out_unregister_iptun:
-#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
+out_unregister_seg6:
 	seg6_local_exit();
+out_unregister_iptun:
 	seg6_iptunnel_exit();
-#endif
-#endif
-#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
 out_unregister_genl:
-#endif
-#if IS_ENABLED(CONFIG_IPV6_SEG6_LWTUNNEL) || IS_ENABLED(CONFIG_IPV6_SEG6_HMAC)
 	genl_unregister_family(&seg6_genl_family);
-#endif
 out_unregister_pernet:
 	unregister_pernet_subsys(&ip6_segments_ops);
 	goto out;
@@ -562,13 +543,9 @@ out_unregister_pernet:
 
 void seg6_exit(void)
 {
-#ifdef CONFIG_IPV6_SEG6_HMAC
 	seg6_hmac_exit();
-#endif
-#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
 	seg6_local_exit();
 	seg6_iptunnel_exit();
-#endif
 	genl_unregister_family(&seg6_genl_family);
 	unregister_pernet_subsys(&ip6_segments_ops);
 }

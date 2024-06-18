@@ -42,6 +42,8 @@ int dsa_user_suspend(struct net_device *user_dev);
 int dsa_user_resume(struct net_device *user_dev);
 int dsa_user_register_notifier(void);
 void dsa_user_unregister_notifier(void);
+int dsa_user_host_uc_install(struct net_device *dev, const u8 *addr);
+void dsa_user_host_uc_uninstall(struct net_device *dev);
 void dsa_user_sync_ha(struct net_device *dev);
 void dsa_user_unsync_ha(struct net_device *dev);
 void dsa_user_setup_tagger(struct net_device *user);

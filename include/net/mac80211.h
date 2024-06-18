@@ -362,6 +362,7 @@ struct ieee80211_vif_chanctx_switch {
  *	status changed.
  * @BSS_CHANGED_MLD_VALID_LINKS: MLD valid links status changed.
  * @BSS_CHANGED_MLD_TTLM: negotiated TID to link mapping was changed
+ * @BSS_CHANGED_TPE: transmit power envelope changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -398,6 +399,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_UNSOL_BCAST_PROBE_RESP = 1<<31,
 	BSS_CHANGED_MLD_VALID_LINKS	= BIT_ULL(33),
 	BSS_CHANGED_MLD_TTLM		= BIT_ULL(34),
+	BSS_CHANGED_TPE			= BIT_ULL(35),
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -550,6 +552,39 @@ struct ieee80211_fils_discovery {
 	u32 max_interval;
 };
 
+#define IEEE80211_TPE_EIRP_ENTRIES_320MHZ	5
+struct ieee80211_parsed_tpe_eirp {
+	bool valid;
+	s8 power[IEEE80211_TPE_EIRP_ENTRIES_320MHZ];
+	u8 count;
+};
+
+#define IEEE80211_TPE_PSD_ENTRIES_320MHZ	16
+struct ieee80211_parsed_tpe_psd {
+	bool valid;
+	s8 power[IEEE80211_TPE_PSD_ENTRIES_320MHZ];
+	u8 count, n;
+};
+
+/**
+ * struct ieee80211_parsed_tpe - parsed transmit power envelope information
+ * @max_local: maximum local EIRP, one value for 20, 40, 80, 160, 320 MHz each
+ *	(indexed by TX power category)
+ * @max_reg_client: maximum regulatory client EIRP, one value for 20, 40, 80,
+ *	160, 320 MHz each
+ *	(indexed by TX power category)
+ * @psd_local: maximum local power spectral density, one value for each 20 MHz
+ *	subchannel per bss_conf's chanreq.oper
+ *	(indexed by TX power category)
+ * @psd_reg_client: maximum regulatory power spectral density, one value for
+ *	each 20 MHz subchannel per bss_conf's chanreq.oper
+ *	(indexed by TX power category)
+ */
+struct ieee80211_parsed_tpe {
+	struct ieee80211_parsed_tpe_eirp max_local[2], max_reg_client[2];
+	struct ieee80211_parsed_tpe_psd psd_local[2], psd_reg_client[2];
+};
+
 /**
  * struct ieee80211_bss_conf - holds the BSS's changing parameters
  *
@@ -662,8 +697,7 @@ struct ieee80211_fils_discovery {
  * @beacon_tx_rate: The configured beacon transmit rate that needs to be passed
  *	to driver when rate control is offloaded to firmware.
  * @power_type: power type of BSS for 6 GHz
- * @tx_pwr_env: transmit power envelope array of BSS.
- * @tx_pwr_env_num: number of @tx_pwr_env.
+ * @tpe: transmit power envelope information
  * @pwr_reduction: power constraint of BSS.
  * @eht_support: does this BSS support EHT
  * @csa_active: marks whether a channel switch is going on.
@@ -701,6 +735,9 @@ struct ieee80211_fils_discovery {
  *	beamformee
  * @eht_mu_beamformer: in AP-mode, does this BSS enable operation as an EHT MU
  *	beamformer
+ * @eht_80mhz_full_bw_ul_mumimo: in AP-mode, does this BSS support the
+ *	reception of an EHT TB PPDU on an RU that spans the entire PPDU
+ *	bandwidth
  */
 struct ieee80211_bss_conf {
 	struct ieee80211_vif *vif;
@@ -766,8 +803,9 @@ struct ieee80211_bss_conf {
 	u32 unsol_bcast_probe_resp_interval;
 	struct cfg80211_bitrate_mask beacon_tx_rate;
 	enum ieee80211_ap_reg_power power_type;
-	struct ieee80211_tx_pwr_env tx_pwr_env[IEEE80211_TPE_MAX_IE_COUNT];
-	u8 tx_pwr_env_num;
+
+	struct ieee80211_parsed_tpe tpe;
+
 	u8 pwr_reduction;
 	bool eht_support;
 
@@ -793,6 +831,7 @@ struct ieee80211_bss_conf {
 	bool eht_su_beamformer;
 	bool eht_su_beamformee;
 	bool eht_mu_beamformer;
+	bool eht_80mhz_full_bw_ul_mumimo;
 };
 
 /**

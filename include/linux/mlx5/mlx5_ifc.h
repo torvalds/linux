@@ -1526,8 +1526,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         ts_cqe_to_dest_cqn[0x1];
 	u8         reserved_at_b3[0x6];
 	u8         go_back_n[0x1];
-	u8         shampo[0x1];
-	u8         reserved_at_bb[0x5];
+	u8         reserved_at_ba[0x6];
 
 	u8         max_sgl_for_optimized_performance[0x8];
 	u8         log_max_cq_sz[0x8];
@@ -1744,7 +1743,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_280[0x10];
 	u8         max_wqe_sz_sq[0x10];
 
-	u8         reserved_at_2a0[0x10];
+	u8         reserved_at_2a0[0xb];
+	u8         shampo[0x1];
+	u8         reserved_at_2ac[0x4];
 	u8         max_wqe_sz_rq[0x10];
 
 	u8         max_flow_counter_31_16[0x10];
@@ -2017,7 +2018,8 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   reserved_at_250[0x10];
 
 	u8	   reserved_at_260[0x120];
-	u8	   reserved_at_380[0x10];
+	u8	   reserved_at_380[0xb];
+	u8	   min_mkey_log_entity_size_fixed_buffer[0x5];
 	u8	   ec_vf_vport_base[0x10];
 
 	u8	   reserved_at_3a0[0x10];
@@ -2029,7 +2031,11 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   pcc_ifa2[0x1];
 	u8	   reserved_at_3f1[0xf];
 
-	u8	   reserved_at_400[0x400];
+	u8	   reserved_at_400[0x1];
+	u8	   min_mkey_log_entity_size_fixed_buffer_valid[0x1];
+	u8	   reserved_at_402[0x1e];
+
+	u8	   reserved_at_420[0x3e0];
 };
 
 enum mlx5_ifc_flow_destination_type {
@@ -10308,9 +10314,9 @@ struct mlx5_ifc_mcam_access_reg_bits {
 	u8         mfrl[0x1];
 	u8         regs_39_to_32[0x8];
 
-	u8         regs_31_to_10[0x16];
+	u8         regs_31_to_11[0x15];
 	u8         mtmp[0x1];
-	u8         regs_8_to_0[0x9];
+	u8         regs_9_to_0[0xa];
 };
 
 struct mlx5_ifc_mcam_access_reg_bits1 {

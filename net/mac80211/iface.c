@@ -543,18 +543,18 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 
 	sdata->vif.bss_conf.csa_active = false;
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		sdata->deflink.u.mgd.csa_waiting_bcn = false;
+		sdata->deflink.u.mgd.csa.waiting_bcn = false;
 	if (sdata->csa_blocked_queues) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 		sdata->csa_blocked_queues = false;
 	}
 
-	wiphy_work_cancel(local->hw.wiphy, &sdata->deflink.csa_finalize_work);
+	wiphy_work_cancel(local->hw.wiphy, &sdata->deflink.csa.finalize_work);
 	wiphy_work_cancel(local->hw.wiphy,
 			  &sdata->deflink.color_change_finalize_work);
 	wiphy_delayed_work_cancel(local->hw.wiphy,
-				  &sdata->deflink.dfs_cac_timer_work);
+				  &sdata->dfs_cac_timer_work);
 
 	if (sdata->wdev.cac_started) {
 		chandef = sdata->vif.bss_conf.chanreq.oper;
@@ -1746,6 +1746,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_init(&sdata->work, ieee80211_iface_work);
 	wiphy_work_init(&sdata->activate_links_work,
 			ieee80211_activate_links_work);
+	wiphy_delayed_work_init(&sdata->dfs_cac_timer_work,
+				ieee80211_dfs_cac_timer_work);
 
 	switch (type) {
 	case NL80211_IFTYPE_P2P_GO:

@@ -213,7 +213,7 @@ extern struct semaphore __efi_uv_runtime_lock __alias(efi_runtime_lock);
  * Calls the appropriate efi_runtime_service() with the appropriate
  * arguments.
  */
-static void efi_call_rts(struct work_struct *work)
+static void __nocfi efi_call_rts(struct work_struct *work)
 {
 	const union efi_rts_args *args = efi_rts_work.args;
 	efi_status_t status = EFI_NOT_FOUND;
@@ -435,7 +435,7 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 	return status;
 }
 
-static efi_status_t
+static efi_status_t __nocfi
 virt_efi_set_variable_nb(efi_char16_t *name, efi_guid_t *vendor, u32 attr,
 			 unsigned long data_size, void *data)
 {
@@ -469,7 +469,7 @@ static efi_status_t virt_efi_query_variable_info(u32 attr,
 	return status;
 }
 
-static efi_status_t
+static efi_status_t __nocfi
 virt_efi_query_variable_info_nb(u32 attr, u64 *storage_space,
 				u64 *remaining_space, u64 *max_variable_size)
 {
@@ -499,10 +499,9 @@ static efi_status_t virt_efi_get_next_high_mono_count(u32 *count)
 	return status;
 }
 
-static void virt_efi_reset_system(int reset_type,
-				  efi_status_t status,
-				  unsigned long data_size,
-				  efi_char16_t *data)
+static void __nocfi
+virt_efi_reset_system(int reset_type, efi_status_t status,
+		      unsigned long data_size, efi_char16_t *data)
 {
 	if (down_trylock(&efi_runtime_lock)) {
 		pr_warn("failed to invoke the reset_system() runtime service:\n"

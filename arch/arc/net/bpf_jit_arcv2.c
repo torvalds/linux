@@ -62,7 +62,7 @@ enum {
  *   If/when we decide to add ARCv2 instructions that do use register pairs,
  *   the mapping, hopefully, doesn't need to be revisited.
  */
-const u8 bpf2arc[][2] = {
+static const u8 bpf2arc[][2] = {
 	/* Return value from in-kernel function, and exit value from eBPF */
 	[BPF_REG_0] = {ARC_R_8, ARC_R_9},
 	/* Arguments from eBPF program to in-kernel function */
@@ -1302,7 +1302,7 @@ static u8 arc_b(u8 *buf, s32 offset)
 
 /************* Packers (Deal with BPF_REGs) **************/
 
-inline u8 zext(u8 *buf, u8 rd)
+u8 zext(u8 *buf, u8 rd)
 {
 	if (rd != BPF_REG_FP)
 		return arc_movi_r(buf, REG_HI(rd), 0);
@@ -2235,6 +2235,7 @@ u8 gen_swap(u8 *buf, u8 rd, u8 size, u8 endian, bool force, bool do_zext)
 			break;
 		default:
 			/* The caller must have handled this. */
+			break;
 		}
 	} else {
 		/*
@@ -2253,6 +2254,7 @@ u8 gen_swap(u8 *buf, u8 rd, u8 size, u8 endian, bool force, bool do_zext)
 			break;
 		default:
 			/* The caller must have handled this. */
+			break;
 		}
 	}
 
@@ -2517,7 +2519,7 @@ u8 arc_epilogue(u8 *buf, u32 usage, u16 frame_size)
 #define JCC64_NR_OF_JMPS 3	/* Number of jumps in jcc64 template. */
 #define JCC64_INSNS_TO_END 3	/* Number of insn. inclusive the 2nd jmp to end. */
 #define JCC64_SKIP_JMP 1	/* Index of the "skip" jump to "end". */
-const struct {
+static const struct {
 	/*
 	 * "jit_off" is common between all "jmp[]" and is coupled with
 	 * "cond" of each "jmp[]" instance. e.g.:
@@ -2883,7 +2885,7 @@ u8 gen_jmp_64(u8 *buf, u8 rd, u8 rs, u8 cond, u32 curr_off, u32 targ_off)
  * The "ARC_CC_SET" becomes "CC_unequal" because of the "tst"
  * instruction that precedes the conditional branch.
  */
-const u8 arcv2_32_jmps[ARC_CC_LAST] = {
+static const u8 arcv2_32_jmps[ARC_CC_LAST] = {
 	[ARC_CC_UGT] = CC_great_u,
 	[ARC_CC_UGE] = CC_great_eq_u,
 	[ARC_CC_ULT] = CC_less_u,

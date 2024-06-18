@@ -708,7 +708,9 @@ static void print_reg_state(struct bpf_verifier_env *env,
 		verbose(env, "%s", btf_type_name(reg->btf, reg->btf_id));
 	verbose(env, "(");
 	if (reg->id)
-		verbose_a("id=%d", reg->id);
+		verbose_a("id=%d", reg->id & ~BPF_ADD_CONST);
+	if (reg->id & BPF_ADD_CONST)
+		verbose(env, "%+d", reg->off);
 	if (reg->ref_obj_id)
 		verbose_a("ref_obj_id=%d", reg->ref_obj_id);
 	if (type_is_non_owning_ref(reg->type))

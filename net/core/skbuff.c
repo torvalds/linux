@@ -4139,6 +4139,9 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 	if (skb_zcopy(tgt) || skb_zcopy(skb))
 		return 0;
 
+	DEBUG_NET_WARN_ON_ONCE(tgt->pp_recycle != skb->pp_recycle);
+	DEBUG_NET_WARN_ON_ONCE(skb_cmp_decrypted(tgt, skb));
+
 	todo = shiftlen;
 	from = 0;
 	to = skb_shinfo(tgt)->nr_frags;

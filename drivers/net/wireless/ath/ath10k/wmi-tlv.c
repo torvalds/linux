@@ -4606,6 +4606,8 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_echo = ath10k_wmi_tlv_op_gen_echo,
 	.gen_vdev_spectral_conf = ath10k_wmi_tlv_op_gen_vdev_spectral_conf,
 	.gen_vdev_spectral_enable = ath10k_wmi_tlv_op_gen_vdev_spectral_enable,
+	/* .gen_gpio_config not implemented */
+	/* .gen_gpio_output not implemented */
 };
 
 static const struct wmi_peer_flags_map wmi_tlv_peer_flags_map = {

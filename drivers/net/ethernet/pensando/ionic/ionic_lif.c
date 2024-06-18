@@ -237,12 +237,12 @@ static int ionic_request_irq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	const char *name;
 
 	if (lif->registered)
-		name = lif->netdev->name;
+		name = netdev_name(lif->netdev);
 	else
 		name = dev_name(dev);
 
 	snprintf(intr->name, sizeof(intr->name),
-		 "%s-%s-%s", IONIC_DRV_NAME, name, q->name);
+		 "%.5s-%.16s-%.8s", IONIC_DRV_NAME, name, q->name);
 
 	return devm_request_irq(dev, intr->vector, ionic_isr,
 				0, intr->name, &qcq->napi);
@@ -3388,6 +3388,7 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	 * just need to reanimate it.
 	 */
 	ionic_init_devinfo(ionic);
+	ionic_reset(ionic);
 	err = ionic_identify(ionic);
 	if (err)
 		goto err_out;
@@ -3731,7 +3732,7 @@ static void ionic_lif_set_netdev_info(struct ionic_lif *lif)
 		},
 	};
 
-	strscpy(ctx.cmd.lif_setattr.name, lif->netdev->name,
+	strscpy(ctx.cmd.lif_setattr.name, netdev_name(lif->netdev),
 		sizeof(ctx.cmd.lif_setattr.name));
 
 	ionic_adminq_post_wait(lif, &ctx);

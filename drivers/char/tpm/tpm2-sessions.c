@@ -80,6 +80,9 @@
 /* maximum number of names the TPM must remember for authorization */
 #define AUTH_MAX_NAMES	3
 
+#define AES_KEY_BYTES	AES_KEYSIZE_128
+#define AES_KEY_BITS	(AES_KEY_BYTES*8)
+
 static int tpm2_create_primary(struct tpm_chip *chip, u32 hierarchy,
 			       u32 *handle, u8 *name);
 
@@ -954,6 +957,20 @@ int tpm2_start_auth_session(struct tpm_chip *chip)
 }
 EXPORT_SYMBOL(tpm2_start_auth_session);
 
+/*
+ * A mask containing the object attributes for the kernel held null primary key
+ * used in HMAC encryption. For more information on specific attributes look up
+ * to "8.3 TPMA_OBJECT (Object Attributes)".
+ */
+#define TPM2_OA_NULL_KEY ( \
+	TPM2_OA_NO_DA | \
+	TPM2_OA_FIXED_TPM | \
+	TPM2_OA_FIXED_PARENT | \
+	TPM2_OA_SENSITIVE_DATA_ORIGIN |	\
+	TPM2_OA_USER_WITH_AUTH | \
+	TPM2_OA_DECRYPT | \
+	TPM2_OA_RESTRICTED)
+
 /**
  * tpm2_parse_create_primary() - parse the data returned from TPM_CC_CREATE_PRIMARY
  *
@@ -1018,7 +1035,7 @@ static int tpm2_parse_create_primary(struct tpm_chip *chip, struct tpm_buf *buf,
 	val = tpm_buf_read_u32(buf, &offset_t);
 
 	/* object properties */
-	if (val != TPM2_OA_TMPL)
+	if (val != TPM2_OA_NULL_KEY)
 		return -EINVAL;
 
 	/* auth policy (empty) */
@@ -1178,7 +1195,7 @@ static int tpm2_create_primary(struct tpm_chip *chip, u32 hierarchy,
 	tpm_buf_append_u16(&template, TPM_ALG_SHA256);
 
 	/* object properties */
-	tpm_buf_append_u32(&template, TPM2_OA_TMPL);
+	tpm_buf_append_u32(&template, TPM2_OA_NULL_KEY);
 
 	/* sauth policy (empty) */
 	tpm_buf_append_u16(&template, 0);

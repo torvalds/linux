@@ -540,6 +540,6 @@ static struct auxiliary_driver sof_probes_client_drv = {
 
 module_auxiliary_driver(sof_probes_client_drv);
 
-MODULE_DESCRIPTION("SOF Probes Client Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("SOF Probes Client Driver");
 MODULE_IMPORT_NS(SND_SOC_SOF_CLIENT);

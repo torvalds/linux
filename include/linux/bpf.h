@@ -1612,6 +1612,7 @@ struct bpf_link_ops {
 			      struct bpf_link_info *info);
 	int (*update_map)(struct bpf_link *link, struct bpf_map *new_map,
 			  struct bpf_map *old_map);
+	__poll_t (*poll)(struct file *file, struct poll_table_struct *pts);
 };
 
 struct bpf_tramp_link {
@@ -1730,9 +1731,9 @@ struct bpf_struct_ops {
 	int (*init_member)(const struct btf_type *t,
 			   const struct btf_member *member,
 			   void *kdata, const void *udata);
-	int (*reg)(void *kdata);
-	void (*unreg)(void *kdata);
-	int (*update)(void *kdata, void *old_kdata);
+	int (*reg)(void *kdata, struct bpf_link *link);
+	void (*unreg)(void *kdata, struct bpf_link *link);
+	int (*update)(void *kdata, void *old_kdata, struct bpf_link *link);
 	int (*validate)(void *kdata);
 	void *cfi_stubs;
 	struct module *owner;
@@ -2333,6 +2334,7 @@ int bpf_link_prime(struct bpf_link *link, struct bpf_link_primer *primer);
 int bpf_link_settle(struct bpf_link_primer *primer);
 void bpf_link_cleanup(struct bpf_link_primer *primer);
 void bpf_link_inc(struct bpf_link *link);
+struct bpf_link *bpf_link_inc_not_zero(struct bpf_link *link);
 void bpf_link_put(struct bpf_link *link);
 int bpf_link_new_fd(struct bpf_link *link);
 struct bpf_link *bpf_link_get_from_fd(u32 ufd);
@@ -2702,6 +2704,11 @@ static inline void bpf_link_cleanup(struct bpf_link_primer *primer)
 
 static inline void bpf_link_inc(struct bpf_link *link)
 {
+}
+
+static inline struct bpf_link *bpf_link_inc_not_zero(struct bpf_link *link)
+{
+	return NULL;
 }
 
 static inline void bpf_link_put(struct bpf_link *link)
@@ -3258,8 +3265,8 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 				struct bpf_insn *insn_buf,
 				struct bpf_prog *prog,
 				u32 *target_size);
-int bpf_dynptr_from_skb_rdonly(struct sk_buff *skb, u64 flags,
-			       struct bpf_dynptr_kern *ptr);
+int bpf_dynptr_from_skb_rdonly(struct __sk_buff *skb, u64 flags,
+			       struct bpf_dynptr *ptr);
 #else
 static inline bool bpf_sock_common_is_valid_access(int off, int size,
 						   enum bpf_access_type type,
@@ -3281,8 +3288,8 @@ static inline u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 {
 	return 0;
 }
-static inline int bpf_dynptr_from_skb_rdonly(struct sk_buff *skb, u64 flags,
-					     struct bpf_dynptr_kern *ptr)
+static inline int bpf_dynptr_from_skb_rdonly(struct __sk_buff *skb, u64 flags,
+					     struct bpf_dynptr *ptr)
 {
 	return -EOPNOTSUPP;
 }

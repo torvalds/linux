@@ -15706,4 +15706,5 @@ static void __exit test_bpf_exit(void)
 module_init(test_bpf_init);
 module_exit(test_bpf_exit);
 
+MODULE_DESCRIPTION("Testsuite for BPF interpreter and BPF JIT compiler");
 MODULE_LICENSE("GPL");

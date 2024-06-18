@@ -2752,11 +2752,11 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 		ppe8 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
 
 		if (ppe16 != 7 && ppe8 == 7)
-			pads[i] = 2;
+			pads[i] = RTW89_PE_DURATION_16;
 		else if (ppe8 != 7)
-			pads[i] = 1;
+			pads[i] = RTW89_PE_DURATION_8;
 		else
-			pads[i] = 0;
+			pads[i] = RTW89_PE_DURATION_0;
 	}
 }
 
@@ -2889,11 +2889,11 @@ static void __get_sta_eht_pkt_padding(struct rtw89_dev *rtwdev,
 		ppe8 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
 
 		if (ppe16 != 7 && ppe8 == 7)
-			pads[i] = 2;
+			pads[i] = RTW89_PE_DURATION_16_20;
 		else if (ppe8 != 7)
-			pads[i] = 1;
+			pads[i] = RTW89_PE_DURATION_8;
 		else
-			pads[i] = 0;
+			pads[i] = RTW89_PE_DURATION_0;
 	}
 }
 
@@ -4850,6 +4850,7 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
+	struct cfg80211_scan_request *req = rtwvif->scan_req;
 	struct rtw89_h2c_scanofld_be_macc_role *macc_role;
 	struct rtw89_chan *op = &scan_info->op_chan;
 	struct rtw89_h2c_scanofld_be_opch *opch;
@@ -4923,6 +4924,15 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 				   RTW89_H2C_SCANOFLD_BE_W6_CHAN_PROHIB_LOW);
 	h2c->w7 = le32_encode_bits(option->prohib_chan >> 32,
 				   RTW89_H2C_SCANOFLD_BE_W7_CHAN_PROHIB_HIGH);
+	if (req->no_cck) {
+		h2c->w0 |= le32_encode_bits(true, RTW89_H2C_SCANOFLD_BE_W0_PROBE_WITH_RATE);
+		h2c->w8 = le32_encode_bits(RTW89_HW_RATE_OFDM6,
+					   RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_2GHZ) |
+			  le32_encode_bits(RTW89_HW_RATE_OFDM6,
+					   RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_5GHZ) |
+			  le32_encode_bits(RTW89_HW_RATE_OFDM6,
+					   RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_6GHZ);
+	}
 	ptr += sizeof(*h2c);
 
 	for (i = 0; i < option->num_macc_role; i++) {
@@ -6245,7 +6255,14 @@ void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 
 	ret = rtw89_hw_scan_offload(rtwdev, vif, false);
 	if (ret)
-		rtw89_hw_scan_complete(rtwdev, vif, true);
+		rtw89_warn(rtwdev, "rtw89_hw_scan_offload failed ret %d\n", ret);
+
+	/* Indicate ieee80211_scan_completed() before returning, which is safe
+	 * because scan abort command always waits for completion of
+	 * RTW89_SCAN_END_SCAN_NOTIFY, so that ieee80211_stop() can flush scan
+	 * work properly.
+	 */
+	rtw89_hw_scan_complete(rtwdev, vif, true);
 }
 
 static bool rtw89_is_any_vif_connected_or_connecting(struct rtw89_dev *rtwdev)

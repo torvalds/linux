@@ -429,6 +429,8 @@
 #define NIX_AF_RX_ACTIVE_CYCLES_PCX(a)	(0x4800 | (a) << 16)
 #define NIX_AF_LINKX_CFG(a)		(0x4010 | (a) << 17)
 #define NIX_AF_MDQX_IN_MD_COUNT(a)	(0x14e0 | (a) << 16)
+#define NIX_AF_SMQX_STATUS(a)		(0x730 | (a) << 16)
+#define NIX_AF_MDQX_OUT_MD_COUNT(a)	(0xdb0 | (a) << 16)
 
 #define NIX_PRIV_AF_INT_CFG		(0x8000000)
 #define NIX_PRIV_LFX_CFG		(0x8000010)
@@ -441,6 +443,11 @@
 
 #define NIX_CONST_MAX_BPIDS		GENMASK_ULL(23, 12)
 #define NIX_CONST_SDP_CHANS		GENMASK_ULL(11, 0)
+
+#define NIX_AF_MDQ_PARENT_MASK         GENMASK_ULL(24, 16)
+#define NIX_AF_TL4_PARENT_MASK         GENMASK_ULL(23, 16)
+#define NIX_AF_TL3_PARENT_MASK         GENMASK_ULL(23, 16)
+#define NIX_AF_TL2_PARENT_MASK         GENMASK_ULL(20, 16)
 
 /* SSO */
 #define SSO_AF_CONST			(0x1000)

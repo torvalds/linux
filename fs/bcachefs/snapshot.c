@@ -1042,6 +1042,25 @@ err:
 	return ret;
 }
 
+int bch2_check_key_has_snapshot(struct btree_trans *trans,
+				struct btree_iter *iter,
+				struct bkey_s_c k)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
+
+	if (fsck_err_on(!bch2_snapshot_equiv(c, k.k->p.snapshot), c,
+			bkey_in_missing_snapshot,
+			"key in missing snapshot %s, delete?",
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+		ret = bch2_btree_delete_at(trans, iter,
+					    BTREE_UPDATE_internal_snapshot_node) ?: 1;
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
 /*
  * Mark a snapshot as deleted, for future cleanup:
  */
@@ -1351,35 +1370,39 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
  * that key to snapshot leaf nodes, where we can mutate it
  */
 
-static int snapshot_delete_key(struct btree_trans *trans,
+static int delete_dead_snapshots_process_key(struct btree_trans *trans,
 			       struct btree_iter *iter,
 			       struct bkey_s_c k,
 			       snapshot_id_list *deleted,
 			       snapshot_id_list *equiv_seen,
 			       struct bpos *last_pos)
 {
+	int ret = bch2_check_key_has_snapshot(trans, iter, k);
+	if (ret)
+		return ret < 0 ? ret : 0;
+
 	struct bch_fs *c = trans->c;
 	u32 equiv = bch2_snapshot_equiv(c, k.k->p.snapshot);
+	if (!equiv) /* key for invalid snapshot node, but we chose not to delete */
+		return 0;
 
 	if (!bkey_eq(k.k->p, *last_pos))
 		equiv_seen->nr = 0;
-	*last_pos = k.k->p;
 
-	if (snapshot_list_has_id(deleted, k.k->p.snapshot) ||
-	    snapshot_list_has_id(equiv_seen, equiv)) {
+	if (snapshot_list_has_id(deleted, k.k->p.snapshot))
 		return bch2_btree_delete_at(trans, iter,
 					    BTREE_UPDATE_internal_snapshot_node);
-	} else {
-		return snapshot_list_add(c, equiv_seen, equiv);
-	}
-}
 
-static int move_key_to_correct_snapshot(struct btree_trans *trans,
-			       struct btree_iter *iter,
-			       struct bkey_s_c k)
-{
-	struct bch_fs *c = trans->c;
-	u32 equiv = bch2_snapshot_equiv(c, k.k->p.snapshot);
+	if (!bpos_eq(*last_pos, k.k->p) &&
+	    snapshot_list_has_id(equiv_seen, equiv))
+		return bch2_btree_delete_at(trans, iter,
+					    BTREE_UPDATE_internal_snapshot_node);
+
+	*last_pos = k.k->p;
+
+	ret = snapshot_list_add_nodup(c, equiv_seen, equiv);
+	if (ret)
+		return ret;
 
 	/*
 	 * When we have a linear chain of snapshot nodes, we consider
@@ -1389,21 +1412,20 @@ static int move_key_to_correct_snapshot(struct btree_trans *trans,
 	 *
 	 * If there are multiple keys in different snapshots at the same
 	 * position, we're only going to keep the one in the newest
-	 * snapshot - the rest have been overwritten and are redundant,
-	 * and for the key we're going to keep we need to move it to the
-	 * equivalance class ID if it's not there already.
+	 * snapshot (we delete the others above) - the rest have been
+	 * overwritten and are redundant, and for the key we're going to keep we
+	 * need to move it to the equivalance class ID if it's not there
+	 * already.
 	 */
 	if (equiv != k.k->p.snapshot) {
 		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
-		struct btree_iter new_iter;
-		int ret;
-
-		ret = PTR_ERR_OR_ZERO(new);
+		int ret = PTR_ERR_OR_ZERO(new);
 		if (ret)
 			return ret;
 
 		new->k.p.snapshot = equiv;
 
+		struct btree_iter new_iter;
 		bch2_trans_iter_init(trans, &new_iter, iter->btree_id, new->k.p,
 				     BTREE_ITER_all_snapshots|
 				     BTREE_ITER_cached|
@@ -1538,7 +1560,6 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	struct btree_trans *trans;
 	snapshot_id_list deleted = { 0 };
 	snapshot_id_list deleted_interior = { 0 };
-	u32 id;
 	int ret = 0;
 
 	if (!test_and_clear_bit(BCH_FS_need_delete_dead_snapshots, &c->flags))
@@ -1585,33 +1606,20 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	for (id = 0; id < BTREE_ID_NR; id++) {
+	for (unsigned btree = 0; btree < BTREE_ID_NR; btree++) {
 		struct bpos last_pos = POS_MIN;
 		snapshot_id_list equiv_seen = { 0 };
 		struct disk_reservation res = { 0 };
 
-		if (!btree_type_has_snapshots(id))
-			continue;
-
-		/*
-		 * deleted inodes btree is maintained by a trigger on the inodes
-		 * btree - no work for us to do here, and it's not safe to scan
-		 * it because we'll see out of date keys due to the btree write
-		 * buffer:
-		 */
-		if (id == BTREE_ID_deleted_inodes)
+		if (!btree_type_has_snapshots(btree))
 			continue;
 
 		ret = for_each_btree_key_commit(trans, iter,
-				id, POS_MIN,
+				btree, POS_MIN,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
-			snapshot_delete_key(trans, &iter, k, &deleted, &equiv_seen, &last_pos)) ?:
-		      for_each_btree_key_commit(trans, iter,
-				id, POS_MIN,
-				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
-				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
-			move_key_to_correct_snapshot(trans, &iter, k));
+			delete_dead_snapshots_process_key(trans, &iter, k, &deleted,
+							  &equiv_seen, &last_pos));
 
 		bch2_disk_reservation_put(c, &res);
 		darray_exit(&equiv_seen);

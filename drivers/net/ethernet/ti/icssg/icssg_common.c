@@ -440,9 +440,7 @@ int prueth_init_rx_chns(struct prueth_emac *emac,
 			fdqring_id = k3_udma_glue_rx_flow_get_fdq_id(rx_chn->rx_chn,
 								     i);
 		ret = k3_udma_glue_rx_get_irq(rx_chn->rx_chn, i);
-		if (ret <= 0) {
-			if (!ret)
-				ret = -ENXIO;
+		if (ret < 0) {
 			netdev_err(ndev, "Failed to get rx dma irq");
 			goto fail;
 		}
@@ -581,6 +579,8 @@ static int emac_rx_packet(struct prueth_emac *emac, u32 flow_id)
 	} else {
 		/* send the filled skb up the n/w stack */
 		skb_put(skb, pkt_len);
+		if (emac->prueth->is_switch_mode)
+			skb->offload_fwd_mark = emac->offload_fwd_mark;
 		skb->protocol = eth_type_trans(skb, ndev);
 		napi_gro_receive(&emac->napi_rx, skb);
 		ndev->stats.rx_bytes += pkt_len;

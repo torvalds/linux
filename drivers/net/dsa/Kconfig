@@ -102,6 +102,7 @@ config NET_DSA_SMSC_LAN9303
 	tristate
 	select NET_DSA_TAG_LAN9303
 	select REGMAP
+	imply SMSC_PHY
 	help
 	  This enables support for the Microchip LAN9303/LAN9354 3 port ethernet
 	  switch chips.

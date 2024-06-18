@@ -265,15 +265,6 @@ allOf:
 
 examples:
   - |
-
-    q6v5_wcss: remoteproc@cd00000 {
-        compatible = "qcom,ipq8074-wcss-pil";
-        reg = <0xcd00000 0x4040>,
-              <0x4ab000 0x20>;
-        reg-names = "qdsp6",
-                    "rmb";
-    };
-
     wifi0: wifi@c000000 {
         compatible = "qcom,ipq8074-wifi";
         reg = <0xc000000 0x2000000>;

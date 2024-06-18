@@ -712,6 +712,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	u32 *vmm_table = wilc->vmm_table;
 	u8 ac_pkt_num_to_chip[NQUEUES] = {0, 0, 0, 0};
 	const struct wilc_hif_func *func;
+	int srcu_idx;
 	u8 *txb = wilc->tx_buffer;
 	struct wilc_vif *vif;
 
@@ -723,10 +724,10 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 
 	mutex_lock(&wilc->txq_add_to_head_cs);
 
-	rcu_read_lock();
+	srcu_idx = srcu_read_lock(&wilc->srcu);
 	wilc_for_each_vif(wilc, vif)
 		wilc_wlan_txq_filter_dup_tcp_ack(vif->ndev);
-	rcu_read_unlock();
+	srcu_read_unlock(&wilc->srcu, srcu_idx);
 
 	for (ac = 0; ac < NQUEUES; ac++)
 		tqe_q[ac] = wilc_wlan_txq_get_first(wilc, ac);
@@ -1471,6 +1472,55 @@ u32 wilc_get_chipid(struct wilc *wilc, bool update)
 	}
 	return wilc->chipid;
 }
+
+int wilc_load_mac_from_nv(struct wilc *wl)
+{
+	int ret = -EINVAL;
+	unsigned int i;
+
+	acquire_bus(wl, WILC_BUS_ACQUIRE_AND_WAKEUP);
+
+	for (i = 0; i < WILC_NVMEM_MAX_NUM_BANK; i++) {
+		int bank_offset = get_bank_offset_from_bank_index(i);
+		u32 reg1, reg2;
+		u8 invalid;
+		u8 used;
+
+		ret = wl->hif_func->hif_read_reg(wl,
+						 WILC_NVMEM_BANK_BASE + bank_offset,
+						 &reg1);
+		if (ret) {
+			pr_err("Can not read address %d lower part", i);
+			break;
+		}
+		ret = wl->hif_func->hif_read_reg(wl,
+						 WILC_NVMEM_BANK_BASE + bank_offset + 4,
+						 &reg2);
+		if (ret) {
+			pr_err("Can not read address %d upper part", i);
+			break;
+		}
+
+		used = FIELD_GET(WILC_NVMEM_IS_BANK_USED, reg1);
+		invalid = FIELD_GET(WILC_NVMEM_IS_BANK_INVALID, reg1);
+		if (!used || invalid)
+			continue;
+
+		wl->nv_mac_address[0] = FIELD_GET(GENMASK(23, 16), reg1);
+		wl->nv_mac_address[1] = FIELD_GET(GENMASK(15, 8), reg1);
+		wl->nv_mac_address[2] = FIELD_GET(GENMASK(7, 0), reg1);
+		wl->nv_mac_address[3] = FIELD_GET(GENMASK(31, 24), reg2);
+		wl->nv_mac_address[4] = FIELD_GET(GENMASK(23, 16), reg2);
+		wl->nv_mac_address[5] = FIELD_GET(GENMASK(15, 8), reg2);
+
+		ret = 0;
+		break;
+	}
+
+	release_bus(wl, WILC_BUS_RELEASE_ALLOW_SLEEP);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wilc_load_mac_from_nv);
 
 int wilc_wlan_init(struct net_device *dev)
 {

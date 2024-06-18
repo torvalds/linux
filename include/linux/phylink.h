@@ -141,7 +141,8 @@ enum phylink_op_type {
  * @mac_requires_rxc: if true, the MAC always requires a receive clock from PHY.
  *                    The PHY driver should start the clock signal as soon as
  *                    possible and avoid stopping it during suspend events.
- * @ovr_an_inband: if true, override PCS to MLO_AN_INBAND
+ * @default_an_inband: if true, defaults to MLO_AN_INBAND rather than
+ *		       MLO_AN_PHY. A fixed-link specification will override.
  * @get_fixed_state: callback to execute to determine the fixed link state,
  *		     if MAC link is at %MLO_AN_FIXED mode.
  * @supported_interfaces: bitmap describing which PHY_INTERFACE_MODE_xxx
@@ -154,7 +155,7 @@ struct phylink_config {
 	bool poll_fixed_state;
 	bool mac_managed_pm;
 	bool mac_requires_rxc;
-	bool ovr_an_inband;
+	bool default_an_inband;
 	void (*get_fixed_state)(struct phylink_config *config,
 				struct phylink_link_state *state);
 	DECLARE_PHY_INTERFACE_MASK(supported_interfaces);

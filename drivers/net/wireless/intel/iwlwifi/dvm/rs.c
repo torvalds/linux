@@ -2673,20 +2673,16 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	IWL_DEBUG_RATE_LIMIT(priv, "rate scale calculate new rate for skb\n");
 
 	/* Get max rate if user set max rate */
-	if (lq_sta) {
-		lq_sta->max_rate_idx = fls(txrc->rate_idx_mask) - 1;
-		if ((sband->band == NL80211_BAND_5GHZ) &&
-		    (lq_sta->max_rate_idx != -1))
-			lq_sta->max_rate_idx += IWL_FIRST_OFDM_RATE;
-		if ((lq_sta->max_rate_idx < 0) ||
-		    (lq_sta->max_rate_idx >= IWL_RATE_COUNT))
-			lq_sta->max_rate_idx = -1;
-	}
+	lq_sta->max_rate_idx = fls(txrc->rate_idx_mask) - 1;
+	if (sband->band == NL80211_BAND_5GHZ && lq_sta->max_rate_idx != -1)
+		lq_sta->max_rate_idx += IWL_FIRST_OFDM_RATE;
+	if (lq_sta->max_rate_idx < 0 || lq_sta->max_rate_idx >= IWL_RATE_COUNT)
+		lq_sta->max_rate_idx = -1;
 
-	/* Treat uninitialized rate scaling data same as non-existing. */
-	if (lq_sta && !lq_sta->drv) {
+	if (!lq_sta->drv) {
 		IWL_DEBUG_RATE(priv, "Rate scaling not initialized yet.\n");
-		priv_sta = NULL;
+		/* mac80211 already set up the data for using low rates */
+		return;
 	}
 
 	rate_idx  = lq_sta->last_txrate_idx;
@@ -2755,7 +2751,6 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	sta_priv = (struct iwl_station_priv *) sta->drv_priv;
 	lq_sta = &sta_priv->lq_sta;
 	sband = hw->wiphy->bands[conf->chandef.chan->band];
-
 
 	lq_sta->lq.sta_id = sta_id;
 

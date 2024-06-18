@@ -18,7 +18,7 @@
 
 static const struct sock_diag_handler __rcu *sock_diag_handlers[AF_MAX];
 
-static struct sock_diag_inet_compat __rcu *inet_rcv_compat;
+static const struct sock_diag_inet_compat __rcu *inet_rcv_compat;
 
 static struct workqueue_struct *broadcast_wq;
 
@@ -187,8 +187,7 @@ void sock_diag_broadcast_destroy(struct sock *sk)
 
 void sock_diag_register_inet_compat(const struct sock_diag_inet_compat *ptr)
 {
-	xchg((__force const struct sock_diag_inet_compat **)&inet_rcv_compat,
-	     ptr);
+	xchg(&inet_rcv_compat, RCU_INITIALIZER(ptr));
 }
 EXPORT_SYMBOL_GPL(sock_diag_register_inet_compat);
 
@@ -196,8 +195,7 @@ void sock_diag_unregister_inet_compat(const struct sock_diag_inet_compat *ptr)
 {
 	const struct sock_diag_inet_compat *old;
 
-	old = xchg((__force const struct sock_diag_inet_compat **)&inet_rcv_compat,
-		   NULL);
+	old = unrcu_pointer(xchg(&inet_rcv_compat, NULL));
 	WARN_ON_ONCE(old != ptr);
 }
 EXPORT_SYMBOL_GPL(sock_diag_unregister_inet_compat);

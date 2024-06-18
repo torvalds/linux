@@ -62,6 +62,8 @@ struct netdev_queue_stats_tx {
  * statistics will not generally add up to the total number of events for
  * the device. The @get_base_stats callback allows filling in the delta
  * between events for currently live queues and overall device history.
+ * @get_base_stats can also be used to report any miscellaneous packets
+ * transferred outside of the main set of queues used by the networking stack.
  * When the statistics for the entire device are queried, first @get_base_stats
  * is issued to collect the delta, and then a series of per-queue callbacks.
  * Only statistics which are set in @get_base_stats will be reported

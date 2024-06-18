@@ -7,7 +7,7 @@
 #define __iwl_nvm_parse_h__
 
 #include <net/cfg80211.h>
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "mei/iwl-mei.h"
 
 /**

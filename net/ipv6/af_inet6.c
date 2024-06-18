@@ -509,7 +509,7 @@ void inet6_cleanup_sock(struct sock *sk)
 
 	/* Free tx options */
 
-	opt = xchg((__force struct ipv6_txoptions **)&np->opt, NULL);
+	opt = unrcu_pointer(xchg(&np->opt, NULL));
 	if (opt) {
 		atomic_sub(opt->tot_len, &sk->sk_omem_alloc);
 		txopt_put(opt);

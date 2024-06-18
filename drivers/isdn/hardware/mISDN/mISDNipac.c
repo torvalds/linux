@@ -21,6 +21,7 @@
 
 MODULE_AUTHOR("Karsten Keil");
 MODULE_VERSION(ISAC_REV);
+MODULE_DESCRIPTION("mISDN driver for ISAC specific functions");
 MODULE_LICENSE("GPL v2");
 
 #define ReadISAC(is, o)		(is->read_reg(is->dch.hw, o + is->off))

@@ -1567,6 +1567,8 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_stop_device(struct ieee80211_local *local)
 {
+	ieee80211_handle_queued_frames(local);
+
 	ieee80211_led_radio(local, false);
 	ieee80211_mod_tpt_led_trig(local, 0, IEEE80211_TPT_LEDTRIG_FL_RADIO);
 
@@ -2175,8 +2177,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		local->in_reconfig = false;
 		barrier();
 
-		/* Restart deferred ROCs */
-		ieee80211_start_next_roc(local);
+		ieee80211_reconfig_roc(local);
 
 		/* Requeue all works */
 		list_for_each_entry(sdata, &local->interfaces, list)
@@ -3456,12 +3457,8 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		/* it might be waiting for the local->mtx, but then
-		 * by the time it gets it, sdata->wdev.cac_started
-		 * will no longer be true
-		 */
 		wiphy_delayed_work_cancel(local->hw.wiphy,
-					  &sdata->deflink.dfs_cac_timer_work);
+					  &sdata->dfs_cac_timer_work);
 
 		if (sdata->wdev.cac_started) {
 			chandef = sdata->vif.bss_conf.chanreq.oper;
@@ -4336,5 +4333,30 @@ ieee80211_min_bw_limit_from_chandef(struct cfg80211_chan_def *chandef)
 	default:
 		WARN(1, "unhandled chandef width %d\n", chandef->width);
 		return IEEE80211_CONN_BW_LIMIT_20;
+	}
+}
+
+void ieee80211_clear_tpe(struct ieee80211_parsed_tpe *tpe)
+{
+	for (int i = 0; i < 2; i++) {
+		tpe->max_local[i].valid = false;
+		memset(tpe->max_local[i].power,
+		       IEEE80211_TPE_MAX_TX_PWR_NO_CONSTRAINT,
+		       sizeof(tpe->max_local[i].power));
+
+		tpe->max_reg_client[i].valid = false;
+		memset(tpe->max_reg_client[i].power,
+		       IEEE80211_TPE_MAX_TX_PWR_NO_CONSTRAINT,
+		       sizeof(tpe->max_reg_client[i].power));
+
+		tpe->psd_local[i].valid = false;
+		memset(tpe->psd_local[i].power,
+		       IEEE80211_TPE_PSD_NO_LIMIT,
+		       sizeof(tpe->psd_local[i].power));
+
+		tpe->psd_reg_client[i].valid = false;
+		memset(tpe->psd_reg_client[i].power,
+		       IEEE80211_TPE_PSD_NO_LIMIT,
+		       sizeof(tpe->psd_reg_client[i].power));
 	}
 }

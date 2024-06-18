@@ -248,7 +248,7 @@ static void intel_speed_mode_2500(struct net_device *ndev, void *intel_data)
 		dev_info(priv->device, "Link Speed Mode: 2.5Gbps\n");
 		priv->plat->max_speed = 2500;
 		priv->plat->phy_interface = PHY_INTERFACE_MODE_2500BASEX;
-		priv->plat->mdio_bus_data->xpcs_an_inband = false;
+		priv->plat->mdio_bus_data->default_an_inband = false;
 	} else {
 		priv->plat->max_speed = 1000;
 	}
@@ -586,18 +586,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	if (plat->phy_interface == PHY_INTERFACE_MODE_SGMII ||
 	    plat->phy_interface == PHY_INTERFACE_MODE_1000BASEX) {
 		plat->mdio_bus_data->has_xpcs = true;
-		plat->mdio_bus_data->xpcs_an_inband = true;
-	}
-
-	/* For fixed-link setup, we clear xpcs_an_inband */
-	if (fwnode) {
-		struct fwnode_handle *fixed_node;
-
-		fixed_node = fwnode_get_named_child_node(fwnode, "fixed-link");
-		if (fixed_node)
-			plat->mdio_bus_data->xpcs_an_inband = false;
-
-		fwnode_handle_put(fixed_node);
+		plat->mdio_bus_data->default_an_inband = true;
 	}
 
 	/* Ensure mdio bus scan skips intel serdes and pcs-xpcs */

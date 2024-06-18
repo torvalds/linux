@@ -86,7 +86,8 @@ static inline int tcp_ao_sizeof_key(const struct tcp_ao_key *key)
 struct tcp_ao_info {
 	/* List of tcp_ao_key's */
 	struct hlist_head	head;
-	/* current_key and rnext_key aren't maintained on listen sockets.
+	/* current_key and rnext_key are maintained on sockets
+	 * in TCP_AO_ESTABLISHED states.
 	 * Their purpose is to cache keys on established connections,
 	 * saving needless lookups. Never dereference any of them from
 	 * listen sockets.
@@ -201,9 +202,9 @@ struct tcp6_ao_context {
 };
 
 struct tcp_sigpool;
+/* Established states are fast-path and there always is current_key/rnext_key */
 #define TCP_AO_ESTABLISHED (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 | TCPF_FIN_WAIT2 | \
-			    TCPF_CLOSE | TCPF_CLOSE_WAIT | \
-			    TCPF_LAST_ACK | TCPF_CLOSING)
+			    TCPF_CLOSE_WAIT | TCPF_LAST_ACK | TCPF_CLOSING)
 
 int tcp_ao_transmit_skb(struct sock *sk, struct sk_buff *skb,
 			struct tcp_ao_key *key, struct tcphdr *th,

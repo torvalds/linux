@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2021, 2023 Intel Corporation
- * Copyright (C) 2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2005-2014, 2018-2019, 2021, 2024 Intel Corporation
  */
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include "iwl-drv.h"
-#include "iwl-modparams.h"
-#include "iwl-eeprom-parse.h"
 
-#if IS_ENABLED(CONFIG_IWLDVM)
+#include "iwl-drv.h"
+#include "iwl-debug.h"
+#include "iwl-io.h"
+#include "iwl-prph.h"
+#include "iwl-csr.h"
+#include "agn.h"
+
 /* EEPROM offset definitions */
 
 /* indirect access definitions */
@@ -78,7 +80,6 @@ enum eeprom_sku_bits {
 #define EEPROM_RF_CFG_PNUM_MSK(x)   ((x >> 6)  & 0x3) /* bits 6-7   */
 #define EEPROM_RF_CFG_TX_ANT_MSK(x) ((x >> 8)  & 0xF) /* bits 8-11  */
 #define EEPROM_RF_CFG_RX_ANT_MSK(x) ((x >> 12) & 0xF) /* bits 12-15 */
-
 
 /*
  * EEPROM bands
@@ -256,7 +257,6 @@ struct iwl_eeprom_channel {
 	u8 flags;
 	s8 max_power_avg;
 } __packed;
-
 
 enum iwl_eeprom_enhanced_txpwr_flags {
 	IWL_EEPROM_ENH_TXP_FL_VALID = BIT(0),
@@ -648,114 +648,385 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 	return n_channels;
 }
-#endif
+/*
+ * EEPROM access time values:
+ *
+ * Driver initiates EEPROM read by writing byte address << 1 to CSR_EEPROM_REG.
+ * Driver then polls CSR_EEPROM_REG for CSR_EEPROM_REG_READ_VALID_MSK (0x1).
+ * When polling, wait 10 uSec between polling loops, up to a maximum 5000 uSec.
+ * Driver reads 16-bit value from bits 31-16 of CSR_EEPROM_REG.
+ */
+#define IWL_EEPROM_ACCESS_TIMEOUT	5000 /* uSec */
 
-int iwl_init_sband_channels(struct iwl_nvm_data *data,
-			    struct ieee80211_supported_band *sband,
-			    int n_channels, enum nl80211_band band)
+/*
+ * The device's EEPROM semaphore prevents conflicts between driver and uCode
+ * when accessing the EEPROM; each access is a series of pulses to/from the
+ * EEPROM chip, not a single event, so even reads could conflict if they
+ * weren't arbitrated by the semaphore.
+ */
+#define IWL_EEPROM_SEM_TIMEOUT		10   /* microseconds */
+#define IWL_EEPROM_SEM_RETRY_LIMIT	1000 /* number of attempts (not time) */
+
+
+static int iwl_eeprom_acquire_semaphore(struct iwl_trans *trans)
 {
-	struct ieee80211_channel *chan = &data->channels[0];
-	int n = 0, idx = 0;
+	u16 count;
+	int ret;
 
-	while (idx < n_channels && chan->band != band)
-		chan = &data->channels[++idx];
+	for (count = 0; count < IWL_EEPROM_SEM_RETRY_LIMIT; count++) {
+		/* Request semaphore */
+		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
-	sband->channels = &data->channels[idx];
-
-	while (idx < n_channels && chan->band == band) {
-		chan = &data->channels[++idx];
-		n++;
+		/* See if we got it */
+		ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				IWL_EEPROM_SEM_TIMEOUT);
+		if (ret >= 0) {
+			IWL_DEBUG_EEPROM(trans->dev,
+					 "Acquired semaphore after %d tries.\n",
+					 count+1);
+			return ret;
+		}
 	}
 
-	sband->n_channels = n;
-
-	return n;
+	return ret;
 }
 
-#define MAX_BIT_RATE_40_MHZ	150 /* Mbps */
-#define MAX_BIT_RATE_20_MHZ	72 /* Mbps */
-
-void iwl_init_ht_hw_capab(struct iwl_trans *trans,
-			  struct iwl_nvm_data *data,
-			  struct ieee80211_sta_ht_cap *ht_info,
-			  enum nl80211_band band,
-			  u8 tx_chains, u8 rx_chains)
+static void iwl_eeprom_release_semaphore(struct iwl_trans *trans)
 {
-	const struct iwl_cfg *cfg = trans->cfg;
-	int max_bit_rate = 0;
+	iwl_clear_bit(trans, CSR_HW_IF_CONFIG_REG,
+		      CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+}
 
-	tx_chains = hweight8(tx_chains);
-	if (cfg->rx_with_siso_diversity)
-		rx_chains = 1;
-	else
-		rx_chains = hweight8(rx_chains);
+static int iwl_eeprom_verify_signature(struct iwl_trans *trans, bool nvm_is_otp)
+{
+	u32 gp = iwl_read32(trans, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 
-	if (!(data->sku_cap_11n_enable) ||
-	    (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL) ||
-	    !cfg->ht_params) {
-		ht_info->ht_supported = false;
-		return;
-	}
+	IWL_DEBUG_EEPROM(trans->dev, "EEPROM signature=0x%08x\n", gp);
 
-	if (data->sku_cap_mimo_disabled)
-		rx_chains = 1;
-
-	ht_info->ht_supported = true;
-	ht_info->cap = IEEE80211_HT_CAP_DSSSCCK40;
-
-	if (cfg->ht_params->stbc) {
-		ht_info->cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
-
-		if (tx_chains > 1)
-			ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
-	}
-
-	if (cfg->ht_params->ldpc)
-		ht_info->cap |= IEEE80211_HT_CAP_LDPC_CODING;
-
-	if (trans->trans_cfg->mq_rx_supported ||
-	    iwlwifi_mod_params.amsdu_size >= IWL_AMSDU_8K)
-		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
-
-	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_4;
-
-	ht_info->mcs.rx_mask[0] = 0xFF;
-	ht_info->mcs.rx_mask[1] = 0x00;
-	ht_info->mcs.rx_mask[2] = 0x00;
-
-	if (rx_chains >= 2)
-		ht_info->mcs.rx_mask[1] = 0xFF;
-	if (rx_chains >= 3)
-		ht_info->mcs.rx_mask[2] = 0xFF;
-
-	if (cfg->ht_params->ht_greenfield_support)
-		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
-	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
-
-	max_bit_rate = MAX_BIT_RATE_20_MHZ;
-
-	if (cfg->ht_params->ht40_bands & BIT(band)) {
-		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
-		max_bit_rate = MAX_BIT_RATE_40_MHZ;
-	}
-
-	/* Highest supported Rx data rate */
-	max_bit_rate *= rx_chains;
-	WARN_ON(max_bit_rate & ~IEEE80211_HT_MCS_RX_HIGHEST_MASK);
-	ht_info->mcs.rx_highest = cpu_to_le16(max_bit_rate);
-
-	/* Tx MCS capabilities */
-	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
-	if (tx_chains != rx_chains) {
-		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
-		ht_info->mcs.tx_params |= ((tx_chains - 1) <<
-				IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
+	switch (gp) {
+	case CSR_EEPROM_GP_BAD_SIG_EEP_GOOD_SIG_OTP:
+		if (!nvm_is_otp) {
+			IWL_ERR(trans, "EEPROM with bad signature: 0x%08x\n",
+				gp);
+			return -ENOENT;
+		}
+		return 0;
+	case CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K:
+	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
+		if (nvm_is_otp) {
+			IWL_ERR(trans, "OTP with bad signature: 0x%08x\n", gp);
+			return -ENOENT;
+		}
+		return 0;
+	case CSR_EEPROM_GP_BAD_SIGNATURE_BOTH_EEP_AND_OTP:
+	default:
+		IWL_ERR(trans,
+			"bad EEPROM/OTP signature, type=%s, EEPROM_GP=0x%08x\n",
+			nvm_is_otp ? "OTP" : "EEPROM", gp);
+		return -ENOENT;
 	}
 }
 
-#if IS_ENABLED(CONFIG_IWLDVM)
+/******************************************************************************
+ *
+ * OTP related functions
+ *
+******************************************************************************/
+
+static void iwl_set_otp_access_absolute(struct iwl_trans *trans)
+{
+	iwl_read32(trans, CSR_OTP_GP_REG);
+
+	iwl_clear_bit(trans, CSR_OTP_GP_REG,
+		      CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+}
+
+static int iwl_nvm_is_otp(struct iwl_trans *trans)
+{
+	u32 otpgp;
+
+	/* OTP only valid for CP/PP and after */
+	switch (trans->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_NONE:
+		IWL_ERR(trans, "Unknown hardware type\n");
+		return -EIO;
+	case CSR_HW_REV_TYPE_5300:
+	case CSR_HW_REV_TYPE_5350:
+	case CSR_HW_REV_TYPE_5100:
+	case CSR_HW_REV_TYPE_5150:
+		return 0;
+	default:
+		otpgp = iwl_read32(trans, CSR_OTP_GP_REG);
+		if (otpgp & CSR_OTP_GP_REG_DEVICE_SELECT)
+			return 1;
+		return 0;
+	}
+}
+
+static int iwl_init_otp_access(struct iwl_trans *trans)
+{
+	int ret;
+
+	ret = iwl_finish_nic_init(trans);
+	if (ret)
+		return ret;
+
+	iwl_set_bits_prph(trans, APMG_PS_CTRL_REG,
+			  APMG_PS_CTRL_VAL_RESET_REQ);
+	udelay(5);
+	iwl_clear_bits_prph(trans, APMG_PS_CTRL_REG,
+			    APMG_PS_CTRL_VAL_RESET_REQ);
+
+	/*
+	 * CSR auto clock gate disable bit -
+	 * this is only applicable for HW with OTP shadow RAM
+	 */
+	if (trans->trans_cfg->base_params->shadow_ram_support)
+		iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+			    CSR_RESET_LINK_PWR_MGMT_DISABLED);
+
+	return 0;
+}
+
+static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
+			     __le16 *eeprom_data)
+{
+	int ret = 0;
+	u32 r;
+	u32 otpgp;
+
+	iwl_write32(trans, CSR_EEPROM_REG,
+		    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+	ret = iwl_poll_bit(trans, CSR_EEPROM_REG,
+				 CSR_EEPROM_REG_READ_VALID_MSK,
+				 CSR_EEPROM_REG_READ_VALID_MSK,
+				 IWL_EEPROM_ACCESS_TIMEOUT);
+	if (ret < 0) {
+		IWL_ERR(trans, "Time out reading OTP[%d]\n", addr);
+		return ret;
+	}
+	r = iwl_read32(trans, CSR_EEPROM_REG);
+	/* check for ECC errors: */
+	otpgp = iwl_read32(trans, CSR_OTP_GP_REG);
+	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
+		/* stop in this case */
+		/* set the uncorrectable OTP ECC bit for acknowledgment */
+		iwl_set_bit(trans, CSR_OTP_GP_REG,
+			    CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
+		IWL_ERR(trans, "Uncorrectable OTP ECC error, abort OTP read\n");
+		return -EINVAL;
+	}
+	if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
+		/* continue in this case */
+		/* set the correctable OTP ECC bit for acknowledgment */
+		iwl_set_bit(trans, CSR_OTP_GP_REG,
+			    CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
+		IWL_ERR(trans, "Correctable OTP ECC error, continue read\n");
+	}
+	*eeprom_data = cpu_to_le16(r >> 16);
+	return 0;
+}
+
+/*
+ * iwl_is_otp_empty: check for empty OTP
+ */
+static bool iwl_is_otp_empty(struct iwl_trans *trans)
+{
+	u16 next_link_addr = 0;
+	__le16 link_value;
+	bool is_empty = false;
+
+	/* locate the beginning of OTP link list */
+	if (!iwl_read_otp_word(trans, next_link_addr, &link_value)) {
+		if (!link_value) {
+			IWL_ERR(trans, "OTP is empty\n");
+			is_empty = true;
+		}
+	} else {
+		IWL_ERR(trans, "Unable to read first block of OTP list.\n");
+		is_empty = true;
+	}
+
+	return is_empty;
+}
+
+
+/*
+ * iwl_find_otp_image: find EEPROM image in OTP
+ *   finding the OTP block that contains the EEPROM image.
+ *   the last valid block on the link list (the block _before_ the last block)
+ *   is the block we should read and used to configure the device.
+ *   If all the available OTP blocks are full, the last block will be the block
+ *   we should read and used to configure the device.
+ *   only perform this operation if shadow RAM is disabled
+ */
+static int iwl_find_otp_image(struct iwl_trans *trans,
+					u16 *validblockaddr)
+{
+	u16 next_link_addr = 0, valid_addr;
+	__le16 link_value = 0;
+	int usedblocks = 0;
+
+	/* set addressing mode to absolute to traverse the link list */
+	iwl_set_otp_access_absolute(trans);
+
+	/* checking for empty OTP or error */
+	if (iwl_is_otp_empty(trans))
+		return -EINVAL;
+
+	/*
+	 * start traverse link list
+	 * until reach the max number of OTP blocks
+	 * different devices have different number of OTP blocks
+	 */
+	do {
+		/* save current valid block address
+		 * check for more block on the link list
+		 */
+		valid_addr = next_link_addr;
+		next_link_addr = le16_to_cpu(link_value) * sizeof(u16);
+		IWL_DEBUG_EEPROM(trans->dev, "OTP blocks %d addr 0x%x\n",
+				 usedblocks, next_link_addr);
+		if (iwl_read_otp_word(trans, next_link_addr, &link_value))
+			return -EINVAL;
+		if (!link_value) {
+			/*
+			 * reach the end of link list, return success and
+			 * set address point to the starting address
+			 * of the image
+			 */
+			*validblockaddr = valid_addr;
+			/* skip first 2 bytes (link list pointer) */
+			*validblockaddr += 2;
+			return 0;
+		}
+		/* more in the link list, continue */
+		usedblocks++;
+	} while (usedblocks <= trans->trans_cfg->base_params->max_ll_items);
+
+	/* OTP has no valid blocks */
+	IWL_DEBUG_EEPROM(trans->dev, "OTP has no valid blocks\n");
+	return -EINVAL;
+}
+
+/*
+ * iwl_read_eeprom - read EEPROM contents
+ *
+ * Load the EEPROM contents from adapter and return it
+ * and its size.
+ *
+ * NOTE:  This routine uses the non-debug IO access functions.
+ */
+int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
+{
+	__le16 *e;
+	u32 gp = iwl_read32(trans, CSR_EEPROM_GP);
+	int sz;
+	int ret;
+	u16 addr;
+	u16 validblockaddr = 0;
+	u16 cache_addr = 0;
+	int nvm_is_otp;
+
+	if (!eeprom || !eeprom_size)
+		return -EINVAL;
+
+	nvm_is_otp = iwl_nvm_is_otp(trans);
+	if (nvm_is_otp < 0)
+		return nvm_is_otp;
+
+	sz = trans->trans_cfg->base_params->eeprom_size;
+	IWL_DEBUG_EEPROM(trans->dev, "NVM size = %d\n", sz);
+
+	e = kmalloc(sz, GFP_KERNEL);
+	if (!e)
+		return -ENOMEM;
+
+	ret = iwl_eeprom_verify_signature(trans, nvm_is_otp);
+	if (ret < 0) {
+		IWL_ERR(trans, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		goto err_free;
+	}
+
+	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
+	ret = iwl_eeprom_acquire_semaphore(trans);
+	if (ret < 0) {
+		IWL_ERR(trans, "Failed to acquire EEPROM semaphore.\n");
+		goto err_free;
+	}
+
+	if (nvm_is_otp) {
+		ret = iwl_init_otp_access(trans);
+		if (ret) {
+			IWL_ERR(trans, "Failed to initialize OTP access.\n");
+			goto err_unlock;
+		}
+
+		iwl_write32(trans, CSR_EEPROM_GP,
+			    iwl_read32(trans, CSR_EEPROM_GP) &
+			    ~CSR_EEPROM_GP_IF_OWNER_MSK);
+
+		iwl_set_bit(trans, CSR_OTP_GP_REG,
+			    CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
+			    CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
+		/* traversing the linked list if no shadow ram supported */
+		if (!trans->trans_cfg->base_params->shadow_ram_support) {
+			ret = iwl_find_otp_image(trans, &validblockaddr);
+			if (ret)
+				goto err_unlock;
+		}
+		for (addr = validblockaddr; addr < validblockaddr + sz;
+		     addr += sizeof(u16)) {
+			__le16 eeprom_data;
+
+			ret = iwl_read_otp_word(trans, addr, &eeprom_data);
+			if (ret)
+				goto err_unlock;
+			e[cache_addr / 2] = eeprom_data;
+			cache_addr += sizeof(u16);
+		}
+	} else {
+		/* eeprom is an array of 16bit values */
+		for (addr = 0; addr < sz; addr += sizeof(u16)) {
+			u32 r;
+
+			iwl_write32(trans, CSR_EEPROM_REG,
+				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+
+			ret = iwl_poll_bit(trans, CSR_EEPROM_REG,
+					   CSR_EEPROM_REG_READ_VALID_MSK,
+					   CSR_EEPROM_REG_READ_VALID_MSK,
+					   IWL_EEPROM_ACCESS_TIMEOUT);
+			if (ret < 0) {
+				IWL_ERR(trans,
+					"Time out reading EEPROM[%d]\n", addr);
+				goto err_unlock;
+			}
+			r = iwl_read32(trans, CSR_EEPROM_REG);
+			e[addr / 2] = cpu_to_le16(r >> 16);
+		}
+	}
+
+	IWL_DEBUG_EEPROM(trans->dev, "NVM Type: %s\n",
+			 nvm_is_otp ? "OTP" : "EEPROM");
+
+	iwl_eeprom_release_semaphore(trans);
+
+	*eeprom_size = sz;
+	*eeprom = (u8 *)e;
+	return 0;
+
+ err_unlock:
+	iwl_eeprom_release_semaphore(trans);
+ err_free:
+	kfree(e);
+
+	return ret;
+}
+
 static void iwl_init_sbands(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			    struct iwl_nvm_data *data,
 			    const u8 *eeprom, size_t eeprom_size)
@@ -790,7 +1061,6 @@ static void iwl_init_sbands(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 }
 
 /* EEPROM data functions */
-
 struct iwl_nvm_data *
 iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		      const u8 *eeprom, size_t eeprom_size)
@@ -837,8 +1107,8 @@ iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	data->kelvin_temperature = *(__le16 *)tmp;
 	data->kelvin_voltage = *((__le16 *)tmp + 1);
 
-	radio_cfg = iwl_eeprom_query16(eeprom, eeprom_size,
-					     EEPROM_RADIO_CONFIG);
+	radio_cfg =
+		iwl_eeprom_query16(eeprom, eeprom_size, EEPROM_RADIO_CONFIG);
 	data->radio_cfg_dash = EEPROM_RF_CFG_DASH_MSK(radio_cfg);
 	data->radio_cfg_pnum = EEPROM_RF_CFG_PNUM_MSK(radio_cfg);
 	data->radio_cfg_step = EEPROM_RF_CFG_STEP_MSK(radio_cfg);
@@ -878,5 +1148,3 @@ iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	kfree(data);
 	return NULL;
 }
-IWL_EXPORT_SYMBOL(iwl_parse_eeprom_data);
-#endif

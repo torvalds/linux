@@ -34,6 +34,25 @@
 
 #define MLX5E_RX_ERR_CQE(cqe) (get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)
 
+#define MLX5E_KSM_UMR_WQE_SZ(sgl_len)\
+	(sizeof(struct mlx5e_umr_wqe) +\
+	(sizeof(struct mlx5_ksm) * (sgl_len)))
+
+#define MLX5E_KSM_UMR_WQEBBS(ksm_entries) \
+	(DIV_ROUND_UP(MLX5E_KSM_UMR_WQE_SZ(ksm_entries), MLX5_SEND_WQE_BB))
+
+#define MLX5E_KSM_UMR_DS_CNT(ksm_entries)\
+	(DIV_ROUND_UP(MLX5E_KSM_UMR_WQE_SZ(ksm_entries), MLX5_SEND_WQE_DS))
+
+#define MLX5E_KSM_MAX_ENTRIES_PER_WQE(wqe_size)\
+	(((wqe_size) - sizeof(struct mlx5e_umr_wqe)) / sizeof(struct mlx5_ksm))
+
+#define MLX5E_KSM_ENTRIES_PER_WQE(wqe_size)\
+	ALIGN_DOWN(MLX5E_KSM_MAX_ENTRIES_PER_WQE(wqe_size), MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT)
+
+#define MLX5E_MAX_KSM_PER_WQE(mdev) \
+	MLX5E_KSM_ENTRIES_PER_WQE(MLX5_SEND_WQE_BB * mlx5e_get_max_sq_aligned_wqebbs(mdev))
+
 static inline
 ktime_t mlx5e_cqe_ts_to_ns(cqe_ts_to_ns func, struct mlx5_clock *clock, u64 cqe_ts)
 {

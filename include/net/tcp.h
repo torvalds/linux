@@ -677,6 +677,7 @@ void tcp_skb_collapse_tstamp(struct sk_buff *skb,
 /* tcp_input.c */
 void tcp_rearm_rto(struct sock *sk);
 void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req);
+void tcp_done_with_error(struct sock *sk, int err);
 void tcp_reset(struct sock *sk, struct sk_buff *skb);
 void tcp_fin(struct sock *sk);
 void tcp_check_space(struct sock *sk);
@@ -1065,9 +1066,17 @@ static inline bool tcp_skb_can_collapse_to(const struct sk_buff *skb)
 static inline bool tcp_skb_can_collapse(const struct sk_buff *to,
 					const struct sk_buff *from)
 {
+	/* skb_cmp_decrypted() not needed, use tcp_write_collapse_fence() */
 	return likely(tcp_skb_can_collapse_to(to) &&
 		      mptcp_skb_can_collapse(to, from) &&
 		      skb_pure_zcopy_same(to, from));
+}
+
+static inline bool tcp_skb_can_collapse_rx(const struct sk_buff *to,
+					   const struct sk_buff *from)
+{
+	return likely(mptcp_skb_can_collapse(to, from) &&
+		      !skb_cmp_decrypted(to, from));
 }
 
 /* Events passed to congestion control interface */
@@ -1215,7 +1224,7 @@ extern struct tcp_congestion_ops tcp_reno;
 
 struct tcp_congestion_ops *tcp_ca_find(const char *name);
 struct tcp_congestion_ops *tcp_ca_find_key(u32 key);
-u32 tcp_ca_get_key_by_name(struct net *net, const char *name, bool *ecn_ca);
+u32 tcp_ca_get_key_by_name(const char *name, bool *ecn_ca);
 #ifdef CONFIG_INET
 char *tcp_ca_get_name_by_key(u32 key, char *buffer);
 #else
@@ -2092,6 +2101,14 @@ static inline void tcp_rtx_queue_unlink_and_free(struct sk_buff *skb, struct soc
 	list_del(&skb->tcp_tsorted_anchor);
 	tcp_rtx_queue_unlink(skb, sk);
 	tcp_wmem_free_skb(sk, skb);
+}
+
+static inline void tcp_write_collapse_fence(struct sock *sk)
+{
+	struct sk_buff *skb = tcp_write_queue_tail(sk);
+
+	if (skb)
+		TCP_SKB_CB(skb)->eor = 1;
 }
 
 static inline void tcp_push_pending_frames(struct sock *sk)

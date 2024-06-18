@@ -2274,7 +2274,9 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 
 		/* 8168B family. */
 		{ 0x7c8, 0x380,	RTL_GIGA_MAC_VER_17 },
-		{ 0x7c8, 0x300,	RTL_GIGA_MAC_VER_11 },
+		/* This one is very old and rare, let's see if anybody complains.
+		 * { 0x7c8, 0x300,	RTL_GIGA_MAC_VER_11 },
+		 */
 
 		/* 8101 family. */
 		{ 0x7c8, 0x448,	RTL_GIGA_MAC_VER_39 },
@@ -5086,12 +5088,10 @@ static void rtl_set_irq_mask(struct rtl8169_private *tp)
 	tp->irq_mask = RxOK | RxErr | TxOK | TxErr | LinkChg;
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
-		tp->irq_mask |= SYSErr | RxOverflow | RxFIFOOver;
+		tp->irq_mask |= SYSErr | RxFIFOOver;
 	else if (tp->mac_version == RTL_GIGA_MAC_VER_11)
 		/* special workaround needed */
 		tp->irq_mask |= RxFIFOOver;
-	else
-		tp->irq_mask |= RxOverflow;
 }
 
 static int rtl_alloc_irq(struct rtl8169_private *tp)

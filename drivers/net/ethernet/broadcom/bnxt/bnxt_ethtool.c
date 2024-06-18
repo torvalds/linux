@@ -5233,6 +5233,19 @@ static void bnxt_get_rmon_stats(struct net_device *dev,
 	*ranges = bnxt_rmon_ranges;
 }
 
+static void bnxt_get_ptp_stats(struct net_device *dev,
+			       struct ethtool_ts_stats *ts_stats)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	if (ptp) {
+		ts_stats->pkts = ptp->stats.ts_pkts;
+		ts_stats->lost = ptp->stats.ts_lost;
+		ts_stats->err = atomic64_read(&ptp->stats.ts_err);
+	}
+}
+
 static void bnxt_get_link_ext_stats(struct net_device *dev,
 				    struct ethtool_link_ext_stats *stats)
 {
@@ -5316,4 +5329,5 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_eth_mac_stats	= bnxt_get_eth_mac_stats,
 	.get_eth_ctrl_stats	= bnxt_get_eth_ctrl_stats,
 	.get_rmon_stats		= bnxt_get_rmon_stats,
+	.get_ts_stats		= bnxt_get_ptp_stats,
 };

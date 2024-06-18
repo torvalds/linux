@@ -57,7 +57,6 @@ static const struct felix_info vsc7512_info = {
 	.vcap				= vsc7514_vcap_props,
 	.num_mact_rows			= 1024,
 	.num_ports			= VSC7514_NUM_PORTS,
-	.num_tx_queues			= OCELOT_NUM_TC,
 	.port_modes			= vsc7512_port_modes,
 	.phylink_mac_config		= ocelot_phylink_mac_config,
 	.configure_serdes		= ocelot_port_configure_serdes,
@@ -65,54 +64,8 @@ static const struct felix_info vsc7512_info = {
 
 static int ocelot_ext_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct dsa_switch *ds;
-	struct ocelot *ocelot;
-	struct felix *felix;
-	int err;
-
-	felix = kzalloc(sizeof(*felix), GFP_KERNEL);
-	if (!felix)
-		return -ENOMEM;
-
-	dev_set_drvdata(dev, felix);
-
-	ocelot = &felix->ocelot;
-	ocelot->dev = dev;
-
-	ocelot->num_flooding_pgids = 1;
-
-	felix->info = &vsc7512_info;
-
-	ds = kzalloc(sizeof(*ds), GFP_KERNEL);
-	if (!ds) {
-		err = -ENOMEM;
-		dev_err_probe(dev, err, "Failed to allocate DSA switch\n");
-		goto err_free_felix;
-	}
-
-	ds->dev = dev;
-	ds->num_ports = felix->info->num_ports;
-	ds->num_tx_queues = felix->info->num_tx_queues;
-
-	ds->ops = &felix_switch_ops;
-	ds->priv = ocelot;
-	felix->ds = ds;
-	felix->tag_proto = DSA_TAG_PROTO_OCELOT;
-
-	err = dsa_register_switch(ds);
-	if (err) {
-		dev_err_probe(dev, err, "Failed to register DSA switch\n");
-		goto err_free_ds;
-	}
-
-	return 0;
-
-err_free_ds:
-	kfree(ds);
-err_free_felix:
-	kfree(felix);
-	return err;
+	return felix_register_switch(&pdev->dev, 0, 1, false, false,
+				     DSA_TAG_PROTO_OCELOT, &vsc7512_info);
 }
 
 static void ocelot_ext_remove(struct platform_device *pdev)
@@ -123,9 +76,6 @@ static void ocelot_ext_remove(struct platform_device *pdev)
 		return;
 
 	dsa_unregister_switch(felix->ds);
-
-	kfree(felix->ds);
-	kfree(felix);
 }
 
 static void ocelot_ext_shutdown(struct platform_device *pdev)

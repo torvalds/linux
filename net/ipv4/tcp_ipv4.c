@@ -114,6 +114,7 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 	const struct inet_timewait_sock *tw = inet_twsk(sktw);
 	const struct tcp_timewait_sock *tcptw = tcp_twsk(sktw);
 	struct tcp_sock *tp = tcp_sk(sk);
+	int ts_recent_stamp;
 
 	if (reuse == 2) {
 		/* Still does not detect *everything* that goes through
@@ -152,10 +153,11 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 	   If TW bucket has been already destroyed we fall back to VJ's scheme
 	   and use initial timestamp retrieved from peer table.
 	 */
-	if (tcptw->tw_ts_recent_stamp &&
+	ts_recent_stamp = READ_ONCE(tcptw->tw_ts_recent_stamp);
+	if (ts_recent_stamp &&
 	    (!twp || (reuse && time_after32(ktime_get_seconds(),
-					    tcptw->tw_ts_recent_stamp)))) {
-		/* inet_twsk_hashdance() sets sk_refcnt after putting twsk
+					    ts_recent_stamp)))) {
+		/* inet_twsk_hashdance_schedule() sets sk_refcnt after putting twsk
 		 * and releasing the bucket lock.
 		 */
 		if (unlikely(!refcount_inc_not_zero(&sktw->sk_refcnt)))
@@ -178,8 +180,8 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 			if (!seq)
 				seq = 1;
 			WRITE_ONCE(tp->write_seq, seq);
-			tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
-			tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
+			tp->rx_opt.ts_recent	   = READ_ONCE(tcptw->tw_ts_recent);
+			tp->rx_opt.ts_recent_stamp = ts_recent_stamp;
 		}
 
 		return 1;
@@ -611,15 +613,10 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 
 		ip_icmp_error(sk, skb, err, th->dest, info, (u8 *)th);
 
-		if (!sock_owned_by_user(sk)) {
-			WRITE_ONCE(sk->sk_err, err);
-
-			sk_error_report(sk);
-
-			tcp_done(sk);
-		} else {
+		if (!sock_owned_by_user(sk))
+			tcp_done_with_error(sk, err);
+		else
 			WRITE_ONCE(sk->sk_err_soft, err);
-		}
 		goto out;
 	}
 
@@ -1069,7 +1066,7 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 			tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
 			tcp_tw_tsval(tcptw),
-			tcptw->tw_ts_recent,
+			READ_ONCE(tcptw->tw_ts_recent),
 			tw->tw_bound_dev_if, &key,
 			tw->tw_transparent ? IP_REPLY_ARG_NOSRCCHECK : 0,
 			tw->tw_tos,
@@ -1144,14 +1141,9 @@ static void tcp_v4_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 #endif
 	}
 
-	/* RFC 7323 2.3
-	 * The window field (SEG.WND) of every outgoing segment, with the
-	 * exception of <SYN> segments, MUST be right-shifted by
-	 * Rcv.Wind.Shift bits:
-	 */
 	tcp_v4_send_ack(sk, skb, seq,
 			tcp_rsk(req)->rcv_nxt,
-			req->rsk_rcv_wnd >> inet_rsk(req)->rcv_wscale,
+			tcp_synack_window(req) >> inet_rsk(req)->rcv_wscale,
 			tcp_rsk_tsval(tcp_rsk(req)),
 			READ_ONCE(req->ts_recent),
 			0, &key,
@@ -2054,8 +2046,7 @@ bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb,
 	      TCP_SKB_CB(skb)->tcp_flags) & TCPHDR_ACK) ||
 	    ((TCP_SKB_CB(tail)->tcp_flags ^
 	      TCP_SKB_CB(skb)->tcp_flags) & (TCPHDR_ECE | TCPHDR_CWR)) ||
-	    !mptcp_skb_can_collapse(tail, skb) ||
-	    skb_cmp_decrypted(tail, skb) ||
+	    !tcp_skb_can_collapse_rx(tail, skb) ||
 	    thtail->doff != th->doff ||
 	    memcmp(thtail + 1, th + 1, hdrlen - sizeof(*th)))
 		goto no_coalesce;
@@ -3511,6 +3502,7 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.sysctl_tcp_shrink_window = 0;
 
 	net->ipv4.sysctl_tcp_pingpong_thresh = 1;
+	net->ipv4.sysctl_tcp_rto_min_us = jiffies_to_usecs(TCP_RTO_MIN);
 
 	return 0;
 }
@@ -3624,6 +3616,8 @@ void __init tcp_v4_init(void)
 		 * ACK sent in SYN-RECV and TIME-WAIT state.
 		 */
 		inet_sk(sk)->pmtudisc = IP_PMTUDISC_DO;
+
+		sk->sk_clockid = CLOCK_MONOTONIC;
 
 		per_cpu(ipv4_tcp_sk, cpu) = sk;
 	}

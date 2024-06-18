@@ -134,4 +134,5 @@ int bpf_kfunc_call_sock_sendmsg(struct sendmsg_args *args) __ksym;
 int bpf_kfunc_call_kernel_getsockname(struct addr_args *args) __ksym;
 int bpf_kfunc_call_kernel_getpeername(struct addr_args *args) __ksym;
 
+void bpf_kfunc_dynptr_test(struct bpf_dynptr *ptr, struct bpf_dynptr *ptr__nullable) __ksym;
 #endif /* _BPF_TESTMOD_KFUNC_H */
