@@ -191,9 +191,7 @@ static void get_alignment(u32 fourcc,
 struct vim2m_dev {
 	struct v4l2_device	v4l2_dev;
 	struct video_device	vfd;
-#ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device	mdev;
-#endif
 
 	atomic_t		num_inst;
 	struct mutex		dev_mutex;
@@ -1469,9 +1467,7 @@ static void vim2m_device_release(struct video_device *vdev)
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 	v4l2_m2m_release(dev->m2m_dev);
-#ifdef CONFIG_MEDIA_CONTROLLER
 	media_device_cleanup(&dev->mdev);
-#endif
 	kfree(dev);
 }
 
@@ -1542,7 +1538,6 @@ static int vim2m_probe(struct platform_device *pdev)
 		goto error_dev;
 	}
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	dev->mdev.dev = &pdev->dev;
 	strscpy(dev->mdev.model, "vim2m", sizeof(dev->mdev.model));
 	strscpy(dev->mdev.bus_info, "platform:vim2m",
@@ -1550,7 +1545,6 @@ static int vim2m_probe(struct platform_device *pdev)
 	media_device_init(&dev->mdev);
 	dev->mdev.ops = &m2m_media_ops;
 	dev->v4l2_dev.mdev = &dev->mdev;
-#endif
 
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (ret) {
@@ -1561,7 +1555,6 @@ static int vim2m_probe(struct platform_device *pdev)
 	v4l2_info(&dev->v4l2_dev,
 		  "Device registered as /dev/video%d\n", vfd->num);
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	ret = v4l2_m2m_register_media_controller(dev->m2m_dev, vfd,
 						 MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret) {
@@ -1574,13 +1567,11 @@ static int vim2m_probe(struct platform_device *pdev)
 		v4l2_err(&dev->v4l2_dev, "Failed to register mem2mem media device\n");
 		goto error_m2m_mc;
 	}
-#endif
+
 	return 0;
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 error_m2m_mc:
 	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
-#endif
 error_v4l2:
 	video_unregister_device(&dev->vfd);
 	/* vim2m_device_release called by video_unregister_device to release various objects */
@@ -1601,10 +1592,8 @@ static void vim2m_remove(struct platform_device *pdev)
 
 	v4l2_info(&dev->v4l2_dev, "Removing " MEM2MEM_NAME);
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	media_device_unregister(&dev->mdev);
 	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
-#endif
 	video_unregister_device(&dev->vfd);
 }
 
