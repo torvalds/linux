@@ -180,6 +180,27 @@ struct xe_reg_sr;
 	{ .match_type = XE_RTP_MATCH_DISCRETE }
 
 /**
+ * XE_RTP_RULE_OR - Create an OR condition for rtp rules
+ *
+ * RTP rules are AND'ed when evaluated and all of them need to match.
+ * XE_RTP_RULE_OR allows to create set of rules where any of them matching is
+ * sufficient for the action to trigger. Example:
+ *
+ * .. code-block:: c
+ *
+ *	const struct xe_rtp_entry_sr entries[] = {
+ *		...
+ *		{ XE_RTP_NAME("test-entry"),
+ *		  XE_RTP_RULES(PLATFORM(DG2), OR, PLATFORM(TIGERLAKE)),
+ *		  ...
+ *		},
+ *		...
+ *	};
+ */
+#define XE_RTP_RULE_OR								\
+	{ .match_type = XE_RTP_MATCH_OR }
+
+/**
  * XE_RTP_ACTION_WR - Helper to write a value to the register, overriding all
  *                    the bits
  * @reg_: Register

@@ -51,6 +51,7 @@ enum {
 	XE_RTP_MATCH_ENGINE_CLASS,
 	XE_RTP_MATCH_NOT_ENGINE_CLASS,
 	XE_RTP_MATCH_FUNC,
+	XE_RTP_MATCH_OR,
 };
 
 /** struct xe_rtp_rule - match rule for processing entry */

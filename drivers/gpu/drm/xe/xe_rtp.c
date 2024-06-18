@@ -35,11 +35,18 @@ static bool rule_matches(const struct xe_device *xe,
 			 unsigned int n_rules)
 {
 	const struct xe_rtp_rule *r;
-	unsigned int i;
+	unsigned int i, rcount = 0;
 	bool match;
 
 	for (r = rules, i = 0; i < n_rules; r = &rules[++i]) {
 		switch (r->match_type) {
+		case XE_RTP_MATCH_OR:
+			/*
+			 * This is only reached if a complete set of
+			 * rules passed or none were evaluated. For both cases,
+			 * shortcut the other rules and return the proper value.
+			 */
+			goto done;
 		case XE_RTP_MATCH_PLATFORM:
 			match = xe->info.platform == r->platform;
 			break;
@@ -102,9 +109,26 @@ static bool rule_matches(const struct xe_device *xe,
 			match = false;
 		}
 
-		if (!match)
-			return false;
+		if (!match) {
+			/*
+			 * Advance rules until we find XE_RTP_MATCH_OR to check
+			 * if there's another set of conditions to check
+			 */
+			while (i < n_rules && rules[++i].match_type != XE_RTP_MATCH_OR)
+				;
+
+			if (i >= n_rules)
+				return false;
+
+			rcount = 0;
+		} else {
+			rcount++;
+		}
 	}
+
+done:
+	if (drm_WARN_ON(&xe->drm, !rcount))
+		return false;
 
 	return true;
 }
