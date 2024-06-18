@@ -18,6 +18,8 @@ static int xe_oa_ioctl(struct drm_device *dev, struct drm_xe_perf_param *arg,
 		       struct drm_file *file)
 {
 	switch (arg->perf_op) {
+	case DRM_XE_PERF_OP_STREAM_OPEN:
+		return xe_oa_stream_open_ioctl(dev, arg->param, file);
 	case DRM_XE_PERF_OP_ADD_CONFIG:
 		return xe_oa_add_config_ioctl(dev, arg->param, file);
 	case DRM_XE_PERF_OP_REMOVE_CONFIG:
