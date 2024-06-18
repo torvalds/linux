@@ -8,10 +8,24 @@
 
 #include <drm/xe_drm.h>
 
+#include "xe_oa.h"
 #include "xe_perf.h"
 
 u32 xe_perf_stream_paranoid = true;
 static struct ctl_table_header *sysctl_header;
+
+static int xe_oa_ioctl(struct drm_device *dev, struct drm_xe_perf_param *arg,
+		       struct drm_file *file)
+{
+	switch (arg->perf_op) {
+	case DRM_XE_PERF_OP_ADD_CONFIG:
+		return xe_oa_add_config_ioctl(dev, arg->param, file);
+	case DRM_XE_PERF_OP_REMOVE_CONFIG:
+		return xe_oa_remove_config_ioctl(dev, arg->param, file);
+	default:
+		return -EINVAL;
+	}
+}
 
 /**
  * xe_perf_ioctl - The top level perf layer ioctl
@@ -32,6 +46,8 @@ int xe_perf_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		return -EINVAL;
 
 	switch (arg->perf_type) {
+	case DRM_XE_PERF_TYPE_OA:
+		return xe_oa_ioctl(dev, arg, file);
 	default:
 		return -EINVAL;
 	}

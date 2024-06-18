@@ -1378,6 +1378,7 @@ struct drm_xe_wait_user_fence {
  * enum drm_xe_perf_type - Perf stream types
  */
 enum drm_xe_perf_type {
+	DRM_XE_PERF_TYPE_OA,
 	__DRM_XE_PERF_TYPE_MAX, /* non-ABI */
 };
 
@@ -1467,6 +1468,30 @@ enum drm_xe_oa_format_type {
 	DRM_XE_OA_FMT_TYPE_OAM_MPEC,
 	/** @DRM_XE_OA_FMT_TYPE_PEC: PEC report format */
 	DRM_XE_OA_FMT_TYPE_PEC,
+};
+
+/**
+ * struct drm_xe_oa_config - OA metric configuration
+ *
+ * Multiple OA configs can be added using @DRM_XE_PERF_OP_ADD_CONFIG. A
+ * particular config can be specified when opening an OA stream using
+ * @DRM_XE_OA_PROPERTY_OA_METRIC_SET property.
+ */
+struct drm_xe_oa_config {
+	/** @extensions: Pointer to the first extension struct, if any */
+	__u64 extensions;
+
+	/** @uuid: String formatted like "%\08x-%\04x-%\04x-%\04x-%\012x" */
+	char uuid[36];
+
+	/** @n_regs: Number of regs in @regs_ptr */
+	__u32 n_regs;
+
+	/**
+	 * @regs_ptr: Pointer to (register address, value) pairs for OA config
+	 * registers. Expected length of buffer is: (2 * sizeof(u32) * @n_regs).
+	 */
+	__u64 regs_ptr;
 };
 
 #if defined(__cplusplus)

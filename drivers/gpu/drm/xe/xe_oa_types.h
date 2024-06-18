@@ -7,6 +7,7 @@
 #define _XE_OA_TYPES_H_
 
 #include <linux/bitops.h>
+#include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 
@@ -124,6 +125,15 @@ struct xe_oa_gt {
 struct xe_oa {
 	/** @xe: back pointer to xe device */
 	struct xe_device *xe;
+
+	/** @metrics_kobj: kobj for metrics sysfs */
+	struct kobject *metrics_kobj;
+
+	/** @metrics_lock: lock protecting add/remove configs */
+	struct mutex metrics_lock;
+
+	/** @metrics_idr: List of dynamic configurations (struct xe_oa_config) */
+	struct idr metrics_idr;
 
 	/** @oa_formats: tracks all OA formats across platforms */
 	const struct xe_oa_format *oa_formats;
