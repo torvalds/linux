@@ -3658,4 +3658,6 @@ static inline void balance_callbacks(struct rq *rq, struct balance_callback *hea
 
 #endif
 
+#include "ext.h"
+
 #endif /* _KERNEL_SCHED_SCHED_H */
