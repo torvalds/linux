@@ -222,5 +222,8 @@ struct xe_oa_stream {
 
 	/** @poll_period_ns: hrtimer period for checking OA buffer for available data */
 	u64 poll_period_ns;
+
+	/** @oa_status: temporary storage for oa_status register value */
+	u32 oa_status;
 };
 #endif
