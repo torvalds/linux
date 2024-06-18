@@ -172,9 +172,9 @@ static int budget_read_fe_status(struct dvb_frontend *fe,
 	return ret;
 }
 
-static void vpeirq(struct tasklet_struct *t)
+static void vpeirq(struct work_struct *t)
 {
-	struct budget *budget = from_tasklet(budget, t, vpe_tasklet);
+	struct budget *budget = from_work(budget, t, vpe_bh_work);
 	u8 *mem = (u8 *) (budget->grabbing);
 	u32 olddma = budget->ttbp;
 	u32 newdma = saa7146_read(budget->dev, PCI_VDP3);
@@ -525,7 +525,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	/* upload all */
 	saa7146_write(dev, GPIO_CTRL, 0x000000);
 
-	tasklet_setup(&budget->vpe_tasklet, vpeirq);
+	INIT_WORK(&budget->vpe_bh_work, vpeirq);
 
 	/* frontend power on */
 	if (bi->type != BUDGET_FS_ACTIVY)
@@ -565,7 +565,7 @@ int ttpci_budget_deinit(struct budget *budget)
 
 	budget_unregister(budget);
 
-	tasklet_kill(&budget->vpe_tasklet);
+	cancel_work_sync(&budget->vpe_bh_work);
 
 	saa7146_vfree_destroy_pgtable(dev->pci, budget->grabbing, &budget->pt);
 
@@ -584,7 +584,7 @@ void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 *isr)
 	dprintk(8, "dev: %p, budget: %p\n", dev, budget);
 
 	if (*isr & MASK_10)
-		tasklet_schedule(&budget->vpe_tasklet);
+		queue_work(system_bh_wq, &budget->vpe_bh_work);
 }
 EXPORT_SYMBOL_GPL(ttpci_budget_irq10_handler);
 

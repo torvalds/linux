@@ -439,9 +439,9 @@ static void mcam_ctlr_dma_vmalloc(struct mcam_camera *cam)
 /*
  * Copy data out to user space in the vmalloc case
  */
-static void mcam_frame_tasklet(struct tasklet_struct *t)
+static void mcam_frame_work(struct work_struct *t)
 {
-	struct mcam_camera *cam = from_tasklet(cam, t, s_tasklet);
+	struct mcam_camera *cam = from_work(cam, t, s_bh_work);
 	int i;
 	unsigned long flags;
 	struct mcam_vb_buffer *buf;
@@ -493,7 +493,7 @@ static int mcam_check_dma_buffers(struct mcam_camera *cam)
 
 static void mcam_vmalloc_done(struct mcam_camera *cam, int frame)
 {
-	tasklet_schedule(&cam->s_tasklet);
+	queue_work(system_bh_wq, &cam->s_bh_work);
 }
 
 #else /* MCAM_MODE_VMALLOC */
@@ -1305,7 +1305,7 @@ static int mcam_setup_vb2(struct mcam_camera *cam)
 		break;
 	case B_vmalloc:
 #ifdef MCAM_MODE_VMALLOC
-		tasklet_setup(&cam->s_tasklet, mcam_frame_tasklet);
+		INIT_WORK(&cam->s_bh_work, mcam_frame_work);
 		vq->ops = &mcam_vb2_ops;
 		vq->mem_ops = &vb2_vmalloc_memops;
 		cam->dma_setup = mcam_ctlr_dma_vmalloc;
