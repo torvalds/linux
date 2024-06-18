@@ -1345,6 +1345,9 @@ static int damon_sysfs_apply_inputs(struct damon_ctx *ctx,
 	return damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
 }
 
+static struct damon_ctx *damon_sysfs_build_ctx(
+		struct damon_sysfs_context *sys_ctx);
+
 /*
  * damon_sysfs_commit_input() - Commit user inputs to a running kdamond.
  * @kdamond:	The kobject wrapper for the associated kdamond.
@@ -1353,14 +1356,22 @@ static int damon_sysfs_apply_inputs(struct damon_ctx *ctx,
  */
 static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
 {
+	struct damon_ctx *param_ctx;
+	int err;
+
 	if (!damon_sysfs_kdamond_running(kdamond))
 		return -EINVAL;
 	/* TODO: Support multiple contexts per kdamond */
 	if (kdamond->contexts->nr != 1)
 		return -EINVAL;
 
-	return damon_sysfs_apply_inputs(kdamond->damon_ctx,
-			kdamond->contexts->contexts_arr[0]);
+	param_ctx = damon_sysfs_build_ctx(kdamond->contexts->contexts_arr[0]);
+	if (IS_ERR(param_ctx))
+		return PTR_ERR(param_ctx);
+	err = damon_commit_ctx(kdamond->damon_ctx, param_ctx);
+	damon_sysfs_destroy_targets(param_ctx);
+	damon_destroy_ctx(param_ctx);
+	return err;
 }
 
 static int damon_sysfs_commit_schemes_quota_goals(
