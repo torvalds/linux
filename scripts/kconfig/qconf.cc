@@ -1101,14 +1101,6 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 				   &stream, E_NONE);
 			stream << "<br>";
 			break;
-		case P_CHOICE:
-			if (sym_is_choice(sym)) {
-				stream << "choice: ";
-				expr_print(prop->expr, expr_print_help,
-					   &stream, E_NONE);
-				stream << "<br>";
-			}
-			break;
 		default:
 			stream << "unknown property: ";
 			stream << prop_get_type_name(prop->type);

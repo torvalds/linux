@@ -241,7 +241,6 @@ choice: T_CHOICE T_EOL
 	struct symbol *sym = sym_lookup(NULL, 0);
 
 	menu_add_entry(sym);
-	menu_add_expr(P_CHOICE, NULL, NULL);
 	menu_set_type(S_BOOLEAN);
 	INIT_LIST_HEAD(&current_entry->choice_members);
 
@@ -695,9 +694,6 @@ static void print_symbol(FILE *out, struct menu *menu)
 				expr_fprint(prop->visible.expr, out);
 			}
 			fputc('\n', out);
-			break;
-		case P_CHOICE:
-			fputs("  #choice value\n", out);
 			break;
 		case P_SELECT:
 			fputs( "  select ", out);

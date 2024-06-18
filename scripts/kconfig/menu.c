@@ -306,7 +306,7 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 	struct menu *menu, *last_menu;
 	struct symbol *sym;
 	struct property *prop;
-	struct expr *parentdep, *basedep, *dep, *dep2, **ep;
+	struct expr *parentdep, *basedep, *dep, *dep2;
 
 	sym = parent->sym;
 	if (parent->list) {
@@ -490,14 +490,7 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 	for (menu = parent->list; menu; menu = menu->next) {
 		if (sym && sym_is_choice(sym) &&
 		    menu->sym && !sym_is_choice_value(menu->sym)) {
-			current_entry = menu;
 			menu->sym->flags |= SYMBOL_CHOICEVAL;
-			menu_add_symbol(P_CHOICE, sym, NULL);
-			prop = sym_get_choice_prop(sym);
-			for (ep = &prop->expr; *ep; ep = &(*ep)->left.expr)
-				;
-			*ep = expr_alloc_one(E_LIST, NULL);
-			(*ep)->right.sym = menu->sym;
 		}
 
 		/*

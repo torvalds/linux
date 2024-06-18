@@ -167,7 +167,6 @@ enum prop_type {
 	P_COMMENT,  /* text associated with a comment */
 	P_MENU,     /* prompt associated with a menu or menuconfig symbol */
 	P_DEFAULT,  /* default y */
-	P_CHOICE,   /* choice value */
 	P_SELECT,   /* select BAR */
 	P_IMPLY,    /* imply BAR */
 	P_RANGE,    /* range 7..100 (for a symbol) */
@@ -181,7 +180,7 @@ struct property {
 	struct expr_value visible;
 	struct expr *expr;         /* the optional conditional part of the property */
 	struct menu *menu;         /* the menu the property are associated with
-	                            * valid for: P_SELECT, P_RANGE, P_CHOICE,
+	                            * valid for: P_SELECT, P_RANGE,
 	                            * P_PROMPT, P_DEFAULT, P_MENU, P_COMMENT */
 	const char *filename;      /* what file was this property defined */
 	int lineno;                /* what lineno was this property defined */
@@ -191,7 +190,6 @@ struct property {
 	for (st = sym->prop; st; st = st->next) \
 		if (st->type == (tok))
 #define for_all_defaults(sym, st) for_all_properties(sym, st, P_DEFAULT)
-#define for_all_choices(sym, st) for_all_properties(sym, st, P_CHOICE)
 #define for_all_prompts(sym, st) \
 	for (st = sym->prop; st; st = st->next) \
 		if (st->text)

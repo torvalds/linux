@@ -68,15 +68,6 @@ const char *sym_type_name(enum symbol_type type)
 	return "???";
 }
 
-struct property *sym_get_choice_prop(struct symbol *sym)
-{
-	struct property *prop;
-
-	for_all_choices(sym, prop)
-		return prop;
-	return NULL;
-}
-
 /**
  * sym_get_choice_menu - get the parent choice menu if present
  *
@@ -1225,8 +1216,7 @@ static struct symbol *sym_check_sym_deps(struct symbol *sym)
 	stack.expr = NULL;
 
 	for (prop = sym->prop; prop; prop = prop->next) {
-		if (prop->type == P_CHOICE || prop->type == P_SELECT ||
-		    prop->type == P_IMPLY)
+		if (prop->type == P_SELECT || prop->type == P_IMPLY)
 			continue;
 		stack.prop = prop;
 		sym2 = sym_check_expr_deps(prop->visible.expr);
@@ -1343,8 +1333,6 @@ const char *prop_get_type_name(enum prop_type type)
 		return "menu";
 	case P_DEFAULT:
 		return "default";
-	case P_CHOICE:
-		return "choice";
 	case P_SELECT:
 		return "select";
 	case P_IMPLY:

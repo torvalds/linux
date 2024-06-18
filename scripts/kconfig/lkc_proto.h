@@ -34,7 +34,6 @@ bool sym_string_valid(struct symbol *sym, const char *newval);
 bool sym_string_within_range(struct symbol *sym, const char *str);
 bool sym_set_string_value(struct symbol *sym, const char *newval);
 bool sym_is_changeable(struct symbol *sym);
-struct property * sym_get_choice_prop(struct symbol *sym);
 struct menu *sym_get_choice_menu(struct symbol *sym);
 const char * sym_get_string_value(struct symbol *sym);
 
