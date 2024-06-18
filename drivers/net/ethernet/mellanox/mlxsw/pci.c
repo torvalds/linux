@@ -541,7 +541,7 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 				     struct mlxsw_pci_queue *q,
 				     u16 consumer_counter_limit,
 				     enum mlxsw_pci_cqe_v cqe_v,
-				     char *cqe)
+				     char *cqe, int budget)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
 	struct mlxsw_pci_queue_elem_info *elem_info;
@@ -567,7 +567,7 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 	}
 
 	if (skb)
-		dev_kfree_skb_any(skb);
+		napi_consume_skb(skb, budget);
 	elem_info->sdq.skb = NULL;
 
 	if (q->consumer_counter++ != consumer_counter_limit)
@@ -819,7 +819,7 @@ static int mlxsw_pci_napi_poll_cq_tx(struct napi_struct *napi, int budget)
 		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 
 		mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
-					 wqe_counter, q->u.cq.v, ncqe);
+					 wqe_counter, q->u.cq.v, ncqe, budget);
 
 		work_done++;
 	}
