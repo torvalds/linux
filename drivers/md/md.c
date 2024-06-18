@@ -627,7 +627,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 		 * always is 0, make_request() will not be called here.
 		 */
 		if (WARN_ON_ONCE(!mddev->pers->make_request(mddev, bio)))
-			bio_io_error(bio);;
+			bio_io_error(bio);
 	}
 
 	/* The pair is percpu_ref_get() from md_flush_request() */
