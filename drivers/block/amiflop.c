@@ -232,6 +232,7 @@ static DEFINE_MUTEX(amiflop_mutex);
 static unsigned long int fd_def_df0 = FD_DD_3;     /* default for df0 if it doesn't identify */
 
 module_param(fd_def_df0, ulong, 0);
+MODULE_DESCRIPTION("Amiga floppy driver");
 MODULE_LICENSE("GPL");
 
 /*
