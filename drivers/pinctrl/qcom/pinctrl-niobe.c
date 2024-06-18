@@ -562,6 +562,8 @@ enum niobe_functions {
 	msm_mux_atest_usb13,
 	msm_mux_audio_ref_clk,
 	msm_mux_cam_mclk,
+	msm_mux_cam_mclk10_mirb,
+	msm_mux_cam_mclk4_mirb,
 	msm_mux_cci01_async_in0,
 	msm_mux_cci01_async_in1,
 	msm_mux_cci01_async_in2,
@@ -958,6 +960,12 @@ static const char *const cam_mclk_groups[] = {
 	"gpio94", "gpio95", "gpio96", "gpio97", "gpio98", "gpio99",
 	"gpio100", "gpio101", "gpio102", "gpio103", "gpio104", "gpio105",
 	"gpio114", "gpio120",
+};
+static const char *const cam_mclk10_mirb_groups[] = {
+	"gpio114",
+};
+static const char *const cam_mclk4_mirb_groups[] = {
+	"gpio114",
 };
 static const char *const cci01_async_in0_groups[] = {
 	"gpio114",
@@ -1854,6 +1862,8 @@ static const struct msm_function niobe_functions[] = {
 	FUNCTION(atest_usb13),
 	FUNCTION(audio_ref_clk),
 	FUNCTION(cam_mclk),
+	FUNCTION(cam_mclk10_mirb),
+	FUNCTION(cam_mclk4_mirb),
 	FUNCTION(cci01_async_in0),
 	FUNCTION(cci01_async_in1),
 	FUNCTION(cci01_async_in2),
@@ -2378,8 +2388,8 @@ static const struct msm_pingroup niobe_groups[] = {
 			 NA, NA, NA, NA, NA, NA, 0, -1),
 	[113] = PINGROUP(113, cci45_timer2, qdss_gpio9, atest_char0, NA, NA, NA,
 			 NA, NA, NA, NA, NA, 0, -1),
-	[114] = PINGROUP(114, cci01_async_in0, cam_mclk, cam_mclk, NA, NA, NA,
-			 NA, NA, NA, NA, NA, 0, -1),
+	[114] = PINGROUP(114, cci01_async_in0, cam_mclk10_mirb, cam_mclk4_mirb, NA,
+			 NA, NA, NA, NA, NA, NA, NA, 0, -1),
 	[115] = PINGROUP(115, cci23_async_in0, qdss_gpio10, NA, NA, NA, NA, NA,
 			 NA, NA, NA, NA, 0, -1),
 	[116] = PINGROUP(116, cci23_async_in1, qdss_gpio11, NA, NA, NA, NA, NA,
