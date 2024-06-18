@@ -396,6 +396,7 @@ static struct sk_buff *mlxsw_pci_rdq_build_skb(struct page *page,
 	unsigned int allocated_size;
 	struct sk_buff *skb;
 
+	net_prefetch(data);
 	allocated_size = page_size(page);
 	skb = napi_build_skb(data, allocated_size);
 	if (unlikely(!skb))
