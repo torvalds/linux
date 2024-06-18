@@ -18,6 +18,7 @@
 #include "txgbe_hw.h"
 #include "txgbe_phy.h"
 #include "txgbe_irq.h"
+#include "txgbe_fdir.h"
 #include "txgbe_ethtool.h"
 
 char txgbe_driver_name[] = "txgbe";
@@ -256,6 +257,14 @@ static int txgbe_sw_init(struct wx *wx)
 	wx->ring_feature[RING_F_RSS].limit = min_t(int, TXGBE_MAX_RSS_INDICES,
 						   num_online_cpus());
 	wx->rss_enabled = true;
+
+	wx->ring_feature[RING_F_FDIR].limit = min_t(int, TXGBE_MAX_FDIR_INDICES,
+						    num_online_cpus());
+	set_bit(WX_FLAG_FDIR_CAPABLE, wx->flags);
+	set_bit(WX_FLAG_FDIR_HASH, wx->flags);
+	wx->atr_sample_rate = TXGBE_DEFAULT_ATR_SAMPLE_RATE;
+	wx->atr = txgbe_atr;
+	wx->configure_fdir = txgbe_configure_fdir;
 
 	/* enable itr by default in dynamic mode */
 	wx->rx_itr_setting = 1;

@@ -89,6 +89,39 @@
 #define TXGBE_XPCS_IDA_ADDR                     0x13000
 #define TXGBE_XPCS_IDA_DATA                     0x13004
 
+/********************************* Flow Director *****************************/
+#define TXGBE_RDB_FDIR_CTL                      0x19500
+#define TXGBE_RDB_FDIR_CTL_INIT_DONE            BIT(3)
+#define TXGBE_RDB_FDIR_CTL_PERFECT_MATCH        BIT(4)
+#define TXGBE_RDB_FDIR_CTL_DROP_Q(v)            FIELD_PREP(GENMASK(14, 8), v)
+#define TXGBE_RDB_FDIR_CTL_HASH_BITS(v)         FIELD_PREP(GENMASK(23, 20), v)
+#define TXGBE_RDB_FDIR_CTL_MAX_LENGTH(v)        FIELD_PREP(GENMASK(27, 24), v)
+#define TXGBE_RDB_FDIR_CTL_FULL_THRESH(v)       FIELD_PREP(GENMASK(31, 28), v)
+#define TXGBE_RDB_FDIR_HASH                     0x19528
+#define TXGBE_RDB_FDIR_HASH_SIG_SW_INDEX(v)     FIELD_PREP(GENMASK(31, 16), v)
+#define TXGBE_RDB_FDIR_HASH_BUCKET_VALID        BIT(15)
+#define TXGBE_RDB_FDIR_CMD                      0x1952C
+#define TXGBE_RDB_FDIR_CMD_CMD_MASK             GENMASK(1, 0)
+#define TXGBE_RDB_FDIR_CMD_CMD(v)               FIELD_PREP(GENMASK(1, 0), v)
+#define TXGBE_RDB_FDIR_CMD_CMD_ADD_FLOW         TXGBE_RDB_FDIR_CMD_CMD(1)
+#define TXGBE_RDB_FDIR_CMD_CMD_REMOVE_FLOW      TXGBE_RDB_FDIR_CMD_CMD(2)
+#define TXGBE_RDB_FDIR_CMD_CMD_QUERY_REM_FILT   TXGBE_RDB_FDIR_CMD_CMD(3)
+#define TXGBE_RDB_FDIR_CMD_FILTER_VALID         BIT(2)
+#define TXGBE_RDB_FDIR_CMD_FILTER_UPDATE        BIT(3)
+#define TXGBE_RDB_FDIR_CMD_FLOW_TYPE(v)         FIELD_PREP(GENMASK(6, 5), v)
+#define TXGBE_RDB_FDIR_CMD_DROP                 BIT(9)
+#define TXGBE_RDB_FDIR_CMD_LAST                 BIT(11)
+#define TXGBE_RDB_FDIR_CMD_QUEUE_EN             BIT(15)
+#define TXGBE_RDB_FDIR_CMD_RX_QUEUE(v)          FIELD_PREP(GENMASK(22, 16), v)
+#define TXGBE_RDB_FDIR_CMD_VT_POOL(v)           FIELD_PREP(GENMASK(29, 24), v)
+#define TXGBE_RDB_FDIR_HKEY                     0x19568
+#define TXGBE_RDB_FDIR_SKEY                     0x1956C
+#define TXGBE_RDB_FDIR_FLEX_CFG(_i)             (0x19580 + ((_i) * 4))
+#define TXGBE_RDB_FDIR_FLEX_CFG_FIELD0          GENMASK(7, 0)
+#define TXGBE_RDB_FDIR_FLEX_CFG_BASE_MAC        FIELD_PREP(GENMASK(1, 0), 0)
+#define TXGBE_RDB_FDIR_FLEX_CFG_MSK             BIT(2)
+#define TXGBE_RDB_FDIR_FLEX_CFG_OFST(v)         FIELD_PREP(GENMASK(7, 3), v)
+
 /* Checksum and EEPROM pointers */
 #define TXGBE_EEPROM_LAST_WORD                  0x800
 #define TXGBE_EEPROM_CHECKSUM                   0x2F
@@ -111,6 +144,91 @@
 #define TXGBE_SP_VFT_TBL_SIZE   128
 #define TXGBE_SP_RX_PB_SIZE     512
 #define TXGBE_SP_TDB_PB_SZ      (160 * 1024) /* 160KB Packet Buffer */
+
+#define TXGBE_DEFAULT_ATR_SAMPLE_RATE           20
+
+/* Software ATR hash keys */
+#define TXGBE_ATR_BUCKET_HASH_KEY               0x3DAD14E2
+#define TXGBE_ATR_SIGNATURE_HASH_KEY            0x174D3614
+
+/* Software ATR input stream values and masks */
+#define TXGBE_ATR_HASH_MASK                     0x7fff
+#define TXGBE_ATR_L4TYPE_MASK                   0x3
+#define TXGBE_ATR_L4TYPE_UDP                    0x1
+#define TXGBE_ATR_L4TYPE_TCP                    0x2
+#define TXGBE_ATR_L4TYPE_SCTP                   0x3
+#define TXGBE_ATR_L4TYPE_IPV6_MASK              0x4
+#define TXGBE_ATR_L4TYPE_TUNNEL_MASK            0x10
+
+enum txgbe_atr_flow_type {
+	TXGBE_ATR_FLOW_TYPE_IPV4                = 0x0,
+	TXGBE_ATR_FLOW_TYPE_UDPV4               = 0x1,
+	TXGBE_ATR_FLOW_TYPE_TCPV4               = 0x2,
+	TXGBE_ATR_FLOW_TYPE_SCTPV4              = 0x3,
+	TXGBE_ATR_FLOW_TYPE_IPV6                = 0x4,
+	TXGBE_ATR_FLOW_TYPE_UDPV6               = 0x5,
+	TXGBE_ATR_FLOW_TYPE_TCPV6               = 0x6,
+	TXGBE_ATR_FLOW_TYPE_SCTPV6              = 0x7,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_IPV4       = 0x10,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_UDPV4      = 0x11,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_TCPV4      = 0x12,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_SCTPV4     = 0x13,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_IPV6       = 0x14,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_UDPV6      = 0x15,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_TCPV6      = 0x16,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_SCTPV6     = 0x17,
+};
+
+/* Flow Director ATR input struct. */
+union txgbe_atr_input {
+	/* Byte layout in order, all values with MSB first:
+	 *
+	 * vm_pool    - 1 byte
+	 * flow_type  - 1 byte
+	 * vlan_id    - 2 bytes
+	 * dst_ip     - 16 bytes
+	 * src_ip     - 16 bytes
+	 * src_port   - 2 bytes
+	 * dst_port   - 2 bytes
+	 * flex_bytes - 2 bytes
+	 * bkt_hash   - 2 bytes
+	 */
+	struct {
+		u8 vm_pool;
+		u8 flow_type;
+		__be16 vlan_id;
+		__be32 dst_ip[4];
+		__be32 src_ip[4];
+		__be16 src_port;
+		__be16 dst_port;
+		__be16 flex_bytes;
+		__be16 bkt_hash;
+	} formatted;
+	__be32 dword_stream[11];
+};
+
+/* Flow Director compressed ATR hash input struct */
+union txgbe_atr_hash_dword {
+	struct {
+		u8 vm_pool;
+		u8 flow_type;
+		__be16 vlan_id;
+	} formatted;
+	__be32 ip;
+	struct {
+		__be16 src;
+		__be16 dst;
+	} port;
+	__be16 flex_bytes;
+	__be32 dword;
+};
+
+enum txgbe_fdir_pballoc_type {
+	TXGBE_FDIR_PBALLOC_NONE = 0,
+	TXGBE_FDIR_PBALLOC_64K  = 1,
+	TXGBE_FDIR_PBALLOC_128K = 2,
+	TXGBE_FDIR_PBALLOC_256K = 3,
+};
 
 /* TX/RX descriptor defines */
 #define TXGBE_DEFAULT_TXD               512
@@ -196,6 +314,9 @@ struct txgbe {
 	struct gpio_chip *gpio;
 	unsigned int gpio_irq;
 	unsigned int link_irq;
+
+	/* flow director */
+	union txgbe_atr_input fdir_mask;
 };
 
 #endif /* _TXGBE_TYPE_H_ */
