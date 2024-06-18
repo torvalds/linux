@@ -2818,7 +2818,7 @@ int iwl_mvm_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
 int iwl_mvm_mac_start(struct ieee80211_hw *hw);
 void iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,
 				   enum ieee80211_reconfig_type reconfig_type);
-void iwl_mvm_mac_stop(struct ieee80211_hw *hw);
+void iwl_mvm_mac_stop(struct ieee80211_hw *hw, bool suspend);
 static inline int iwl_mvm_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	return 0;

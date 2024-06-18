@@ -1565,7 +1565,7 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 	return supp_rates;
 }
 
-void ieee80211_stop_device(struct ieee80211_local *local)
+void ieee80211_stop_device(struct ieee80211_local *local, bool suspend)
 {
 	ieee80211_handle_queued_frames(local);
 
@@ -1576,7 +1576,7 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 
 	flush_workqueue(local->workqueue);
 	wiphy_work_flush(local->hw.wiphy, NULL);
-	drv_stop(local);
+	drv_stop(local, suspend);
 }
 
 static void ieee80211_flush_completed_scan(struct ieee80211_local *local,

@@ -92,7 +92,7 @@ void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif);
 bool ath5k_any_vif_assoc(struct ath5k_hw *ah);
 
 int ath5k_start(struct ieee80211_hw *hw);
-void ath5k_stop(struct ieee80211_hw *hw);
+void ath5k_stop(struct ieee80211_hw *hw, bool suspend);
 
 void ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf);
 int ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif);

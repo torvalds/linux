@@ -300,7 +300,7 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void iwlagn_mac_stop(struct ieee80211_hw *hw)
+static void iwlagn_mac_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 

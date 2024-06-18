@@ -4444,7 +4444,7 @@ struct ieee80211_ops {
 		   struct ieee80211_tx_control *control,
 		   struct sk_buff *skb);
 	int (*start)(struct ieee80211_hw *hw);
-	void (*stop)(struct ieee80211_hw *hw);
+	void (*stop)(struct ieee80211_hw *hw, bool suspend);
 #ifdef CONFIG_PM
 	int (*suspend)(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
 	int (*resume)(struct ieee80211_hw *hw);

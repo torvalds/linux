@@ -178,7 +178,7 @@ int rt2x00mac_start(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_start);
 
-void rt2x00mac_stop(struct ieee80211_hw *hw)
+void rt2x00mac_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 

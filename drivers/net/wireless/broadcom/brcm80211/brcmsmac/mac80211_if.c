@@ -457,7 +457,7 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-static void brcms_ops_stop(struct ieee80211_hw *hw)
+static void brcms_ops_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct brcms_info *wl = hw->priv;
 	int status;

@@ -7521,7 +7521,7 @@ error_out:
 	return ret;
 }
 
-static void rtl8xxxu_stop(struct ieee80211_hw *hw)
+static void rtl8xxxu_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
 	unsigned long flags;

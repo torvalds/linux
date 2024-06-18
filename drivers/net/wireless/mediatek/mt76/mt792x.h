@@ -251,7 +251,7 @@ static inline bool mt792x_dma_need_reinit(struct mt792x_dev *dev)
 #define mt792x_mutex_release(dev)	\
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
-void mt792x_stop(struct ieee80211_hw *hw);
+void mt792x_stop(struct ieee80211_hw *hw, bool suspend);
 void mt792x_pm_wake_work(struct work_struct *work);
 void mt792x_pm_power_save_work(struct work_struct *work);
 void mt792x_reset(struct mt76_dev *mdev);
@@ -368,7 +368,7 @@ void mt792xu_wr(struct mt76_dev *dev, u32 addr, u32 val);
 u32 mt792xu_rmw(struct mt76_dev *dev, u32 addr, u32 mask, u32 val);
 void mt792xu_copy(struct mt76_dev *dev, u32 offset, const void *data, int len);
 void mt792xu_disconnect(struct usb_interface *usb_intf);
-void mt792xu_stop(struct ieee80211_hw *hw);
+void mt792xu_stop(struct ieee80211_hw *hw, bool suspend);
 
 static inline void
 mt792x_skb_add_usb_sdio_hdr(struct mt792x_dev *dev, struct sk_buff *skb,

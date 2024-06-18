@@ -2085,7 +2085,7 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 	memset(wl->reg_ch_conf_last, 0, sizeof(wl->reg_ch_conf_last));
 }
 
-static void wlcore_op_stop(struct ieee80211_hw *hw)
+static void wlcore_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct wl1271 *wl = hw->priv;
 

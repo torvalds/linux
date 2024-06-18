@@ -6278,7 +6278,7 @@ err:
 	return ret;
 }
 
-static void ath11k_mac_op_stop(struct ieee80211_hw *hw)
+static void ath11k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct ath11k *ar = hw->priv;
 	struct htt_ppdu_stats_info *ppdu_stats, *tmp;

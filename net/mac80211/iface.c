@@ -698,7 +698,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		wiphy_delayed_work_flush(local->hw.wiphy, &local->scan_work);
 
 	if (local->open_count == 0) {
-		ieee80211_stop_device(local);
+		ieee80211_stop_device(local, false);
 
 		/* no reconfiguring after stop! */
 		return;
@@ -1435,7 +1435,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	drv_remove_interface(local, sdata);
  err_stop:
 	if (!local->open_count)
-		drv_stop(local);
+		drv_stop(local, false);
  err_del_bss:
 	sdata->bss = NULL;
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)

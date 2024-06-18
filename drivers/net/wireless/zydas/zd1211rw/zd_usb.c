@@ -1476,7 +1476,7 @@ static void zd_usb_stop(struct zd_usb *usb)
 {
 	dev_dbg_f(zd_usb_dev(usb), "\n");
 
-	zd_op_stop(zd_usb_to_hw(usb));
+	zd_op_stop(zd_usb_to_hw(usb), false);
 
 	zd_usb_disable_tx(usb);
 	zd_usb_disable_rx(usb);

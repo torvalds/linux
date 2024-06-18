@@ -4768,7 +4768,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	return rc;
 }
 
-static void mwl8k_stop(struct ieee80211_hw *hw)
+static void mwl8k_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	int i;
@@ -6023,7 +6023,7 @@ static int mwl8k_reload_firmware(struct ieee80211_hw *hw, char *fw_image)
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_vif *vif, *tmp_vif;
 
-	mwl8k_stop(hw);
+	mwl8k_stop(hw, false);
 	mwl8k_rxq_deinit(hw, 0);
 
 	/*
