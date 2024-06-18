@@ -157,6 +157,8 @@
 #define WX_RDB_RA_CTL_RSS_IPV6_TCP   BIT(21)
 #define WX_RDB_RA_CTL_RSS_IPV4_UDP   BIT(22)
 #define WX_RDB_RA_CTL_RSS_IPV6_UDP   BIT(23)
+#define WX_RDB_FDIR_MATCH            0x19558
+#define WX_RDB_FDIR_MISS             0x1955C
 
 /******************************* PSR Registers *******************************/
 /* psr control */
@@ -1018,6 +1020,8 @@ struct wx_hw_stats {
 	u64 crcerrs;
 	u64 rlec;
 	u64 qmprc;
+	u64 fdirmatch;
+	u64 fdirmiss;
 };
 
 enum wx_state {

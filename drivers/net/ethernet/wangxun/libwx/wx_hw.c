@@ -2352,6 +2352,11 @@ void wx_update_stats(struct wx *wx)
 	hwstats->b2ogprc += rd32(wx, WX_RDM_BMC2OS_CNT);
 	hwstats->rdmdrop += rd32(wx, WX_RDM_DRP_PKT);
 
+	if (wx->mac.type == wx_mac_sp) {
+		hwstats->fdirmatch += rd32(wx, WX_RDB_FDIR_MATCH);
+		hwstats->fdirmiss += rd32(wx, WX_RDB_FDIR_MISS);
+	}
+
 	for (i = 0; i < wx->mac.max_rx_queues; i++)
 		hwstats->qmprc += rd32(wx, WX_PX_MPRC(i));
 }
