@@ -638,6 +638,7 @@ enum scx_enq_flags {
 	__SCX_ENQ_INTERNAL_MASK	= 0xffLLU << 56,
 
 	SCX_ENQ_CLEAR_OPSS	= 1LLU << 56,
+	SCX_ENQ_DSQ_PRIQ	= 1LLU << 57,
 };
 
 enum scx_deq_flags {
@@ -1351,6 +1352,17 @@ static void update_curr_scx(struct rq *rq)
 	}
 }
 
+static bool scx_dsq_priq_less(struct rb_node *node_a,
+			      const struct rb_node *node_b)
+{
+	const struct task_struct *a =
+		container_of(node_a, struct task_struct, scx.dsq_node.priq);
+	const struct task_struct *b =
+		container_of(node_b, struct task_struct, scx.dsq_node.priq);
+
+	return time_before64(a->scx.dsq_vtime, b->scx.dsq_vtime);
+}
+
 static void dsq_mod_nr(struct scx_dispatch_q *dsq, s32 delta)
 {
 	/* scx_bpf_dsq_nr_queued() reads ->nr without locking, use WRITE_ONCE() */
@@ -1362,7 +1374,9 @@ static void dispatch_enqueue(struct scx_dispatch_q *dsq, struct task_struct *p,
 {
 	bool is_local = dsq->id == SCX_DSQ_LOCAL;
 
-	WARN_ON_ONCE(p->scx.dsq || !list_empty(&p->scx.dsq_node));
+	WARN_ON_ONCE(p->scx.dsq || !list_empty(&p->scx.dsq_node.list));
+	WARN_ON_ONCE((p->scx.dsq_node.flags & SCX_TASK_DSQ_ON_PRIQ) ||
+		     !RB_EMPTY_NODE(&p->scx.dsq_node.priq));
 
 	if (!is_local) {
 		raw_spin_lock(&dsq->lock);
@@ -1375,10 +1389,59 @@ static void dispatch_enqueue(struct scx_dispatch_q *dsq, struct task_struct *p,
 		}
 	}
 
-	if (enq_flags & (SCX_ENQ_HEAD | SCX_ENQ_PREEMPT))
-		list_add(&p->scx.dsq_node, &dsq->list);
-	else
-		list_add_tail(&p->scx.dsq_node, &dsq->list);
+	if (unlikely((dsq->id & SCX_DSQ_FLAG_BUILTIN) &&
+		     (enq_flags & SCX_ENQ_DSQ_PRIQ))) {
+		/*
+		 * SCX_DSQ_LOCAL and SCX_DSQ_GLOBAL DSQs always consume from
+		 * their FIFO queues. To avoid confusion and accidentally
+		 * starving vtime-dispatched tasks by FIFO-dispatched tasks, we
+		 * disallow any internal DSQ from doing vtime ordering of
+		 * tasks.
+		 */
+		scx_ops_error("cannot use vtime ordering for built-in DSQs");
+		enq_flags &= ~SCX_ENQ_DSQ_PRIQ;
+	}
+
+	if (enq_flags & SCX_ENQ_DSQ_PRIQ) {
+		struct rb_node *rbp;
+
+		/*
+		 * A PRIQ DSQ shouldn't be using FIFO enqueueing. As tasks are
+		 * linked to both the rbtree and list on PRIQs, this can only be
+		 * tested easily when adding the first task.
+		 */
+		if (unlikely(RB_EMPTY_ROOT(&dsq->priq) &&
+			     !list_empty(&dsq->list)))
+			scx_ops_error("DSQ ID 0x%016llx already had FIFO-enqueued tasks",
+				      dsq->id);
+
+		p->scx.dsq_node.flags |= SCX_TASK_DSQ_ON_PRIQ;
+		rb_add(&p->scx.dsq_node.priq, &dsq->priq, scx_dsq_priq_less);
+
+		/*
+		 * Find the previous task and insert after it on the list so
+		 * that @dsq->list is vtime ordered.
+		 */
+		rbp = rb_prev(&p->scx.dsq_node.priq);
+		if (rbp) {
+			struct task_struct *prev =
+				container_of(rbp, struct task_struct,
+					     scx.dsq_node.priq);
+			list_add(&p->scx.dsq_node.list, &prev->scx.dsq_node.list);
+		} else {
+			list_add(&p->scx.dsq_node.list, &dsq->list);
+		}
+	} else {
+		/* a FIFO DSQ shouldn't be using PRIQ enqueuing */
+		if (unlikely(!RB_EMPTY_ROOT(&dsq->priq)))
+			scx_ops_error("DSQ ID 0x%016llx already had PRIQ-enqueued tasks",
+				      dsq->id);
+
+		if (enq_flags & (SCX_ENQ_HEAD | SCX_ENQ_PREEMPT))
+			list_add(&p->scx.dsq_node.list, &dsq->list);
+		else
+			list_add_tail(&p->scx.dsq_node.list, &dsq->list);
+	}
 
 	dsq_mod_nr(dsq, 1);
 	p->scx.dsq = dsq;
@@ -1417,13 +1480,30 @@ static void dispatch_enqueue(struct scx_dispatch_q *dsq, struct task_struct *p,
 	}
 }
 
+static void task_unlink_from_dsq(struct task_struct *p,
+				 struct scx_dispatch_q *dsq)
+{
+	if (p->scx.dsq_node.flags & SCX_TASK_DSQ_ON_PRIQ) {
+		rb_erase(&p->scx.dsq_node.priq, &dsq->priq);
+		RB_CLEAR_NODE(&p->scx.dsq_node.priq);
+		p->scx.dsq_node.flags &= ~SCX_TASK_DSQ_ON_PRIQ;
+	}
+
+	list_del_init(&p->scx.dsq_node.list);
+}
+
+static bool task_linked_on_dsq(struct task_struct *p)
+{
+	return !list_empty(&p->scx.dsq_node.list);
+}
+
 static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
 {
 	struct scx_dispatch_q *dsq = p->scx.dsq;
 	bool is_local = dsq == &rq->scx.local_dsq;
 
 	if (!dsq) {
-		WARN_ON_ONCE(!list_empty(&p->scx.dsq_node));
+		WARN_ON_ONCE(task_linked_on_dsq(p));
 		/*
 		 * When dispatching directly from the BPF scheduler to a local
 		 * DSQ, the task isn't associated with any DSQ but
@@ -1444,8 +1524,8 @@ static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
 	*/
 	if (p->scx.holding_cpu < 0) {
 		/* @p must still be on @dsq, dequeue */
-		WARN_ON_ONCE(list_empty(&p->scx.dsq_node));
-		list_del_init(&p->scx.dsq_node);
+		WARN_ON_ONCE(!task_linked_on_dsq(p));
+		task_unlink_from_dsq(p, dsq);
 		dsq_mod_nr(dsq, -1);
 	} else {
 		/*
@@ -1454,7 +1534,7 @@ static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
 		 * holding_cpu which tells dispatch_to_local_dsq() that it lost
 		 * the race.
 		 */
-		WARN_ON_ONCE(!list_empty(&p->scx.dsq_node));
+		WARN_ON_ONCE(task_linked_on_dsq(p));
 		p->scx.holding_cpu = -1;
 	}
 	p->scx.dsq = NULL;
@@ -1949,7 +2029,8 @@ static void consume_local_task(struct rq *rq, struct scx_dispatch_q *dsq,
 
 	/* @dsq is locked and @p is on this rq */
 	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
-	list_move_tail(&p->scx.dsq_node, &rq->scx.local_dsq.list);
+	task_unlink_from_dsq(p, dsq);
+	list_add_tail(&p->scx.dsq_node.list, &rq->scx.local_dsq.list);
 	dsq_mod_nr(dsq, -1);
 	dsq_mod_nr(&rq->scx.local_dsq, 1);
 	p->scx.dsq = &rq->scx.local_dsq;
@@ -1992,7 +2073,7 @@ static bool consume_remote_task(struct rq *rq, struct rq_flags *rf,
 	 * move_task_to_local_dsq().
 	 */
 	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
-	list_del_init(&p->scx.dsq_node);
+	task_unlink_from_dsq(p, dsq);
 	dsq_mod_nr(dsq, -1);
 	p->scx.holding_cpu = raw_smp_processor_id();
 	raw_spin_unlock(&dsq->lock);
@@ -2024,7 +2105,7 @@ retry:
 
 	raw_spin_lock(&dsq->lock);
 
-	list_for_each_entry(p, &dsq->list, scx.dsq_node) {
+	list_for_each_entry(p, &dsq->list, scx.dsq_node.list) {
 		struct rq *task_rq = task_rq(p);
 
 		if (rq == task_rq) {
@@ -2543,7 +2624,7 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p)
 static struct task_struct *first_local_task(struct rq *rq)
 {
 	return list_first_entry_or_null(&rq->scx.local_dsq.list,
-					struct task_struct, scx.dsq_node);
+					struct task_struct, scx.dsq_node.list);
 }
 
 static struct task_struct *pick_next_task_scx(struct rq *rq)
@@ -3225,7 +3306,8 @@ void init_scx_entity(struct sched_ext_entity *scx)
 	 */
 	memset(scx, 0, offsetof(struct sched_ext_entity, tasks_node));
 
-	INIT_LIST_HEAD(&scx->dsq_node);
+	INIT_LIST_HEAD(&scx->dsq_node.list);
+	RB_CLEAR_NODE(&scx->dsq_node.priq);
 	scx->sticky_cpu = -1;
 	scx->holding_cpu = -1;
 	INIT_LIST_HEAD(&scx->runnable_node);
@@ -4070,12 +4152,13 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
 	dump_line(s, " %c%c %s[%d] %+ldms",
 		  marker, task_state_to_char(p), p->comm, p->pid,
 		  jiffies_delta_msecs(p->scx.runnable_at, dctx->at_jiffies));
-	dump_line(s, "      scx_state/flags=%u/0x%x ops_state/qseq=%lu/%lu",
+	dump_line(s, "      scx_state/flags=%u/0x%x dsq_flags=0x%x ops_state/qseq=%lu/%lu",
 		  scx_get_task_state(p), p->scx.flags & ~SCX_TASK_STATE_MASK,
-		  ops_state & SCX_OPSS_STATE_MASK,
+		  p->scx.dsq_node.flags, ops_state & SCX_OPSS_STATE_MASK,
 		  ops_state >> SCX_OPSS_QSEQ_SHIFT);
-	dump_line(s, "      sticky/holding_cpu=%d/%d dsq_id=%s",
-		  p->scx.sticky_cpu, p->scx.holding_cpu, dsq_id_buf);
+	dump_line(s, "      sticky/holding_cpu=%d/%d dsq_id=%s dsq_vtime=%llu",
+		  p->scx.sticky_cpu, p->scx.holding_cpu, dsq_id_buf,
+		  p->scx.dsq_vtime);
 	dump_line(s, "      cpus=%*pb", cpumask_pr_args(p->cpus_ptr));
 
 	if (SCX_HAS_OP(dump_task)) {
@@ -4662,6 +4745,9 @@ static int bpf_scx_btf_struct_access(struct bpf_verifier_log *log,
 	if (t == task_struct_type) {
 		if (off >= offsetof(struct task_struct, scx.slice) &&
 		    off + size <= offsetofend(struct task_struct, scx.slice))
+			return SCALAR_VALUE;
+		if (off >= offsetof(struct task_struct, scx.dsq_vtime) &&
+		    off + size <= offsetofend(struct task_struct, scx.dsq_vtime))
 			return SCALAR_VALUE;
 		if (off >= offsetof(struct task_struct, scx.disallow) &&
 		    off + size <= offsetofend(struct task_struct, scx.disallow))
@@ -5298,10 +5384,44 @@ __bpf_kfunc void scx_bpf_dispatch(struct task_struct *p, u64 dsq_id, u64 slice,
 	scx_dispatch_commit(p, dsq_id, enq_flags);
 }
 
+/**
+ * scx_bpf_dispatch_vtime - Dispatch a task into the vtime priority queue of a DSQ
+ * @p: task_struct to dispatch
+ * @dsq_id: DSQ to dispatch to
+ * @slice: duration @p can run for in nsecs
+ * @vtime: @p's ordering inside the vtime-sorted queue of the target DSQ
+ * @enq_flags: SCX_ENQ_*
+ *
+ * Dispatch @p into the vtime priority queue of the DSQ identified by @dsq_id.
+ * Tasks queued into the priority queue are ordered by @vtime and always
+ * consumed after the tasks in the FIFO queue. All other aspects are identical
+ * to scx_bpf_dispatch().
+ *
+ * @vtime ordering is according to time_before64() which considers wrapping. A
+ * numerically larger vtime may indicate an earlier position in the ordering and
+ * vice-versa.
+ */
+__bpf_kfunc void scx_bpf_dispatch_vtime(struct task_struct *p, u64 dsq_id,
+					u64 slice, u64 vtime, u64 enq_flags)
+{
+	if (!scx_dispatch_preamble(p, enq_flags))
+		return;
+
+	if (slice)
+		p->scx.slice = slice;
+	else
+		p->scx.slice = p->scx.slice ?: 1;
+
+	p->scx.dsq_vtime = vtime;
+
+	scx_dispatch_commit(p, dsq_id, enq_flags | SCX_ENQ_DSQ_PRIQ);
+}
+
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_enqueue_dispatch)
 BTF_ID_FLAGS(func, scx_bpf_dispatch, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dispatch_vtime, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_enqueue_dispatch)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_enqueue_dispatch = {
