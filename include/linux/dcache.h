@@ -71,7 +71,7 @@ extern const struct qstr dotdot_name;
 # define DNAME_INLINE_LEN 40 /* 192 bytes */
 #else
 # ifdef CONFIG_SMP
-#  define DNAME_INLINE_LEN 40 /* 128 bytes */
+#  define DNAME_INLINE_LEN 36 /* 128 bytes */
 # else
 #  define DNAME_INLINE_LEN 44 /* 128 bytes */
 # endif
