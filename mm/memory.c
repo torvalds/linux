@@ -6500,16 +6500,16 @@ static int copy_user_gigantic_page(struct folio *dst, struct folio *src,
 }
 
 struct copy_subpage_arg {
-	struct page *dst;
-	struct page *src;
+	struct folio *dst;
+	struct folio *src;
 	struct vm_area_struct *vma;
 };
 
 static int copy_subpage(unsigned long addr, int idx, void *arg)
 {
 	struct copy_subpage_arg *copy_arg = arg;
-	struct page *dst = nth_page(copy_arg->dst, idx);
-	struct page *src = nth_page(copy_arg->src, idx);
+	struct page *dst = folio_page(copy_arg->dst, idx);
+	struct page *src = folio_page(copy_arg->src, idx);
 
 	if (copy_mc_user_highpage(dst, src, addr, copy_arg->vma)) {
 		memory_failure_queue(page_to_pfn(src), 0);
@@ -6525,8 +6525,8 @@ int copy_user_large_folio(struct folio *dst, struct folio *src,
 	unsigned long addr = addr_hint &
 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
 	struct copy_subpage_arg arg = {
-		.dst = &dst->page,
-		.src = &src->page,
+		.dst = dst,
+		.src = src,
 		.vma = vma,
 	};
 
