@@ -832,13 +832,10 @@ static void mlxsw_pci_cq_napi_setup(struct mlxsw_pci_queue *q,
 			       mlxsw_pci_napi_poll_cq_rx);
 		break;
 	}
-
-	napi_enable(&q->u.cq.napi);
 }
 
 static void mlxsw_pci_cq_napi_teardown(struct mlxsw_pci_queue *q)
 {
-	napi_disable(&q->u.cq.napi);
 	netif_napi_del(&q->u.cq.napi);
 }
 
@@ -875,6 +872,7 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	if (err)
 		return err;
 	mlxsw_pci_cq_napi_setup(q, mlxsw_pci_cq_type(mlxsw_pci, q));
+	napi_enable(&q->u.cq.napi);
 	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 	return 0;
@@ -883,6 +881,7 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 static void mlxsw_pci_cq_fini(struct mlxsw_pci *mlxsw_pci,
 			      struct mlxsw_pci_queue *q)
 {
+	napi_disable(&q->u.cq.napi);
 	mlxsw_pci_cq_napi_teardown(q);
 	mlxsw_cmd_hw2sw_cq(mlxsw_pci->core, q->num);
 }
