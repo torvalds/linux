@@ -42,6 +42,7 @@ description: |
         msm8996
         msm8998
         qcs404
+        qcs8550
         qcm2290
         qcm6490
         qdu1000
@@ -1016,6 +1017,13 @@ properties:
               - qcom,sm8550-qrd
               - samsung,q5q
               - sony,pdx234
+          - const: qcom,sm8550
+
+      - items:
+          - enum:
+              - qcom,qcs8550-aim300-aiot
+          - const: qcom,qcs8550-aim300
+          - const: qcom,qcs8550
           - const: qcom,sm8550
 
       - items:
