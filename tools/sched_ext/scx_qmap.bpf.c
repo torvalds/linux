@@ -31,6 +31,7 @@ char _license[] SEC("license") = "GPL";
 const volatile u64 slice_ns = SCX_SLICE_DFL;
 const volatile u32 stall_user_nth;
 const volatile u32 stall_kernel_nth;
+const volatile u32 dsp_inf_loop_after;
 const volatile u32 dsp_batch;
 const volatile s32 disallow_tgid;
 const volatile bool suppress_dump;
@@ -197,6 +198,20 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 
 	if (scx_bpf_consume(SHARED_DSQ))
 		return;
+
+	if (dsp_inf_loop_after && nr_dispatched > dsp_inf_loop_after) {
+		/*
+		 * PID 2 should be kthreadd which should mostly be idle and off
+		 * the scheduler. Let's keep dispatching it to force the kernel
+		 * to call this function over and over again.
+		 */
+		p = bpf_task_from_pid(2);
+		if (p) {
+			scx_bpf_dispatch(p, SCX_DSQ_LOCAL, slice_ns, 0);
+			bpf_task_release(p);
+			return;
+		}
+	}
 
 	if (!(cpuc = bpf_map_lookup_elem(&cpu_ctx_stor, &zero))) {
 		scx_bpf_error("failed to look up cpu_ctx");
