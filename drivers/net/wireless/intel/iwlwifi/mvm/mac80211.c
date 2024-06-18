@@ -30,21 +30,28 @@
 #include "iwl-nvm-parse.h"
 #include "time-sync.h"
 
+#define IWL_MVM_LIMITS(ap)					\
+	{							\
+		.max = 1,					\
+		.types = BIT(NL80211_IFTYPE_STATION),		\
+	},							\
+	{							\
+		.max = 1,					\
+		.types = ap |					\
+			 BIT(NL80211_IFTYPE_P2P_CLIENT) |	\
+			 BIT(NL80211_IFTYPE_P2P_GO),		\
+	},							\
+	{							\
+		.max = 1,					\
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),	\
+	}
+
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_STATION),
-	},
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_AP) |
-			BIT(NL80211_IFTYPE_P2P_CLIENT) |
-			BIT(NL80211_IFTYPE_P2P_GO),
-	},
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
-	},
+	IWL_MVM_LIMITS(0)
+};
+
+static const struct ieee80211_iface_limit iwl_mvm_limits_ap[] = {
+	IWL_MVM_LIMITS(BIT(NL80211_IFTYPE_AP))
 };
 
 static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
@@ -52,7 +59,13 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 		.num_different_channels = 2,
 		.max_interfaces = 3,
 		.limits = iwl_mvm_limits,
-		.n_limits = ARRAY_SIZE(iwl_mvm_limits),
+		.n_limits = ARRAY_SIZE(iwl_mvm_limits) - 1,
+	},
+	{
+		.num_different_channels = 1,
+		.max_interfaces = 3,
+		.limits = iwl_mvm_limits_ap,
+		.n_limits = ARRAY_SIZE(iwl_mvm_limits_ap) - 1,
 	},
 };
 
