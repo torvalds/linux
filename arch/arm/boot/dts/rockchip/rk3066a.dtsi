@@ -879,7 +879,3 @@
 &wdt {
 	compatible = "rockchip,rk3066-wdt", "snps,dw-wdt";
 };
-
-&emac {
-	compatible = "rockchip,rk3066-emac";
-};
