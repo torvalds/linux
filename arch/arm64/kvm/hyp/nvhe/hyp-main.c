@@ -23,20 +23,80 @@ DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 
 void __kvm_hyp_host_forward_smc(struct kvm_cpu_context *host_ctxt);
 
+static void __hyp_sve_save_guest(struct kvm_vcpu *vcpu)
+{
+	__vcpu_sys_reg(vcpu, ZCR_EL1) = read_sysreg_el1(SYS_ZCR);
+	/*
+	 * On saving/restoring guest sve state, always use the maximum VL for
+	 * the guest. The layout of the data when saving the sve state depends
+	 * on the VL, so use a consistent (i.e., the maximum) guest VL.
+	 */
+	sve_cond_update_zcr_vq(vcpu_sve_max_vq(vcpu) - 1, SYS_ZCR_EL2);
+	__sve_save_state(vcpu_sve_pffr(vcpu), &vcpu->arch.ctxt.fp_regs.fpsr, true);
+	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
+}
+
+static void __hyp_sve_restore_host(void)
+{
+	struct cpu_sve_state *sve_state = *host_data_ptr(sve_state);
+
+	/*
+	 * On saving/restoring host sve state, always use the maximum VL for
+	 * the host. The layout of the data when saving the sve state depends
+	 * on the VL, so use a consistent (i.e., the maximum) host VL.
+	 *
+	 * Setting ZCR_EL2 to ZCR_ELx_LEN_MASK sets the effective length
+	 * supported by the system (or limited at EL3).
+	 */
+	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
+	__sve_restore_state(sve_state->sve_regs + sve_ffr_offset(kvm_host_sve_max_vl),
+			    &sve_state->fpsr,
+			    true);
+	write_sysreg_el1(sve_state->zcr_el1, SYS_ZCR);
+}
+
+static void fpsimd_sve_flush(void)
+{
+	*host_data_ptr(fp_owner) = FP_STATE_HOST_OWNED;
+}
+
+static void fpsimd_sve_sync(struct kvm_vcpu *vcpu)
+{
+	if (!guest_owns_fp_regs())
+		return;
+
+	cpacr_clear_set(0, CPACR_ELx_FPEN | CPACR_ELx_ZEN);
+	isb();
+
+	if (vcpu_has_sve(vcpu))
+		__hyp_sve_save_guest(vcpu);
+	else
+		__fpsimd_save_state(&vcpu->arch.ctxt.fp_regs);
+
+	if (system_supports_sve())
+		__hyp_sve_restore_host();
+	else
+		__fpsimd_restore_state(*host_data_ptr(fpsimd_state));
+
+	*host_data_ptr(fp_owner) = FP_STATE_HOST_OWNED;
+}
+
 static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
 
+	fpsimd_sve_flush();
+
 	hyp_vcpu->vcpu.arch.ctxt	= host_vcpu->arch.ctxt;
 
 	hyp_vcpu->vcpu.arch.sve_state	= kern_hyp_va(host_vcpu->arch.sve_state);
-	hyp_vcpu->vcpu.arch.sve_max_vl	= host_vcpu->arch.sve_max_vl;
+	/* Limit guest vector length to the maximum supported by the host.  */
+	hyp_vcpu->vcpu.arch.sve_max_vl	= min(host_vcpu->arch.sve_max_vl, kvm_host_sve_max_vl);
 
 	hyp_vcpu->vcpu.arch.hw_mmu	= host_vcpu->arch.hw_mmu;
 
 	hyp_vcpu->vcpu.arch.hcr_el2	= host_vcpu->arch.hcr_el2;
 	hyp_vcpu->vcpu.arch.mdcr_el2	= host_vcpu->arch.mdcr_el2;
-	hyp_vcpu->vcpu.arch.cptr_el2	= host_vcpu->arch.cptr_el2;
 
 	hyp_vcpu->vcpu.arch.iflags	= host_vcpu->arch.iflags;
 
@@ -54,10 +114,11 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	struct vgic_v3_cpu_if *host_cpu_if = &host_vcpu->arch.vgic_cpu.vgic_v3;
 	unsigned int i;
 
+	fpsimd_sve_sync(&hyp_vcpu->vcpu);
+
 	host_vcpu->arch.ctxt		= hyp_vcpu->vcpu.arch.ctxt;
 
 	host_vcpu->arch.hcr_el2		= hyp_vcpu->vcpu.arch.hcr_el2;
-	host_vcpu->arch.cptr_el2	= hyp_vcpu->vcpu.arch.cptr_el2;
 
 	host_vcpu->arch.fault		= hyp_vcpu->vcpu.arch.fault;
 
@@ -78,6 +139,17 @@ static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 	if (unlikely(is_protected_kvm_enabled())) {
 		struct pkvm_hyp_vcpu *hyp_vcpu;
 		struct kvm *host_kvm;
+
+		/*
+		 * KVM (and pKVM) doesn't support SME guests for now, and
+		 * ensures that SME features aren't enabled in pstate when
+		 * loading a vcpu. Therefore, if SME features enabled the host
+		 * is misbehaving.
+		 */
+		if (unlikely(system_supports_sme() && read_sysreg_s(SYS_SVCR))) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		host_kvm = kern_hyp_va(host_vcpu->kvm);
 		hyp_vcpu = pkvm_load_hyp_vcpu(host_kvm->arch.pkvm.handle,
@@ -405,11 +477,7 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 		handle_host_smc(host_ctxt);
 		break;
 	case ESR_ELx_EC_SVE:
-		if (has_hvhe())
-			sysreg_clear_set(cpacr_el1, 0, (CPACR_EL1_ZEN_EL1EN |
-							CPACR_EL1_ZEN_EL0EN));
-		else
-			sysreg_clear_set(cptr_el2, CPTR_EL2_TZ, 0);
+		cpacr_clear_set(0, CPACR_ELx_ZEN);
 		isb();
 		sve_cond_update_zcr_vq(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
 		break;

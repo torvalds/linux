@@ -586,6 +586,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 			netdev_dbg(netdev, "tx ionic_xdp_post_frame err %d\n", err);
 			goto out_xdp_abort;
 		}
+		buf_info->page = NULL;
 		stats->xdp_tx++;
 
 		/* the Tx completion will free the buffers */
