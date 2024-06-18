@@ -17,6 +17,8 @@
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_trans.h"
+#include "xfs_trans_space.h"
+#include "xfs_bmap_btree.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
@@ -811,6 +813,7 @@ xfs_setattr_size(
 	struct xfs_trans	*tp;
 	int			error;
 	uint			lock_flags = 0;
+	uint			resblks = 0;
 	bool			did_zeroing = false;
 
 	xfs_assert_ilocked(ip, XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL);
@@ -917,7 +920,17 @@ xfs_setattr_size(
 			return error;
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	/*
+	 * For realtime inode with more than one block rtextsize, we need the
+	 * block reservation for bmap btree block allocations/splits that can
+	 * happen since it could split the tail written extent and convert the
+	 * right beyond EOF one to unwritten.
+	 */
+	if (xfs_inode_has_bigrtalloc(ip))
+		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, resblks,
+				0, 0, &tp);
 	if (error)
 		return error;
 
