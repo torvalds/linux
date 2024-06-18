@@ -483,6 +483,8 @@ struct static_key_false scx_has_op[SCX_OPI_END] =
 static atomic_t scx_exit_kind = ATOMIC_INIT(SCX_EXIT_DONE);
 static struct scx_exit_info *scx_exit_info;
 
+static atomic_long_t scx_nr_rejected = ATOMIC_LONG_INIT(0);
+
 /*
  * The maximum amount of time in jiffies that a task may be runnable without
  * being scheduled on a CPU. If this timeout is exceeded, it will trigger
@@ -2332,6 +2334,8 @@ static int scx_ops_init_task(struct task_struct *p, struct task_group *tg, bool 
 {
 	int ret;
 
+	p->scx.disallow = false;
+
 	if (SCX_HAS_OP(init_task)) {
 		struct scx_init_task_args args = {
 			.fork = fork,
@@ -2345,6 +2349,27 @@ static int scx_ops_init_task(struct task_struct *p, struct task_group *tg, bool 
 	}
 
 	scx_set_task_state(p, SCX_TASK_INIT);
+
+	if (p->scx.disallow) {
+		struct rq *rq;
+		struct rq_flags rf;
+
+		rq = task_rq_lock(p, &rf);
+
+		/*
+		 * We're either in fork or load path and @p->policy will be
+		 * applied right after. Reverting @p->policy here and rejecting
+		 * %SCHED_EXT transitions from scx_check_setscheduler()
+		 * guarantees that if ops.init_task() sets @p->disallow, @p can
+		 * never be in SCX.
+		 */
+		if (p->policy == SCHED_EXT) {
+			p->policy = SCHED_NORMAL;
+			atomic_long_inc(&scx_nr_rejected);
+		}
+
+		task_rq_unlock(rq, p, &rf);
+	}
 
 	p->scx.flags |= SCX_TASK_RESET_RUNNABLE_AT;
 	return 0;
@@ -2549,6 +2574,18 @@ static void switched_from_scx(struct rq *rq, struct task_struct *p)
 static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
 static void switched_to_scx(struct rq *rq, struct task_struct *p) {}
 
+int scx_check_setscheduler(struct task_struct *p, int policy)
+{
+	lockdep_assert_rq_held(task_rq(p));
+
+	/* if disallow, reject transitioning into SCX */
+	if (scx_enabled() && READ_ONCE(p->scx.disallow) &&
+	    p->policy != policy && policy == SCHED_EXT)
+		return -EACCES;
+
+	return 0;
+}
+
 /*
  * Omitted operations:
  *
@@ -2703,9 +2740,17 @@ static ssize_t scx_attr_switch_all_show(struct kobject *kobj,
 }
 SCX_ATTR(switch_all);
 
+static ssize_t scx_attr_nr_rejected_show(struct kobject *kobj,
+					 struct kobj_attribute *ka, char *buf)
+{
+	return sysfs_emit(buf, "%ld\n", atomic_long_read(&scx_nr_rejected));
+}
+SCX_ATTR(nr_rejected);
+
 static struct attribute *scx_global_attrs[] = {
 	&scx_attr_state.attr,
 	&scx_attr_switch_all.attr,
+	&scx_attr_nr_rejected.attr,
 	NULL,
 };
 
@@ -3178,6 +3223,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	atomic_set(&scx_exit_kind, SCX_EXIT_NONE);
 	scx_warned_zero_slice = false;
 
+	atomic_long_set(&scx_nr_rejected, 0);
+
 	/*
 	 * Keep CPUs stable during enable so that the BPF scheduler can track
 	 * online CPUs by watching ->on/offline_cpu() after ->init().
@@ -3475,6 +3522,9 @@ static int bpf_scx_btf_struct_access(struct bpf_verifier_log *log,
 	if (t == task_struct_type) {
 		if (off >= offsetof(struct task_struct, scx.slice) &&
 		    off + size <= offsetofend(struct task_struct, scx.slice))
+			return SCALAR_VALUE;
+		if (off >= offsetof(struct task_struct, scx.disallow) &&
+		    off + size <= offsetofend(struct task_struct, scx.disallow))
 			return SCALAR_VALUE;
 	}
 
