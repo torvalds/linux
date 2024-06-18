@@ -370,7 +370,9 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, enum nl80211_band band,
 		flags |= IEEE80211_CHAN_IR_CONCURRENT;
 
 	/* Set the AP type for the UHB case. */
-	if (!(nvm_flags & NVM_CHANNEL_VLP))
+	if (nvm_flags & NVM_CHANNEL_VLP)
+		flags |= IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP;
+	else
 		flags |= IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT;
 	if (!(nvm_flags & NVM_CHANNEL_AFC))
 		flags |= IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT;
@@ -1661,7 +1663,9 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 
 	/* Set the AP type for the UHB case. */
 	if (uats_enabled) {
-		if (!(nvm_flags & NVM_CHANNEL_VLP))
+		if (nvm_flags & NVM_CHANNEL_VLP)
+			flags |= NL80211_RRF_ALLOW_6GHZ_VLP_AP;
+		else
 			flags |= NL80211_RRF_NO_6GHZ_VLP_CLIENT;
 
 		if (!(nvm_flags & NVM_CHANNEL_AFC))
