@@ -246,9 +246,10 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * references: i.e., if used for a function, it would add the PLT
  * suffix.
  */
-#define alternative_call(oldfunc, newfunc, ft_flags, output, input...)	\
-	asm_inline volatile(ALTERNATIVE("call %c[old]", "call %c[new]", ft_flags) \
-		: output : [old] "i" (oldfunc), [new] "i" (newfunc), ## input)
+#define alternative_call(oldfunc, newfunc, ft_flags, output, input...)			\
+	asm_inline volatile(ALTERNATIVE("call %c[old]", "call %c[new]", ft_flags)	\
+		: ALT_OUTPUT_SP(output)							\
+		: [old] "i" (oldfunc), [new] "i" (newfunc), ## input)
 
 /*
  * Like alternative_call, but there are two features and respective functions.
@@ -260,7 +261,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 			   output, input...)						\
 	asm_inline volatile(ALTERNATIVE_2("call %c[old]", "call %c[new1]", ft_flags1,	\
 		"call %c[new2]", ft_flags2)						\
-		: output, ASM_CALL_CONSTRAINT						\
+		: ALT_OUTPUT_SP(output)							\
 		: [old] "i" (oldfunc), [new1] "i" (newfunc1),				\
 		  [new2] "i" (newfunc2), ## input)
 
@@ -275,6 +276,8 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * alternative_{input,io,call}()
  */
 #define ASM_NO_INPUT_CLOBBER(clbr...) "i" (0) : clbr
+
+#define ALT_OUTPUT_SP(...) ASM_CALL_CONSTRAINT, ## __VA_ARGS__
 
 /* Macro for creating assembler functions avoiding any C magic. */
 #define DEFINE_ASM_FUNC(func, instr, sec)		\
