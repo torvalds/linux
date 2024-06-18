@@ -28,6 +28,7 @@ extern crate self as kernel;
 
 pub mod alloc;
 mod build_assert;
+pub mod device;
 pub mod error;
 pub mod init;
 pub mod ioctl;
