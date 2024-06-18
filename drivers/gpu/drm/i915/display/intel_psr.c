@@ -1974,13 +1974,13 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	}
 
 	/* Disable PSR on Sink */
-	drm_dp_dpcd_writeb(&intel_dp->aux,
-			   intel_dp->psr.panel_replay_enabled ?
-			   PANEL_REPLAY_CONFIG : DP_PSR_EN_CFG, 0);
+	if (!intel_dp->psr.panel_replay_enabled) {
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
 
-	if (!intel_dp->psr.panel_replay_enabled &&
-	    intel_dp->psr.sel_update_enabled)
-		drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG, 0);
+		if (intel_dp->psr.sel_update_enabled)
+			drm_dp_dpcd_writeb(&intel_dp->aux,
+					   DP_RECEIVER_ALPM_CONFIG, 0);
+	}
 
 	intel_dp->psr.enabled = false;
 	intel_dp->psr.panel_replay_enabled = false;
