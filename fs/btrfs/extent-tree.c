@@ -139,7 +139,7 @@ search_again:
 	if (ret < 0)
 		goto out_free;
 
-	if (ret > 0 && metadata && key.type == BTRFS_METADATA_ITEM_KEY) {
+	if (ret > 0 && key.type == BTRFS_METADATA_ITEM_KEY) {
 		if (path->slots[0]) {
 			path->slots[0]--;
 			btrfs_item_key_to_cpu(path->nodes[0], &key,
