@@ -186,23 +186,11 @@ static struct damos *damon_lru_sort_new_cold_scheme(unsigned int cold_thres)
 	return damon_lru_sort_new_scheme(&pattern, DAMOS_LRU_DEPRIO);
 }
 
-static void damon_lru_sort_copy_quota_status(struct damos_quota *dst,
-		struct damos_quota *src)
-{
-	dst->total_charged_sz = src->total_charged_sz;
-	dst->total_charged_ns = src->total_charged_ns;
-	dst->charged_sz = src->charged_sz;
-	dst->charged_from = src->charged_from;
-	dst->charge_target_from = src->charge_target_from;
-	dst->charge_addr_from = src->charge_addr_from;
-}
-
 static int damon_lru_sort_apply_parameters(void)
 {
 	struct damon_ctx *param_ctx;
 	struct damon_target *param_target;
-	struct damos *scheme, *hot_scheme, *cold_scheme;
-	struct damos *old_hot_scheme = NULL, *old_cold_scheme = NULL;
+	struct damos *hot_scheme, *cold_scheme;
 	unsigned int hot_thres, cold_thres;
 	int err;
 
@@ -215,22 +203,11 @@ static int damon_lru_sort_apply_parameters(void)
 		goto out;
 
 	err = -ENOMEM;
-	damon_for_each_scheme(scheme, ctx) {
-		if (!old_hot_scheme) {
-			old_hot_scheme = scheme;
-			continue;
-		}
-		old_cold_scheme = scheme;
-	}
-
 	hot_thres = damon_max_nr_accesses(&damon_lru_sort_mon_attrs) *
 		hot_thres_access_freq / 1000;
 	hot_scheme = damon_lru_sort_new_hot_scheme(hot_thres);
 	if (!hot_scheme)
 		goto out;
-	if (old_hot_scheme)
-		damon_lru_sort_copy_quota_status(&hot_scheme->quota,
-				&old_hot_scheme->quota);
 
 	cold_thres = cold_min_age / damon_lru_sort_mon_attrs.aggr_interval;
 	cold_scheme = damon_lru_sort_new_cold_scheme(cold_thres);
@@ -238,9 +215,6 @@ static int damon_lru_sort_apply_parameters(void)
 		damon_destroy_scheme(hot_scheme);
 		goto out;
 	}
-	if (old_cold_scheme)
-		damon_lru_sort_copy_quota_status(&cold_scheme->quota,
-				&old_cold_scheme->quota);
 
 	damon_set_schemes(param_ctx, &hot_scheme, 1);
 	damon_add_scheme(param_ctx, cold_scheme);
