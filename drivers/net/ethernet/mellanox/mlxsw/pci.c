@@ -92,6 +92,9 @@ struct mlxsw_pci_queue {
 		struct {
 			struct tasklet_struct tasklet;
 		} eq;
+		struct {
+			struct mlxsw_pci_queue *cq;
+		} rdq;
 	} u;
 };
 
@@ -434,6 +437,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 
 	cq = mlxsw_pci_cq_get(mlxsw_pci, cq_num);
 	cq->u.cq.dq = q;
+	q->u.rdq.cq = cq;
 
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
 
@@ -455,6 +459,7 @@ rollback:
 		elem_info = mlxsw_pci_queue_elem_info_get(q, i);
 		mlxsw_pci_rdq_skb_free(mlxsw_pci, elem_info);
 	}
+	q->u.rdq.cq = NULL;
 	cq->u.cq.dq = NULL;
 	mlxsw_cmd_hw2sw_rdq(mlxsw_pci->core, q->num);
 
