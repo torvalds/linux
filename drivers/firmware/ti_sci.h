@@ -4,7 +4,7 @@
  *
  * Communication protocol with TI SCI hardware
  * The system works in a message response protocol
- * See: http://processors.wiki.ti.com/index.php/TISCI for details
+ * See: https://software-dl.ti.com/tisci/esd/latest/index.html for details
  *
  * Copyright (C)  2015-2016 Texas Instruments Incorporated - https://www.ti.com/
  */
