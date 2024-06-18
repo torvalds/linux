@@ -1875,10 +1875,10 @@ static inline u8 iwl_mvm_get_valid_tx_ant(struct iwl_mvm *mvm)
 
 static inline u8 iwl_mvm_get_valid_rx_ant(struct iwl_mvm *mvm)
 {
-	u8 rx_ant = mvm->fw->valid_tx_ant;
+	u8 rx_ant = mvm->fw->valid_rx_ant;
 
 	if (mvm->nvm_data && mvm->nvm_data->valid_rx_ant)
-		rx_ant &= mvm->nvm_data->valid_tx_ant;
+		rx_ant &= mvm->nvm_data->valid_rx_ant;
 
 	if (mvm->set_rx_ant)
 		rx_ant &= mvm->set_rx_ant;
