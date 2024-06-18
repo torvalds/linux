@@ -1003,9 +1003,6 @@ struct bfq_group {
 	/* must be the first member */
 	struct blkg_policy_data pd;
 
-	/* cached path for this blkg (see comments in bfq_bic_update_cgroup) */
-	char blkg_path[128];
-
 	/* reference counter (see comments in bfq_bic_update_cgroup) */
 	refcount_t ref;
 
