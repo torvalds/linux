@@ -1649,7 +1649,7 @@ static void rcu_sr_normal_gp_cleanup_work(struct work_struct *work)
 	 * the done tail list manipulations are protected here.
 	 */
 	done = smp_load_acquire(&rcu_state.srs_done_tail);
-	if (!done)
+	if (WARN_ON_ONCE(!done))
 		return;
 
 	WARN_ON_ONCE(!rcu_sr_is_wait_head(done));
