@@ -16,6 +16,7 @@ enum scx_public_consts {
 	SCX_OPS_NAME_LEN	= 128,
 
 	SCX_SLICE_DFL		= 20 * 1000000,	/* 20ms */
+	SCX_SLICE_INF		= U64_MAX,	/* infinite, implies nohz */
 };
 
 /*

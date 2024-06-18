@@ -727,6 +727,7 @@ struct cfs_rq {
 /* scx_rq->flags, protected by the rq lock */
 enum scx_rq_flags {
 	SCX_RQ_BALANCING	= 1 << 1,
+	SCX_RQ_CAN_STOP_TICK	= 1 << 2,
 };
 
 struct scx_rq {
