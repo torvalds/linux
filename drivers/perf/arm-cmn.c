@@ -174,9 +174,8 @@
 #define CMN_CONFIG_WP_COMBINE		GENMASK_ULL(30, 27)
 #define CMN_CONFIG_WP_DEV_SEL		GENMASK_ULL(50, 48)
 #define CMN_CONFIG_WP_CHN_SEL		GENMASK_ULL(55, 51)
-/* Note that we don't yet support the tertiary match group on newer IPs */
-#define CMN_CONFIG_WP_GRP		BIT_ULL(56)
-#define CMN_CONFIG_WP_EXCLUSIVE		BIT_ULL(57)
+#define CMN_CONFIG_WP_GRP		GENMASK_ULL(57, 56)
+#define CMN_CONFIG_WP_EXCLUSIVE		BIT_ULL(58)
 #define CMN_CONFIG1_WP_VAL		GENMASK_ULL(63, 0)
 #define CMN_CONFIG2_WP_MASK		GENMASK_ULL(63, 0)
 
@@ -1384,7 +1383,7 @@ static void arm_cmn_claim_wp_idx(struct arm_cmn_dtm *dtm,
 	arm_cmn_set_wp_idx(hw->wp_idx, pos, wp_idx - CMN_EVENT_EVENTID(event));
 }
 
-static u32 arm_cmn_wp_config(struct perf_event *event)
+static u32 arm_cmn_wp_config(struct perf_event *event, int wp_idx)
 {
 	u32 config;
 	u32 dev = CMN_EVENT_WP_DEV_SEL(event);
@@ -1394,6 +1393,10 @@ static u32 arm_cmn_wp_config(struct perf_event *event)
 	u32 combine = CMN_EVENT_WP_COMBINE(event);
 	bool is_cmn600 = to_cmn(event->pmu)->part == PART_CMN600;
 
+	/* CMN-600 supports only primary and secondary matching groups */
+	if (is_cmn600)
+		grp &= 1;
+
 	config = FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_DEV_SEL, dev) |
 		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_CHN_SEL, chn) |
 		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_GRP, grp) |
@@ -1401,7 +1404,9 @@ static u32 arm_cmn_wp_config(struct perf_event *event)
 	if (exc)
 		config |= is_cmn600 ? CMN600_WPn_CONFIG_WP_EXCLUSIVE :
 				      CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE;
-	if (combine && !grp)
+
+	/*  wp_combine is available only on WP0 and WP2 */
+	if (combine && !(wp_idx & 0x1))
 		config |= is_cmn600 ? CMN600_WPn_CONFIG_WP_COMBINE :
 				      CMN_DTM_WPn_CONFIG_WP_COMBINE;
 	return config;
@@ -1898,11 +1903,13 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 			input_sel = CMN__PMEVCNT0_INPUT_SEL_XP + dtm_idx;
 		} else if (type == CMN_TYPE_WP) {
 			int tmp, wp_idx;
-			u32 cfg = arm_cmn_wp_config(event);
+			u32 cfg;
 
 			wp_idx = arm_cmn_find_free_wp_idx(dtm, event);
 			if (wp_idx < 0)
 				goto free_dtms;
+
+			cfg = arm_cmn_wp_config(event, wp_idx);
 
 			tmp = dtm->wp_event[wp_idx ^ 1];
 			if (tmp >= 0 && CMN_EVENT_WP_COMBINE(event) !=
