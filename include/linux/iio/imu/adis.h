@@ -407,16 +407,6 @@ static inline int adis_check_status(struct adis *adis)
 #define adis_dev_auto_scoped_lock(adis) \
 	scoped_guard(mutex, &(adis)->state_lock)
 
-static inline void adis_dev_lock(struct adis *adis)
-{
-	mutex_lock(&adis->state_lock);
-}
-
-static inline void adis_dev_unlock(struct adis *adis)
-{
-	mutex_unlock(&adis->state_lock);
-}
-
 int adis_single_conversion(struct iio_dev *indio_dev,
 			   const struct iio_chan_spec *chan,
 			   unsigned int error_mask, int *val);
