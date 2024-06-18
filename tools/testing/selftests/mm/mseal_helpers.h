@@ -18,7 +18,7 @@
 		}							\
 	} while (0)
 
-#define TEST_END_CHECK() ksft_test_result_pass("%s\n", __func__)
+#define REPORT_TEST_PASS() ksft_test_result_pass("%s\n", __func__)
 
 #ifndef PKEY_DISABLE_ACCESS
 #define PKEY_DISABLE_ACCESS	0x1

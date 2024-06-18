@@ -127,7 +127,7 @@ static void test_seal_elf(void)
 	FAIL_TEST_IF_FALSE(ret < 0);
 	ksft_print_msg("somestr is sealed, mprotect is rejected\n");
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 int main(int argc, char **argv)
