@@ -90,7 +90,6 @@ struct expr *expr_copy(const struct expr *org)
 		break;
 	case E_AND:
 	case E_OR:
-	case E_LIST:
 		e->left.expr = expr_copy(org->left.expr);
 		e->right.expr = expr_copy(org->right.expr);
 		break;
@@ -286,7 +285,6 @@ int expr_eq(struct expr *e1, struct expr *e2)
 		expr_free(e2);
 		trans_count = old_count;
 		return res;
-	case E_LIST:
 	case E_RANGE:
 	case E_NONE:
 		/* panic */;
@@ -676,7 +674,6 @@ struct expr *expr_transform(struct expr *e)
 	case E_LTH:
 	case E_UNEQUAL:
 	case E_SYMBOL:
-	case E_LIST:
 		break;
 	default:
 		e->left.expr = expr_transform(e->left.expr);
@@ -947,7 +944,6 @@ struct expr *expr_trans_compare(struct expr *e, enum expr_type type, struct symb
 		break;
 	case E_SYMBOL:
 		return expr_alloc_comp(type, e->left.sym, sym);
-	case E_LIST:
 	case E_RANGE:
 	case E_NONE:
 		/* panic */;
@@ -1097,10 +1093,6 @@ static int expr_compare_type(enum expr_type t1, enum expr_type t2)
 		if (t2 == E_OR)
 			return 1;
 		/* fallthrough */
-	case E_OR:
-		if (t2 == E_LIST)
-			return 1;
-		/* fallthrough */
 	default:
 		break;
 	}
@@ -1172,13 +1164,6 @@ void expr_print(struct expr *e,
 		expr_print(e->left.expr, fn, data, E_AND);
 		fn(data, NULL, " && ");
 		expr_print(e->right.expr, fn, data, E_AND);
-		break;
-	case E_LIST:
-		fn(data, e->right.sym, e->right.sym->name);
-		if (e->left.expr) {
-			fn(data, NULL, " ^ ");
-			expr_print(e->left.expr, fn, data, E_LIST);
-		}
 		break;
 	case E_RANGE:
 		fn(data, NULL, "[");

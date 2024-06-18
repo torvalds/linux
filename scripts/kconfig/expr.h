@@ -26,7 +26,7 @@ typedef enum tristate {
 enum expr_type {
 	E_NONE, E_OR, E_AND, E_NOT,
 	E_EQUAL, E_UNEQUAL, E_LTH, E_LEQ, E_GTH, E_GEQ,
-	E_LIST, E_SYMBOL, E_RANGE
+	E_SYMBOL, E_RANGE
 };
 
 union expr_data {

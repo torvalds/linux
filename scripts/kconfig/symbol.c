@@ -1316,8 +1316,7 @@ struct symbol *sym_check_deps(struct symbol *sym)
 
 struct symbol *prop_get_symbol(struct property *prop)
 {
-	if (prop->expr && (prop->expr->type == E_SYMBOL ||
-			   prop->expr->type == E_LIST))
+	if (prop->expr && prop->expr->type == E_SYMBOL)
 		return prop->expr->left.sym;
 	return NULL;
 }
