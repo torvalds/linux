@@ -464,10 +464,6 @@ static uint64_t gmc_v12_0_map_mtype(struct amdgpu_device *adev, uint32_t flags)
 		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
 	case AMDGPU_VM_MTYPE_NC:
 		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
-	case AMDGPU_VM_MTYPE_WC:
-		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_WC);
-	case AMDGPU_VM_MTYPE_CC:
-		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_CC);
 	case AMDGPU_VM_MTYPE_UC:
 		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_UC);
 	default:
