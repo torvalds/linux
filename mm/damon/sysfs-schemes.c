@@ -1983,10 +1983,13 @@ int damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
 		struct damon_ctx *ctx)
 {
 	struct damos *scheme;
+	struct damos_quota quota = {};
 	int i = 0;
 
+	INIT_LIST_HEAD(&quota.goals);
 	damon_for_each_scheme(scheme, ctx) {
 		struct damon_sysfs_scheme *sysfs_scheme;
+		struct damos_quota_goal *g, *g_next;
 		int err;
 
 		/* user could have removed the scheme sysfs dir */
@@ -1995,9 +1998,16 @@ int damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
 
 		sysfs_scheme = sysfs_schemes->schemes_arr[i];
 		err = damos_sysfs_set_quota_score(sysfs_scheme->quotas->goals,
-				&scheme->quota);
+				&quota);
+		if (err) {
+			damos_for_each_quota_goal_safe(g, g_next, &quota)
+				damos_destroy_quota_goal(g);
+			return err;
+		}
+		err = damos_commit_quota_goals(&scheme->quota, &quota);
+		damos_for_each_quota_goal_safe(g, g_next, &quota)
+			damos_destroy_quota_goal(g);
 		if (err)
-			/* kdamond will clean up schemes and terminated */
 			return err;
 		i++;
 	}
