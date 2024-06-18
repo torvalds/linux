@@ -1280,9 +1280,13 @@ out:
 		if (menu->sym)
 			menu->sym->flags &= ~SYMBOL_CHECK;
 
-	if (sym2 && sym_is_choice_value(sym2) &&
-	    prop_get_symbol(sym_get_choice_prop(sym2)) == choice)
-		sym2 = choice;
+	if (sym2) {
+		struct menu *choice_menu2;
+
+		choice_menu2 = sym_get_choice_menu(sym2);
+		if (choice_menu2 == choice_menu)
+			sym2 = choice;
+	}
 
 	dep_stack_remove();
 
