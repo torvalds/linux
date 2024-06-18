@@ -164,9 +164,16 @@ search_again:
 
 		ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 		num_refs = btrfs_extent_refs(leaf, ei);
+		if (unlikely(num_refs == 0)) {
+			ret = -EUCLEAN;
+			btrfs_err(fs_info,
+		"unexpected zero reference count for extent item (%llu %u %llu)",
+				  key.objectid, key.type, key.offset);
+			btrfs_abort_transaction(trans, ret);
+			goto out_free;
+		}
 		extent_flags = btrfs_extent_flags(leaf, ei);
 		owner = btrfs_get_extent_owner_root(fs_info, leaf, path->slots[0]);
-		BUG_ON(num_refs == 0);
 	} else {
 		num_refs = 0;
 		extent_flags = 0;
@@ -193,10 +200,19 @@ search_again:
 			goto search_again;
 		}
 		spin_lock(&head->lock);
-		if (head->extent_op && head->extent_op->update_flags)
+		if (head->extent_op && head->extent_op->update_flags) {
 			extent_flags |= head->extent_op->flags_to_set;
-		else
-			BUG_ON(num_refs == 0);
+		} else if (unlikely(num_refs == 0)) {
+			spin_unlock(&head->lock);
+			mutex_unlock(&head->mutex);
+			spin_unlock(&delayed_refs->lock);
+			ret = -EUCLEAN;
+			btrfs_err(fs_info,
+			  "unexpected zero reference count for extent %llu (%s)",
+				  bytenr, metadata ? "metadata" : "data");
+			btrfs_abort_transaction(trans, ret);
+			goto out_free;
+		}
 
 		num_refs += head->ref_mod;
 		spin_unlock(&head->lock);
