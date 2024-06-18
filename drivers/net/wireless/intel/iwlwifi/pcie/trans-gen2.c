@@ -339,7 +339,7 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 	pos += scnprintf(buf + pos, buflen - pos, "\n");
 }
 
-void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
+void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 

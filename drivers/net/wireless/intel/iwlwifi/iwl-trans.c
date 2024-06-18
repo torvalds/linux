@@ -359,7 +359,7 @@ void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	trans->state = IWL_TRANS_FW_ALIVE;
 
 	if (trans->trans_cfg->gen2)
-		iwl_trans_pcie_gen2_fw_alive(trans, scd_addr);
+		iwl_trans_pcie_gen2_fw_alive(trans);
 	else
 		iwl_trans_pcie_fw_alive(trans, scd_addr);
 }
