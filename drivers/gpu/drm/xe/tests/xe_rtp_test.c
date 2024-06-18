@@ -255,9 +255,14 @@ static void xe_rtp_process_tests(struct kunit *test)
 	}
 
 	KUNIT_EXPECT_EQ(test, count, param->expected_count);
-	KUNIT_EXPECT_EQ(test, sr_entry->clr_bits, param->expected_clr_bits);
-	KUNIT_EXPECT_EQ(test, sr_entry->set_bits, param->expected_set_bits);
-	KUNIT_EXPECT_EQ(test, sr_entry->reg.raw, param->expected_reg.raw);
+	if (count) {
+		KUNIT_EXPECT_EQ(test, sr_entry->clr_bits, param->expected_clr_bits);
+		KUNIT_EXPECT_EQ(test, sr_entry->set_bits, param->expected_set_bits);
+		KUNIT_EXPECT_EQ(test, sr_entry->reg.raw, param->expected_reg.raw);
+	} else {
+		KUNIT_EXPECT_NULL(test, sr_entry);
+	}
+
 	KUNIT_EXPECT_EQ(test, reg_sr->errors, param->expected_sr_errors);
 }
 
