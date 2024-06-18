@@ -580,6 +580,7 @@ struct dwc3_msm {
 	bool			host_poweroff_in_pm_suspend;
 	bool			disable_host_ssphy_powerdown;
 	bool			hibernate_skip_thaw;
+	bool			enable_host_slow_suspend;
 	unsigned long		lpm_flags;
 	unsigned int		vbus_draw;
 #define MDWC3_SS_PHY_SUSPEND		BIT(0)
@@ -6139,6 +6140,8 @@ static int dwc3_msm_parse_params(struct dwc3_msm *mdwc, struct device_node *node
 
 	mdwc->hibernate_skip_thaw = of_property_read_bool(node,
 					"qcom,hibernate-skip-thaw");
+	mdwc->enable_host_slow_suspend = of_property_read_bool(node,
+				"qcom,enable_host_slow_suspend");
 
 	mdwc->dis_sending_cm_l1_quirk = of_property_read_bool(node,
 				"qcom,dis-sending-cm-l1-quirk");
@@ -6689,6 +6692,17 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 	struct dwc3_msm *mdwc = container_of(nb, struct dwc3_msm, host_nb);
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 	struct usb_device *udev = ptr;
+
+	if (event == USB_BUS_ADD && mdwc->enable_host_slow_suspend) {
+		struct usb_bus *ubus = ptr;
+		struct usb_hcd *hcd = bus_to_hcd(ubus);
+		struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+		if (usb_hcd_is_primary_hcd(hcd)) {
+			dev_dbg(ubus->controller, "enable slow suspend\n");
+			xhci->quirks |= XHCI_SLOW_SUSPEND;
+		}
+	}
 
 	if (event != USB_DEVICE_ADD && event != USB_DEVICE_REMOVE)
 		return NOTIFY_DONE;
