@@ -7984,6 +7984,8 @@ int sched_cpu_activate(unsigned int cpu)
 		cpuset_cpu_active();
 	}
 
+	scx_rq_activate(rq);
+
 	/*
 	 * Put the rq online, if not already. This happens:
 	 *
@@ -8043,6 +8045,8 @@ int sched_cpu_deactivate(unsigned int cpu)
 		set_rq_offline(rq);
 	}
 	rq_unlock_irqrestore(rq, &rf);
+
+	scx_rq_deactivate(rq);
 
 #ifdef CONFIG_SCHED_SMT
 	/*

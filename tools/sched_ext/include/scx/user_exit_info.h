@@ -77,7 +77,35 @@ struct user_exit_info {
 	if (__uei->msg[0] != '\0')						\
 		fprintf(stderr, " (%s)", __uei->msg);				\
 	fputs("\n", stderr);							\
+	__uei->exit_code;							\
 })
+
+/*
+ * We can't import vmlinux.h while compiling user C code. Let's duplicate
+ * scx_exit_code definition.
+ */
+enum scx_exit_code {
+	/* Reasons */
+	SCX_ECODE_RSN_HOTPLUG		= 1LLU << 32,
+
+	/* Actions */
+	SCX_ECODE_ACT_RESTART		= 1LLU << 48,
+};
+
+enum uei_ecode_mask {
+	UEI_ECODE_USER_MASK		= ((1LLU << 32) - 1),
+	UEI_ECODE_SYS_RSN_MASK		= ((1LLU << 16) - 1) << 32,
+	UEI_ECODE_SYS_ACT_MASK		= ((1LLU << 16) - 1) << 48,
+};
+
+/*
+ * These macro interpret the ecode returned from UEI_REPORT().
+ */
+#define UEI_ECODE_USER(__ecode)		((__ecode) & UEI_ECODE_USER_MASK)
+#define UEI_ECODE_SYS_RSN(__ecode)	((__ecode) & UEI_ECODE_SYS_RSN_MASK)
+#define UEI_ECODE_SYS_ACT(__ecode)	((__ecode) & UEI_ECODE_SYS_ACT_MASK)
+
+#define UEI_ECODE_RESTART(__ecode)	(UEI_ECODE_SYS_ACT((__ecode)) == SCX_ECODE_ACT_RESTART)
 
 #endif	/* __bpf__ */
 #endif	/* __USER_EXIT_INFO_H */
