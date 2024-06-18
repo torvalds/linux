@@ -10767,8 +10767,10 @@ F:	drivers/auxdisplay/img-ascii-lcd.c
 
 IMGTEC JPEG ENCODER DRIVER
 M:	Devarsh Thakkar <devarsht@ti.com>
+L:	linux-media@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/media/img,e5010-jpeg-enc.yaml
+F:	drivers/media/platform/imagination/e5010*
 
 IMGTEC IR DECODER DRIVER
 S:	Orphan
