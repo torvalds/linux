@@ -656,9 +656,13 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_heci_gsc_init(xe);
 
-	err = xe_display_init(xe);
+	err = xe_oa_init(xe);
 	if (err)
 		goto err_fini_gt;
+
+	err = xe_display_init(xe);
+	if (err)
+		goto err_fini_oa;
 
 	err = drm_dev_register(&xe->drm, 0);
 	if (err)
@@ -674,6 +678,9 @@ int xe_device_probe(struct xe_device *xe)
 
 err_fini_display:
 	xe_display_driver_remove(xe);
+
+err_fini_oa:
+	xe_oa_fini(xe);
 
 err_fini_gt:
 	for_each_gt(gt, xe, id) {
@@ -706,6 +713,8 @@ void xe_device_remove(struct xe_device *xe)
 	xe_device_remove_display(xe);
 
 	xe_display_fini(xe);
+
+	xe_oa_fini(xe);
 
 	xe_heci_gsc_fini(xe);
 

@@ -1436,6 +1436,25 @@ enum drm_xe_perf_ioctls {
 	DRM_XE_PERF_IOCTL_INFO = _IO('i', 0x4),
 };
 
+/**
+ * enum drm_xe_oa_format_type - OA format types as specified in PRM/Bspec
+ * 52198/60942
+ */
+enum drm_xe_oa_format_type {
+	/** @DRM_XE_OA_FMT_TYPE_OAG: OAG report format */
+	DRM_XE_OA_FMT_TYPE_OAG,
+	/** @DRM_XE_OA_FMT_TYPE_OAR: OAR report format */
+	DRM_XE_OA_FMT_TYPE_OAR,
+	/** @DRM_XE_OA_FMT_TYPE_OAM: OAM report format */
+	DRM_XE_OA_FMT_TYPE_OAM,
+	/** @DRM_XE_OA_FMT_TYPE_OAC: OAC report format */
+	DRM_XE_OA_FMT_TYPE_OAC,
+	/** @DRM_XE_OA_FMT_TYPE_OAM_MPEC: OAM SAMEDIA or OAM MPEC report format */
+	DRM_XE_OA_FMT_TYPE_OAM_MPEC,
+	/** @DRM_XE_OA_FMT_TYPE_PEC: PEC report format */
+	DRM_XE_OA_FMT_TYPE_PEC,
+};
+
 #if defined(__cplusplus)
 }
 #endif
